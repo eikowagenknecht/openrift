@@ -3,7 +3,12 @@ node_modules/
 
 # Build output
 dist/
+dist-ssr/
 out/
+
+# Turbo
+.turbo
+.cache
 
 # Environment
 .env
