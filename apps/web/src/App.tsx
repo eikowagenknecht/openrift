@@ -3,7 +3,7 @@ function App() {
     <div>
       <h1>Riftbound</h1>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
