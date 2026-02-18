@@ -11,32 +11,47 @@ This is the foundation for a future collection tracker. Get the card grid, filte
 ## Monorepo Structure
 
 ```
-riftbound/
+openrift/
 ├── apps/
 │   ├── web/              → Vite + React + Tailwind CSS + shadcn/ui
-│   └── mobile/           → Expo + React Native + Uniwind + React Native Reusables
+│   └── mobile/           → Expo + React Native + Uniwind + React Native Reusables (future)
 ├── packages/
 │   └── shared/           → Card types, Zod schemas, filter logic, card data JSON
 ├── scripts/
 │   └── fetch-cards.ts    → One-time Riot API fetch script (see below)
+├── docs/
+│   └── init/             → Design docs (this file, architecture.md, progress.md)
 ├── turbo.json
 ├── package.json
-└── pnpm-workspace.yaml
+├── pnpm-workspace.yaml
+├── lefthook.yml          → Git hooks config
+├── commitlint.config.ts  → Conventional commit enforcement
+├── .oxlintrc.json        → Linter config
+└── .oxfmtrc.json         → Formatter config
 ```
 
-Use **pnpm** as the package manager. Use **Turborepo** for monorepo orchestration.
+Use **pnpm** (v10) as the package manager. Use **Turborepo** for monorepo orchestration.
 
 ---
 
 ## Tech Stack
 
 ### Web (`apps/web`)
-- **Vite** + **React 19** + **TypeScript**
+- **Vite 7** + **React 19** + **TypeScript 5.9** + **SWC**
 - **Tailwind CSS v4** for styling
 - **shadcn/ui** for component primitives (combobox, input, sheet, badge, toggle group)
 - **TanStack Virtual** for virtualizing the card grid (the card list can be 500+ items)
 - **nuqs** for URL-synced filter state (so filters are bookmarkable/shareable)
 - React Router (or just hash-based routing — the app is a single page for now)
+- Deployed to **Cloudflare Workers** (static assets mode) at `openrift.eikowagenknecht.com`
+
+### Tooling (repo-wide)
+- **oxlint** — primary linter (Rust, fast), replaces ESLint for all general linting
+- **oxfmt** — primary formatter (Rust, fast), with import sorting enabled
+- **ESLint** — used ONLY for the `react-compiler` plugin (oxlint can't do this yet)
+- **lefthook** — git hooks: pre-commit runs typecheck, oxlint, eslint, oxfmt; commit-msg runs commitlint
+- **commitlint** — enforces conventional commit format
+- **Dependabot** — weekly grouped dependency update PRs, all versions pinned
 
 ### Mobile (`apps/mobile`)
 - **Expo** (SDK 53+) with **Expo Router**
@@ -59,7 +74,11 @@ Use **pnpm** as the package manager. Use **Turborepo** for monorepo orchestratio
 
 ## Card Data
 
-### Source: Riot API `riftbound-content-v1`
+### Source: Riot API `riftbound-content-v1` (access pending)
+
+> **Note:** We applied for Riftbound API access via the Riot Developer Portal. Standard dev keys
+> return 403 — a registered product key is required. The structure below is from Riot's
+> documentation and is unverified. Types and schemas will be adjusted once we have real API access.
 
 The official Riot API has a single endpoint that returns all card data:
 
@@ -139,6 +158,9 @@ Card images are hotlinked directly from the URLs provided by the Riot API (store
 ---
 
 ## Shared Package (`packages/shared`)
+
+> **Note:** These types are based on Riot's documented API format and may need adjustment
+> once we have actual API access. Build against these for now.
 
 ### Types (`packages/shared/src/types.ts`)
 
@@ -336,7 +358,7 @@ Layout:
 - ❌ Card variants (foil, alt art, signatures, promos, overnumbered)
 - ❌ PWA features (service worker, offline mode)
 - ❌ Internationalization
-- ❌ Docker / deployment config
+- ❌ Docker / self-hosted deployment (Cloudflare Workers deployment IS in scope)
 
 ---
 
@@ -346,7 +368,7 @@ The developer should be able to:
 
 ```bash
 git clone <repo>
-cd riftbound
+cd openrift
 pnpm install
 
 # Generate card data (if they have an API key)
@@ -359,9 +381,14 @@ pnpm run dev:web        # → http://localhost:5173
 
 # Start mobile
 pnpm run dev:mobile     # → Expo dev server
+
+# Lint & format
+pnpm run lint           # runs oxlint + oxfmt check
+pnpm run format         # runs oxfmt (auto-fix)
 ```
 
-Turborepo should build `packages/shared` before either app.
+Turborepo builds `packages/shared` before either app (configured via `dependsOn: ["^build"]`).
+Git hooks via lefthook enforce typecheck, linting, formatting, and conventional commits on every commit.
 
 ---
 
@@ -369,6 +396,8 @@ Turborepo should build `packages/shared` before either app.
 
 - TypeScript strict mode, no `any` types
 - All shared code has Zod validation
+- oxlint (correctness + suspicious = error, pedantic + style = warn) and oxfmt enforced via pre-commit hooks
+- React Compiler violations caught by eslint-plugin-react-compiler (error level)
 - Web app scores 90+ on Lighthouse (performance, accessibility)
 - Mobile app scrolls at 60fps with 500+ cards in the grid
 - Both apps render identically (same filters, same sort, same card detail info)
