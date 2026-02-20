@@ -1,6 +1,4 @@
 import type { Card } from "@openrift/shared";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useRef } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 
@@ -13,22 +11,6 @@ interface CardGridProps {
 
 export function CardGrid({ cards, onCardClick }: CardGridProps) {
   const { containerRef, columns } = useResponsiveColumns();
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const rows = useMemo(() => {
-    const result: Card[][] = [];
-    for (let i = 0; i < cards.length; i += columns) {
-      result.push(cards.slice(i, i + columns));
-    }
-    return result;
-  }, [cards, columns]);
-
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 320,
-    overscan: 3,
-  });
 
   if (cards.length === 0) {
     return (
@@ -40,30 +22,14 @@ export function CardGrid({ cards, onCardClick }: CardGridProps) {
   }
 
   return (
-    <div ref={containerRef}>
-      <div ref={scrollRef} className="h-[calc(100vh-280px)] overflow-y-auto">
-        <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
-          {virtualizer.getVirtualItems().map((virtualRow) => (
-            <div
-              key={virtualRow.key}
-              className="absolute left-0 top-0 w-full"
-              style={{
-                height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              <div
-                className="grid gap-4 pb-4"
-                style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-              >
-                {rows[virtualRow.index]?.map((card) => (
-                  <CardThumbnail key={card.id} card={card} onClick={onCardClick} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div
+      ref={containerRef}
+      className="grid gap-4"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {cards.map((card) => (
+        <CardThumbnail key={card.id} card={card} onClick={onCardClick} />
+      ))}
     </div>
   );
 }
