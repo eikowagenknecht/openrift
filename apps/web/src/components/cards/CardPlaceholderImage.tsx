@@ -7,14 +7,17 @@ const rarityColors: Record<Rarity, string> = {
   Uncommon: "bg-green-600 dark:bg-green-700",
   Rare: "bg-blue-500 dark:bg-blue-600",
   Epic: "bg-purple-500 dark:bg-purple-600",
-  Legendary: "bg-amber-500 dark:bg-amber-600",
+  Overnumbered: "bg-amber-500 dark:bg-amber-600",
 };
 
 const typeIcons: Record<CardType, string> = {
   Champion: "\u2694",
+  Legend: "\u2605",
   Unit: "\u2666",
+  Rune: "\u25C6",
   Spell: "\u2728",
-  Landmark: "\u26EA",
+  Gear: "\u2699",
+  Battlefield: "\u26EA",
 };
 
 interface CardPlaceholderImageProps {

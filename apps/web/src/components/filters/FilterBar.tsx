@@ -20,11 +20,11 @@ interface FilterBarProps {
     sets: string[];
     rarities: string[];
     types: string[];
-    factions: string[];
+    domains: string[];
   };
   sortBy: SortOption;
   onSearchChange: (search: string) => void;
-  onToggleFilter: (key: "sets" | "rarities" | "types" | "factions", value: string) => void;
+  onToggleFilter: (key: "sets" | "rarities" | "types" | "domains", value: string) => void;
   onSortChange: (sort: SortOption) => void;
 }
 
@@ -98,10 +98,10 @@ export function FilterBar({
           onToggle={(v) => onToggleFilter("types", v)}
         />
         <FilterSection
-          label="Faction"
-          options={availableFilters.factions}
-          selected={filterState.factions}
-          onToggle={(v) => onToggleFilter("factions", v)}
+          label="Domain"
+          options={availableFilters.domains}
+          selected={filterState.domains}
+          onToggle={(v) => onToggleFilter("domains", v)}
         />
       </div>
     </div>

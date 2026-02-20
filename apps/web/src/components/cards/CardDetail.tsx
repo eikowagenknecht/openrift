@@ -29,7 +29,7 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
         <SheetHeader>
           <SheetTitle>{card.name}</SheetTitle>
           <SheetDescription>
-            {card.type} &middot; {card.rarity} &middot; {card.faction}
+            {card.type} &middot; {card.rarity} &middot; {card.domain}
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-4">

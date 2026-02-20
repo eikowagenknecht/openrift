@@ -9,12 +9,12 @@ interface ActiveFiltersProps {
     sets: string[];
     rarities: string[];
     types: string[];
-    factions: string[];
+    domains: string[];
   };
   hasActiveFilters: boolean;
   totalCards: number;
   filteredCount: number;
-  onToggleFilter: (key: "sets" | "rarities" | "types" | "factions", value: string) => void;
+  onToggleFilter: (key: "sets" | "rarities" | "types" | "domains", value: string) => void;
   onClearAll: () => void;
   onClearSearch: () => void;
 }
@@ -32,11 +32,11 @@ export function ActiveFilters({
     return null;
   }
 
-  const allFilters: { key: "sets" | "rarities" | "types" | "factions"; value: string }[] = [
+  const allFilters: { key: "sets" | "rarities" | "types" | "domains"; value: string }[] = [
     ...filterState.sets.map((v) => ({ key: "sets" as const, value: v })),
     ...filterState.rarities.map((v) => ({ key: "rarities" as const, value: v })),
     ...filterState.types.map((v) => ({ key: "types" as const, value: v })),
-    ...filterState.factions.map((v) => ({ key: "factions" as const, value: v })),
+    ...filterState.domains.map((v) => ({ key: "domains" as const, value: v })),
   ];
 
   return (

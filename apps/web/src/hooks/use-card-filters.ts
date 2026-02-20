@@ -7,7 +7,7 @@ const filterParsers = {
   sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
   rarities: parseAsArrayOf(parseAsString, ",").withDefault([]),
   types: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  factions: parseAsArrayOf(parseAsString, ",").withDefault([]),
+  domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
   sort: parseAsString.withDefault("name"),
 };
 
@@ -22,7 +22,7 @@ export function useCardFilters() {
       sets: filterState.sets,
       rarities: filterState.rarities as Rarity[],
       types: filterState.types as CardType[],
-      factions: filterState.factions,
+      domains: filterState.domains,
       costMin: null,
       costMax: null,
     }),
@@ -36,7 +36,7 @@ export function useCardFilters() {
     filterState.sets.length > 0 ||
     filterState.rarities.length > 0 ||
     filterState.types.length > 0 ||
-    filterState.factions.length > 0;
+    filterState.domains.length > 0;
 
   const clearAllFilters = () => {
     void setFilterState({
@@ -44,7 +44,7 @@ export function useCardFilters() {
       sets: null,
       rarities: null,
       types: null,
-      factions: null,
+      domains: null,
       sort: null,
     });
   };
@@ -53,7 +53,7 @@ export function useCardFilters() {
     void setFilterState({ search: search || null });
   };
 
-  const toggleArrayFilter = (key: "sets" | "rarities" | "types" | "factions", value: string) => {
+  const toggleArrayFilter = (key: "sets" | "rarities" | "types" | "domains", value: string) => {
     const current = filterState[key];
     const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
     void setFilterState({ [key]: next.length > 0 ? next : null });

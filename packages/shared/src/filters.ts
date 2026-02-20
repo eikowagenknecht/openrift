@@ -15,7 +15,7 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.types.length > 0 && !filters.types.includes(card.type)) {
       return false;
     }
-    if (filters.factions.length > 0 && !filters.factions.includes(card.faction)) {
+    if (filters.domains.length > 0 && !filters.domains.includes(card.domain)) {
       return false;
     }
     if (filters.costMin !== null && card.cost < filters.costMin) {
@@ -32,7 +32,7 @@ export interface AvailableFilters {
   sets: string[];
   rarities: Rarity[];
   types: string[];
-  factions: string[];
+  domains: string[];
   costMin: number;
   costMax: number;
 }
@@ -43,13 +43,13 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     (a, b) => RARITY_ORDER[a] - RARITY_ORDER[b],
   ) as Rarity[];
   const types = [...new Set(cards.map((c) => c.type))].sort();
-  const factions = [...new Set(cards.map((c) => c.faction))].sort();
+  const domains = [...new Set(cards.map((c) => c.domain))].sort();
   const costs = cards.map((c) => c.cost);
   return {
     sets,
     rarities,
     types,
-    factions,
+    domains,
     costMin: Math.min(...costs),
     costMax: Math.max(...costs),
   };

@@ -4,6 +4,7 @@ export type {
   CardSet,
   CardStats,
   CardType,
+  Domain,
   Rarity,
   SortOption,
 } from "./types.js";

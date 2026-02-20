@@ -1,13 +1,15 @@
-export type CardType = "Champion" | "Unit" | "Spell" | "Landmark";
+export type CardType = "Champion" | "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
 
-export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
+export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Overnumbered";
+
+export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order";
 
 export const RARITY_ORDER: Record<Rarity, number> = {
   Common: 0,
   Uncommon: 1,
   Rare: 2,
   Epic: 3,
-  Legendary: 4,
+  Overnumbered: 4,
 } as const;
 
 export type SortOption = "name" | "collectorNumber" | "cost" | "rarity";
@@ -27,7 +29,7 @@ export interface Card {
   keywords: string[];
   description: string;
   flavorText: string;
-  faction: string;
+  domain: string;
   set: string;
   collectorNumber: number;
   artist: string;
@@ -48,7 +50,7 @@ export interface CardFilters {
   sets: string[];
   rarities: Rarity[];
   types: CardType[];
-  factions: string[];
+  domains: string[];
   costMin: number | null;
   costMax: number | null;
 }
