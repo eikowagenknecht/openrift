@@ -62,8 +62,10 @@ function cardMatchesField(card: Card, field: SearchField, text: string): boolean
 }
 
 export function getCardVariant(card: Card, setTotalCards: number): CardVariant {
-  const stripped = card.id.replace(/\*$/, "");
-  if (/[a-z]$/.test(stripped)) {
+  if (card.id.endsWith("*")) {
+    return "Signed";
+  }
+  if (/[a-z]$/.test(card.id)) {
     return "Alt Art";
   }
   if (card.collectorNumber > setTotalCards) {
@@ -156,7 +158,7 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     .sort()
     .sort((a, b) => (a === "Colorless" ? 1 : b === "Colorless" ? -1 : 0));
   const variants = [...new Set(cards.map((c) => c.variant).filter(Boolean))] as CardVariant[];
-  const variantOrder: CardVariant[] = ["Normal", "Alt Art", "Overnumbered"];
+  const variantOrder: CardVariant[] = ["Normal", "Alt Art", "Overnumbered", "Signed"];
   variants.sort((a, b) => variantOrder.indexOf(a) - variantOrder.indexOf(b));
   const energies = cards.map((c) => c.stats.energy);
   return {
