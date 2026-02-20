@@ -1,6 +1,6 @@
 import type { Card } from "@openrift/shared";
 
-import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
+import { CardPlaceholderImage, DOMAIN_COLORS } from "@/components/cards/CardPlaceholderImage";
 import { formatCollectorNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,16 @@ interface CardThumbnailProps {
   onClick: (card: Card) => void;
   showImages?: boolean;
   isSelected?: boolean;
+}
+
+function getDomainStyle(faction: string): React.CSSProperties {
+  const domains = faction.split("/");
+  const c1 = DOMAIN_COLORS[domains[0]] ?? "#737373";
+  if (domains.length === 1) {
+    return { backgroundColor: `${c1}38` };
+  }
+  const c2 = DOMAIN_COLORS[domains[1]] ?? "#737373";
+  return { background: `linear-gradient(135deg, ${c1}38 50%, ${c2}38 50%)` };
 }
 
 export function CardThumbnail({ card, onClick, showImages, isSelected }: CardThumbnailProps) {
@@ -22,9 +32,9 @@ export function CardThumbnail({ card, onClick, showImages, isSelected }: CardThu
     <button
       type="button"
       className={cn(
-        "group relative w-full cursor-pointer rounded-lg text-left transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        isSelected && "ring-1 ring-primary/50 ring-offset-4 ring-offset-background",
+        "group relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       )}
+      style={isSelected ? getDomainStyle(card.faction) : undefined}
       onClick={() => onClick(card)}
     >
       <div className="relative">

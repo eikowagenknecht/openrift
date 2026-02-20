@@ -95,6 +95,9 @@ export function FilterBar({
             className="pl-9"
           />
         </div>
+        <span className="shrink-0 text-sm text-muted-foreground">
+          {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
+        </span>
         <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
           <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Sort by" />
@@ -119,12 +122,6 @@ export function FilterBar({
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground">
-          {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
-        </span>
       </div>
 
       <div className="flex flex-wrap gap-4">
