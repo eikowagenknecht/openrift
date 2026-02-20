@@ -4,11 +4,16 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./data/cards.json": "./data/cards.json",
+    "./data/sets.json": "./data/sets.json"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "zod": "3.24.4"
   },
   "devDependencies": {
     "typescript": "5.9.3"
