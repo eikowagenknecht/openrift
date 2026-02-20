@@ -4,6 +4,7 @@ export type {
   CardFilters,
   CardStats,
   CardType,
+  CardVariant,
   ContentSet,
   Domain,
   Rarity,
@@ -29,4 +30,11 @@ export {
 } from "./schemas.js";
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
-export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
+export {
+  filterCards,
+  flattenWithVariants,
+  getAvailableFilters,
+  getCardVariant,
+  parseSearchTerms,
+  sortCards,
+} from "./filters.js";

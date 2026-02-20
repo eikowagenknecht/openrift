@@ -1,5 +1,5 @@
 import type { Card, RiftboundContent } from "@openrift/shared";
-import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
+import { filterCards, flattenWithVariants, getAvailableFilters, sortCards } from "@openrift/shared";
 import galleryData from "@openrift/shared/data/gallery.json";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,7 +9,7 @@ import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
-const allCards = (galleryData as RiftboundContent).sets.flatMap((s) => s.cards);
+const allCards = flattenWithVariants(galleryData as RiftboundContent);
 
 export function CardBrowser() {
   const {

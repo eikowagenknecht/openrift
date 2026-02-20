@@ -1,4 +1,5 @@
-import type { Card, CardFilters, Rarity, SearchField, SortOption } from "./types.js";
+import type { Card, CardFilters, CardVariant, Rarity, SearchField, SortOption } from "./types.js";
+import type { RiftboundContent } from "./types.js";
 import { RARITY_ORDER, SEARCH_PREFIX_MAP } from "./types.js";
 
 export interface ParsedSearchTerm {
@@ -8,7 +9,7 @@ export interface ParsedSearchTerm {
 
 export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
   const terms: ParsedSearchTerm[] = [];
-  const regex = /(?:([ndkta]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/g;
+  const regex = /(?:(id|[ndkta]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(raw)) !== null) {
     const prefix = match[1];
@@ -47,7 +48,27 @@ function cardMatchesField(card: Card, field: SearchField, text: string): boolean
     case "artist": {
       return card.art.artist.toLowerCase().includes(lower);
     }
+    case "id": {
+      return card.id.toLowerCase().includes(lower);
+    }
   }
+}
+
+export function getCardVariant(card: Card, setTotalCards: number): CardVariant {
+  const stripped = card.id.replace(/\*$/, "");
+  if (/[a-z]$/.test(stripped)) {
+    return "Alt Art";
+  }
+  if (card.collectorNumber > setTotalCards) {
+    return "Overnumbered";
+  }
+  return "Normal";
+}
+
+export function flattenWithVariants(content: RiftboundContent): Card[] {
+  return content.sets.flatMap((set) =>
+    set.cards.map((card) => ({ ...card, variant: getCardVariant(card, set.totalCards) })),
+  );
 }
 
 export function filterCards(cards: Card[], filters: CardFilters): Card[] {
@@ -62,7 +83,7 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
         }
         // Un-prefixed: if any prefix present, search all fields; otherwise search active scope
         const fieldsToSearch = hasPrefixes
-          ? (["name", "cardText", "keywords", "tags", "artist"] as SearchField[])
+          ? (["name", "cardText", "keywords", "tags", "artist", "id"] as SearchField[])
           : filters.searchScope;
         return fieldsToSearch.some((f) => cardMatchesField(card, f, term.text));
       });
@@ -97,6 +118,9 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.energyMax !== null && card.stats.energy > filters.energyMax) {
       return false;
     }
+    if (filters.variants.length > 0 && card.variant && !filters.variants.includes(card.variant)) {
+      return false;
+    }
     return true;
   });
 }
@@ -107,6 +131,7 @@ export interface AvailableFilters {
   types: string[];
   superTypes: string[];
   domains: string[];
+  variants: CardVariant[];
   energyMin: number;
   energyMax: number;
 }
@@ -123,6 +148,9 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
   const domains = [...new Set(cards.flatMap((c) => c.faction.split("/")))]
     .sort()
     .sort((a, b) => (a === "Colorless" ? 1 : b === "Colorless" ? -1 : 0));
+  const variants = [...new Set(cards.map((c) => c.variant).filter(Boolean))] as CardVariant[];
+  const variantOrder: CardVariant[] = ["Normal", "Alt Art", "Overnumbered"];
+  variants.sort((a, b) => variantOrder.indexOf(a) - variantOrder.indexOf(b));
   const energies = cards.map((c) => c.stats.energy);
   return {
     sets,
@@ -130,6 +158,7 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     types,
     superTypes,
     domains,
+    variants,
     energyMin: Math.min(...energies),
     energyMax: Math.max(...energies),
   };

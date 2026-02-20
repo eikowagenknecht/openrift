@@ -4,6 +4,8 @@ export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
 
 export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order" | "Colorless";
 
+export type CardVariant = "Normal" | "Alt Art" | "Overnumbered";
+
 export const RARITY_ORDER: Record<Rarity, number> = {
   Common: 0,
   Uncommon: 1,
@@ -44,6 +46,7 @@ export interface Card {
   tags: string[];
   orientation: "portrait" | "landscape";
   publicCode: string;
+  variant?: CardVariant;
 }
 
 export interface ContentSet {
@@ -60,9 +63,16 @@ export interface RiftboundContent {
   sets: ContentSet[];
 }
 
-export type SearchField = "name" | "cardText" | "keywords" | "tags" | "artist";
+export type SearchField = "name" | "cardText" | "keywords" | "tags" | "artist" | "id";
 
-export const ALL_SEARCH_FIELDS: SearchField[] = ["name", "cardText", "keywords", "tags", "artist"];
+export const ALL_SEARCH_FIELDS: SearchField[] = [
+  "name",
+  "cardText",
+  "keywords",
+  "tags",
+  "artist",
+  "id",
+];
 
 export const DEFAULT_SEARCH_SCOPE: SearchField[] = ["name"];
 
@@ -72,6 +82,7 @@ export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
   k: "keywords",
   t: "tags",
   a: "artist",
+  id: "id",
 };
 
 export interface CardFilters {
@@ -84,4 +95,5 @@ export interface CardFilters {
   domains: string[];
   energyMin: number | null;
   energyMax: number | null;
+  variants: CardVariant[];
 }

@@ -27,6 +27,7 @@ const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }
   keywords: { label: "Keywords", prefix: "k:" },
   tags: { label: "Tags", prefix: "t:" },
   artist: { label: "Artist", prefix: "a:" },
+  id: { label: "ID", prefix: "id:" },
 };
 
 interface FilterBarProps {
@@ -38,6 +39,7 @@ interface FilterBarProps {
     types: string[];
     superTypes: string[];
     domains: string[];
+    variants: string[];
   };
   sortBy: SortOption;
   showImages: boolean;
@@ -47,7 +49,7 @@ interface FilterBarProps {
   searchScope: SearchField[];
   onSearchChange: (search: string) => void;
   onToggleFilter: (
-    key: "sets" | "rarities" | "types" | "superTypes" | "domains",
+    key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants",
     value: string,
   ) => void;
   onSortChange: (sort: SortOption) => void;
@@ -216,6 +218,14 @@ export function FilterBar({
           }
           displayLabel={(v) => (v === "Colorless" ? "None" : v)}
         />
+        {availableFilters.variants.length > 0 && (
+          <FilterSection
+            label="Version"
+            options={availableFilters.variants}
+            selected={filterState.variants}
+            onToggle={(v) => onToggleFilter("variants", v)}
+          />
+        )}
       </div>
     </div>
   );

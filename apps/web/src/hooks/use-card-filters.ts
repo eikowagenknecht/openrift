@@ -1,4 +1,4 @@
-import type { CardType, Rarity, SortOption } from "@openrift/shared";
+import type { CardType, CardVariant, Rarity, SortOption } from "@openrift/shared";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 import { useMemo } from "react";
 
@@ -11,6 +11,7 @@ const filterParsers = {
   types: parseAsArrayOf(parseAsString, ",").withDefault([]),
   superTypes: parseAsArrayOf(parseAsString, ",").withDefault([]),
   domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
+  variants: parseAsArrayOf(parseAsString, ",").withDefault([]),
   sort: parseAsString.withDefault("id"),
 };
 
@@ -29,6 +30,7 @@ export function useCardFilters() {
       types: filterState.types as CardType[],
       superTypes: filterState.superTypes,
       domains: filterState.domains,
+      variants: filterState.variants as CardVariant[],
       energyMin: null,
       energyMax: null,
     }),
@@ -43,7 +45,8 @@ export function useCardFilters() {
     filterState.rarities.length > 0 ||
     filterState.types.length > 0 ||
     filterState.superTypes.length > 0 ||
-    filterState.domains.length > 0;
+    filterState.domains.length > 0 ||
+    filterState.variants.length > 0;
 
   const clearAllFilters = () => {
     void setFilterState({
@@ -53,6 +56,7 @@ export function useCardFilters() {
       types: null,
       superTypes: null,
       domains: null,
+      variants: null,
       sort: null,
     });
   };
@@ -62,7 +66,7 @@ export function useCardFilters() {
   };
 
   const toggleArrayFilter = (
-    key: "sets" | "rarities" | "types" | "superTypes" | "domains",
+    key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants",
     value: string,
   ) => {
     const current = filterState[key];

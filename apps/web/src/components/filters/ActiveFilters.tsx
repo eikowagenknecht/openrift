@@ -11,10 +11,11 @@ interface ActiveFiltersProps {
     types: string[];
     superTypes: string[];
     domains: string[];
+    variants: string[];
   };
   hasActiveFilters: boolean;
   onToggleFilter: (
-    key: "sets" | "rarities" | "types" | "superTypes" | "domains",
+    key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants",
     value: string,
   ) => void;
   onClearAll: () => void;
@@ -28,10 +29,12 @@ export function ActiveFilters({
   onClearAll,
   onClearSearch,
 }: ActiveFiltersProps) {
-  if (!hasActiveFilters) return null;
+  if (!hasActiveFilters) {
+    return null;
+  }
 
   const allFilters: {
-    key: "sets" | "rarities" | "types" | "superTypes" | "domains";
+    key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants";
     value: string;
   }[] = [
     ...filterState.sets.map((v) => ({ key: "sets" as const, value: v })),
@@ -39,6 +42,7 @@ export function ActiveFilters({
     ...filterState.types.map((v) => ({ key: "types" as const, value: v })),
     ...filterState.superTypes.map((v) => ({ key: "superTypes" as const, value: v })),
     ...filterState.domains.map((v) => ({ key: "domains" as const, value: v })),
+    ...filterState.variants.map((v) => ({ key: "variants" as const, value: v })),
   ];
 
   return (
