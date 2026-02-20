@@ -48,8 +48,10 @@ export function CardDetail({ card, open, onOpenChange, setCodeMap }: CardDetailP
             </span>
             &middot;
             <span className="inline-flex items-center gap-1">
-              <img src={`/icons/domains/${card.domain}.webp`} alt="" className="size-4" />
-              {card.domain}
+              {card.domain.split("/").map((d) => (
+                <img key={d} src={`/icons/domains/${d}.webp`} alt="" className="size-4" />
+              ))}
+              {card.domain.replace("/", " / ")}
             </span>
           </SheetDescription>
         </SheetHeader>

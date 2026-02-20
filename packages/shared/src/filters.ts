@@ -15,7 +15,10 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.types.length > 0 && !filters.types.includes(card.type)) {
       return false;
     }
-    if (filters.domains.length > 0 && !filters.domains.includes(card.domain)) {
+    if (
+      filters.domains.length > 0 &&
+      !card.domain.split("/").some((d) => filters.domains.includes(d))
+    ) {
       return false;
     }
     if (filters.costMin !== null && card.cost < filters.costMin) {
@@ -43,7 +46,7 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     (a, b) => RARITY_ORDER[a] - RARITY_ORDER[b],
   ) as Rarity[];
   const types = [...new Set(cards.map((c) => c.type))].sort();
-  const domains = [...new Set(cards.map((c) => c.domain))].sort();
+  const domains = [...new Set(cards.flatMap((c) => c.domain.split("/")))].sort();
   const costs = cards.map((c) => c.cost);
   return {
     sets,

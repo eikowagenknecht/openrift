@@ -2,13 +2,13 @@ import type { CardType, Rarity } from "@openrift/shared";
 
 import { cn } from "@/lib/utils";
 
-const domainColors: Record<string, string> = {
-  Fury: "bg-red-600 dark:bg-red-700",
-  Calm: "bg-sky-500 dark:bg-sky-600",
-  Mind: "bg-violet-500 dark:bg-violet-600",
-  Body: "bg-emerald-600 dark:bg-emerald-700",
-  Chaos: "bg-rose-700 dark:bg-rose-800",
-  Order: "bg-amber-500 dark:bg-amber-600",
+export const DOMAIN_COLORS: Record<string, string> = {
+  Fury: "#CB212D",
+  Calm: "#16AA71",
+  Mind: "#227799",
+  Body: "#E2710C",
+  Chaos: "#6B4891",
+  Order: "#CDA902",
 };
 
 interface CardPlaceholderImageProps {
@@ -22,6 +22,18 @@ interface CardPlaceholderImageProps {
   className?: string;
 }
 
+function getDomainBackground(domain: string): React.CSSProperties {
+  const domains = domain.split("/");
+  if (domains.length === 1) {
+    return { backgroundColor: DOMAIN_COLORS[domains[0]] ?? "#737373" };
+  }
+  const color1 = DOMAIN_COLORS[domains[0]] ?? "#737373";
+  const color2 = DOMAIN_COLORS[domains[1]] ?? "#737373";
+  return {
+    background: `linear-gradient(135deg, ${color1} 50%, ${color2} 50%)`,
+  };
+}
+
 export function CardPlaceholderImage({
   name,
   rarity,
@@ -32,22 +44,32 @@ export function CardPlaceholderImage({
   setNumber,
   className,
 }: CardPlaceholderImageProps) {
-  const bgColor = domainColors[domain] ?? "bg-neutral-500 dark:bg-neutral-600";
+  const bgStyle = getDomainBackground(domain);
+  const domains = domain.split("/");
 
   return (
     <div
       className={cn(
         "relative flex aspect-[2/3] items-center justify-center overflow-hidden rounded-lg",
-        bgColor,
         className,
       )}
+      style={bgStyle}
     >
-      {/* Top-left: cost circle + domain icon below */}
+      {/* Top-left: cost circle + domain icon(s) below */}
       <div className="absolute top-2 left-2 flex flex-col items-center gap-1">
         <div className="flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
           {cost}
         </div>
-        <img src={`/icons/domains/${domain}.webp`} alt={domain} className="size-6 drop-shadow-md" />
+        <div className="flex items-center gap-0.5">
+          {domains.map((d) => (
+            <img
+              key={d}
+              src={`/icons/domains/${d}.webp`}
+              alt={d}
+              className="size-6 drop-shadow-md"
+            />
+          ))}
+        </div>
       </div>
 
       {/* Top-right: strength (attack) */}
