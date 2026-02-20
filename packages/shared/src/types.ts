@@ -41,6 +41,7 @@ export interface Card {
   set: string;
   art: CardArt;
   tags: string[];
+  orientation: "portrait" | "landscape";
 }
 
 export interface ContentSet {

@@ -7,9 +7,10 @@ import { CardThumbnail } from "./CardThumbnail";
 interface CardGridProps {
   cards: Card[];
   onCardClick: (card: Card) => void;
+  showImages?: boolean;
 }
 
-export function CardGrid({ cards, onCardClick }: CardGridProps) {
+export function CardGrid({ cards, onCardClick, showImages }: CardGridProps) {
   const { containerRef, columns } = useResponsiveColumns();
 
   if (cards.length === 0) {
@@ -28,7 +29,7 @@ export function CardGrid({ cards, onCardClick }: CardGridProps) {
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >
       {cards.map((card) => (
-        <CardThumbnail key={card.id} card={card} onClick={onCardClick} />
+        <CardThumbnail key={card.id} card={card} onClick={onCardClick} showImages={showImages} />
       ))}
     </div>
   );

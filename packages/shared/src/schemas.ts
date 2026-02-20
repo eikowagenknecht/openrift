@@ -27,6 +27,7 @@ export const cardSchema = z.object({
   set: z.string(),
   art: cardArtSchema,
   tags: z.array(z.string()),
+  orientation: z.enum(["portrait", "landscape"]),
 });
 
 export const contentSetSchema = z.object({

@@ -54,7 +54,7 @@ export function ActiveFilters({
       )}
       {allFilters.map(({ key, value }) => (
         <Badge key={`${key}-${value}`} variant="secondary" className="gap-1">
-          {value}
+          {value === "Colorless" ? "None" : value}
           <button
             type="button"
             onClick={() => onToggleFilter(key, value)}

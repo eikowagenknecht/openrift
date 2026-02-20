@@ -82,6 +82,7 @@ function convertCard(src) {
     set: setName,
     art,
     tags: [],
+    orientation: src.orientation ?? "portrait",
   };
 }
 

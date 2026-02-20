@@ -17,9 +17,10 @@ interface CardDetailProps {
   card: Card | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  showImages?: boolean;
 }
 
-export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
+export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailProps) {
   if (!card) {
     return null;
   }
@@ -47,37 +48,55 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
             </span>
             &middot;
             <span className="inline-flex items-center gap-1">
-              {card.faction.split("/").map((d) => (
-                <img key={d} src={`/icons/domains/${d}.webp`} alt="" className="size-4" />
-              ))}
-              {card.faction.replace("/", " / ")}
+              {card.faction !== "Colorless" &&
+                card.faction
+                  .split("/")
+                  .map((d) => (
+                    <img key={d} src={`/icons/domains/${d}.webp`} alt="" className="size-4" />
+                  ))}
+              {card.faction === "Colorless" ? "No Domain" : card.faction.replace("/", " / ")}
             </span>
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-4">
-          <CardPlaceholderImage
-            name={card.name}
-            domain={card.faction}
-            cost={card.stats.cost}
-            might={card.stats.might}
-          />
-
-          {(card.stats.might > 0 || card.stats.energy > 0) && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-md bg-muted p-3 text-center">
-                <p className="text-xs text-muted-foreground">Might</p>
-                <p className="text-2xl font-bold">{card.stats.might}</p>
-              </div>
-              <div className="rounded-md bg-muted p-3 text-center">
-                <p className="text-xs text-muted-foreground">Energy</p>
-                <p className="text-2xl font-bold">{card.stats.energy}</p>
-              </div>
-            </div>
+          {showImages && card.art.fullURL ? (
+            <img
+              src={`${card.art.fullURL}?fm=webp${card.orientation === "landscape" ? "&or=270" : ""}`}
+              alt={card.name}
+              className="w-full rounded-lg"
+            />
+          ) : (
+            <CardPlaceholderImage
+              name={card.name}
+              domain={card.faction}
+              cost={card.stats.cost}
+              might={card.stats.might}
+            />
           )}
 
-          <div className="rounded-md bg-muted p-3 text-center">
-            <p className="text-xs text-muted-foreground">Cost</p>
-            <p className="text-2xl font-bold">{card.stats.cost}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-md bg-muted p-3 text-center">
+              <p className="text-xs text-muted-foreground">Cost</p>
+              <p className="text-2xl font-bold">{card.stats.cost}</p>
+            </div>
+            <div className="rounded-md bg-muted p-3 text-center">
+              <p className="text-xs text-muted-foreground">Might</p>
+              <p className="flex items-center justify-center gap-1 text-2xl font-bold">
+                <img src="/icons/might.svg" alt="" className="size-5 brightness-0 dark:invert" />
+                {card.stats.might}
+              </p>
+            </div>
+            <div className="rounded-md bg-muted p-3 text-center">
+              <p className="text-xs text-muted-foreground">Energy</p>
+              <p className="text-2xl font-bold">{card.stats.energy}</p>
+            </div>
+            <div className="rounded-md bg-muted p-3 text-center">
+              <p className="text-xs text-muted-foreground">Power</p>
+              <p className="flex items-center justify-center gap-1 text-2xl font-bold">
+                <img src="/icons/power.svg" alt="" className="size-5 brightness-0 dark:invert" />
+                {card.stats.power}
+              </p>
+            </div>
           </div>
 
           {card.keywords.length > 0 && (
@@ -109,9 +128,12 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
 
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
-              {setNumber} &middot; {card.set}
+              {setNumber} · {card.set}
             </p>
-            <p>Artist: {card.art.artist}</p>
+            <p className="flex items-center gap-1">
+              <img src="/icons/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
+              {card.art.artist}
+            </p>
           </div>
         </div>
       </SheetContent>

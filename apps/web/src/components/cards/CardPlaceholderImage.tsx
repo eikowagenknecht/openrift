@@ -56,7 +56,8 @@ export function CardPlaceholderImage({
 
       {/* Top-right: might */}
       {might !== undefined && might > 0 && (
-        <div className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
+        <div className="absolute top-2 right-2 flex size-8 items-center justify-center gap-0.5 rounded-full bg-black/70 text-sm font-bold text-white">
+          <img src="/icons/might.svg" alt="Might" className="size-3.5" />
           {might}
         </div>
       )}

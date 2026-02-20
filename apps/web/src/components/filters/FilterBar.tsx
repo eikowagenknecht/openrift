@@ -105,6 +105,7 @@ export function FilterBar({
           selected={filterState.domains}
           onToggle={(v) => onToggleFilter("domains", v)}
           iconPath={(v) => (v === "Colorless" ? undefined : `/icons/domains/${v}.webp`)}
+          displayLabel={(v) => (v === "Colorless" ? "None" : v)}
         />
       </div>
     </div>
@@ -117,12 +118,14 @@ function FilterSection({
   selected,
   onToggle,
   iconPath,
+  displayLabel,
 }: {
   label: string;
   options: string[];
   selected: string[];
   onToggle: (value: string) => void;
   iconPath?: (value: string) => string | undefined;
+  displayLabel?: (value: string) => string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -138,7 +141,7 @@ function FilterSection({
               onClick={() => onToggle(option)}
             >
               {icon && <img src={icon} alt="" className="size-3.5" />}
-              {option}
+              {displayLabel ? displayLabel(option) : option}
             </Badge>
           );
         })}

@@ -41,12 +41,14 @@ export interface AvailableFilters {
 }
 
 export function getAvailableFilters(cards: Card[]): AvailableFilters {
-  const sets = [...new Set(cards.map((c) => c.set))].sort();
+  const sets = [...new Set(cards.map((c) => c.set))];
   const rarities = [...new Set(cards.map((c) => c.rarity))].sort(
     (a, b) => RARITY_ORDER[a] - RARITY_ORDER[b],
   ) as Rarity[];
   const types = [...new Set(cards.map((c) => c.type))].sort();
-  const domains = [...new Set(cards.flatMap((c) => c.faction.split("/")))].sort();
+  const domains = [...new Set(cards.flatMap((c) => c.faction.split("/")))]
+    .sort()
+    .sort((a, b) => (a === "Colorless" ? 1 : b === "Colorless" ? -1 : 0));
   const costs = cards.map((c) => c.stats.cost);
   return {
     sets,

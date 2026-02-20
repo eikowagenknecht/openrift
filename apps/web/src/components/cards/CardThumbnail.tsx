@@ -6,10 +6,15 @@ import { formatCollectorNumber } from "@/lib/format";
 interface CardThumbnailProps {
   card: Card;
   onClick: (card: Card) => void;
+  showImages?: boolean;
 }
 
-export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
+export function CardThumbnail({ card, onClick, showImages }: CardThumbnailProps) {
   const setNumber = formatCollectorNumber(card);
+  const thumbnailUrl =
+    showImages && card.art.thumbnailURL
+      ? `${card.art.thumbnailURL}?w=300&fit=max&fm=webp${card.orientation === "landscape" ? "&or=270" : ""}`
+      : null;
 
   return (
     <button
@@ -18,12 +23,21 @@ export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
       onClick={() => onClick(card)}
     >
       <div className="relative">
-        <CardPlaceholderImage
-          name={card.name}
-          domain={card.faction}
-          cost={card.stats.cost}
-          might={card.stats.might}
-        />
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt={card.name}
+            loading="lazy"
+            className="aspect-[744/1039] w-full rounded-lg object-cover"
+          />
+        ) : (
+          <CardPlaceholderImage
+            name={card.name}
+            domain={card.faction}
+            cost={card.stats.cost}
+            might={card.stats.might}
+          />
+        )}
       </div>
       <div className="mt-1.5 space-y-0.5 px-0.5">
         <p className="truncate text-sm font-medium">

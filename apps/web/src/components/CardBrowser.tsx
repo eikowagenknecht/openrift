@@ -7,6 +7,7 @@ import { CardDetail } from "@/components/cards/CardDetail";
 import { CardGrid } from "@/components/cards/CardGrid";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
 const allCards = (contentData as RiftboundContent).sets.flatMap((s) => s.cards);
@@ -25,6 +26,7 @@ export function CardBrowser() {
 
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [showImages, setShowImages] = useState(false);
 
   const availableFilters = useMemo(() => getAvailableFilters(allCards), []);
   const filteredCards = useMemo(() => filterCards(allCards, filters), [filters]);
@@ -54,8 +56,25 @@ export function CardBrowser() {
         onClearAll={clearAllFilters}
         onClearSearch={() => setSearch("")}
       />
-      <CardGrid cards={sortedCards} onCardClick={handleCardClick} />
-      <CardDetail card={selectedCard} open={detailOpen} onOpenChange={setDetailOpen} />
+
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="show-images"
+          checked={showImages}
+          onCheckedChange={(checked: boolean) => setShowImages(checked)}
+        />
+        <label htmlFor="show-images" className="text-sm cursor-pointer select-none">
+          Show card images
+        </label>
+      </div>
+
+      <CardGrid cards={sortedCards} onCardClick={handleCardClick} showImages={showImages} />
+      <CardDetail
+        card={selectedCard}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        showImages={showImages}
+      />
     </div>
   );
 }
