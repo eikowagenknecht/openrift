@@ -20,16 +20,15 @@ export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
       <div className="relative">
         <CardPlaceholderImage
           name={card.name}
-          rarity={card.rarity}
-          type={card.type}
           domain={card.faction}
           cost={card.stats.cost}
           might={card.stats.might}
-          setNumber={setNumber}
         />
       </div>
       <div className="mt-1.5 space-y-0.5 px-0.5">
-        <p className="truncate text-sm font-medium">{card.name}</p>
+        <p className="truncate text-sm font-medium">
+          <span className="text-muted-foreground">{setNumber}</span> {card.name}
+        </p>
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
           <img src={`/icons/types/${card.type.toLowerCase()}.webp`} alt="" className="size-3.5" />
           {card.type}
@@ -40,8 +39,6 @@ export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
             className="size-3.5"
           />
           {card.rarity}
-          <span>&middot;</span>
-          {setNumber}
         </p>
       </div>
     </button>

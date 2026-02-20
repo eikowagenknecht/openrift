@@ -57,12 +57,9 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
         <div className="space-y-4 px-4 pb-4">
           <CardPlaceholderImage
             name={card.name}
-            rarity={card.rarity}
-            type={card.type}
             domain={card.faction}
             cost={card.stats.cost}
             might={card.stats.might}
-            setNumber={setNumber}
           />
 
           {(card.stats.might > 0 || card.stats.energy > 0) && (

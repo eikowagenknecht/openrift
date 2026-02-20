@@ -1,5 +1,3 @@
-import type { CardType, Rarity } from "@openrift/shared";
-
 import { cn } from "@/lib/utils";
 
 export const DOMAIN_COLORS: Record<string, string> = {
@@ -9,16 +7,14 @@ export const DOMAIN_COLORS: Record<string, string> = {
   Body: "#E2710C",
   Chaos: "#6B4891",
   Order: "#CDA902",
+  Colorless: "#737373",
 };
 
 interface CardPlaceholderImageProps {
   name: string;
-  rarity: Rarity;
-  type: CardType;
   domain: string;
   cost: number;
   might?: number;
-  setNumber?: string;
   className?: string;
 }
 
@@ -36,16 +32,12 @@ function getDomainBackground(domain: string): React.CSSProperties {
 
 export function CardPlaceholderImage({
   name,
-  rarity,
-  type,
   domain,
   cost,
   might,
-  setNumber,
   className,
 }: CardPlaceholderImageProps) {
   const bgStyle = getDomainBackground(domain);
-  const domains = domain.split("/");
 
   return (
     <div
@@ -55,20 +47,10 @@ export function CardPlaceholderImage({
       )}
       style={bgStyle}
     >
-      {/* Top-left: cost circle + domain icon(s) below */}
-      <div className="absolute top-2 left-2 flex flex-col items-center gap-1">
+      {/* Top-left: cost circle */}
+      <div className="absolute top-2 left-2">
         <div className="flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
           {cost}
-        </div>
-        <div className="flex items-center gap-0.5">
-          {domains.map((d) => (
-            <img
-              key={d}
-              src={`/icons/domains/${d}.webp`}
-              alt={d}
-              className="size-6 drop-shadow-md"
-            />
-          ))}
         </div>
       </div>
 
@@ -77,27 +59,6 @@ export function CardPlaceholderImage({
         <div className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
           {might}
         </div>
-      )}
-
-      {/* Bottom-left: type + rarity icons */}
-      <div className="absolute bottom-2 left-2 flex items-center gap-1">
-        <img
-          src={`/icons/types/${type.toLowerCase()}.webp`}
-          alt={type}
-          className="size-5 drop-shadow-md"
-        />
-        <img
-          src={`/icons/rarities/${rarity.toLowerCase()}.webp`}
-          alt={rarity}
-          className="size-5 drop-shadow-md"
-        />
-      </div>
-
-      {/* Bottom-right: set number */}
-      {setNumber && (
-        <span className="absolute bottom-2 right-2 text-xs font-medium text-white/80 drop-shadow-md">
-          {setNumber}
-        </span>
       )}
 
       {/* Card name */}
