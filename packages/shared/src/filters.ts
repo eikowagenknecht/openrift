@@ -1,11 +1,6 @@
 import type { Card, CardFilters, Rarity, SortOption } from "./types.js";
 import { RARITY_ORDER } from "./types.js";
 
-export function parseCollectorNumber(id: string): number {
-  const match = id.match(/-(\d+)/);
-  return match ? Number(match[1]) : 0;
-}
-
 export function filterCards(cards: Card[], filters: CardFilters): Card[] {
   return cards.filter((card) => {
     if (filters.search && !card.name.toLowerCase().includes(filters.search.toLowerCase())) {
@@ -22,14 +17,14 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     }
     if (
       filters.domains.length > 0 &&
-      !card.domain.split("/").some((d) => filters.domains.includes(d))
+      !card.faction.split("/").some((d) => filters.domains.includes(d))
     ) {
       return false;
     }
-    if (filters.costMin !== null && card.cost < filters.costMin) {
+    if (filters.costMin !== null && card.stats.cost < filters.costMin) {
       return false;
     }
-    if (filters.costMax !== null && card.cost > filters.costMax) {
+    if (filters.costMax !== null && card.stats.cost > filters.costMax) {
       return false;
     }
     return true;
@@ -51,8 +46,8 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     (a, b) => RARITY_ORDER[a] - RARITY_ORDER[b],
   ) as Rarity[];
   const types = [...new Set(cards.map((c) => c.type))].sort();
-  const domains = [...new Set(cards.flatMap((c) => c.domain.split("/")))].sort();
-  const costs = cards.map((c) => c.cost);
+  const domains = [...new Set(cards.flatMap((c) => c.faction.split("/")))].sort();
+  const costs = cards.map((c) => c.stats.cost);
   return {
     sets,
     rarities,
@@ -76,12 +71,12 @@ export function sortCards(cards: Card[], sortBy: SortOption): Card[] {
         if (setCompare !== 0) {
           return setCompare;
         }
-        return parseCollectorNumber(a.id) - parseCollectorNumber(b.id);
+        return a.collectorNumber - b.collectorNumber;
       });
       break;
     }
     case "cost": {
-      sorted.sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name));
+      sorted.sort((a, b) => a.stats.cost - b.stats.cost || a.name.localeCompare(b.name));
       break;
     }
     case "rarity": {

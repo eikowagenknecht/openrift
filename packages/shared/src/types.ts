@@ -15,8 +15,16 @@ export const RARITY_ORDER: Record<Rarity, number> = {
 export type SortOption = "name" | "collectorNumber" | "cost" | "rarity";
 
 export interface CardStats {
-  attack: number;
-  health: number;
+  cost: number;
+  might: number;
+  energy: number;
+  power: number;
+}
+
+export interface CardArt {
+  thumbnailURL: string;
+  fullURL: string;
+  artist: string;
 }
 
 export interface Card {
@@ -24,24 +32,28 @@ export interface Card {
   name: string;
   type: CardType;
   rarity: Rarity;
-  cost: number;
-  stats: CardStats | null;
+  collectorNumber: number;
+  faction: string;
+  stats: CardStats;
   keywords: string[];
   description: string;
   flavorText: string;
-  domain: string;
   set: string;
-  artist: string;
-  imageUrl: string;
-  thumbnailUrl: string;
+  art: CardArt;
+  tags: string[];
 }
 
-export interface CardSet {
+export interface ContentSet {
   id: string;
   name: string;
-  code: string;
-  releaseDate: string;
-  cardCount: number;
+  cards: Card[];
+}
+
+export interface RiftboundContent {
+  game: string;
+  version: string;
+  lastUpdated: string;
+  sets: ContentSet[];
 }
 
 export interface CardFilters {

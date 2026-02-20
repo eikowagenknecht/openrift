@@ -1,8 +1,16 @@
 import { z } from "zod";
 
 export const cardStatsSchema = z.object({
-  attack: z.number(),
-  health: z.number(),
+  cost: z.number(),
+  might: z.number(),
+  energy: z.number(),
+  power: z.number(),
+});
+
+export const cardArtSchema = z.object({
+  thumbnailURL: z.string(),
+  fullURL: z.string(),
+  artist: z.string(),
 });
 
 export const cardSchema = z.object({
@@ -10,25 +18,26 @@ export const cardSchema = z.object({
   name: z.string(),
   type: z.enum(["Champion", "Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"]),
   rarity: z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]),
-  cost: z.number(),
-  stats: cardStatsSchema.nullable(),
+  collectorNumber: z.number(),
+  faction: z.string(),
+  stats: cardStatsSchema,
   keywords: z.array(z.string()),
   description: z.string(),
   flavorText: z.string(),
-  domain: z.string(),
   set: z.string(),
-  artist: z.string(),
-  imageUrl: z.string(),
-  thumbnailUrl: z.string(),
+  art: cardArtSchema,
+  tags: z.array(z.string()),
 });
 
-export const cardSetSchema = z.object({
+export const contentSetSchema = z.object({
   id: z.string(),
   name: z.string(),
-  code: z.string(),
-  releaseDate: z.string(),
-  cardCount: z.number(),
+  cards: z.array(cardSchema),
 });
 
-export const cardsDataSchema = z.array(cardSchema);
-export const setsDataSchema = z.array(cardSetSchema);
+export const contentSchema = z.object({
+  game: z.string(),
+  version: z.string(),
+  lastUpdated: z.string(),
+  sets: z.array(contentSetSchema),
+});

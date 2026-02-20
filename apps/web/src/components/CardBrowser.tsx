@@ -1,6 +1,6 @@
-import type { Card } from "@openrift/shared";
+import type { Card, RiftboundContent } from "@openrift/shared";
 import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
-import cardsData from "@openrift/shared/data/cards.json";
+import contentData from "@openrift/shared/data/content.json";
 import { useMemo, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
@@ -9,7 +9,7 @@ import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
-const allCards = cardsData as Card[];
+const allCards = (contentData as RiftboundContent).sets.flatMap((s) => s.cards);
 
 export function CardBrowser() {
   const {

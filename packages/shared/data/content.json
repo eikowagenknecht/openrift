@@ -1,0 +1,931 @@
+{
+  "game": "Riftbound",
+  "version": "1.0.0",
+  "lastUpdated": "2026-02-20",
+  "sets": [
+    {
+      "id": "Origins",
+      "name": "Origins",
+      "cards": [
+        {
+          "id": "OGN-001",
+          "name": "Blazing Scorcher",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 1,
+          "faction": "Fury",
+          "stats": {
+            "cost": 1,
+            "might": 2,
+            "energy": 1,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "A fiery warrior who strikes fast and burns bright.",
+          "flavorText": "The flame needs no invitation.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-007",
+          "name": "Fury Rune",
+          "type": "Rune",
+          "rarity": "Common",
+          "collectorNumber": 7,
+          "faction": "Fury",
+          "stats": {
+            "cost": 0,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "A rune channeling the raw power of Fury.",
+          "flavorText": "Rage given form.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-008",
+          "name": "Get Excited!",
+          "type": "Spell",
+          "rarity": "Common",
+          "collectorNumber": 8,
+          "faction": "Fury",
+          "stats": {
+            "cost": 3,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": ["Fast"],
+          "description": "Deal 3 damage to anything.",
+          "flavorText": "BOOM! Hahaha!",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-015",
+          "name": "Captain Farron",
+          "type": "Unit",
+          "rarity": "Uncommon",
+          "collectorNumber": 15,
+          "faction": "Fury",
+          "stats": {
+            "cost": 8,
+            "might": 8,
+            "energy": 6,
+            "power": 0
+          },
+          "keywords": ["Overwhelm"],
+          "description": "When I'm summoned, create 3 Decimates in hand.",
+          "flavorText": "The battlefield bends to his command.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-027",
+          "name": "Darius, Trifarian",
+          "type": "Champion",
+          "rarity": "Rare",
+          "collectorNumber": 27,
+          "faction": "Fury",
+          "stats": {
+            "cost": 6,
+            "might": 6,
+            "energy": 5,
+            "power": 0
+          },
+          "keywords": ["Overwhelm"],
+          "description": "The Hand of Noxus demands absolute strength.",
+          "flavorText": "They will kneel, or they will fall.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-043",
+          "name": "Charm",
+          "type": "Spell",
+          "rarity": "Common",
+          "collectorNumber": 43,
+          "faction": "Calm",
+          "stats": {
+            "cost": 2,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": ["Fast"],
+          "description": "Recall a unit.",
+          "flavorText": "A glance that steals the heart and stills the blade.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-051",
+          "name": "Solari Shieldbearer",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 51,
+          "faction": "Calm",
+          "stats": {
+            "cost": 2,
+            "might": 2,
+            "energy": 3,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "Daybreak: Grant me +0|+2.",
+          "flavorText": "The sun's light is her armor and her oath.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-066",
+          "name": "Ahri, Alluring",
+          "type": "Champion",
+          "rarity": "Rare",
+          "collectorNumber": 66,
+          "faction": "Calm",
+          "stats": {
+            "cost": 4,
+            "might": 4,
+            "energy": 3,
+            "power": 0
+          },
+          "keywords": ["Quick Attack"],
+          "description": "When allies are recalled, I gain +1|+0.",
+          "flavorText": "Every soul holds a story worth hearing.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-078",
+          "name": "Lee Sin, Ascetic",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 78,
+          "faction": "Calm",
+          "stats": {
+            "cost": 6,
+            "might": 3,
+            "energy": 6,
+            "power": 0
+          },
+          "keywords": ["Barrier"],
+          "description": "When you cast a spell, grant me Challenger this round.",
+          "flavorText": "The dragon's will flows through disciplined hands.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-084",
+          "name": "Eager Apprentice",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 84,
+          "faction": "Mind",
+          "stats": {
+            "cost": 2,
+            "might": 2,
+            "energy": 1,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When I'm summoned, refill 2 spell mana.",
+          "flavorText": "She studies the arcane with reckless enthusiasm.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-089",
+          "name": "Mind Rune",
+          "type": "Rune",
+          "rarity": "Common",
+          "collectorNumber": 89,
+          "faction": "Mind",
+          "stats": {
+            "cost": 0,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "A rune channeling the infinite depths of Mind.",
+          "flavorText": "Knowledge is the truest weapon.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-111",
+          "name": "Heimerdinger, Inventor",
+          "type": "Champion",
+          "rarity": "Rare",
+          "collectorNumber": 111,
+          "faction": "Mind",
+          "stats": {
+            "cost": 5,
+            "might": 1,
+            "energy": 3,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When you play a spell, create a turret of equal cost.",
+          "flavorText": "Innovation requires a keen mind and an even keener turret.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-117",
+          "name": "Viktor, Innovator",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 117,
+          "faction": "Mind",
+          "stats": {
+            "cost": 5,
+            "might": 3,
+            "energy": 4,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When you play a created card, grant me a random keyword.",
+          "flavorText": "Evolution is not a choice. It is an inevitability.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-121",
+          "name": "Teemo, Strategist",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 121,
+          "faction": "Mind",
+          "stats": {
+            "cost": 1,
+            "might": 1,
+            "energy": 1,
+            "power": 0
+          },
+          "keywords": ["Elusive"],
+          "description": "Strike: Plant 5 Poison Mushrooms in the enemy deck.",
+          "flavorText": "Size means nothing when you know every hiding spot.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-124",
+          "name": "Arena Bar",
+          "type": "Battlefield",
+          "rarity": "Common",
+          "collectorNumber": 124,
+          "faction": "Body",
+          "stats": {
+            "cost": 3,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When an ally survives damage, grant it +1|+0.",
+          "flavorText": "Every scar tells the story of a fight survived.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-130",
+          "name": "Crackshot Corsair",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 130,
+          "faction": "Body",
+          "stats": {
+            "cost": 1,
+            "might": 1,
+            "energy": 2,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When we attack, deal 1 to the enemy Nexus.",
+          "flavorText": "A perfect shot from the crow's nest never misses.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-143",
+          "name": "Pirate's Haven",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "collectorNumber": 143,
+          "faction": "Body",
+          "stats": {
+            "cost": 4,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When you Plunder, draw 1.",
+          "flavorText": "The safest port is the one no map can find.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-155",
+          "name": "Qiyana, Victorious",
+          "type": "Champion",
+          "rarity": "Rare",
+          "collectorNumber": 155,
+          "faction": "Body",
+          "stats": {
+            "cost": 4,
+            "might": 4,
+            "energy": 4,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When I'm summoned, create a Rune of the current element.",
+          "flavorText": "The elements are mine to command.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-164",
+          "name": "Sett, Brawler",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 164,
+          "faction": "Body",
+          "stats": {
+            "cost": 5,
+            "might": 5,
+            "energy": 5,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When I take damage, store it. Attack: deal stored damage.",
+          "flavorText": "The Boss doesn't go down easy.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-170",
+          "name": "Morbid Return",
+          "type": "Spell",
+          "rarity": "Common",
+          "collectorNumber": 170,
+          "faction": "Chaos",
+          "stats": {
+            "cost": 5,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": ["Slow"],
+          "description": "Revive the strongest dead ally.",
+          "flavorText": "Death is but a doorway for those who know the way back.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-176",
+          "name": "Sneaky Deckhand",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 176,
+          "faction": "Chaos",
+          "stats": {
+            "cost": 1,
+            "might": 2,
+            "energy": 1,
+            "power": 0
+          },
+          "keywords": ["Elusive"],
+          "description": "I can only be blocked by Elusive units.",
+          "flavorText": "By the time you see her, your gold is already gone.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-200",
+          "name": "Twisted Fate, Gambler",
+          "type": "Champion",
+          "rarity": "Rare",
+          "collectorNumber": 200,
+          "faction": "Chaos",
+          "stats": {
+            "cost": 4,
+            "might": 2,
+            "energy": 2,
+            "power": 0
+          },
+          "keywords": ["Quick Attack"],
+          "description": "Play: pick a card — Blue, Red, or Gold.",
+          "flavorText": "It's not about the hand you're dealt. It's how you play it.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-202",
+          "name": "Jinx, Rebel",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 202,
+          "faction": "Chaos",
+          "stats": {
+            "cost": 4,
+            "might": 4,
+            "energy": 3,
+            "power": 0
+          },
+          "keywords": ["Quick Attack"],
+          "description": "When you empty your hand, draw 1 and create a Super Mega Death Rocket!",
+          "flavorText": "Rules are made to be broken. Like buildings. Or people.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-219",
+          "name": "Vanguard Sergeant",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 219,
+          "faction": "Order",
+          "stats": {
+            "cost": 3,
+            "might": 3,
+            "energy": 3,
+            "power": 0
+          },
+          "keywords": ["Elite"],
+          "description": "When I'm summoned, create a For Demacia! in hand.",
+          "flavorText": "Rally to me! For the king and the realm!",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-241",
+          "name": "Shen, Kinkou",
+          "type": "Champion",
+          "rarity": "Rare",
+          "collectorNumber": 241,
+          "faction": "Order",
+          "stats": {
+            "cost": 4,
+            "might": 3,
+            "energy": 5,
+            "power": 0
+          },
+          "keywords": ["Barrier"],
+          "description": "Support: Give my supported ally Barrier.",
+          "flavorText": "Balance in all things.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-242",
+          "name": "Senna, Redeemer",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 242,
+          "faction": "Order/Chaos",
+          "stats": {
+            "cost": 5,
+            "might": 4,
+            "energy": 5,
+            "power": 0
+          },
+          "keywords": ["Quick Attack"],
+          "description": "When I'm summoned, grant all allies +1|+0. Level Up: I've seen you damage the enemy Nexus 5+ times.",
+          "flavorText": "Light and shadow are not opposites. They are partners.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-243",
+          "name": "Rift Herald",
+          "type": "Unit",
+          "rarity": "Rare",
+          "collectorNumber": 243,
+          "faction": "Fury/Mind",
+          "stats": {
+            "cost": 6,
+            "might": 6,
+            "energy": 6,
+            "power": 0
+          },
+          "keywords": ["Overwhelm"],
+          "description": "When I'm summoned, deal 4 to the enemy Nexus.",
+          "flavorText": "It tears through the veil between worlds, hungry and reckless.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "OGN-244",
+          "name": "Nature's Wrath",
+          "type": "Spell",
+          "rarity": "Uncommon",
+          "collectorNumber": 244,
+          "faction": "Body/Calm",
+          "stats": {
+            "cost": 4,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": ["Burst"],
+          "description": "Heal an ally to full and grant it +2|+0 this round.",
+          "flavorText": "The jungle provides for those who listen.",
+          "set": "Origins",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "Spiritforged",
+      "name": "Spiritforged",
+      "cards": [
+        {
+          "id": "SFD-001",
+          "name": "Ashe, Warmother",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 1,
+          "faction": "Calm",
+          "stats": {
+            "cost": 4,
+            "might": 5,
+            "energy": 3,
+            "power": 0
+          },
+          "keywords": ["Frostbite"],
+          "description": "Attack: Frostbite the strongest enemy.",
+          "flavorText": "The cold does not forgive, and neither does the Warmother.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-002",
+          "name": "Avarosan Hearthguard",
+          "type": "Unit",
+          "rarity": "Uncommon",
+          "collectorNumber": 2,
+          "faction": "Body",
+          "stats": {
+            "cost": 5,
+            "might": 5,
+            "energy": 5,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When I'm summoned, give all allies in your deck +1|+1.",
+          "flavorText": "The hearthguard carries the warmth of home into every battle.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-003",
+          "name": "Flash Freeze",
+          "type": "Spell",
+          "rarity": "Rare",
+          "collectorNumber": 3,
+          "faction": "Calm",
+          "stats": {
+            "cost": 3,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": ["Burst"],
+          "description": "Frostbite an enemy.",
+          "flavorText": "A single breath of the Freljord can halt any advance.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-004",
+          "name": "Spectral Rider",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 4,
+          "faction": "Chaos",
+          "stats": {
+            "cost": 2,
+            "might": 2,
+            "energy": 2,
+            "power": 0
+          },
+          "keywords": ["Fearsome"],
+          "description": "When I'm summoned, grant me +1|+0 if an ally died this round.",
+          "flavorText": "The rider emerges from the mist, seeking souls owed to the Isles.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-005",
+          "name": "Spirit Fire",
+          "type": "Spell",
+          "rarity": "Common",
+          "collectorNumber": 5,
+          "faction": "Chaos",
+          "stats": {
+            "cost": 7,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": ["Slow"],
+          "description": "Give all enemies -2|-0 this round, then deal 1 to all enemies.",
+          "flavorText": "The spirits hunger, and the fire answers.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-006",
+          "name": "Irelia, Blade Dancer",
+          "type": "Champion",
+          "rarity": "Rare",
+          "collectorNumber": 6,
+          "faction": "Body",
+          "stats": {
+            "cost": 4,
+            "might": 3,
+            "energy": 4,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When allies attack, swap me with the attacker.",
+          "flavorText": "The blades dance for Ionia.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-007",
+          "name": "Rivershaper",
+          "type": "Unit",
+          "rarity": "Uncommon",
+          "collectorNumber": 7,
+          "faction": "Mind",
+          "stats": {
+            "cost": 3,
+            "might": 2,
+            "energy": 2,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When I Strike, draw 1.",
+          "flavorText": "She reads the river like a scroll, and its currents obey.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-008",
+          "name": "Howling Abyss",
+          "type": "Battlefield",
+          "rarity": "Epic",
+          "collectorNumber": 8,
+          "faction": "Fury",
+          "stats": {
+            "cost": 10,
+            "might": 0,
+            "energy": 0,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "Round Start: Create a random champion in hand. It costs 0.",
+          "flavorText": "At the edge of the world, even gods fall silent.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-009",
+          "name": "Omen Hawk",
+          "type": "Unit",
+          "rarity": "Common",
+          "collectorNumber": 9,
+          "faction": "Body",
+          "stats": {
+            "cost": 1,
+            "might": 1,
+            "energy": 1,
+            "power": 0
+          },
+          "keywords": [],
+          "description": "When I'm summoned, grant the top 2 allies in your deck +1|+1.",
+          "flavorText": "It circles once, then dives. The hunt begins.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        },
+        {
+          "id": "SFD-010",
+          "name": "Swain, Grand General",
+          "type": "Champion",
+          "rarity": "Epic",
+          "collectorNumber": 10,
+          "faction": "Order",
+          "stats": {
+            "cost": 5,
+            "might": 3,
+            "energy": 6,
+            "power": 0
+          },
+          "keywords": ["Fearsome"],
+          "description": "When you deal non-combat damage, drain the enemy Nexus for 1.",
+          "flavorText": "Vision without power is nothing.",
+          "set": "Spiritforged",
+          "art": {
+            "thumbnailURL": "",
+            "fullURL": "",
+            "artist": "Riot Games"
+          },
+          "tags": []
+        }
+      ]
+    }
+  ]
+}

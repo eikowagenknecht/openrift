@@ -22,9 +22,9 @@ export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
           name={card.name}
           rarity={card.rarity}
           type={card.type}
-          domain={card.domain}
-          cost={card.cost}
-          attack={card.stats?.attack}
+          domain={card.faction}
+          cost={card.stats.cost}
+          might={card.stats.might}
           setNumber={setNumber}
         />
       </div>

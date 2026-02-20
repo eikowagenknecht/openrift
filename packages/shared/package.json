@@ -5,8 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./data/cards.json": "./data/cards.json",
-    "./data/sets.json": "./data/sets.json"
+    "./data/content.json": "./data/content.json"
   },
   "scripts": {
     "build": "tsc",

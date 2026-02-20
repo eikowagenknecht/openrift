@@ -1,22 +1,24 @@
 export type {
   Card,
+  CardArt,
   CardFilters,
-  CardSet,
   CardStats,
   CardType,
+  ContentSet,
   Domain,
   Rarity,
+  RiftboundContent,
   SortOption,
 } from "./types.js";
 export { RARITY_ORDER } from "./types.js";
 
 export {
+  cardArtSchema,
   cardSchema,
-  cardSetSchema,
   cardStatsSchema,
-  cardsDataSchema,
-  setsDataSchema,
+  contentSchema,
+  contentSetSchema,
 } from "./schemas.js";
 
 export type { AvailableFilters } from "./filters.js";
-export { filterCards, getAvailableFilters, parseCollectorNumber, sortCards } from "./filters.js";
+export { filterCards, getAvailableFilters, sortCards } from "./filters.js";

@@ -47,10 +47,10 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
             </span>
             &middot;
             <span className="inline-flex items-center gap-1">
-              {card.domain.split("/").map((d) => (
+              {card.faction.split("/").map((d) => (
                 <img key={d} src={`/icons/domains/${d}.webp`} alt="" className="size-4" />
               ))}
-              {card.domain.replace("/", " / ")}
+              {card.faction.replace("/", " / ")}
             </span>
           </SheetDescription>
         </SheetHeader>
@@ -59,28 +59,28 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
             name={card.name}
             rarity={card.rarity}
             type={card.type}
-            domain={card.domain}
-            cost={card.cost}
-            attack={card.stats?.attack}
+            domain={card.faction}
+            cost={card.stats.cost}
+            might={card.stats.might}
             setNumber={setNumber}
           />
 
-          {card.stats && (
+          {(card.stats.might > 0 || card.stats.energy > 0) && (
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md bg-muted p-3 text-center">
-                <p className="text-xs text-muted-foreground">Attack</p>
-                <p className="text-2xl font-bold">{card.stats.attack}</p>
+                <p className="text-xs text-muted-foreground">Might</p>
+                <p className="text-2xl font-bold">{card.stats.might}</p>
               </div>
               <div className="rounded-md bg-muted p-3 text-center">
-                <p className="text-xs text-muted-foreground">Health</p>
-                <p className="text-2xl font-bold">{card.stats.health}</p>
+                <p className="text-xs text-muted-foreground">Energy</p>
+                <p className="text-2xl font-bold">{card.stats.energy}</p>
               </div>
             </div>
           )}
 
           <div className="rounded-md bg-muted p-3 text-center">
             <p className="text-xs text-muted-foreground">Cost</p>
-            <p className="text-2xl font-bold">{card.cost}</p>
+            <p className="text-2xl font-bold">{card.stats.cost}</p>
           </div>
 
           {card.keywords.length > 0 && (
@@ -114,7 +114,7 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
             <p>
               {setNumber} &middot; {card.set}
             </p>
-            <p>Artist: {card.artist}</p>
+            <p>Artist: {card.art.artist}</p>
           </div>
         </div>
       </SheetContent>

@@ -17,7 +17,7 @@ interface CardPlaceholderImageProps {
   type: CardType;
   domain: string;
   cost: number;
-  attack?: number | null;
+  might?: number;
   setNumber?: string;
   className?: string;
 }
@@ -40,7 +40,7 @@ export function CardPlaceholderImage({
   type,
   domain,
   cost,
-  attack,
+  might,
   setNumber,
   className,
 }: CardPlaceholderImageProps) {
@@ -72,10 +72,10 @@ export function CardPlaceholderImage({
         </div>
       </div>
 
-      {/* Top-right: strength (attack) */}
-      {attack !== undefined && attack !== null && (
+      {/* Top-right: might */}
+      {might !== undefined && might > 0 && (
         <div className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
-          {attack}
+          {might}
         </div>
       )}
 
