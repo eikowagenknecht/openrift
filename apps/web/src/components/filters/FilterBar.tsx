@@ -1,6 +1,6 @@
 import type { AvailableFilters, SortOption } from "@openrift/shared";
 import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,11 +20,15 @@ interface FilterBarProps {
     sets: string[];
     rarities: string[];
     types: string[];
+    superTypes: string[];
     domains: string[];
   };
   sortBy: SortOption;
   onSearchChange: (search: string) => void;
-  onToggleFilter: (key: "sets" | "rarities" | "types" | "domains", value: string) => void;
+  onToggleFilter: (
+    key: "sets" | "rarities" | "types" | "superTypes" | "domains",
+    value: string,
+  ) => void;
   onSortChange: (sort: SortOption) => void;
 }
 
@@ -46,9 +50,19 @@ export function FilterBar({
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const debouncedSearch = useDebounce(localSearch, 200);
+  const prevFilterSearch = useRef(filterState.search);
 
   useEffect(() => {
+    // External change (e.g. clear all, clear search badge): sync local state
+    if (prevFilterSearch.current !== filterState.search) {
+      prevFilterSearch.current = filterState.search;
+      setLocalSearch(filterState.search);
+      return;
+    }
+
+    // Local change via debounce: push to URL
     if (debouncedSearch !== filterState.search) {
+      prevFilterSearch.current = debouncedSearch;
       onSearchChange(debouncedSearch);
     }
   }, [debouncedSearch, filterState.search, onSearchChange]);
@@ -98,14 +112,28 @@ export function FilterBar({
           options={availableFilters.types}
           selected={filterState.types}
           onToggle={(v) => onToggleFilter("types", v)}
-          iconPath={(v) => `/icons/types/${v.toLowerCase()}.webp`}
+          iconPath={(v) => `/icons/types/${v.toLowerCase()}.svg`}
         />
+        {availableFilters.superTypes.length > 0 && (
+          <FilterSection
+            label="Super Type"
+            options={availableFilters.superTypes}
+            selected={filterState.superTypes}
+            onToggle={(v) => onToggleFilter("superTypes", v)}
+            iconPath={(v) => {
+              const path = `/icons/supertypes/${v.toLowerCase()}.svg`;
+              return ["Champion"].includes(v) ? path : undefined;
+            }}
+          />
+        )}
         <FilterSection
           label="Domain"
           options={availableFilters.domains}
           selected={filterState.domains}
           onToggle={(v) => onToggleFilter("domains", v)}
-          iconPath={(v) => (v === "Colorless" ? undefined : `/icons/domains/${v}.webp`)}
+          iconPath={(v) =>
+            `/icons/domains/${v.toLowerCase()}.${v === "Colorless" ? "svg" : "webp"}`
+          }
           displayLabel={(v) => (v === "Colorless" ? "None" : v)}
         />
       </div>

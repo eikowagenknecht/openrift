@@ -31,22 +31,27 @@ export interface Card {
   id: string;
   name: string;
   type: CardType;
+  superTypes: string[];
   rarity: Rarity;
   collectorNumber: number;
   faction: string;
   stats: CardStats;
   keywords: string[];
   description: string;
+  effect: string;
+  mightBonus: number;
   flavorText: string;
   set: string;
   art: CardArt;
   tags: string[];
   orientation: "portrait" | "landscape";
+  publicCode: string;
 }
 
 export interface ContentSet {
   id: string;
   name: string;
+  totalCards: number;
   cards: Card[];
 }
 
@@ -62,6 +67,7 @@ export interface CardFilters {
   sets: string[];
   rarities: Rarity[];
   types: CardType[];
+  superTypes: string[];
   domains: string[];
   costMin: number | null;
   costMax: number | null;

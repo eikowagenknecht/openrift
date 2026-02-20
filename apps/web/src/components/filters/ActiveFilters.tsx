@@ -9,12 +9,16 @@ interface ActiveFiltersProps {
     sets: string[];
     rarities: string[];
     types: string[];
+    superTypes: string[];
     domains: string[];
   };
   hasActiveFilters: boolean;
   totalCards: number;
   filteredCount: number;
-  onToggleFilter: (key: "sets" | "rarities" | "types" | "domains", value: string) => void;
+  onToggleFilter: (
+    key: "sets" | "rarities" | "types" | "superTypes" | "domains",
+    value: string,
+  ) => void;
   onClearAll: () => void;
   onClearSearch: () => void;
 }
@@ -28,21 +32,21 @@ export function ActiveFilters({
   onClearAll,
   onClearSearch,
 }: ActiveFiltersProps) {
-  if (!hasActiveFilters) {
-    return null;
-  }
-
-  const allFilters: { key: "sets" | "rarities" | "types" | "domains"; value: string }[] = [
+  const allFilters: {
+    key: "sets" | "rarities" | "types" | "superTypes" | "domains";
+    value: string;
+  }[] = [
     ...filterState.sets.map((v) => ({ key: "sets" as const, value: v })),
     ...filterState.rarities.map((v) => ({ key: "rarities" as const, value: v })),
     ...filterState.types.map((v) => ({ key: "types" as const, value: v })),
+    ...filterState.superTypes.map((v) => ({ key: "superTypes" as const, value: v })),
     ...filterState.domains.map((v) => ({ key: "domains" as const, value: v })),
   ];
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-sm text-muted-foreground">
-        Showing {filteredCount} of {totalCards} cards
+        {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
       </span>
       {filterState.search && (
         <Badge variant="secondary" className="gap-1">
@@ -64,9 +68,11 @@ export function ActiveFilters({
           </button>
         </Badge>
       ))}
-      <Button variant="ghost" size="sm" onClick={onClearAll}>
-        Clear all
-      </Button>
+      {hasActiveFilters && (
+        <Button variant="ghost" size="sm" onClick={onClearAll}>
+          Clear all
+        </Button>
+      )}
     </div>
   );
 }

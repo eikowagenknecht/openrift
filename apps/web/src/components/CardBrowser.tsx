@@ -1,16 +1,23 @@
 import type { Card, RiftboundContent } from "@openrift/shared";
 import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
-import contentData from "@openrift/shared/data/content.json";
+import galleryData from "@openrift/shared/data/gallery.json";
+import { Menu } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
 import { CardGrid } from "@/components/cards/CardGrid";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
-const allCards = (contentData as RiftboundContent).sets.flatMap((s) => s.cards);
+const allCards = (galleryData as RiftboundContent).sets.flatMap((s) => s.cards);
 
 export function CardBrowser() {
   const {
@@ -26,7 +33,7 @@ export function CardBrowser() {
 
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [showImages, setShowImages] = useState(false);
+  const [showImages, setShowImages] = useState(true);
 
   const availableFilters = useMemo(() => getAvailableFilters(allCards), []);
   const filteredCards = useMemo(() => filterCards(allCards, filters), [filters]);
@@ -47,25 +54,28 @@ export function CardBrowser() {
         onToggleFilter={toggleArrayFilter}
         onSortChange={setSortBy}
       />
-      <ActiveFilters
-        filterState={filterState}
-        hasActiveFilters={hasActiveFilters}
-        totalCards={allCards.length}
-        filteredCount={sortedCards.length}
-        onToggleFilter={toggleArrayFilter}
-        onClearAll={clearAllFilters}
-        onClearSearch={() => setSearch("")}
-      />
-
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="show-images"
-          checked={showImages}
-          onCheckedChange={(checked: boolean) => setShowImages(checked)}
+      <div className="flex items-center justify-between gap-2">
+        <ActiveFilters
+          filterState={filterState}
+          hasActiveFilters={hasActiveFilters}
+          totalCards={allCards.length}
+          filteredCount={sortedCards.length}
+          onToggleFilter={toggleArrayFilter}
+          onClearAll={clearAllFilters}
+          onClearSearch={() => setSearch("")}
         />
-        <label htmlFor="show-images" className="text-sm cursor-pointer select-none">
-          Show card images
-        </label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm">
+              <Menu className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={setShowImages}>
+              Show card images
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <CardGrid cards={sortedCards} onCardClick={handleCardClick} showImages={showImages} />

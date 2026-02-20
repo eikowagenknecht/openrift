@@ -9,9 +9,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { formatCollectorNumber } from "@/lib/format";
+import { formatPublicCode } from "@/lib/format";
 
 import { CardPlaceholderImage } from "./CardPlaceholderImage";
+import { CardText } from "./CardText";
 
 interface CardDetailProps {
   card: Card | null;
@@ -25,7 +26,7 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
     return null;
   }
 
-  const setNumber = formatCollectorNumber(card);
+  const setNumber = formatPublicCode(card);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -34,9 +35,28 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
           <SheetTitle>{card.name}</SheetTitle>
           <SheetDescription className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1">
-              <img src={`/icons/types/${card.type.toLowerCase()}.webp`} alt="" className="size-4" />
+              <img src={`/icons/types/${card.type.toLowerCase()}.svg`} alt="" className="size-4" />
               {card.type}
             </span>
+            {card.superTypes.length > 0 && (
+              <>
+                &middot;
+                <span className="inline-flex items-center gap-1">
+                  {card.superTypes.map((st) => (
+                    <img
+                      key={st}
+                      src={`/icons/supertypes/${st.toLowerCase()}.svg`}
+                      alt=""
+                      className="size-4"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ))}
+                  {card.superTypes.join(", ")}
+                </span>
+              </>
+            )}
             &middot;
             <span className="inline-flex items-center gap-1">
               <img
@@ -52,7 +72,12 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
                 card.faction
                   .split("/")
                   .map((d) => (
-                    <img key={d} src={`/icons/domains/${d}.webp`} alt="" className="size-4" />
+                    <img
+                      key={d}
+                      src={`/icons/domains/${d.toLowerCase()}.webp`}
+                      alt=""
+                      className="size-4"
+                    />
                   ))}
               {card.faction === "Colorless" ? "No Domain" : card.faction.replace("/", " / ")}
             </span>
@@ -76,8 +101,8 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
 
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-md bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">Cost</p>
-              <p className="text-2xl font-bold">{card.stats.cost}</p>
+              <p className="text-xs text-muted-foreground">Energy</p>
+              <p className="text-2xl font-bold">{card.stats.energy}</p>
             </div>
             <div className="rounded-md bg-muted p-3 text-center">
               <p className="text-xs text-muted-foreground">Might</p>
@@ -85,10 +110,6 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
                 <img src="/icons/might.svg" alt="" className="size-5 brightness-0 dark:invert" />
                 {card.stats.might}
               </p>
-            </div>
-            <div className="rounded-md bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">Energy</p>
-              <p className="text-2xl font-bold">{card.stats.energy}</p>
             </div>
             <div className="rounded-md bg-muted p-3 text-center">
               <p className="text-xs text-muted-foreground">Power</p>
@@ -109,17 +130,31 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
             </div>
           )}
 
+          {card.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {card.tags.map((tag) => (
+                <Badge key={tag} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+
           <Separator />
 
           <div>
             <p className="mb-1 text-sm font-medium">Description</p>
-            <p className="text-sm text-muted-foreground">{card.description}</p>
+            <p className="text-sm text-muted-foreground">
+              <CardText text={card.description} />
+            </p>
           </div>
 
           {card.flavorText && (
             <div>
               <p className="text-sm italic text-muted-foreground">
-                &ldquo;{card.flavorText}&rdquo;
+                &ldquo;
+                <CardText text={card.flavorText} />
+                &rdquo;
               </p>
             </div>
           )}

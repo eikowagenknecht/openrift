@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./data/content.json": "./data/content.json"
+    "./data/gallery.json": "./data/gallery.json"
   },
   "scripts": {
     "build": "tsc",

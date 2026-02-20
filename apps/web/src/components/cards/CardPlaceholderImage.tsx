@@ -42,7 +42,7 @@ export function CardPlaceholderImage({
   return (
     <div
       className={cn(
-        "relative flex aspect-[2/3] items-center justify-center overflow-hidden rounded-lg",
+        "relative flex aspect-[744/1039] items-center justify-center overflow-hidden rounded-lg",
         className,
       )}
       style={bgStyle}

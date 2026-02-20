@@ -16,6 +16,12 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
       return false;
     }
     if (
+      filters.superTypes.length > 0 &&
+      !card.superTypes.some((st) => filters.superTypes.includes(st))
+    ) {
+      return false;
+    }
+    if (
       filters.domains.length > 0 &&
       !card.faction.split("/").some((d) => filters.domains.includes(d))
     ) {
@@ -35,6 +41,7 @@ export interface AvailableFilters {
   sets: string[];
   rarities: Rarity[];
   types: string[];
+  superTypes: string[];
   domains: string[];
   costMin: number;
   costMax: number;
@@ -46,6 +53,9 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     (a, b) => RARITY_ORDER[a] - RARITY_ORDER[b],
   ) as Rarity[];
   const types = [...new Set(cards.map((c) => c.type))].sort();
+  const superTypes = [...new Set(cards.flatMap((c) => c.superTypes))]
+    .filter((st) => st !== "Basic")
+    .sort();
   const domains = [...new Set(cards.flatMap((c) => c.faction.split("/")))]
     .sort()
     .sort((a, b) => (a === "Colorless" ? 1 : b === "Colorless" ? -1 : 0));
@@ -54,6 +64,7 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     sets,
     rarities,
     types,
+    superTypes,
     domains,
     costMin: Math.min(...costs),
     costMax: Math.max(...costs),

@@ -44,7 +44,7 @@ export function CardThumbnail({ card, onClick, showImages }: CardThumbnailProps)
           <span className="text-muted-foreground">{setNumber}</span> {card.name}
         </p>
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-          <img src={`/icons/types/${card.type.toLowerCase()}.webp`} alt="" className="size-3.5" />
+          <img src={`/icons/types/${card.type.toLowerCase()}.svg`} alt="" className="size-3.5" />
           {card.type}
           <span>&middot;</span>
           <img
