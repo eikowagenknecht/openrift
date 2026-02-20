@@ -36,6 +36,21 @@ function stripHtml(html) {
     .trim();
 }
 
+function parseKeywords(text) {
+  const matches = text.match(/\[([A-Z][a-zA-Z\- ]+(?:\s+\d+)?)\]/g);
+  if (!matches) return [];
+  const seen = new Set();
+  const keywords = [];
+  for (const m of matches) {
+    const kw = m.slice(1, -1);
+    if (!seen.has(kw)) {
+      seen.add(kw);
+      keywords.push(kw);
+    }
+  }
+  return keywords;
+}
+
 function convertCard(src) {
   const id = src.publicCode.split("/")[0];
   const type = src.cardType.type[0]?.label ?? "Unit";
@@ -44,7 +59,6 @@ function convertCard(src) {
   const faction = src.domain.values.map((d) => d.label).join("/");
 
   const stats = {
-    cost: src.energy?.value.id ?? 0,
     might: src.might?.value.id ?? 0,
     energy: src.energy?.value.id ?? 0,
     power: src.power?.value.id ?? 0,
@@ -53,6 +67,8 @@ function convertCard(src) {
   const description = stripHtml(src.text.richText.body);
   const effect = src.effect ? stripHtml(src.effect.richText.body) : "";
   const mightBonus = src.mightBonus?.value.id ?? 0;
+
+  const keywords = [...new Set([...parseKeywords(description), ...parseKeywords(effect)])];
 
   const art = {
     thumbnailURL: src.cardImage.url,
@@ -72,11 +88,10 @@ function convertCard(src) {
     collectorNumber: src.collectorNumber,
     faction,
     stats,
-    keywords: [],
+    keywords,
     description,
     effect,
     mightBonus,
-    flavorText: "",
     set: setName,
     art,
     tags,

@@ -25,8 +25,8 @@ export function useCardFilters() {
       types: filterState.types as CardType[],
       superTypes: filterState.superTypes,
       domains: filterState.domains,
-      costMin: null,
-      costMax: null,
+      energyMin: null,
+      energyMax: null,
     }),
     [filterState],
   );

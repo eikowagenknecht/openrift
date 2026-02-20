@@ -13,8 +13,6 @@ interface ActiveFiltersProps {
     domains: string[];
   };
   hasActiveFilters: boolean;
-  totalCards: number;
-  filteredCount: number;
   onToggleFilter: (
     key: "sets" | "rarities" | "types" | "superTypes" | "domains",
     value: string,
@@ -26,12 +24,12 @@ interface ActiveFiltersProps {
 export function ActiveFilters({
   filterState,
   hasActiveFilters,
-  totalCards,
-  filteredCount,
   onToggleFilter,
   onClearAll,
   onClearSearch,
 }: ActiveFiltersProps) {
+  if (!hasActiveFilters) return null;
+
   const allFilters: {
     key: "sets" | "rarities" | "types" | "superTypes" | "domains";
     value: string;
@@ -45,9 +43,6 @@ export function ActiveFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-muted-foreground">
-        {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
-      </span>
       {filterState.search && (
         <Badge variant="secondary" className="gap-1">
           Search: &ldquo;{filterState.search}&rdquo;
@@ -68,11 +63,9 @@ export function ActiveFilters({
           </button>
         </Badge>
       ))}
-      {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={onClearAll}>
-          Clear all
-        </Button>
-      )}
+      <Button variant="ghost" size="sm" onClick={onClearAll}>
+        Clear all
+      </Button>
     </div>
   );
 }

@@ -12,10 +12,9 @@ export const RARITY_ORDER: Record<Rarity, number> = {
   Showcase: 4,
 } as const;
 
-export type SortOption = "id" | "name" | "collectorNumber" | "cost" | "rarity";
+export type SortOption = "id" | "name" | "collectorNumber" | "energy" | "rarity";
 
 export interface CardStats {
-  cost: number;
   might: number;
   energy: number;
   power: number;
@@ -40,7 +39,6 @@ export interface Card {
   description: string;
   effect: string;
   mightBonus: number;
-  flavorText: string;
   set: string;
   art: CardArt;
   tags: string[];
@@ -69,6 +67,6 @@ export interface CardFilters {
   types: CardType[];
   superTypes: string[];
   domains: string[];
-  costMin: number | null;
-  costMax: number | null;
+  energyMin: number | null;
+  energyMax: number | null;
 }

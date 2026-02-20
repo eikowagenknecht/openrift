@@ -88,7 +88,6 @@ export type GalleryCard = z.infer<typeof galleryCardSchema>;
 // ---------------------------------------------------------------------------
 
 export const cardStatsSchema = z.object({
-  cost: z.number(),
   might: z.number(),
   energy: z.number(),
   power: z.number(),
@@ -113,7 +112,6 @@ export const cardSchema = z.object({
   description: z.string(),
   effect: z.string().default(""),
   mightBonus: z.number().default(0),
-  flavorText: z.string(),
   set: z.string(),
   art: cardArtSchema,
   tags: z.array(z.string()),

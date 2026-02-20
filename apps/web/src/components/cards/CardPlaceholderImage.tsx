@@ -13,7 +13,7 @@ export const DOMAIN_COLORS: Record<string, string> = {
 interface CardPlaceholderImageProps {
   name: string;
   domain: string;
-  cost: number;
+  energy: number;
   might?: number;
   className?: string;
 }
@@ -33,7 +33,7 @@ function getDomainBackground(domain: string): React.CSSProperties {
 export function CardPlaceholderImage({
   name,
   domain,
-  cost,
+  energy,
   might,
   className,
 }: CardPlaceholderImageProps) {
@@ -47,10 +47,10 @@ export function CardPlaceholderImage({
       )}
       style={bgStyle}
     >
-      {/* Top-left: cost circle */}
+      {/* Top-left: energy circle */}
       <div className="absolute top-2 left-2">
         <div className="flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
-          {cost}
+          {energy}
         </div>
       </div>
 

@@ -1,8 +1,15 @@
 import type { AvailableFilters, SortOption } from "@openrift/shared";
-import { Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -24,18 +31,23 @@ interface FilterBarProps {
     domains: string[];
   };
   sortBy: SortOption;
+  showImages: boolean;
+  totalCards: number;
+  filteredCount: number;
+  hasActiveFilters: boolean;
   onSearchChange: (search: string) => void;
   onToggleFilter: (
     key: "sets" | "rarities" | "types" | "superTypes" | "domains",
     value: string,
   ) => void;
   onSortChange: (sort: SortOption) => void;
+  onShowImagesChange: (show: boolean) => void;
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "id", label: "ID" },
   { value: "name", label: "Name" },
-  { value: "cost", label: "Cost" },
+  { value: "energy", label: "Energy" },
   { value: "rarity", label: "Rarity" },
 ];
 
@@ -43,9 +55,14 @@ export function FilterBar({
   availableFilters,
   filterState,
   sortBy,
+  showImages,
+  totalCards,
+  filteredCount,
+  hasActiveFilters,
   onSearchChange,
   onToggleFilter,
   onSortChange,
+  onShowImagesChange,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const debouncedSearch = useDebounce(localSearch, 200);
@@ -90,6 +107,24 @@ export function FilterBar({
             ))}
           </SelectContent>
         </Select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm">
+              <Menu className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={onShowImagesChange}>
+              Show card images
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-muted-foreground">
+          {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
+        </span>
       </div>
 
       <div className="flex flex-wrap gap-4">
@@ -168,7 +203,20 @@ function FilterSection({
               className="cursor-pointer gap-1"
               onClick={() => onToggle(option)}
             >
-              {icon && <img src={icon} alt="" className="size-3.5" />}
+              {icon &&
+                (icon.endsWith(".svg") ? (
+                  <span
+                    className="inline-block size-3.5 bg-current"
+                    style={{
+                      maskImage: `url(${icon})`,
+                      maskSize: "contain",
+                      maskRepeat: "no-repeat",
+                      maskPosition: "center",
+                    }}
+                  />
+                ) : (
+                  <img src={icon} alt="" className="size-3.5" />
+                ))}
               {displayLabel ? displayLabel(option) : option}
             </Badge>
           );

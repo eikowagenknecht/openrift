@@ -27,10 +27,10 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     ) {
       return false;
     }
-    if (filters.costMin !== null && card.stats.cost < filters.costMin) {
+    if (filters.energyMin !== null && card.stats.energy < filters.energyMin) {
       return false;
     }
-    if (filters.costMax !== null && card.stats.cost > filters.costMax) {
+    if (filters.energyMax !== null && card.stats.energy > filters.energyMax) {
       return false;
     }
     return true;
@@ -43,8 +43,8 @@ export interface AvailableFilters {
   types: string[];
   superTypes: string[];
   domains: string[];
-  costMin: number;
-  costMax: number;
+  energyMin: number;
+  energyMax: number;
 }
 
 export function getAvailableFilters(cards: Card[]): AvailableFilters {
@@ -59,15 +59,15 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
   const domains = [...new Set(cards.flatMap((c) => c.faction.split("/")))]
     .sort()
     .sort((a, b) => (a === "Colorless" ? 1 : b === "Colorless" ? -1 : 0));
-  const costs = cards.map((c) => c.stats.cost);
+  const energies = cards.map((c) => c.stats.energy);
   return {
     sets,
     rarities,
     types,
     superTypes,
     domains,
-    costMin: Math.min(...costs),
-    costMax: Math.max(...costs),
+    energyMin: Math.min(...energies),
+    energyMax: Math.max(...energies),
   };
 }
 
@@ -92,8 +92,8 @@ export function sortCards(cards: Card[], sortBy: SortOption): Card[] {
       });
       break;
     }
-    case "cost": {
-      sorted.sort((a, b) => a.stats.cost - b.stats.cost || a.name.localeCompare(b.name));
+    case "energy": {
+      sorted.sort((a, b) => a.stats.energy - b.stats.energy || a.name.localeCompare(b.name));
       break;
     }
     case "rarity": {
