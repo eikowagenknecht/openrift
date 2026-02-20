@@ -1,9 +1,16 @@
 [
   {
-    "id": "origins",
+    "id": "Origins",
     "name": "Origins",
     "code": "OGN",
     "releaseDate": "2025-10-31",
     "cardCount": 298
+  },
+  {
+    "id": "Spiritforged",
+    "name": "Spiritforged",
+    "code": "SPF",
+    "releaseDate": "2026-04-01",
+    "cardCount": 250
   }
 ]
