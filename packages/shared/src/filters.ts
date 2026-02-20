@@ -1,10 +1,74 @@
-import type { Card, CardFilters, Rarity, SortOption } from "./types.js";
-import { RARITY_ORDER } from "./types.js";
+import type { Card, CardFilters, Rarity, SearchField, SortOption } from "./types.js";
+import { RARITY_ORDER, SEARCH_PREFIX_MAP } from "./types.js";
+
+export interface ParsedSearchTerm {
+  field: SearchField | null;
+  text: string;
+}
+
+export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
+  const terms: ParsedSearchTerm[] = [];
+  const regex = /(?:([ndkta]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(raw)) !== null) {
+    const prefix = match[1];
+    if (prefix) {
+      const text = (match[2] ?? match[3] ?? "").trim();
+      if (text) {
+        terms.push({ field: SEARCH_PREFIX_MAP[prefix] ?? null, text });
+      }
+    } else {
+      const text = (match[4] ?? match[5] ?? "").trim();
+      if (text) {
+        terms.push({ field: null, text });
+      }
+    }
+  }
+  return terms;
+}
+
+function cardMatchesField(card: Card, field: SearchField, text: string): boolean {
+  const lower = text.toLowerCase();
+  switch (field) {
+    case "name": {
+      return card.name.toLowerCase().includes(lower);
+    }
+    case "cardText": {
+      return (
+        card.description.toLowerCase().includes(lower) || card.effect.toLowerCase().includes(lower)
+      );
+    }
+    case "keywords": {
+      return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
+    }
+    case "tags": {
+      return card.tags.some((tag) => tag.toLowerCase().includes(lower));
+    }
+    case "artist": {
+      return card.art.artist.toLowerCase().includes(lower);
+    }
+  }
+}
 
 export function filterCards(cards: Card[], filters: CardFilters): Card[] {
+  const terms = filters.search ? parseSearchTerms(filters.search) : [];
+  const hasPrefixes = terms.some((t) => t.field !== null);
+
   return cards.filter((card) => {
-    if (filters.search && !card.name.toLowerCase().includes(filters.search.toLowerCase())) {
-      return false;
+    if (terms.length > 0) {
+      const allMatch = terms.every((term) => {
+        if (term.field) {
+          return cardMatchesField(card, term.field, term.text);
+        }
+        // Un-prefixed: if any prefix present, search all fields; otherwise search active scope
+        const fieldsToSearch = hasPrefixes
+          ? (["name", "cardText", "keywords", "tags", "artist"] as SearchField[])
+          : filters.searchScope;
+        return fieldsToSearch.some((f) => cardMatchesField(card, f, term.text));
+      });
+      if (!allMatch) {
+        return false;
+      }
     }
     if (filters.sets.length > 0 && !filters.sets.includes(card.set)) {
       return false;

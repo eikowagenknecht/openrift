@@ -1,6 +1,7 @@
-import type { AvailableFilters, SortOption } from "@openrift/shared";
+import type { AvailableFilters, SearchField, SortOption } from "@openrift/shared";
+import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import { Menu, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,14 @@ import {
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
 
+const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
+  name: { label: "Name", prefix: "n:" },
+  cardText: { label: "Card Text", prefix: "d:" },
+  keywords: { label: "Keywords", prefix: "k:" },
+  tags: { label: "Tags", prefix: "t:" },
+  artist: { label: "Artist", prefix: "a:" },
+};
+
 interface FilterBarProps {
   availableFilters: AvailableFilters;
   filterState: {
@@ -35,6 +44,7 @@ interface FilterBarProps {
   totalCards: number;
   filteredCount: number;
   hasActiveFilters: boolean;
+  searchScope: SearchField[];
   onSearchChange: (search: string) => void;
   onToggleFilter: (
     key: "sets" | "rarities" | "types" | "superTypes" | "domains",
@@ -42,6 +52,7 @@ interface FilterBarProps {
   ) => void;
   onSortChange: (sort: SortOption) => void;
   onShowImagesChange: (show: boolean) => void;
+  onSearchScopeToggle: (field: SearchField) => void;
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -59,14 +70,23 @@ export function FilterBar({
   totalCards,
   filteredCount,
   hasActiveFilters,
+  searchScope,
   onSearchChange,
   onToggleFilter,
   onSortChange,
   onShowImagesChange,
+  onSearchScopeToggle,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
+  const [searchFocused, setSearchFocused] = useState(false);
   const debouncedSearch = useDebounce(localSearch, 200);
   const prevFilterSearch = useRef(filterState.search);
+
+  const showScopeChips = searchFocused || localSearch.length > 0;
+  const hasPrefixes = useMemo(
+    () => parseSearchTerms(localSearch).some((t) => t.field !== null),
+    [localSearch],
+  );
 
   useEffect(() => {
     // External change (e.g. clear all, clear search badge): sync local state
@@ -92,6 +112,8 @@ export function FilterBar({
             placeholder="Search cards..."
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             className="pl-9"
           />
         </div>
@@ -122,6 +144,33 @@ export function FilterBar({
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+
+      <div
+        className={`flex items-center gap-2 overflow-hidden transition-all duration-200 ${
+          showScopeChips ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
+        <div
+          className={`flex flex-wrap gap-1 ${hasPrefixes ? "pointer-events-none opacity-40" : ""}`}
+        >
+          {ALL_SEARCH_FIELDS.map((field) => {
+            const { label, prefix } = SEARCH_FIELD_LABELS[field];
+            const isActive = searchScope.includes(field);
+            return (
+              <Badge
+                key={field}
+                variant={isActive ? "default" : "outline"}
+                className="cursor-pointer gap-1 text-xs"
+                onClick={() => onSearchScopeToggle(field)}
+              >
+                <span className="text-[10px] opacity-50">{prefix}</span>
+                {label}
+              </Badge>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4">

@@ -2,6 +2,8 @@ import type { CardType, Rarity, SortOption } from "@openrift/shared";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 import { useMemo } from "react";
 
+import { useSearchScope } from "@/hooks/use-search-scope";
+
 const filterParsers = {
   search: parseAsString.withDefault(""),
   sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
@@ -16,10 +18,12 @@ export function useCardFilters() {
   const [filterState, setFilterState] = useQueryStates(filterParsers, {
     history: "push",
   });
+  const { scope: searchScope, toggleField: toggleSearchField } = useSearchScope();
 
   const filters = useMemo(
     () => ({
       search: filterState.search,
+      searchScope,
       sets: filterState.sets,
       rarities: filterState.rarities as Rarity[],
       types: filterState.types as CardType[],
@@ -28,7 +32,7 @@ export function useCardFilters() {
       energyMin: null,
       energyMax: null,
     }),
-    [filterState],
+    [filterState, searchScope],
   );
 
   const sortBy = filterState.sort as SortOption;
@@ -79,5 +83,7 @@ export function useCardFilters() {
     toggleArrayFilter,
     setSortBy,
     filterState,
+    searchScope,
+    toggleSearchField,
   };
 }

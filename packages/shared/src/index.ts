@@ -8,9 +8,15 @@ export type {
   Domain,
   Rarity,
   RiftboundContent,
+  SearchField,
   SortOption,
 } from "./types.js";
-export { RARITY_ORDER } from "./types.js";
+export {
+  ALL_SEARCH_FIELDS,
+  DEFAULT_SEARCH_SCOPE,
+  RARITY_ORDER,
+  SEARCH_PREFIX_MAP,
+} from "./types.js";
 
 export type { GalleryCard } from "./schemas.js";
 export {
@@ -22,5 +28,5 @@ export {
   galleryCardSchema,
 } from "./schemas.js";
 
-export type { AvailableFilters } from "./filters.js";
-export { filterCards, getAvailableFilters, sortCards } from "./filters.js";
+export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
+export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";

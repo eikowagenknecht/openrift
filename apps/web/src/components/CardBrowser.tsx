@@ -21,6 +21,8 @@ export function CardBrowser() {
     toggleArrayFilter,
     setSortBy,
     filterState,
+    searchScope,
+    toggleSearchField,
   } = useCardFilters();
 
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -37,9 +39,13 @@ export function CardBrowser() {
 
   // Lock body scroll when mobile overlay is active
   useEffect(() => {
-    if (!detailOpen) return;
+    if (!detailOpen) {
+      return;
+    }
     const mq = window.matchMedia("(max-width: 767px)");
-    if (!mq.matches) return;
+    if (!mq.matches) {
+      return;
+    }
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
@@ -73,10 +79,12 @@ export function CardBrowser() {
         totalCards={allCards.length}
         filteredCount={sortedCards.length}
         hasActiveFilters={hasActiveFilters}
+        searchScope={searchScope}
         onSearchChange={setSearch}
         onToggleFilter={toggleArrayFilter}
         onSortChange={setSortBy}
         onShowImagesChange={handleShowImagesChange}
+        onSearchScopeToggle={toggleSearchField}
       />
       <ActiveFilters
         filterState={filterState}

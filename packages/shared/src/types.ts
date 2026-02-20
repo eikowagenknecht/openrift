@@ -60,8 +60,23 @@ export interface RiftboundContent {
   sets: ContentSet[];
 }
 
+export type SearchField = "name" | "cardText" | "keywords" | "tags" | "artist";
+
+export const ALL_SEARCH_FIELDS: SearchField[] = ["name", "cardText", "keywords", "tags", "artist"];
+
+export const DEFAULT_SEARCH_SCOPE: SearchField[] = ["name"];
+
+export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
+  n: "name",
+  d: "cardText",
+  k: "keywords",
+  t: "tags",
+  a: "artist",
+};
+
 export interface CardFilters {
   search: string;
+  searchScope: SearchField[];
   sets: string[];
   rarities: Rarity[];
   types: CardType[];
