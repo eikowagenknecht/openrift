@@ -1,6 +1,11 @@
 import type { Card, CardFilters, Rarity, SortOption } from "./types.js";
 import { RARITY_ORDER } from "./types.js";
 
+export function parseCollectorNumber(id: string): number {
+  const match = id.match(/-(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
 export function filterCards(cards: Card[], filters: CardFilters): Card[] {
   return cards.filter((card) => {
     if (filters.search && !card.name.toLowerCase().includes(filters.search.toLowerCase())) {
@@ -71,7 +76,7 @@ export function sortCards(cards: Card[], sortBy: SortOption): Card[] {
         if (setCompare !== 0) {
           return setCompare;
         }
-        return a.collectorNumber - b.collectorNumber;
+        return parseCollectorNumber(a.id) - parseCollectorNumber(b.id);
       });
       break;
     }

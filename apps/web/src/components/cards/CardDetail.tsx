@@ -17,15 +17,14 @@ interface CardDetailProps {
   card: Card | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  setCodeMap: Map<string, string>;
 }
 
-export function CardDetail({ card, open, onOpenChange, setCodeMap }: CardDetailProps) {
+export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
   if (!card) {
     return null;
   }
 
-  const setNumber = formatCollectorNumber(card, setCodeMap);
+  const setNumber = formatCollectorNumber(card);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

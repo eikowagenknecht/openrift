@@ -19,4 +19,4 @@ export {
 } from "./schemas.js";
 
 export type { AvailableFilters } from "./filters.js";
-export { filterCards, getAvailableFilters, sortCards } from "./filters.js";
+export { filterCards, getAvailableFilters, parseCollectorNumber, sortCards } from "./filters.js";

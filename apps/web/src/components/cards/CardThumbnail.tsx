@@ -6,11 +6,10 @@ import { formatCollectorNumber } from "@/lib/format";
 interface CardThumbnailProps {
   card: Card;
   onClick: (card: Card) => void;
-  setCodeMap: Map<string, string>;
 }
 
-export function CardThumbnail({ card, onClick, setCodeMap }: CardThumbnailProps) {
-  const setNumber = formatCollectorNumber(card, setCodeMap);
+export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
+  const setNumber = formatCollectorNumber(card);
 
   return (
     <button

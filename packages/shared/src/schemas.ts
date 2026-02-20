@@ -17,7 +17,6 @@ export const cardSchema = z.object({
   flavorText: z.string(),
   domain: z.string(),
   set: z.string(),
-  collectorNumber: z.number(),
   artist: z.string(),
   imageUrl: z.string(),
   thumbnailUrl: z.string(),

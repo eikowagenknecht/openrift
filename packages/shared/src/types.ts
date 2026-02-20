@@ -31,7 +31,6 @@ export interface Card {
   flavorText: string;
   domain: string;
   set: string;
-  collectorNumber: number;
   artist: string;
   imageUrl: string;
   thumbnailUrl: string;
