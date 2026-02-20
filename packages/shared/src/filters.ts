@@ -1,5 +1,12 @@
-import type { Card, CardFilters, CardVariant, Rarity, SearchField, SortOption } from "./types.js";
-import type { RiftboundContent } from "./types.js";
+import type {
+  Card,
+  CardFilters,
+  CardVariant,
+  Rarity,
+  RiftboundContent,
+  SearchField,
+  SortOption,
+} from "./types.js";
 import { RARITY_ORDER, SEARCH_PREFIX_MAP } from "./types.js";
 
 export interface ParsedSearchTerm {
