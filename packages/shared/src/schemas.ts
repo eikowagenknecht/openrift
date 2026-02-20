@@ -16,7 +16,7 @@ export const cardArtSchema = z.object({
 export const cardSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(["Champion", "Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"]),
+  type: z.enum(["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"]),
   rarity: z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]),
   collectorNumber: z.number(),
   faction: z.string(),

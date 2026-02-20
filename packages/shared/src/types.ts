@@ -1,8 +1,8 @@
-export type CardType = "Champion" | "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
+export type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
 
 export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
 
-export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order";
+export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order" | "Colorless";
 
 export const RARITY_ORDER: Record<Rarity, number> = {
   Common: 0,

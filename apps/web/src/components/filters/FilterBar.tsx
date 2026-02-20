@@ -104,7 +104,7 @@ export function FilterBar({
           options={availableFilters.domains}
           selected={filterState.domains}
           onToggle={(v) => onToggleFilter("domains", v)}
-          iconPath={(v) => `/icons/domains/${v}.webp`}
+          iconPath={(v) => (v === "Colorless" ? undefined : `/icons/domains/${v}.webp`)}
         />
       </div>
     </div>
@@ -122,23 +122,26 @@ function FilterSection({
   options: string[];
   selected: string[];
   onToggle: (value: string) => void;
-  iconPath?: (value: string) => string;
+  iconPath?: (value: string) => string | undefined;
 }) {
   return (
     <div className="space-y-1.5">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-1">
-        {options.map((option) => (
-          <Badge
-            key={option}
-            variant={selected.includes(option) ? "default" : "outline"}
-            className="cursor-pointer gap-1"
-            onClick={() => onToggle(option)}
-          >
-            {iconPath && <img src={iconPath(option)} alt="" className="size-3.5" />}
-            {option}
-          </Badge>
-        ))}
+        {options.map((option) => {
+          const icon = iconPath?.(option);
+          return (
+            <Badge
+              key={option}
+              variant={selected.includes(option) ? "default" : "outline"}
+              className="cursor-pointer gap-1"
+              onClick={() => onToggle(option)}
+            >
+              {icon && <img src={icon} alt="" className="size-3.5" />}
+              {option}
+            </Badge>
+          );
+        })}
       </div>
     </div>
   );
