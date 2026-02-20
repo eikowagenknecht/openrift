@@ -49,7 +49,7 @@ export function CardPlaceholderImage({
       </div>
 
       {/* Top-right: strength (attack) */}
-      {attack != null && (
+      {attack !== undefined && attack !== null && (
         <div className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
           {attack}
         </div>
