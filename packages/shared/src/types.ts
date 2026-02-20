@@ -1,6 +1,6 @@
 export type CardType = "Champion" | "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
 
-export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Overnumbered";
+export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
 
 export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order";
 
@@ -9,7 +9,7 @@ export const RARITY_ORDER: Record<Rarity, number> = {
   Uncommon: 1,
   Rare: 2,
   Epic: 3,
-  Overnumbered: 4,
+  Showcase: 4,
 } as const;
 
 export type SortOption = "name" | "collectorNumber" | "cost" | "rarity";

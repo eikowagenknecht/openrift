@@ -9,7 +9,7 @@ export const cardSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: z.enum(["Champion", "Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"]),
-  rarity: z.enum(["Common", "Uncommon", "Rare", "Epic", "Overnumbered"]),
+  rarity: z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]),
   cost: z.number(),
   stats: cardStatsSchema.nullable(),
   keywords: z.array(z.string()),

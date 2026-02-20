@@ -90,18 +90,21 @@ export function FilterBar({
           options={availableFilters.rarities}
           selected={filterState.rarities}
           onToggle={(v) => onToggleFilter("rarities", v)}
+          iconPath={(v) => `/icons/rarities/${v.toLowerCase()}.webp`}
         />
         <FilterSection
           label="Type"
           options={availableFilters.types}
           selected={filterState.types}
           onToggle={(v) => onToggleFilter("types", v)}
+          iconPath={(v) => `/icons/types/${v.toLowerCase()}.webp`}
         />
         <FilterSection
           label="Domain"
           options={availableFilters.domains}
           selected={filterState.domains}
           onToggle={(v) => onToggleFilter("domains", v)}
+          iconPath={(v) => `/icons/domains/${v}.webp`}
         />
       </div>
     </div>
@@ -113,11 +116,13 @@ function FilterSection({
   options,
   selected,
   onToggle,
+  iconPath,
 }: {
   label: string;
   options: string[];
   selected: string[];
   onToggle: (value: string) => void;
+  iconPath?: (value: string) => string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -127,9 +132,10 @@ function FilterSection({
           <Badge
             key={option}
             variant={selected.includes(option) ? "default" : "outline"}
-            className="cursor-pointer"
+            className="cursor-pointer gap-1"
             onClick={() => onToggle(option)}
           >
+            {iconPath && <img src={iconPath(option)} alt="" className="size-3.5" />}
             {option}
           </Badge>
         ))}

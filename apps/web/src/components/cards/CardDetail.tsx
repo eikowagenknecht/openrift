@@ -28,12 +28,36 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
       <SheetContent className="overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{card.name}</SheetTitle>
-          <SheetDescription>
-            {card.type} &middot; {card.rarity} &middot; {card.domain}
+          <SheetDescription className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1">
+              <img src={`/icons/types/${card.type.toLowerCase()}.webp`} alt="" className="size-4" />
+              {card.type}
+            </span>
+            &middot;
+            <span className="inline-flex items-center gap-1">
+              <img
+                src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
+                alt=""
+                className="size-4"
+              />
+              {card.rarity}
+            </span>
+            &middot;
+            <span className="inline-flex items-center gap-1">
+              <img src={`/icons/domains/${card.domain}.webp`} alt="" className="size-4" />
+              {card.domain}
+            </span>
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-4">
-          <CardPlaceholderImage name={card.name} rarity={card.rarity} type={card.type} />
+          <CardPlaceholderImage
+            name={card.name}
+            rarity={card.rarity}
+            type={card.type}
+            domain={card.domain}
+            cost={card.cost}
+            attack={card.stats?.attack}
+          />
 
           {card.stats && (
             <div className="grid grid-cols-2 gap-2">
