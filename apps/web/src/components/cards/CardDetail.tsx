@@ -9,6 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { formatCollectorNumber } from "@/lib/format";
 
 import { CardPlaceholderImage } from "./CardPlaceholderImage";
 
@@ -16,12 +17,15 @@ interface CardDetailProps {
   card: Card | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  setCodeMap: Map<string, string>;
 }
 
-export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
+export function CardDetail({ card, open, onOpenChange, setCodeMap }: CardDetailProps) {
   if (!card) {
     return null;
   }
+
+  const setNumber = formatCollectorNumber(card, setCodeMap);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -57,6 +61,7 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
             domain={card.domain}
             cost={card.cost}
             attack={card.stats?.attack}
+            setNumber={setNumber}
           />
 
           {card.stats && (
@@ -105,8 +110,9 @@ export function CardDetail({ card, open, onOpenChange }: CardDetailProps) {
           <Separator />
 
           <div className="space-y-1 text-xs text-muted-foreground">
-            <p>Set: {card.set}</p>
-            <p>Collector #{card.collectorNumber}</p>
+            <p>
+              {setNumber} &middot; {card.set}
+            </p>
             <p>Artist: {card.artist}</p>
           </div>
         </div>

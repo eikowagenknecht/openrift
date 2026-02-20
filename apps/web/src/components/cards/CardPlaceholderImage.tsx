@@ -18,6 +18,7 @@ interface CardPlaceholderImageProps {
   domain: string;
   cost: number;
   attack?: number | null;
+  setNumber?: string;
   className?: string;
 }
 
@@ -28,6 +29,7 @@ export function CardPlaceholderImage({
   domain,
   cost,
   attack,
+  setNumber,
   className,
 }: CardPlaceholderImageProps) {
   const bgColor = domainColors[domain] ?? "bg-neutral-500 dark:bg-neutral-600";
@@ -68,6 +70,13 @@ export function CardPlaceholderImage({
           className="size-5 drop-shadow-md"
         />
       </div>
+
+      {/* Bottom-right: set number */}
+      {setNumber && (
+        <span className="absolute bottom-2 right-2 text-xs font-medium text-white/80 drop-shadow-md">
+          {setNumber}
+        </span>
+      )}
 
       {/* Card name */}
       <span className="px-3 text-center text-sm font-semibold text-white drop-shadow-md">

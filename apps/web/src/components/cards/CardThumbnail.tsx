@@ -1,13 +1,17 @@
 import type { Card } from "@openrift/shared";
 
 import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
+import { formatCollectorNumber } from "@/lib/format";
 
 interface CardThumbnailProps {
   card: Card;
   onClick: (card: Card) => void;
+  setCodeMap: Map<string, string>;
 }
 
-export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
+export function CardThumbnail({ card, onClick, setCodeMap }: CardThumbnailProps) {
+  const setNumber = formatCollectorNumber(card, setCodeMap);
+
   return (
     <button
       type="button"
@@ -22,6 +26,7 @@ export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
           domain={card.domain}
           cost={card.cost}
           attack={card.stats?.attack}
+          setNumber={setNumber}
         />
       </div>
       <div className="mt-1.5 space-y-0.5 px-0.5">
@@ -36,6 +41,8 @@ export function CardThumbnail({ card, onClick }: CardThumbnailProps) {
             className="size-3.5"
           />
           {card.rarity}
+          <span>&middot;</span>
+          {setNumber}
         </p>
       </div>
     </button>

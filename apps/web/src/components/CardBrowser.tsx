@@ -1,6 +1,7 @@
-import type { Card } from "@openrift/shared";
+import type { Card, CardSet } from "@openrift/shared";
 import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 import cardsData from "@openrift/shared/data/cards.json";
+import setsData from "@openrift/shared/data/sets.json";
 import { useMemo, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
@@ -10,6 +11,8 @@ import { FilterBar } from "@/components/filters/FilterBar";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
 const allCards = cardsData as Card[];
+const allSets = setsData as CardSet[];
+const setCodeMap = new Map(allSets.map((s) => [s.id, s.code]));
 
 export function CardBrowser() {
   const {
@@ -54,8 +57,13 @@ export function CardBrowser() {
         onClearAll={clearAllFilters}
         onClearSearch={() => setSearch("")}
       />
-      <CardGrid cards={sortedCards} onCardClick={handleCardClick} />
-      <CardDetail card={selectedCard} open={detailOpen} onOpenChange={setDetailOpen} />
+      <CardGrid cards={sortedCards} onCardClick={handleCardClick} setCodeMap={setCodeMap} />
+      <CardDetail
+        card={selectedCard}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        setCodeMap={setCodeMap}
+      />
     </div>
   );
 }
