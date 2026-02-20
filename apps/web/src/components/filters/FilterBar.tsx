@@ -107,71 +107,74 @@ export function FilterBar({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search cards..."
-            value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            className="pl-9"
-          />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="min-w-0 flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search cards..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              className="pl-9"
+            />
+          </div>
+          <div
+            className={`flex items-center gap-2 overflow-hidden transition-all duration-200 ${
+              showScopeChips ? "mt-2 max-h-10 opacity-100" : "mt-0 max-h-0 opacity-0"
+            }`}
+          >
+            <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
+            <div
+              className={`flex flex-wrap gap-1 ${hasPrefixes ? "pointer-events-none opacity-40" : ""}`}
+            >
+              {ALL_SEARCH_FIELDS.map((field) => {
+                const { label, prefix } = SEARCH_FIELD_LABELS[field];
+                const isActive = searchScope.includes(field);
+                return (
+                  <Badge
+                    key={field}
+                    variant={isActive ? "default" : "outline"}
+                    className="cursor-pointer gap-1 text-xs"
+                    onClick={() => onSearchScopeToggle(field)}
+                  >
+                    <span className="text-[10px] opacity-50">{prefix}</span>
+                    {label}
+                  </Badge>
+                );
+              })}
+            </div>
+          </div>
         </div>
-        <span className="shrink-0 text-sm text-muted-foreground">
-          {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
-        </span>
-        <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            {sortOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm">
-              <Menu className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={onShowImagesChange}>
-              Show card images
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div
-        className={`flex items-center gap-2 overflow-hidden transition-all duration-200 ${
-          showScopeChips ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
-        }`}
-      >
-        <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
-        <div
-          className={`flex flex-wrap gap-1 ${hasPrefixes ? "pointer-events-none opacity-40" : ""}`}
-        >
-          {ALL_SEARCH_FIELDS.map((field) => {
-            const { label, prefix } = SEARCH_FIELD_LABELS[field];
-            const isActive = searchScope.includes(field);
-            return (
-              <Badge
-                key={field}
-                variant={isActive ? "default" : "outline"}
-                className="cursor-pointer gap-1 text-xs"
-                onClick={() => onSearchScopeToggle(field)}
-              >
-                <span className="text-[10px] opacity-50">{prefix}</span>
-                {label}
-              </Badge>
-            );
-          })}
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 text-sm text-muted-foreground">
+            {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
+          </span>
+          <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm">
+                <Menu className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={onShowImagesChange}>
+                Show card images
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
