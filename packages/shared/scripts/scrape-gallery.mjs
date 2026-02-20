@@ -38,7 +38,9 @@ function stripHtml(html) {
 
 function parseKeywords(text) {
   const matches = text.match(/\[([A-Z][a-zA-Z\- ]+(?:\s+\d+)?)\]/g);
-  if (!matches) return [];
+  if (!matches) {
+    return [];
+  }
   const seen = new Set();
   const keywords = [];
   for (const m of matches) {

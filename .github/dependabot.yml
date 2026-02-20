@@ -6,18 +6,13 @@ updates:
       interval: "weekly"
     versioning-strategy: "increase"
     groups:
-      react:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
-      eslint:
-        patterns:
-          - "eslint*"
-          - "@eslint/*"
-          - "typescript-eslint"
-      vite:
-        patterns:
-          - "vite"
-          - "@vitejs/*"
+      production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
