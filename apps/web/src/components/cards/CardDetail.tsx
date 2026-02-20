@@ -104,20 +104,57 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
               <p className="text-xs text-muted-foreground">Energy</p>
               <p className="text-2xl font-bold">{card.stats.energy}</p>
             </div>
-            <div className="rounded-md bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">Might</p>
-              <p className="flex items-center justify-center gap-1 text-2xl font-bold">
-                <img src="/icons/might.svg" alt="" className="size-5 brightness-0 dark:invert" />
-                {card.stats.might}
-              </p>
-            </div>
-            <div className="rounded-md bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">Power</p>
-              <p className="flex items-center justify-center gap-1 text-2xl font-bold">
-                <img src="/icons/power.svg" alt="" className="size-5 brightness-0 dark:invert" />
-                {card.stats.power}
-              </p>
-            </div>
+            {card.type === "Gear" ? (
+              <>
+                <div className="rounded-md bg-muted p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Might Bonus</p>
+                  <p className="flex items-center justify-center gap-1 text-2xl font-bold">
+                    <img
+                      src="/icons/might.svg"
+                      alt=""
+                      className="size-5 brightness-0 dark:invert"
+                    />
+                    +{card.mightBonus}
+                  </p>
+                </div>
+                <div className="rounded-md bg-muted p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Power</p>
+                  <p className="flex items-center justify-center gap-1 text-2xl font-bold">
+                    <img
+                      src="/icons/power.svg"
+                      alt=""
+                      className="size-5 brightness-0 dark:invert"
+                    />
+                    {card.stats.power}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-md bg-muted p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Might</p>
+                  <p className="flex items-center justify-center gap-1 text-2xl font-bold">
+                    <img
+                      src="/icons/might.svg"
+                      alt=""
+                      className="size-5 brightness-0 dark:invert"
+                    />
+                    {card.stats.might}
+                  </p>
+                </div>
+                <div className="rounded-md bg-muted p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Power</p>
+                  <p className="flex items-center justify-center gap-1 text-2xl font-bold">
+                    <img
+                      src="/icons/power.svg"
+                      alt=""
+                      className="size-5 brightness-0 dark:invert"
+                    />
+                    {card.stats.power}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {card.keywords.length > 0 && (
@@ -148,6 +185,15 @@ export function CardDetail({ card, open, onOpenChange, showImages }: CardDetailP
               <CardText text={card.description} />
             </p>
           </div>
+
+          {card.effect && (
+            <div>
+              <p className="mb-1 text-sm font-medium">Effect</p>
+              <p className="text-sm text-muted-foreground">
+                <CardText text={card.effect} />
+              </p>
+            </div>
+          )}
 
           {card.flavorText && (
             <div>

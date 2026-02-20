@@ -37,7 +37,6 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "name", label: "Name" },
   { value: "cost", label: "Cost" },
   { value: "rarity", label: "Rarity" },
-  { value: "collectorNumber", label: "Collector #" },
 ];
 
 export function FilterBar({
@@ -122,7 +121,7 @@ export function FilterBar({
             onToggle={(v) => onToggleFilter("superTypes", v)}
             iconPath={(v) => {
               const path = `/icons/supertypes/${v.toLowerCase()}.svg`;
-              return ["Champion"].includes(v) ? path : undefined;
+              return ["Champion", "Signature", "Token"].includes(v) ? path : undefined;
             }}
           />
         )}

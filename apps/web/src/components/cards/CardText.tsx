@@ -14,7 +14,7 @@ export function CardText({ text }: { text: string }) {
         key={`${match.index}-${glyph}`}
         src={`/icons/glyphs/${glyph}.svg`}
         alt={glyph.replaceAll("_", " ")}
-        className="inline-block size-4 align-text-bottom brightness-0 dark:invert"
+        className="inline-block size-4 align-text-bottom"
       />,
     );
     lastIndex = match.index + match[0].length;
