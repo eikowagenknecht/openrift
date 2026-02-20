@@ -8,7 +8,7 @@ const filterParsers = {
   rarities: parseAsArrayOf(parseAsString, ",").withDefault([]),
   types: parseAsArrayOf(parseAsString, ",").withDefault([]),
   domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  sort: parseAsString.withDefault("name"),
+  sort: parseAsString.withDefault("id"),
 };
 
 export function useCardFilters() {
@@ -60,7 +60,7 @@ export function useCardFilters() {
   };
 
   const setSortBy = (sort: SortOption) => {
-    void setFilterState({ sort: sort === "name" ? null : sort });
+    void setFilterState({ sort: sort === "id" ? null : sort });
   };
 
   return {

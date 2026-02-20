@@ -12,7 +12,7 @@ export const RARITY_ORDER: Record<Rarity, number> = {
   Showcase: 4,
 } as const;
 
-export type SortOption = "name" | "collectorNumber" | "cost" | "rarity";
+export type SortOption = "id" | "name" | "collectorNumber" | "cost" | "rarity";
 
 export interface CardStats {
   cost: number;

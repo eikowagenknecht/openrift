@@ -63,6 +63,10 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
 export function sortCards(cards: Card[], sortBy: SortOption): Card[] {
   const sorted = [...cards];
   switch (sortBy) {
+    case "id": {
+      sorted.sort((a, b) => a.id.localeCompare(b.id));
+      break;
+    }
     case "name": {
       sorted.sort((a, b) => a.name.localeCompare(b.name));
       break;

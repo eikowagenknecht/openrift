@@ -29,6 +29,7 @@ interface FilterBarProps {
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
+  { value: "id", label: "ID" },
   { value: "name", label: "Name" },
   { value: "cost", label: "Cost" },
   { value: "rarity", label: "Rarity" },
