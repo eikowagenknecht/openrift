@@ -18,7 +18,7 @@ export function Header({ actions }: HeaderProps) {
           <img src="/logo.webp" alt="OpenRift" className="size-8 self-center" />
           <h1 className="text-xl font-bold tracking-tight">OpenRift</h1>
           <span className="hidden text-sm text-muted-foreground sm:inline">
-            Fast, open, ad-free card browser
+            Fast. Open. Ad-free. A Riftbound companion.
           </span>
         </button>
         <div className="flex items-center gap-1">
