@@ -82,7 +82,7 @@ export function ActiveFilters({
   };
 
   return (
-    <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
+    <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         {filterState.search && (
           <div className="flex items-center gap-1">
@@ -167,7 +167,7 @@ export function ActiveFilters({
       <Button
         variant="ghost"
         size="icon-sm"
-        className="shrink-0"
+        className="shrink-0 self-start"
         onClick={onClearAll}
         title="Clear all filters"
       >
