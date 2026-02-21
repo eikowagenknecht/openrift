@@ -1,6 +1,16 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["jsdoc", "import", "typescript", "oxc", "unicorn", "react", "react-perf"],
+  "plugins": [
+    "jsdoc",
+    "import",
+    "typescript",
+    "oxc",
+    "unicorn",
+    "react",
+    "react-perf",
+    "jsx-a11y",
+    "promise"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -107,6 +117,10 @@
         ]
       }
     ],
+    "no-var": "error",
+    "no-console": "warn",
+    "typescript/no-explicit-any": "warn",
+    "import/no-cycle": "warn",
 
     // React Overwrites
     "react/no-unescaped-entities": "off",
@@ -133,12 +147,17 @@
     "react/no-array-index-key": "off",
     "react/prop-types": "off",
     "react/no-multi-comp": "off",
-    "react/no-unstable-nested-components": "off",
     "react/jsx-props-no-multi-spaces": "off",
     "react/jsx-filename-extension": "off",
     "react/jsx-boolean-value": "off",
-    "react/display-name": "off",
-    "react/self-closing-comp": "off"
+    "react/display-name": "off"
   },
-  "ignorePatterns": ["node_modules/", "dist/", "out/", "*.config.js", "*.config.ts"]
+  "ignorePatterns": [
+    "node_modules/",
+    "dist/",
+    "out/",
+    "*.config.js",
+    "*.config.ts",
+    "**/scripts/**"
+  ]
 }
