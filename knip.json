@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [],
+      "project": []
+    },
+    "apps/web": {
+      "ignore": ["src/env.d.ts", "src/components/ui/**"]
+    },
+    "packages/shared": {
+      "entry": ["scripts/**/*.mjs"]
+    }
+  },
+  "ignoreBinaries": ["eslint"]
+}
