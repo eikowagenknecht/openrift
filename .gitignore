@@ -27,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Exploration data dumps
+data/
