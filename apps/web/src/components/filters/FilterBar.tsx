@@ -342,7 +342,7 @@ function FilterSection({
   displayLabel?: (value: string) => string;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-1">
         {options.map((option) => {

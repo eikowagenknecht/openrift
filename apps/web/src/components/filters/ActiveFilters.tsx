@@ -85,7 +85,7 @@ export function ActiveFilters({
           </div>
         )}
         {filterGroups.map(({ key, label, values }) => (
-          <div key={key} className="flex items-center gap-1">
+          <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-xs text-muted-foreground">{label}:</span>
             {values.map((value) => {
               const icon = getIconPath(key, value);
