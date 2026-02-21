@@ -138,11 +138,12 @@ export function FilterBar({
         onToggle={(v) => onToggleFilter("sets", v)}
       />
       <FilterSection
-        label="Rarity"
-        options={availableFilters.rarities}
-        selected={filterState.rarities}
-        onToggle={(v) => onToggleFilter("rarities", v)}
-        iconPath={(v) => `/icons/rarities/${v.toLowerCase()}.webp`}
+        label="Domain"
+        options={availableFilters.domains}
+        selected={filterState.domains}
+        onToggle={(v) => onToggleFilter("domains", v)}
+        iconPath={(v) => `/icons/domains/${v.toLowerCase()}.${v === "Colorless" ? "svg" : "webp"}`}
+        displayLabel={(v) => (v === "Colorless" ? "None" : v)}
       />
       <FilterSection
         label="Type"
@@ -164,12 +165,11 @@ export function FilterBar({
         />
       )}
       <FilterSection
-        label="Domain"
-        options={availableFilters.domains}
-        selected={filterState.domains}
-        onToggle={(v) => onToggleFilter("domains", v)}
-        iconPath={(v) => `/icons/domains/${v.toLowerCase()}.${v === "Colorless" ? "svg" : "webp"}`}
-        displayLabel={(v) => (v === "Colorless" ? "None" : v)}
+        label="Rarity"
+        options={availableFilters.rarities}
+        selected={filterState.rarities}
+        onToggle={(v) => onToggleFilter("rarities", v)}
+        iconPath={(v) => `/icons/rarities/${v.toLowerCase()}.webp`}
       />
       {availableFilters.variants.length > 0 && (
         <FilterSection
