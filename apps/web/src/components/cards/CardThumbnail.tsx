@@ -55,7 +55,7 @@ export function CardThumbnail({ card, onClick, showImages, isSelected }: CardThu
         )}
       </div>
       <div className="mt-1.5 space-y-0.5 px-0.5">
-        <p className="truncate text-sm font-medium">
+        <p className="truncate text-xs font-medium sm:text-sm">
           <span className="text-muted-foreground">{setNumber}</span> {card.name}
         </p>
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
