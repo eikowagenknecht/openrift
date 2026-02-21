@@ -1,7 +1,7 @@
 import type { Card, RiftboundContent } from "@openrift/shared";
 import { filterCards, flattenWithVariants, getAvailableFilters, sortCards } from "@openrift/shared";
 import galleryData from "@openrift/shared/data/gallery.json";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
 import type { SetInfo } from "@/components/cards/CardGrid";
@@ -65,10 +65,16 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
     return sortDir === "desc" ? sorted.toReversed() : sorted;
   }, [filteredCards, sortBy, sortDir]);
 
-  const handleCardClick = (card: Card) => {
+  // Defer the expensive card grid re-render so the filter UI (badge highlight,
+  // sheet close animation) responds immediately. The grid updates once React
+  // has spare time after the urgent interactions are painted.
+  const deferredSortedCards = useDeferredValue(sortedCards);
+  const isGridStale = deferredSortedCards !== sortedCards;
+
+  const handleCardClick = useCallback((card: Card) => {
     setSelectedCard(card);
     setDetailOpen(true);
-  };
+  }, []);
 
   const handleDetailClose = () => {
     setDetailOpen(false);
@@ -100,9 +106,11 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
       />
 
       <div className="flex items-start gap-6">
-        <div className="min-w-0 flex-1">
+        <div
+          className={`min-w-0 flex-1 transition-opacity duration-150 ${isGridStale ? "opacity-60" : "opacity-100"}`}
+        >
           <CardGrid
-            cards={sortedCards}
+            cards={deferredSortedCards}
             setOrder={setInfoList}
             onCardClick={handleCardClick}
             showImages={showImages}

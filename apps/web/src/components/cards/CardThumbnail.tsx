@@ -1,4 +1,5 @@
 import type { Card } from "@openrift/shared";
+import { memo } from "react";
 
 import { CardPlaceholderImage, DOMAIN_COLORS } from "@/components/cards/CardPlaceholderImage";
 import { formatCardId } from "@/lib/format";
@@ -38,7 +39,7 @@ function getDomainStyle(faction: string): React.CSSProperties {
   return { background: `linear-gradient(135deg, ${c1}38 50%, ${c2}38 50%)` };
 }
 
-export function CardThumbnail({
+export const CardThumbnail = memo(function CardThumbnail({
   card,
   onClick,
   showImages,
@@ -117,4 +118,4 @@ export function CardThumbnail({
       )}
     </button>
   );
-}
+});
