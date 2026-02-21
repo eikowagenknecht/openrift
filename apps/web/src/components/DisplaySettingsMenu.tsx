@@ -12,7 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { parseChangelog } from "@/lib/changelog";
 
 const changelogGroups = parseChangelog(changelogMd);
@@ -110,6 +116,7 @@ export function DisplaySettingsMenu({
         <SheetContent className="flex flex-col gap-0 overflow-hidden">
           <SheetHeader className="pb-4">
             <SheetTitle>What's new</SheetTitle>
+            <SheetDescription>Recent changes and improvements to OpenRift.</SheetDescription>
           </SheetHeader>
           <div className="overflow-y-auto px-4 pb-4">
             {changelogGroups.map((group) => (
