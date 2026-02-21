@@ -1,4 +1,4 @@
-import type { CardType, CardVariant, Rarity, SortOption } from "@openrift/shared";
+import type { CardType, CardVariant, Rarity, SortDirection, SortOption } from "@openrift/shared";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 import { useMemo } from "react";
 
@@ -13,6 +13,7 @@ const filterParsers = {
   domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
   variants: parseAsArrayOf(parseAsString, ",").withDefault([]),
   sort: parseAsString.withDefault("id"),
+  sortDir: parseAsString.withDefault("asc"),
 };
 
 export function useCardFilters() {
@@ -38,6 +39,7 @@ export function useCardFilters() {
   );
 
   const sortBy = filterState.sort as SortOption;
+  const sortDir = filterState.sortDir as SortDirection;
 
   const hasActiveFilters =
     filterState.search !== "" ||
@@ -58,6 +60,7 @@ export function useCardFilters() {
       domains: null,
       variants: null,
       sort: null,
+      sortDir: null,
     });
   };
 
@@ -78,14 +81,20 @@ export function useCardFilters() {
     void setFilterState({ sort: sort === "id" ? null : sort });
   };
 
+  const setSortDir = (dir: SortDirection) => {
+    void setFilterState({ sortDir: dir === "asc" ? null : dir });
+  };
+
   return {
     filters,
     sortBy,
+    sortDir,
     hasActiveFilters,
     clearAllFilters,
     setSearch,
     toggleArrayFilter,
     setSortBy,
+    setSortDir,
     filterState,
     searchScope,
     toggleSearchField,

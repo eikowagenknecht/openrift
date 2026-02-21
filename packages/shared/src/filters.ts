@@ -176,22 +176,12 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
 export function sortCards(cards: Card[], sortBy: SortOption): Card[] {
   const sorted = [...cards];
   switch (sortBy) {
-    case "id": {
-      sorted.sort((a, b) => a.id.localeCompare(b.id));
-      break;
-    }
     case "name": {
       sorted.sort((a, b) => a.name.localeCompare(b.name));
       break;
     }
-    case "collectorNumber": {
-      sorted.sort((a, b) => {
-        const setCompare = a.set.localeCompare(b.set);
-        if (setCompare !== 0) {
-          return setCompare;
-        }
-        return a.collectorNumber - b.collectorNumber;
-      });
+    case "id": {
+      sorted.sort((a, b) => a.id.localeCompare(b.id));
       break;
     }
     case "energy": {

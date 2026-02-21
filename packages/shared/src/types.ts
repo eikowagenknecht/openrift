@@ -14,7 +14,9 @@ export const RARITY_ORDER: Record<Rarity, number> = {
   Showcase: 4,
 } as const;
 
-export type SortOption = "id" | "name" | "collectorNumber" | "energy" | "rarity";
+export type SortOption = "id" | "name" | "energy" | "rarity";
+
+export type SortDirection = "asc" | "desc";
 
 export interface CardStats {
   might: number;

@@ -10,6 +10,7 @@ export type {
   Rarity,
   RiftboundContent,
   SearchField,
+  SortDirection,
   SortOption,
 } from "./types.js";
 export {

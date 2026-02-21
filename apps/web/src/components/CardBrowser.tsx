@@ -24,11 +24,13 @@ export function CardBrowser() {
   const {
     filters,
     sortBy,
+    sortDir,
     hasActiveFilters,
     clearAllFilters,
     setSearch,
     toggleArrayFilter,
     setSortBy,
+    setSortDir,
     filterState,
     searchScope,
     toggleSearchField,
@@ -82,7 +84,10 @@ export function CardBrowser() {
 
   const availableFilters = useMemo(() => getAvailableFilters(allCards), []);
   const filteredCards = useMemo(() => filterCards(allCards, filters), [filters]);
-  const sortedCards = useMemo(() => sortCards(filteredCards, sortBy), [filteredCards, sortBy]);
+  const sortedCards = useMemo(() => {
+    const sorted = sortCards(filteredCards, sortBy);
+    return sortDir === "desc" ? sorted.toReversed() : sorted;
+  }, [filteredCards, sortBy, sortDir]);
 
   const handleCardClick = (card: Card) => {
     setSelectedCard(card);
@@ -99,6 +104,7 @@ export function CardBrowser() {
         availableFilters={availableFilters}
         filterState={filterState}
         sortBy={sortBy}
+        sortDir={sortDir}
         showImages={showImages}
         totalCards={allCards.length}
         filteredCount={sortedCards.length}
@@ -107,6 +113,7 @@ export function CardBrowser() {
         onSearchChange={setSearch}
         onToggleFilter={toggleArrayFilter}
         onSortChange={setSortBy}
+        onSortDirChange={setSortDir}
         onShowImagesChange={handleShowImagesChange}
         onSearchScopeToggle={toggleSearchField}
         cardFields={cardFields}

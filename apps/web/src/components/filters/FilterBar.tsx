@@ -1,6 +1,12 @@
-import type { AvailableFilters, SearchField, SortOption } from "@openrift/shared";
+import type { AvailableFilters, SearchField, SortDirection, SortOption } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
-import { Menu, Search, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  Menu,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { CardFields } from "@/components/cards/CardThumbnail";
@@ -52,6 +58,7 @@ interface FilterBarProps {
     variants: string[];
   };
   sortBy: SortOption;
+  sortDir: SortDirection;
   showImages: boolean;
   totalCards: number;
   filteredCount: number;
@@ -63,6 +70,7 @@ interface FilterBarProps {
     value: string,
   ) => void;
   onSortChange: (sort: SortOption) => void;
+  onSortDirChange: (dir: SortDirection) => void;
   onShowImagesChange: (show: boolean) => void;
   onSearchScopeToggle: (field: SearchField) => void;
   cardFields: CardFields;
@@ -80,6 +88,7 @@ export function FilterBar({
   availableFilters,
   filterState,
   sortBy,
+  sortDir,
   showImages,
   totalCards,
   filteredCount,
@@ -88,6 +97,7 @@ export function FilterBar({
   onSearchChange,
   onToggleFilter,
   onSortChange,
+  onSortDirChange,
   onShowImagesChange,
   onSearchScopeToggle,
   cardFields,
@@ -251,6 +261,18 @@ export function FilterBar({
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
+            title={sortDir === "asc" ? "Ascending" : "Descending"}
+          >
+            {sortDir === "asc" ? (
+              <ArrowDownNarrowWide className="size-4" />
+            ) : (
+              <ArrowUpNarrowWide className="size-4" />
+            )}
+          </Button>
 
           {/* Mobile: Filters button that opens bottom sheet */}
           <Button
@@ -278,36 +300,45 @@ export function FilterBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={onShowImagesChange}>
+              <DropdownMenuCheckboxItem
+                checked={showImages}
+                onCheckedChange={onShowImagesChange}
+                onSelect={(e) => e.preventDefault()}
+              >
                 Show card images
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={cardFields.number}
                 onCheckedChange={(v) => onCardFieldsChange({ number: v })}
+                onSelect={(e) => e.preventDefault()}
               >
-                Show number
+                Show ID
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={cardFields.title}
                 onCheckedChange={(v) => onCardFieldsChange({ title: v })}
+                onSelect={(e) => e.preventDefault()}
               >
                 Show title
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={cardFields.type}
                 onCheckedChange={(v) => onCardFieldsChange({ type: v })}
+                onSelect={(e) => e.preventDefault()}
               >
                 Show type
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={cardFields.supertype}
                 onCheckedChange={(v) => onCardFieldsChange({ supertype: v })}
+                onSelect={(e) => e.preventDefault()}
               >
                 Show supertype
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={cardFields.rarity}
                 onCheckedChange={(v) => onCardFieldsChange({ rarity: v })}
+                onSelect={(e) => e.preventDefault()}
               >
                 Show rarity
               </DropdownMenuCheckboxItem>
