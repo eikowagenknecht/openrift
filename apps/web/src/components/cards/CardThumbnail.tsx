@@ -4,11 +4,28 @@ import { CardPlaceholderImage, DOMAIN_COLORS } from "@/components/cards/CardPlac
 import { formatCollectorNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+export interface CardFields {
+  number: boolean;
+  title: boolean;
+  type: boolean;
+  supertype: boolean;
+  rarity: boolean;
+}
+
+export const DEFAULT_CARD_FIELDS: CardFields = {
+  number: true,
+  title: true,
+  type: true,
+  supertype: true,
+  rarity: true,
+};
+
 interface CardThumbnailProps {
   card: Card;
   onClick: (card: Card) => void;
   showImages?: boolean;
   isSelected?: boolean;
+  cardFields?: CardFields;
 }
 
 function getDomainStyle(faction: string): React.CSSProperties {
@@ -21,7 +38,13 @@ function getDomainStyle(faction: string): React.CSSProperties {
   return { background: `linear-gradient(135deg, ${c1}38 50%, ${c2}38 50%)` };
 }
 
-export function CardThumbnail({ card, onClick, showImages, isSelected }: CardThumbnailProps) {
+export function CardThumbnail({
+  card,
+  onClick,
+  showImages,
+  isSelected,
+  cardFields = DEFAULT_CARD_FIELDS,
+}: CardThumbnailProps) {
   const setNumber = formatCollectorNumber(card);
   const thumbnailUrl =
     showImages && card.art.thumbnailURL
@@ -54,26 +77,44 @@ export function CardThumbnail({ card, onClick, showImages, isSelected }: CardThu
           />
         )}
       </div>
-      <div className="mt-1.5 space-y-0.5 px-0.5">
-        <p className="truncate text-xs font-medium sm:text-sm">
-          <span className="text-muted-foreground">{setNumber}</span> {card.name}
-        </p>
-        <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-          <img
-            src={`/icons/types/${card.type.toLowerCase()}.svg`}
-            alt=""
-            className="size-3.5 brightness-0 dark:invert"
-          />
-          {card.type}
-          <span>&middot;</span>
-          <img
-            src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
-            alt=""
-            className="size-3.5"
-          />
-          {card.rarity}
-        </p>
-      </div>
+      {(cardFields.number || cardFields.title || cardFields.type || cardFields.rarity) && (
+        <div className="mt-1.5 space-y-0.5 px-0.5">
+          {(cardFields.number || cardFields.title) && (
+            <p className="truncate text-xs font-medium sm:text-sm">
+              {cardFields.number && <span className="text-muted-foreground">{setNumber}</span>}
+              {cardFields.number && cardFields.title && " "}
+              {cardFields.title && card.name}
+            </p>
+          )}
+          {(cardFields.type || cardFields.rarity) && (
+            <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+              {cardFields.type && (
+                <>
+                  <img
+                    src={`/icons/types/${card.type.toLowerCase()}.svg`}
+                    alt=""
+                    className="size-3.5 brightness-0 dark:invert"
+                  />
+                  {cardFields.supertype && card.superTypes.length > 0
+                    ? `${card.superTypes.join(" ")} ${card.type}`
+                    : card.type}
+                </>
+              )}
+              {cardFields.type && cardFields.rarity && <span>&middot;</span>}
+              {cardFields.rarity && (
+                <>
+                  <img
+                    src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
+                    alt=""
+                    className="size-3.5"
+                  />
+                  {card.rarity}
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      )}
     </button>
   );
 }

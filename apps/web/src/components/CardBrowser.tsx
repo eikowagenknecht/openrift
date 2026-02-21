@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { CardDetail } from "@/components/cards/CardDetail";
 import type { SetInfo } from "@/components/cards/CardGrid";
 import { CardGrid } from "@/components/cards/CardGrid";
+import type { CardFields } from "@/components/cards/CardThumbnail";
+import { DEFAULT_CARD_FIELDS } from "@/components/cards/CardThumbnail";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useCardFilters } from "@/hooks/use-card-filters";
@@ -38,10 +40,29 @@ export function CardBrowser() {
     const stored = localStorage.getItem("showImages");
     return stored !== null ? stored === "true" : true;
   });
+  const [cardFields, setCardFields] = useState<CardFields>(() => {
+    const stored = localStorage.getItem("cardFields");
+    if (stored) {
+      try {
+        return { ...DEFAULT_CARD_FIELDS, ...JSON.parse(stored) };
+      } catch {
+        // ignore malformed JSON
+      }
+    }
+    return DEFAULT_CARD_FIELDS;
+  });
 
   const handleShowImagesChange = (show: boolean) => {
     setShowImages(show);
     localStorage.setItem("showImages", String(show));
+  };
+
+  const handleCardFieldsChange = (update: Partial<CardFields>) => {
+    setCardFields((prev) => {
+      const next = { ...prev, ...update };
+      localStorage.setItem("cardFields", JSON.stringify(next));
+      return next;
+    });
   };
 
   // Lock body scroll when mobile overlay is active
@@ -88,6 +109,8 @@ export function CardBrowser() {
         onSortChange={setSortBy}
         onShowImagesChange={handleShowImagesChange}
         onSearchScopeToggle={toggleSearchField}
+        cardFields={cardFields}
+        onCardFieldsChange={handleCardFieldsChange}
       />
       <ActiveFilters
         filterState={filterState}
@@ -105,6 +128,7 @@ export function CardBrowser() {
             onCardClick={handleCardClick}
             showImages={showImages}
             selectedCardId={selectedCard?.id}
+            cardFields={cardFields}
           />
         </div>
         {selectedCard && detailOpen && (

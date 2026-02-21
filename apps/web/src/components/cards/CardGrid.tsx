@@ -3,6 +3,7 @@ import { Fragment, useMemo } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 
+import type { CardFields } from "./CardThumbnail";
 import { CardThumbnail } from "./CardThumbnail";
 
 export interface SetInfo {
@@ -43,6 +44,7 @@ interface CardGridProps {
   onCardClick: (card: Card) => void;
   showImages?: boolean;
   selectedCardId?: string;
+  cardFields?: CardFields;
 }
 
 export function CardGrid({
@@ -51,6 +53,7 @@ export function CardGrid({
   onCardClick,
   showImages,
   selectedCardId,
+  cardFields,
 }: CardGridProps) {
   const { containerRef, columns } = useResponsiveColumns();
   const groups = useMemo(() => groupCardsBySet(cards, setOrder), [cards, setOrder]);
@@ -93,6 +96,7 @@ export function CardGrid({
               onClick={onCardClick}
               showImages={showImages}
               isSelected={card.id === selectedCardId}
+              cardFields={cardFields}
             />
           ))}
         </Fragment>
