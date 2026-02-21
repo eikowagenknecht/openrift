@@ -1,3 +1,4 @@
+import type { AvailableFilters } from "@openrift/shared";
 import { X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ interface ActiveFiltersProps {
     domains: string[];
     variants: string[];
   };
+  availableFilters: AvailableFilters;
   energyRange: [number | null, number | null];
   mightRange: [number | null, number | null];
   powerRange: [number | null, number | null];
@@ -30,6 +32,7 @@ interface ActiveFiltersProps {
 
 export function ActiveFilters({
   filterState,
+  availableFilters,
   energyRange,
   mightRange,
   powerRange,
@@ -80,7 +83,7 @@ export function ActiveFilters({
 
   return (
     <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
-      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         {filterState.search && (
           <div className="flex items-center gap-1">
             <span className="text-xs text-muted-foreground">Search:</span>
@@ -135,6 +138,8 @@ export function ActiveFilters({
             label="Energy"
             min={energyRange[0]}
             max={energyRange[1]}
+            availableMin={availableFilters.energyMin}
+            availableMax={availableFilters.energyMax}
             onClear={onClearEnergyRange}
           />
         )}
@@ -143,6 +148,8 @@ export function ActiveFilters({
             label="Might"
             min={mightRange[0]}
             max={mightRange[1]}
+            availableMin={availableFilters.mightMin}
+            availableMax={availableFilters.mightMax}
             onClear={onClearMightRange}
           />
         )}
@@ -151,6 +158,8 @@ export function ActiveFilters({
             label="Power"
             min={powerRange[0]}
             max={powerRange[1]}
+            availableMin={availableFilters.powerMin}
+            availableMax={availableFilters.powerMax}
             onClear={onClearPowerRange}
           />
         )}
@@ -172,21 +181,27 @@ function RangeBadge({
   label,
   min,
   max,
+  availableMin,
+  availableMax,
   onClear,
 }: {
   label: string;
   min: number | null;
   max: number | null;
+  availableMin: number;
+  availableMax: number;
   onClear: () => void;
 }) {
+  const resolvedMin = min ?? availableMin;
+  const resolvedMax = max ?? availableMax;
   const valueLabel =
-    min !== null && max !== null
-      ? min === max
-        ? String(min)
-        : `${min}–${max}`
-      : min !== null
-        ? `≥${min}`
-        : `≤${max}`;
+    resolvedMin === resolvedMax
+      ? String(resolvedMin)
+      : min !== null && max !== null
+        ? `${resolvedMin}–${resolvedMax}`
+        : min !== null
+          ? `≥${resolvedMin}`
+          : `≤${resolvedMax}`;
 
   return (
     <div className="flex items-center gap-1">

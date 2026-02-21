@@ -108,6 +108,7 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
       />
       <ActiveFilters
         filterState={filterState}
+        availableFilters={availableFilters}
         energyRange={[filterState.energyMin, filterState.energyMax]}
         mightRange={[filterState.mightMin, filterState.mightMax]}
         powerRange={[filterState.powerMin, filterState.powerMax]}
