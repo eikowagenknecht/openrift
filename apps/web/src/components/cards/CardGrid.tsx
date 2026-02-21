@@ -158,16 +158,25 @@ export function CardGrid({
       // the re-subscribe cycle that caused the infinite update loop.
       const threshold = window.scrollY - scrollMarginRef.current + APP_HEADER_HEIGHT;
 
-      // Walk header rows in order; the active one is the last header whose
-      // top edge has crossed the sticky threshold. The virtual row is hidden
-      // (visibility:hidden) while the fixed overlay covers it.
+      // Build a map of measured start positions for currently-rendered items.
+      // rowStarts uses estimated sizes and can drift significantly with many rows
+      // (Math.ceil rounding accumulates). The virtualizer's own positions are
+      // accurate for rendered items, so we prefer those at boundaries.
+      const measuredStarts = new Map(
+        virtualizerRef.current.getVirtualItems().map((item) => [item.index, item.start]),
+      );
+
+      // Walk header rows; the active one is the last header whose top has
+      // reached or crossed the sticky threshold (≤ so the exact boundary
+      // position — which scrollToIndex targets — activates the correct set).
       let active: (VRow & { kind: "header" }) | null = null;
       for (let i = 0; i < virtualRows.length; i++) {
         const row = virtualRows[i];
         if (row.kind !== "header") {
           continue;
         }
-        if (rowStarts[i] < threshold) {
+        const start = measuredStarts.get(i) ?? rowStarts[i];
+        if (start <= threshold) {
           active = row;
         }
       }
@@ -192,7 +201,12 @@ export function CardGrid({
   const virtualizerRef = useRef(virtualizer);
   virtualizerRef.current = virtualizer;
 
-  const [indicator, setIndicator] = useState({ cardId: "", thumbCenterY: 0, visible: false });
+  const [indicator, setIndicator] = useState({
+    cardId: "",
+    thumbTop: 0,
+    thumbH: 0,
+    visible: false,
+  });
   const hideTimerRef = useRef(0);
 
   useEffect(() => {
@@ -215,15 +229,15 @@ export function CardGrid({
       if (!firstCard) {
         return;
       }
-      // Mirror the actual scrollbar thumb center so the indicator tracks it.
-      // Browsers enforce a minimum thumb height (~30px); we use the same floor.
+      // Compute the scrollbar thumb position so the indicator can track it.
+      // Browsers enforce a minimum thumb height (~17px); we use a safe floor.
       const viewportH = window.innerHeight;
       const docH = document.documentElement.scrollHeight;
-      const thumbH = Math.max(30, (viewportH / docH) * viewportH);
+      const thumbH = Math.max(17, (viewportH / docH) * viewportH);
       const scrollableHeight = docH - viewportH;
       const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-      const thumbCenterY = thumbH / 2 + yPercent * (viewportH - thumbH);
-      setIndicator({ cardId: firstCard.id, thumbCenterY, visible: true });
+      const thumbTop = yPercent * (viewportH - thumbH);
+      setIndicator({ cardId: firstCard.id, thumbTop, thumbH, visible: true });
       window.clearTimeout(hideTimerRef.current);
       hideTimerRef.current = window.setTimeout(() => {
         setIndicator((prev) => ({ ...prev, visible: false }));
@@ -264,7 +278,16 @@ export function CardGrid({
         className="pointer-events-none fixed z-20 transition-opacity duration-300"
         style={{
           right: 20,
-          top: Math.max(APP_HEADER_HEIGHT + 8, Math.round(indicator.thumbCenterY - 14)),
+          top: (() => {
+            // Center the badge on the visible portion of the thumb.
+            // When the thumb is partially behind the header, use the center of
+            // its visible slice so the badge stays aligned with what's seen.
+            const BADGE_H = 28;
+            const visibleTop = Math.max(indicator.thumbTop, APP_HEADER_HEIGHT);
+            const visibleBottom = indicator.thumbTop + indicator.thumbH;
+            const visibleCenter = (visibleTop + visibleBottom) / 2;
+            return Math.round(visibleCenter - BADGE_H / 2);
+          })(),
           opacity: indicator.visible ? 1 : 0,
         }}
       >
