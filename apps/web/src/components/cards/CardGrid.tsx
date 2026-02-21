@@ -131,9 +131,8 @@ export function CardGrid({
   // header row from being visible at the same time.
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
-  // Re-measure the container's document offset when the card list or the
-  // sticky overlay changes. useLayoutEffect runs before paint so corrections
-  // are invisible to the user.
+  // Re-measure the container's document offset when the card list changes.
+  // useLayoutEffect runs before paint so corrections are invisible to the user.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) {
@@ -144,7 +143,7 @@ export function CardGrid({
       scrollMarginRef.current = newMargin;
       setScrollMargin(newMargin);
     }
-  }, [cards, containerRef, activeHeaderRow]);
+  }, [cards, containerRef]);
 
   useEffect(() => {
     if (!multipleGroups) {
@@ -190,11 +189,13 @@ export function CardGrid({
   const scrollToGroup = useCallback(
     (setName: string) => {
       const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
-      if (rowIndex !== -1) {
-        virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "smooth" });
+      if (rowIndex === -1) {
+        return;
       }
+      const targetScrollY = scrollMarginRef.current + rowStarts[rowIndex] - APP_HEADER_HEIGHT;
+      window.scrollTo({ top: Math.max(0, targetScrollY), behavior: "smooth" });
     },
-    [virtualRows, virtualizer],
+    [virtualRows, rowStarts],
   );
 
   if (cards.length === 0) {
@@ -214,7 +215,10 @@ export function CardGrid({
           fully scrolled above the sticky threshold. The incoming virtual header
           row handles the visual "push" as it approaches from below. */}
       {multipleGroups && activeHeaderRow && (
-        <div className="sticky top-14 z-10 flex items-center gap-3 bg-background/80 py-2 backdrop-blur-lg">
+        <div
+          className="fixed left-0 right-0 z-10 flex items-center gap-3 bg-background/80 px-4 py-2 backdrop-blur-lg"
+          style={{ top: APP_HEADER_HEIGHT }}
+        >
           <div className="h-px flex-1 bg-border" />
           <button
             type="button"

@@ -97,5 +97,9 @@ export interface CardFilters {
   domains: string[];
   energyMin: number | null;
   energyMax: number | null;
+  mightMin: number | null;
+  mightMax: number | null;
+  powerMin: number | null;
+  powerMax: number | null;
   variants: CardVariant[];
 }

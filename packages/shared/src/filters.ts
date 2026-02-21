@@ -127,6 +127,18 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.energyMax !== null && card.stats.energy > filters.energyMax) {
       return false;
     }
+    if (filters.mightMin !== null && card.stats.might < filters.mightMin) {
+      return false;
+    }
+    if (filters.mightMax !== null && card.stats.might > filters.mightMax) {
+      return false;
+    }
+    if (filters.powerMin !== null && card.stats.power < filters.powerMin) {
+      return false;
+    }
+    if (filters.powerMax !== null && card.stats.power > filters.powerMax) {
+      return false;
+    }
     if (filters.variants.length > 0 && card.variant && !filters.variants.includes(card.variant)) {
       return false;
     }
@@ -143,6 +155,10 @@ export interface AvailableFilters {
   variants: CardVariant[];
   energyMin: number;
   energyMax: number;
+  mightMin: number;
+  mightMax: number;
+  powerMin: number;
+  powerMax: number;
 }
 
 export function getAvailableFilters(cards: Card[]): AvailableFilters {
@@ -161,6 +177,8 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
   const variantOrder: CardVariant[] = ["Normal", "Alt Art", "Overnumbered", "Signed"];
   variants.sort((a, b) => variantOrder.indexOf(a) - variantOrder.indexOf(b));
   const energies = cards.map((c) => c.stats.energy);
+  const mights = cards.map((c) => c.stats.might);
+  const powers = cards.map((c) => c.stats.power);
   return {
     sets,
     rarities,
@@ -170,6 +188,10 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     variants,
     energyMin: Math.min(...energies),
     energyMax: Math.max(...energies),
+    mightMin: Math.min(...mights),
+    mightMax: Math.max(...mights),
+    powerMin: Math.min(...powers),
+    powerMax: Math.max(...powers),
   };
 }
 

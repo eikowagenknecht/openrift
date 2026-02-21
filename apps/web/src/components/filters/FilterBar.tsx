@@ -22,6 +22,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Slider } from "@/components/ui/slider";
 import { useDebounce } from "@/hooks/use-debounce";
 
 const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
@@ -44,6 +45,9 @@ interface FilterBarProps {
     domains: string[];
     variants: string[];
   };
+  energyRange: [number | null, number | null];
+  mightRange: [number | null, number | null];
+  powerRange: [number | null, number | null];
   sortBy: SortOption;
   sortDir: SortDirection;
   totalCards: number;
@@ -55,6 +59,9 @@ interface FilterBarProps {
     key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants",
     value: string,
   ) => void;
+  onEnergyRangeChange: (min: number | null, max: number | null) => void;
+  onMightRangeChange: (min: number | null, max: number | null) => void;
+  onPowerRangeChange: (min: number | null, max: number | null) => void;
   onSortChange: (sort: SortOption) => void;
   onSortDirChange: (dir: SortDirection) => void;
   onSearchScopeToggle: (field: SearchField) => void;
@@ -70,6 +77,9 @@ const sortOptions: { value: SortOption; label: string }[] = [
 export function FilterBar({
   availableFilters,
   filterState,
+  energyRange,
+  mightRange,
+  powerRange,
   sortBy,
   sortDir,
   totalCards,
@@ -78,6 +88,9 @@ export function FilterBar({
   searchScope,
   onSearchChange,
   onToggleFilter,
+  onEnergyRangeChange,
+  onMightRangeChange,
+  onPowerRangeChange,
   onSortChange,
   onSortDirChange,
   onSearchScopeToggle,
@@ -177,6 +190,36 @@ export function FilterBar({
           options={availableFilters.variants}
           selected={filterState.variants}
           onToggle={(v) => onToggleFilter("variants", v)}
+        />
+      )}
+      {availableFilters.energyMin !== availableFilters.energyMax && (
+        <RangeFilterSection
+          label="Energy"
+          availableMin={availableFilters.energyMin}
+          availableMax={availableFilters.energyMax}
+          selectedMin={energyRange[0]}
+          selectedMax={energyRange[1]}
+          onChange={onEnergyRangeChange}
+        />
+      )}
+      {availableFilters.mightMin !== availableFilters.mightMax && (
+        <RangeFilterSection
+          label="Might"
+          availableMin={availableFilters.mightMin}
+          availableMax={availableFilters.mightMax}
+          selectedMin={mightRange[0]}
+          selectedMax={mightRange[1]}
+          onChange={onMightRangeChange}
+        />
+      )}
+      {availableFilters.powerMin !== availableFilters.powerMax && (
+        <RangeFilterSection
+          label="Power"
+          availableMin={availableFilters.powerMin}
+          availableMax={availableFilters.powerMax}
+          selectedMin={powerRange[0]}
+          selectedMax={powerRange[1]}
+          onChange={onPowerRangeChange}
         />
       )}
     </>
@@ -322,6 +365,53 @@ export function FilterBar({
           </SheetFooter>
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+function RangeFilterSection({
+  label,
+  availableMin,
+  availableMax,
+  selectedMin,
+  selectedMax,
+  onChange,
+}: {
+  label: string;
+  availableMin: number;
+  availableMax: number;
+  selectedMin: number | null;
+  selectedMax: number | null;
+  onChange: (min: number | null, max: number | null) => void;
+}) {
+  const resolvedMin = selectedMin ?? availableMin;
+  const resolvedMax = selectedMax ?? availableMax;
+
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="flex w-36 items-center gap-1.5">
+        <span className="w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+          {resolvedMin}
+        </span>
+        <Slider
+          min={availableMin}
+          max={availableMax}
+          step={1}
+          value={[resolvedMin, resolvedMax]}
+          onValueChange={(values) => {
+            const [newMin, newMax] = values;
+            onChange(
+              newMin === availableMin ? null : (newMin ?? null),
+              newMax === availableMax ? null : (newMax ?? null),
+            );
+          }}
+          className="flex-1"
+        />
+        <span className="w-4 shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          {resolvedMax}
+        </span>
+      </div>
     </div>
   );
 }

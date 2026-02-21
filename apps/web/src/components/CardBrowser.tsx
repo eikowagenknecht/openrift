@@ -33,6 +33,9 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
     clearAllFilters,
     setSearch,
     toggleArrayFilter,
+    setEnergyRange,
+    setMightRange,
+    setPowerRange,
     setSortBy,
     setSortDir,
     filterState,
@@ -85,6 +88,9 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
       <FilterBar
         availableFilters={availableFilters}
         filterState={filterState}
+        energyRange={[filterState.energyMin, filterState.energyMax]}
+        mightRange={[filterState.mightMin, filterState.mightMax]}
+        powerRange={[filterState.powerMin, filterState.powerMax]}
         sortBy={sortBy}
         sortDir={sortDir}
         totalCards={allCards.length}
@@ -93,14 +99,23 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
         searchScope={searchScope}
         onSearchChange={setSearch}
         onToggleFilter={toggleArrayFilter}
+        onEnergyRangeChange={setEnergyRange}
+        onMightRangeChange={setMightRange}
+        onPowerRangeChange={setPowerRange}
         onSortChange={setSortBy}
         onSortDirChange={setSortDir}
         onSearchScopeToggle={toggleSearchField}
       />
       <ActiveFilters
         filterState={filterState}
+        energyRange={[filterState.energyMin, filterState.energyMax]}
+        mightRange={[filterState.mightMin, filterState.mightMax]}
+        powerRange={[filterState.powerMin, filterState.powerMax]}
         hasActiveFilters={hasActiveFilters}
         onToggleFilter={toggleArrayFilter}
+        onClearEnergyRange={() => setEnergyRange(null, null)}
+        onClearMightRange={() => setMightRange(null, null)}
+        onClearPowerRange={() => setPowerRange(null, null)}
         onClearAll={clearAllFilters}
         onClearSearch={() => setSearch("")}
       />

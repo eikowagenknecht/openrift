@@ -1,5 +1,5 @@
 import type { CardType, CardVariant, Rarity, SortDirection, SortOption } from "@openrift/shared";
-import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
+import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useMemo, useRef } from "react";
 
 import { useSearchScope } from "@/hooks/use-search-scope";
@@ -12,6 +12,12 @@ const filterParsers = {
   superTypes: parseAsArrayOf(parseAsString, ",").withDefault([]),
   domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
   variants: parseAsArrayOf(parseAsString, ",").withDefault([]),
+  energyMin: parseAsInteger,
+  energyMax: parseAsInteger,
+  mightMin: parseAsInteger,
+  mightMax: parseAsInteger,
+  powerMin: parseAsInteger,
+  powerMax: parseAsInteger,
   sort: parseAsString.withDefault("id"),
   sortDir: parseAsString.withDefault("asc"),
 };
@@ -58,8 +64,12 @@ export function useCardFilters() {
       superTypes: filterState.superTypes,
       domains: filterState.domains,
       variants: filterState.variants as CardVariant[],
-      energyMin: null,
-      energyMax: null,
+      energyMin: filterState.energyMin,
+      energyMax: filterState.energyMax,
+      mightMin: filterState.mightMin,
+      mightMax: filterState.mightMax,
+      powerMin: filterState.powerMin,
+      powerMax: filterState.powerMax,
     }),
     [filterState, searchScope],
   );
@@ -74,7 +84,13 @@ export function useCardFilters() {
     filterState.types.length > 0 ||
     filterState.superTypes.length > 0 ||
     filterState.domains.length > 0 ||
-    filterState.variants.length > 0;
+    filterState.variants.length > 0 ||
+    filterState.energyMin !== null ||
+    filterState.energyMax !== null ||
+    filterState.mightMin !== null ||
+    filterState.mightMax !== null ||
+    filterState.powerMin !== null ||
+    filterState.powerMax !== null;
 
   const clearAllFilters = () => {
     void setFilterState({
@@ -85,6 +101,12 @@ export function useCardFilters() {
       superTypes: null,
       domains: null,
       variants: null,
+      energyMin: null,
+      energyMax: null,
+      mightMin: null,
+      mightMax: null,
+      powerMin: null,
+      powerMax: null,
       sort: null,
       sortDir: null,
     });
@@ -104,6 +126,13 @@ export function useCardFilters() {
     void setFilterState({ [key]: next.length > 0 ? next : null });
   };
 
+  const setEnergyRange = (min: number | null, max: number | null) =>
+    void setFilterState({ energyMin: min, energyMax: max });
+  const setMightRange = (min: number | null, max: number | null) =>
+    void setFilterState({ mightMin: min, mightMax: max });
+  const setPowerRange = (min: number | null, max: number | null) =>
+    void setFilterState({ powerMin: min, powerMax: max });
+
   const setSortBy = (sort: SortOption) => {
     void setFilterState({ sort: sort === "id" ? null : sort });
   };
@@ -120,6 +149,9 @@ export function useCardFilters() {
     clearAllFilters,
     setSearch,
     toggleArrayFilter,
+    setEnergyRange,
+    setMightRange,
+    setPowerRange,
     setSortBy,
     setSortDir,
     filterState,

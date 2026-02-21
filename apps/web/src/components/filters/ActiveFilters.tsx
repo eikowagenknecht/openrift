@@ -13,19 +13,31 @@ interface ActiveFiltersProps {
     domains: string[];
     variants: string[];
   };
+  energyRange: [number | null, number | null];
+  mightRange: [number | null, number | null];
+  powerRange: [number | null, number | null];
   hasActiveFilters: boolean;
   onToggleFilter: (
     key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants",
     value: string,
   ) => void;
+  onClearEnergyRange: () => void;
+  onClearMightRange: () => void;
+  onClearPowerRange: () => void;
   onClearAll: () => void;
   onClearSearch: () => void;
 }
 
 export function ActiveFilters({
   filterState,
+  energyRange,
+  mightRange,
+  powerRange,
   hasActiveFilters,
   onToggleFilter,
+  onClearEnergyRange,
+  onClearMightRange,
+  onClearPowerRange,
   onClearAll,
   onClearSearch,
 }: ActiveFiltersProps) {
@@ -118,6 +130,30 @@ export function ActiveFilters({
             })}
           </div>
         ))}
+        {(energyRange[0] !== null || energyRange[1] !== null) && (
+          <RangeBadge
+            label="Energy"
+            min={energyRange[0]}
+            max={energyRange[1]}
+            onClear={onClearEnergyRange}
+          />
+        )}
+        {(mightRange[0] !== null || mightRange[1] !== null) && (
+          <RangeBadge
+            label="Might"
+            min={mightRange[0]}
+            max={mightRange[1]}
+            onClear={onClearMightRange}
+          />
+        )}
+        {(powerRange[0] !== null || powerRange[1] !== null) && (
+          <RangeBadge
+            label="Power"
+            min={powerRange[0]}
+            max={powerRange[1]}
+            onClear={onClearPowerRange}
+          />
+        )}
       </div>
       <Button
         variant="ghost"
@@ -128,6 +164,39 @@ export function ActiveFilters({
       >
         <X className="size-4" />
       </Button>
+    </div>
+  );
+}
+
+function RangeBadge({
+  label,
+  min,
+  max,
+  onClear,
+}: {
+  label: string;
+  min: number | null;
+  max: number | null;
+  onClear: () => void;
+}) {
+  const valueLabel =
+    min !== null && max !== null
+      ? min === max
+        ? String(min)
+        : `${min}–${max}`
+      : min !== null
+        ? `≥${min}`
+        : `≤${max}`;
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-muted-foreground">{label}:</span>
+      <Badge variant="secondary" className="gap-1">
+        {valueLabel}
+        <button type="button" onClick={onClear} className="ml-0.5 hover:text-foreground">
+          <X className="size-3" />
+        </button>
+      </Badge>
     </div>
   );
 }
