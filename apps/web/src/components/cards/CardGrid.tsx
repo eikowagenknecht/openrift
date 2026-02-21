@@ -181,7 +181,7 @@ export function CardGrid({
           continue;
         }
         const start = measuredStarts.get(i) ?? rowStarts[i];
-        if (start <= threshold) {
+        if (start <= threshold + 1) {
           active = row;
         }
       }
