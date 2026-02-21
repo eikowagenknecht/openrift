@@ -1,6 +1,6 @@
 import type { CardType, CardVariant, Rarity, SortDirection, SortOption } from "@openrift/shared";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { useSearchScope } from "@/hooks/use-search-scope";
 
@@ -21,6 +21,32 @@ export function useCardFilters() {
     history: "push",
   });
   const { scope: searchScope, toggleField: toggleSearchField } = useSearchScope();
+
+  // nuqs uses startTransition for history pushes, so filterState may lag behind
+  // rapid successive clicks. Track the latest intended array values in a ref so
+  // toggleArrayFilter always operates on the most recently written state.
+  type ArrayKey = "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants";
+  const pendingRef = useRef<Partial<Record<ArrayKey, string[]>>>({});
+
+  // Clear pending entries once filterState has caught up from the URL.
+  useEffect(() => {
+    const keys = Object.keys(pendingRef.current) as ArrayKey[];
+    for (const key of keys) {
+      const pending = pendingRef.current[key];
+      if (!pending) {
+        continue;
+      }
+      const synced = filterState[key];
+      const pendingSorted = [...pending].sort();
+      const syncedSorted = [...synced].sort();
+      if (
+        pendingSorted.length === syncedSorted.length &&
+        pendingSorted.every((v, i) => v === syncedSorted[i])
+      ) {
+        pendingRef.current[key] = undefined;
+      }
+    }
+  }, [filterState]);
 
   const filters = useMemo(
     () => ({
@@ -72,8 +98,9 @@ export function useCardFilters() {
     key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants",
     value: string,
   ) => {
-    const current = filterState[key];
+    const current = pendingRef.current[key] ?? filterState[key];
     const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+    pendingRef.current[key] = next;
     void setFilterState({ [key]: next.length > 0 ? next : null });
   };
 
