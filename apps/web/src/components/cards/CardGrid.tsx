@@ -162,8 +162,13 @@ export function CardGrid({
       // rowStarts uses estimated sizes and can drift significantly with many rows
       // (Math.ceil rounding accumulates). The virtualizer's own positions are
       // accurate for rendered items, so we prefer those at boundaries.
+      // vItem.start is an absolute document position (includes scrollMargin).
+      // Subtract scrollMarginRef to convert to virtual-list coordinates so it
+      // can be compared against threshold (which is also virtual-list-relative).
       const measuredStarts = new Map(
-        virtualizerRef.current.getVirtualItems().map((item) => [item.index, item.start]),
+        virtualizerRef.current
+          .getVirtualItems()
+          .map((item) => [item.index, item.start - scrollMarginRef.current]),
       );
 
       // Walk header rows; the active one is the last header whose top has
