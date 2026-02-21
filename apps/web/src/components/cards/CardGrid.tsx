@@ -179,19 +179,35 @@ export function CardGrid({
     return () => window.removeEventListener("scroll", update);
   }, [virtualRows, rowStarts, estimateSize, multipleGroups]);
 
-  const [indicator, setIndicator] = useState({ cardId: "", yPercent: 0, visible: false });
+  const virtualizer = useWindowVirtualizer({
+    count: virtualRows.length,
+    estimateSize,
+    scrollMargin,
+    scrollPaddingStart: APP_HEADER_HEIGHT,
+    overscan: 3,
+  });
+
+  // Keep a ref so the scroll handler always reads the virtualizer's current
+  // measured item positions rather than estimated ones (which drift at scale).
+  const virtualizerRef = useRef(virtualizer);
+  virtualizerRef.current = virtualizer;
+
+  const [indicator, setIndicator] = useState({ cardId: "", thumbCenterY: 0, visible: false });
   const hideTimerRef = useRef(0);
 
   useEffect(() => {
     const update = () => {
-      const relativeScroll = window.scrollY - scrollMarginRef.current + APP_HEADER_HEIGHT;
+      // Use virtualizer's actual measured start positions — vItem.start is the
+      // absolute document Y of the row top (scrollMargin already included).
+      const threshold = window.scrollY + APP_HEADER_HEIGHT;
+      const vItems = virtualizerRef.current.getVirtualItems();
       let firstCard: Card | null = null;
-      for (let i = 0; i < virtualRows.length; i++) {
-        const row = virtualRows[i];
-        if (row.kind !== "cards") {
+      for (const vItem of vItems) {
+        const row = virtualRows[vItem.index];
+        if (!row || row.kind !== "cards") {
           continue;
         }
-        if (rowStarts[i] + estimateSize(i) > relativeScroll) {
+        if (vItem.start + vItem.size > threshold) {
           firstCard = row.items[0] ?? null;
           break;
         }
@@ -199,9 +215,15 @@ export function CardGrid({
       if (!firstCard) {
         return;
       }
-      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      // Mirror the actual scrollbar thumb center so the indicator tracks it.
+      // Browsers enforce a minimum thumb height (~30px); we use the same floor.
+      const viewportH = window.innerHeight;
+      const docH = document.documentElement.scrollHeight;
+      const thumbH = Math.max(30, (viewportH / docH) * viewportH);
+      const scrollableHeight = docH - viewportH;
       const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-      setIndicator({ cardId: firstCard.id, yPercent, visible: true });
+      const thumbCenterY = thumbH / 2 + yPercent * (viewportH - thumbH);
+      setIndicator({ cardId: firstCard.id, thumbCenterY, visible: true });
       window.clearTimeout(hideTimerRef.current);
       hideTimerRef.current = window.setTimeout(() => {
         setIndicator((prev) => ({ ...prev, visible: false }));
@@ -212,15 +234,7 @@ export function CardGrid({
       window.removeEventListener("scroll", update);
       window.clearTimeout(hideTimerRef.current);
     };
-  }, [virtualRows, rowStarts, estimateSize]);
-
-  const virtualizer = useWindowVirtualizer({
-    count: virtualRows.length,
-    estimateSize,
-    scrollMargin,
-    scrollPaddingStart: APP_HEADER_HEIGHT,
-    overscan: 3,
-  });
+  }, [virtualRows]);
 
   const scrollToGroup = useCallback(
     (setName: string) => {
@@ -250,11 +264,7 @@ export function CardGrid({
         className="pointer-events-none fixed z-20 transition-opacity duration-300"
         style={{
           right: 20,
-          top: Math.round(
-            APP_HEADER_HEIGHT +
-              8 +
-              indicator.yPercent * (window.innerHeight - APP_HEADER_HEIGHT - 48),
-          ),
+          top: Math.max(APP_HEADER_HEIGHT + 8, Math.round(indicator.thumbCenterY - 14)),
           opacity: indicator.visible ? 1 : 0,
         }}
       >
