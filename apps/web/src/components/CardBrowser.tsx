@@ -4,12 +4,19 @@ import galleryData from "@openrift/shared/data/gallery.json";
 import { useEffect, useMemo, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
+import type { SetInfo } from "@/components/cards/CardGrid";
 import { CardGrid } from "@/components/cards/CardGrid";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
-const allCards = flattenWithVariants(galleryData as RiftboundContent);
+const typedGallery = galleryData as RiftboundContent;
+const allCards = flattenWithVariants(typedGallery);
+
+const setInfoList: SetInfo[] = typedGallery.sets.map((s) => ({
+  name: s.name,
+  code: s.cards[0]?.id.replace(/-.*$/, "") ?? s.id,
+}));
 
 export function CardBrowser() {
   const {
@@ -98,6 +105,7 @@ export function CardBrowser() {
         <div className="min-w-0 flex-1">
           <CardGrid
             cards={sortedCards}
+            setOrder={setInfoList}
             onCardClick={handleCardClick}
             showImages={showImages}
             selectedCardId={selectedCard?.id}
