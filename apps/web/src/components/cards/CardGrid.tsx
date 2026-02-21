@@ -259,7 +259,8 @@ export function CardGrid({
       // Browsers enforce a minimum thumb height (~17px); we use a safe floor.
       const viewportH = window.innerHeight;
       const docH = document.documentElement.scrollHeight;
-      const thumbH = Math.max(17, (viewportH / docH) * viewportH);
+      // Chrome uses max(18, floor(viewportH² / docH)) internally.
+      const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
       const scrollableHeight = docH - viewportH;
       const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
       const thumbTop = yPercent * (viewportH - thumbH);
@@ -312,8 +313,9 @@ export function CardGrid({
           top: Math.max(
             APP_HEADER_HEIGHT + 4,
             Math.min(
-              window.innerHeight - 32,
-              Math.round(indicator.thumbTop + indicator.thumbH / 2 - 14),
+              // badge is py-1 text-xs → 4 + 16 + 4 = 24 px tall; half = 12
+              window.innerHeight - 28,
+              Math.round(indicator.thumbTop + indicator.thumbH / 2 - 12),
             ),
           ),
           opacity: indicator.visible ? 1 : 0,
