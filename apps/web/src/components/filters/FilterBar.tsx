@@ -355,21 +355,15 @@ export function FilterBar({
         <SheetContent side="bottom" className="max-h-[85vh] sm:hidden">
           <SheetHeader>
             <SheetTitle>Filters</SheetTitle>
-            <SheetDescription>Narrow down the card list</SheetDescription>
+            <SheetDescription className="sr-only">Filter options</SheetDescription>
           </SheetHeader>
           <div className="flex flex-col gap-4 overflow-y-auto px-4">{filterSections}</div>
           <SheetFooter>
             <SheetClose asChild>
               <Button className="w-full">
-                Done
-                {activeFilterCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 size-5 justify-center rounded-full p-0 text-xs"
-                  >
-                    {activeFilterCount}
-                  </Badge>
-                )}
+                {hasActiveFilters
+                  ? `Show ${filteredCount} card${filteredCount !== 1 ? "s" : ""}`
+                  : "Done"}
               </Button>
             </SheetClose>
           </SheetFooter>
