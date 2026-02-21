@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 
+// oxlint-disable-next-line promise/prefer-await-to-callbacks -- required by useSyncExternalStore API
 function subscribe(callback: () => void) {
   window.addEventListener("online", callback);
   window.addEventListener("offline", callback);

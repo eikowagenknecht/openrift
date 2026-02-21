@@ -4,17 +4,11 @@ import { Button } from "@/components/ui/button";
 
 export function ReloadPrompt() {
   const {
-    offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW();
 
-  function close() {
-    setOfflineReady(false);
-    setNeedRefresh(false);
-  }
-
-  if (!offlineReady && !needRefresh) {
+  if (!needRefresh) {
     return null;
   }
 
@@ -25,19 +19,13 @@ export function ReloadPrompt() {
       aria-live="polite"
     >
       <div className="flex-1 text-sm">
-        {needRefresh ? (
-          <span>New content available, click reload to update</span>
-        ) : (
-          <span>App ready to work offline</span>
-        )}
+        <span>New content available, click reload to update</span>
       </div>
       <div className="flex gap-2">
-        {needRefresh && (
-          <Button size="sm" onClick={() => updateServiceWorker(true)}>
-            Reload
-          </Button>
-        )}
-        <Button size="sm" variant="outline" onClick={close}>
+        <Button size="sm" onClick={() => updateServiceWorker(true)}>
+          Reload
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setNeedRefresh(false)}>
           Close
         </Button>
       </div>
