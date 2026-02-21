@@ -25,9 +25,9 @@ export default defineConfig({
       ],
       manifest: {
         id: "/",
-        name: "OpenRift — Riftbound Card Browser",
+        name: "OpenRift — A Riftbound Companion",
         short_name: "OpenRift",
-        description: "Fast, open, ad-free card browser for the Riftbound trading card game",
+        description: "Fast. Open. Ad-free. A Riftbound companion.",
         theme_color: "#1d1538",
         background_color: "#0a0a0a",
         display: "standalone",
