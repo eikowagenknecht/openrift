@@ -64,10 +64,6 @@ export function CardBrowser() {
   const sortedCards = useMemo(() => sortCards(filteredCards, sortBy), [filteredCards, sortBy]);
 
   const handleCardClick = (card: Card) => {
-    if (detailOpen && selectedCard?.id === card.id) {
-      setDetailOpen(false);
-      return;
-    }
     setSelectedCard(card);
     setDetailOpen(true);
   };

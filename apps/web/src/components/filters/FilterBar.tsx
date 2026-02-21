@@ -1,6 +1,6 @@
 import type { AvailableFilters, SearchField, SortOption } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
-import { Menu, Search } from "lucide-react";
+import { Menu, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useDebounce } from "@/hooks/use-debounce";
 
 const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
@@ -81,6 +90,7 @@ export function FilterBar({
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const debouncedSearch = useDebounce(localSearch, 200);
   const prevFilterSearch = useRef(filterState.search);
 
@@ -89,6 +99,14 @@ export function FilterBar({
     () => parseSearchTerms(localSearch).some((t) => t.field !== null),
     [localSearch],
   );
+
+  const activeFilterCount =
+    filterState.sets.length +
+    filterState.rarities.length +
+    filterState.types.length +
+    filterState.superTypes.length +
+    filterState.domains.length +
+    filterState.variants.length;
 
   useEffect(() => {
     // External change (e.g. clear all, clear search badge): sync local state
@@ -104,6 +122,59 @@ export function FilterBar({
       onSearchChange(debouncedSearch);
     }
   }, [debouncedSearch, filterState.search, onSearchChange]);
+
+  const filterSections = (
+    <>
+      <FilterSection
+        label="Set"
+        options={availableFilters.sets}
+        selected={filterState.sets}
+        onToggle={(v) => onToggleFilter("sets", v)}
+      />
+      <FilterSection
+        label="Rarity"
+        options={availableFilters.rarities}
+        selected={filterState.rarities}
+        onToggle={(v) => onToggleFilter("rarities", v)}
+        iconPath={(v) => `/icons/rarities/${v.toLowerCase()}.webp`}
+      />
+      <FilterSection
+        label="Type"
+        options={availableFilters.types}
+        selected={filterState.types}
+        onToggle={(v) => onToggleFilter("types", v)}
+        iconPath={(v) => `/icons/types/${v.toLowerCase()}.svg`}
+      />
+      {availableFilters.superTypes.length > 0 && (
+        <FilterSection
+          label="Super Type"
+          options={availableFilters.superTypes}
+          selected={filterState.superTypes}
+          onToggle={(v) => onToggleFilter("superTypes", v)}
+          iconPath={(v) => {
+            const path = `/icons/supertypes/${v.toLowerCase()}.svg`;
+            return ["Champion", "Signature", "Token"].includes(v) ? path : undefined;
+          }}
+        />
+      )}
+      <FilterSection
+        label="Domain"
+        options={availableFilters.domains}
+        selected={filterState.domains}
+        onToggle={(v) => onToggleFilter("domains", v)}
+        iconPath={(v) => `/icons/domains/${v.toLowerCase()}.${v === "Colorless" ? "svg" : "webp"}`}
+        displayLabel={(v) => (v === "Colorless" ? "None" : v)}
+      />
+      {availableFilters.variants.length > 0 && (
+        <FilterSection
+          label="Version"
+          options={availableFilters.variants}
+          selected={filterState.variants}
+          onToggle={(v) => onToggleFilter("variants", v)}
+        />
+      )}
+    </>
+  );
 
   return (
     <div className="space-y-4">
@@ -152,7 +223,7 @@ export function FilterBar({
             {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
           </span>
           <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -163,6 +234,26 @@ export function FilterBar({
               ))}
             </SelectContent>
           </Select>
+
+          {/* Mobile: Filters button that opens bottom sheet */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="relative sm:hidden"
+            onClick={() => setSheetOpen(true)}
+          >
+            <SlidersHorizontal className="mr-2 size-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <Badge
+                variant="default"
+                className="ml-2 size-5 justify-center rounded-full p-0 text-xs"
+              >
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-sm">
@@ -178,58 +269,34 @@ export function FilterBar({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4">
-        <FilterSection
-          label="Set"
-          options={availableFilters.sets}
-          selected={filterState.sets}
-          onToggle={(v) => onToggleFilter("sets", v)}
-        />
-        <FilterSection
-          label="Rarity"
-          options={availableFilters.rarities}
-          selected={filterState.rarities}
-          onToggle={(v) => onToggleFilter("rarities", v)}
-          iconPath={(v) => `/icons/rarities/${v.toLowerCase()}.webp`}
-        />
-        <FilterSection
-          label="Type"
-          options={availableFilters.types}
-          selected={filterState.types}
-          onToggle={(v) => onToggleFilter("types", v)}
-          iconPath={(v) => `/icons/types/${v.toLowerCase()}.svg`}
-        />
-        {availableFilters.superTypes.length > 0 && (
-          <FilterSection
-            label="Super Type"
-            options={availableFilters.superTypes}
-            selected={filterState.superTypes}
-            onToggle={(v) => onToggleFilter("superTypes", v)}
-            iconPath={(v) => {
-              const path = `/icons/supertypes/${v.toLowerCase()}.svg`;
-              return ["Champion", "Signature", "Token"].includes(v) ? path : undefined;
-            }}
-          />
-        )}
-        <FilterSection
-          label="Domain"
-          options={availableFilters.domains}
-          selected={filterState.domains}
-          onToggle={(v) => onToggleFilter("domains", v)}
-          iconPath={(v) =>
-            `/icons/domains/${v.toLowerCase()}.${v === "Colorless" ? "svg" : "webp"}`
-          }
-          displayLabel={(v) => (v === "Colorless" ? "None" : v)}
-        />
-        {availableFilters.variants.length > 0 && (
-          <FilterSection
-            label="Version"
-            options={availableFilters.variants}
-            selected={filterState.variants}
-            onToggle={(v) => onToggleFilter("variants", v)}
-          />
-        )}
-      </div>
+      {/* Desktop: inline filter sections */}
+      <div className="hidden flex-wrap gap-4 sm:flex">{filterSections}</div>
+
+      {/* Mobile: bottom sheet with filter sections */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] sm:hidden">
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+            <SheetDescription>Narrow down the card list</SheetDescription>
+          </SheetHeader>
+          <div className="flex flex-col gap-4 overflow-y-auto px-4">{filterSections}</div>
+          <SheetFooter>
+            <SheetClose asChild>
+              <Button className="w-full">
+                Done
+                {activeFilterCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-2 size-5 justify-center rounded-full p-0 text-xs"
+                  >
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
