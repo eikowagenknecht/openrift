@@ -67,55 +67,61 @@ export function ActiveFilters({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-muted/50 px-3 py-2">
-      {filterState.search && (
-        <div className="flex items-center gap-1">
-          <Badge variant="secondary" className="gap-1">
-            Search: &ldquo;{filterState.search}&rdquo;
-            <button type="button" onClick={onClearSearch} className="ml-0.5 hover:text-foreground">
-              <X className="size-3" />
-            </button>
-          </Badge>
-        </div>
-      )}
-      {filterGroups.map(({ key, label, values }) => (
-        <div key={key} className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground">{label}:</span>
-          {values.map((value) => {
-            const icon = getIconPath(key, value);
-            return (
-              <Badge key={`${key}-${value}`} variant="secondary" className="gap-1">
-                {icon &&
-                  (icon.endsWith(".svg") ? (
-                    <span
-                      className="inline-block size-3.5 bg-current"
-                      style={{
-                        maskImage: `url(${icon})`,
-                        maskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        maskPosition: "center",
-                      }}
-                    />
-                  ) : (
-                    <img src={icon} alt="" className="size-3.5" />
-                  ))}
-                {value === "Colorless" ? "None" : value}
-                <button
-                  type="button"
-                  onClick={() => onToggleFilter(key, value)}
-                  className="ml-0.5 hover:text-foreground"
-                >
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            );
-          })}
-        </div>
-      ))}
+    <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
+      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2">
+        {filterState.search && (
+          <div className="flex items-center gap-1">
+            <Badge variant="secondary" className="gap-1">
+              Search: &ldquo;{filterState.search}&rdquo;
+              <button
+                type="button"
+                onClick={onClearSearch}
+                className="ml-0.5 hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
+        {filterGroups.map(({ key, label, values }) => (
+          <div key={key} className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">{label}:</span>
+            {values.map((value) => {
+              const icon = getIconPath(key, value);
+              return (
+                <Badge key={`${key}-${value}`} variant="secondary" className="gap-1">
+                  {icon &&
+                    (icon.endsWith(".svg") ? (
+                      <span
+                        className="inline-block size-3.5 bg-current"
+                        style={{
+                          maskImage: `url(${icon})`,
+                          maskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          maskPosition: "center",
+                        }}
+                      />
+                    ) : (
+                      <img src={icon} alt="" className="size-3.5" />
+                    ))}
+                  {value === "Colorless" ? "None" : value}
+                  <button
+                    type="button"
+                    onClick={() => onToggleFilter(key, value)}
+                    className="ml-0.5 hover:text-foreground"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        ))}
+      </div>
       <Button
         variant="ghost"
         size="icon-sm"
-        className="ml-auto shrink-0"
+        className="shrink-0"
         onClick={onClearAll}
         title="Clear all filters"
       >
