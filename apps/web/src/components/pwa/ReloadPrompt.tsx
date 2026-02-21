@@ -2,11 +2,24 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 
 import { Button } from "@/components/ui/button";
 
+// Poll for SW updates every 60 s so iOS picks up new deploys without
+// requiring the user to fully close and reopen the app twice.
+const UPDATE_INTERVAL_MS = 60_000;
+
 export function ReloadPrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
+  } = useRegisterSW({
+    onRegistered(registration) {
+      if (!registration) {
+        return;
+      }
+      setInterval(() => {
+        void registration.update();
+      }, UPDATE_INTERVAL_MS);
+    },
+  });
 
   if (!needRefresh) {
     return null;
