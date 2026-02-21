@@ -179,23 +179,57 @@ export function CardGrid({
     return () => window.removeEventListener("scroll", update);
   }, [virtualRows, rowStarts, estimateSize, multipleGroups]);
 
+  const [indicator, setIndicator] = useState({ cardId: "", yPercent: 0, visible: false });
+  const hideTimerRef = useRef(0);
+
+  useEffect(() => {
+    const update = () => {
+      const relativeScroll = window.scrollY - scrollMarginRef.current + APP_HEADER_HEIGHT;
+      let firstCard: Card | null = null;
+      for (let i = 0; i < virtualRows.length; i++) {
+        const row = virtualRows[i];
+        if (row.kind !== "cards") {
+          continue;
+        }
+        if (rowStarts[i] + estimateSize(i) > relativeScroll) {
+          firstCard = row.items[0] ?? null;
+          break;
+        }
+      }
+      if (!firstCard) {
+        return;
+      }
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
+      setIndicator({ cardId: firstCard.id, yPercent, visible: true });
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = window.setTimeout(() => {
+        setIndicator((prev) => ({ ...prev, visible: false }));
+      }, 1200);
+    };
+    window.addEventListener("scroll", update, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.clearTimeout(hideTimerRef.current);
+    };
+  }, [virtualRows, rowStarts, estimateSize]);
+
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
     estimateSize,
     scrollMargin,
+    scrollPaddingStart: APP_HEADER_HEIGHT,
     overscan: 3,
   });
 
   const scrollToGroup = useCallback(
     (setName: string) => {
       const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
-      if (rowIndex === -1) {
-        return;
+      if (rowIndex !== -1) {
+        virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "smooth" });
       }
-      const targetScrollY = scrollMarginRef.current + rowStarts[rowIndex] - APP_HEADER_HEIGHT;
-      window.scrollTo({ top: Math.max(0, targetScrollY), behavior: "smooth" });
     },
-    [virtualRows, rowStarts],
+    [virtualRows, virtualizer],
   );
 
   if (cards.length === 0) {
@@ -211,6 +245,24 @@ export function CardGrid({
 
   return (
     <>
+      {/* Scroll position indicator — appears while scrolling, fades out after idle */}
+      <div
+        className="pointer-events-none fixed z-20 transition-opacity duration-300"
+        style={{
+          right: 20,
+          top: Math.round(
+            APP_HEADER_HEIGHT +
+              8 +
+              indicator.yPercent * (window.innerHeight - APP_HEADER_HEIGHT - 48),
+          ),
+          opacity: indicator.visible ? 1 : 0,
+        }}
+      >
+        <div className="rounded-md bg-popover/90 px-2.5 py-1 text-xs font-mono font-medium text-popover-foreground shadow-md ring-1 ring-border/50 backdrop-blur-sm">
+          {indicator.cardId || "\u00A0"}
+        </div>
+      </div>
+
       {/* Sticky set header overlay — visible only after a section header has
           fully scrolled above the sticky threshold. The incoming virtual header
           row handles the visual "push" as it approaches from below. */}
@@ -259,12 +311,7 @@ export function CardGrid({
                 }}
               >
                 {row.kind === "header" ? (
-                  <div
-                    className="flex items-center gap-3 py-2"
-                    style={{
-                      visibility: activeHeaderRow?.set.name === row.set.name ? "hidden" : undefined,
-                    }}
-                  >
+                  <div className="flex items-center gap-3 py-2">
                     <div className="h-px flex-1 bg-border" />
                     <button
                       type="button"
