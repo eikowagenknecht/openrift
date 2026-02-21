@@ -1,6 +1,6 @@
 import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 
@@ -119,11 +119,10 @@ export function CardGrid({
     return starts;
   }, [virtualRows, estimateSize]);
 
-  // Distance from the top of the document to the top of the virtual-list
-  // container. Re-measured when cards change (ActiveFilters bar may appear /
-  // disappear) and when the sticky header appears / disappears (its presence
-  // shifts the container down). useLayoutEffect runs before paint, so the
-  // correction is invisible to the user.
+  // scrollMarginRef holds the same value as scrollMargin state but is readable
+  // synchronously inside the scroll listener without a stale closure — this is
+  // what breaks the update cycle that previously caused infinite re-renders.
+  const scrollMarginRef = useRef(0);
   const [scrollMargin, setScrollMargin] = useState(0);
 
   // Which header row has fully scrolled past the sticky point.
@@ -132,13 +131,19 @@ export function CardGrid({
   // header row from being visible at the same time.
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
+  // Re-measure the container's document offset when the card list or the
+  // sticky overlay changes. useLayoutEffect runs before paint so corrections
+  // are invisible to the user.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) {
       return;
     }
     const newMargin = Math.round(el.getBoundingClientRect().top + window.scrollY);
-    setScrollMargin((prev) => (prev !== newMargin ? newMargin : prev));
+    if (newMargin !== scrollMarginRef.current) {
+      scrollMarginRef.current = newMargin;
+      setScrollMargin(newMargin);
+    }
   }, [cards, containerRef, activeHeaderRow]);
 
   useEffect(() => {
@@ -148,9 +153,11 @@ export function CardGrid({
     }
 
     const update = () => {
-      // Threshold in virtual-list coordinates: the y-position inside the list
-      // that maps to APP_HEADER_HEIGHT pixels from the top of the viewport.
-      const threshold = window.scrollY - scrollMargin + APP_HEADER_HEIGHT;
+      // Read from ref (not the closed-over state value) so the threshold is
+      // always current even when the sticky overlay's presence shifts the
+      // container. scrollMargin is intentionally excluded from deps to avoid
+      // the re-subscribe cycle that caused the infinite update loop.
+      const threshold = window.scrollY - scrollMarginRef.current + APP_HEADER_HEIGHT;
 
       // Walk header rows in order; the active one is the last header whose
       // entire row (start + size) has cleared the threshold.
@@ -171,7 +178,7 @@ export function CardGrid({
     update();
     window.addEventListener("scroll", update, { passive: true });
     return () => window.removeEventListener("scroll", update);
-  }, [virtualRows, rowStarts, estimateSize, multipleGroups, scrollMargin]);
+  }, [virtualRows, rowStarts, estimateSize, multipleGroups]);
 
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
