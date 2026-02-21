@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -85,6 +86,10 @@ export function DisplaySettingsMenu({
         >
           Dark mode
         </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+          v{__COMMIT_HASH__}
+        </DropdownMenuLabel>
       </DropdownMenuContent>
     </DropdownMenu>
   );
