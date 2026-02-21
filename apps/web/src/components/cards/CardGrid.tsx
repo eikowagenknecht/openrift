@@ -1,5 +1,5 @@
 import type { Card } from "@openrift/shared";
-import { Fragment, useMemo } from "react";
+import { Fragment, useCallback, useMemo, useRef } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 
@@ -58,6 +58,15 @@ export function CardGrid({
   const { containerRef, columns } = useResponsiveColumns();
   const groups = useMemo(() => groupCardsBySet(cards, setOrder), [cards, setOrder]);
   const multipleGroups = groups.length > 1;
+  const groupRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const scrollToGroup = useCallback((setName: string) => {
+    const el = groupRefs.current.get(setName);
+    if (!el) return;
+    const headerHeight = 56; // h-14
+    const top = el.getBoundingClientRect().top + window.scrollY - headerHeight;
+    window.scrollTo({ top, behavior: "smooth" });
+  }, []);
 
   if (cards.length === 0) {
     return (
@@ -77,17 +86,32 @@ export function CardGrid({
       {groups.map((group, groupIndex) => (
         <Fragment key={`group-${group.set.name}-${groupIndex}`}>
           {multipleGroups && (
-            <div className="sticky top-14 z-10 col-span-full flex items-center gap-3 bg-background/80 py-2 backdrop-blur-lg">
-              <div className="h-px flex-1 bg-border" />
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">{group.set.code}</span>
-                <span className="text-sm font-semibold">{group.set.name}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {group.cards.length}
-                </span>
+            <>
+              <div
+                ref={(el) => {
+                  if (el) groupRefs.current.set(group.set.name, el);
+                }}
+                className="col-span-full h-0"
+                aria-hidden="true"
+              />
+              <div className="sticky top-14 z-10 col-span-full flex items-center gap-3 bg-background/80 py-2 backdrop-blur-lg">
+                <div className="h-px flex-1 bg-border" />
+                <button
+                  type="button"
+                  className="flex cursor-pointer items-center gap-2"
+                  onClick={() => scrollToGroup(group.set.name)}
+                >
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {group.set.code}
+                  </span>
+                  <span className="text-sm font-semibold">{group.set.name}</span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {group.cards.length}
+                  </span>
+                </button>
+                <div className="h-px flex-1 bg-border" />
               </div>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+            </>
           )}
           {group.cards.map((card) => (
             <CardThumbnail
