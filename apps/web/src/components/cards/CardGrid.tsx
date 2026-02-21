@@ -218,6 +218,7 @@ export function CardGrid({
     count: virtualRows.length,
     estimateSize,
     scrollMargin,
+    scrollPaddingStart: APP_HEADER_HEIGHT,
     overscan: 3,
   });
 
@@ -279,15 +280,15 @@ export function CardGrid({
     (setName: string) => {
       const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
       if (rowIndex !== -1) {
-        // Use window.scrollTo with the precomputed row offset rather than
-        // virtualizer.scrollToIndex(..., { behavior: "smooth" }), which triggers
-        // up to 10 internal retry attempts as dynamic item sizes get measured
-        // mid-scroll, causing "Failed to scroll to index" errors and jitter.
-        const top = scrollMargin + rowStarts[rowIndex] - APP_HEADER_HEIGHT;
-        window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+        // behavior: "instant" avoids the smooth-scroll retry jitter: the
+        // virtualizer internally retries up to 10 times to nail the exact
+        // position as dynamic item sizes are measured. With "smooth" those
+        // retries produce visible animation stutter; with "instant" they
+        // complete invisibly in successive animation frames.
+        virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
       }
     },
-    [virtualRows, rowStarts, scrollMargin],
+    [virtualRows, virtualizer],
   );
 
   if (cards.length === 0) {
