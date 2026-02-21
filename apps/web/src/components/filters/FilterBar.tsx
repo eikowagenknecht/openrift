@@ -1,23 +1,10 @@
 import type { AvailableFilters, SearchField, SortDirection, SortOption } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
-import {
-  ArrowDownNarrowWide,
-  ArrowUpNarrowWide,
-  Menu,
-  Search,
-  SlidersHorizontal,
-} from "lucide-react";
+import { ArrowDownNarrowWide, ArrowUpNarrowWide, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { CardFields } from "@/components/cards/CardThumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -59,7 +46,6 @@ interface FilterBarProps {
   };
   sortBy: SortOption;
   sortDir: SortDirection;
-  showImages: boolean;
   totalCards: number;
   filteredCount: number;
   hasActiveFilters: boolean;
@@ -71,10 +57,7 @@ interface FilterBarProps {
   ) => void;
   onSortChange: (sort: SortOption) => void;
   onSortDirChange: (dir: SortDirection) => void;
-  onShowImagesChange: (show: boolean) => void;
   onSearchScopeToggle: (field: SearchField) => void;
-  cardFields: CardFields;
-  onCardFieldsChange: (update: Partial<CardFields>) => void;
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -89,7 +72,6 @@ export function FilterBar({
   filterState,
   sortBy,
   sortDir,
-  showImages,
   totalCards,
   filteredCount,
   hasActiveFilters,
@@ -98,10 +80,7 @@ export function FilterBar({
   onToggleFilter,
   onSortChange,
   onSortDirChange,
-  onShowImagesChange,
   onSearchScopeToggle,
-  cardFields,
-  onCardFieldsChange,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -203,6 +182,8 @@ export function FilterBar({
     </>
   );
 
+  const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -215,8 +196,26 @@ export function FilterBar({
               onChange={(e) => setLocalSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
-              className="pl-9"
+              className={`pl-9 ${localSearch ? "pr-28" : "pr-20"}`}
             />
+            <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+              <span className="pointer-events-none text-xs text-muted-foreground">
+                {cardCountLabel} cards
+              </span>
+              {localSearch && (
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setLocalSearch("");
+                    onSearchChange("");
+                  }}
+                  aria-label="Clear search"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </span>
           </div>
           <div
             className={`flex items-center gap-2 overflow-hidden transition-all duration-200 ${
@@ -246,12 +245,12 @@ export function FilterBar({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="shrink-0 text-sm text-muted-foreground">
-            {hasActiveFilters ? `${filteredCount} of ${totalCards}` : totalCards} cards
-          </span>
           <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
             <SelectTrigger className="w-full sm:w-[160px]">
-              <SelectValue placeholder="Sort by" />
+              <span>
+                <span className="text-muted-foreground">Sort: </span>
+                <SelectValue placeholder="Sort by" />
+              </span>
             </SelectTrigger>
             <SelectContent>
               {sortOptions.map((option) => (
@@ -292,58 +291,6 @@ export function FilterBar({
               </Badge>
             )}
           </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm">
-                <Menu className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuCheckboxItem
-                checked={showImages}
-                onCheckedChange={onShowImagesChange}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Show card images
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={cardFields.number}
-                onCheckedChange={(v) => onCardFieldsChange({ number: v })}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Show ID
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={cardFields.title}
-                onCheckedChange={(v) => onCardFieldsChange({ title: v })}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Show title
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={cardFields.type}
-                onCheckedChange={(v) => onCardFieldsChange({ type: v })}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Show type
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={cardFields.supertype}
-                onCheckedChange={(v) => onCardFieldsChange({ supertype: v })}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Show supertype
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={cardFields.rarity}
-                onCheckedChange={(v) => onCardFieldsChange({ rarity: v })}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Show rarity
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

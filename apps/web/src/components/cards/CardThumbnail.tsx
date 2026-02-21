@@ -1,7 +1,7 @@
 import type { Card } from "@openrift/shared";
 
 import { CardPlaceholderImage, DOMAIN_COLORS } from "@/components/cards/CardPlaceholderImage";
-import { formatCollectorNumber } from "@/lib/format";
+import { formatCardId } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface CardFields {
@@ -45,7 +45,7 @@ export function CardThumbnail({
   isSelected,
   cardFields = DEFAULT_CARD_FIELDS,
 }: CardThumbnailProps) {
-  const setNumber = formatCollectorNumber(card);
+  const cardId = formatCardId(card);
   const thumbnailUrl =
     showImages && card.art.thumbnailURL
       ? `${card.art.thumbnailURL}?w=300&fit=max&fm=webp${card.orientation === "landscape" ? "&or=270" : ""}`
@@ -81,7 +81,7 @@ export function CardThumbnail({
         <div className="mt-1.5 space-y-0.5 px-0.5">
           {(cardFields.number || cardFields.title) && (
             <p className="truncate text-xs font-medium sm:text-sm">
-              {cardFields.number && <span className="text-muted-foreground">{setNumber}</span>}
+              {cardFields.number && <span className="text-muted-foreground">{cardId}</span>}
               {cardFields.number && cardFields.title && " "}
               {cardFields.title && card.name}
             </p>

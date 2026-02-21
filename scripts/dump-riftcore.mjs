@@ -249,7 +249,9 @@ async function fetchTable(table) {
   while (true) {
     const page = await fetchPage(table, offset, PAGE_SIZE);
     allRows = allRows.concat(page);
-    if (page.length < PAGE_SIZE) break;
+    if (page.length < PAGE_SIZE) {
+      break;
+    }
     offset += PAGE_SIZE;
   }
 
@@ -281,9 +283,9 @@ async function main() {
       successCount++;
       process.stdout.write(` ${rows.length} rows\n`);
       summary.push({ table, rows: rows.length, status: "ok" });
-    } catch (err) {
-      process.stdout.write(` error (${err.message})\n`);
-      summary.push({ table, rows: 0, status: `error: ${err.message}` });
+    } catch (error) {
+      process.stdout.write(` error (${error.message})\n`);
+      summary.push({ table, rows: 0, status: `error: ${error.message}` });
     }
   }
 

@@ -45,7 +45,7 @@ function parseType(rawType) {
     return { type: capitalize(parts[0]), superTypes: [] };
   }
   // Last word is the base type, preceding words are superTypes
-  const baseType = capitalize(parts[parts.length - 1]);
+  const baseType = capitalize(parts.at(-1));
   const superTypes = parts.slice(0, -1).map(capitalize);
   return { type: baseType, superTypes };
 }
@@ -64,7 +64,9 @@ function mapFaction(domains) {
   }
   return domains
     .map((d) => {
-      if (d === "all") return "Colorless";
+      if (d === "all") {
+        return "Colorless";
+      }
       return capitalize(d);
     })
     .join("/");
@@ -73,7 +75,9 @@ function mapFaction(domains) {
 /** Parse keywords from card description text (same logic as scrape-gallery.mjs) */
 function parseKeywords(text) {
   const matches = text.match(/\[([A-Z][a-zA-Z\- ]+(?:\s+\d+)?)\]/g);
-  if (!matches) return [];
+  if (!matches) {
+    return [];
+  }
   const seen = new Set();
   const keywords = [];
   for (const m of matches) {
@@ -88,16 +92,22 @@ function parseKeywords(text) {
 
 /** Parse collector number from card_number string like "001/298" → 1 */
 function parseCollectorNumber(cardNumber) {
-  if (!cardNumber) return 0;
-  const num = cardNumber.split("/")[0].replace(/[^0-9]/g, "");
+  if (!cardNumber) {
+    return 0;
+  }
+  const num = cardNumber.split("/")[0].replaceAll(/[^0-9]/g, "");
   return Number.parseInt(num, 10) || 0;
 }
 
 /** Parse total cards in set from card_number string like "001/298" → 298 */
 function parseTotalCards(cardNumber) {
-  if (!cardNumber) return 0;
+  if (!cardNumber) {
+    return 0;
+  }
   const parts = cardNumber.split("/");
-  if (parts.length < 2) return 0;
+  if (parts.length < 2) {
+    return 0;
+  }
   return Number.parseInt(parts[1], 10) || 0;
 }
 
@@ -197,7 +207,9 @@ async function main() {
   const sets = [];
   for (const setCode of SET_ORDER) {
     const rawSetCards = setMap.get(setCode);
-    if (!rawSetCards) continue;
+    if (!rawSetCards) {
+      continue;
+    }
 
     const cards = rawSetCards.map(convertCard);
     cards.sort((a, b) => a.id.localeCompare(b.id));
@@ -212,7 +224,9 @@ async function main() {
 
   // Include any sets not in SET_ORDER
   for (const [setCode, rawSetCards] of setMap) {
-    if (SET_ORDER.includes(setCode)) continue;
+    if (SET_ORDER.includes(setCode)) {
+      continue;
+    }
     const cards = rawSetCards.map(convertCard);
     cards.sort((a, b) => a.id.localeCompare(b.id));
     sets.push({

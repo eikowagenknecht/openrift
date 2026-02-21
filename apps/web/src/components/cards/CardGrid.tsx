@@ -62,7 +62,9 @@ export function CardGrid({
 
   const scrollToGroup = useCallback((setName: string) => {
     const el = groupRefs.current.get(setName);
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const headerHeight = 56; // h-14
     const top = el.getBoundingClientRect().top + window.scrollY - headerHeight;
     window.scrollTo({ top, behavior: "smooth" });
@@ -89,7 +91,9 @@ export function CardGrid({
             <>
               <div
                 ref={(el) => {
-                  if (el) groupRefs.current.set(group.set.name, el);
+                  if (el) {
+                    groupRefs.current.set(group.set.name, el);
+                  }
                 }}
                 className="col-span-full h-0"
                 aria-hidden="true"

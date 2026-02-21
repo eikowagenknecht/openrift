@@ -7,7 +7,6 @@ import { CardDetail } from "@/components/cards/CardDetail";
 import type { SetInfo } from "@/components/cards/CardGrid";
 import { CardGrid } from "@/components/cards/CardGrid";
 import type { CardFields } from "@/components/cards/CardThumbnail";
-import { DEFAULT_CARD_FIELDS } from "@/components/cards/CardThumbnail";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useCardFilters } from "@/hooks/use-card-filters";
@@ -20,7 +19,12 @@ const setInfoList: SetInfo[] = typedGallery.sets.map((s) => ({
   code: s.cards[0]?.id.replace(/-.*$/, "") ?? s.id,
 }));
 
-export function CardBrowser() {
+interface CardBrowserProps {
+  showImages: boolean;
+  cardFields: CardFields;
+}
+
+export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
   const {
     filters,
     sortBy,
@@ -38,34 +42,6 @@ export function CardBrowser() {
 
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [showImages, setShowImages] = useState(() => {
-    const stored = localStorage.getItem("showImages");
-    return stored !== null ? stored === "true" : true;
-  });
-  const [cardFields, setCardFields] = useState<CardFields>(() => {
-    const stored = localStorage.getItem("cardFields");
-    if (stored) {
-      try {
-        return { ...DEFAULT_CARD_FIELDS, ...JSON.parse(stored) };
-      } catch {
-        // ignore malformed JSON
-      }
-    }
-    return DEFAULT_CARD_FIELDS;
-  });
-
-  const handleShowImagesChange = (show: boolean) => {
-    setShowImages(show);
-    localStorage.setItem("showImages", String(show));
-  };
-
-  const handleCardFieldsChange = (update: Partial<CardFields>) => {
-    setCardFields((prev) => {
-      const next = { ...prev, ...update };
-      localStorage.setItem("cardFields", JSON.stringify(next));
-      return next;
-    });
-  };
 
   // Lock body scroll when mobile overlay is active
   useEffect(() => {
@@ -105,7 +81,6 @@ export function CardBrowser() {
         filterState={filterState}
         sortBy={sortBy}
         sortDir={sortDir}
-        showImages={showImages}
         totalCards={allCards.length}
         filteredCount={sortedCards.length}
         hasActiveFilters={hasActiveFilters}
@@ -114,10 +89,7 @@ export function CardBrowser() {
         onToggleFilter={toggleArrayFilter}
         onSortChange={setSortBy}
         onSortDirChange={setSortDir}
-        onShowImagesChange={handleShowImagesChange}
         onSearchScopeToggle={toggleSearchField}
-        cardFields={cardFields}
-        onCardFieldsChange={handleCardFieldsChange}
       />
       <ActiveFilters
         filterState={filterState}

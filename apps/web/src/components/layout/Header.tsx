@@ -1,6 +1,10 @@
-import { ThemeToggle } from "@/components/ThemeToggle";
+import type { ReactNode } from "react";
 
-export function Header() {
+interface HeaderProps {
+  actions?: ReactNode;
+}
+
+export function Header({ actions }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
@@ -15,7 +19,7 @@ export function Header() {
             Fast, open, ad-free card browser
           </span>
         </button>
-        <ThemeToggle />
+        {actions}
       </div>
     </header>
   );
