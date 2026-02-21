@@ -159,15 +159,15 @@ export function CardGrid({
       const threshold = window.scrollY - scrollMarginRef.current + APP_HEADER_HEIGHT;
 
       // Walk header rows in order; the active one is the last header whose
-      // entire row (start + size) has cleared the threshold.
+      // top edge has crossed the sticky threshold. The virtual row is hidden
+      // (visibility:hidden) while the fixed overlay covers it.
       let active: (VRow & { kind: "header" }) | null = null;
       for (let i = 0; i < virtualRows.length; i++) {
         const row = virtualRows[i];
         if (row.kind !== "header") {
           continue;
         }
-        const rowEnd = rowStarts[i] + estimateSize(i);
-        if (rowEnd <= threshold) {
+        if (rowStarts[i] < threshold) {
           active = row;
         }
       }
@@ -259,7 +259,12 @@ export function CardGrid({
                 }}
               >
                 {row.kind === "header" ? (
-                  <div className="flex items-center gap-3 py-2">
+                  <div
+                    className="flex items-center gap-3 py-2"
+                    style={{
+                      visibility: activeHeaderRow?.set.name === row.set.name ? "hidden" : undefined,
+                    }}
+                  >
                     <div className="h-px flex-1 bg-border" />
                     <button
                       type="button"
