@@ -131,6 +131,27 @@ export function CardGrid({
   // header row from being visible at the same time.
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
+  // The first header that comes after activeHeaderRow in the list — shown in
+  // the bottom overlay so the user can jump forward to the next section.
+  const nextHeaderRow = useMemo<(VRow & { kind: "header" }) | null>(() => {
+    if (!activeHeaderRow) {
+      return null;
+    }
+    let found = false;
+    for (const row of virtualRows) {
+      if (row.kind !== "header") {
+        continue;
+      }
+      if (found) {
+        return row;
+      }
+      if (row.set.name === activeHeaderRow.set.name) {
+        found = true;
+      }
+    }
+    return null;
+  }, [activeHeaderRow, virtualRows]);
+
   // Re-measure the container's document offset when the card list changes.
   // useLayoutEffect runs before paint so corrections are invisible to the user.
   useLayoutEffect(() => {
@@ -283,16 +304,13 @@ export function CardGrid({
         className="pointer-events-none fixed z-20 transition-opacity duration-300"
         style={{
           right: 20,
-          top: (() => {
-            // Center the badge on the visible portion of the thumb.
-            // When the thumb is partially behind the header, use the center of
-            // its visible slice so the badge stays aligned with what's seen.
-            const BADGE_H = 28;
-            const visibleTop = Math.max(indicator.thumbTop, APP_HEADER_HEIGHT);
-            const visibleBottom = indicator.thumbTop + indicator.thumbH;
-            const visibleCenter = (visibleTop + visibleBottom) / 2;
-            return Math.round(visibleCenter - BADGE_H / 2);
-          })(),
+          top: Math.max(
+            APP_HEADER_HEIGHT + 4,
+            Math.min(
+              window.innerHeight - 32,
+              Math.round(indicator.thumbTop + indicator.thumbH / 2 - 14),
+            ),
+          ),
           opacity: indicator.visible ? 1 : 0,
         }}
       >
@@ -321,6 +339,27 @@ export function CardGrid({
             <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               {activeHeaderRow.cardCount}
+            </span>
+          </button>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+      )}
+
+      {/* Bottom overlay — shows the next section so the user can jump forward */}
+      {multipleGroups && nextHeaderRow && (
+        <div className="fixed bottom-0 left-0 right-0 z-10 flex items-center gap-3 bg-background/80 px-4 py-2 backdrop-blur-lg">
+          <div className="h-px flex-1 bg-border" />
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-2"
+            onClick={() => scrollToGroup(nextHeaderRow.set.name)}
+          >
+            <span className="text-sm font-medium text-muted-foreground">
+              {nextHeaderRow.set.code}
+            </span>
+            <span className="text-sm font-semibold">{nextHeaderRow.set.name}</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {nextHeaderRow.cardCount}
             </span>
           </button>
           <div className="h-px flex-1 bg-border" />
