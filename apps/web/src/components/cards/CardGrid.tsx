@@ -1,6 +1,6 @@
 import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 
@@ -56,6 +56,7 @@ function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boo
 
 const CARD_ASPECT = 1039 / 744;
 const GAP = 16; // gap-4
+const APP_HEADER_HEIGHT = 56; // h-14
 
 interface CardGridProps {
   cards: Card[];
@@ -83,20 +84,6 @@ export function CardGrid({
     [groups, columns, multipleGroups],
   );
 
-  // Distance from the top of the document to the top of this container.
-  // useWindowVirtualizer needs this to know which rows are in the viewport.
-  // Re-measured whenever cards change (layout above may shift when the
-  // ActiveFilters bar appears/disappears).
-  const [scrollMargin, setScrollMargin] = useState(0);
-  useLayoutEffect(() => {
-    const el = containerRef.current;
-    if (!el) {
-      return;
-    }
-    const newMargin = Math.round(el.getBoundingClientRect().top + window.scrollY);
-    setScrollMargin((prev) => (prev !== newMargin ? newMargin : prev));
-  }, [cards, containerRef]);
-
   const hasLabel = cardFields
     ? cardFields.number || cardFields.title || cardFields.type || cardFields.rarity
     : true;
@@ -118,6 +105,73 @@ export function CardGrid({
     },
     [virtualRows, columns, containerRef, hasLabel],
   );
+
+  // Precompute cumulative start offsets (within the virtual list) for each row.
+  // Used by the sticky-header scroll listener to find which header is active
+  // without touching the DOM on every scroll event.
+  const rowStarts = useMemo(() => {
+    const starts: number[] = [];
+    let acc = 0;
+    for (let i = 0; i < virtualRows.length; i++) {
+      starts.push(acc);
+      acc += estimateSize(i);
+    }
+    return starts;
+  }, [virtualRows, estimateSize]);
+
+  // Distance from the top of the document to the top of the virtual-list
+  // container. Re-measured when cards change (ActiveFilters bar may appear /
+  // disappear) and when the sticky header appears / disappears (its presence
+  // shifts the container down). useLayoutEffect runs before paint, so the
+  // correction is invisible to the user.
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  // Which header row has fully scrolled past the sticky point.
+  // "Fully" means its END is above the threshold so the virtual row itself
+  // is no longer visible — this prevents the sticky overlay and the virtual
+  // header row from being visible at the same time.
+  const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+    const newMargin = Math.round(el.getBoundingClientRect().top + window.scrollY);
+    setScrollMargin((prev) => (prev !== newMargin ? newMargin : prev));
+  }, [cards, containerRef, activeHeaderRow]);
+
+  useEffect(() => {
+    if (!multipleGroups) {
+      setActiveHeaderRow(null);
+      return;
+    }
+
+    const update = () => {
+      // Threshold in virtual-list coordinates: the y-position inside the list
+      // that maps to APP_HEADER_HEIGHT pixels from the top of the viewport.
+      const threshold = window.scrollY - scrollMargin + APP_HEADER_HEIGHT;
+
+      // Walk header rows in order; the active one is the last header whose
+      // entire row (start + size) has cleared the threshold.
+      let active: (VRow & { kind: "header" }) | null = null;
+      for (let i = 0; i < virtualRows.length; i++) {
+        const row = virtualRows[i];
+        if (row.kind !== "header") {
+          continue;
+        }
+        const rowEnd = rowStarts[i] + estimateSize(i);
+        if (rowEnd <= threshold) {
+          active = row;
+        }
+      }
+      setActiveHeaderRow(active);
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [virtualRows, rowStarts, estimateSize, multipleGroups, scrollMargin]);
 
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
@@ -148,70 +202,95 @@ export function CardGrid({
   const items = virtualizer.getVirtualItems();
 
   return (
-    <div ref={containerRef}>
-      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
-        {items.map((vItem) => {
-          const row = virtualRows[vItem.index];
-          if (!row) {
-            return null;
-          }
+    <>
+      {/* Sticky set header overlay — visible only after a section header has
+          fully scrolled above the sticky threshold. The incoming virtual header
+          row handles the visual "push" as it approaches from below. */}
+      {multipleGroups && activeHeaderRow && (
+        <div className="sticky top-14 z-10 flex items-center gap-3 bg-background/80 py-2 backdrop-blur-lg">
+          <div className="h-px flex-1 bg-border" />
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-2"
+            onClick={() => scrollToGroup(activeHeaderRow.set.name)}
+          >
+            <span className="text-sm font-medium text-muted-foreground">
+              {activeHeaderRow.set.code}
+            </span>
+            <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {activeHeaderRow.cardCount}
+            </span>
+          </button>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+      )}
 
-          return (
-            <div
-              key={vItem.key}
-              data-index={vItem.index}
-              ref={virtualizer.measureElement}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${vItem.start - scrollMargin}px)`,
-              }}
-            >
-              {row.kind === "header" ? (
-                <div className="flex items-center gap-3 py-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <button
-                    type="button"
-                    className="flex cursor-pointer items-center gap-2"
-                    onClick={() => scrollToGroup(row.set.name)}
+      <div ref={containerRef}>
+        <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+          {items.map((vItem) => {
+            const row = virtualRows[vItem.index];
+            if (!row) {
+              return null;
+            }
+
+            return (
+              <div
+                key={vItem.key}
+                data-index={vItem.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${vItem.start - scrollMargin}px)`,
+                }}
+              >
+                {row.kind === "header" ? (
+                  <div className="flex items-center gap-3 py-2">
+                    <div className="h-px flex-1 bg-border" />
+                    <button
+                      type="button"
+                      className="flex cursor-pointer items-center gap-2"
+                      onClick={() => scrollToGroup(row.set.name)}
+                    >
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {row.set.code}
+                      </span>
+                      <span className="text-sm font-semibold">{row.set.name}</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        {row.cardCount}
+                      </span>
+                    </button>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                      gap: `${GAP}px`,
+                      paddingBottom: `${GAP}px`,
+                    }}
                   >
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {row.set.code}
-                    </span>
-                    <span className="text-sm font-semibold">{row.set.name}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                      {row.cardCount}
-                    </span>
-                  </button>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                    gap: `${GAP}px`,
-                    paddingBottom: `${GAP}px`,
-                  }}
-                >
-                  {row.items.map((card) => (
-                    <CardThumbnail
-                      key={card.id}
-                      card={card}
-                      onClick={onCardClick}
-                      showImages={showImages}
-                      isSelected={card.id === selectedCardId}
-                      cardFields={cardFields}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                    {row.items.map((card) => (
+                      <CardThumbnail
+                        key={card.id}
+                        card={card}
+                        onClick={onCardClick}
+                        showImages={showImages}
+                        isSelected={card.id === selectedCardId}
+                        cardFields={cardFields}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
