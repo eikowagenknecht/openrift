@@ -197,7 +197,9 @@ export function FilterBar({
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
               }}
               className={`pl-9 ${localSearch ? "pr-28" : "pr-20"}`}
             />

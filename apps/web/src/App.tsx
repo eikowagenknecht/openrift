@@ -6,6 +6,8 @@ import { DEFAULT_CARD_FIELDS } from "@/components/cards/CardThumbnail";
 import { DisplaySettingsMenu } from "@/components/DisplaySettingsMenu";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
+import { ReloadPrompt } from "@/components/pwa/ReloadPrompt";
 import { useTheme } from "@/hooks/use-theme";
 
 function App() {
@@ -58,6 +60,8 @@ function App() {
         <CardBrowser showImages={showImages} cardFields={cardFields} />
       </main>
       <Footer />
+      <ReloadPrompt />
+      <OfflineIndicator />
     </div>
   );
 }

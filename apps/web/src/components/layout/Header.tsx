@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { InstallButton } from "@/components/pwa/InstallButton";
+
 interface HeaderProps {
   actions?: ReactNode;
 }
@@ -19,7 +21,10 @@ export function Header({ actions }: HeaderProps) {
             Fast, open, ad-free card browser
           </span>
         </button>
-        {actions}
+        <div className="flex items-center gap-1">
+          <InstallButton />
+          {actions}
+        </div>
       </div>
     </header>
   );
