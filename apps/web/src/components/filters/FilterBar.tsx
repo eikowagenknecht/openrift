@@ -3,6 +3,7 @@ import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import { Menu, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { CardFields } from "@/components/cards/CardThumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +65,8 @@ interface FilterBarProps {
   onSortChange: (sort: SortOption) => void;
   onShowImagesChange: (show: boolean) => void;
   onSearchScopeToggle: (field: SearchField) => void;
+  cardFields: CardFields;
+  onCardFieldsChange: (update: Partial<CardFields>) => void;
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -87,11 +90,25 @@ export function FilterBar({
   onSortChange,
   onShowImagesChange,
   onSearchScopeToggle,
+  cardFields,
+  onCardFieldsChange,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const debouncedSearch = useDebounce(localSearch, 200);
+
+  // Close mobile filter sheet when viewport grows past the sm breakpoint
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const handler = () => {
+      if (mq.matches) {
+        setSheetOpen(false);
+      }
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
   const prevFilterSearch = useRef(filterState.search);
 
   const showScopeChips = searchFocused || localSearch.length > 0;
@@ -263,6 +280,30 @@ export function FilterBar({
             <DropdownMenuContent align="end">
               <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={onShowImagesChange}>
                 Show card images
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={cardFields.number}
+                onCheckedChange={(v) => onCardFieldsChange({ number: v })}
+              >
+                Show number
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={cardFields.title}
+                onCheckedChange={(v) => onCardFieldsChange({ title: v })}
+              >
+                Show title
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={cardFields.type}
+                onCheckedChange={(v) => onCardFieldsChange({ type: v })}
+              >
+                Show type
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={cardFields.rarity}
+                onCheckedChange={(v) => onCardFieldsChange({ rarity: v })}
+              >
+                Show rarity
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
