@@ -71,8 +71,9 @@ export function ActiveFilters({
       <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2">
         {filterState.search && (
           <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">Search:</span>
             <Badge variant="secondary" className="gap-1">
-              Search: &ldquo;{filterState.search}&rdquo;
+              &ldquo;{filterState.search}&rdquo;
               <button
                 type="button"
                 onClick={onClearSearch}
