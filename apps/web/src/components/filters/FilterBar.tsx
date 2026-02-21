@@ -100,7 +100,7 @@ export function FilterBar({
   }, []);
   const prevFilterSearch = useRef(filterState.search);
 
-  const showScopeChips = searchFocused || localSearch.length > 0;
+  const showScopeChips = searchFocused;
   const hasPrefixes = useMemo(
     () => parseSearchTerms(localSearch).some((t) => t.field !== null),
     [localSearch],
@@ -196,6 +196,9 @@ export function FilterBar({
               onChange={(e) => setLocalSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
               className={`pl-9 ${localSearch ? "pr-28" : "pr-20"}`}
             />
             <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
@@ -218,8 +221,8 @@ export function FilterBar({
             </span>
           </div>
           <div
-            className={`flex items-center gap-2 overflow-hidden transition-all duration-200 ${
-              showScopeChips ? "mt-2 max-h-10 opacity-100" : "mt-0 max-h-0 opacity-0"
+            className={`flex items-start gap-2 overflow-hidden transition-all duration-200 ${
+              showScopeChips ? "mt-2 max-h-24 opacity-100" : "mt-0 max-h-0 opacity-0"
             }`}
           >
             <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
@@ -234,6 +237,7 @@ export function FilterBar({
                     key={field}
                     variant={isActive ? "default" : "outline"}
                     className="cursor-pointer gap-1 text-xs"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => onSearchScopeToggle(field)}
                   >
                     <span className="text-[10px] opacity-50">{prefix}</span>
