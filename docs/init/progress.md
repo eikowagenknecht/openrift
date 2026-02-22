@@ -17,41 +17,35 @@
 - [x] **commitlint** — conventional commit enforcement
 - [x] **Dependabot** — weekly grouped dependency update PRs
 
-## Phase 3: Deployment & API Access — DONE
+## Phase 3: Deployment — DONE
 
 - [x] `wrangler.json` for Cloudflare Workers (static assets mode)
-- [x] Deployed to `openrift.eikowagenknecht.com`
-- [x] `riot.txt` domain verification file
-- [x] Riot API application submitted via Developer Portal
-- [ ] Waiting for Riot API approval (standard dev keys return 403 for Riftbound)
+- [x] Deployed to `openrift.app`
 
-## Phase 4: Shared Package — TODO
+## Phase 4: Shared Package — DONE
 
-- [ ] Card types (`types.ts`) — based on Riot's documented API format
-- [ ] Zod schemas (`schemas.ts`) — validate card data JSON
-- [ ] Filter logic (`filters.ts`) — `filterCards`, `getAvailableFilters`, `sortCards`
-- [ ] Mock card data (`data/cards.json`, `data/sets.json`) — 20-30 cards across 2 sets
-- [ ] Fetch script (`scripts/fetch-cards.ts`) — Riot API → normalized JSON
+- [x] Card types (`types.ts`) — based on Riftbound gallery data
+- [x] Zod schemas (`schemas.ts`) — validate card data JSON
+- [x] Filter logic (`filters.ts`) — `filterCards`, `getAvailableFilters`, `sortCards`
+- [x] Real card data (`data/gallery.json`) — 664 cards across 3 sets, scraped from Riftbound gallery
 
-> **Note:** Types are based on Riot's documentation and will be adjusted once we have real API access.
+## Phase 5: Web App — Tailwind + shadcn/ui Setup — DONE
 
-## Phase 5: Web App — Tailwind + shadcn/ui Setup — TODO
+- [x] Install Tailwind CSS v4
+- [x] Install and configure shadcn/ui
+- [x] Set up dark mode (CSS variables, system preference detection)
+- [x] Base layout (header, footer with legal disclaimer)
 
-- [ ] Install Tailwind CSS v4
-- [ ] Install and configure shadcn/ui
-- [ ] Set up dark mode (CSS variables, system preference detection)
-- [ ] Base layout (header, footer with legal disclaimer)
+## Phase 6: Web App — Card Browser UI — DONE
 
-## Phase 6: Web App — Card Browser UI — TODO
-
-- [ ] Card grid with TanStack Virtual (responsive: 2/3-4/5-6 columns)
-- [ ] Card thumbnails with lazy loading + shimmer placeholders
-- [ ] Card detail sheet (shadcn/ui Sheet — side panel on desktop, slide-up on mobile)
-- [ ] Filter bar (search, set, rarity, type, faction, cost)
-- [ ] URL-synced filter state via nuqs
-- [ ] Sort controls (name, collector number, cost, rarity)
-- [ ] Active filter badges + "Clear all" button
-- [ ] Results count display
+- [x] Card grid (responsive: 2/3-4/5-6 columns)
+- [x] Card thumbnails with lazy loading + shimmer placeholders
+- [x] Card detail sheet (shadcn/ui Sheet — side panel on desktop, slide-up on mobile)
+- [x] Filter bar (search, set, rarity, type, supertype, domain, energy, might, power, variants)
+- [x] URL-synced filter state via nuqs
+- [x] Sort controls (name, ID, energy, rarity)
+- [x] Active filter badges + "Clear all" button
+- [x] Results count display
 
 ## Phase 7: Mobile App (Expo) — TODO
 
@@ -68,5 +62,3 @@
 - [ ] Lighthouse audit (target 90+ performance, accessibility)
 - [ ] Mobile performance testing (60fps with 500+ cards)
 - [ ] Final Cloudflare Workers deployment
-- [ ] Update fetch script once Riot API access is granted
-- [ ] Replace mock data with real card data

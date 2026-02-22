@@ -43,7 +43,7 @@ Use **pnpm** (v10) as the package manager. Use **Turborepo** for monorepo orches
 - **TanStack Virtual** for virtualizing the card grid (the card list can be 500+ items)
 - **nuqs** for URL-synced filter state (so filters are bookmarkable/shareable)
 - React Router (or just hash-based routing — the app is a single page for now)
-- Deployed to **Cloudflare Workers** (static assets mode) at `openrift.eikowagenknecht.com`
+- Deployed to **Cloudflare Workers** (static assets mode) at `openrift.app`
 
 ### Tooling (repo-wide)
 - **oxlint** — primary linter (Rust, fast), replaces ESLint for all general linting
