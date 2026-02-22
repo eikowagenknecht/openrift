@@ -331,7 +331,7 @@ export function CardGrid({
           row handles the visual "push" as it approaches from below. */}
       {multipleGroups && activeHeaderRow && (
         <div
-          className="fixed left-0 right-0 z-10 flex items-center gap-3 bg-background/80 px-4 py-2 backdrop-blur-lg"
+          className="fixed left-0 right-0 z-10 flex items-center gap-3 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60"
           style={{ top: APP_HEADER_HEIGHT }}
         >
           <div className="h-px flex-1 bg-border" />
@@ -354,7 +354,7 @@ export function CardGrid({
 
       {/* Bottom overlay — shows the next section so the user can jump forward */}
       {multipleGroups && nextHeaderRow && (
-        <div className="fixed bottom-0 left-0 right-0 z-10 flex items-center gap-3 bg-background/80 px-4 py-2 backdrop-blur-lg">
+        <div className="fixed bottom-0 left-0 right-0 z-10 flex items-center gap-3 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="h-px flex-1 bg-border" />
           <button
             type="button"
