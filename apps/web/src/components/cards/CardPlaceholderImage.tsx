@@ -1,3 +1,4 @@
+import { getDomainGradientStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 export const DOMAIN_COLORS: Record<string, string> = {
@@ -18,18 +19,6 @@ interface CardPlaceholderImageProps {
   className?: string;
 }
 
-function getDomainBackground(domain: string): React.CSSProperties {
-  const domains = domain.split("/");
-  if (domains.length === 1) {
-    return { backgroundColor: DOMAIN_COLORS[domains[0]] ?? "#737373" };
-  }
-  const color1 = DOMAIN_COLORS[domains[0]] ?? "#737373";
-  const color2 = DOMAIN_COLORS[domains[1]] ?? "#737373";
-  return {
-    background: `linear-gradient(135deg, ${color1} 50%, ${color2} 50%)`,
-  };
-}
-
 export function CardPlaceholderImage({
   name,
   domain,
@@ -37,7 +26,7 @@ export function CardPlaceholderImage({
   might,
   className,
 }: CardPlaceholderImageProps) {
-  const bgStyle = getDomainBackground(domain);
+  const bgStyle = getDomainGradientStyle(domain);
 
   return (
     <div

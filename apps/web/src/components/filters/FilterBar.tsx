@@ -3,6 +3,7 @@ import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import { ArrowDownNarrowWide, ArrowUpNarrowWide, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CardIcon } from "@/components/CardIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { useDebounce } from "@/hooks/use-debounce";
+import { formatDomainFilterLabel } from "@/lib/domain";
+import { getFilterIconPath } from "@/lib/icons";
 
 const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
   name: { label: "Name", prefix: "n:" },
@@ -155,15 +158,15 @@ export function FilterBar({
         options={availableFilters.domains}
         selected={filterState.domains}
         onToggle={(v) => onToggleFilter("domains", v)}
-        iconPath={(v) => `/icons/domains/${v.toLowerCase()}.${v === "Colorless" ? "svg" : "webp"}`}
-        displayLabel={(v) => (v === "Colorless" ? "None" : v)}
+        iconPath={(v) => getFilterIconPath("domains", v)}
+        displayLabel={formatDomainFilterLabel}
       />
       <FilterSection
         label="Type"
         options={availableFilters.types}
         selected={filterState.types}
         onToggle={(v) => onToggleFilter("types", v)}
-        iconPath={(v) => `/icons/types/${v.toLowerCase()}.svg`}
+        iconPath={(v) => getFilterIconPath("types", v)}
       />
       {availableFilters.superTypes.length > 0 && (
         <FilterSection
@@ -171,10 +174,7 @@ export function FilterBar({
           options={availableFilters.superTypes}
           selected={filterState.superTypes}
           onToggle={(v) => onToggleFilter("superTypes", v)}
-          iconPath={(v) => {
-            const path = `/icons/supertypes/${v.toLowerCase()}.svg`;
-            return ["Champion", "Signature", "Token"].includes(v) ? path : undefined;
-          }}
+          iconPath={(v) => getFilterIconPath("superTypes", v)}
         />
       )}
       <FilterSection
@@ -182,7 +182,7 @@ export function FilterBar({
         options={availableFilters.rarities}
         selected={filterState.rarities}
         onToggle={(v) => onToggleFilter("rarities", v)}
-        iconPath={(v) => `/icons/rarities/${v.toLowerCase()}.webp`}
+        iconPath={(v) => getFilterIconPath("rarities", v)}
       />
       {availableFilters.variants.length > 0 && (
         <FilterSection
@@ -444,20 +444,7 @@ function FilterSection({
               className="cursor-pointer gap-1"
               onClick={() => onToggle(option)}
             >
-              {icon &&
-                (icon.endsWith(".svg") ? (
-                  <span
-                    className="inline-block size-3.5 bg-current"
-                    style={{
-                      maskImage: `url(${icon})`,
-                      maskSize: "contain",
-                      maskRepeat: "no-repeat",
-                      maskPosition: "center",
-                    }}
-                  />
-                ) : (
-                  <img src={icon} alt="" className="size-3.5" />
-                ))}
+              {icon && <CardIcon src={icon} />}
               {displayLabel ? displayLabel(option) : option}
             </Badge>
           );

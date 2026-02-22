@@ -1,8 +1,11 @@
 import type { AvailableFilters } from "@openrift/shared";
 import { X } from "lucide-react";
 
+import { CardIcon } from "@/components/CardIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDomainFilterLabel } from "@/lib/domain";
+import { getFilterIconPath } from "@/lib/icons";
 
 interface ActiveFiltersProps {
   filterState: {
@@ -59,28 +62,6 @@ export function ActiveFilters({
     { key: "variants", label: "Version", values: filterState.variants },
   ].filter((g): g is { key: FilterKey; label: string; values: string[] } => g.values.length > 0);
 
-  const getIconPath = (key: FilterKey, value: string): string | undefined => {
-    switch (key) {
-      case "rarities": {
-        return `/icons/rarities/${value.toLowerCase()}.webp`;
-      }
-      case "types": {
-        return `/icons/types/${value.toLowerCase()}.svg`;
-      }
-      case "superTypes": {
-        return ["Champion", "Signature", "Token"].includes(value)
-          ? `/icons/supertypes/${value.toLowerCase()}.svg`
-          : undefined;
-      }
-      case "domains": {
-        return `/icons/domains/${value.toLowerCase()}.${value === "Colorless" ? "svg" : "webp"}`;
-      }
-      default: {
-        return undefined;
-      }
-    }
-  };
-
   return (
     <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
@@ -103,24 +84,11 @@ export function ActiveFilters({
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-xs text-muted-foreground">{label}:</span>
             {values.map((value) => {
-              const icon = getIconPath(key, value);
+              const icon = getFilterIconPath(key, value);
               return (
                 <Badge key={`${key}-${value}`} variant="secondary" className="gap-1">
-                  {icon &&
-                    (icon.endsWith(".svg") ? (
-                      <span
-                        className="inline-block size-3.5 bg-current"
-                        style={{
-                          maskImage: `url(${icon})`,
-                          maskSize: "contain",
-                          maskRepeat: "no-repeat",
-                          maskPosition: "center",
-                        }}
-                      />
-                    ) : (
-                      <img src={icon} alt="" className="size-3.5" />
-                    ))}
-                  {value === "Colorless" ? "None" : value}
+                  {icon && <CardIcon src={icon} />}
+                  {formatDomainFilterLabel(value)}
                   <button
                     type="button"
                     onClick={() => onToggleFilter(key, value)}

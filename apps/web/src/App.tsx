@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { CardBrowser } from "@/components/CardBrowser";
 import type { CardFields } from "@/components/cards/CardThumbnail";
 import { DEFAULT_CARD_FIELDS } from "@/components/cards/CardThumbnail";
@@ -8,38 +6,31 @@ import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { ReloadPrompt } from "@/components/pwa/ReloadPrompt";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useTheme } from "@/hooks/use-theme";
 
 function App() {
   const { theme, toggleTheme } = useTheme();
 
-  const [showImages, setShowImages] = useState(() => {
-    const stored = localStorage.getItem("showImages");
-    return stored !== null ? stored === "true" : true;
-  });
-  const [cardFields, setCardFields] = useState<CardFields>(() => {
-    const stored = localStorage.getItem("cardFields");
-    if (stored) {
-      try {
-        return { ...DEFAULT_CARD_FIELDS, ...JSON.parse(stored) };
-      } catch {
-        // ignore malformed JSON
-      }
-    }
-    return DEFAULT_CARD_FIELDS;
-  });
+  const [showImages, setShowImages] = useLocalStorage(
+    "showImages",
+    true,
+    String,
+    (raw) => raw === "true",
+  );
+  const [cardFields, setCardFields] = useLocalStorage<CardFields>(
+    "cardFields",
+    DEFAULT_CARD_FIELDS,
+    JSON.stringify,
+    (raw) => ({ ...DEFAULT_CARD_FIELDS, ...JSON.parse(raw) }),
+  );
 
   const handleShowImagesChange = (show: boolean) => {
     setShowImages(show);
-    localStorage.setItem("showImages", String(show));
   };
 
   const handleCardFieldsChange = (update: Partial<CardFields>) => {
-    setCardFields((prev) => {
-      const next = { ...prev, ...update };
-      localStorage.setItem("cardFields", JSON.stringify(next));
-      return next;
-    });
+    setCardFields((prev) => ({ ...prev, ...update }));
   };
 
   return (

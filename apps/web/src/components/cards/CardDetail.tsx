@@ -4,7 +4,9 @@ import { ArrowLeft, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { formatDomainDisplay } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
+import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 import { CardPlaceholderImage } from "./CardPlaceholderImage";
@@ -96,14 +98,14 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
                     className="size-4"
                   />
                 ))}
-            {card.faction === "Colorless" ? "No Domain" : card.faction.replace("/", " / ")}
+            {formatDomainDisplay(card.faction)}
           </span>
         </div>
 
         {/* Card image */}
         {showImages && card.art.fullURL ? (
           <img
-            src={`${card.art.fullURL}?fm=webp${card.orientation === "landscape" ? "&or=270" : ""}`}
+            src={getCardImageUrl(card.art.fullURL, "full", card.orientation)}
             alt={card.name}
             className="w-full rounded-lg"
           />
@@ -118,36 +120,15 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-muted p-3 text-center">
-            <p className="text-xs text-muted-foreground">Energy</p>
-            <p className="text-2xl font-bold">{card.stats.energy}</p>
-          </div>
+          <StatCard label="Energy" value={card.stats.energy} />
           {card.type === "Gear" && (
-            <div className="rounded-md bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">Might Bonus</p>
-              <p className="flex items-center justify-center gap-1 text-2xl font-bold">
-                <img src="/icons/might.svg" alt="" className="size-5 brightness-0 dark:invert" />+
-                {card.mightBonus}
-              </p>
-            </div>
+            <StatCard label="Might Bonus" value={`+${card.mightBonus}`} icon="/icons/might.svg" />
           )}
           {card.type === "Unit" && (
-            <div className="rounded-md bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">Might</p>
-              <p className="flex items-center justify-center gap-1 text-2xl font-bold">
-                <img src="/icons/might.svg" alt="" className="size-5 brightness-0 dark:invert" />
-                {card.stats.might}
-              </p>
-            </div>
+            <StatCard label="Might" value={card.stats.might} icon="/icons/might.svg" />
           )}
           {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") && (
-            <div className="rounded-md bg-muted p-3 text-center">
-              <p className="text-xs text-muted-foreground">Power</p>
-              <p className="flex items-center justify-center gap-1 text-2xl font-bold">
-                <img src="/icons/power.svg" alt="" className="size-5 brightness-0 dark:invert" />
-                {card.stats.power}
-              </p>
-            </div>
+            <StatCard label="Power" value={card.stats.power} icon="/icons/power.svg" />
           )}
         </div>
 
@@ -206,5 +187,25 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
         </div>
       </div>
     </aside>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number | string;
+  icon?: string;
+}) {
+  return (
+    <div className="rounded-md bg-muted p-3 text-center">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="flex items-center justify-center gap-1 text-2xl font-bold">
+        {icon && <img src={icon} alt="" className="size-5 brightness-0 dark:invert" />}
+        {value}
+      </p>
+    </div>
   );
 }

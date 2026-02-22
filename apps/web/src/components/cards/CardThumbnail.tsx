@@ -1,8 +1,10 @@
 import type { Card } from "@openrift/shared";
 import { memo } from "react";
 
-import { CardPlaceholderImage, DOMAIN_COLORS } from "@/components/cards/CardPlaceholderImage";
+import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
+import { getDomainGradientStyle } from "@/lib/domain";
 import { formatCardId } from "@/lib/format";
+import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 export interface CardFields {
@@ -29,16 +31,6 @@ interface CardThumbnailProps {
   cardFields?: CardFields;
 }
 
-function getDomainStyle(faction: string): React.CSSProperties {
-  const domains = faction.split("/");
-  const c1 = DOMAIN_COLORS[domains[0]] ?? "#737373";
-  if (domains.length === 1) {
-    return { backgroundColor: `${c1}38` };
-  }
-  const c2 = DOMAIN_COLORS[domains[1]] ?? "#737373";
-  return { background: `linear-gradient(135deg, ${c1}38 50%, ${c2}38 50%)` };
-}
-
 export const CardThumbnail = memo(function CardThumbnail({
   card,
   onClick,
@@ -49,7 +41,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const cardId = formatCardId(card);
   const thumbnailUrl =
     showImages && card.art.thumbnailURL
-      ? `${card.art.thumbnailURL}?w=300&fit=max&fm=webp${card.orientation === "landscape" ? "&or=270" : ""}`
+      ? getCardImageUrl(card.art.thumbnailURL, "thumbnail", card.orientation)
       : null;
 
   return (
@@ -58,7 +50,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       className={cn(
         "group relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       )}
-      style={isSelected ? getDomainStyle(card.faction) : undefined}
+      style={isSelected ? getDomainGradientStyle(card.faction, "38") : undefined}
       onClick={() => onClick(card)}
     >
       <div className="relative">
