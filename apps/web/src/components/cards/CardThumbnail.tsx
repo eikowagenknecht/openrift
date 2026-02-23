@@ -1,5 +1,4 @@
 import type { Card } from "@openrift/shared";
-import { memo } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
 import { getDomainGradientStyle } from "@/lib/domain";
@@ -33,7 +32,7 @@ interface CardThumbnailProps {
   cardFields?: CardFields;
 }
 
-export const CardThumbnail = memo(function CardThumbnail({
+export function CardThumbnail({
   card,
   onClick,
   showImages,
@@ -139,4 +138,4 @@ export const CardThumbnail = memo(function CardThumbnail({
       )}
     </button>
   );
-});
+}

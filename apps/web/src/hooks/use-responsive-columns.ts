@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const breakpoints = [
   { minWidth: 1280, cols: 6 },
@@ -12,22 +12,19 @@ export function useResponsiveColumns() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(4);
 
-  const updateColumns = useCallback(() => {
-    if (!containerRef.current) {
-      return;
-    }
-    const width = containerRef.current.offsetWidth;
-    const match = breakpoints.find((bp) => width >= bp.minWidth);
-    if (match) {
-      setColumns(match.cols);
-    }
-  }, []);
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {
       return;
     }
+
+    const updateColumns = () => {
+      const width = el.offsetWidth;
+      const match = breakpoints.find((bp) => width >= bp.minWidth);
+      if (match) {
+        setColumns(match.cols);
+      }
+    };
 
     updateColumns();
 
@@ -39,7 +36,7 @@ export function useResponsiveColumns() {
     return () => {
       observer.disconnect();
     };
-  }, [updateColumns]);
+  }, []);
 
   return { containerRef, columns };
 }

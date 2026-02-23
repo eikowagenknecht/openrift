@@ -1,7 +1,7 @@
 import type { AvailableFilters, SearchField, SortDirection, SortOption } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import { ArrowDownNarrowWide, ArrowUpNarrowWide, Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/CardIcon";
 import { Badge } from "@/components/ui/badge";
@@ -122,10 +122,7 @@ export function FilterBar({
   const prevFilterSearch = useRef(filterState.search);
 
   const showScopeChips = searchFocused;
-  const hasPrefixes = useMemo(
-    () => parseSearchTerms(localSearch).some((t) => t.field !== null),
-    [localSearch],
-  );
+  const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
 
   const activeFilterCount =
     filterState.sets.length +

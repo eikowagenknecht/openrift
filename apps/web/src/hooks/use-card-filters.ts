@@ -1,6 +1,6 @@
 import type { CardType, CardVariant, Rarity, SortDirection, SortOption } from "@openrift/shared";
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { useSearchScope } from "@/hooks/use-search-scope";
 
@@ -56,27 +56,24 @@ export function useCardFilters() {
     }
   }, [filterState]);
 
-  const filters = useMemo(
-    () => ({
-      search: filterState.search,
-      searchScope,
-      sets: filterState.sets,
-      rarities: filterState.rarities as Rarity[],
-      types: filterState.types as CardType[],
-      superTypes: filterState.superTypes,
-      domains: filterState.domains,
-      variants: filterState.variants as CardVariant[],
-      energyMin: filterState.energyMin,
-      energyMax: filterState.energyMax,
-      mightMin: filterState.mightMin,
-      mightMax: filterState.mightMax,
-      powerMin: filterState.powerMin,
-      powerMax: filterState.powerMax,
-      priceMin: filterState.priceMin,
-      priceMax: filterState.priceMax,
-    }),
-    [filterState, searchScope],
-  );
+  const filters = {
+    search: filterState.search,
+    searchScope,
+    sets: filterState.sets,
+    rarities: filterState.rarities as Rarity[],
+    types: filterState.types as CardType[],
+    superTypes: filterState.superTypes,
+    domains: filterState.domains,
+    variants: filterState.variants as CardVariant[],
+    energyMin: filterState.energyMin,
+    energyMax: filterState.energyMax,
+    mightMin: filterState.mightMin,
+    mightMax: filterState.mightMax,
+    powerMin: filterState.powerMin,
+    powerMax: filterState.powerMax,
+    priceMin: filterState.priceMin,
+    priceMax: filterState.priceMax,
+  };
 
   const sortBy = filterState.sort as SortOption;
   const sortDir = filterState.sortDir as SortDirection;

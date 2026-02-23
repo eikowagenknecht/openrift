@@ -1,6 +1,6 @@
 import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 
@@ -79,40 +79,34 @@ export function CardGrid({
   cardFields,
 }: CardGridProps) {
   const { containerRef, columns } = useResponsiveColumns();
-  const groups = useMemo(() => groupCardsBySet(cards, setOrder), [cards, setOrder]);
+  const groups = groupCardsBySet(cards, setOrder);
   const multipleGroups = groups.length > 1;
 
-  const virtualRows = useMemo(
-    () => buildVirtualRows(groups, columns, multipleGroups),
-    [groups, columns, multipleGroups],
-  );
+  const virtualRows = buildVirtualRows(groups, columns, multipleGroups);
 
   const hasLabel = cardFields
     ? cardFields.number || cardFields.title || cardFields.type || cardFields.rarity
     : true;
 
-  const estimateSize = useCallback(
-    (index: number): number => {
-      const row = virtualRows[index];
-      if (!row) {
-        return 200;
-      }
-      if (row.kind === "header") {
-        return 44;
-      }
-      const containerWidth = containerRef.current?.offsetWidth ?? 400;
-      const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
-      const imgHeight = cardWidth * CARD_ASPECT;
-      const labelHeight = hasLabel ? 50 : 0;
-      return Math.ceil(imgHeight + labelHeight) + GAP;
-    },
-    [virtualRows, columns, containerRef, hasLabel],
-  );
+  const estimateSize = (index: number): number => {
+    const row = virtualRows[index];
+    if (!row) {
+      return 200;
+    }
+    if (row.kind === "header") {
+      return 44;
+    }
+    const containerWidth = containerRef.current?.offsetWidth ?? 400;
+    const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
+    const imgHeight = cardWidth * CARD_ASPECT;
+    const labelHeight = hasLabel ? 50 : 0;
+    return Math.ceil(imgHeight + labelHeight) + GAP;
+  };
 
   // Precompute cumulative start offsets (within the virtual list) for each row.
   // Used by the sticky-header scroll listener to find which header is active
   // without touching the DOM on every scroll event.
-  const rowStarts = useMemo(() => {
+  const rowStarts = (() => {
     const starts: number[] = [];
     let acc = 0;
     for (let i = 0; i < virtualRows.length; i++) {
@@ -120,7 +114,7 @@ export function CardGrid({
       acc += estimateSize(i);
     }
     return starts;
-  }, [virtualRows, estimateSize]);
+  })();
 
   // scrollMarginRef holds the same value as scrollMargin state but is readable
   // synchronously inside the scroll listener without a stale closure — this is
@@ -194,7 +188,7 @@ export function CardGrid({
     update();
     window.addEventListener("scroll", update, { passive: true });
     return () => window.removeEventListener("scroll", update);
-  }, [virtualRows, rowStarts, estimateSize, multipleGroups]);
+  }, [virtualRows, rowStarts, multipleGroups]);
 
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
@@ -273,16 +267,16 @@ export function CardGrid({
     };
   }, [virtualRows]);
 
-  const handleIndicatorPointerDown = useCallback((e: React.PointerEvent) => {
+  const handleIndicatorPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     isDraggingRef.current = true;
     dragStartRef.current = { pointerY: e.clientY, scrollY: window.scrollY };
     window.clearTimeout(hideTimerRef.current);
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
-  }, []);
+  };
 
-  const handleIndicatorPointerMove = useCallback((e: React.PointerEvent) => {
+  const handleIndicatorPointerMove = (e: React.PointerEvent) => {
     if (!isDraggingRef.current) {
       return;
     }
@@ -301,9 +295,9 @@ export function CardGrid({
       Math.min(scrollableHeight, dragStartRef.current.scrollY + deltaY * ratio),
     );
     window.scrollTo(0, newScrollY);
-  }, []);
+  };
 
-  const handleIndicatorPointerUp = useCallback(() => {
+  const handleIndicatorPointerUp = () => {
     if (!isDraggingRef.current) {
       return;
     }
@@ -313,16 +307,11 @@ export function CardGrid({
     hideTimerRef.current = window.setTimeout(() => {
       setIndicator((prev) => ({ ...prev, visible: false }));
     }, HIDE_DELAY);
-  }, []);
+  };
 
   // Screen-space positions of each set header on the scrollbar track.
-  // Recomputed on every scroll (via indicator.thumbTop dep) so they stay current.
-  const snapPoints = useMemo(() => {
-    // Read thumbTop so this memo recomputes on every scroll tick — the screenY
-    // values depend on DOM dimensions (window.innerHeight, scrollHeight) that
-    // change as the virtualizer measures rows.
-    void indicator.thumbTop;
-
+  // Recomputed on every render (indicator.thumbTop changes on scroll).
+  const snapPoints = (() => {
     if (!multipleGroups) {
       return [];
     }
@@ -385,44 +374,38 @@ export function CardGrid({
       });
     }
     return points;
-  }, [multipleGroups, virtualRows, rowStarts, indicator.thumbTop]);
+  })();
 
   // Click a ghost badge to jump directly to that set header.
-  const handleSnapBadgeClick = useCallback(
-    (rowIndex: number) => {
-      virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
-    },
-    [virtualizer],
-  );
+  const handleSnapBadgeClick = (rowIndex: number) => {
+    virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
+  };
 
   // Keep indicator visible while hovering ghost badges so the user has time to click.
-  const handleSnapBadgeEnter = useCallback(() => {
+  const handleSnapBadgeEnter = () => {
     window.clearTimeout(hideTimerRef.current);
-  }, []);
+  };
 
-  const handleSnapBadgeLeave = useCallback(() => {
+  const handleSnapBadgeLeave = () => {
     if (isDraggingRef.current) {
       return;
     }
     hideTimerRef.current = window.setTimeout(() => {
       setIndicator((prev) => ({ ...prev, visible: false }));
     }, HIDE_DELAY_SHORT);
-  }, []);
+  };
 
-  const scrollToGroup = useCallback(
-    (setName: string) => {
-      const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
-      if (rowIndex !== -1) {
-        // behavior: "instant" avoids the smooth-scroll retry jitter: the
-        // virtualizer internally retries up to 10 times to nail the exact
-        // position as dynamic item sizes are measured. With "smooth" those
-        // retries produce visible animation stutter; with "instant" they
-        // complete invisibly in successive animation frames.
-        virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
-      }
-    },
-    [virtualRows, virtualizer],
-  );
+  const scrollToGroup = (setName: string) => {
+    const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
+    if (rowIndex !== -1) {
+      // behavior: "instant" avoids the smooth-scroll retry jitter: the
+      // virtualizer internally retries up to 10 times to nail the exact
+      // position as dynamic item sizes are measured. With "smooth" those
+      // retries produce visible animation stutter; with "instant" they
+      // complete invisibly in successive animation frames.
+      virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
+    }
+  };
 
   if (cards.length === 0) {
     return (

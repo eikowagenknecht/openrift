@@ -2,7 +2,7 @@ import type { Card, PricesData, RiftboundContent } from "@openrift/shared";
 import { filterCards, flattenWithVariants, getAvailableFilters, sortCards } from "@openrift/shared";
 import galleryData from "@openrift/shared/data/gallery.json";
 import pricesJson from "@openrift/shared/data/prices.json";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
 import type { SetInfo } from "@/components/cards/CardGrid";
@@ -67,12 +67,10 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
     };
   }, [detailOpen]);
 
-  const availableFilters = useMemo(() => getAvailableFilters(allCards), []);
-  const filteredCards = useMemo(() => filterCards(allCards, filters), [filters]);
-  const sortedCards = useMemo(() => {
-    const sorted = sortCards(filteredCards, sortBy);
-    return sortDir === "desc" ? sorted.toReversed() : sorted;
-  }, [filteredCards, sortBy, sortDir]);
+  const availableFilters = getAvailableFilters(allCards);
+  const filteredCards = filterCards(allCards, filters);
+  const sorted = sortCards(filteredCards, sortBy);
+  const sortedCards = sortDir === "desc" ? sorted.toReversed() : sorted;
 
   // Defer the expensive card grid re-render so the filter UI (badge highlight,
   // sheet close animation) responds immediately. The grid updates once React
@@ -80,10 +78,10 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;
 
-  const handleCardClick = useCallback((card: Card) => {
+  const handleCardClick = (card: Card) => {
     setSelectedCard(card);
     setDetailOpen(true);
-  }, []);
+  };
 
   const handleDetailClose = () => {
     setDetailOpen(false);

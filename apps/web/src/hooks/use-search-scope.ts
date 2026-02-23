@@ -1,6 +1,6 @@
 import type { SearchField } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE } from "@openrift/shared";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 const STORAGE_KEY = "openrift-search-scope";
 
@@ -26,7 +26,7 @@ function getInitialScope(): SearchField[] {
 export function useSearchScope() {
   const [scope, setScope] = useState<SearchField[]>(getInitialScope);
 
-  const toggleField = useCallback((field: SearchField) => {
+  const toggleField = (field: SearchField) => {
     setScope((prev) => {
       const next = prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field];
       // Prevent empty scope
@@ -36,7 +36,7 @@ export function useSearchScope() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-  }, []);
+  };
 
   return { scope, toggleField };
 }
