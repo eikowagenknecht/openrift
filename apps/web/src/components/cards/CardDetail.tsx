@@ -4,7 +4,7 @@ import { ArrowLeft, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { formatDomainDisplay } from "@/lib/domain";
+import { formatDomainDisplay, getDomainTintStyle } from "@/lib/domain";
 import { formatPrice, formatPublicCode } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
@@ -27,8 +27,9 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
         "fixed inset-0 z-50 overflow-y-auto bg-background",
         "md:sticky md:inset-auto md:z-auto md:top-[6.5rem]",
         "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-6.5rem)]",
-        "md:border-l md:pl-6",
+        "md:border-l md:px-6",
       )}
+      style={getDomainTintStyle(card.faction)}
     >
       {/* Mobile header */}
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/95 p-4 backdrop-blur md:hidden">
@@ -39,7 +40,7 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
       </div>
 
       {/* Desktop header */}
-      <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pb-4">
+      <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
         <h2 className="text-lg font-semibold">{card.name}</h2>
         <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={onClose}>
           <X className="size-4" />

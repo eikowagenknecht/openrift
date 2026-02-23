@@ -1,4 +1,5 @@
 import type { Card } from "@openrift/shared";
+import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
 import { getDomainGradientStyle } from "@/lib/domain";
@@ -44,6 +45,7 @@ export function CardThumbnail({
     showImages && card.art.thumbnailURL
       ? getCardImageUrl(card.art.thumbnailURL, "thumbnail", card.orientation)
       : null;
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
     <button
@@ -55,19 +57,23 @@ export function CardThumbnail({
       onClick={() => onClick(card)}
     >
       <div className="relative">
-        {thumbnailUrl ? (
+        <CardPlaceholderImage
+          name={card.name}
+          domain={card.faction}
+          energy={card.stats.energy}
+          might={card.stats.might}
+          className={thumbnailUrl && imgLoaded ? "invisible" : undefined}
+        />
+        {thumbnailUrl && (
           <img
             src={thumbnailUrl}
             alt={card.name}
             loading="lazy"
-            className="aspect-[744/1039] w-full rounded-lg object-cover"
-          />
-        ) : (
-          <CardPlaceholderImage
-            name={card.name}
-            domain={card.faction}
-            energy={card.stats.energy}
-            might={card.stats.might}
+            className={cn(
+              "absolute inset-0 aspect-[744/1039] w-full rounded-lg object-cover transition-opacity duration-300",
+              imgLoaded ? "opacity-100" : "opacity-0",
+            )}
+            onLoad={() => setImgLoaded(true)}
           />
         )}
       </div>
