@@ -2,6 +2,8 @@
 
 ## 2026-02-23
 
+- feat: The cards-per-row control now lives in the filter bar next to sort, and you can pinch to zoom on mobile
+- feat: You can now set the maximum number of cards per row from the settings menu
 - feat: TCGPlayer price data now shows on cards
 - feat: A draggable scroll indicator with a ghost badge lets you quickly jump between sets
 - feat: The settings menu now shows when an update is available

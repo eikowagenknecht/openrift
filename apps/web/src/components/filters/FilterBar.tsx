@@ -1,11 +1,25 @@
 import type { AvailableFilters, SearchField, SortDirection, SortOption } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
-import { ArrowDownNarrowWide, ArrowUpNarrowWide, Search, SlidersHorizontal, X } from "lucide-react";
+import {
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  Columns3,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/CardIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -70,6 +84,9 @@ interface FilterBarProps {
   onSortChange: (sort: SortOption) => void;
   onSortDirChange: (dir: SortDirection) => void;
   onSearchScopeToggle: (field: SearchField) => void;
+  maxColumns: number | null;
+  maxColumnsLimit?: number;
+  onMaxColumnsChange?: (value: number | null) => void;
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -102,6 +119,9 @@ export function FilterBar({
   onSortChange,
   onSortDirChange,
   onSearchScopeToggle,
+  maxColumns,
+  maxColumnsLimit = 8,
+  onMaxColumnsChange,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -335,6 +355,62 @@ export function FilterBar({
               <ArrowUpNarrowWide className="size-4" />
             )}
           </Button>
+
+          {/* Desktop: columns dropdown */}
+          {onMaxColumnsChange && (
+            <Select
+              value={maxColumns === null ? "auto" : String(maxColumns)}
+              onValueChange={(v) => onMaxColumnsChange(v === "auto" ? null : Number(v))}
+            >
+              <SelectTrigger className="hidden w-[140px] sm:flex">
+                <span>
+                  <span className="text-muted-foreground">Cols: </span>
+                  <SelectValue />
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto</SelectItem>
+                {[2, 3, 4, 5, 6, 7, 8]
+                  .filter((n) => n <= maxColumnsLimit || n === maxColumns)
+                  .map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Mobile: columns dropdown */}
+          {onMaxColumnsChange && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="sm:hidden"
+                  aria-label={maxColumns === null ? "Columns: Auto" : `Columns: ${maxColumns}`}
+                >
+                  <Columns3 className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup
+                  value={maxColumns === null ? "auto" : String(maxColumns)}
+                  onValueChange={(v) => onMaxColumnsChange(v === "auto" ? null : Number(v))}
+                >
+                  <DropdownMenuRadioItem value="auto">Auto</DropdownMenuRadioItem>
+                  {[2, 3, 4, 5, 6]
+                    .filter((n) => n <= maxColumnsLimit || n === maxColumns)
+                    .map((n) => (
+                      <DropdownMenuRadioItem key={n} value={String(n)}>
+                        {n} columns
+                      </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Mobile: Filters button that opens bottom sheet */}
           <Button

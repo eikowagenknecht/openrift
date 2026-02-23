@@ -25,6 +25,15 @@ function App() {
     JSON.stringify,
     (raw) => ({ ...DEFAULT_CARD_FIELDS, ...JSON.parse(raw) }),
   );
+  const [maxColumns, setMaxColumns] = useLocalStorage<number | null>(
+    "maxColumns",
+    null,
+    JSON.stringify,
+    (raw) => {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "number" ? parsed : null;
+    },
+  );
 
   const handleShowImagesChange = (show: boolean) => {
     setShowImages(show);
@@ -50,7 +59,12 @@ function App() {
           }
         />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
-          <CardBrowser showImages={showImages} cardFields={cardFields} />
+          <CardBrowser
+            showImages={showImages}
+            cardFields={cardFields}
+            maxColumns={maxColumns}
+            onMaxColumnsChange={setMaxColumns}
+          />
         </main>
         <Footer />
         <ReloadPrompt />

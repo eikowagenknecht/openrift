@@ -8,9 +8,13 @@ const breakpoints = [
   { minWidth: 0, cols: 2 },
 ];
 
-export function useResponsiveColumns() {
+const MIN_CARD_WIDTH = 100;
+const GAP = 16;
+
+export function useResponsiveColumns(maxColumns?: number | null) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(4);
+  const [physicalMax, setPhysicalMax] = useState(8);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -20,9 +24,16 @@ export function useResponsiveColumns() {
 
     const updateColumns = () => {
       const width = el.offsetWidth;
-      const match = breakpoints.find((bp) => width >= bp.minWidth);
-      if (match) {
-        setColumns(match.cols);
+      const pMax = Math.max(2, Math.floor((width + GAP) / (MIN_CARD_WIDTH + GAP)));
+      setPhysicalMax(pMax);
+
+      if (maxColumns !== undefined && maxColumns !== null) {
+        setColumns(Math.min(maxColumns, pMax));
+      } else {
+        const match = breakpoints.find((bp) => width >= bp.minWidth);
+        if (match) {
+          setColumns(match.cols);
+        }
       }
     };
 
@@ -36,7 +47,7 @@ export function useResponsiveColumns() {
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [maxColumns]);
 
-  return { containerRef, columns };
+  return { containerRef, columns, physicalMax };
 }

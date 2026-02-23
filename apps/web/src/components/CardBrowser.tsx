@@ -27,9 +27,16 @@ const setInfoList: SetInfo[] = typedGallery.sets.map((s) => ({
 interface CardBrowserProps {
   showImages: boolean;
   cardFields: CardFields;
+  maxColumns?: number | null;
+  onMaxColumnsChange?: (value: number | null) => void;
 }
 
-export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
+export function CardBrowser({
+  showImages,
+  cardFields,
+  maxColumns,
+  onMaxColumnsChange,
+}: CardBrowserProps) {
   const {
     filters,
     sortBy,
@@ -51,6 +58,7 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
 
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [physicalMaxColumns, setPhysicalMaxColumns] = useState(8);
 
   // Lock body scroll when mobile overlay is active
   useEffect(() => {
@@ -111,6 +119,9 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
         onSortChange={setSortBy}
         onSortDirChange={setSortDir}
         onSearchScopeToggle={toggleSearchField}
+        maxColumns={maxColumns ?? null}
+        maxColumnsLimit={physicalMaxColumns}
+        onMaxColumnsChange={onMaxColumnsChange}
       />
       <ActiveFilters
         filterState={filterState}
@@ -140,6 +151,9 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
             showImages={showImages}
             selectedCardId={selectedCard?.id}
             cardFields={cardFields}
+            maxColumns={maxColumns}
+            onMaxColumnsChange={onMaxColumnsChange}
+            onPhysicalMaxChange={setPhysicalMaxColumns}
           />
         </div>
         {selectedCard && detailOpen && (

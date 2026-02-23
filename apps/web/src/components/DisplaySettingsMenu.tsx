@@ -60,6 +60,7 @@ export function DisplaySettingsMenu({
           >
             Show card images
           </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem
             checked={cardFields.number}
             onCheckedChange={(v) => onCardFieldsChange({ number: v })}

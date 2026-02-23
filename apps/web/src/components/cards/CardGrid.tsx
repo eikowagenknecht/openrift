@@ -69,6 +69,9 @@ interface CardGridProps {
   showImages?: boolean;
   selectedCardId?: string;
   cardFields?: CardFields;
+  maxColumns?: number | null;
+  onMaxColumnsChange?: (value: number | null) => void;
+  onPhysicalMaxChange?: (max: number) => void;
 }
 
 export function CardGrid({
@@ -78,8 +81,17 @@ export function CardGrid({
   showImages,
   selectedCardId,
   cardFields,
+  maxColumns,
+  onMaxColumnsChange,
+  onPhysicalMaxChange,
 }: CardGridProps) {
-  const { containerRef, columns } = useResponsiveColumns();
+  const { containerRef, columns, physicalMax } = useResponsiveColumns(maxColumns);
+
+  const prevPhysicalMax = useRef(physicalMax);
+  if (prevPhysicalMax.current !== physicalMax) {
+    prevPhysicalMax.current = physicalMax;
+    onPhysicalMaxChange?.(physicalMax);
+  }
   const groups = groupCardsBySet(cards, setOrder);
   const multipleGroups = groups.length > 1;
 
@@ -235,6 +247,93 @@ export function CardGrid({
     document.addEventListener("touchmove", preventScroll, { passive: false });
     return () => document.removeEventListener("touchmove", preventScroll);
   }, []);
+
+  // Pinch-to-zoom: two-finger gesture to change maxColumns on touch devices.
+  // Spread (pinch out) → fewer columns (bigger cards), squeeze → more columns.
+  const pinchRef = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    startDistance: number;
+    startColumns: number;
+    accumulatedSteps: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!IS_COARSE_POINTER || !onMaxColumnsChange) {
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+
+    const STEP_THRESHOLD = 50;
+
+    const getDistance = (pts: Map<number, { x: number; y: number }>) => {
+      const values = [...pts.values()];
+      const dx = values[1].x - values[0].x;
+      const dy = values[1].y - values[0].y;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") {
+        return;
+      }
+      if (!pinchRef.current) {
+        pinchRef.current = {
+          pointers: new Map(),
+          startDistance: 0,
+          startColumns: columns,
+          accumulatedSteps: 0,
+        };
+      }
+      pinchRef.current.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinchRef.current.pointers.size === 2) {
+        pinchRef.current.startDistance = getDistance(pinchRef.current.pointers);
+        pinchRef.current.startColumns = maxColumns ?? columns;
+        pinchRef.current.accumulatedSteps = 0;
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const state = pinchRef.current;
+      if (!state || !state.pointers.has(e.pointerId) || state.pointers.size < 2) {
+        return;
+      }
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const currentDist = getDistance(state.pointers);
+      const delta = currentDist - state.startDistance;
+      const steps = Math.trunc(delta / STEP_THRESHOLD);
+      if (steps !== state.accumulatedSteps) {
+        state.accumulatedSteps = steps;
+        // Spread (positive delta) → fewer columns; squeeze → more columns
+        const newCols = Math.max(2, Math.min(8, state.startColumns - steps));
+        onMaxColumnsChange(newCols);
+      }
+    };
+
+    const onPointerUpOrCancel = (e: PointerEvent) => {
+      const state = pinchRef.current;
+      if (!state) {
+        return;
+      }
+      state.pointers.delete(e.pointerId);
+      if (state.pointers.size < 2) {
+        pinchRef.current = null;
+      }
+    };
+
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerUpOrCancel);
+    el.addEventListener("pointercancel", onPointerUpOrCancel);
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUpOrCancel);
+      el.removeEventListener("pointercancel", onPointerUpOrCancel);
+    };
+  }, [columns, maxColumns, onMaxColumnsChange, containerRef]);
 
   useEffect(() => {
     const update = () => {
