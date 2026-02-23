@@ -5,6 +5,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+body {
+  overscroll-behavior-y: none;
+}
+
 :root {
   --radius: 0.625rem;
   --card: oklch(1 0 0);

@@ -1,5 +1,6 @@
 import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { usePinch } from "@use-gesture/react";
 import { GripVertical } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -250,90 +251,34 @@ export function CardGrid({
 
   // Pinch-to-zoom: two-finger gesture to change maxColumns on touch devices.
   // Spread (pinch out) → fewer columns (bigger cards), squeeze → more columns.
-  const pinchRef = useRef<{
-    pointers: Map<number, { x: number; y: number }>;
-    startDistance: number;
-    startColumns: number;
-    accumulatedSteps: number;
-  } | null>(null);
+  const pinchStartCols = useRef(maxColumns ?? columns);
+  const pinchSteps = useRef(0);
 
-  useEffect(() => {
-    if (!IS_COARSE_POINTER || !onMaxColumnsChange) {
-      return;
-    }
-    const el = containerRef.current;
-    if (!el) {
-      return;
-    }
-
-    const STEP_THRESHOLD = 50;
-
-    const getDistance = (pts: Map<number, { x: number; y: number }>) => {
-      const values = [...pts.values()];
-      const dx = values[1].x - values[0].x;
-      const dy = values[1].y - values[0].y;
-      return Math.sqrt(dx * dx + dy * dy);
-    };
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType !== "touch") {
-        return;
+  usePinch(
+    ({ first, da: [distance], memo }) => {
+      if (!onMaxColumnsChange) {
+        return memo;
       }
-      if (!pinchRef.current) {
-        pinchRef.current = {
-          pointers: new Map(),
-          startDistance: 0,
-          startColumns: columns,
-          accumulatedSteps: 0,
-        };
+      if (first) {
+        pinchStartCols.current = maxColumns ?? columns;
+        pinchSteps.current = 0;
+        return distance;
       }
-      pinchRef.current.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pinchRef.current.pointers.size === 2) {
-        pinchRef.current.startDistance = getDistance(pinchRef.current.pointers);
-        pinchRef.current.startColumns = maxColumns ?? columns;
-        pinchRef.current.accumulatedSteps = 0;
-      }
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      const state = pinchRef.current;
-      if (!state || !state.pointers.has(e.pointerId) || state.pointers.size < 2) {
-        return;
-      }
-      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      const currentDist = getDistance(state.pointers);
-      const delta = currentDist - state.startDistance;
-      const steps = Math.trunc(delta / STEP_THRESHOLD);
-      if (steps !== state.accumulatedSteps) {
-        state.accumulatedSteps = steps;
-        // Spread (positive delta) → fewer columns; squeeze → more columns
-        const newCols = Math.max(2, Math.min(8, state.startColumns - steps));
+      const startDistance = (memo as number) ?? distance;
+      const delta = distance - startDistance;
+      const steps = Math.trunc(delta / 50);
+      if (steps !== pinchSteps.current) {
+        pinchSteps.current = steps;
+        const newCols = Math.max(2, Math.min(8, pinchStartCols.current - steps));
         onMaxColumnsChange(newCols);
       }
-    };
-
-    const onPointerUpOrCancel = (e: PointerEvent) => {
-      const state = pinchRef.current;
-      if (!state) {
-        return;
-      }
-      state.pointers.delete(e.pointerId);
-      if (state.pointers.size < 2) {
-        pinchRef.current = null;
-      }
-    };
-
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove);
-    el.addEventListener("pointerup", onPointerUpOrCancel);
-    el.addEventListener("pointercancel", onPointerUpOrCancel);
-    return () => {
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", onPointerUpOrCancel);
-      el.removeEventListener("pointercancel", onPointerUpOrCancel);
-    };
-  }, [columns, maxColumns, onMaxColumnsChange, containerRef]);
+      return startDistance;
+    },
+    {
+      target: containerRef,
+      eventOptions: { passive: false },
+    },
+  );
 
   useEffect(() => {
     const update = () => {
@@ -718,12 +663,7 @@ export function CardGrid({
         </div>
       )}
 
-      {/* pan-x pan-y prevents the browser from claiming pinch-zoom so our
-          JS-based pinch-to-resize gesture works on touch devices. */}
-      <div
-        ref={containerRef}
-        style={IS_COARSE_POINTER && onMaxColumnsChange ? { touchAction: "pan-x pan-y" } : undefined}
-      >
+      <div ref={containerRef}>
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
           {items.map((vItem) => {
             const row = virtualRows[vItem.index];

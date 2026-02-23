@@ -1,4 +1,5 @@
 import type { Card } from "@openrift/shared";
+import { useDrag } from "@use-gesture/react";
 import { ArrowLeft, X } from "lucide-react";
 import { useRef } from "react";
 
@@ -23,36 +24,36 @@ interface CardDetailProps {
 
 export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }: CardDetailProps) {
   const setNumber = formatPublicCode(card);
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const asideRef = useRef<HTMLElement>(null);
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType !== "touch") {
-      return;
-    }
-    swipeStart.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const onPointerUp = (e: React.PointerEvent) => {
-    if (e.pointerType !== "touch" || !swipeStart.current) {
-      return;
-    }
-    const dx = e.clientX - swipeStart.current.x;
-    const dy = e.clientY - swipeStart.current.y;
-    swipeStart.current = null;
-
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-      if (dx > 0 && onPrevCard) {
+  useDrag(
+    ({ last, movement: [dx, dy], swipe: [swipeX] }) => {
+      if (!last) return;
+      // swipe detected by the library (velocity-based)
+      if (swipeX === 1 && onPrevCard) {
         onPrevCard();
-      } else if (dx < 0 && onNextCard) {
+      } else if (swipeX === -1 && onNextCard) {
         onNextCard();
+      } else if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        // fallback: distance-based threshold
+        if (dx > 0 && onPrevCard) {
+          onPrevCard();
+        } else if (dx < 0 && onNextCard) {
+          onNextCard();
+        }
       }
-    }
-  };
+    },
+    {
+      target: asideRef,
+      pointer: { touch: true },
+      filterTaps: true,
+      axis: "lock",
+    },
+  );
 
   return (
     <aside
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
+      ref={asideRef}
       className={cn(
         "fixed inset-0 z-50 overflow-y-auto bg-background",
         "md:sticky md:inset-auto md:z-auto md:top-[6.5rem]",
