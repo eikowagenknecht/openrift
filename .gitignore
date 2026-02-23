@@ -29,4 +29,4 @@ Thumbs.db
 *.log
 
 # Exploration data dumps
-data/
+/data/
