@@ -122,16 +122,16 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <StatCard label="Energy" value={card.stats.energy} />
-          {card.type === "Gear" && (
-            <StatCard label="Might Bonus" value={`+${card.mightBonus}`} icon="/icons/might.svg" />
+          {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") && (
+            <StatCard label="Power" value={card.stats.power} icon="/icons/power.svg" />
           )}
           {card.type === "Unit" && (
             <StatCard label="Might" value={card.stats.might} icon="/icons/might.svg" />
           )}
-          {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") && (
-            <StatCard label="Power" value={card.stats.power} icon="/icons/power.svg" />
+          {card.type === "Gear" && (
+            <StatCard label="Might Bonus" value={`+${card.mightBonus}`} icon="/icons/might.svg" />
           )}
         </div>
 
