@@ -235,19 +235,19 @@ function PricingSection({ card }: { card: Card }) {
       )}
     >
       {price.normal && (
-        <div>
-          {hasBoth && <p className="text-[10px] uppercase text-muted-foreground">Normal</p>}
+        <div className="flex items-baseline gap-2">
           <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
             {formatPrice(price.normal.market)}
           </p>
+          <p className="text-[10px] uppercase text-muted-foreground">Normal</p>
         </div>
       )}
       {price.foil && (
-        <div>
-          {hasBoth && <p className="text-[10px] uppercase text-muted-foreground">Foil</p>}
+        <div className="flex items-baseline gap-2">
           <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
             {formatPrice(price.foil.market)}
           </p>
+          <p className="text-[10px] uppercase text-muted-foreground">Foil</p>
         </div>
       )}
     </Wrapper>
