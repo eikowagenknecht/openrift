@@ -15,6 +15,15 @@ import { CardIcon } from "@/components/CardIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -23,15 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDomainFilterLabel } from "@/lib/domain";
@@ -123,17 +123,6 @@ export function FilterBar({
   const [sheetOpen, setSheetOpen] = useState(false);
   const debouncedSearch = useDebounce(localSearch, 200);
 
-  // Close mobile filter sheet when viewport grows past the sm breakpoint
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 640px)");
-    const handler = () => {
-      if (mq.matches) {
-        setSheetOpen(false);
-      }
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
   const prevFilterSearch = useRef(filterState.search);
 
   const showScopeChips = searchFocused;
@@ -398,23 +387,25 @@ export function FilterBar({
       {/* Desktop: inline filter sections */}
       <div className="hidden flex-wrap gap-4 sm:flex">{filterSections}</div>
 
-      {/* Mobile: bottom sheet with filter sections */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="max-h-[85vh] sm:hidden">
-          <SheetHeader>
-            <SheetTitle>Filters</SheetTitle>
-            <SheetDescription className="sr-only">Filter options</SheetDescription>
-          </SheetHeader>
+      {/* Mobile: bottom drawer with filter sections */}
+      <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DrawerContent className="sm:hidden">
+          <DrawerHeader>
+            <DrawerTitle>Filters</DrawerTitle>
+            <DrawerDescription className="sr-only">Filter options</DrawerDescription>
+          </DrawerHeader>
           <div className="flex flex-col gap-4 overflow-y-auto px-4">{filterSections}</div>
-          <SheetFooter>
-            <SheetClose render={<Button className="w-full" />}>
-              {hasActiveFilters
-                ? `Show ${filteredCount} card${filteredCount !== 1 ? "s" : ""}`
-                : "Done"}
-            </SheetClose>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          <DrawerFooter>
+            <DrawerClose asChild>
+              <Button className="w-full">
+                {hasActiveFilters
+                  ? `Show ${filteredCount} card${filteredCount !== 1 ? "s" : ""}`
+                  : "Done"}
+              </Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

@@ -5,6 +5,13 @@ import changelogMd from "@/CHANGELOG.md?raw";
 import type { CardFields } from "@/components/cards/CardThumbnail";
 import { Button } from "@/components/ui/button";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -12,13 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useSWUpdate } from "@/hooks/use-sw-update";
 import { parseChangelog } from "@/lib/changelog";
 
@@ -116,12 +116,12 @@ export function DisplaySettingsMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Sheet open={changelogOpen} onOpenChange={setChangelogOpen}>
-        <SheetContent className="flex flex-col gap-0 overflow-hidden">
-          <SheetHeader className="pb-4">
-            <SheetTitle>What's new</SheetTitle>
-            <SheetDescription>Recent changes and improvements to OpenRift.</SheetDescription>
-          </SheetHeader>
+      <Drawer direction="right" open={changelogOpen} onOpenChange={setChangelogOpen}>
+        <DrawerContent className="flex flex-col gap-0 overflow-hidden">
+          <DrawerHeader className="pb-4">
+            <DrawerTitle>What's new</DrawerTitle>
+            <DrawerDescription>Recent changes and improvements to OpenRift.</DrawerDescription>
+          </DrawerHeader>
           <div className="overflow-y-auto px-4 pb-4">
             {changelogGroups.map((group) => (
               <div key={group.date} className="mb-6">
@@ -145,8 +145,8 @@ export function DisplaySettingsMenu({
               </div>
             ))}
           </div>
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }
