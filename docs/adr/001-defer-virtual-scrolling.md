@@ -1,7 +1,7 @@
-# ADR-001: Defer Virtual Scrolling for Card Grid
+# ADR-001: Virtual Scrolling for Card Grid
 
 **Date:** 2026-02-21
-**Status:** Accepted
+**Status:** Superseded
 **Deciders:** @eiko
 
 ## Context
@@ -10,11 +10,11 @@ The card grid renders all filtered cards simultaneously with no windowing, pagin
 
 The current dataset contains 664 cards across 3 sets (Proving Grounds: 24, Origins: 352, Spiritforged: 288). Each `CardThumbnail` renders 2–4 `<img>` elements, resulting in ~1,300+ DOM nodes when all cards are visible with images enabled.
 
-## Decision
+## Original Decision (Accepted 2026-02-21)
 
 Remove `@tanstack/react-virtual` and defer virtual scrolling until the dataset grows or performance issues are observed.
 
-## Rationale
+### Rationale
 
 **Arguments for deferring:**
 
@@ -30,15 +30,6 @@ Remove `@tanstack/react-virtual` and defer virtual scrolling until the dataset g
 - Mobile devices with limited memory could benefit from reduced DOM size.
 - `useResponsiveColumns` already tracks column count reactively, making row calculation straightforward.
 
-## Consequences
+## Update (Superseded)
 
-- Reduced dependency footprint.
-- Slightly higher DOM node count with no filters active (acceptable at current scale).
-- When the card pool exceeds ~1,000 cards (e.g., new set releases, card variants), this decision should be revisited.
-
-## Revisit Triggers
-
-- Card pool grows beyond 1,000 entries.
-- Card variants or alternate art multiply the entry count.
-- Performance profiling reveals scroll jank on target devices.
-- Users report sluggish performance on mobile.
+Virtual scrolling has since been implemented using `@tanstack/react-virtual` in `CardGrid`. The complexity concerns around set-based grouping with sticky headers were resolved during implementation.
