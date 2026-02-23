@@ -344,7 +344,7 @@ export function FilterBar({
                   if (maxColumns === null) {
                     return;
                   }
-                  onMaxColumnsChange(maxColumns <= 2 ? null : maxColumns - 1);
+                  onMaxColumnsChange(maxColumns <= 1 ? null : maxColumns - 1);
                 }}
                 disabled={maxColumns === null}
                 aria-label="Fewer columns"

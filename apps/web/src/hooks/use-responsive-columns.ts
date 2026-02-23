@@ -24,7 +24,7 @@ export function useResponsiveColumns(maxColumns?: number | null) {
 
     const updateColumns = () => {
       const width = el.offsetWidth;
-      const pMax = Math.max(2, Math.floor((width + GAP) / (MIN_CARD_WIDTH + GAP)));
+      const pMax = Math.max(1, Math.floor((width + GAP) / (MIN_CARD_WIDTH + GAP)));
       setPhysicalMax(pMax);
 
       if (maxColumns !== undefined && maxColumns !== null) {
