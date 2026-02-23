@@ -272,7 +272,7 @@ export function CardGrid({
       const steps = Math.trunc(delta / 50);
       if (steps !== pinchSteps.current) {
         pinchSteps.current = steps;
-        const newCols = Math.max(2, Math.min(8, pinchStartCols.current - steps));
+        const newCols = Math.max(2, Math.min(physicalMax, pinchStartCols.current - steps));
         onMaxColumnsChange(newCols);
       }
       return startDistance;
