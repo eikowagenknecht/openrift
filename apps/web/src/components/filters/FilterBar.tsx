@@ -3,7 +3,8 @@ import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
-  Columns3,
+  Minus,
+  Plus,
   Search,
   SlidersHorizontal,
   X,
@@ -13,13 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { CardIcon } from "@/components/CardIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -348,60 +343,41 @@ export function FilterBar({
             )}
           </Button>
 
-          {/* Desktop: columns dropdown */}
+          {/* Columns stepper */}
           {onMaxColumnsChange && (
-            <Select
-              value={maxColumns === null ? "auto" : String(maxColumns)}
-              onValueChange={(v) => onMaxColumnsChange(v === "auto" ? null : Number(v))}
-            >
-              <SelectTrigger className="hidden w-[140px] sm:flex">
-                <span className="text-muted-foreground">Cols:&nbsp;</span>
-                <SelectValue>{(value: string) => (value === "auto" ? "Auto" : value)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Auto</SelectItem>
-                {[2, 3, 4, 5, 6, 7, 8]
-                  .filter((n) => n <= maxColumnsLimit || n === maxColumns)
-                  .map((n) => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Mobile: columns dropdown */}
-          {onMaxColumnsChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="sm:hidden"
-                    aria-label={maxColumns === null ? "Columns: Auto" : `Columns: ${maxColumns}`}
-                  />
-                }
+            <ButtonGroup aria-label="Columns">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (maxColumns === null) {
+                    return;
+                  }
+                  onMaxColumnsChange(maxColumns <= 2 ? null : maxColumns - 1);
+                }}
+                disabled={maxColumns === null}
+                aria-label="Fewer columns"
               >
-                <Columns3 className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuRadioGroup
-                  value={maxColumns === null ? "auto" : String(maxColumns)}
-                  onValueChange={(v) => onMaxColumnsChange(v === "auto" ? null : Number(v))}
-                >
-                  <DropdownMenuRadioItem value="auto">Auto</DropdownMenuRadioItem>
-                  {[2, 3, 4, 5, 6]
-                    .filter((n) => n <= maxColumnsLimit || n === maxColumns)
-                    .map((n) => (
-                      <DropdownMenuRadioItem key={n} value={String(n)}>
-                        {n} columns
-                      </DropdownMenuRadioItem>
-                    ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Minus className="size-4" />
+              </Button>
+              <ButtonGroupText className="min-w-10 justify-center tabular-nums">
+                {maxColumns === null ? "Auto" : maxColumns}
+              </ButtonGroupText>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const next = maxColumns === null ? 2 : maxColumns + 1;
+                  if (next <= maxColumnsLimit) {
+                    onMaxColumnsChange(next);
+                  }
+                }}
+                disabled={maxColumns !== null && maxColumns >= maxColumnsLimit}
+                aria-label="More columns"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </ButtonGroup>
           )}
 
           {/* Mobile: Filters button that opens bottom sheet */}
