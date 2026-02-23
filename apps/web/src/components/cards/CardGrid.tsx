@@ -663,7 +663,10 @@ export function CardGrid({
         </div>
       )}
 
-      <div ref={containerRef}>
+      <div
+        ref={containerRef}
+        style={IS_COARSE_POINTER && onMaxColumnsChange ? { touchAction: "pan-x pan-y" } : undefined}
+      >
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
           {items.map((vItem) => {
             const row = virtualRows[vItem.index];
