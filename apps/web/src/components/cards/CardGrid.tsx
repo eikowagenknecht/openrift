@@ -1,6 +1,5 @@
 import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { usePinch } from "@use-gesture/react";
 import { GripVertical } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -71,7 +70,6 @@ interface CardGridProps {
   selectedCardId?: string;
   cardFields?: CardFields;
   maxColumns?: number | null;
-  onMaxColumnsChange?: (value: number | null) => void;
   onPhysicalMaxChange?: (max: number) => void;
 }
 
@@ -83,7 +81,6 @@ export function CardGrid({
   selectedCardId,
   cardFields,
   maxColumns,
-  onMaxColumnsChange,
   onPhysicalMaxChange,
 }: CardGridProps) {
   const { containerRef, columns, physicalMax } = useResponsiveColumns(maxColumns);
@@ -251,37 +248,6 @@ export function CardGrid({
     document.addEventListener("touchmove", preventScroll, { passive: false });
     return () => document.removeEventListener("touchmove", preventScroll);
   }, []);
-
-  // Pinch-to-zoom: two-finger gesture to change maxColumns on touch devices.
-  // Spread (pinch out) → fewer columns (bigger cards), squeeze → more columns.
-  const pinchStartCols = useRef(maxColumns ?? columns);
-  const pinchSteps = useRef(0);
-
-  usePinch(
-    ({ first, da: [distance], memo }) => {
-      if (!onMaxColumnsChange) {
-        return memo;
-      }
-      if (first) {
-        pinchStartCols.current = maxColumns ?? columns;
-        pinchSteps.current = 0;
-        return distance;
-      }
-      const startDistance = (memo as number) ?? distance;
-      const delta = distance - startDistance;
-      const steps = Math.trunc(delta / 50);
-      if (steps !== pinchSteps.current) {
-        pinchSteps.current = steps;
-        const newCols = Math.max(1, Math.min(physicalMax, pinchStartCols.current - steps));
-        onMaxColumnsChange(newCols);
-      }
-      return startDistance;
-    },
-    {
-      target: containerRef,
-      eventOptions: { passive: false },
-    },
-  );
 
   useEffect(() => {
     const update = () => {
@@ -699,10 +665,7 @@ export function CardGrid({
         </div>
       )}
 
-      <div
-        ref={containerRef}
-        style={IS_COARSE_POINTER && onMaxColumnsChange ? { touchAction: "pan-x pan-y" } : undefined}
-      >
+      <div ref={containerRef}>
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
           {items.map((vItem) => {
             const row = virtualRows[vItem.index];

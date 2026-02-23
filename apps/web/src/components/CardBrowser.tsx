@@ -188,7 +188,6 @@ export function CardBrowser({
             selectedCardId={selectedCard?.id}
             cardFields={cardFields}
             maxColumns={maxColumns}
-            onMaxColumnsChange={onMaxColumnsChange}
             onPhysicalMaxChange={setPhysicalMaxColumns}
           />
         </div>
