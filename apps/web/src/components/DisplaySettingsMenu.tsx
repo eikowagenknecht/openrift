@@ -32,6 +32,8 @@ interface DisplaySettingsMenuProps {
   onCardFieldsChange: (update: Partial<CardFields>) => void;
   darkMode: boolean;
   onDarkModeChange: (dark: boolean) => void;
+  scrollIndicatorDrag: boolean;
+  onScrollIndicatorDragChange: (enabled: boolean) => void;
 }
 
 export function DisplaySettingsMenu({
@@ -41,6 +43,8 @@ export function DisplaySettingsMenu({
   onCardFieldsChange,
   darkMode,
   onDarkModeChange,
+  scrollIndicatorDrag,
+  onScrollIndicatorDragChange,
 }: DisplaySettingsMenuProps) {
   const [changelogOpen, setChangelogOpen] = useState(false);
   const { needRefresh, applyUpdate, checkForUpdate } = useSWUpdate();
@@ -98,6 +102,12 @@ export function DisplaySettingsMenu({
           <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem checked={darkMode} onCheckedChange={onDarkModeChange}>
             Dark mode
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={scrollIndicatorDrag}
+            onCheckedChange={onScrollIndicatorDragChange}
+          >
+            Draggable scroll indicator
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
           {needRefresh ? (

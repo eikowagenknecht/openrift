@@ -2,7 +2,8 @@
 
 ## 2026-02-23
 
-- fix: The scroll indicator drag handle is now smooth — no more stuttering or jumping on mobile
+- feat: Dragging the scroll indicator is now opt-in via "Draggable scroll indicator" in settings
+- fix: The scroll indicator drag handle no longer jumps around — it follows your finger directly
 - feat: Swipe left or right on mobile to browse between cards without closing the detail view
 - feat: Arrow keys navigate between cards when one is selected, and the grid scrolls to keep it in view
 - feat: Mobile filter and changelog panels now support swipe gestures to dismiss

@@ -71,6 +71,7 @@ interface CardGridProps {
   cardFields?: CardFields;
   maxColumns?: number | null;
   onPhysicalMaxChange?: (max: number) => void;
+  enableDrag?: boolean;
 }
 
 export function CardGrid({
@@ -82,6 +83,7 @@ export function CardGrid({
   cardFields,
   maxColumns,
   onPhysicalMaxChange,
+  enableDrag,
 }: CardGridProps) {
   const { containerRef, columns, physicalMax } = useResponsiveColumns(maxColumns);
 
@@ -234,12 +236,16 @@ export function CardGrid({
   const indicatorRef = useRef<HTMLDivElement>(null);
   const cardIdRef = useRef<HTMLElement>(null);
   const rafIdRef = useRef(0);
+  const dragTopRef = useRef(0);
 
   // Prevent native touch scrolling while the indicator is being dragged.
   // touch-action: none on the element alone is unreliable on mobile — the
   // browser can still initiate a scroll gesture. A non-passive touchmove
   // handler on the document lets us call preventDefault() to suppress it.
   useEffect(() => {
+    if (!enableDrag) {
+      return;
+    }
     const preventScroll = (e: TouchEvent) => {
       if (isDraggingRef.current) {
         e.preventDefault();
@@ -247,7 +253,7 @@ export function CardGrid({
     };
     document.addEventListener("touchmove", preventScroll, { passive: false });
     return () => document.removeEventListener("touchmove", preventScroll);
-  }, []);
+  }, [enableDrag]);
 
   useEffect(() => {
     const update = () => {
@@ -311,6 +317,7 @@ export function CardGrid({
     isDraggingRef.current = true;
     // Grab offset in style.top space so the indicator stays pinned to the finger.
     const styleTop = parseFloat((e.currentTarget as HTMLElement).style.top) || 0;
+    dragTopRef.current = styleTop;
     dragStartRef.current = { grabOffsetY: e.clientY - styleTop };
     window.clearTimeout(hideTimerRef.current);
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
@@ -337,6 +344,7 @@ export function CardGrid({
         APP_HEADER_HEIGHT + 4,
         Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
       );
+      dragTopRef.current = indicatorTop;
       if (indicatorRef.current) {
         indicatorRef.current.style.top = `${indicatorTop}px`;
       }
@@ -587,25 +595,29 @@ export function CardGrid({
         className={`fixed z-20 transition-opacity duration-300 ${indicator.visible ? "pointer-events-auto" : "pointer-events-none"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
         style={{
           right: 20,
-          top: Math.max(
-            APP_HEADER_HEIGHT + 4,
-            Math.min(
-              window.innerHeight - 28,
-              Math.round(indicator.thumbTop + indicator.thumbH / 2 - 12),
-            ),
-          ),
+          top: indicator.dragging
+            ? dragTopRef.current
+            : Math.max(
+                APP_HEADER_HEIGHT + 4,
+                Math.min(
+                  window.innerHeight - 28,
+                  Math.round(indicator.thumbTop + indicator.thumbH / 2 - 12),
+                ),
+              ),
           opacity: indicator.visible ? 1 : 0,
-          touchAction: "none",
+          touchAction: enableDrag ? "none" : undefined,
         }}
-        onPointerDown={handleIndicatorPointerDown}
-        onPointerMove={handleIndicatorPointerMove}
-        onPointerUp={handleIndicatorPointerUp}
-        onPointerCancel={handleIndicatorPointerUp}
+        onPointerDown={enableDrag ? handleIndicatorPointerDown : undefined}
+        onPointerMove={enableDrag ? handleIndicatorPointerMove : undefined}
+        onPointerUp={enableDrag ? handleIndicatorPointerUp : undefined}
+        onPointerCancel={enableDrag ? handleIndicatorPointerUp : undefined}
       >
         <div
-          className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "pr-3 pl-1.5 py-1.5 text-sm" : "pr-2.5 pl-1 py-1 text-xs"} ${indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50"}`}
+          className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "pr-3 pl-1.5 py-1.5 text-sm" : "pr-2.5 pl-1 py-1 text-xs"} ${enableDrag ? (indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50") : "ring-border/50"}`}
         >
-          <GripVertical className="mr-0.5 size-3 shrink-0 text-muted-foreground/40" />
+          {enableDrag && (
+            <GripVertical className="mr-0.5 size-3 shrink-0 text-muted-foreground/40" />
+          )}
           <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
         </div>
       </div>
