@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Fetches all data from Riftbinder's public REST API
- * and writes the raw JSON dump for manual exploration/comparison.
+ * Dumps all data from Riftbinder's public REST API.
  *
  * Endpoints:
  *   GET /api/cards?limit=100&offset=0  → { cards: [...], total, hasMore }
@@ -10,17 +9,18 @@
  *
  * No auth required.
  *
- * Usage: node scripts/fetch-riftbinder.mjs
+ * Usage: node scripts/dump-riftbinder.mjs
  *
- * Output: data/riftbinder.json
+ * Output: data/riftbinder-dump/cards.json
+ *         data/riftbinder-dump/guides.json
  */
 
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(__dirname, "..", "data");
+const dumpDir = join(__dirname, "..", "data", "riftbinder-dump");
 
 const BASE_URL = "https://riftbinder.com/api";
 const PAGE_SIZE = 100;
@@ -63,6 +63,8 @@ async function fetchAll(endpoint, key) {
 }
 
 async function main() {
+  mkdirSync(dumpDir, { recursive: true });
+
   const cards = await fetchAll("cards", "cards");
   const guides = await fetchAll("guides", "guides");
 
@@ -81,26 +83,35 @@ async function main() {
     setCards.sort((a, b) => a.id.localeCompare(b.id));
   }
 
-  const output = {
+  // Write cards
+  const cardsOutput = {
     source: "riftbinder.com",
     fetchedAt: new Date().toISOString(),
     totalCards: cards.length,
-    totalGuides: guides.length,
     sets: Object.fromEntries(
       [...setMap.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([set, setCards]) => [set, { count: setCards.length, cards: setCards }]),
     ),
+  };
+
+  const cardsPath = join(dumpDir, "cards.json");
+  writeFileSync(cardsPath, `${JSON.stringify(cardsOutput, null, 2)}\n`);
+
+  // Write guides
+  const guidesOutput = {
+    source: "riftbinder.com",
+    fetchedAt: new Date().toISOString(),
+    totalGuides: guides.length,
     guides,
   };
 
-  const outputPath = join(dataDir, "riftbinder.json");
-  writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+  const guidesPath = join(dumpDir, "guides.json");
+  writeFileSync(guidesPath, `${JSON.stringify(guidesOutput, null, 2)}\n`);
 
   // Summary
   console.log(`\nFetched ${cards.length} cards across ${setMap.size} sets:`);
   for (const [set, setCards] of [...setMap.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    // Count variants
     const foils = setCards.filter((c) => c.id.includes("#FOIL")).length;
     const promos = setCards.filter((c) => c.id.includes("-P")).length;
     const stars = setCards.filter((c) => c.id.includes("-STAR")).length;
@@ -134,7 +145,6 @@ async function main() {
     console.log(`  ${rarity}: ${count}`);
   }
 
-  // Guides
   if (guides.length > 0) {
     console.log(`\nGuides: ${guides.length}`);
     for (const guide of guides) {
@@ -142,10 +152,12 @@ async function main() {
     }
   }
 
-  console.log(`\nWritten to ${outputPath}`);
+  console.log(`\nWritten to:`);
+  console.log(`  ${cardsPath}`);
+  console.log(`  ${guidesPath}`);
 }
 
 main().catch((error) => {
-  console.error("Fetch failed:", error.message);
+  console.error("Dump failed:", error.message);
   process.exit(1);
 });
