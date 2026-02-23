@@ -57,6 +57,9 @@ function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boo
 const CARD_ASPECT = 1039 / 744;
 const GAP = 16; // gap-4
 const APP_HEADER_HEIGHT = 56; // h-14
+const IS_COARSE_POINTER = window.matchMedia("(pointer: coarse)").matches;
+const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 1200;
+const HIDE_DELAY_SHORT = IS_COARSE_POINTER ? 2000 : 800;
 
 interface CardGridProps {
   cards: Card[];
@@ -130,27 +133,6 @@ export function CardGrid({
   // is no longer visible — this prevents the sticky overlay and the virtual
   // header row from being visible at the same time.
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
-
-  // The first header that comes after activeHeaderRow in the list — shown in
-  // the bottom overlay so the user can jump forward to the next section.
-  const nextHeaderRow = useMemo<(VRow & { kind: "header" }) | null>(() => {
-    if (!activeHeaderRow) {
-      return null;
-    }
-    let found = false;
-    for (const row of virtualRows) {
-      if (row.kind !== "header") {
-        continue;
-      }
-      if (found) {
-        return row;
-      }
-      if (row.set.name === activeHeaderRow.set.name) {
-        found = true;
-      }
-    }
-    return null;
-  }, [activeHeaderRow, virtualRows]);
 
   // Re-measure the container's document offset when the card list changes.
   // useLayoutEffect runs before paint so corrections are invisible to the user.
@@ -232,14 +214,20 @@ export function CardGrid({
     thumbTop: 0,
     thumbH: 0,
     visible: false,
+    dragging: false,
   });
   const hideTimerRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ pointerY: 0, scrollY: 0 });
 
   useEffect(() => {
     const update = () => {
       // Use virtualizer's actual measured start positions — vItem.start is the
       // absolute document Y of the row top (scrollMargin already included).
-      const threshold = window.scrollY + APP_HEADER_HEIGHT;
+      // +1 avoids an off-by-one when scrollToIndex lands a header exactly at
+      // the boundary — without it the previous row's sub-pixel bottom edge
+      // can satisfy "> threshold" and the indicator shows the wrong card.
+      const threshold = window.scrollY + APP_HEADER_HEIGHT + 1;
       const vItems = virtualizerRef.current.getVirtualItems();
       let firstCard: Card | null = null;
       for (const vItem of vItems) {
@@ -264,11 +252,19 @@ export function CardGrid({
       const scrollableHeight = docH - viewportH;
       const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
       const thumbTop = yPercent * (viewportH - thumbH);
-      setIndicator({ cardId: firstCard.id, thumbTop, thumbH, visible: true });
       window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = window.setTimeout(() => {
-        setIndicator((prev) => ({ ...prev, visible: false }));
-      }, 1200);
+      setIndicator((prev) => ({
+        ...prev,
+        cardId: firstCard.id,
+        thumbTop,
+        thumbH,
+        visible: true,
+      }));
+      if (!isDraggingRef.current) {
+        hideTimerRef.current = window.setTimeout(() => {
+          setIndicator((prev) => ({ ...prev, visible: false }));
+        }, HIDE_DELAY);
+      }
     };
     window.addEventListener("scroll", update, { passive: true });
     return () => {
@@ -276,6 +272,140 @@ export function CardGrid({
       window.clearTimeout(hideTimerRef.current);
     };
   }, [virtualRows]);
+
+  const handleIndicatorPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    isDraggingRef.current = true;
+    dragStartRef.current = { pointerY: e.clientY, scrollY: window.scrollY };
+    window.clearTimeout(hideTimerRef.current);
+    setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
+  }, []);
+
+  const handleIndicatorPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDraggingRef.current) {
+      return;
+    }
+    const viewportH = window.innerHeight;
+    const docH = document.documentElement.scrollHeight;
+    const scrollableHeight = docH - viewportH;
+    if (scrollableHeight <= 0) {
+      return;
+    }
+    const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+    const trackH = viewportH - thumbH;
+    const ratio = trackH > 0 ? scrollableHeight / trackH : 0;
+    const deltaY = e.clientY - dragStartRef.current.pointerY;
+    const newScrollY = Math.max(
+      0,
+      Math.min(scrollableHeight, dragStartRef.current.scrollY + deltaY * ratio),
+    );
+    window.scrollTo(0, newScrollY);
+  }, []);
+
+  const handleIndicatorPointerUp = useCallback(() => {
+    if (!isDraggingRef.current) {
+      return;
+    }
+    isDraggingRef.current = false;
+    setIndicator((prev) => ({ ...prev, dragging: false }));
+
+    hideTimerRef.current = window.setTimeout(() => {
+      setIndicator((prev) => ({ ...prev, visible: false }));
+    }, HIDE_DELAY);
+  }, []);
+
+  // Screen-space positions of each set header on the scrollbar track.
+  // Recomputed on every scroll (via indicator.thumbTop dep) so they stay current.
+  const snapPoints = useMemo(() => {
+    if (!multipleGroups) {
+      return [];
+    }
+    const viewportH = window.innerHeight;
+    const docH = document.documentElement.scrollHeight;
+    const scrollableHeight = docH - viewportH;
+    if (scrollableHeight <= 0) {
+      return [];
+    }
+    const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+
+    // Prefer the virtualizer's measured positions over rowStarts (estimated).
+    // rowStarts accumulates Math.ceil rounding across many rows, so ghost badges
+    // computed from it drift away from the indicator (which uses real scrollY).
+    const measuredStarts = new Map(
+      virtualizerRef.current
+        .getVirtualItems()
+        .map((item) => [item.index, item.start - scrollMarginRef.current]),
+    );
+
+    const points: {
+      rowIndex: number;
+      setInfo: SetInfo;
+      screenY: number;
+      cardCount: number;
+      firstCardId: string;
+    }[] = [];
+
+    for (let i = 0; i < virtualRows.length; i++) {
+      const row = virtualRows[i];
+      if (row.kind !== "header") {
+        continue;
+      }
+      const rowStart = measuredStarts.get(i) ?? rowStarts[i];
+      const headerScrollY = rowStart + scrollMarginRef.current - APP_HEADER_HEIGHT;
+      const yPct = Math.max(0, Math.min(1, headerScrollY / scrollableHeight));
+      const snapThumbTop = yPct * (viewportH - thumbH);
+      const screenY = Math.max(
+        APP_HEADER_HEIGHT + 4,
+        Math.min(viewportH - 28, Math.round(snapThumbTop + thumbH / 2 - 12)),
+      );
+      // First card ID in this set (for ghost badges)
+      let firstCardId = "";
+      for (let j = i + 1; j < virtualRows.length; j++) {
+        const next = virtualRows[j];
+        if (next.kind === "cards" && next.items.length > 0) {
+          firstCardId = next.items[0].id;
+          break;
+        }
+        if (next.kind === "header") {
+          break;
+        }
+      }
+      points.push({
+        rowIndex: i,
+        setInfo: row.set,
+        screenY,
+        cardCount: row.cardCount,
+        firstCardId,
+      });
+    }
+    return points;
+    // indicator.thumbTop is intentionally included: it changes on every scroll,
+    // triggering recomputation so the screenY values stay in sync with the DOM
+    // dimensions (window.innerHeight, scrollHeight) read inside the memo.
+  }, [multipleGroups, virtualRows, rowStarts, indicator.thumbTop]);
+
+  // Click a ghost badge to jump directly to that set header.
+  const handleSnapBadgeClick = useCallback(
+    (rowIndex: number) => {
+      virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
+    },
+    [virtualizer],
+  );
+
+  // Keep indicator visible while hovering ghost badges so the user has time to click.
+  const handleSnapBadgeEnter = useCallback(() => {
+    window.clearTimeout(hideTimerRef.current);
+  }, []);
+
+  const handleSnapBadgeLeave = useCallback(() => {
+    if (isDraggingRef.current) {
+      return;
+    }
+    hideTimerRef.current = window.setTimeout(() => {
+      setIndicator((prev) => ({ ...prev, visible: false }));
+    }, HIDE_DELAY_SHORT);
+  }, []);
 
   const scrollToGroup = useCallback(
     (setName: string) => {
@@ -305,26 +435,63 @@ export function CardGrid({
 
   return (
     <>
-      {/* Scroll position indicator — appears while scrolling, fades out after idle */}
+      {/* Scroll position indicator — appears while scrolling, fades out after idle.
+          Draggable: grab to scrub through the page; snaps to set headers on release. */}
       <div
-        className="pointer-events-none fixed z-20 transition-opacity duration-300"
+        className={`fixed z-20 transition-opacity duration-300 ${indicator.visible ? "pointer-events-auto" : "pointer-events-none"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
         style={{
           right: 20,
           top: Math.max(
             APP_HEADER_HEIGHT + 4,
             Math.min(
-              // badge is py-1 text-xs → 4 + 16 + 4 = 24 px tall; half = 12
               window.innerHeight - 28,
               Math.round(indicator.thumbTop + indicator.thumbH / 2 - 12),
             ),
           ),
           opacity: indicator.visible ? 1 : 0,
+          touchAction: "none",
         }}
+        onPointerDown={handleIndicatorPointerDown}
+        onPointerMove={handleIndicatorPointerMove}
+        onPointerUp={handleIndicatorPointerUp}
+        onPointerCancel={handleIndicatorPointerUp}
       >
-        <div className="rounded-md bg-popover/90 px-2.5 py-1 text-xs font-mono font-medium text-popover-foreground shadow-md ring-1 ring-border/50 backdrop-blur-sm">
+        <div
+          className={`rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50"}`}
+        >
+          {IS_COARSE_POINTER && <span className="mr-1 text-muted-foreground/40">⠿</span>}
           {indicator.cardId || "\u00A0"}
         </div>
       </div>
+
+      {/* Ghost badges — clickable set-header jump targets, visible whenever indicator is */}
+      {indicator.visible &&
+        multipleGroups &&
+        snapPoints.map((pt) => (
+          <button
+            type="button"
+            key={pt.rowIndex}
+            className={`fixed z-19 transition-opacity duration-300 ${indicator.dragging ? "pointer-events-none" : "pointer-events-auto"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
+            style={{
+              right: 20,
+              top: pt.screenY,
+              opacity: indicator.visible ? 1 : 0,
+            }}
+            onClick={() => handleSnapBadgeClick(pt.rowIndex)}
+            onMouseEnter={handleSnapBadgeEnter}
+            onMouseLeave={handleSnapBadgeLeave}
+          >
+            <div
+              className={`rounded-md font-mono font-medium select-none ring-1 backdrop-blur-sm transition-all ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${
+                indicator.dragging
+                  ? "bg-popover/50 text-popover-foreground/40 ring-border/25 opacity-40"
+                  : "cursor-pointer bg-popover/50 text-popover-foreground/40 ring-border/25 opacity-50 hover:bg-popover/80 hover:text-popover-foreground hover:opacity-100 hover:ring-border/50"
+              }`}
+            >
+              {pt.firstCardId || pt.setInfo.code}
+            </div>
+          </button>
+        ))}
 
       {/* Sticky set header overlay — visible only after a section header has
           fully scrolled above the sticky threshold. The incoming virtual header
@@ -346,27 +513,6 @@ export function CardGrid({
             <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               {activeHeaderRow.cardCount}
-            </span>
-          </button>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-      )}
-
-      {/* Bottom overlay — shows the next section so the user can jump forward */}
-      {multipleGroups && nextHeaderRow && (
-        <div className="fixed bottom-0 left-0 right-0 z-10 flex items-center gap-3 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="h-px flex-1 bg-border" />
-          <button
-            type="button"
-            className="flex cursor-pointer items-center gap-2"
-            onClick={() => scrollToGroup(nextHeaderRow.set.name)}
-          >
-            <span className="text-sm font-medium text-muted-foreground">
-              {nextHeaderRow.set.code}
-            </span>
-            <span className="text-sm font-semibold">{nextHeaderRow.set.name}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {nextHeaderRow.cardCount}
             </span>
           </button>
           <div className="h-px flex-1 bg-border" />
