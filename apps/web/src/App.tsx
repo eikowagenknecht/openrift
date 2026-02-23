@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { ReloadPrompt } from "@/components/pwa/ReloadPrompt";
+import { Toaster } from "@/components/ui/sonner";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { SWUpdateProvider } from "@/hooks/use-sw-update";
 import { useTheme } from "@/hooks/use-theme";
@@ -67,6 +68,7 @@ function App() {
           />
         </main>
         <Footer />
+        <Toaster position="bottom-right" />
         <ReloadPrompt />
         <OfflineIndicator />
       </div>
