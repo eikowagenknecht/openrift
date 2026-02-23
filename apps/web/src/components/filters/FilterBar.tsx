@@ -337,7 +337,7 @@ export function FilterBar({
           </Select>
           <Button
             variant="outline"
-            size="icon-sm"
+            size="icon"
             onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
             title={sortDir === "asc" ? "Ascending" : "Descending"}
           >
@@ -378,7 +378,7 @@ export function FilterBar({
                 render={
                   <Button
                     variant="outline"
-                    size="icon-sm"
+                    size="icon"
                     className="sm:hidden"
                     aria-label={maxColumns === null ? "Columns: Auto" : `Columns: ${maxColumns}`}
                   />
