@@ -1,0 +1,26 @@
+# Usage: docker compose -f docker-compose.dev.yml up
+#
+# Only Postgres runs in Docker during development.
+# Run the Hono API and Vite dev server natively with `pnpm dev`.
+#
+# Connection string for local dev:
+#   DATABASE_URL=postgres://riftbound_app:dev_password@localhost:5432/riftbound
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_dev_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: riftbound
+      POSTGRES_USER: riftbound_app
+      POSTGRES_PASSWORD: dev_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U riftbound_app -d riftbound"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pg_dev_data:

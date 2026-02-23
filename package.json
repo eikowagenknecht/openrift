@@ -10,6 +10,8 @@
     "lint:oxlint": "oxlint --fix",
     "lint:oxfmt": "oxfmt ./apps ./packages",
     "lefthook": "lefthook",
+    "db:migrate": "pnpm --filter @openrift/shared db:migrate",
+    "db:rollback": "pnpm --filter @openrift/shared db:rollback",
     "knip": "knip",
     "postinstall": "lefthook install"
   },

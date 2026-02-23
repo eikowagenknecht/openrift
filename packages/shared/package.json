@@ -5,18 +5,25 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./db": "./src/db/index.ts",
     "./data/gallery.json": "./data/gallery.json",
     "./data/prices.json": "./data/prices.json"
   },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:rollback": "tsx src/db/migrate.ts down"
   },
   "dependencies": {
+    "kysely": "^0.28.11",
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@types/pg": "^8.16.0",
+    "pg": "^8.18.0",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3"
   }
 }
