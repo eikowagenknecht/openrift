@@ -123,14 +123,14 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
-          <StatCard label="Energy" value={card.stats.energy} />
-          {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") && (
+          {card.stats.energy > 0 && <StatCard label="Energy" value={card.stats.energy} />}
+          {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") && card.stats.power > 0 && (
             <StatCard label="Power" value={card.stats.power} icon="/icons/power.svg" />
           )}
           {card.type === "Unit" && (
             <StatCard label="Might" value={card.stats.might} icon="/icons/might.svg" />
           )}
-          {card.type === "Gear" && (
+          {card.type === "Gear" && card.mightBonus > 0 && (
             <StatCard label="Might Bonus" value={`+${card.mightBonus}`} icon="/icons/might.svg" />
           )}
         </div>
