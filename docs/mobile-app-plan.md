@@ -31,11 +31,11 @@ Build a React Native mobile app (`apps/mobile`) that mirrors the web app's card 
 
 ### Registrations
 
-| Registration | Cost | Purpose | Required for |
-|---|---|---|---|
-| **Apple Developer Program** | $99/year | Code signing, TestFlight, App Store | Any iOS distribution |
-| **Expo account** | Free | EAS CLI, OTA updates | `eas build --local`, `eas submit` |
-| **Google Play Developer** | $25 one-time | Play Store listing | Android distribution (later) |
+| Registration                | Cost         | Purpose                             | Required for                      |
+|-----------------------------|--------------|-------------------------------------|-----------------------------------|
+| **Apple Developer Program** | $99/year     | Code signing, TestFlight, App Store | Any iOS distribution              |
+| **Expo account**            | Free         | EAS CLI, OTA updates                | `eas build --local`, `eas submit` |
+| **Google Play Developer**   | $25 one-time | Play Store listing                  | Android distribution (later)      |
 
 ### Mac setup (one-time)
 
@@ -63,19 +63,19 @@ ssh user@192.168.1.xx
 
 ## 2. Tech Stack
 
-| Layer | Choice | Rationale |
-|---|---|---|
-| Framework | **Expo SDK 53+** | Managed workflow, OTA updates, EAS Build for CI |
-| Routing | **Expo Router v4** | File-based routing (matches web's single-page mental model) |
-| Language | **TypeScript 5.9** (strict) | Same tsconfig strictness as web and shared |
-| Styling | **Uniwind** (Tailwind for RN) | Same utility classes as web; if issues arise, fall back to NativeWind v4 |
-| UI primitives | **React Native Reusables** | shadcn/ui-style components for native (Button, Input, Sheet, Badge, Slider) |
-| List rendering | **FlashList** (Shopify) | Handles 664+ cards at 60fps; recycling architecture beats FlatList |
-| Images | **Expo Image** | Disk caching, blurhash placeholders, priority loading |
-| Bottom sheet | **@gorhom/bottom-sheet** | Gesture-driven, snap points, keyboard-aware — industry standard |
-| State | **React useState/useReducer** | No external state library needed; filter state lives in component tree |
-| Storage | **AsyncStorage** | Persist display settings, search scope, theme preference |
-| Icons | **Lucide React Native** | Same icon set as web |
+| Layer          | Choice                        | Rationale                                                                   |
+|----------------|-------------------------------|-----------------------------------------------------------------------------|
+| Framework      | **Expo SDK 53+**              | Managed workflow, OTA updates, EAS Build for CI                             |
+| Routing        | **Expo Router v4**            | File-based routing (matches web's single-page mental model)                 |
+| Language       | **TypeScript 5.9** (strict)   | Same tsconfig strictness as web and shared                                  |
+| Styling        | **Uniwind** (Tailwind for RN) | Same utility classes as web; if issues arise, fall back to NativeWind v4    |
+| UI primitives  | **React Native Reusables**    | shadcn/ui-style components for native (Button, Input, Sheet, Badge, Slider) |
+| List rendering | **FlashList** (Shopify)       | Handles 664+ cards at 60fps; recycling architecture beats FlatList          |
+| Images         | **Expo Image**                | Disk caching, blurhash placeholders, priority loading                       |
+| Bottom sheet   | **@gorhom/bottom-sheet**      | Gesture-driven, snap points, keyboard-aware — industry standard             |
+| State          | **React useState/useReducer** | No external state library needed; filter state lives in component tree      |
+| Storage        | **AsyncStorage**              | Persist display settings, search scope, theme preference                    |
+| Icons          | **Lucide React Native**       | Same icon set as web                                                        |
 
 ### Why Uniwind over NativeWind
 
@@ -168,14 +168,14 @@ The main screen. Composes all sub-components.
 - Scroll position preserved when returning from detail
 
 **Mapping from web:**
-| Web component | Mobile equivalent | Key difference |
-|---|---|---|
-| `CardBrowser.tsx` | `app/index.tsx` | Same orchestration, native layout |
-| `CardGrid.tsx` (CSS grid) | `CardGrid.tsx` (FlashList) | Recycling vs DOM rendering |
-| `CardThumbnail.tsx` | `CardThumbnail.tsx` | `Pressable` + `Expo Image` instead of `<button>` + `<img>` |
-| `FilterBar.tsx` (inline/sheet) | `FilterSheet.tsx` (always bottom sheet) | `@gorhom/bottom-sheet` instead of shadcn Sheet |
-| `ActiveFilters.tsx` | `FilterChips.tsx` | Horizontal `ScrollView` instead of flex wrap |
-| `use-card-filters.ts` (nuqs) | `use-card-filters.ts` (React state) | No URL sync; filter state in memory, settings in AsyncStorage |
+| Web component                  | Mobile equivalent                       | Key difference                                                |
+|--------------------------------|-----------------------------------------|---------------------------------------------------------------|
+| `CardBrowser.tsx`              | `app/index.tsx`                         | Same orchestration, native layout                             |
+| `CardGrid.tsx` (CSS grid)      | `CardGrid.tsx` (FlashList)              | Recycling vs DOM rendering                                    |
+| `CardThumbnail.tsx`            | `CardThumbnail.tsx`                     | `Pressable` + `Expo Image` instead of `<button>` + `<img>`    |
+| `FilterBar.tsx` (inline/sheet) | `FilterSheet.tsx` (always bottom sheet) | `@gorhom/bottom-sheet` instead of shadcn Sheet                |
+| `ActiveFilters.tsx`            | `FilterChips.tsx`                       | Horizontal `ScrollView` instead of flex wrap                  |
+| `use-card-filters.ts` (nuqs)   | `use-card-filters.ts` (React state)     | No URL sync; filter state in memory, settings in AsyncStorage |
 
 ### 4.2 Card Detail — `app/card/[id].tsx`
 
@@ -198,11 +198,11 @@ Full-screen modal showing a single card.
 - Image can be tapped to go full-screen with pinch-to-zoom
 
 **Mapping from web:**
-| Web component | Mobile equivalent | Key difference |
-|---|---|---|
+| Web component                         | Mobile equivalent                       | Key difference                      |
+|---------------------------------------|-----------------------------------------|-------------------------------------|
 | `CardDetail.tsx` (side panel / sheet) | `app/card/[id].tsx` (full-screen modal) | Dedicated screen instead of overlay |
-| Domain gradient backgrounds | Same gradients via Uniwind | Tailwind classes translate directly |
-| Card text glyph parsing | `CardText.tsx` (shared logic) | SVG → react-native-svg |
+| Domain gradient backgrounds           | Same gradients via Uniwind              | Tailwind classes translate directly |
+| Card text glyph parsing               | `CardText.tsx` (shared logic)           | SVG → react-native-svg              |
 
 ### 4.3 Settings (future)
 
@@ -235,13 +235,13 @@ import galleryData from "@openrift/shared/data/gallery.json";
 
 ### What the mobile app must implement on its own
 
-| Concern | Web | Mobile | Why different |
-|---|---|---|---|
-| Filter state storage | nuqs (URL query params) | React state + AsyncStorage | No URL bar in native apps |
-| Debounce | `use-debounce.ts` | Port or rewrite (trivial) | Same logic, different timer API (both use `setTimeout`) |
-| Theme detection | `matchMedia("prefers-color-scheme")` | `Appearance.getColorScheme()` | Different platform APIs |
-| Class merging | `cn()` via clsx + tailwind-merge | `cn()` via clsx + Uniwind merge | Same concept, different merge utils |
-| Component library | shadcn/ui (Radix) | React Native Reusables | Same design, native primitives |
+| Concern              | Web                                  | Mobile                          | Why different                                           |
+|----------------------|--------------------------------------|---------------------------------|---------------------------------------------------------|
+| Filter state storage | nuqs (URL query params)              | React state + AsyncStorage      | No URL bar in native apps                               |
+| Debounce             | `use-debounce.ts`                    | Port or rewrite (trivial)       | Same logic, different timer API (both use `setTimeout`) |
+| Theme detection      | `matchMedia("prefers-color-scheme")` | `Appearance.getColorScheme()`   | Different platform APIs                                 |
+| Class merging        | `cn()` via clsx + tailwind-merge     | `cn()` via clsx + Uniwind merge | Same concept, different merge utils                     |
+| Component library    | shadcn/ui (Radix)                    | React Native Reusables          | Same design, native primitives                          |
 
 ---
 
@@ -582,45 +582,45 @@ Both light and dark values must be defined. The mobile theme provider swaps the 
 
 Domain-specific colors (for card backgrounds/accents) are the same hex values used in the web app:
 
-| Domain | Color |
-|---|---|
-| Fury | Red tones |
-| Calm | Blue tones |
-| Mind | Purple tones |
-| Body | Green tones |
-| Chaos | Orange tones |
-| Order | Yellow tones |
-| Colorless | Gray tones |
+| Domain    | Color        |
+|-----------|--------------|
+| Fury      | Red tones    |
+| Calm      | Blue tones   |
+| Mind      | Purple tones |
+| Body      | Green tones  |
+| Chaos     | Orange tones |
+| Order     | Yellow tones |
+| Colorless | Gray tones   |
 
 ---
 
 ## 10. Key Differences from Web
 
-| Concern | Web | Mobile | Notes |
-|---|---|---|---|
-| Navigation | Single page, no router | Expo Router (stack + modal) | Detail is a modal screen |
-| Filter state | URL query params (nuqs) | React state (useReducer) | No shareable URLs |
-| List rendering | CSS grid + virtual scroll | FlashList (cell recycling) | FlashList handles 664+ cards natively |
-| Image loading | `<img>` with lazy loading | Expo Image with disk cache | Blurhash placeholders |
-| Filter UI | Inline bar (desktop) / Sheet (mobile web) | Always bottom sheet | `@gorhom/bottom-sheet` |
-| Active filters | Flex-wrap badges | Horizontal scroll chips | Better for narrow screens |
-| Card detail | Side panel (desktop) / Sheet (mobile web) | Full-screen modal | Swipe to navigate |
-| Theme | CSS variables + `dark` class | `Appearance` API + context | Same design tokens |
-| Deployment | Cloudflare Workers | Local build on Mac → TestFlight / Play Store | OTA updates via EAS Update |
-| Offline | Service worker (PWA) | Bundled data (always offline) | Card data ships with the app |
+| Concern        | Web                                       | Mobile                                       | Notes                                 |
+|----------------|-------------------------------------------|----------------------------------------------|---------------------------------------|
+| Navigation     | Single page, no router                    | Expo Router (stack + modal)                  | Detail is a modal screen              |
+| Filter state   | URL query params (nuqs)                   | React state (useReducer)                     | No shareable URLs                     |
+| List rendering | CSS grid + virtual scroll                 | FlashList (cell recycling)                   | FlashList handles 664+ cards natively |
+| Image loading  | `<img>` with lazy loading                 | Expo Image with disk cache                   | Blurhash placeholders                 |
+| Filter UI      | Inline bar (desktop) / Sheet (mobile web) | Always bottom sheet                          | `@gorhom/bottom-sheet`                |
+| Active filters | Flex-wrap badges                          | Horizontal scroll chips                      | Better for narrow screens             |
+| Card detail    | Side panel (desktop) / Sheet (mobile web) | Full-screen modal                            | Swipe to navigate                     |
+| Theme          | CSS variables + `dark` class              | `Appearance` API + context                   | Same design tokens                    |
+| Deployment     | Cloudflare Workers                        | Local build on Mac → TestFlight / Play Store | OTA updates via EAS Update            |
+| Offline        | Service worker (PWA)                      | Bundled data (always offline)                | Card data ships with the app          |
 
 ---
 
 ## 11. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Uniwind incompatible with React Native Reusables | Medium | Medium | Fall back to NativeWind v4 (API is nearly identical). Test early in Step 2. |
-| FlashList sticky headers with set grouping is complex | Medium | Low | Start with a flat list, add sticky headers as enhancement. `SectionList` fallback. |
-| Metro bundler can't resolve `@openrift/shared` | Low | High | Well-documented pattern for Expo monorepos. `metro.config.js` watchFolders is the fix. |
-| Card images slow to load on mobile networks | Low | Medium | Expo Image disk cache + blurhash placeholders. Images are small thumbnails (~50KB). |
-| Swipe-to-navigate conflicts with swipe-to-dismiss | Medium | Low | Use horizontal `FlatList` or pager for card detail navigation; vertical swipe dismisses. |
-| gallery.json bundled in app increases binary size | Low | Low | JSON is ~1.5MB uncompressed, ~300KB gzipped. Acceptable for v1. |
+| Risk                                                  | Likelihood | Impact | Mitigation                                                                               |
+|-------------------------------------------------------|------------|--------|------------------------------------------------------------------------------------------|
+| Uniwind incompatible with React Native Reusables      | Medium     | Medium | Fall back to NativeWind v4 (API is nearly identical). Test early in Step 2.              |
+| FlashList sticky headers with set grouping is complex | Medium     | Low    | Start with a flat list, add sticky headers as enhancement. `SectionList` fallback.       |
+| Metro bundler can't resolve `@openrift/shared`        | Low        | High   | Well-documented pattern for Expo monorepos. `metro.config.js` watchFolders is the fix.   |
+| Card images slow to load on mobile networks           | Low        | Medium | Expo Image disk cache + blurhash placeholders. Images are small thumbnails (~50KB).      |
+| Swipe-to-navigate conflicts with swipe-to-dismiss     | Medium     | Low    | Use horizontal `FlatList` or pager for card detail navigation; vertical swipe dismisses. |
+| gallery.json bundled in app increases binary size     | Low        | Low    | JSON is ~1.5MB uncompressed, ~300KB gzipped. Acceptable for v1.                          |
 
 ---
 
@@ -671,15 +671,15 @@ ssh your-mac.local "open -a Simulator"
 
 ### When each approach is useful
 
-| Task | Where | Mac needed? |
-|---|---|---|
-| Write code, edit components | Main machine | No |
-| Hot-reload preview | Expo Go on iPhone | No |
-| Test in iOS Simulator | SSH + Screen Sharing to Mac | Yes |
-| Run native iOS build | SSH to Mac | Yes |
-| Build for TestFlight | SSH to Mac | Yes |
-| Upload to TestFlight | SSH to Mac | Yes |
-| Run Android emulator | Main machine (or Mac) | No |
+| Task                        | Where                       | Mac needed? |
+|-----------------------------|-----------------------------|-------------|
+| Write code, edit components | Main machine                | No          |
+| Hot-reload preview          | Expo Go on iPhone           | No          |
+| Test in iOS Simulator       | SSH + Screen Sharing to Mac | Yes         |
+| Run native iOS build        | SSH to Mac                  | Yes         |
+| Build for TestFlight        | SSH to Mac                  | Yes         |
+| Upload to TestFlight        | SSH to Mac                  | Yes         |
+| Run Android emulator        | Main machine (or Mac)       | No          |
 
 ---
 
@@ -807,14 +807,14 @@ After the first build, subsequent builds find the certificate in Keychain automa
 
 ### Why local builds over cloud EAS
 
-| | Local Mac builds | EAS Build (cloud) |
-|---|---|---|
-| **Cost** | Free forever | Free tier: 30/month, then $99/mo |
-| **Speed** | Depends on Mac age, but no queue wait | ~10-15 min, may queue on free tier |
-| **Signing keys** | Stay on the Mac (Keychain) | Uploaded to Expo's servers (encrypted) |
-| **Network** | Only for git pull + TestFlight upload | Uploads full source to Expo servers |
-| **Privacy** | Code + keys stay on your machines | Code + keys sent to Expo cloud |
-| **CI/CD** | Manual (SSH) or scripted | GitHub Actions integration available |
+|                  | Local Mac builds                      | EAS Build (cloud)                      |
+|------------------|---------------------------------------|----------------------------------------|
+| **Cost**         | Free forever                          | Free tier: 30/month, then $99/mo       |
+| **Speed**        | Depends on Mac age, but no queue wait | ~10-15 min, may queue on free tier     |
+| **Signing keys** | Stay on the Mac (Keychain)            | Uploaded to Expo's servers (encrypted) |
+| **Network**      | Only for git pull + TestFlight upload | Uploads full source to Expo servers    |
+| **Privacy**      | Code + keys stay on your machines     | Code + keys sent to Expo cloud         |
+| **CI/CD**        | Manual (SSH) or scripted              | GitHub Actions integration available   |
 
 **Recommendation:** Use local Mac builds for everything. Keep signing keys local with `credentialsSource: "local"` and back up the `.p12` to a password manager. Consider cloud EAS only if you later set up CI/CD via GitHub Actions (where there's no Mac available).
 

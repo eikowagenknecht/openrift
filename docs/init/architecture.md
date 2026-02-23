@@ -496,17 +496,17 @@ DB access: riftbound_app user with only CONNECT, SELECT, INSERT,
 
 ## Summary
 
-| Component        | Technology             | Where                      | Exposed?           |
-|-----------------|------------------------|----------------------------|--------------------|
-| CDN / DNS        | Cloudflare (free)      | Cloudflare edge            | Public             |
-| Reverse proxy    | Caddy (container)      | Hetzner VPS, ports 80+443 | Public             |
-| Frontend SPA     | Vite + React           | Host volume → Caddy        | Public via Caddy   |
-| Card images      | Static .webp files     | Host volume → Caddy        | Public via Caddy   |
-| API server       | Hono + Better Auth     | Container, port 3000       | Only via Caddy     |
-| Database         | Postgres 16 (container)| Container, port 5432       | Only via API       |
-| Monorepo         | Turborepo              | GitHub                     | —                  |
-| CI/CD            | GitHub Actions         | GitHub                     | —                  |
-| **Total cost**   |                        |                            | **~€4/month**      |
+| Component      | Technology              | Where                     | Exposed?         |
+|----------------|-------------------------|---------------------------|------------------|
+| CDN / DNS      | Cloudflare (free)       | Cloudflare edge           | Public           |
+| Reverse proxy  | Caddy (container)       | Hetzner VPS, ports 80+443 | Public           |
+| Frontend SPA   | Vite + React            | Host volume → Caddy       | Public via Caddy |
+| Card images    | Static .webp files      | Host volume → Caddy       | Public via Caddy |
+| API server     | Hono + Better Auth      | Container, port 3000      | Only via Caddy   |
+| Database       | Postgres 16 (container) | Container, port 5432      | Only via API     |
+| Monorepo       | Turborepo               | GitHub                    | —                |
+| CI/CD          | GitHub Actions          | GitHub                    | —                |
+| **Total cost** |                         |                           | **~€4/month**    |
 
 **One monorepo, three packages** (web, api, shared).
 **Three containers** (Caddy, Hono, Postgres) orchestrated by Docker Compose.
