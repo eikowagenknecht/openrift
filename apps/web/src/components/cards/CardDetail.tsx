@@ -28,7 +28,9 @@ export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }
 
   useDrag(
     ({ last, movement: [dx, dy], swipe: [swipeX] }) => {
-      if (!last) return;
+      if (!last) {
+        return;
+      }
       // swipe detected by the library (velocity-based)
       if (swipeX === 1 && onPrevCard) {
         onPrevCard();
