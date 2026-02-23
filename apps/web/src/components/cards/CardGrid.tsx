@@ -233,7 +233,7 @@ export function CardGrid({
   });
   const hideTimerRef = useRef(0);
   const isDraggingRef = useRef(false);
-  const dragStartRef = useRef({ pointerY: 0, scrollY: 0 });
+  const dragStartRef = useRef({ grabOffsetY: 0 });
   const indicatorRef = useRef<HTMLDivElement>(null);
   const cardIdRef = useRef<HTMLElement>(null);
   const rafIdRef = useRef(0);
@@ -310,12 +310,10 @@ export function CardGrid({
       const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
       const thumbTop = yPercent * (viewportH - thumbH);
 
-      // During drag: update DOM directly, skip React state to avoid re-renders.
+      // During drag: only update the card ID label. The pointer handler drives
+      // the indicator position directly, so we must not reposition it here —
+      // that would fight the pointer and cause jumps when scrollHeight shifts.
       if (isDraggingRef.current) {
-        const el = indicatorRef.current;
-        if (el) {
-          el.style.top = `${Math.max(APP_HEADER_HEIGHT + 4, Math.min(viewportH - 28, Math.round(thumbTop + thumbH / 2 - 12)))}px`;
-        }
         if (cardIdRef.current) {
           cardIdRef.current.textContent = firstCard.id;
         }
@@ -345,7 +343,9 @@ export function CardGrid({
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     isDraggingRef.current = true;
-    dragStartRef.current = { pointerY: e.clientY, scrollY: window.scrollY };
+    // Grab offset in style.top space so the indicator stays pinned to the finger.
+    const styleTop = parseFloat((e.currentTarget as HTMLElement).style.top) || 0;
+    dragStartRef.current = { grabOffsetY: e.clientY - styleTop };
     window.clearTimeout(hideTimerRef.current);
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
   };
@@ -364,14 +364,21 @@ export function CardGrid({
         return;
       }
       const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
-      const trackH = viewportH - thumbH;
-      const ratio = trackH > 0 ? scrollableHeight / trackH : 0;
-      const deltaY = clientY - dragStartRef.current.pointerY;
-      const newScrollY = Math.max(
-        0,
-        Math.min(scrollableHeight, dragStartRef.current.scrollY + deltaY * ratio),
+
+      // Position the indicator directly at the pointer — no round-trip through
+      // scroll position, so virtualizer height changes can't cause jumps.
+      const indicatorTop = Math.max(
+        APP_HEADER_HEIGHT + 4,
+        Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
       );
-      window.scrollTo(0, newScrollY);
+      if (indicatorRef.current) {
+        indicatorRef.current.style.top = `${indicatorTop}px`;
+      }
+
+      // Reverse-map indicator position → scroll position.
+      const thumbTop = indicatorTop - thumbH / 2 + 12;
+      const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
+      window.scrollTo(0, yPercent * scrollableHeight);
     });
   };
 
