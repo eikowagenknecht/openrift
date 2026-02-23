@@ -144,14 +144,6 @@ export function FilterBar({
   const showScopeChips = searchFocused;
   const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
 
-  const activeFilterCount =
-    filterState.sets.length +
-    filterState.rarities.length +
-    filterState.types.length +
-    filterState.superTypes.length +
-    filterState.domains.length +
-    filterState.variants.length;
-
   useEffect(() => {
     // External change (e.g. clear all, clear search badge): sync local state
     if (prevFilterSearch.current !== filterState.search) {
@@ -421,14 +413,6 @@ export function FilterBar({
           >
             <SlidersHorizontal className="mr-2 size-4" />
             Filters
-            {activeFilterCount > 0 && (
-              <Badge
-                variant="default"
-                className="ml-2 size-5 justify-center rounded-full p-0 text-xs"
-              >
-                {activeFilterCount}
-              </Badge>
-            )}
           </Button>
         </div>
       </div>
