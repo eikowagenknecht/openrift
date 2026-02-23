@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-02-23
+
+- feat: TCGPlayer price data now shows on cards
+- feat: Draggable scroll indicator with ghost badge for quick set navigation
+- feat: "Update available" option in the settings menu
+- fix: Card detail pane no longer hides behind sticky set headers
+
 ## 2026-02-21
 
 - fix: Fixed a gap below the header when scrolling
