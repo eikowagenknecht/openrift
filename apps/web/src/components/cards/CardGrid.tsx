@@ -1,5 +1,6 @@
 import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { GripVertical } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
@@ -203,6 +204,13 @@ export function CardGrid({
   const virtualizerRef = useRef(virtualizer);
   virtualizerRef.current = virtualizer;
 
+  // Ref mirror of virtualRows so the scroll-indicator effect can read the
+  // latest rows without listing virtualRows as a dependency — that reference
+  // changes every render which would tear down the effect and cancel the
+  // hide timer, keeping the indicator permanently visible.
+  const virtualRowsRef = useRef(virtualRows);
+  virtualRowsRef.current = virtualRows;
+
   const [indicator, setIndicator] = useState({
     cardId: "",
     thumbTop: 0,
@@ -214,6 +222,20 @@ export function CardGrid({
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ pointerY: 0, scrollY: 0 });
 
+  // Prevent native touch scrolling while the indicator is being dragged.
+  // touch-action: none on the element alone is unreliable on mobile — the
+  // browser can still initiate a scroll gesture. A non-passive touchmove
+  // handler on the document lets us call preventDefault() to suppress it.
+  useEffect(() => {
+    const preventScroll = (e: TouchEvent) => {
+      if (isDraggingRef.current) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => document.removeEventListener("touchmove", preventScroll);
+  }, []);
+
   useEffect(() => {
     const update = () => {
       // Use virtualizer's actual measured start positions — vItem.start is the
@@ -223,9 +245,10 @@ export function CardGrid({
       // can satisfy "> threshold" and the indicator shows the wrong card.
       const threshold = window.scrollY + APP_HEADER_HEIGHT + 1;
       const vItems = virtualizerRef.current.getVirtualItems();
+      const rows = virtualRowsRef.current;
       let firstCard: Card | null = null;
       for (const vItem of vItems) {
-        const row = virtualRows[vItem.index];
+        const row = rows[vItem.index];
         if (!row || row.kind !== "cards") {
           continue;
         }
@@ -265,7 +288,7 @@ export function CardGrid({
       window.removeEventListener("scroll", update);
       window.clearTimeout(hideTimerRef.current);
     };
-  }, [virtualRows]);
+  }, []);
 
   const handleIndicatorPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -442,9 +465,9 @@ export function CardGrid({
         onPointerCancel={handleIndicatorPointerUp}
       >
         <div
-          className={`rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50"}`}
+          className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "pr-3 pl-1.5 py-1.5 text-sm" : "pr-2.5 pl-1 py-1 text-xs"} ${indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50"}`}
         >
-          {IS_COARSE_POINTER && <span className="mr-1 text-muted-foreground/40">⠿</span>}
+          <GripVertical className="mr-0.5 size-3 shrink-0 text-muted-foreground/40" />
           {indicator.cardId || "\u00A0"}
         </div>
       </div>
@@ -469,8 +492,8 @@ export function CardGrid({
             <div
               className={`rounded-md font-mono font-medium select-none ring-1 backdrop-blur-sm transition-all ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${
                 indicator.dragging
-                  ? "bg-popover/50 text-popover-foreground/40 ring-border/25 opacity-40"
-                  : "cursor-pointer bg-popover/50 text-popover-foreground/40 ring-border/25 opacity-50 hover:bg-popover/80 hover:text-popover-foreground hover:opacity-100 hover:ring-border/50"
+                  ? "bg-popover/40 text-popover-foreground/30 ring-border/20"
+                  : "cursor-pointer bg-popover/80 text-popover-foreground/70 ring-border/40 hover:bg-popover/95 hover:text-popover-foreground hover:ring-border/60"
               }`}
             >
               {pt.firstCardId || pt.setInfo.code}
