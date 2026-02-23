@@ -234,6 +234,9 @@ export function CardGrid({
   const hideTimerRef = useRef(0);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ pointerY: 0, scrollY: 0 });
+  const indicatorRef = useRef<HTMLDivElement>(null);
+  const cardIdRef = useRef<HTMLElement>(null);
+  const rafIdRef = useRef(0);
 
   // Prevent native touch scrolling while the indicator is being dragged.
   // touch-action: none on the element alone is unreliable on mobile — the
@@ -282,11 +285,6 @@ export function CardGrid({
 
   useEffect(() => {
     const update = () => {
-      // Use virtualizer's actual measured start positions — vItem.start is the
-      // absolute document Y of the row top (scrollMargin already included).
-      // +1 avoids an off-by-one when scrollToIndex lands a header exactly at
-      // the boundary — without it the previous row's sub-pixel bottom edge
-      // can satisfy "> threshold" and the indicator shows the wrong card.
       const threshold = window.scrollY + APP_HEADER_HEIGHT + 1;
       const vItems = virtualizerRef.current.getVirtualItems();
       const rows = virtualRowsRef.current;
@@ -304,15 +302,26 @@ export function CardGrid({
       if (!firstCard) {
         return;
       }
-      // Compute the scrollbar thumb position so the indicator can track it.
-      // Browsers enforce a minimum thumb height (~17px); we use a safe floor.
+
       const viewportH = window.innerHeight;
       const docH = document.documentElement.scrollHeight;
-      // Chrome uses max(18, floor(viewportH² / docH)) internally.
       const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
       const scrollableHeight = docH - viewportH;
       const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
       const thumbTop = yPercent * (viewportH - thumbH);
+
+      // During drag: update DOM directly, skip React state to avoid re-renders.
+      if (isDraggingRef.current) {
+        const el = indicatorRef.current;
+        if (el) {
+          el.style.top = `${Math.max(APP_HEADER_HEIGHT + 4, Math.min(viewportH - 28, Math.round(thumbTop + thumbH / 2 - 12)))}px`;
+        }
+        if (cardIdRef.current) {
+          cardIdRef.current.textContent = firstCard.id;
+        }
+        return;
+      }
+
       window.clearTimeout(hideTimerRef.current);
       setIndicator((prev) => ({
         ...prev,
@@ -321,11 +330,9 @@ export function CardGrid({
         thumbH,
         visible: true,
       }));
-      if (!isDraggingRef.current) {
-        hideTimerRef.current = window.setTimeout(() => {
-          setIndicator((prev) => ({ ...prev, visible: false }));
-        }, HIDE_DELAY);
-      }
+      hideTimerRef.current = window.setTimeout(() => {
+        setIndicator((prev) => ({ ...prev, visible: false }));
+      }, HIDE_DELAY);
     };
     window.addEventListener("scroll", update, { passive: true });
     return () => {
@@ -347,21 +354,25 @@ export function CardGrid({
     if (!isDraggingRef.current) {
       return;
     }
-    const viewportH = window.innerHeight;
-    const docH = document.documentElement.scrollHeight;
-    const scrollableHeight = docH - viewportH;
-    if (scrollableHeight <= 0) {
-      return;
-    }
-    const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
-    const trackH = viewportH - thumbH;
-    const ratio = trackH > 0 ? scrollableHeight / trackH : 0;
-    const deltaY = e.clientY - dragStartRef.current.pointerY;
-    const newScrollY = Math.max(
-      0,
-      Math.min(scrollableHeight, dragStartRef.current.scrollY + deltaY * ratio),
-    );
-    window.scrollTo(0, newScrollY);
+    const clientY = e.clientY;
+    cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      const viewportH = window.innerHeight;
+      const docH = document.documentElement.scrollHeight;
+      const scrollableHeight = docH - viewportH;
+      if (scrollableHeight <= 0) {
+        return;
+      }
+      const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+      const trackH = viewportH - thumbH;
+      const ratio = trackH > 0 ? scrollableHeight / trackH : 0;
+      const deltaY = clientY - dragStartRef.current.pointerY;
+      const newScrollY = Math.max(
+        0,
+        Math.min(scrollableHeight, dragStartRef.current.scrollY + deltaY * ratio),
+      );
+      window.scrollTo(0, newScrollY);
+    });
   };
 
   const handleIndicatorPointerUp = () => {
@@ -369,7 +380,24 @@ export function CardGrid({
       return;
     }
     isDraggingRef.current = false;
-    setIndicator((prev) => ({ ...prev, dragging: false }));
+    cancelAnimationFrame(rafIdRef.current);
+
+    // Sync final position back to React state after drag ends.
+    const viewportH = window.innerHeight;
+    const docH = document.documentElement.scrollHeight;
+    const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+    const scrollableHeight = docH - viewportH;
+    const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
+    const thumbTop = yPercent * (viewportH - thumbH);
+    const currentCardId = cardIdRef.current?.textContent || "";
+
+    setIndicator((prev) => ({
+      ...prev,
+      dragging: false,
+      thumbTop,
+      thumbH,
+      cardId: currentCardId,
+    }));
 
     hideTimerRef.current = window.setTimeout(() => {
       setIndicator((prev) => ({ ...prev, visible: false }));
@@ -582,6 +610,7 @@ export function CardGrid({
       {/* Scroll position indicator — appears while scrolling, fades out after idle.
           Draggable: grab to scrub through the page; snaps to set headers on release. */}
       <div
+        ref={indicatorRef}
         className={`fixed z-20 transition-opacity duration-300 ${indicator.visible ? "pointer-events-auto" : "pointer-events-none"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
         style={{
           right: 20,
@@ -604,7 +633,7 @@ export function CardGrid({
           className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "pr-3 pl-1.5 py-1.5 text-sm" : "pr-2.5 pl-1 py-1 text-xs"} ${indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50"}`}
         >
           <GripVertical className="mr-0.5 size-3 shrink-0 text-muted-foreground/40" />
-          {indicator.cardId || "\u00A0"}
+          <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
         </div>
       </div>
 

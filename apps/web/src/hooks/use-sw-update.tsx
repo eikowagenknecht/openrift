@@ -16,14 +16,14 @@ interface SWUpdateContextValue {
 const SWUpdateContext = createContext<SWUpdateContextValue | null>(null);
 
 export function SWUpdateProvider({ children }: { children: ReactNode }) {
-  const registrationRef = useRef<ServiceWorkerRegistration | undefined>(undefined);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(registration) {
-      registrationRef.current = registration;
+      registrationRef.current = registration ?? null;
       if (!registration) {
         return;
       }
