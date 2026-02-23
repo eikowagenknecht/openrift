@@ -383,7 +383,7 @@ export function FilterBar({
           {/* Mobile: Filters button that opens bottom sheet */}
           <Button
             variant="outline"
-            size="sm"
+            size="default"
             className="relative sm:hidden"
             onClick={() => setSheetOpen(true)}
           >
