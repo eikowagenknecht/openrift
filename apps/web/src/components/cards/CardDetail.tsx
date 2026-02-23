@@ -25,8 +25,8 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
     <aside
       className={cn(
         "fixed inset-0 z-50 overflow-y-auto bg-background",
-        "md:sticky md:inset-auto md:z-auto md:top-[4.5rem]",
-        "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-4.5rem)]",
+        "md:sticky md:inset-auto md:z-auto md:top-[6.5rem]",
+        "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-6.5rem)]",
         "md:border-l md:pl-6",
       )}
     >
