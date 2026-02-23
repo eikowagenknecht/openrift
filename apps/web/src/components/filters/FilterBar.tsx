@@ -201,48 +201,50 @@ export function FilterBar({
           onToggle={(v) => onToggleFilter("variants", v)}
         />
       )}
-      {availableFilters.energyMin !== availableFilters.energyMax && (
-        <RangeFilterSection
-          label="Energy"
-          availableMin={availableFilters.energyMin}
-          availableMax={availableFilters.energyMax}
-          selectedMin={energyRange[0]}
-          selectedMax={energyRange[1]}
-          onChange={onEnergyRangeChange}
-        />
-      )}
-      {availableFilters.mightMin !== availableFilters.mightMax && (
-        <RangeFilterSection
-          label="Might"
-          availableMin={availableFilters.mightMin}
-          availableMax={availableFilters.mightMax}
-          selectedMin={mightRange[0]}
-          selectedMax={mightRange[1]}
-          onChange={onMightRangeChange}
-        />
-      )}
-      {availableFilters.powerMin !== availableFilters.powerMax && (
-        <RangeFilterSection
-          label="Power"
-          availableMin={availableFilters.powerMin}
-          availableMax={availableFilters.powerMax}
-          selectedMin={powerRange[0]}
-          selectedMax={powerRange[1]}
-          onChange={onPowerRangeChange}
-        />
-      )}
-      {availableFilters.priceMax > 0 && (
-        <RangeFilterSection
-          label="Price"
-          availableMin={availableFilters.priceMin}
-          availableMax={availableFilters.priceMax}
-          selectedMin={priceRange[0]}
-          selectedMax={priceRange[1]}
-          onChange={onPriceRangeChange}
-          step={1}
-          formatValue={(v) => `$${v}`}
-        />
-      )}
+      <div className="flex flex-wrap gap-4">
+        {availableFilters.energyMin !== availableFilters.energyMax && (
+          <RangeFilterSection
+            label="Energy"
+            availableMin={availableFilters.energyMin}
+            availableMax={availableFilters.energyMax}
+            selectedMin={energyRange[0]}
+            selectedMax={energyRange[1]}
+            onChange={onEnergyRangeChange}
+          />
+        )}
+        {availableFilters.mightMin !== availableFilters.mightMax && (
+          <RangeFilterSection
+            label="Might"
+            availableMin={availableFilters.mightMin}
+            availableMax={availableFilters.mightMax}
+            selectedMin={mightRange[0]}
+            selectedMax={mightRange[1]}
+            onChange={onMightRangeChange}
+          />
+        )}
+        {availableFilters.powerMin !== availableFilters.powerMax && (
+          <RangeFilterSection
+            label="Power"
+            availableMin={availableFilters.powerMin}
+            availableMax={availableFilters.powerMax}
+            selectedMin={powerRange[0]}
+            selectedMax={powerRange[1]}
+            onChange={onPowerRangeChange}
+          />
+        )}
+        {availableFilters.priceMax > 0 && (
+          <RangeFilterSection
+            label="Price"
+            availableMin={availableFilters.priceMin}
+            availableMax={availableFilters.priceMax}
+            selectedMin={priceRange[0]}
+            selectedMax={priceRange[1]}
+            onChange={onPriceRangeChange}
+            step={1}
+            formatValue={(v) => `$${v}`}
+          />
+        )}
+      </div>
     </>
   );
 
