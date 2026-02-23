@@ -718,7 +718,12 @@ export function CardGrid({
         </div>
       )}
 
-      <div ref={containerRef}>
+      {/* pan-x pan-y prevents the browser from claiming pinch-zoom so our
+          JS-based pinch-to-resize gesture works on touch devices. */}
+      <div
+        ref={containerRef}
+        style={IS_COARSE_POINTER && onMaxColumnsChange ? { touchAction: "pan-x pan-y" } : undefined}
+      >
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
           {items.map((vItem) => {
             const row = virtualRows[vItem.index];
