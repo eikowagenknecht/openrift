@@ -2,6 +2,7 @@
 
 ## 2026-02-23
 
+- feat: Mobile filter and changelog panels now support swipe gestures to dismiss
 - feat: Update and offline notifications now appear as toast popups instead of fixed overlays
 - feat: The cards-per-row control now lives in the filter bar next to sort, and you can pinch to zoom on mobile
 - feat: You can now set the maximum number of cards per row from the settings menu

@@ -86,13 +86,39 @@ export function CardBrowser({
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;
 
+  // Close card detail when the user presses the browser back button on mobile
+  useEffect(() => {
+    if (!detailOpen) {
+      return;
+    }
+    const mq = window.matchMedia("(max-width: 767px)");
+    if (!mq.matches) {
+      return;
+    }
+
+    history.pushState({ cardDetail: true }, "");
+
+    const onPopState = () => {
+      setSelectedCard(null);
+      setDetailOpen(false);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [detailOpen]);
+
   const handleCardClick = (card: Card) => {
     setSelectedCard(card);
     setDetailOpen(true);
   };
 
   const handleDetailClose = () => {
-    setDetailOpen(false);
+    // If we pushed a history entry for mobile, pop it instead of leaving a
+    // stale entry in the stack.
+    if (history.state?.cardDetail) {
+      history.back();
+    } else {
+      setDetailOpen(false);
+    }
   };
 
   return (
