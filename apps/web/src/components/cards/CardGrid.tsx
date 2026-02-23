@@ -318,6 +318,11 @@ export function CardGrid({
   // Screen-space positions of each set header on the scrollbar track.
   // Recomputed on every scroll (via indicator.thumbTop dep) so they stay current.
   const snapPoints = useMemo(() => {
+    // Read thumbTop so this memo recomputes on every scroll tick — the screenY
+    // values depend on DOM dimensions (window.innerHeight, scrollHeight) that
+    // change as the virtualizer measures rows.
+    void indicator.thumbTop;
+
     if (!multipleGroups) {
       return [];
     }
@@ -380,9 +385,6 @@ export function CardGrid({
       });
     }
     return points;
-    // indicator.thumbTop is intentionally included: it changes on every scroll,
-    // triggering recomputation so the screenY values stay in sync with the DOM
-    // dimensions (window.innerHeight, scrollHeight) read inside the memo.
   }, [multipleGroups, virtualRows, rowStarts, indicator.thumbTop]);
 
   // Click a ghost badge to jump directly to that set header.
