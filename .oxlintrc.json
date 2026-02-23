@@ -159,6 +159,8 @@
     "*.config.js",
     "*.config.ts",
     "**/scripts/**",
-    "**/db/migrate.ts"
+    "**/db/migrate.ts",
+    "**/db/seed.ts",
+    "apps/api/**"
   ]
 }

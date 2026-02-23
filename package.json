@@ -12,6 +12,8 @@
     "lefthook": "lefthook",
     "db:migrate": "pnpm --filter @openrift/shared db:migrate",
     "db:rollback": "pnpm --filter @openrift/shared db:rollback",
+    "db:seed": "pnpm --filter @openrift/shared db:seed",
+    "dev:api": "turbo run dev --filter=api",
     "knip": "knip",
     "postinstall": "lefthook install"
   },

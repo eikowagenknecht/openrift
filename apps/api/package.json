@@ -1,0 +1,22 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.3",
+    "@openrift/shared": "workspace:*",
+    "hono": "^4.7.14",
+    "kysely": "^0.28.11",
+    "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.16.0",
+    "tsx": "^4.21.0",
+    "typescript": "5.9.3"
+  }
+}

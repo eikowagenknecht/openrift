@@ -14,7 +14,8 @@
     "typecheck": "tsc",
     "dev": "tsc --watch",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:rollback": "tsx src/db/migrate.ts down"
+    "db:rollback": "tsx src/db/migrate.ts down",
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
     "kysely": "^0.28.11",

@@ -4,7 +4,6 @@ import type { ColumnType, Generated } from "kysely";
 // Keep in sync with the canonical definitions in ../types.ts.
 type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
 type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
-type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order" | "Colorless";
 type CardVariant = "Normal" | "Alt Art" | "Overnumbered" | "Signed";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
@@ -39,7 +38,7 @@ export interface CardsTable {
   super_types: string[];
   rarity: Rarity;
   collector_number: number;
-  faction: Domain;
+  faction: string;
   might: number;
   energy: number;
   power: number;

@@ -1,29 +1,16 @@
-import type { Card, PricesData, RiftboundContent } from "@openrift/shared";
-import { filterCards, flattenWithVariants, getAvailableFilters, sortCards } from "@openrift/shared";
-import galleryData from "@openrift/shared/data/gallery.json";
-import pricesJson from "@openrift/shared/data/prices.json";
+import type { Card } from "@openrift/shared";
+import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
+import { Loader2 } from "lucide-react";
 import { useDeferredValue, useEffect, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
-import type { SetInfo } from "@/components/cards/CardGrid";
 import { CardGrid } from "@/components/cards/CardGrid";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { useCardFilters } from "@/hooks/use-card-filters";
+import { useCards } from "@/hooks/use-cards";
 import type { CardFields } from "@/lib/card-fields";
-
-const typedGallery = galleryData as RiftboundContent;
-const pricesData = pricesJson as PricesData;
-const allCards = flattenWithVariants(typedGallery).map((card) => {
-  const price = pricesData.cards[card.id];
-  return price ? { ...card, price } : card;
-});
-
-const setInfoList: SetInfo[] = typedGallery.sets.map((s) => ({
-  name: s.name,
-  code: s.cards[0]?.id.replace(/-.*$/, "") ?? s.id,
-}));
 
 interface CardBrowserProps {
   showImages: boolean;
@@ -38,6 +25,8 @@ export function CardBrowser({
   maxColumns,
   onMaxColumnsChange,
 }: CardBrowserProps) {
+  const { allCards, setInfoList, isLoading, error } = useCards();
+
   const {
     filters,
     sortBy,
@@ -132,6 +121,29 @@ export function CardBrowser({
       setDetailOpen(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="text-muted-foreground size-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <p className="text-muted-foreground">Failed to load cards.</p>
+        <button
+          type="button"
+          className="text-sm underline"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
