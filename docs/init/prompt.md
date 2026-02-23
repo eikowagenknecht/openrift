@@ -37,6 +37,7 @@ Use **pnpm** (v10) as the package manager. Use **Turborepo** for monorepo orches
 ## Tech Stack
 
 ### Web (`apps/web`)
+
 - **Vite 7** + **React 19** + **TypeScript 5.9** + **SWC**
 - **Tailwind CSS v4** for styling
 - **shadcn/ui** for component primitives (combobox, input, sheet, badge, toggle group)
@@ -46,6 +47,7 @@ Use **pnpm** (v10) as the package manager. Use **Turborepo** for monorepo orches
 - Deployed to **Cloudflare Workers** (static assets mode) at `openrift.app`
 
 ### Tooling (repo-wide)
+
 - **oxlint** — primary linter (Rust, fast), replaces ESLint for all general linting
 - **oxfmt** — primary formatter (Rust, fast), with import sorting enabled
 - **ESLint** — used ONLY for the `react-compiler` plugin (oxlint can't do this yet)
@@ -54,6 +56,7 @@ Use **pnpm** (v10) as the package manager. Use **Turborepo** for monorepo orches
 - **Dependabot** — weekly grouped dependency update PRs, all versions pinned
 
 ### Mobile (`apps/mobile`)
+
 - **Expo** (SDK 53+) with **Expo Router**
 - **React Native** + **TypeScript**
 - **Uniwind** (Tailwind CSS for React Native — drop-in NativeWind replacement, faster runtime)
@@ -65,6 +68,7 @@ Use **pnpm** (v10) as the package manager. Use **Turborepo** for monorepo orches
 - **FlashList** by Shopify for performant card grid on mobile (replaces FlatList)
 
 ### Shared (`packages/shared`)
+
 - **Zod** for card schema validation
 - **TypeScript** types exported for both apps
 - Filter logic (pure functions, no React dependency)
@@ -139,6 +143,7 @@ This returns a `RiftboundContentDTO` with this structure:
 ### The fetch script (`scripts/fetch-cards.ts`)
 
 Create a Node script that:
+
 1. Calls the Riot API endpoint above (API key from `RIOT_API_KEY` env var)
 2. Parses the response
 3. Normalizes the card data (handles both `art` and `media` formats)
@@ -178,8 +183,8 @@ export interface Card {
   keywords: string[];
   tags: string[];
   stats: CardStats;
-  imageUrl: string;        // full resolution
-  thumbnailUrl: string;    // thumbnail
+  imageUrl: string; // full resolution
+  thumbnailUrl: string; // thumbnail
   artist: string;
 }
 
@@ -232,6 +237,7 @@ Validate the card data JSON at build/import time. This catches API format change
 **Single-page app with one main view: the card browser.**
 
 Layout:
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │  Header: "Riftbound" + search input                  │
@@ -257,17 +263,20 @@ Layout:
 ```
 
 ### Card Grid
+
 - Responsive grid: 2 columns on mobile, 3-4 on tablet, 5-6 on desktop
 - Each card shows: image, name, cost badge, rarity indicator (border color or small badge)
 - Virtualized with TanStack Virtual so scrolling stays smooth with 500+ cards
 - Lazy-loaded images with a shimmer/skeleton placeholder
 
 ### Card Detail
+
 - Clicking a card opens a **sheet** (slide-up on mobile, side panel on desktop) using shadcn/ui Sheet
 - Shows: full-size card image, name, type, rarity, faction, stats, keywords, description, flavor text, artist credit
 - Close by clicking outside or pressing escape
 
 ### Filters
+
 - **Search**: text input, filters by card name (debounced, 200ms)
 - **Set**: toggle group (e.g., "Origins", "Spiritforged")
 - **Rarity**: toggle group with color-coded badges
@@ -280,10 +289,12 @@ Layout:
 - A "Clear all filters" button when any filter is active
 
 ### Dark Mode
+
 - Support system preference detection and manual toggle
 - Use Tailwind's dark mode with CSS variables (shadcn/ui approach)
 
 ### Legal
+
 - Footer includes: `"Riftbound Card Browser was created under Riot Games' 'Legal Jibber Jabber' policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project."`
 
 ---
@@ -308,17 +319,20 @@ Layout:
    - Swipe left/right to navigate between cards in the current filtered list
 
 ### Navigation
+
 - Expo Router file-based routing
 - `app/(tabs)/index.tsx` — card browser
 - `app/card/[id].tsx` — card detail
 
 ### Styling
+
 - Uniwind for Tailwind classes on native components
 - React Native Reusables for UI primitives (Input, Badge, Sheet, Toggle, etc.)
 - Follow the same color scheme / CSS variables as the web app for visual consistency
 - Dark mode support matching system preference
 
 ### Performance
+
 - FlashList with estimated item size for smooth scrolling
 - Images loaded with Expo Image (or react-native-fast-image) for caching and progressive loading
 - Card data loaded from bundled JSON (no network request in v0.1)
@@ -328,6 +342,7 @@ Layout:
 ## Design Guidelines
 
 ### Visual Language
+
 - Clean, modern, information-dense but not cluttered
 - Card images are the star — give them space
 - Rarity colors consistent with Riftbound's official colors (extract from card data or Riot's card gallery)
@@ -335,11 +350,13 @@ Layout:
 - Smooth transitions when applying/removing filters (filter results should not cause layout jumps)
 
 ### Mobile-First on Web
+
 - The web app must be fully usable on a phone browser
 - Filters collapse into a sheet/drawer on small viewports
 - Touch-friendly tap targets (min 44px)
 
 ### Accessibility
+
 - All images have alt text (card name)
 - Keyboard navigable on web
 - Color is not the sole indicator of rarity (use text labels too)
@@ -408,6 +425,7 @@ Git hooks via lefthook enforce typecheck, linting, formatting, and conventional 
 ## Context
 
 This is the first step toward a full Riftbound collection tracker that will eventually include:
+
 - Auth (Better Auth) + Hono API server + Postgres database
 - Collection tracking with storage locations (binders, boxes, bulk, inbox)
 - Card variants (foil, alt art, signatures, promos, overnumbered)

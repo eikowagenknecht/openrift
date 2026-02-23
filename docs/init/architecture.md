@@ -185,8 +185,8 @@ volumes:
   pg_data:
 
 networks:
-  frontend:    # caddy <-> api
-  backend:     # api <-> db
+  frontend: # caddy <-> api
+  backend: # api <-> db
 ```
 
 Note the two networks: `frontend` and `backend`. Caddy can reach the
@@ -203,7 +203,7 @@ services:
   db:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"          # exposed for local dev tools (pgAdmin, etc.)
+      - "5432:5432" # exposed for local dev tools (pgAdmin, etc.)
     volumes:
       - pg_dev_data:/var/lib/postgresql/data
     environment:
@@ -497,7 +497,7 @@ DB access: riftbound_app user with only CONNECT, SELECT, INSERT,
 ## Summary
 
 | Component      | Technology              | Where                     | Exposed?         |
-|----------------|-------------------------|---------------------------|------------------|
+| -------------- | ----------------------- | ------------------------- | ---------------- |
 | CDN / DNS      | Cloudflare (free)       | Cloudflare edge           | Public           |
 | Reverse proxy  | Caddy (container)       | Hetzner VPS, ports 80+443 | Public           |
 | Frontend SPA   | Vite + React            | Host volume → Caddy       | Public via Caddy |

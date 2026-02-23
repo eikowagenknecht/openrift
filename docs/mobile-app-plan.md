@@ -32,7 +32,7 @@ Build a React Native mobile app (`apps/mobile`) that mirrors the web app's card 
 ### Registrations
 
 | Registration                | Cost         | Purpose                             | Required for                      |
-|-----------------------------|--------------|-------------------------------------|-----------------------------------|
+| --------------------------- | ------------ | ----------------------------------- | --------------------------------- |
 | **Apple Developer Program** | $99/year     | Code signing, TestFlight, App Store | Any iOS distribution              |
 | **Expo account**            | Free         | EAS CLI, OTA updates                | `eas build --local`, `eas submit` |
 | **Google Play Developer**   | $25 one-time | Play Store listing                  | Android distribution (later)      |
@@ -64,7 +64,7 @@ ssh user@192.168.1.xx
 ## 2. Tech Stack
 
 | Layer          | Choice                        | Rationale                                                                   |
-|----------------|-------------------------------|-----------------------------------------------------------------------------|
+| -------------- | ----------------------------- | --------------------------------------------------------------------------- |
 | Framework      | **Expo SDK 53+**              | Managed workflow, OTA updates, EAS Build for CI                             |
 | Routing        | **Expo Router v4**            | File-based routing (matches web's single-page mental model)                 |
 | Language       | **TypeScript 5.9** (strict)   | Same tsconfig strictness as web and shared                                  |
@@ -84,6 +84,7 @@ Uniwind has a faster runtime and is a drop-in replacement for NativeWind. The AP
 ### Why not React Native Web / single codebase
 
 The web app is already built and deployed. Retrofitting it into a universal app would mean:
+
 - Replacing shadcn/ui with cross-platform components everywhere
 - Replacing nuqs URL state with a cross-platform alternative
 - Replacing Vite with Metro
@@ -154,6 +155,7 @@ apps/mobile/
 The main screen. Composes all sub-components.
 
 **Layout (top to bottom):**
+
 1. **Header bar** — OpenRift logo/title, filter button (badge with active count), sort button, settings button
 2. **Search bar** — Text input with scope selector dropdown, debounced 200ms
 3. **Active filter chips** — Horizontal `ScrollView` of dismissible badges, "Clear all" at end
@@ -162,26 +164,28 @@ The main screen. Composes all sub-components.
 6. **Empty state** — "No cards match your filters" with clear button
 
 **Behavior:**
+
 - Filter button opens FilterSheet (bottom sheet with snap points)
 - Tapping a card navigates to `card/[id]` as a modal
 - Pull-to-refresh is a no-op for now (data is static) but wired up for future API integration
 - Scroll position preserved when returning from detail
 
 **Mapping from web:**
-| Web component                  | Mobile equivalent                       | Key difference                                                |
+| Web component | Mobile equivalent | Key difference |
 |--------------------------------|-----------------------------------------|---------------------------------------------------------------|
-| `CardBrowser.tsx`              | `app/index.tsx`                         | Same orchestration, native layout                             |
-| `CardGrid.tsx` (CSS grid)      | `CardGrid.tsx` (FlashList)              | Recycling vs DOM rendering                                    |
-| `CardThumbnail.tsx`            | `CardThumbnail.tsx`                     | `Pressable` + `Expo Image` instead of `<button>` + `<img>`    |
-| `FilterBar.tsx` (inline/sheet) | `FilterSheet.tsx` (always bottom sheet) | `@gorhom/bottom-sheet` instead of shadcn Sheet                |
-| `ActiveFilters.tsx`            | `FilterChips.tsx`                       | Horizontal `ScrollView` instead of flex wrap                  |
-| `use-card-filters.ts` (nuqs)   | `use-card-filters.ts` (React state)     | No URL sync; filter state in memory, settings in AsyncStorage |
+| `CardBrowser.tsx` | `app/index.tsx` | Same orchestration, native layout |
+| `CardGrid.tsx` (CSS grid) | `CardGrid.tsx` (FlashList) | Recycling vs DOM rendering |
+| `CardThumbnail.tsx` | `CardThumbnail.tsx` | `Pressable` + `Expo Image` instead of `<button>` + `<img>` |
+| `FilterBar.tsx` (inline/sheet) | `FilterSheet.tsx` (always bottom sheet) | `@gorhom/bottom-sheet` instead of shadcn Sheet |
+| `ActiveFilters.tsx` | `FilterChips.tsx` | Horizontal `ScrollView` instead of flex wrap |
+| `use-card-filters.ts` (nuqs) | `use-card-filters.ts` (React state) | No URL sync; filter state in memory, settings in AsyncStorage |
 
 ### 4.2 Card Detail — `app/card/[id].tsx`
 
 Full-screen modal showing a single card.
 
 **Layout (scrollable):**
+
 1. **Header** — Card name, close button (X), back gesture to dismiss
 2. **Card image** — Full-width, zoomable (pinch-to-zoom), blurhash placeholder during load
 3. **Stats bar** — Energy / Might / Power in a horizontal row with icons
@@ -191,6 +195,7 @@ Full-screen modal showing a single card.
 7. **Navigation** — Swipe left/right to move between cards in the current filtered list
 
 **Behavior:**
+
 - Presented as a modal (slides up from bottom on iOS, slides in from right on Android)
 - Swipe down to dismiss (iOS) / back gesture (Android)
 - Swipe left/right to navigate to previous/next card in the filtered results
@@ -198,15 +203,16 @@ Full-screen modal showing a single card.
 - Image can be tapped to go full-screen with pinch-to-zoom
 
 **Mapping from web:**
-| Web component                         | Mobile equivalent                       | Key difference                      |
+| Web component | Mobile equivalent | Key difference |
 |---------------------------------------|-----------------------------------------|-------------------------------------|
 | `CardDetail.tsx` (side panel / sheet) | `app/card/[id].tsx` (full-screen modal) | Dedicated screen instead of overlay |
-| Domain gradient backgrounds           | Same gradients via Uniwind              | Tailwind classes translate directly |
-| Card text glyph parsing               | `CardText.tsx` (shared logic)           | SVG → react-native-svg              |
+| Domain gradient backgrounds | Same gradients via Uniwind | Tailwind classes translate directly |
+| Card text glyph parsing | `CardText.tsx` (shared logic) | SVG → react-native-svg |
 
 ### 4.3 Settings (future)
 
 Not a separate screen for v1. Settings are accessible via a menu in the header:
+
 - Dark mode toggle
 - Show/hide card fields (ID, title, type, supertype, rarity) — same as web's DisplaySettingsMenu
 - Clear all cached data
@@ -236,7 +242,7 @@ import galleryData from "@openrift/shared/data/gallery.json";
 ### What the mobile app must implement on its own
 
 | Concern              | Web                                  | Mobile                          | Why different                                           |
-|----------------------|--------------------------------------|---------------------------------|---------------------------------------------------------|
+| -------------------- | ------------------------------------ | ------------------------------- | ------------------------------------------------------- |
 | Filter state storage | nuqs (URL query params)              | React state + AsyncStorage      | No URL bar in native apps                               |
 | Debounce             | `use-debounce.ts`                    | Port or rewrite (trivial)       | Same logic, different timer API (both use `setTimeout`) |
 | Theme detection      | `matchMedia("prefers-color-scheme")` | `Appearance.getColorScheme()`   | Different platform APIs                                 |
@@ -271,12 +277,14 @@ The web app syncs filter state to URL query parameters via `nuqs`, making filter
 ```
 
 **What gets persisted to AsyncStorage:**
+
 - Search scope preference (which fields to search)
 - Display settings (show images, visible card fields)
 - Theme preference (dark/light/system)
 - Sort preference (last used sort option + direction)
 
 **What does NOT get persisted:**
+
 - Active filters (search text, selected sets/rarities/etc.) — these reset on app launch
 - Scroll position
 
@@ -342,9 +350,9 @@ module.exports = config;
     "paths": {
       "@/*": ["./src/*"],
       "@openrift/shared": ["../../packages/shared/src/index.ts"],
-      "@openrift/shared/*": ["../../packages/shared/*"]
-    }
-  }
+      "@openrift/shared/*": ["../../packages/shared/*"],
+    },
+  },
 }
 ```
 
@@ -583,7 +591,7 @@ Both light and dark values must be defined. The mobile theme provider swaps the 
 Domain-specific colors (for card backgrounds/accents) are the same hex values used in the web app:
 
 | Domain    | Color        |
-|-----------|--------------|
+| --------- | ------------ |
 | Fury      | Red tones    |
 | Calm      | Blue tones   |
 | Mind      | Purple tones |
@@ -597,7 +605,7 @@ Domain-specific colors (for card backgrounds/accents) are the same hex values us
 ## 10. Key Differences from Web
 
 | Concern        | Web                                       | Mobile                                       | Notes                                 |
-|----------------|-------------------------------------------|----------------------------------------------|---------------------------------------|
+| -------------- | ----------------------------------------- | -------------------------------------------- | ------------------------------------- |
 | Navigation     | Single page, no router                    | Expo Router (stack + modal)                  | Detail is a modal screen              |
 | Filter state   | URL query params (nuqs)                   | React state (useReducer)                     | No shareable URLs                     |
 | List rendering | CSS grid + virtual scroll                 | FlashList (cell recycling)                   | FlashList handles 664+ cards natively |
@@ -614,7 +622,7 @@ Domain-specific colors (for card backgrounds/accents) are the same hex values us
 ## 11. Risks and Mitigations
 
 | Risk                                                  | Likelihood | Impact | Mitigation                                                                               |
-|-------------------------------------------------------|------------|--------|------------------------------------------------------------------------------------------|
+| ----------------------------------------------------- | ---------- | ------ | ---------------------------------------------------------------------------------------- |
 | Uniwind incompatible with React Native Reusables      | Medium     | Medium | Fall back to NativeWind v4 (API is nearly identical). Test early in Step 2.              |
 | FlashList sticky headers with set grouping is complex | Medium     | Low    | Start with a flat list, add sticky headers as enhancement. `SectionList` fallback.       |
 | Metro bundler can't resolve `@openrift/shared`        | Low        | High   | Well-documented pattern for Expo monorepos. `metro.config.js` watchFolders is the fix.   |
@@ -663,16 +671,18 @@ ssh your-mac.local "open -a Simulator"
 ```
 
 **When you need to SEE the Simulator UI:**
+
 - Use macOS Screen Sharing (VNC built-in): connect from your main machine via `vnc://your-mac.local`
 - Or use a VNC client if on Linux/Windows
 
 **When you don't need to see it** (e.g., running builds):
+
 - Plain SSH is enough
 
 ### When each approach is useful
 
 | Task                        | Where                       | Mac needed? |
-|-----------------------------|-----------------------------|-------------|
+| --------------------------- | --------------------------- | ----------- |
 | Write code, edit components | Main machine                | No          |
 | Hot-reload preview          | Expo Go on iPhone           | No          |
 | Test in iOS Simulator       | SSH + Screen Sharing to Mac | Yes         |
@@ -808,7 +818,7 @@ After the first build, subsequent builds find the certificate in Keychain automa
 ### Why local builds over cloud EAS
 
 |                  | Local Mac builds                      | EAS Build (cloud)                      |
-|------------------|---------------------------------------|----------------------------------------|
+| ---------------- | ------------------------------------- | -------------------------------------- |
 | **Cost**         | Free forever                          | Free tier: 30/month, then $99/mo       |
 | **Speed**        | Depends on Mac age, but no queue wait | ~10-15 min, may queue on free tier     |
 | **Signing keys** | Stay on the Mac (Keychain)            | Uploaded to Expo's servers (encrypted) |
