@@ -158,6 +158,7 @@
     "out/",
     "*.config.js",
     "*.config.ts",
-    "**/scripts/**"
+    "**/scripts/**",
+    "**/db/migrate.ts"
   ]
 }
