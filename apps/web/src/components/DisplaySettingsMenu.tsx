@@ -47,81 +47,67 @@ export function DisplaySettingsMenu({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Display settings">
-            <Settings className="size-5" />
-          </Button>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon" aria-label="Display settings" />}
+        >
+          <Settings className="size-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuCheckboxItem
-            checked={showImages}
-            onCheckedChange={onShowImagesChange}
-            onSelect={(e) => e.preventDefault()}
-          >
+          <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={onShowImagesChange}>
             Show card images
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem
             checked={cardFields.number}
             onCheckedChange={(v) => onCardFieldsChange({ number: v })}
-            onSelect={(e) => e.preventDefault()}
           >
             Show ID
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={cardFields.title}
             onCheckedChange={(v) => onCardFieldsChange({ title: v })}
-            onSelect={(e) => e.preventDefault()}
           >
             Show title
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={cardFields.type}
             onCheckedChange={(v) => onCardFieldsChange({ type: v })}
-            onSelect={(e) => e.preventDefault()}
           >
             Show type
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={cardFields.supertype}
             onCheckedChange={(v) => onCardFieldsChange({ supertype: v })}
-            onSelect={(e) => e.preventDefault()}
           >
             Show supertype
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={cardFields.rarity}
             onCheckedChange={(v) => onCardFieldsChange({ rarity: v })}
-            onSelect={(e) => e.preventDefault()}
           >
             Show rarity
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={cardFields.price}
             onCheckedChange={(v) => onCardFieldsChange({ price: v })}
-            onSelect={(e) => e.preventDefault()}
           >
             Show price
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
-          <DropdownMenuCheckboxItem
-            checked={darkMode}
-            onCheckedChange={onDarkModeChange}
-            onSelect={(e) => e.preventDefault()}
-          >
+          <DropdownMenuCheckboxItem checked={darkMode} onCheckedChange={onDarkModeChange}>
             Dark mode
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
           {needRefresh && (
             <DropdownMenuItem
-              onSelect={() => applyUpdate()}
+              onClick={() => applyUpdate()}
               className="text-xs font-medium text-blue-600 dark:text-blue-400"
             >
               Update available — tap to reload
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
-            onSelect={() => setChangelogOpen(true)}
+            onClick={() => setChangelogOpen(true)}
             className="flex justify-between text-xs text-muted-foreground"
           >
             <span>v{__COMMIT_HASH__}</span>

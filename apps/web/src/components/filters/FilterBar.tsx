@@ -322,10 +322,10 @@ export function FilterBar({
         <div className="flex items-center gap-3">
           <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
             <SelectTrigger className="w-full sm:w-[160px]">
-              <span>
-                <span className="text-muted-foreground">Sort: </span>
-                <SelectValue placeholder="Sort by" />
-              </span>
+              <span className="text-muted-foreground">Sort:&nbsp;</span>
+              <SelectValue placeholder="Sort by">
+                {(value: string) => sortOptions.find((o) => o.value === value)?.label ?? value}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {sortOptions.map((option) => (
@@ -355,10 +355,8 @@ export function FilterBar({
               onValueChange={(v) => onMaxColumnsChange(v === "auto" ? null : Number(v))}
             >
               <SelectTrigger className="hidden w-[140px] sm:flex">
-                <span>
-                  <span className="text-muted-foreground">Cols: </span>
-                  <SelectValue />
-                </span>
+                <span className="text-muted-foreground">Cols:&nbsp;</span>
+                <SelectValue>{(value: string) => (value === "auto" ? "Auto" : value)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto</SelectItem>
@@ -376,15 +374,17 @@ export function FilterBar({
           {/* Mobile: columns dropdown */}
           {onMaxColumnsChange && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  className="sm:hidden"
-                  aria-label={maxColumns === null ? "Columns: Auto" : `Columns: ${maxColumns}`}
-                >
-                  <Columns3 className="size-4" />
-                </Button>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="sm:hidden"
+                    aria-label={maxColumns === null ? "Columns: Auto" : `Columns: ${maxColumns}`}
+                  />
+                }
+              >
+                <Columns3 className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuRadioGroup
@@ -429,12 +429,10 @@ export function FilterBar({
           </SheetHeader>
           <div className="flex flex-col gap-4 overflow-y-auto px-4">{filterSections}</div>
           <SheetFooter>
-            <SheetClose asChild>
-              <Button className="w-full">
-                {hasActiveFilters
-                  ? `Show ${filteredCount} card${filteredCount !== 1 ? "s" : ""}`
-                  : "Done"}
-              </Button>
+            <SheetClose render={<Button className="w-full" />}>
+              {hasActiveFilters
+                ? `Show ${filteredCount} card${filteredCount !== 1 ? "s" : ""}`
+                : "Done"}
             </SheetClose>
           </SheetFooter>
         </SheetContent>
@@ -479,7 +477,8 @@ function RangeFilterSection({
           step={step}
           value={[resolvedMin, resolvedMax]}
           onValueChange={(values) => {
-            const [newMin, newMax] = values;
+            const arr = Array.isArray(values) ? values : [values];
+            const [newMin, newMax] = arr;
             onChange(
               newMin === availableMin ? null : (newMin ?? null),
               newMax === availableMax ? null : (newMax ?? null),
