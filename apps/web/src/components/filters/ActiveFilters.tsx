@@ -21,6 +21,7 @@ interface ActiveFiltersProps {
   energyRange: [number | null, number | null];
   mightRange: [number | null, number | null];
   powerRange: [number | null, number | null];
+  priceRange: [number | null, number | null];
   hasActiveFilters: boolean;
   onToggleFilter: (
     key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "variants",
@@ -29,6 +30,7 @@ interface ActiveFiltersProps {
   onClearEnergyRange: () => void;
   onClearMightRange: () => void;
   onClearPowerRange: () => void;
+  onClearPriceRange: () => void;
   onClearAll: () => void;
   onClearSearch: () => void;
 }
@@ -39,11 +41,13 @@ export function ActiveFilters({
   energyRange,
   mightRange,
   powerRange,
+  priceRange,
   hasActiveFilters,
   onToggleFilter,
   onClearEnergyRange,
   onClearMightRange,
   onClearPowerRange,
+  onClearPriceRange,
   onClearAll,
   onClearSearch,
 }: ActiveFiltersProps) {
@@ -131,6 +135,17 @@ export function ActiveFilters({
             onClear={onClearPowerRange}
           />
         )}
+        {(priceRange[0] !== null || priceRange[1] !== null) && (
+          <RangeBadge
+            label="Price"
+            min={priceRange[0]}
+            max={priceRange[1]}
+            availableMin={availableFilters.priceMin}
+            availableMax={availableFilters.priceMax}
+            onClear={onClearPriceRange}
+            formatValue={(v) => `$${v}`}
+          />
+        )}
       </div>
       <Button
         variant="ghost"
@@ -152,6 +167,7 @@ function RangeBadge({
   availableMin,
   availableMax,
   onClear,
+  formatValue,
 }: {
   label: string;
   min: number | null;
@@ -159,17 +175,19 @@ function RangeBadge({
   availableMin: number;
   availableMax: number;
   onClear: () => void;
+  formatValue?: (value: number) => string;
 }) {
   const resolvedMin = min ?? availableMin;
   const resolvedMax = max ?? availableMax;
+  const fmt = formatValue ?? String;
   const valueLabel =
     resolvedMin === resolvedMax
-      ? String(resolvedMin)
+      ? fmt(resolvedMin)
       : min !== null && max !== null
-        ? `${resolvedMin}–${resolvedMax}`
+        ? `${fmt(resolvedMin)}–${fmt(resolvedMax)}`
         : min !== null
-          ? `≥${resolvedMin}`
-          : `≤${resolvedMax}`;
+          ? `≥${fmt(resolvedMin)}`
+          : `≤${fmt(resolvedMax)}`;
 
   return (
     <div className="flex items-center gap-1">

@@ -3,7 +3,7 @@ import { memo } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
 import { getDomainGradientStyle } from "@/lib/domain";
-import { formatCardId } from "@/lib/format";
+import { formatCardId, formatPrice } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ export interface CardFields {
   type: boolean;
   supertype: boolean;
   rarity: boolean;
+  price: boolean;
 }
 
 export const DEFAULT_CARD_FIELDS: CardFields = {
@@ -21,6 +22,7 @@ export const DEFAULT_CARD_FIELDS: CardFields = {
   type: true,
   supertype: true,
   rarity: true,
+  price: true,
 };
 
 interface CardThumbnailProps {
@@ -70,7 +72,11 @@ export const CardThumbnail = memo(function CardThumbnail({
           />
         )}
       </div>
-      {(cardFields.number || cardFields.title || cardFields.type || cardFields.rarity) && (
+      {(cardFields.number ||
+        cardFields.title ||
+        cardFields.type ||
+        cardFields.rarity ||
+        cardFields.price) && (
         <div className="mt-1.5 space-y-0.5 px-0.5">
           {(cardFields.number || cardFields.title) && (
             <p className="truncate text-xs font-medium sm:text-sm">
@@ -103,6 +109,29 @@ export const CardThumbnail = memo(function CardThumbnail({
                   />
                   {card.rarity}
                 </>
+              )}
+            </p>
+          )}
+          {cardFields.price && card.price && (
+            <p className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              {card.price.normal && (
+                <span>
+                  {formatPrice(card.price.normal.market)}
+                  {card.price.foil && (
+                    <span className="ml-0.5 text-[10px] text-muted-foreground">normal</span>
+                  )}
+                </span>
+              )}
+              {card.price.normal && card.price.foil && (
+                <span className="text-muted-foreground">&middot;</span>
+              )}
+              {card.price.foil && (
+                <span>
+                  {formatPrice(card.price.foil.market)}
+                  {card.price.normal && (
+                    <span className="ml-0.5 text-[10px] text-muted-foreground">foil</span>
+                  )}
+                </span>
               )}
             </p>
           )}

@@ -61,6 +61,10 @@ function cardMatchesField(card: Card, field: SearchField, text: string): boolean
   }
 }
 
+export function getMarketPrice(card: Card): number | null {
+  return card.price?.normal?.market ?? card.price?.foil?.market ?? null;
+}
+
 export function getCardVariant(card: Card, setTotalCards: number): CardVariant {
   if (card.id.endsWith("*")) {
     return "Signed";
@@ -142,6 +146,18 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.variants.length > 0 && card.variant && !filters.variants.includes(card.variant)) {
       return false;
     }
+    if (filters.priceMin !== null || filters.priceMax !== null) {
+      const price = getMarketPrice(card);
+      if (price === null) {
+        return false;
+      }
+      if (filters.priceMin !== null && price < filters.priceMin) {
+        return false;
+      }
+      if (filters.priceMax !== null && price > filters.priceMax) {
+        return false;
+      }
+    }
     return true;
   });
 }
@@ -159,6 +175,8 @@ export interface AvailableFilters {
   mightMax: number;
   powerMin: number;
   powerMax: number;
+  priceMin: number;
+  priceMax: number;
 }
 
 export function getAvailableFilters(cards: Card[]): AvailableFilters {
@@ -179,6 +197,7 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
   const energies = cards.map((c) => c.stats.energy);
   const mights = cards.map((c) => c.stats.might);
   const powers = cards.map((c) => c.stats.power);
+  const prices = cards.map((c) => getMarketPrice(c)).filter((p): p is number => p !== null);
   return {
     sets,
     rarities,
@@ -192,6 +211,8 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     mightMax: Math.max(...mights),
     powerMin: Math.min(...powers),
     powerMax: Math.max(...powers),
+    priceMin: prices.length > 0 ? Math.floor(Math.min(...prices)) : 0,
+    priceMax: prices.length > 0 ? Math.ceil(Math.max(...prices)) : 0,
   };
 }
 
@@ -214,6 +235,23 @@ export function sortCards(cards: Card[], sortBy: SortOption): Card[] {
       sorted.sort(
         (a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.name.localeCompare(b.name),
       );
+      break;
+    }
+    case "price": {
+      sorted.sort((a, b) => {
+        const pa = getMarketPrice(a);
+        const pb = getMarketPrice(b);
+        if (pa === null && pb === null) {
+          return a.name.localeCompare(b.name);
+        }
+        if (pa === null) {
+          return 1;
+        }
+        if (pb === null) {
+          return -1;
+        }
+        return pa - pb || a.name.localeCompare(b.name);
+      });
       break;
     }
   }

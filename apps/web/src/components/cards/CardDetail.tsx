@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatDomainDisplay } from "@/lib/domain";
-import { formatPublicCode } from "@/lib/format";
+import { formatPrice, formatPublicCode } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +47,9 @@ export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
       </div>
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
+        {/* Pricing */}
+        {card.price && <PricingSection card={card} />}
+
         {/* Type / Supertype / Rarity / Domain */}
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1">
@@ -207,5 +210,46 @@ function StatCard({
         {value}
       </p>
     </div>
+  );
+}
+
+function PricingSection({ card }: { card: Card }) {
+  const price = card.price;
+  if (!price) {
+    return null;
+  }
+  const hasBoth = price.normal && price.foil;
+
+  const Wrapper = price.url ? "a" : "div";
+  const linkProps = price.url
+    ? { href: price.url, target: "_blank", rel: "noopener noreferrer" }
+    : {};
+
+  return (
+    <Wrapper
+      {...linkProps}
+      className={cn(
+        "grid gap-4 rounded-md bg-muted p-3",
+        hasBoth ? "grid-cols-2" : "grid-cols-1",
+        price.url && "transition-colors hover:bg-muted/70",
+      )}
+    >
+      {price.normal && (
+        <div>
+          {hasBoth && <p className="text-[10px] uppercase text-muted-foreground">Normal</p>}
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+            {formatPrice(price.normal.market)}
+          </p>
+        </div>
+      )}
+      {price.foil && (
+        <div>
+          {hasBoth && <p className="text-[10px] uppercase text-muted-foreground">Foil</p>}
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+            {formatPrice(price.foil.market)}
+          </p>
+        </div>
+      )}
+    </Wrapper>
   );
 }

@@ -1,6 +1,7 @@
-import type { Card, RiftboundContent } from "@openrift/shared";
+import type { Card, PricesData, RiftboundContent } from "@openrift/shared";
 import { filterCards, flattenWithVariants, getAvailableFilters, sortCards } from "@openrift/shared";
 import galleryData from "@openrift/shared/data/gallery.json";
+import pricesJson from "@openrift/shared/data/prices.json";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { CardDetail } from "@/components/cards/CardDetail";
@@ -12,7 +13,11 @@ import { FilterBar } from "@/components/filters/FilterBar";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
 const typedGallery = galleryData as RiftboundContent;
-const allCards = flattenWithVariants(typedGallery);
+const pricesData = pricesJson as PricesData;
+const allCards = flattenWithVariants(typedGallery).map((card) => {
+  const price = pricesData.cards[card.id];
+  return price ? { ...card, price } : card;
+});
 
 const setInfoList: SetInfo[] = typedGallery.sets.map((s) => ({
   name: s.name,
@@ -36,6 +41,7 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
     setEnergyRange,
     setMightRange,
     setPowerRange,
+    setPriceRange,
     setSortBy,
     setSortDir,
     filterState,
@@ -91,6 +97,7 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
         energyRange={[filterState.energyMin, filterState.energyMax]}
         mightRange={[filterState.mightMin, filterState.mightMax]}
         powerRange={[filterState.powerMin, filterState.powerMax]}
+        priceRange={[filterState.priceMin, filterState.priceMax]}
         sortBy={sortBy}
         sortDir={sortDir}
         totalCards={allCards.length}
@@ -102,6 +109,7 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
         onEnergyRangeChange={setEnergyRange}
         onMightRangeChange={setMightRange}
         onPowerRangeChange={setPowerRange}
+        onPriceRangeChange={setPriceRange}
         onSortChange={setSortBy}
         onSortDirChange={setSortDir}
         onSearchScopeToggle={toggleSearchField}
@@ -112,11 +120,13 @@ export function CardBrowser({ showImages, cardFields }: CardBrowserProps) {
         energyRange={[filterState.energyMin, filterState.energyMax]}
         mightRange={[filterState.mightMin, filterState.mightMax]}
         powerRange={[filterState.powerMin, filterState.powerMax]}
+        priceRange={[filterState.priceMin, filterState.priceMax]}
         hasActiveFilters={hasActiveFilters}
         onToggleFilter={toggleArrayFilter}
         onClearEnergyRange={() => setEnergyRange(null, null)}
         onClearMightRange={() => setMightRange(null, null)}
         onClearPowerRange={() => setPowerRange(null, null)}
+        onClearPriceRange={() => setPriceRange(null, null)}
         onClearAll={clearAllFilters}
         onClearSearch={() => setSearch("")}
       />

@@ -95,6 +95,13 @@ export function DisplaySettingsMenu({
           >
             Show rarity
           </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={cardFields.price}
+            onCheckedChange={(v) => onCardFieldsChange({ price: v })}
+            onSelect={(e) => e.preventDefault()}
+          >
+            Show price
+          </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem
             checked={darkMode}

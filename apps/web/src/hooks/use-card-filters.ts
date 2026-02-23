@@ -1,5 +1,5 @@
 import type { CardType, CardVariant, Rarity, SortDirection, SortOption } from "@openrift/shared";
-import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
+import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useMemo, useRef } from "react";
 
 import { useSearchScope } from "@/hooks/use-search-scope";
@@ -18,6 +18,8 @@ const filterParsers = {
   mightMax: parseAsInteger,
   powerMin: parseAsInteger,
   powerMax: parseAsInteger,
+  priceMin: parseAsFloat,
+  priceMax: parseAsFloat,
   sort: parseAsString.withDefault("id"),
   sortDir: parseAsString.withDefault("asc"),
 };
@@ -70,6 +72,8 @@ export function useCardFilters() {
       mightMax: filterState.mightMax,
       powerMin: filterState.powerMin,
       powerMax: filterState.powerMax,
+      priceMin: filterState.priceMin,
+      priceMax: filterState.priceMax,
     }),
     [filterState, searchScope],
   );
@@ -90,7 +94,9 @@ export function useCardFilters() {
     filterState.mightMin !== null ||
     filterState.mightMax !== null ||
     filterState.powerMin !== null ||
-    filterState.powerMax !== null;
+    filterState.powerMax !== null ||
+    filterState.priceMin !== null ||
+    filterState.priceMax !== null;
 
   const clearAllFilters = () => {
     void setFilterState({
@@ -107,6 +113,8 @@ export function useCardFilters() {
       mightMax: null,
       powerMin: null,
       powerMax: null,
+      priceMin: null,
+      priceMax: null,
       sort: null,
       sortDir: null,
     });
@@ -132,6 +140,8 @@ export function useCardFilters() {
     void setFilterState({ mightMin: min, mightMax: max });
   const setPowerRange = (min: number | null, max: number | null) =>
     void setFilterState({ powerMin: min, powerMax: max });
+  const setPriceRange = (min: number | null, max: number | null) =>
+    void setFilterState({ priceMin: min, priceMax: max });
 
   const setSortBy = (sort: SortOption) => {
     void setFilterState({ sort: sort === "id" ? null : sort });
@@ -152,6 +162,7 @@ export function useCardFilters() {
     setEnergyRange,
     setMightRange,
     setPowerRange,
+    setPriceRange,
     setSortBy,
     setSortDir,
     filterState,

@@ -51,6 +51,7 @@ interface FilterBarProps {
   energyRange: [number | null, number | null];
   mightRange: [number | null, number | null];
   powerRange: [number | null, number | null];
+  priceRange: [number | null, number | null];
   sortBy: SortOption;
   sortDir: SortDirection;
   totalCards: number;
@@ -65,6 +66,7 @@ interface FilterBarProps {
   onEnergyRangeChange: (min: number | null, max: number | null) => void;
   onMightRangeChange: (min: number | null, max: number | null) => void;
   onPowerRangeChange: (min: number | null, max: number | null) => void;
+  onPriceRangeChange: (min: number | null, max: number | null) => void;
   onSortChange: (sort: SortOption) => void;
   onSortDirChange: (dir: SortDirection) => void;
   onSearchScopeToggle: (field: SearchField) => void;
@@ -75,6 +77,7 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "name", label: "Name" },
   { value: "energy", label: "Energy" },
   { value: "rarity", label: "Rarity" },
+  { value: "price", label: "Price" },
 ];
 
 export function FilterBar({
@@ -83,6 +86,7 @@ export function FilterBar({
   energyRange,
   mightRange,
   powerRange,
+  priceRange,
   sortBy,
   sortDir,
   totalCards,
@@ -94,6 +98,7 @@ export function FilterBar({
   onEnergyRangeChange,
   onMightRangeChange,
   onPowerRangeChange,
+  onPriceRangeChange,
   onSortChange,
   onSortDirChange,
   onSearchScopeToggle,
@@ -220,6 +225,18 @@ export function FilterBar({
           selectedMin={powerRange[0]}
           selectedMax={powerRange[1]}
           onChange={onPowerRangeChange}
+        />
+      )}
+      {availableFilters.priceMax > 0 && (
+        <RangeFilterSection
+          label="Price"
+          availableMin={availableFilters.priceMin}
+          availableMax={availableFilters.priceMax}
+          selectedMin={priceRange[0]}
+          selectedMax={priceRange[1]}
+          onChange={onPriceRangeChange}
+          step={1}
+          formatValue={(v) => `$${v}`}
         />
       )}
     </>
@@ -376,6 +393,8 @@ function RangeFilterSection({
   selectedMin,
   selectedMax,
   onChange,
+  step = 1,
+  formatValue,
 }: {
   label: string;
   availableMin: number;
@@ -383,21 +402,24 @@ function RangeFilterSection({
   selectedMin: number | null;
   selectedMax: number | null;
   onChange: (min: number | null, max: number | null) => void;
+  step?: number;
+  formatValue?: (value: number) => string;
 }) {
   const resolvedMin = selectedMin ?? availableMin;
   const resolvedMax = selectedMax ?? availableMax;
+  const fmt = formatValue ?? String;
 
   return (
     <div className="min-w-0 space-y-1.5">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex w-36 items-center gap-1.5">
-        <span className="w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
-          {resolvedMin}
+        <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+          {fmt(resolvedMin)}
         </span>
         <Slider
           min={availableMin}
           max={availableMax}
-          step={1}
+          step={step}
           value={[resolvedMin, resolvedMax]}
           onValueChange={(values) => {
             const [newMin, newMax] = values;
@@ -408,8 +430,8 @@ function RangeFilterSection({
           }}
           className="flex-1"
         />
-        <span className="w-4 shrink-0 text-[10px] tabular-nums text-muted-foreground">
-          {resolvedMax}
+        <span className="w-6 shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          {fmt(resolvedMax)}
         </span>
       </div>
     </div>

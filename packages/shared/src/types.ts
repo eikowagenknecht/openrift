@@ -14,9 +14,31 @@ export const RARITY_ORDER: Record<Rarity, number> = {
   Showcase: 4,
 } as const;
 
-export type SortOption = "id" | "name" | "energy" | "rarity";
+export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
 
 export type SortDirection = "asc" | "desc";
+
+export interface PricePoint {
+  low: number;
+  mid: number;
+  high: number;
+  market: number;
+  directLow: number | null;
+}
+
+export interface CardPrice {
+  productId: number;
+  url: string | null;
+  normal?: PricePoint;
+  foil?: PricePoint;
+}
+
+export interface PricesData {
+  source: string;
+  fetchedAt: string;
+  cards: Record<string, CardPrice>;
+  unmatched: string[];
+}
 
 export interface CardStats {
   might: number;
@@ -49,6 +71,7 @@ export interface Card {
   orientation: "portrait" | "landscape";
   publicCode: string;
   variant?: CardVariant;
+  price?: CardPrice;
 }
 
 export interface ContentSet {
@@ -101,5 +124,7 @@ export interface CardFilters {
   mightMax: number | null;
   powerMin: number | null;
   powerMax: number | null;
+  priceMin: number | null;
+  priceMax: number | null;
   variants: CardVariant[];
 }
