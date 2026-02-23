@@ -1,25 +1,8 @@
-import { useRegisterSW } from "virtual:pwa-register/react";
-
 import { Button } from "@/components/ui/button";
-
-// Poll for SW updates every 60 s so iOS picks up new deploys without
-// requiring the user to fully close and reopen the app twice.
-const UPDATE_INTERVAL_MS = 60_000;
+import { useSWUpdate } from "@/hooks/use-sw-update";
 
 export function ReloadPrompt() {
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegistered(registration) {
-      if (!registration) {
-        return;
-      }
-      setInterval(() => {
-        void registration.update();
-      }, UPDATE_INTERVAL_MS);
-    },
-  });
+  const { needRefresh, dismiss, applyUpdate } = useSWUpdate();
 
   if (!needRefresh) {
     return null;
@@ -35,10 +18,10 @@ export function ReloadPrompt() {
         <span>New content available, click reload to update</span>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => updateServiceWorker(true)}>
+        <Button size="sm" onClick={() => applyUpdate()}>
           Reload
         </Button>
-        <Button size="sm" variant="outline" onClick={() => setNeedRefresh(false)}>
+        <Button size="sm" variant="outline" onClick={dismiss}>
           Close
         </Button>
       </div>

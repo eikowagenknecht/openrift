@@ -19,6 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useSWUpdate } from "@/hooks/use-sw-update";
 import { parseChangelog } from "@/lib/changelog";
 
 const changelogGroups = parseChangelog(changelogMd);
@@ -41,6 +42,7 @@ export function DisplaySettingsMenu({
   onDarkModeChange,
 }: DisplaySettingsMenuProps) {
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const { needRefresh, applyUpdate } = useSWUpdate();
 
   return (
     <>
@@ -102,6 +104,14 @@ export function DisplaySettingsMenu({
             Dark mode
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
+          {needRefresh && (
+            <DropdownMenuItem
+              onSelect={() => applyUpdate()}
+              className="text-xs font-medium text-blue-600 dark:text-blue-400"
+            >
+              Update available — tap to reload
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onSelect={() => setChangelogOpen(true)}
             className="flex justify-between text-xs text-muted-foreground"
