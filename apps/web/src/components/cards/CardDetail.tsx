@@ -1,5 +1,6 @@
 import type { Card } from "@openrift/shared";
 import { ArrowLeft, X } from "lucide-react";
+import { useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,13 +17,42 @@ interface CardDetailProps {
   card: Card;
   onClose: () => void;
   showImages?: boolean;
+  onPrevCard?: () => void;
+  onNextCard?: () => void;
 }
 
-export function CardDetail({ card, onClose, showImages }: CardDetailProps) {
+export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }: CardDetailProps) {
   const setNumber = formatPublicCode(card);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType !== "touch") {
+      return;
+    }
+    swipeStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType !== "touch" || !swipeStart.current) {
+      return;
+    }
+    const dx = e.clientX - swipeStart.current.x;
+    const dy = e.clientY - swipeStart.current.y;
+    swipeStart.current = null;
+
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0 && onPrevCard) {
+        onPrevCard();
+      } else if (dx < 0 && onNextCard) {
+        onNextCard();
+      }
+    }
+  };
 
   return (
     <aside
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
       className={cn(
         "fixed inset-0 z-50 overflow-y-auto bg-background",
         "md:sticky md:inset-auto md:z-auto md:top-[6.5rem]",

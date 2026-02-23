@@ -111,6 +111,16 @@ export function CardBrowser({
     setDetailOpen(true);
   };
 
+  const selectedIndex = selectedCard ? sortedCards.findIndex((c) => c.id === selectedCard.id) : -1;
+
+  const handlePrevCard =
+    selectedIndex > 0 ? () => setSelectedCard(sortedCards[selectedIndex - 1]) : undefined;
+
+  const handleNextCard =
+    selectedIndex >= 0 && selectedIndex < sortedCards.length - 1
+      ? () => setSelectedCard(sortedCards[selectedIndex + 1])
+      : undefined;
+
   const handleDetailClose = () => {
     // If we pushed a history entry for mobile, pop it instead of leaving a
     // stale entry in the stack.
@@ -183,7 +193,13 @@ export function CardBrowser({
           />
         </div>
         {selectedCard && detailOpen && (
-          <CardDetail card={selectedCard} onClose={handleDetailClose} showImages={showImages} />
+          <CardDetail
+            card={selectedCard}
+            onClose={handleDetailClose}
+            showImages={showImages}
+            onPrevCard={handlePrevCard}
+            onNextCard={handleNextCard}
+          />
         )}
       </div>
     </div>

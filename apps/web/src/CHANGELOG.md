@@ -2,6 +2,7 @@
 
 ## 2026-02-23
 
+- feat: Swipe left or right on mobile to browse between cards without closing the detail view
 - feat: Arrow keys navigate between cards when one is selected, and the grid scrolls to keep it in view
 - feat: Mobile filter and changelog panels now support swipe gestures to dismiss
 - feat: Update and offline notifications now appear as toast popups instead of fixed overlays
