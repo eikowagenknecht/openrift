@@ -1,5 +1,6 @@
-import { Settings } from "lucide-react";
+import { RefreshCw, Settings } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import changelogMd from "@/CHANGELOG.md?raw";
 import type { CardFields } from "@/components/cards/CardThumbnail";
@@ -42,7 +43,8 @@ export function DisplaySettingsMenu({
   onDarkModeChange,
 }: DisplaySettingsMenuProps) {
   const [changelogOpen, setChangelogOpen] = useState(false);
-  const { needRefresh, applyUpdate } = useSWUpdate();
+  const { needRefresh, applyUpdate, checkForUpdate } = useSWUpdate();
+  const [checking, setChecking] = useState(false);
 
   return (
     <>
@@ -98,12 +100,28 @@ export function DisplaySettingsMenu({
             Dark mode
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
-          {needRefresh && (
+          {needRefresh ? (
             <DropdownMenuItem
               onClick={() => applyUpdate()}
               className="text-xs font-medium text-blue-600 dark:text-blue-400"
             >
               Update available — tap to reload
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onClick={async (e) => {
+                e.preventDefault();
+                setChecking(true);
+                await checkForUpdate();
+                setChecking(false);
+                if (!needRefresh) {
+                  toast("You're on the latest version");
+                }
+              }}
+              className="text-xs text-muted-foreground"
+            >
+              <RefreshCw className={`size-3 ${checking ? "animate-spin" : ""}`} />
+              Check for updates
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
