@@ -30,6 +30,7 @@
       "@tailwindcss/oxide",
       "esbuild",
       "lefthook",
+      "msw",
       "oxfmt",
       "oxlint"
     ]
