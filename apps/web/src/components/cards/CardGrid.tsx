@@ -59,6 +59,7 @@ const CARD_ASPECT = 1039 / 744;
 const GAP = 16; // gap-4
 const APP_HEADER_HEIGHT = 56; // h-14
 const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 1200;
+const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
 
 interface CardGridProps {
   cards: Card[];
@@ -234,6 +235,7 @@ export function CardGrid({
   });
   const hideTimerRef = useRef(0);
   const isDraggingRef = useRef(false);
+  const postDragCooldownRef = useRef(false);
   const dragStartRef = useRef({ grabOffsetY: 0, viewportH: 0, docH: 0 });
   const indicatorRef = useRef<HTMLDivElement>(null);
   const cardIdRef = useRef<HTMLElement>(null);
@@ -289,6 +291,12 @@ export function CardGrid({
         if (cardIdRef.current) {
           cardIdRef.current.textContent = firstCard.id;
         }
+        return;
+      }
+
+      // After a drag release, scrollTo triggers scroll events. Don't let
+      // those reset the shorter post-drag hide timer.
+      if (postDragCooldownRef.current) {
         return;
       }
 
@@ -407,6 +415,7 @@ export function CardGrid({
       const liveThumbTop = liveYPercent * (liveViewportH - liveThumbH);
       const currentCardId = cardIdRef.current?.textContent || "";
 
+      postDragCooldownRef.current = true;
       setIndicator((prev) => ({
         ...prev,
         dragging: false,
@@ -416,8 +425,9 @@ export function CardGrid({
       }));
 
       hideTimerRef.current = window.setTimeout(() => {
+        postDragCooldownRef.current = false;
         setIndicator((prev) => ({ ...prev, visible: false }));
-      }, HIDE_DELAY);
+      }, POST_DRAG_HIDE_DELAY);
     };
 
     if (IS_COARSE_POINTER) {
