@@ -12,6 +12,8 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 
+# Stub .git so lefthook postinstall doesn't fail (real .git is copied below)
+RUN git init
 RUN pnpm install --frozen-lockfile
 
 # Copy source and build
