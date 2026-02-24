@@ -57,6 +57,7 @@ export function CardThumbnail({
 
   const isFoilCard = Boolean(card.price?.foil) && !card.price?.normal;
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
+  const compact = cardWidth !== undefined && cardWidth < 160;
 
   return (
     <button
@@ -108,39 +109,80 @@ export function CardThumbnail({
         cardFields.rarity ||
         cardFields.price) && (
         <div className="mt-1.5 space-y-0.5 px-0.5">
-          {(cardFields.number || cardFields.title) && (
-            <p className="truncate text-xs font-medium sm:text-sm">
-              {cardFields.number && <span className="text-muted-foreground">{cardId}</span>}
-              {cardFields.number && cardFields.title && " "}
-              {cardFields.title && card.name}
-            </p>
-          )}
-          {(cardFields.type || cardFields.rarity) && (
-            <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-              {cardFields.type && (
-                <>
-                  <img
-                    src={getTypeIconPath(card.type, card.superTypes)}
-                    alt=""
-                    className="size-3.5 brightness-0 dark:invert"
-                  />
-                  {card.superTypes.length > 0
-                    ? `${card.superTypes.join(" ")} ${card.type}`
-                    : card.type}
-                </>
+          {compact ? (
+            <>
+              {(cardFields.number || cardFields.type || cardFields.rarity) && (
+                <div className="flex items-center justify-between gap-1 text-xs text-muted-foreground">
+                  {cardFields.number && <span className="truncate font-medium">{cardId}</span>}
+                  {(cardFields.type || cardFields.rarity) && (
+                    <span className="flex shrink-0 items-center gap-1">
+                      {cardFields.type && (
+                        <img
+                          src={getTypeIconPath(card.type, card.superTypes)}
+                          alt={
+                            card.superTypes.length > 0
+                              ? `${card.superTypes.join(" ")} ${card.type}`
+                              : card.type
+                          }
+                          title={
+                            card.superTypes.length > 0
+                              ? `${card.superTypes.join(" ")} ${card.type}`
+                              : card.type
+                          }
+                          className="size-3.5 brightness-0 dark:invert"
+                        />
+                      )}
+                      {cardFields.rarity && (
+                        <img
+                          src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
+                          alt={card.rarity}
+                          title={card.rarity}
+                          className="size-3.5"
+                        />
+                      )}
+                    </span>
+                  )}
+                </div>
               )}
-              {cardFields.type && cardFields.rarity && <span>&middot;</span>}
-              {cardFields.rarity && (
-                <>
-                  <img
-                    src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
-                    alt=""
-                    className="size-3.5"
-                  />
-                  {card.rarity}
-                </>
+              {cardFields.title && <p className="truncate text-xs font-medium">{card.name}</p>}
+            </>
+          ) : (
+            <>
+              {(cardFields.number || cardFields.title) && (
+                <p className="truncate text-xs font-medium sm:text-sm">
+                  {cardFields.number && <span className="text-muted-foreground">{cardId}</span>}
+                  {cardFields.number && cardFields.title && " "}
+                  {cardFields.title && card.name}
+                </p>
               )}
-            </p>
+              {(cardFields.type || cardFields.rarity) && (
+                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                  {cardFields.type && (
+                    <>
+                      <img
+                        src={getTypeIconPath(card.type, card.superTypes)}
+                        alt=""
+                        className="size-3.5 brightness-0 dark:invert"
+                      />
+                      {card.superTypes.length > 0
+                        ? `${card.superTypes.join(" ")} ${card.type}`
+                        : card.type}
+                    </>
+                  )}
+                  {cardFields.type && cardFields.rarity && <span>&middot;</span>}
+                  {cardFields.rarity && (
+                    <>
+                      <img
+                        src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
+                        alt=""
+                        className="size-3.5"
+                      />
+                      {card.rarity}
+                    </>
+                  )}
+                </p>
+              )}
+            </>
           )}
           {cardFields.price && card.price && (
             <p className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">

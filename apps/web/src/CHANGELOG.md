@@ -2,6 +2,7 @@
 
 ## 2026-02-24
 
+- fix: Card info below thumbnails no longer gets cut off on narrow columns — the ID, type, and rarity now share a compact row with icons only, and the title gets its own line
 - fix: The column zoom control now resets to auto when you tap the number, and stepping from auto snaps to the next size up or down
 - feat: Card prices in the grid now always show whether they're normal or foil, even when only one variant exists
 - fix: Dismissing the update popup and then checking for updates again now correctly re-shows the update instead of saying you're on the latest version
