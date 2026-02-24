@@ -2,6 +2,7 @@
 
 ## 2026-02-24
 
+- fix: The card grid no longer shows 4 columns on mobile when first opened — it now matches your screen size immediately
 - feat: The scroll indicator now has an accent dot, a glowing ring, and smartly avoids overlapping other elements
 - fix: The tilt effect toggle on iOS no longer disappears after denying gyroscope permission
 - feat: Card descriptions and effects now sit in distinct styled panels, with effects tinted in the card's domain color

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 const breakpoints = [
   { minWidth: 1280, cols: 6 },
@@ -13,10 +13,17 @@ const GAP = 16;
 
 export function useResponsiveColumns(maxColumns?: number | null) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [columns, setColumns] = useState(4);
+  const [columns, setColumns] = useState(() => {
+    if (maxColumns !== undefined && maxColumns !== null) {
+      return maxColumns;
+    }
+    const width = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const match = breakpoints.find((bp) => width >= bp.minWidth);
+    return match?.cols ?? 2;
+  });
   const [physicalMax, setPhysicalMax] = useState(8);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) {
       return;
