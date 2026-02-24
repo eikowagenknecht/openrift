@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-02-24
+
+- feat: The card detail sidebar has a fresh layout with card-accurate keyword styling and clearer type info
+- fix: Sticky set headers now appear as compact floating pills instead of stretching the full width
+
 ## 2026-02-23
 
 - feat: Dragging the scroll indicator is now opt-in via "Draggable scroll indicator" in settings
