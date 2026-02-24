@@ -1,0 +1,29 @@
+node_modules/
+dist/
+.turbo
+.cache
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Tooling
+.tooling/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data dumps
+/data/

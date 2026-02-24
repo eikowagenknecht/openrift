@@ -9,7 +9,7 @@ const app = new Hono();
 app.use(
   "/api/*",
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CORS_ORIGIN ?? "*",
   }),
 );
 

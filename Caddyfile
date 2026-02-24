@@ -1,0 +1,12 @@
+beta.openrift.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin-key.pem
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

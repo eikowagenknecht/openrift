@@ -4,7 +4,7 @@
 # Run the Hono API and Vite dev server natively with `pnpm dev`.
 #
 # Connection string for local dev:
-#   DATABASE_URL=postgres://riftbound_app:dev_password@localhost:5432/riftbound
+#   DATABASE_URL=postgres://openrift:dev_password@localhost:5432/openrift
 services:
   db:
     image: postgres:16-alpine
@@ -13,11 +13,11 @@ services:
     volumes:
       - pg_dev_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: riftbound
-      POSTGRES_USER: riftbound_app
+      POSTGRES_DB: openrift
+      POSTGRES_USER: openrift
       POSTGRES_PASSWORD: dev_password
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U riftbound_app -d riftbound"]
+      test: ["CMD-SHELL", "pg_isready -U openrift -d openrift"]
       interval: 5s
       timeout: 3s
       retries: 5
