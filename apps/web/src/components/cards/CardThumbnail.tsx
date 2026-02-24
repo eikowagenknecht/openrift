@@ -62,8 +62,8 @@ export function CardThumbnail({
 
   const isFoilCard = Boolean(card.price?.foil) && !card.price?.normal;
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
-  const compact = cardWidth !== undefined && cardWidth < 160;
-  const hidePriceLabels = cardWidth !== undefined && cardWidth < 200;
+  const compact = cardWidth !== undefined && cardWidth < 200;
+  const hidePriceLabels = compact;
 
   return (
     <button

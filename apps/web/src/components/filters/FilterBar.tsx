@@ -349,10 +349,12 @@ export function FilterBar({
                       onMaxColumnsChange(next);
                     }
                   } else {
-                    onMaxColumnsChange(maxColumns <= 1 ? null : maxColumns - 1);
+                    if (maxColumns > 1) {
+                      onMaxColumnsChange(maxColumns - 1);
+                    }
                   }
                 }}
-                disabled={maxColumns === null && autoColumns <= 1}
+                disabled={maxColumns === 1 || (maxColumns === null && autoColumns <= 1)}
                 aria-label="Fewer columns"
               >
                 <Minus className="size-4" />
