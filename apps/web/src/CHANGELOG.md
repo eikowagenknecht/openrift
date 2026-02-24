@@ -2,6 +2,8 @@
 
 ## 2026-02-24
 
+- feat: The scroll indicator now has an accent dot, a glowing ring, and smartly avoids overlapping other elements
+- fix: The tilt effect toggle on iOS no longer disappears after denying gyroscope permission
 - feat: Card descriptions and effects now sit in distinct styled panels, with effects tinted in the card's domain color
 - feat: Pricing is now shown as compact chips at the bottom of the card detail instead of a separate block
 - feat: Card thumbnails now load at the right resolution for their display size, saving bandwidth on smaller screens
