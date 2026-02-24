@@ -241,7 +241,6 @@ export function CardGrid({
   const rafIdRef = useRef(0);
   const dragTopRef = useRef(0);
   const dragPointerIdRef = useRef(-1);
-  const lastScrolledRef = useRef(0);
 
   // Prevent native touch scrolling while the indicator is being dragged.
   // touch-action: none on the element alone is unreliable on mobile — the
@@ -322,7 +321,6 @@ export function CardGrid({
     // pointermove to report garbage clientY values (±100000).
     isDraggingRef.current = true;
     dragPointerIdRef.current = e.pointerId;
-    lastScrolledRef.current = window.scrollY;
     // Grab offset in style.top space so the indicator stays pinned to the finger.
     // Freeze viewport & document dimensions so mobile browser chrome changes
     // (address bar collapse/expand) don't shift the scroll-to-thumb mapping.
@@ -349,14 +347,10 @@ export function CardGrid({
     const handleMove = (clientY: number) => {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        const { viewportH, docH } = dragStartRef.current;
-        const scrollableHeight = docH - viewportH;
-        if (scrollableHeight <= 0) {
-          return;
-        }
-        const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+        const { viewportH } = dragStartRef.current;
 
-        // Always update indicator position (cheap DOM write, stays smooth).
+        // Only move the indicator handle — the actual scroll happens on release
+        // (handleUp). This avoids expensive virtualizer re-renders during drag.
         const indicatorTop = Math.max(
           APP_HEADER_HEIGHT + 4,
           Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
@@ -364,17 +358,6 @@ export function CardGrid({
         dragTopRef.current = indicatorTop;
         if (indicatorRef.current) {
           indicatorRef.current.style.top = `${indicatorTop}px`;
-        }
-
-        // Throttle actual scrolling — only scroll when target moved enough.
-        // Each scrollTo triggers a full virtualizer re-render; on 120 Hz
-        // displays this overwhelms the main thread and produces black tiles.
-        const thumbTop = indicatorTop - thumbH / 2 + 12;
-        const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
-        const targetScrollY = yPercent * scrollableHeight;
-        if (Math.abs(targetScrollY - lastScrolledRef.current) > 200) {
-          lastScrolledRef.current = targetScrollY;
-          window.scrollTo(0, targetScrollY);
         }
       });
     };
