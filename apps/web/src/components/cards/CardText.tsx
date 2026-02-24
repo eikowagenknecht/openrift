@@ -63,8 +63,8 @@ export function CardText({ text, onKeywordClick }: CardTextProps) {
         </span>,
       );
     } else {
-      // Newline match
-      parts.push(<br key={`${match.index}-br`} />);
+      // Newline match — use a block spacer for visual separation
+      parts.push(<span key={`${match.index}-br`} className="block h-2" />);
     }
 
     lastIndex = match.index + match[0].length;

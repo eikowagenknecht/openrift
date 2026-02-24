@@ -2,6 +2,7 @@
 
 ## 2026-02-24
 
+- feat: Keywords are now styled inline within card descriptions, with reminder text in italics and proper line breaks
 - feat: The card detail sidebar has a fresh layout with card-accurate keyword styling and clearer type info
 - fix: Sticky set headers now appear as compact floating pills instead of stretching the full width
 
