@@ -6,6 +6,7 @@ import { FoilOverlay } from "@/components/cards/FoilOverlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatCardId, formatPrice } from "@/lib/format";
+import { getTypeIconPath } from "@/lib/icons";
 import { getCardImageUrl } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,6 @@ export interface CardFields {
   number: boolean;
   title: boolean;
   type: boolean;
-  supertype: boolean;
   rarity: boolean;
   price: boolean;
 }
@@ -23,7 +23,6 @@ export const DEFAULT_CARD_FIELDS: CardFields = {
   number: true,
   title: true,
   type: true,
-  supertype: true,
   rarity: true,
   price: true,
 };
@@ -113,11 +112,11 @@ export function CardThumbnail({
               {cardFields.type && (
                 <>
                   <img
-                    src={`/icons/types/${card.type.toLowerCase()}.svg`}
+                    src={getTypeIconPath(card.type, card.superTypes)}
                     alt=""
                     className="size-3.5 brightness-0 dark:invert"
                   />
-                  {cardFields.supertype && card.superTypes.length > 0
+                  {card.superTypes.length > 0
                     ? `${card.superTypes.join(" ")} ${card.type}`
                     : card.type}
                 </>

@@ -82,12 +82,6 @@ export function DisplaySettingsMenu({
             Show type
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
-            checked={cardFields.supertype}
-            onCheckedChange={(v) => onCardFieldsChange({ supertype: v })}
-          >
-            Show supertype
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
             checked={cardFields.rarity}
             onCheckedChange={(v) => onCardFieldsChange({ rarity: v })}
           >

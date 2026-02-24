@@ -9,6 +9,7 @@ import { useCardTilt } from "@/hooks/use-card-tilt";
 import { requestGyroPermission, useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
 import { formatDomainDisplay, getDomainTintStyle } from "@/lib/domain";
 import { formatPrice, formatPublicCode } from "@/lib/format";
+import { getTypeIconPath } from "@/lib/icons";
 import { getCardImageUrl } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
@@ -171,35 +172,16 @@ export function CardDetail({
         {/* Pricing */}
         {card.price && <PricingSection card={card} />}
 
-        {/* Type / Supertype / Rarity / Domain */}
+        {/* Type / Rarity / Domain */}
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <img
-              src={`/icons/types/${card.type.toLowerCase()}.svg`}
+              src={getTypeIconPath(card.type, card.superTypes)}
               alt=""
               className="size-4 brightness-0 dark:invert"
             />
-            {card.type}
+            {card.superTypes.length > 0 ? `${card.superTypes.join(" ")} ${card.type}` : card.type}
           </span>
-          {card.superTypes.length > 0 && (
-            <>
-              &middot;
-              <span className="inline-flex items-center gap-1">
-                {card.superTypes.map((st) => (
-                  <img
-                    key={st}
-                    src={`/icons/supertypes/${st.toLowerCase()}.svg`}
-                    alt=""
-                    className="size-4 brightness-0 dark:invert"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                ))}
-                {card.superTypes.join(", ")}
-              </span>
-            </>
-          )}
           &middot;
           <span className="inline-flex items-center gap-1">
             <img
