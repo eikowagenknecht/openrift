@@ -17,39 +17,6 @@ import { cn } from "@/lib/utils";
 import { CardPlaceholderImage } from "./CardPlaceholderImage";
 import { CardText } from "./CardText";
 
-const KEYWORD_COLORS: Record<string, string> = {
-  Accelerate: "#24705f",
-  Action: "#24705f",
-  Assault: "#cd346f",
-  Deathknell: "#95b229",
-  Deflect: "#95b229",
-  Equip: "#707070",
-  Ganking: "#95b229",
-  Hidden: "#24705f",
-  Legion: "#24705f",
-  Mighty: "#707070",
-  "Quick-Draw": "#24705f",
-  Reaction: "#24705f",
-  Repeat: "#24705f",
-  Shield: "#cd346f",
-  Tank: "#cd346f",
-  Temporary: "#95b229",
-  Unique: "#24705f",
-  Vision: "#707070",
-  Weaponmaster: "#707070",
-};
-
-const KEYWORD_DARK_TEXT = new Set(["Deathknell", "Deflect", "Ganking", "Temporary"]);
-
-function getKeywordStyle(keyword: string): { bg: string; dark: boolean } {
-  // Strip trailing numbers (e.g. "Shield 2" → "Shield")
-  const base = keyword.replace(/\s+\d+$/, "");
-  return {
-    bg: KEYWORD_COLORS[base] ?? "#6a6a6a",
-    dark: KEYWORD_DARK_TEXT.has(base),
-  };
-}
-
 interface CardDetailProps {
   card: Card;
   onClose: () => void;
@@ -267,41 +234,11 @@ export function CardDetail({
           )}
         </div>
 
-        {/* Keywords */}
-        {card.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {card.keywords.map((keyword) => {
-              const kw = getKeywordStyle(keyword);
-              return (
-                <button
-                  key={keyword}
-                  type="button"
-                  className="relative inline-flex cursor-pointer items-center px-0.5 py-0.5"
-                  onClick={() => onKeywordClick?.(keyword)}
-                >
-                  <span
-                    className="absolute inset-0 -skew-x-[15deg]"
-                    style={{ backgroundColor: kw.bg }}
-                  />
-                  <span
-                    className={cn(
-                      "relative text-xs font-semibold uppercase italic tracking-wide scale-x-75",
-                      kw.dark ? "text-black" : "text-white",
-                    )}
-                  >
-                    {keyword}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         {/* Text */}
         <div className="pt-2">
           <p className="mb-1 text-sm font-medium">Description</p>
           <p className="text-sm text-muted-foreground">
-            <CardText text={card.description} />
+            <CardText text={card.description} onKeywordClick={onKeywordClick} />
           </p>
         </div>
 
@@ -309,7 +246,7 @@ export function CardDetail({
           <div>
             <p className="mb-1 text-sm font-medium">Effect</p>
             <p className="text-sm text-muted-foreground">
-              <CardText text={card.effect} />
+              <CardText text={card.effect} onKeywordClick={onKeywordClick} />
             </p>
           </div>
         )}
