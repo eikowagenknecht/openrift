@@ -110,7 +110,7 @@ export function CardGrid({
       return 200;
     }
     if (row.kind === "header") {
-      return 60;
+      return 44;
     }
     const containerWidth = containerRef.current?.offsetWidth ?? 400;
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
@@ -226,8 +226,8 @@ export function CardGrid({
   const virtualRowsRef = useRef(virtualRows);
   virtualRowsRef.current = virtualRows;
 
-  const cardsRef = useRef(cards);
-  cardsRef.current = cards;
+  const rowStartsRef = useRef(rowStarts);
+  rowStartsRef.current = rowStarts;
 
   const [indicator, setIndicator] = useState({
     cardId: "",
@@ -370,12 +370,23 @@ export function CardGrid({
           const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
           const thumbTop = indicatorTop - thumbH / 2 + 12;
           const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
-          const allCards = cardsRef.current;
-          const idx = Math.min(
-            allCards.length - 1,
-            Math.max(0, Math.floor(yPercent * allCards.length)),
-          );
-          const cardId = allCards[idx]?.id;
+          const targetScrollY = yPercent * scrollableHeight;
+          const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
+
+          const rows = virtualRowsRef.current;
+          const starts = rowStartsRef.current;
+          let cardId = "";
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.kind !== "cards") {
+              continue;
+            }
+            const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
+            if (rowEnd > threshold) {
+              cardId = row.items[0]?.id ?? "";
+              break;
+            }
+          }
           if (cardId) {
             cardIdRef.current.textContent = cardId;
           }
@@ -735,14 +746,10 @@ export function CardGrid({
 
       {/* Sticky set header overlay — visible only after a section header has
           fully scrolled above the sticky threshold. Just the label, no lines. */}
-      {multipleGroups && activeHeaderRow && containerRef.current && (
+      {multipleGroups && activeHeaderRow && (
         <div
-          className="fixed z-10 flex justify-center py-2"
-          style={{
-            top: APP_HEADER_HEIGHT,
-            left: containerRef.current.getBoundingClientRect().left,
-            width: containerRef.current.offsetWidth,
-          }}
+          className="fixed left-0 right-0 z-10 flex justify-center py-2"
+          style={{ top: APP_HEADER_HEIGHT }}
         >
           <button
             type="button"
@@ -782,7 +789,7 @@ export function CardGrid({
                 }}
               >
                 {row.kind === "header" ? (
-                  <div className="flex items-center gap-3 pt-6 pb-2">
+                  <div className="flex items-center gap-3 pt-4 pb-2">
                     <div className="h-px flex-1 bg-border" />
                     <button
                       type="button"
