@@ -3,12 +3,16 @@ import { useDrag } from "@use-gesture/react";
 import { ArrowLeft, X } from "lucide-react";
 import { useRef } from "react";
 
+import { FoilOverlay } from "@/components/cards/FoilOverlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useCardTilt } from "@/hooks/use-card-tilt";
+import { requestGyroPermission, useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
 import { formatDomainDisplay, getDomainTintStyle } from "@/lib/domain";
 import { formatPrice, formatPublicCode } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
+import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 
 import { CardPlaceholderImage } from "./CardPlaceholderImage";
@@ -52,6 +56,18 @@ export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }
       axis: "lock",
     },
   );
+
+  const isFoilCard = Boolean(card.price?.foil) && !card.price?.normal;
+  const gyro = useFoilGyroscope();
+
+  const foilMode = IS_COARSE_POINTER
+    ? gyro.available && gyro.permissionState === "granted"
+      ? ("gyro" as const)
+      : ("none" as const)
+    : ("pointer" as const);
+
+  const tilt = useCardTilt({ mode: foilMode, enabled: true, gyro });
+  const showShimmer = IS_COARSE_POINTER && foilMode === "none";
 
   return (
     <aside
@@ -140,19 +156,46 @@ export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }
         </div>
 
         {/* Card image */}
-        {showImages && card.art.fullURL ? (
-          <img
-            src={getCardImageUrl(card.art.fullURL, "full", card.orientation)}
-            alt={card.name}
-            className="w-full rounded-lg"
-          />
-        ) : (
-          <CardPlaceholderImage
-            name={card.name}
-            domain={card.faction}
-            energy={card.stats.energy}
-            might={card.stats.might}
-          />
+        <div ref={tilt.containerRef} style={tilt.style}>
+          <div
+            ref={tilt.innerRef}
+            className="relative overflow-hidden"
+            style={{
+              // Percentage border-radius creates elliptical corners on non-square
+              // elements. Use the / syntax to keep corners circular: horizontal
+              // radius is 5% of width, vertical is scaled by the card aspect
+              // ratio (744/1039) so both resolve to the same pixel value.
+              // 5% covers the range of built-in artwork corner radii (~3.9-4.7%).
+              borderRadius: "5% / 3.6%",
+              transform: "rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
+              transformStyle: "preserve-3d",
+            }}
+          >
+            {showImages && card.art.fullURL ? (
+              <img
+                src={getCardImageUrl(card.art.fullURL, "full", card.orientation)}
+                alt={card.name}
+                className="block w-full"
+              />
+            ) : (
+              <CardPlaceholderImage
+                name={card.name}
+                domain={card.faction}
+                energy={card.stats.energy}
+                might={card.stats.might}
+              />
+            )}
+            {isFoilCard && <FoilOverlay active={tilt.active} shimmer={showShimmer} />}
+          </div>
+        </div>
+        {isFoilCard && IS_COARSE_POINTER && gyro.available && gyro.permissionState === "prompt" && (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline"
+            onClick={() => requestGyroPermission()}
+          >
+            Enable tilt effect
+          </button>
         )}
 
         {/* Stats */}

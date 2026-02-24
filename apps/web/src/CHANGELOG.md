@@ -8,6 +8,7 @@
 - feat: Arrow keys navigate between cards when one is selected, and the grid scrolls to keep it in view
 - feat: Mobile filter and changelog panels now support swipe gestures to dismiss
 - feat: Update and offline notifications now appear as toast popups instead of fixed overlays
+- feat: Cards shimmer with a holographic foil effect when you hover them on desktop, or tilt your phone in the detail view
 - feat: The cards-per-row control now lives in the filter bar next to sort, and you can pinch to zoom on mobile
 - feat: You can now set the maximum number of cards per row from the settings menu
 - feat: TCGPlayer price data now shows on cards

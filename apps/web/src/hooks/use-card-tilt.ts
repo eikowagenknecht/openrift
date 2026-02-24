@@ -1,0 +1,134 @@
+import { useEffect, useRef, useState } from "react";
+
+import type { GyroState } from "@/hooks/use-foil-gyroscope";
+
+interface CardTiltOptions {
+  mode: "pointer" | "gyro" | "none";
+  enabled: boolean;
+  maxTilt?: number;
+  /** Required when mode is "gyro". Pass the result of useFoilGyroscope(). */
+  gyro?: GyroState;
+}
+
+interface CardTiltResult {
+  containerRef: React.RefCallback<HTMLElement>;
+  innerRef: React.RefCallback<HTMLElement>;
+  style: React.CSSProperties;
+  active: boolean;
+}
+
+export function useCardTilt({
+  mode,
+  enabled,
+  maxTilt = 12,
+  gyro,
+}: CardTiltOptions): CardTiltResult {
+  const containerElRef = useRef<HTMLElement | null>(null);
+  const innerElRef = useRef<HTMLElement | null>(null);
+  const rafRef = useRef(0);
+  const [active, setActive] = useState(mode === "none" || mode === "gyro");
+
+  const containerRef = (node: HTMLElement | null) => {
+    containerElRef.current = node;
+  };
+
+  const innerRef = (node: HTMLElement | null) => {
+    innerElRef.current = node;
+  };
+
+  // Pointer mode: attach DOM listeners directly
+  useEffect(() => {
+    if (!enabled || mode !== "pointer") {
+      return;
+    }
+    const el = containerElRef.current;
+    const inner = innerElRef.current;
+    if (!el || !inner) {
+      return;
+    }
+
+    const onEnter = () => {
+      // Remove transition so movement is instant
+      inner.style.transition = "transform 0s";
+      setActive(true);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width; // 0..1
+        const y = (e.clientY - rect.top) / rect.height; // 0..1
+
+        const rotateY = (x - 0.5) * maxTilt * 2; // -maxTilt..maxTilt
+        const rotateX = (0.5 - y) * maxTilt * 2;
+
+        // Map to percentage for foil gradient position
+        const bgX = x * 100;
+        const bgY = y * 100;
+
+        el.style.setProperty("--foil-rotate-x", `${rotateX}deg`);
+        el.style.setProperty("--foil-rotate-y", `${rotateY}deg`);
+        el.style.setProperty("--foil-bg-x", `${bgX}%`);
+        el.style.setProperty("--foil-bg-y", `${bgY}%`);
+      });
+    };
+
+    const onLeave = () => {
+      cancelAnimationFrame(rafRef.current);
+      // Smooth reset with transition
+      inner.style.transition = "transform 0.4s ease-out";
+      el.style.setProperty("--foil-rotate-x", "0deg");
+      el.style.setProperty("--foil-rotate-y", "0deg");
+      el.style.setProperty("--foil-bg-x", "50%");
+      el.style.setProperty("--foil-bg-y", "50%");
+      setActive(false);
+    };
+
+    el.addEventListener("pointerenter", onEnter);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      el.removeEventListener("pointerenter", onEnter);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+    };
+  }, [enabled, mode, maxTilt]);
+
+  // Gyro mode: map device orientation to CSS vars
+  useEffect(() => {
+    if (!enabled || mode !== "gyro" || !gyro?.available || gyro.permissionState !== "granted") {
+      return;
+    }
+    const el = containerElRef.current;
+    if (!el) {
+      return;
+    }
+
+    // beta: front-back tilt (-180..180), gamma: left-right tilt (-90..90)
+    // Clamp to a reasonable range and map to rotation
+    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+    const rotateX = clamp(gyro.beta - 45, -maxTilt, maxTilt); // Offset by 45 for natural holding angle
+    const rotateY = clamp(gyro.gamma, -maxTilt, maxTilt);
+
+    const bgX = ((rotateY + maxTilt) / (maxTilt * 2)) * 100;
+    const bgY = ((rotateX + maxTilt) / (maxTilt * 2)) * 100;
+
+    el.style.setProperty("--foil-rotate-x", `${rotateX}deg`);
+    el.style.setProperty("--foil-rotate-y", `${rotateY}deg`);
+    el.style.setProperty("--foil-bg-x", `${bgX}%`);
+    el.style.setProperty("--foil-bg-y", `${bgY}%`);
+  }, [enabled, mode, maxTilt, gyro]);
+
+  const isActive = enabled && (mode === "none" ? true : active);
+
+  return {
+    containerRef,
+    innerRef,
+    style: enabled ? { perspective: "800px" } : {},
+    active: isActive,
+  };
+}

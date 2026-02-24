@@ -4,6 +4,7 @@ import { GripVertical } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { IS_COARSE_POINTER } from "@/lib/pointer";
 
 import type { CardFields } from "./CardThumbnail";
 import { CardThumbnail } from "./CardThumbnail";
@@ -58,7 +59,6 @@ function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boo
 const CARD_ASPECT = 1039 / 744;
 const GAP = 16; // gap-4
 const APP_HEADER_HEIGHT = 56; // h-14
-const IS_COARSE_POINTER = window.matchMedia("(pointer: coarse)").matches;
 const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 1200;
 const HIDE_DELAY_SHORT = IS_COARSE_POINTER ? 2000 : 800;
 

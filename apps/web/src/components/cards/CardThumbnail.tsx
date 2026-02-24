@@ -2,9 +2,12 @@ import type { Card } from "@openrift/shared";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
+import { FoilOverlay } from "@/components/cards/FoilOverlay";
+import { useCardTilt } from "@/hooks/use-card-tilt";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatCardId, formatPrice } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
+import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 
 export interface CardFields {
@@ -47,35 +50,49 @@ export function CardThumbnail({
       : null;
   const [imgLoaded, setImgLoaded] = useState(false);
 
+  const isFoilCard = Boolean(card.price?.foil) && !card.price?.normal;
+  const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
+
   return (
     <button
       type="button"
       className={cn(
-        "group relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "group relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       )}
       style={isSelected ? getDomainGradientStyle(card.faction, "38") : undefined}
       onClick={() => onClick(card)}
     >
-      <div className="relative">
-        <CardPlaceholderImage
-          name={card.name}
-          domain={card.faction}
-          energy={card.stats.energy}
-          might={card.stats.might}
-          className={thumbnailUrl && imgLoaded ? "invisible" : undefined}
-        />
-        {thumbnailUrl && (
-          <img
-            src={thumbnailUrl}
-            alt={card.name}
-            loading="lazy"
-            className={cn(
-              "absolute inset-0 aspect-[744/1039] w-full rounded-lg object-cover transition-opacity duration-300",
-              imgLoaded ? "opacity-100" : "opacity-0",
-            )}
-            onLoad={() => setImgLoaded(true)}
+      <div ref={tilt.containerRef} style={tilt.style}>
+        <div
+          ref={tilt.innerRef}
+          className="relative overflow-hidden"
+          style={{
+            borderRadius: "5% / 3.6%",
+            transform: "rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
+            transformStyle: "preserve-3d",
+          }}
+        >
+          <CardPlaceholderImage
+            name={card.name}
+            domain={card.faction}
+            energy={card.stats.energy}
+            might={card.stats.might}
+            className={thumbnailUrl && imgLoaded ? "invisible" : undefined}
           />
-        )}
+          {thumbnailUrl && (
+            <img
+              src={thumbnailUrl}
+              alt={card.name}
+              loading="lazy"
+              className={cn(
+                "absolute inset-0 aspect-[744/1039] w-full object-cover transition-opacity duration-300",
+                imgLoaded ? "opacity-100" : "opacity-0",
+              )}
+              onLoad={() => setImgLoaded(true)}
+            />
+          )}
+          {isFoilCard && <FoilOverlay active={tilt.active} />}
+        </div>
       </div>
       {(cardFields.number ||
         cardFields.title ||
