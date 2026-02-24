@@ -7,6 +7,7 @@ import { FoilOverlay } from "@/components/cards/FoilOverlay";
 import { Button } from "@/components/ui/button";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { requestGyroPermission, useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
+import { affiliateUrl } from "@/lib/affiliate";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPrice, formatPublicCode, priceColorClass } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
@@ -124,7 +125,20 @@ export function CardDetail({
             type="button"
             ref={tilt.containerRef}
             style={tilt.style}
-            onClick={() => setShowFoil((prev) => !prev)}
+            onClick={() => {
+              setShowFoil((prev) => {
+                const next = !prev;
+                if (
+                  next &&
+                  IS_COARSE_POINTER &&
+                  gyro.available &&
+                  gyro.permissionState === "prompt"
+                ) {
+                  requestGyroPermission();
+                }
+                return next;
+              });
+            }}
             className="w-full cursor-pointer appearance-none border-0 bg-transparent p-0 text-left"
           >
             <CardImage
@@ -148,18 +162,6 @@ export function CardDetail({
             />
           </div>
         )}
-        {showFoil && IS_COARSE_POINTER && gyro.available && gyro.permissionState !== "granted" && (
-          <button
-            type="button"
-            className="text-xs text-muted-foreground underline"
-            onClick={() => requestGyroPermission()}
-          >
-            {gyro.permissionState === "denied"
-              ? "Tilt effect blocked — tap to retry"
-              : "Enable tilt effect"}
-          </button>
-        )}
-
         {/* Stats */}
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           {card.stats.energy > 0 && <StatChip label="Energy" value={card.stats.energy} />}
@@ -375,10 +377,22 @@ function PricingSection({ card }: { card: Card }) {
     return null;
   }
 
+  const url = price.url ? affiliateUrl(price.url) : null;
+
   return (
-    <div className="inline-flex items-center gap-1.5">
-      {price.normal && <PriceChip label="Normal" value={price.normal.market} url={price.url} />}
-      {price.foil && <PriceChip label="Foil" value={price.foil.market} url={price.url} />}
+    <div className="flex flex-col items-end gap-0.5">
+      <div className="inline-flex items-center gap-1.5">
+        {price.normal && <PriceChip label="Normal" value={price.normal.market} url={url} />}
+        {price.foil && <PriceChip label="Foil" value={price.foil.market} url={url} />}
+      </div>
+      <a
+        href="https://www.tcgplayer.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+      >
+        Prices via TCGplayer ↗
+      </a>
     </div>
   );
 }
