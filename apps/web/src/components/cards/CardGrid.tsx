@@ -141,6 +141,11 @@ export function CardGrid({
   // header row from being visible at the same time.
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
+  // Track the container's horizontal bounds so the sticky header overlay
+  // can be constrained to the grid width instead of spanning the full viewport.
+  const containerRectRef = useRef({ left: 0, width: 0 });
+  const [containerRect, setContainerRect] = useState({ left: 0, width: 0 });
+
   // Re-measure the container's document offset when the card list changes.
   // useLayoutEffect runs before paint so corrections are invisible to the user.
   useLayoutEffect(() => {
@@ -148,12 +153,41 @@ export function CardGrid({
     if (!el) {
       return;
     }
-    const newMargin = Math.round(el.getBoundingClientRect().top + window.scrollY);
+    const rect = el.getBoundingClientRect();
+    const newMargin = Math.round(rect.top + window.scrollY);
     if (newMargin !== scrollMarginRef.current) {
       scrollMarginRef.current = newMargin;
       setScrollMargin(newMargin);
     }
+    const newLeft = Math.round(rect.left);
+    const newWidth = Math.round(rect.width);
+    if (newLeft !== containerRectRef.current.left || newWidth !== containerRectRef.current.width) {
+      containerRectRef.current = { left: newLeft, width: newWidth };
+      setContainerRect({ left: newLeft, width: newWidth });
+    }
   }, [cards, containerRef]);
+
+  // Keep container rect in sync on resize so the sticky header stays aligned.
+  useEffect(() => {
+    const onResize = () => {
+      const el = containerRef.current;
+      if (!el) {
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const newLeft = Math.round(rect.left);
+      const newWidth = Math.round(rect.width);
+      if (
+        newLeft !== containerRectRef.current.left ||
+        newWidth !== containerRectRef.current.width
+      ) {
+        containerRectRef.current = { left: newLeft, width: newWidth };
+        setContainerRect({ left: newLeft, width: newWidth });
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [containerRef]);
 
   useEffect(() => {
     if (!multipleGroups) {
@@ -237,6 +271,7 @@ export function CardGrid({
   const cardIdRef = useRef<HTMLElement>(null);
   const rafIdRef = useRef(0);
   const dragTopRef = useRef(0);
+  const debugRef = useRef<HTMLPreElement>(null);
 
   // Prevent native touch scrolling while the indicator is being dragged.
   // touch-action: none on the element alone is unreliable on mobile — the
@@ -359,7 +394,34 @@ export function CardGrid({
       // Reverse-map indicator position → scroll position.
       const thumbTop = indicatorTop - thumbH / 2 + 12;
       const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
-      window.scrollTo(0, yPercent * scrollableHeight);
+      const targetScrollY = yPercent * scrollableHeight;
+      window.scrollTo(0, targetScrollY);
+
+      // Debug overlay — shows live values during drag
+      if (debugRef.current) {
+        const liveVH = window.innerHeight;
+        const liveDocH = document.documentElement.scrollHeight;
+        const liveSY = window.scrollY;
+        const vItems = virtualizerRef.current.getVirtualItems();
+        const totalSize = virtualizerRef.current.getTotalSize();
+        debugRef.current.textContent =
+          `clientY:    ${clientY}\n` +
+          `indTop:     ${Math.round(indicatorTop)}\n` +
+          `thumbTop:   ${Math.round(thumbTop)}\n` +
+          `yPct:       ${yPercent.toFixed(3)}\n` +
+          `─── frozen ───\n` +
+          `viewportH:  ${viewportH}\n` +
+          `docH:       ${docH}\n` +
+          `scrollable: ${scrollableHeight}\n` +
+          `─── live ─────\n` +
+          `innerH:     ${liveVH}  ${liveVH !== viewportH ? `Δ${liveVH - viewportH}` : ""}\n` +
+          `scrollH:    ${liveDocH}  ${liveDocH !== docH ? `Δ${liveDocH - docH}` : ""}\n` +
+          `scrollY:    ${Math.round(liveSY)} → ${Math.round(targetScrollY)}\n` +
+          `─── virt ─────\n` +
+          `totalSize:  ${totalSize}\n` +
+          `items:      ${vItems.length} (${vItems[0]?.index}..${vItems.at(-1)?.index})\n` +
+          `scrollMarg: ${scrollMarginRef.current}`;
+      }
     });
   };
 
@@ -595,6 +657,19 @@ export function CardGrid({
 
   return (
     <>
+      {/* Debug overlay — visible during drag on touch devices */}
+      {IS_COARSE_POINTER && (
+        <pre
+          ref={debugRef}
+          className="fixed bottom-0 left-0 z-50 max-h-[50vh] overflow-auto bg-black/85 p-2 font-mono text-[10px] leading-tight text-green-400"
+          style={{
+            opacity: indicator.dragging ? 1 : 0,
+            pointerEvents: "none",
+            transition: "opacity 200ms",
+          }}
+        />
+      )}
+
       {/* Scroll position indicator — appears while scrolling, fades out after idle.
           Draggable: grab to scrub through the page; snaps to set headers on release. */}
       <div
@@ -663,8 +738,8 @@ export function CardGrid({
           row handles the visual "push" as it approaches from below. */}
       {multipleGroups && activeHeaderRow && (
         <div
-          className="fixed left-0 right-0 z-10 flex items-center gap-3 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-          style={{ top: APP_HEADER_HEIGHT }}
+          className="fixed z-10 flex items-center gap-3 bg-background/95 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+          style={{ top: APP_HEADER_HEIGHT, left: containerRect.left, width: containerRect.width }}
         >
           <div className="h-px flex-1 bg-border" />
           <button
