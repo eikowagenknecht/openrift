@@ -114,7 +114,7 @@ export function useCardTilt({
     // Clamp to a reasonable range and map to rotation
     const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-    const rotateX = clamp(gyro.beta - 45, -maxTilt, maxTilt); // Offset by 45 for natural holding angle
+    const rotateX = clamp(gyro.beta, -maxTilt, maxTilt);
     const rotateY = clamp(gyro.gamma, -maxTilt, maxTilt);
 
     const bgX = ((rotateY + maxTilt) / (maxTilt * 2)) * 100;
