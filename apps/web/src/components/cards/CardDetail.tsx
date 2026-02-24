@@ -121,7 +121,7 @@ export function CardDetail({
               // 5% covers the range of built-in artwork corner radii (~3.9-4.7%).
               borderRadius: "5% / 3.6%",
               transform:
-                "perspective(800px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
+                "perspective(1000px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
               transformStyle: "preserve-3d",
             }}
           >
@@ -153,7 +153,7 @@ export function CardDetail({
         )}
 
         {/* Stats */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
           {card.stats.energy > 0 && <StatChip label="Energy" value={card.stats.energy} />}
           {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") &&
             card.stats.power > 0 && (
@@ -184,11 +184,13 @@ export function CardDetail({
 
         {/* Text */}
         <div className="space-y-3 pt-2">
-          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
-            <p className="text-sm text-muted-foreground">
-              <CardText text={card.description} onKeywordClick={onKeywordClick} />
-            </p>
-          </div>
+          {card.description && (
+            <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
+              <p className="text-sm text-muted-foreground">
+                <CardText text={card.description} onKeywordClick={onKeywordClick} />
+              </p>
+            </div>
+          )}
 
           {(card.effect || (card.type === "Gear" && card.mightBonus > 0)) && (
             <div

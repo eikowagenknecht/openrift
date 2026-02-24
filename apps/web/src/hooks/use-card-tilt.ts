@@ -17,12 +17,7 @@ interface CardTiltResult {
   active: boolean;
 }
 
-export function useCardTilt({
-  mode,
-  enabled,
-  maxTilt = 12,
-  gyro,
-}: CardTiltOptions): CardTiltResult {
+export function useCardTilt({ mode, enabled, maxTilt = 8, gyro }: CardTiltOptions): CardTiltResult {
   const containerElRef = useRef<HTMLElement | null>(null);
   const innerElRef = useRef<HTMLElement | null>(null);
   const rafRef = useRef(0);
