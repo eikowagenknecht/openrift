@@ -68,7 +68,8 @@ export function CardThumbnail({
           className="relative overflow-hidden"
           style={{
             borderRadius: "5% / 3.6%",
-            transform: "rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
+            transform:
+              "perspective(800px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
             transformStyle: "preserve-3d",
           }}
         >

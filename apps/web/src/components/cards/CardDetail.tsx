@@ -167,7 +167,8 @@ export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }
               // ratio (744/1039) so both resolve to the same pixel value.
               // 5% covers the range of built-in artwork corner radii (~3.9-4.7%).
               borderRadius: "5% / 3.6%",
-              transform: "rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
+              transform:
+                "perspective(800px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
               transformStyle: "preserve-3d",
             }}
           >

@@ -131,7 +131,7 @@ export function useCardTilt({
   return {
     containerRef,
     innerRef,
-    style: enabled ? { perspective: "800px" } : {},
+    style: {},
     active: isActive,
   };
 }
