@@ -232,7 +232,7 @@ export function CardGrid({
   });
   const hideTimerRef = useRef(0);
   const isDraggingRef = useRef(false);
-  const dragStartRef = useRef({ grabOffsetY: 0 });
+  const dragStartRef = useRef({ grabOffsetY: 0, viewportH: 0, docH: 0 });
   const indicatorRef = useRef<HTMLDivElement>(null);
   const cardIdRef = useRef<HTMLElement>(null);
   const rafIdRef = useRef(0);
@@ -316,9 +316,15 @@ export function CardGrid({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     isDraggingRef.current = true;
     // Grab offset in style.top space so the indicator stays pinned to the finger.
+    // Freeze viewport & document dimensions so mobile browser chrome changes
+    // (address bar collapse/expand) don't shift the scroll-to-thumb mapping.
     const styleTop = parseFloat((e.currentTarget as HTMLElement).style.top) || 0;
     dragTopRef.current = styleTop;
-    dragStartRef.current = { grabOffsetY: e.clientY - styleTop };
+    dragStartRef.current = {
+      grabOffsetY: e.clientY - styleTop,
+      viewportH: window.innerHeight,
+      docH: document.documentElement.scrollHeight,
+    };
     window.clearTimeout(hideTimerRef.current);
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
   };
@@ -330,8 +336,9 @@ export function CardGrid({
     const clientY = e.clientY;
     cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = requestAnimationFrame(() => {
-      const viewportH = window.innerHeight;
-      const docH = document.documentElement.scrollHeight;
+      // Use frozen dimensions from drag start — live values shift on mobile
+      // when the browser chrome collapses/expands, causing scroll jumps.
+      const { viewportH, docH } = dragStartRef.current;
       const scrollableHeight = docH - viewportH;
       if (scrollableHeight <= 0) {
         return;
