@@ -259,6 +259,7 @@ export function CardGrid({
   const cardIdRef = useRef<HTMLElement>(null);
   const rafIdRef = useRef(0);
   const dragTopRef = useRef(0);
+  const dragTargetRowRef = useRef(-1);
   const dragPointerIdRef = useRef(-1);
 
   // Measure the indicator's rendered height so track bounds are always accurate.
@@ -406,6 +407,7 @@ export function CardGrid({
           const rows = virtualRowsRef.current;
           const starts = rowStartsRef.current;
           let cardId = "";
+          let matchedRow = -1;
           for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             if (row.kind !== "cards") {
@@ -414,9 +416,11 @@ export function CardGrid({
             const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
             if (rowEnd > threshold) {
               cardId = row.items[0]?.id ?? "";
+              matchedRow = i;
               break;
             }
           }
+          dragTargetRowRef.current = matchedRow;
           if (cardId) {
             cardIdRef.current.textContent = cardId;
           }
@@ -429,12 +433,14 @@ export function CardGrid({
       dragPointerIdRef.current = -1;
       cancelAnimationFrame(rafIdRef.current);
 
-      // Final exact scroll to sync content with indicator position.
-      const { trackTop, trackBottom, contentStart, contentRange } = dragStartRef.current;
-      const trackRange = trackBottom - trackTop;
-      if (contentRange > 0 && trackRange > 0) {
-        const contentPct = (dragTopRef.current - trackTop) / trackRange;
-        window.scrollTo(0, contentStart + contentPct * contentRange);
+      // Scroll to the exact row that the label is showing, so the card
+      // aligns precisely below the header instead of a percentage estimate.
+      if (dragTargetRowRef.current >= 0) {
+        virtualizerRef.current.scrollToIndex(dragTargetRowRef.current, {
+          align: "start",
+          behavior: "auto",
+        });
+        dragTargetRowRef.current = -1;
       }
 
       const currentCardId = cardIdRef.current?.textContent || "";
