@@ -21,7 +21,7 @@ COPY . .
 RUN pnpm build
 
 # Create a production-only deployment for the API
-RUN pnpm --filter api deploy /deploy/api --prod --legacy
+RUN pnpm --filter api deploy /deploy/api --prod
 
 # ─── Stage 2: API server ──────────────────────────────────────────────────────
 FROM node:22-alpine AS api
