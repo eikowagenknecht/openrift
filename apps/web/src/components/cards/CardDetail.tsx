@@ -4,9 +4,7 @@ import { ArrowLeft, X } from "lucide-react";
 import { useRef } from "react";
 
 import { FoilOverlay } from "@/components/cards/FoilOverlay";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { requestGyroPermission, useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
 import { formatDomainDisplay, getDomainTintStyle } from "@/lib/domain";
@@ -18,15 +16,58 @@ import { cn } from "@/lib/utils";
 import { CardPlaceholderImage } from "./CardPlaceholderImage";
 import { CardText } from "./CardText";
 
+const KEYWORD_COLORS: Record<string, string> = {
+  Accelerate: "#24705f",
+  Action: "#24705f",
+  Assault: "#cd346f",
+  Deathknell: "#95b229",
+  Deflect: "#95b229",
+  Equip: "#707070",
+  Ganking: "#95b229",
+  Hidden: "#24705f",
+  Legion: "#24705f",
+  Mighty: "#707070",
+  "Quick-Draw": "#24705f",
+  Reaction: "#24705f",
+  Repeat: "#24705f",
+  Shield: "#cd346f",
+  Tank: "#cd346f",
+  Temporary: "#95b229",
+  Unique: "#24705f",
+  Vision: "#707070",
+  Weaponmaster: "#707070",
+};
+
+const KEYWORD_DARK_TEXT = new Set(["Deathknell", "Deflect", "Ganking", "Temporary"]);
+
+function getKeywordStyle(keyword: string): { bg: string; dark: boolean } {
+  // Strip trailing numbers (e.g. "Shield 2" → "Shield")
+  const base = keyword.replace(/\s+\d+$/, "");
+  return {
+    bg: KEYWORD_COLORS[base] ?? "#6a6a6a",
+    dark: KEYWORD_DARK_TEXT.has(base),
+  };
+}
+
 interface CardDetailProps {
   card: Card;
   onClose: () => void;
   showImages?: boolean;
   onPrevCard?: () => void;
   onNextCard?: () => void;
+  onTagClick?: (tag: string) => void;
+  onKeywordClick?: (keyword: string) => void;
 }
 
-export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }: CardDetailProps) {
+export function CardDetail({
+  card,
+  onClose,
+  showImages,
+  onPrevCard,
+  onNextCard,
+  onTagClick,
+  onKeywordClick,
+}: CardDetailProps) {
   const setNumber = formatPublicCode(card);
   const asideRef = useRef<HTMLElement>(null);
 
@@ -74,23 +115,53 @@ export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }
       ref={asideRef}
       className={cn(
         "fixed inset-0 z-50 overflow-y-auto bg-background",
-        "md:sticky md:inset-auto md:z-auto md:top-[6.5rem]",
-        "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-6.5rem)]",
+        "md:sticky md:inset-auto md:z-auto md:top-[4.5rem]",
+        "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-4.5rem)]",
         "md:border-l md:px-6",
       )}
       style={getDomainTintStyle(card.faction)}
     >
       {/* Mobile header */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/95 p-4 backdrop-blur md:hidden">
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/30 p-4 backdrop-blur md:hidden">
         <Button variant="ghost" size="icon-sm" onClick={onClose}>
           <ArrowLeft className="size-4" />
         </Button>
-        <h2 className="truncate text-lg font-semibold">{card.name}</h2>
+        <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+          <span className="truncate">{card.name}</span>
+          {card.tags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className="relative inline-flex cursor-pointer items-center px-0.5 py-0.5"
+              onClick={() => onTagClick?.(tag)}
+            >
+              <span className="absolute inset-0 -skew-x-[15deg] bg-black dark:bg-white" />
+              <span className="relative text-xs font-semibold uppercase italic tracking-wide scale-x-75 text-white dark:text-black">
+                {tag}
+              </span>
+            </button>
+          ))}
+        </h2>
       </div>
 
       {/* Desktop header */}
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
-        <h2 className="text-lg font-semibold">{card.name}</h2>
+        <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+          {card.name}
+          {card.tags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className="relative inline-flex cursor-pointer items-center px-0.5 py-0.5"
+              onClick={() => onTagClick?.(tag)}
+            >
+              <span className="absolute inset-0 -skew-x-[15deg] bg-black dark:bg-white" />
+              <span className="relative text-xs font-semibold uppercase italic tracking-wide scale-x-75 text-white dark:text-black">
+                {tag}
+              </span>
+            </button>
+          ))}
+        </h2>
         <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={onClose}>
           <X className="size-4" />
         </Button>
@@ -200,46 +271,52 @@ export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-2">
-          {card.stats.energy > 0 && <StatCard label="Energy" value={card.stats.energy} />}
+        <div className="flex flex-wrap gap-1.5">
+          {card.stats.energy > 0 && <StatChip label="Energy" value={card.stats.energy} />}
           {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") &&
             card.stats.power > 0 && (
-              <StatCard label="Power" value={card.stats.power} icon="/icons/power.svg" />
+              <StatChip label="Power" value={card.stats.power} icon="/icons/power.svg" />
             )}
           {card.type === "Unit" && (
-            <StatCard label="Might" value={card.stats.might} icon="/icons/might.svg" />
+            <StatChip label="Might" value={card.stats.might} icon="/icons/might.svg" />
           )}
           {card.type === "Gear" && card.mightBonus > 0 && (
-            <StatCard label="Might Bonus" value={`+${card.mightBonus}`} icon="/icons/might.svg" />
+            <StatChip label="Might Bonus" value={`+${card.mightBonus}`} icon="/icons/might.svg" />
           )}
         </div>
 
         {/* Keywords */}
         {card.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {card.keywords.map((keyword) => (
-              <Badge key={keyword} variant="secondary">
-                {keyword}
-              </Badge>
-            ))}
+          <div className="flex flex-wrap gap-2">
+            {card.keywords.map((keyword) => {
+              const kw = getKeywordStyle(keyword);
+              return (
+                <button
+                  key={keyword}
+                  type="button"
+                  className="relative inline-flex cursor-pointer items-center px-0.5 py-0.5"
+                  onClick={() => onKeywordClick?.(keyword)}
+                >
+                  <span
+                    className="absolute inset-0 -skew-x-[15deg]"
+                    style={{ backgroundColor: kw.bg }}
+                  />
+                  <span
+                    className={cn(
+                      "relative text-xs font-semibold uppercase italic tracking-wide scale-x-75",
+                      kw.dark ? "text-black" : "text-white",
+                    )}
+                  >
+                    {keyword}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
-
-        {/* Tags */}
-        {card.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {card.tags.map((tag) => (
-              <Badge key={tag} variant="outline">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        <Separator />
 
         {/* Text */}
-        <div>
+        <div className="pt-2">
           <p className="mb-1 text-sm font-medium">Description</p>
           <p className="text-sm text-muted-foreground">
             <CardText text={card.description} />
@@ -255,24 +332,24 @@ export function CardDetail({ card, onClose, showImages, onPrevCard, onNextCard }
           </div>
         )}
 
-        <Separator />
-
         {/* Footer */}
-        <div className="space-y-1 text-xs text-muted-foreground">
-          <p>
-            {setNumber} · {card.set}
-          </p>
-          <p className="flex items-center gap-1">
-            <img src="/icons/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
-            {card.art.artist}
-          </p>
+        <div className="-mx-4 mt-2 rounded-lg bg-muted/50 px-4 py-3 md:-mx-0">
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              {setNumber} · {card.set}
+            </p>
+            <p className="flex items-center gap-1">
+              <img src="/icons/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
+              {card.art.artist}
+            </p>
+          </div>
         </div>
       </div>
     </aside>
   );
 }
 
-function StatCard({
+function StatChip({
   label,
   value,
   icon,
@@ -282,13 +359,14 @@ function StatCard({
   icon?: string;
 }) {
   return (
-    <div className="rounded-md bg-muted p-3 text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="flex items-center justify-center gap-1 text-2xl font-bold">
-        {icon && <img src={icon} alt="" className="size-5 brightness-0 dark:invert" />}
-        {value}
-      </p>
-    </div>
+    <span
+      title={label}
+      className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-sm font-semibold"
+    >
+      {icon && <img src={icon} alt="" className="size-3.5 brightness-0 dark:invert" />}
+      <span className="text-xs font-normal text-muted-foreground">{label}</span>
+      {value}
+    </span>
   );
 }
 

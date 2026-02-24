@@ -201,6 +201,8 @@ export function CardBrowser({
             showImages={showImages}
             onPrevCard={handlePrevCard}
             onNextCard={handleNextCard}
+            onTagClick={(tag) => setSearch(`t:${tag}`)}
+            onKeywordClick={(keyword) => setSearch(`k:${keyword}`)}
           />
         )}
       </div>
