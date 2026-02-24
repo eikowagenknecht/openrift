@@ -1,7 +1,7 @@
 import type { Card } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
 import { ArrowLeft, X } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { FoilOverlay } from "@/components/cards/FoilOverlay";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,17 @@ export function CardDetail({
     },
   );
 
-  const isFoilCard = Boolean(card.price?.foil) && !card.price?.normal;
+  const hasFoil = Boolean(card.price?.foil);
+  const isFoilOnly = hasFoil && !card.price?.normal;
+  const [showFoil, setShowFoil] = useState(isFoilOnly);
+  const [prevCardId, setPrevCardId] = useState(card.id);
+
+  // Reset foil toggle when switching cards
+  if (card.id !== prevCardId) {
+    setPrevCardId(card.id);
+    setShowFoil(isFoilOnly);
+  }
+
   const gyro = useFoilGyroscope();
 
   const foilMode = IS_COARSE_POINTER
@@ -108,54 +118,47 @@ export function CardDetail({
       </div>
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
-        {/* Card image */}
-        <div ref={tilt.containerRef} style={tilt.style}>
-          <div
-            ref={tilt.innerRef}
-            className="relative overflow-hidden"
-            style={{
-              // Percentage border-radius creates elliptical corners on non-square
-              // elements. Use the / syntax to keep corners circular: horizontal
-              // radius is 5% of width, vertical is scaled by the card aspect
-              // ratio (744/1039) so both resolve to the same pixel value.
-              // 5% covers the range of built-in artwork corner radii (~3.9-4.7%).
-              borderRadius: "5% / 3.6%",
-              transform:
-                "perspective(1000px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
-              transformStyle: "preserve-3d",
-            }}
+        {/* Card image — tap to toggle foil */}
+        {hasFoil ? (
+          <button
+            type="button"
+            ref={tilt.containerRef}
+            style={tilt.style}
+            onClick={() => setShowFoil((prev) => !prev)}
+            className="w-full cursor-pointer appearance-none border-0 bg-transparent p-0 text-left"
           >
-            {showImages && card.art.fullURL ? (
-              <img
-                src={getCardImageUrl(card.art.fullURL, "full", card.orientation)}
-                alt={card.name}
-                className="block w-full"
-              />
-            ) : (
-              <CardPlaceholderImage
-                name={card.name}
-                domain={card.faction}
-                energy={card.stats.energy}
-                might={card.stats.might}
-              />
-            )}
-            {isFoilCard && <FoilOverlay active={tilt.active} shimmer={showShimmer} />}
+            <CardImage
+              innerRef={tilt.innerRef}
+              card={card}
+              showImages={showImages}
+              showFoil={showFoil}
+              tiltActive={tilt.active}
+              showShimmer={showShimmer}
+            />
+          </button>
+        ) : (
+          <div ref={tilt.containerRef} style={tilt.style}>
+            <CardImage
+              innerRef={tilt.innerRef}
+              card={card}
+              showImages={showImages}
+              showFoil={false}
+              tiltActive={tilt.active}
+              showShimmer={showShimmer}
+            />
           </div>
-        </div>
-        {isFoilCard &&
-          IS_COARSE_POINTER &&
-          gyro.available &&
-          gyro.permissionState !== "granted" && (
-            <button
-              type="button"
-              className="text-xs text-muted-foreground underline"
-              onClick={() => requestGyroPermission()}
-            >
-              {gyro.permissionState === "denied"
-                ? "Tilt effect blocked — tap to retry"
-                : "Enable tilt effect"}
-            </button>
-          )}
+        )}
+        {showFoil && IS_COARSE_POINTER && gyro.available && gyro.permissionState !== "granted" && (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline"
+            onClick={() => requestGyroPermission()}
+          >
+            {gyro.permissionState === "denied"
+              ? "Tilt effect blocked — tap to retry"
+              : "Enable tilt effect"}
+          </button>
+        )}
 
         {/* Stats */}
         <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -230,6 +233,56 @@ export function CardDetail({
         </div>
       </div>
     </aside>
+  );
+}
+
+function CardImage({
+  innerRef,
+  card,
+  showImages,
+  showFoil,
+  tiltActive,
+  showShimmer,
+}: {
+  innerRef: React.RefCallback<HTMLElement>;
+  card: Card;
+  showImages?: boolean;
+  showFoil: boolean;
+  tiltActive: boolean;
+  showShimmer: boolean;
+}) {
+  return (
+    <div
+      ref={innerRef}
+      className="relative overflow-hidden"
+      style={{
+        // Percentage border-radius creates elliptical corners on non-square
+        // elements. Use the / syntax to keep corners circular: horizontal
+        // radius is 5% of width, vertical is scaled by the card aspect
+        // ratio (744/1039) so both resolve to the same pixel value.
+        // 5% covers the range of built-in artwork corner radii (~3.9-4.7%).
+        borderRadius: "5% / 3.6%",
+        transform:
+          "perspective(1000px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
+        transformStyle: "preserve-3d",
+      }}
+    >
+      {showImages && card.art.fullURL ? (
+        <img
+          src={getCardImageUrl(card.art.fullURL, "full", card.orientation)}
+          alt={card.name}
+          className="block w-full"
+        />
+      ) : (
+        <CardPlaceholderImage
+          name={card.name}
+          domain={card.faction}
+          energy={card.stats.energy}
+          might={card.stats.might}
+        />
+      )}
+      {showFoil && <FoilOverlay active={tiltActive} shimmer={showShimmer} />}
+    </div>
   );
 }
 

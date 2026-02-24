@@ -2,6 +2,7 @@
 
 ## 2026-02-24
 
+- feat: Tap the card image in the detail view to toggle the holographic foil effect on or off
 - fix: Tapping a keyword or tag in the card detail now closes the detail pane on mobile so you can see the filtered results
 - feat: The scroll indicator is now always draggable — no need to enable it in settings
 - fix: The card grid no longer shows 4 columns on mobile when first opened — it now matches your screen size immediately
