@@ -110,7 +110,7 @@ export function CardGrid({
       return 200;
     }
     if (row.kind === "header") {
-      return 44;
+      return 60;
     }
     const containerWidth = containerRef.current?.offsetWidth ?? 400;
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
@@ -746,10 +746,14 @@ export function CardGrid({
 
       {/* Sticky set header overlay — visible only after a section header has
           fully scrolled above the sticky threshold. Just the label, no lines. */}
-      {multipleGroups && activeHeaderRow && (
+      {multipleGroups && activeHeaderRow && containerRef.current && (
         <div
-          className="fixed left-0 right-0 z-10 flex justify-center py-2"
-          style={{ top: APP_HEADER_HEIGHT }}
+          className="fixed z-10 flex justify-center py-2"
+          style={{
+            top: APP_HEADER_HEIGHT,
+            left: containerRef.current.getBoundingClientRect().left,
+            width: containerRef.current.offsetWidth,
+          }}
         >
           <button
             type="button"
@@ -789,7 +793,7 @@ export function CardGrid({
                 }}
               >
                 {row.kind === "header" ? (
-                  <div className="flex items-center gap-3 pt-4 pb-2">
+                  <div className="flex items-center gap-3 pt-6 pb-2">
                     <div className="h-px flex-1 bg-border" />
                     <button
                       type="button"
