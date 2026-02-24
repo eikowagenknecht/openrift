@@ -272,6 +272,7 @@ export function CardGrid({
   const rafIdRef = useRef(0);
   const dragTopRef = useRef(0);
   const debugRef = useRef<HTMLPreElement>(null);
+  const dragPointerIdRef = useRef(-1);
 
   // Prevent native touch scrolling while the indicator is being dragged.
   // touch-action: none on the element alone is unreliable on mobile — the
@@ -348,8 +349,10 @@ export function CardGrid({
 
   const handleIndicatorPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Don't use setPointerCapture — on mobile WebKit it causes
+    // pointermove to report garbage clientY values (±100000).
     isDraggingRef.current = true;
+    dragPointerIdRef.current = e.pointerId;
     // Grab offset in style.top space so the indicator stays pinned to the finger.
     // Freeze viewport & document dimensions so mobile browser chrome changes
     // (address bar collapse/expand) don't shift the scroll-to-thumb mapping.
@@ -364,95 +367,113 @@ export function CardGrid({
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
   };
 
-  const handleIndicatorPointerMove = (e: React.PointerEvent) => {
-    if (!isDraggingRef.current) {
+  // Document-level pointer listeners for drag — avoids setPointerCapture
+  // which reports garbage clientY on mobile WebKit.
+  useEffect(() => {
+    if (!enableDrag) {
       return;
     }
-    const clientY = e.clientY;
-    cancelAnimationFrame(rafIdRef.current);
-    rafIdRef.current = requestAnimationFrame(() => {
-      // Use frozen dimensions from drag start — live values shift on mobile
-      // when the browser chrome collapses/expands, causing scroll jumps.
-      const { viewportH, docH } = dragStartRef.current;
-      const scrollableHeight = docH - viewportH;
-      if (scrollableHeight <= 0) {
+
+    const onMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
         return;
       }
+      const clientY = e.clientY;
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = requestAnimationFrame(() => {
+        // Use frozen dimensions from drag start — live values shift on mobile
+        // when the browser chrome collapses/expands, causing scroll jumps.
+        const { viewportH, docH } = dragStartRef.current;
+        const scrollableHeight = docH - viewportH;
+        if (scrollableHeight <= 0) {
+          return;
+        }
+        const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+
+        // Position the indicator directly at the pointer — no round-trip through
+        // scroll position, so virtualizer height changes can't cause jumps.
+        const indicatorTop = Math.max(
+          APP_HEADER_HEIGHT + 4,
+          Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
+        );
+        dragTopRef.current = indicatorTop;
+        if (indicatorRef.current) {
+          indicatorRef.current.style.top = `${indicatorTop}px`;
+        }
+
+        // Reverse-map indicator position → scroll position.
+        const thumbTop = indicatorTop - thumbH / 2 + 12;
+        const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
+        const targetScrollY = yPercent * scrollableHeight;
+        window.scrollTo(0, targetScrollY);
+
+        // Debug overlay — shows live values during drag
+        if (debugRef.current) {
+          const liveVH = window.innerHeight;
+          const liveDocH = document.documentElement.scrollHeight;
+          const liveSY = window.scrollY;
+          const vItems = virtualizerRef.current.getVirtualItems();
+          const totalSize = virtualizerRef.current.getTotalSize();
+          debugRef.current.textContent =
+            `clientY:    ${clientY}\n` +
+            `indTop:     ${Math.round(indicatorTop)}\n` +
+            `thumbTop:   ${Math.round(thumbTop)}\n` +
+            `yPct:       ${yPercent.toFixed(3)}\n` +
+            `─── frozen ───\n` +
+            `viewportH:  ${viewportH}\n` +
+            `docH:       ${docH}\n` +
+            `scrollable: ${scrollableHeight}\n` +
+            `─── live ─────\n` +
+            `innerH:     ${liveVH}  ${liveVH !== viewportH ? `Δ${liveVH - viewportH}` : ""}\n` +
+            `scrollH:    ${liveDocH}  ${liveDocH !== docH ? `Δ${liveDocH - docH}` : ""}\n` +
+            `scrollY:    ${Math.round(liveSY)} → ${Math.round(targetScrollY)}\n` +
+            `─── virt ─────\n` +
+            `totalSize:  ${totalSize}\n` +
+            `items:      ${vItems.length} (${vItems[0]?.index}..${vItems.at(-1)?.index})\n` +
+            `scrollMarg: ${scrollMarginRef.current}`;
+        }
+      });
+    };
+
+    const onUp = (e: PointerEvent) => {
+      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
+        return;
+      }
+      isDraggingRef.current = false;
+      dragPointerIdRef.current = -1;
+      cancelAnimationFrame(rafIdRef.current);
+
+      // Sync final position back to React state after drag ends.
+      const viewportH = window.innerHeight;
+      const docH = document.documentElement.scrollHeight;
       const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+      const scrollableHeight = docH - viewportH;
+      const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
+      const thumbTop = yPercent * (viewportH - thumbH);
+      const currentCardId = cardIdRef.current?.textContent || "";
 
-      // Position the indicator directly at the pointer — no round-trip through
-      // scroll position, so virtualizer height changes can't cause jumps.
-      const indicatorTop = Math.max(
-        APP_HEADER_HEIGHT + 4,
-        Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
-      );
-      dragTopRef.current = indicatorTop;
-      if (indicatorRef.current) {
-        indicatorRef.current.style.top = `${indicatorTop}px`;
-      }
+      setIndicator((prev) => ({
+        ...prev,
+        dragging: false,
+        thumbTop,
+        thumbH,
+        cardId: currentCardId,
+      }));
 
-      // Reverse-map indicator position → scroll position.
-      const thumbTop = indicatorTop - thumbH / 2 + 12;
-      const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
-      const targetScrollY = yPercent * scrollableHeight;
-      window.scrollTo(0, targetScrollY);
+      hideTimerRef.current = window.setTimeout(() => {
+        setIndicator((prev) => ({ ...prev, visible: false }));
+      }, HIDE_DELAY);
+    };
 
-      // Debug overlay — shows live values during drag
-      if (debugRef.current) {
-        const liveVH = window.innerHeight;
-        const liveDocH = document.documentElement.scrollHeight;
-        const liveSY = window.scrollY;
-        const vItems = virtualizerRef.current.getVirtualItems();
-        const totalSize = virtualizerRef.current.getTotalSize();
-        debugRef.current.textContent =
-          `clientY:    ${clientY}\n` +
-          `indTop:     ${Math.round(indicatorTop)}\n` +
-          `thumbTop:   ${Math.round(thumbTop)}\n` +
-          `yPct:       ${yPercent.toFixed(3)}\n` +
-          `─── frozen ───\n` +
-          `viewportH:  ${viewportH}\n` +
-          `docH:       ${docH}\n` +
-          `scrollable: ${scrollableHeight}\n` +
-          `─── live ─────\n` +
-          `innerH:     ${liveVH}  ${liveVH !== viewportH ? `Δ${liveVH - viewportH}` : ""}\n` +
-          `scrollH:    ${liveDocH}  ${liveDocH !== docH ? `Δ${liveDocH - docH}` : ""}\n` +
-          `scrollY:    ${Math.round(liveSY)} → ${Math.round(targetScrollY)}\n` +
-          `─── virt ─────\n` +
-          `totalSize:  ${totalSize}\n` +
-          `items:      ${vItems.length} (${vItems[0]?.index}..${vItems.at(-1)?.index})\n` +
-          `scrollMarg: ${scrollMarginRef.current}`;
-      }
-    });
-  };
-
-  const handleIndicatorPointerUp = () => {
-    if (!isDraggingRef.current) {
-      return;
-    }
-    isDraggingRef.current = false;
-    cancelAnimationFrame(rafIdRef.current);
-
-    // Sync final position back to React state after drag ends.
-    const viewportH = window.innerHeight;
-    const docH = document.documentElement.scrollHeight;
-    const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
-    const scrollableHeight = docH - viewportH;
-    const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-    const thumbTop = yPercent * (viewportH - thumbH);
-    const currentCardId = cardIdRef.current?.textContent || "";
-
-    setIndicator((prev) => ({
-      ...prev,
-      dragging: false,
-      thumbTop,
-      thumbH,
-      cardId: currentCardId,
-    }));
-
-    hideTimerRef.current = window.setTimeout(() => {
-      setIndicator((prev) => ({ ...prev, visible: false }));
-    }, HIDE_DELAY);
-  };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+  }, [enableDrag]);
 
   // Screen-space positions of each set header on the scrollbar track.
   // Recomputed on every render (indicator.thumbTop changes on scroll).
@@ -690,9 +711,6 @@ export function CardGrid({
           touchAction: enableDrag ? "none" : undefined,
         }}
         onPointerDown={enableDrag ? handleIndicatorPointerDown : undefined}
-        onPointerMove={enableDrag ? handleIndicatorPointerMove : undefined}
-        onPointerUp={enableDrag ? handleIndicatorPointerUp : undefined}
-        onPointerCancel={enableDrag ? handleIndicatorPointerUp : undefined}
       >
         <div
           className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "pr-3 pl-1.5 py-1.5 text-sm" : "pr-2.5 pl-1 py-1 text-xs"} ${enableDrag ? (indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50") : "ring-border/50"}`}
