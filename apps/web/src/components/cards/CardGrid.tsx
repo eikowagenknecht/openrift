@@ -59,7 +59,6 @@ const CARD_ASPECT = 1039 / 744;
 const GAP = 16; // gap-4
 const APP_HEADER_HEIGHT = 56; // h-14
 const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 1200;
-const HIDE_DELAY_SHORT = IS_COARSE_POINTER ? 2000 : 800;
 
 interface CardGridProps {
   cards: Card[];
@@ -550,24 +549,6 @@ export function CardGrid({
   })();
 
   // Click a ghost badge to jump directly to that set header.
-  const handleSnapBadgeClick = (rowIndex: number) => {
-    virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
-  };
-
-  // Keep indicator visible while hovering ghost badges so the user has time to click.
-  const handleSnapBadgeEnter = () => {
-    window.clearTimeout(hideTimerRef.current);
-  };
-
-  const handleSnapBadgeLeave = () => {
-    if (isDraggingRef.current) {
-      return;
-    }
-    hideTimerRef.current = window.setTimeout(() => {
-      setIndicator((prev) => ({ ...prev, visible: false }));
-    }, HIDE_DELAY_SHORT);
-  };
-
   // Arrow-key navigation: when a card is selected, Left/Right/Up/Down moves
   // to adjacent cards in the grid while skipping set headers.
   useEffect(() => {
@@ -716,38 +697,28 @@ export function CardGrid({
         </div>
       </div>
 
-      {/* Ghost badges — clickable set-header jump targets, visible whenever indicator is */}
+      {/* Ghost badges — set-section marks, visible only while dragging */}
       {indicator.visible &&
         multipleGroups &&
         snapPoints.map((pt) => (
-          <button
-            type="button"
+          <div
             key={pt.rowIndex}
-            className={`fixed z-19 transition-opacity duration-300 ${indicator.dragging ? "pointer-events-none" : "pointer-events-auto"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
+            className={`pointer-events-none fixed z-19 transition-opacity duration-300 ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
             style={{
               right: 20,
               top: pt.screenY,
-              opacity: indicator.visible ? 1 : 0,
+              opacity: indicator.dragging ? 1 : 0,
             }}
-            onClick={() => handleSnapBadgeClick(pt.rowIndex)}
-            onMouseEnter={handleSnapBadgeEnter}
-            onMouseLeave={handleSnapBadgeLeave}
           >
             <div className="flex items-center gap-1.5">
               <div
-                className={`rounded-md font-mono font-medium select-none ring-1 backdrop-blur-sm transition-all ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${
-                  indicator.dragging
-                    ? "bg-popover/40 text-popover-foreground/30 ring-border/20"
-                    : "cursor-pointer bg-popover/80 text-popover-foreground/70 ring-border/40 hover:bg-popover/95 hover:text-popover-foreground hover:ring-border/60"
-                }`}
+                className={`rounded-md bg-popover/40 font-mono font-medium text-popover-foreground/30 ring-1 ring-border/20 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"}`}
               >
                 {pt.firstCardId || pt.setInfo.code}
               </div>
-              <div
-                className={`size-1.5 shrink-0 rounded-full transition-all ${indicator.dragging ? "bg-muted-foreground/20" : "bg-muted-foreground/40"}`}
-              />
+              <div className="size-1.5 shrink-0 rounded-full bg-muted-foreground/20" />
             </div>
-          </button>
+          </div>
         ))}
 
       {/* Sticky set header overlay — visible only after a section header has
