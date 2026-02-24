@@ -2,6 +2,7 @@
 
 ## 2026-02-24
 
+- fix: Tapping a keyword or tag in the card detail now closes the detail pane on mobile so you can see the filtered results
 - feat: The scroll indicator is now always draggable — no need to enable it in settings
 - fix: The card grid no longer shows 4 columns on mobile when first opened — it now matches your screen size immediately
 - feat: The scroll indicator now has an accent dot, a glowing ring, and smartly avoids overlapping other elements

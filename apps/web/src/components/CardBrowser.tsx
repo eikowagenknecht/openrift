@@ -198,8 +198,18 @@ export function CardBrowser({
             showImages={showImages}
             onPrevCard={handlePrevCard}
             onNextCard={handleNextCard}
-            onTagClick={(tag) => setSearch(`t:${tag}`)}
-            onKeywordClick={(keyword) => setSearch(`k:${keyword}`)}
+            onTagClick={(tag) => {
+              setSearch(`t:${tag}`);
+              if (window.matchMedia("(max-width: 767px)").matches) {
+                handleDetailClose();
+              }
+            }}
+            onKeywordClick={(keyword) => {
+              setSearch(`k:${keyword}`);
+              if (window.matchMedia("(max-width: 767px)").matches) {
+                handleDetailClose();
+              }
+            }}
           />
         )}
       </div>
