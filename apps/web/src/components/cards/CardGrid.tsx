@@ -70,6 +70,7 @@ interface CardGridProps {
   cardFields?: CardFields;
   maxColumns?: number | null;
   onPhysicalMaxChange?: (max: number) => void;
+  onAutoColumnsChange?: (cols: number) => void;
 }
 
 export function CardGrid({
@@ -81,13 +82,20 @@ export function CardGrid({
   cardFields,
   maxColumns,
   onPhysicalMaxChange,
+  onAutoColumnsChange,
 }: CardGridProps) {
-  const { containerRef, columns, physicalMax } = useResponsiveColumns(maxColumns);
+  const { containerRef, columns, physicalMax, autoColumns } = useResponsiveColumns(maxColumns);
 
   const prevPhysicalMax = useRef(physicalMax);
   if (prevPhysicalMax.current !== physicalMax) {
     prevPhysicalMax.current = physicalMax;
     onPhysicalMaxChange?.(physicalMax);
+  }
+
+  const prevAutoColumns = useRef(autoColumns);
+  if (prevAutoColumns.current !== autoColumns) {
+    prevAutoColumns.current = autoColumns;
+    onAutoColumnsChange?.(autoColumns);
   }
   const outerWidth = containerRef.current?.offsetWidth ?? 400;
   const thumbWidth = (outerWidth - GAP * (columns - 1)) / columns;

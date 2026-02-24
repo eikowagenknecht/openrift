@@ -81,6 +81,7 @@ interface FilterBarProps {
   onSearchScopeToggle: (field: SearchField) => void;
   maxColumns: number | null;
   maxColumnsLimit?: number;
+  autoColumns?: number;
   onMaxColumnsChange?: (value: number | null) => void;
 }
 
@@ -116,6 +117,7 @@ export function FilterBar({
   onSearchScopeToggle,
   maxColumns,
   maxColumnsLimit = 8,
+  autoColumns = 5,
   onMaxColumnsChange,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(filterState.search);
@@ -342,28 +344,44 @@ export function FilterBar({
                 size="icon"
                 onClick={() => {
                   if (maxColumns === null) {
-                    return;
+                    const next = autoColumns - 1;
+                    if (next >= 1) {
+                      onMaxColumnsChange(next);
+                    }
+                  } else {
+                    onMaxColumnsChange(maxColumns <= 1 ? null : maxColumns - 1);
                   }
-                  onMaxColumnsChange(maxColumns <= 1 ? null : maxColumns - 1);
                 }}
-                disabled={maxColumns === null}
+                disabled={maxColumns === null && autoColumns <= 1}
                 aria-label="Fewer columns"
               >
                 <Minus className="size-4" />
               </Button>
-              <ButtonGroupText className="min-w-10 justify-center tabular-nums">
+              <ButtonGroupText
+                className="min-w-10 cursor-pointer justify-center tabular-nums"
+                onClick={() => {
+                  if (maxColumns !== null) {
+                    onMaxColumnsChange(null);
+                  }
+                }}
+                title={maxColumns === null ? "Auto columns" : "Reset to auto"}
+              >
                 {maxColumns === null ? "Auto" : maxColumns}
               </ButtonGroupText>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  const next = maxColumns === null ? 2 : maxColumns + 1;
+                  const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
                   if (next <= maxColumnsLimit) {
                     onMaxColumnsChange(next);
                   }
                 }}
-                disabled={maxColumns !== null && maxColumns >= maxColumnsLimit}
+                disabled={
+                  maxColumns === null
+                    ? autoColumns >= maxColumnsLimit
+                    : maxColumns >= maxColumnsLimit
+                }
                 aria-label="More columns"
               >
                 <Plus className="size-4" />

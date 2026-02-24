@@ -22,6 +22,11 @@ export function useResponsiveColumns(maxColumns?: number | null) {
     return match?.cols ?? 2;
   });
   const [physicalMax, setPhysicalMax] = useState(8);
+  const [autoColumns, setAutoColumns] = useState(() => {
+    const width = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const match = breakpoints.find((bp) => width >= bp.minWidth);
+    return match?.cols ?? 2;
+  });
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -34,10 +39,13 @@ export function useResponsiveColumns(maxColumns?: number | null) {
       const pMax = Math.max(1, Math.floor((width + GAP) / (MIN_CARD_WIDTH + GAP)));
       setPhysicalMax(pMax);
 
+      const match = breakpoints.find((bp) => width >= bp.minWidth);
+      const auto = match?.cols ?? 2;
+      setAutoColumns(auto);
+
       if (maxColumns !== undefined && maxColumns !== null) {
         setColumns(Math.min(maxColumns, pMax));
       } else {
-        const match = breakpoints.find((bp) => width >= bp.minWidth);
         if (match) {
           setColumns(match.cols);
         }
@@ -56,5 +64,5 @@ export function useResponsiveColumns(maxColumns?: number | null) {
     };
   }, [maxColumns]);
 
-  return { containerRef, columns, physicalMax };
+  return { containerRef, columns, physicalMax, autoColumns };
 }

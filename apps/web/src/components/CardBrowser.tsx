@@ -59,6 +59,7 @@ export function CardBrowser({
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [physicalMaxColumns, setPhysicalMaxColumns] = useState(8);
+  const [autoColumns, setAutoColumns] = useState(5);
 
   // Lock body scroll when mobile overlay is active
   useEffect(() => {
@@ -157,6 +158,7 @@ export function CardBrowser({
         onSearchScopeToggle={toggleSearchField}
         maxColumns={maxColumns ?? null}
         maxColumnsLimit={physicalMaxColumns}
+        autoColumns={autoColumns}
         onMaxColumnsChange={onMaxColumnsChange}
       />
       <ActiveFilters
@@ -189,6 +191,7 @@ export function CardBrowser({
             cardFields={cardFields}
             maxColumns={maxColumns}
             onPhysicalMaxChange={setPhysicalMaxColumns}
+            onAutoColumnsChange={setAutoColumns}
           />
         </div>
         {selectedCard && detailOpen && (
