@@ -70,7 +70,6 @@ interface CardGridProps {
   cardFields?: CardFields;
   maxColumns?: number | null;
   onPhysicalMaxChange?: (max: number) => void;
-  enableDrag?: boolean;
 }
 
 export function CardGrid({
@@ -82,7 +81,6 @@ export function CardGrid({
   cardFields,
   maxColumns,
   onPhysicalMaxChange,
-  enableDrag,
 }: CardGridProps) {
   const { containerRef, columns, physicalMax } = useResponsiveColumns(maxColumns);
 
@@ -249,9 +247,6 @@ export function CardGrid({
   // browser can still initiate a scroll gesture. A non-passive touchmove
   // handler on the document lets us call preventDefault() to suppress it.
   useEffect(() => {
-    if (!enableDrag) {
-      return;
-    }
     const preventScroll = (e: TouchEvent) => {
       if (isDraggingRef.current) {
         e.preventDefault();
@@ -259,7 +254,7 @@ export function CardGrid({
     };
     document.addEventListener("touchmove", preventScroll, { passive: false });
     return () => document.removeEventListener("touchmove", preventScroll);
-  }, [enableDrag]);
+  }, []);
 
   useEffect(() => {
     const update = () => {
@@ -342,10 +337,6 @@ export function CardGrid({
   // pointermove reports garbage clientY values (±100000) on mobile WebKit.
   // Desktop uses PointerEvent as usual.
   useEffect(() => {
-    if (!enableDrag) {
-      return;
-    }
-
     const handleMove = (clientY: number) => {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
@@ -478,7 +469,7 @@ export function CardGrid({
       document.removeEventListener("pointerup", onPointerUp);
       document.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [enableDrag]);
+  }, []);
 
   // Screen-space positions of each set header on the scrollbar track.
   // Recomputed on every render (indicator.thumbTop changes on scroll).
@@ -711,13 +702,13 @@ export function CardGrid({
                 ),
               ),
           opacity: indicator.visible ? 1 : 0,
-          touchAction: enableDrag ? "none" : undefined,
+          touchAction: "none",
         }}
-        onPointerDown={enableDrag ? handleIndicatorPointerDown : undefined}
+        onPointerDown={handleIndicatorPointerDown}
       >
         <div className="flex items-center gap-1.5">
           <div
-            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${enableDrag ? (indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40") : "ring-border/50"}`}
+            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
           >
             <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
           </div>

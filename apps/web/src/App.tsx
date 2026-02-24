@@ -36,13 +36,6 @@ function App() {
     },
   );
 
-  const [scrollIndicatorDrag, setScrollIndicatorDrag] = useLocalStorage(
-    "scrollIndicatorDrag",
-    false,
-    String,
-    (raw) => raw === "true",
-  );
-
   const handleShowImagesChange = (show: boolean) => {
     setShowImages(show);
   };
@@ -63,8 +56,6 @@ function App() {
               onCardFieldsChange={handleCardFieldsChange}
               darkMode={theme === "dark"}
               onDarkModeChange={() => toggleTheme()}
-              scrollIndicatorDrag={scrollIndicatorDrag}
-              onScrollIndicatorDragChange={setScrollIndicatorDrag}
             />
           }
         />
@@ -74,7 +65,6 @@ function App() {
             cardFields={cardFields}
             maxColumns={maxColumns}
             onMaxColumnsChange={setMaxColumns}
-            enableScrollDrag={scrollIndicatorDrag}
           />
         </main>
         <Footer />

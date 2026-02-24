@@ -29,7 +29,6 @@ interface CardBrowserProps {
   cardFields: CardFields;
   maxColumns?: number | null;
   onMaxColumnsChange?: (value: number | null) => void;
-  enableScrollDrag?: boolean;
 }
 
 export function CardBrowser({
@@ -37,7 +36,6 @@ export function CardBrowser({
   cardFields,
   maxColumns,
   onMaxColumnsChange,
-  enableScrollDrag,
 }: CardBrowserProps) {
   const {
     filters,
@@ -191,7 +189,6 @@ export function CardBrowser({
             cardFields={cardFields}
             maxColumns={maxColumns}
             onPhysicalMaxChange={setPhysicalMaxColumns}
-            enableDrag={enableScrollDrag}
           />
         </div>
         {selectedCard && detailOpen && (
