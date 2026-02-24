@@ -2,6 +2,7 @@
 
 ## 2026-02-24
 
+- fix: Dismissing the update popup and then checking for updates again now correctly re-shows the update instead of saying you're on the latest version
 - feat: Tap the card image in the detail view to toggle the holographic foil effect on or off
 - fix: Tapping a keyword or tag in the card detail now closes the detail pane on mobile so you can see the filtered results
 - feat: The scroll indicator is now always draggable — no need to enable it in settings

@@ -10,7 +10,8 @@ interface SWUpdateContextValue {
   needRefresh: boolean;
   dismiss: () => void;
   applyUpdate: () => Promise<void>;
-  checkForUpdate: () => Promise<void>;
+  /** Check for updates. Returns `true` if an update is available. */
+  checkForUpdate: () => Promise<boolean>;
 }
 
 const SWUpdateContext = createContext<SWUpdateContextValue | null>(null);
@@ -33,8 +34,18 @@ export function SWUpdateProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const checkForUpdate = async () => {
-    await registrationRef.current?.update();
+  const checkForUpdate = async (): Promise<boolean> => {
+    const reg = registrationRef.current;
+    if (!reg) {
+      return false;
+    }
+    await reg.update();
+    // A previously-dismissed update still has a waiting worker — resurface it.
+    if (reg.waiting) {
+      setNeedRefresh(true);
+      return true;
+    }
+    return false;
   };
 
   return (

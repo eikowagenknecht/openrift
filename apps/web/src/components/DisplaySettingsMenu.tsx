@@ -106,9 +106,9 @@ export function DisplaySettingsMenu({
               onClick={async (e) => {
                 e.preventDefault();
                 setChecking(true);
-                await checkForUpdate();
+                const updateAvailable = await checkForUpdate();
                 setChecking(false);
-                if (!needRefresh) {
+                if (!updateAvailable) {
                   toast("You're on the latest version");
                 }
               }}
