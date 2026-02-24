@@ -333,22 +333,18 @@ export function CardGrid({
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
   };
 
-  // Document-level pointer listeners for drag — avoids setPointerCapture
-  // which reports garbage clientY on mobile WebKit.
+  // Document-level move/up listeners for drag.
+  // Touch devices use TouchEvent (touchmove/touchend) because PointerEvent
+  // pointermove reports garbage clientY values (±100000) on mobile WebKit.
+  // Desktop uses PointerEvent as usual.
   useEffect(() => {
     if (!enableDrag) {
       return;
     }
 
-    const onMove = (e: PointerEvent) => {
-      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
-        return;
-      }
-      const clientY = e.clientY;
+    const handleMove = (clientY: number) => {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        // Use frozen dimensions from drag start — live values shift on mobile
-        // when the browser chrome collapses/expands, causing scroll jumps.
         const { viewportH, docH } = dragStartRef.current;
         const scrollableHeight = docH - viewportH;
         if (scrollableHeight <= 0) {
@@ -356,8 +352,6 @@ export function CardGrid({
         }
         const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
 
-        // Position the indicator directly at the pointer — no round-trip through
-        // scroll position, so virtualizer height changes can't cause jumps.
         const indicatorTop = Math.max(
           APP_HEADER_HEIGHT + 4,
           Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
@@ -367,13 +361,12 @@ export function CardGrid({
           indicatorRef.current.style.top = `${indicatorTop}px`;
         }
 
-        // Reverse-map indicator position → scroll position.
         const thumbTop = indicatorTop - thumbH / 2 + 12;
         const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
         const targetScrollY = yPercent * scrollableHeight;
         window.scrollTo(0, targetScrollY);
 
-        // Debug overlay — shows live values during drag
+        // Debug overlay
         if (debugRef.current) {
           const liveVH = window.innerHeight;
           const liveDocH = document.documentElement.scrollHeight;
@@ -401,15 +394,11 @@ export function CardGrid({
       });
     };
 
-    const onUp = (e: PointerEvent) => {
-      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
-        return;
-      }
+    const handleUp = () => {
       isDraggingRef.current = false;
       dragPointerIdRef.current = -1;
       cancelAnimationFrame(rafIdRef.current);
 
-      // Sync final position back to React state after drag ends.
       const viewportH = window.innerHeight;
       const docH = document.documentElement.scrollHeight;
       const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
@@ -431,13 +420,53 @@ export function CardGrid({
       }, HIDE_DELAY);
     };
 
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
+    if (IS_COARSE_POINTER) {
+      // Touch path — Touch.clientY is reliable on all mobile browsers.
+      const onTouchMove = (e: TouchEvent) => {
+        if (!isDraggingRef.current) {
+          return;
+        }
+        const touch = e.touches[0];
+        if (touch) {
+          handleMove(touch.clientY);
+        }
+      };
+      const onTouchEnd = () => {
+        if (!isDraggingRef.current) {
+          return;
+        }
+        handleUp();
+      };
+      document.addEventListener("touchmove", onTouchMove);
+      document.addEventListener("touchend", onTouchEnd);
+      document.addEventListener("touchcancel", onTouchEnd);
+      return () => {
+        document.removeEventListener("touchmove", onTouchMove);
+        document.removeEventListener("touchend", onTouchEnd);
+        document.removeEventListener("touchcancel", onTouchEnd);
+      };
+    }
+
+    // Pointer path — desktop only.
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
+        return;
+      }
+      handleMove(e.clientY);
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
+        return;
+      }
+      handleUp();
+    };
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
     return () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
     };
   }, [enableDrag]);
 
