@@ -60,6 +60,10 @@ const GAP = 16; // gap-4
 const APP_HEADER_HEIGHT = 56; // h-14
 const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 1200;
 const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
+const INDICATOR_H_FALLBACK = IS_COARSE_POINTER ? 56 : 48;
+const INDICATOR_PAD = 4;
+const DEBUG_MARKER_HEIGHT = IS_COARSE_POINTER ? 28 : 24; // match the real indicator badge height
+const DEBUG_MARKER_PADDING = 4; // minimum space from top (below header) and bottom of viewport
 
 interface CardGridProps {
   cards: Card[];
@@ -236,20 +240,33 @@ export function CardGrid({
 
   const [indicator, setIndicator] = useState({
     cardId: "",
-    thumbTop: 0,
-    thumbH: 0,
+    indicatorTop: APP_HEADER_HEIGHT + INDICATOR_PAD,
     visible: false,
     dragging: false,
   });
   const hideTimerRef = useRef(0);
   const isDraggingRef = useRef(false);
   const postDragCooldownRef = useRef(false);
-  const dragStartRef = useRef({ grabOffsetY: 0, viewportH: 0, docH: 0 });
+  const dragStartRef = useRef({
+    grabOffsetY: 0,
+    trackTop: 0,
+    trackBottom: 0,
+    contentStart: 0,
+    contentRange: 0,
+  });
   const indicatorRef = useRef<HTMLDivElement>(null);
+  const indicatorHRef = useRef(INDICATOR_H_FALLBACK);
   const cardIdRef = useRef<HTMLElement>(null);
   const rafIdRef = useRef(0);
   const dragTopRef = useRef(0);
   const dragPointerIdRef = useRef(-1);
+
+  // Measure the indicator's rendered height so track bounds are always accurate.
+  useLayoutEffect(() => {
+    if (indicatorRef.current) {
+      indicatorHRef.current = indicatorRef.current.offsetHeight || INDICATOR_H_FALLBACK;
+    }
+  });
 
   // Prevent native touch scrolling while the indicator is being dragged.
   // touch-action: none on the element alone is unreliable on mobile — the
@@ -286,11 +303,17 @@ export function CardGrid({
       }
 
       const viewportH = window.innerHeight;
-      const docH = document.documentElement.scrollHeight;
-      const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
-      const scrollableHeight = docH - viewportH;
-      const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-      const thumbTop = yPercent * (viewportH - thumbH);
+      const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
+      const totalSize = virtualizerRef.current.getTotalSize();
+      const contentEnd = scrollMarginRef.current + totalSize - viewportH;
+      const contentRange = contentEnd - contentStart;
+      const contentPct =
+        contentRange > 0
+          ? Math.max(0, Math.min(1, (window.scrollY - contentStart) / contentRange))
+          : 0;
+      const trackTop = APP_HEADER_HEIGHT + INDICATOR_PAD;
+      const trackBottom = viewportH - indicatorHRef.current - INDICATOR_PAD;
+      const indicatorTop = trackTop + contentPct * (trackBottom - trackTop);
 
       // During drag: only update the card ID label. The pointer handler drives
       // the indicator position directly, so we must not reposition it here —
@@ -312,8 +335,7 @@ export function CardGrid({
       setIndicator((prev) => ({
         ...prev,
         cardId: firstCard.id,
-        thumbTop,
-        thumbH,
+        indicatorTop,
         visible: true,
       }));
       hideTimerRef.current = window.setTimeout(() => {
@@ -334,14 +356,19 @@ export function CardGrid({
     isDraggingRef.current = true;
     dragPointerIdRef.current = e.pointerId;
     // Grab offset in style.top space so the indicator stays pinned to the finger.
-    // Freeze viewport & document dimensions so mobile browser chrome changes
-    // (address bar collapse/expand) don't shift the scroll-to-thumb mapping.
+    // Freeze dimensions so mobile browser chrome changes don't shift the mapping.
     const styleTop = parseFloat((e.currentTarget as HTMLElement).style.top) || 0;
     dragTopRef.current = styleTop;
+    const viewportH = window.innerHeight;
+    const totalSize = virtualizerRef.current.getTotalSize();
+    const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
+    const contentEnd = scrollMarginRef.current + totalSize - viewportH;
     dragStartRef.current = {
       grabOffsetY: e.clientY - styleTop,
-      viewportH: window.innerHeight,
-      docH: document.documentElement.scrollHeight,
+      trackTop: APP_HEADER_HEIGHT + INDICATOR_PAD,
+      trackBottom: viewportH - indicatorHRef.current - INDICATOR_PAD,
+      contentStart,
+      contentRange: contentEnd - contentStart,
     };
     window.clearTimeout(hideTimerRef.current);
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
@@ -355,13 +382,13 @@ export function CardGrid({
     const handleMove = (clientY: number) => {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        const { viewportH, docH } = dragStartRef.current;
+        const { trackTop, trackBottom, contentStart, contentRange } = dragStartRef.current;
 
         // Only move the indicator handle — the actual scroll happens on release
         // (handleUp). This avoids expensive virtualizer re-renders during drag.
         const indicatorTop = Math.max(
-          APP_HEADER_HEIGHT + 4,
-          Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
+          trackTop,
+          Math.min(trackBottom, clientY - dragStartRef.current.grabOffsetY),
         );
         dragTopRef.current = indicatorTop;
         if (indicatorRef.current) {
@@ -370,12 +397,10 @@ export function CardGrid({
 
         // Project which card would be visible at this indicator position and
         // update the label so the user sees where they'll land on release.
-        const scrollableHeight = docH - viewportH;
-        if (scrollableHeight > 0 && cardIdRef.current) {
-          const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
-          const thumbTop = indicatorTop - thumbH / 2 + 12;
-          const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
-          const targetScrollY = yPercent * scrollableHeight;
+        if (contentRange > 0 && cardIdRef.current) {
+          const trackRange = trackBottom - trackTop;
+          const contentPct = trackRange > 0 ? (indicatorTop - trackTop) / trackRange : 0;
+          const targetScrollY = contentStart + contentPct * contentRange;
           const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
 
           const rows = virtualRowsRef.current;
@@ -405,30 +430,34 @@ export function CardGrid({
       cancelAnimationFrame(rafIdRef.current);
 
       // Final exact scroll to sync content with indicator position.
-      const { viewportH, docH } = dragStartRef.current;
-      const scrollableHeight = docH - viewportH;
-      if (scrollableHeight > 0) {
-        const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
-        const thumbTop = dragTopRef.current - thumbH / 2 + 12;
-        const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
-        window.scrollTo(0, yPercent * scrollableHeight);
+      const { trackTop, trackBottom, contentStart, contentRange } = dragStartRef.current;
+      const trackRange = trackBottom - trackTop;
+      if (contentRange > 0 && trackRange > 0) {
+        const contentPct = (dragTopRef.current - trackTop) / trackRange;
+        window.scrollTo(0, contentStart + contentPct * contentRange);
       }
 
-      // Read back the actual scroll position for React state sync.
-      const liveViewportH = window.innerHeight;
-      const liveDocH = document.documentElement.scrollHeight;
-      const liveThumbH = Math.max(18, Math.floor((liveViewportH / liveDocH) * liveViewportH));
-      const liveScrollable = liveDocH - liveViewportH;
-      const liveYPercent = liveScrollable > 0 ? window.scrollY / liveScrollable : 0;
-      const liveThumbTop = liveYPercent * (liveViewportH - liveThumbH);
       const currentCardId = cardIdRef.current?.textContent || "";
+
+      // Read back actual position for React state sync.
+      const liveViewportH = window.innerHeight;
+      const liveTotalSize = virtualizerRef.current.getTotalSize();
+      const liveContentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
+      const liveContentEnd = scrollMarginRef.current + liveTotalSize - liveViewportH;
+      const liveContentRange = liveContentEnd - liveContentStart;
+      const liveContentPct =
+        liveContentRange > 0
+          ? Math.max(0, Math.min(1, (window.scrollY - liveContentStart) / liveContentRange))
+          : 0;
+      const liveTrackTop = APP_HEADER_HEIGHT + INDICATOR_PAD;
+      const liveTrackBottom = liveViewportH - indicatorHRef.current - INDICATOR_PAD;
+      const liveIndicatorTop = liveTrackTop + liveContentPct * (liveTrackBottom - liveTrackTop);
 
       postDragCooldownRef.current = true;
       setIndicator((prev) => ({
         ...prev,
         dragging: false,
-        thumbTop: liveThumbTop,
-        thumbH: liveThumbH,
+        indicatorTop: liveIndicatorTop,
         cardId: currentCardId,
       }));
 
@@ -495,12 +524,15 @@ export function CardGrid({
       return [];
     }
     const viewportH = window.innerHeight;
-    const docH = document.documentElement.scrollHeight;
-    const scrollableHeight = docH - viewportH;
-    if (scrollableHeight <= 0) {
+    const totalSize = virtualizerRef.current.getTotalSize();
+    const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
+    const contentEnd = scrollMarginRef.current + totalSize - viewportH;
+    const contentRange = contentEnd - contentStart;
+    if (contentRange <= 0) {
       return [];
     }
-    const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+    const trackTop = APP_HEADER_HEIGHT + INDICATOR_PAD;
+    const trackBottom = viewportH - indicatorHRef.current - INDICATOR_PAD;
 
     // Prefer the virtualizer's measured positions over rowStarts (estimated).
     // rowStarts accumulates Math.ceil rounding across many rows, so ghost badges
@@ -526,12 +558,8 @@ export function CardGrid({
       }
       const rowStart = measuredStarts.get(i) ?? rowStarts[i];
       const headerScrollY = rowStart + scrollMarginRef.current - APP_HEADER_HEIGHT;
-      const yPct = Math.max(0, Math.min(1, headerScrollY / scrollableHeight));
-      const snapThumbTop = yPct * (viewportH - thumbH);
-      const screenY = Math.max(
-        APP_HEADER_HEIGHT + 4,
-        Math.min(viewportH - 28, Math.round(snapThumbTop + thumbH / 2 - 12)),
-      );
+      const contentPct = Math.max(0, Math.min(1, (headerScrollY - contentStart) / contentRange));
+      const screenY = Math.round(trackTop + contentPct * (trackBottom - trackTop));
       // First card ID in this set (for ghost badges)
       let firstCardId = "";
       for (let j = i + 1; j < virtualRows.length; j++) {
@@ -691,15 +719,7 @@ export function CardGrid({
         className={`fixed z-20 transition-opacity duration-300 ${indicator.visible ? "pointer-events-auto" : "pointer-events-none"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
         style={{
           right: 20,
-          top: indicator.dragging
-            ? dragTopRef.current
-            : Math.max(
-                APP_HEADER_HEIGHT + 4,
-                Math.min(
-                  window.innerHeight - 28,
-                  Math.round(indicator.thumbTop + indicator.thumbH / 2 - 12),
-                ),
-              ),
+          top: indicator.dragging ? dragTopRef.current : indicator.indicatorTop,
           opacity: indicator.visible ? 1 : 0,
           touchAction: "none",
         }}
@@ -707,7 +727,7 @@ export function CardGrid({
       >
         <div className="flex items-center gap-1.5">
           <div
-            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
+            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-6 py-3 text-lg" : "px-5 py-2 text-sm"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
           >
             <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
           </div>
@@ -828,6 +848,199 @@ export function CardGrid({
           })}
         </div>
       </div>
+
+      {/* DEBUG: scroll position data overlay */}
+      {/* <_ScrollDebugOverlay scrollMargin={scrollMargin} contentHeight={virtualizer.getTotalSize()} /> */}
+    </>
+  );
+}
+
+interface DebugCalcContext {
+  scrollPct: number;
+  viewportH: number;
+  docH: number;
+  scrollY: number;
+  scrollMargin: number;
+  contentHeight: number;
+  markerH: number;
+  markerPad: number;
+}
+
+const DEBUG_VARIANTS = [
+  {
+    label: "Current",
+    color: "#f00",
+    calc: ({ scrollPct, viewportH, docH, markerH, markerPad }: DebugCalcContext) => {
+      const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+      const thumbTop = scrollPct * (viewportH - thumbH);
+      return Math.max(
+        APP_HEADER_HEIGHT + markerPad,
+        Math.min(viewportH - markerH - markerPad, Math.round(thumbTop + thumbH / 2 - markerH / 2)),
+      );
+    },
+  },
+  {
+    label: "Lerp track",
+    color: "#ff0",
+    calc: ({ scrollPct, viewportH, markerH, markerPad }: DebugCalcContext) => {
+      const top = APP_HEADER_HEIGHT + markerPad;
+      const bottom = viewportH - markerH - markerPad;
+      return top + scrollPct * (bottom - top);
+    },
+  },
+  {
+    label: "Content map",
+    color: "#f0f",
+    calc: ({
+      scrollY,
+      viewportH,
+      scrollMargin,
+      contentHeight,
+      markerH,
+      markerPad,
+    }: DebugCalcContext) => {
+      // Map: first card at top → just below header
+      //       last card at bottom → bottom of viewport
+      const contentStart = scrollMargin - APP_HEADER_HEIGHT;
+      const contentEnd = scrollMargin + contentHeight - viewportH;
+      const contentRange = contentEnd - contentStart;
+      const contentPct =
+        contentRange > 0 ? Math.max(0, Math.min(1, (scrollY - contentStart) / contentRange)) : 0;
+
+      const top = APP_HEADER_HEIGHT + markerPad;
+      const bottom = viewportH - markerH - markerPad;
+      return top + contentPct * (bottom - top);
+    },
+  },
+];
+
+// @ts-expect-error -- debug overlay, commented out but kept for development
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _ScrollDebugOverlay({
+  scrollMargin,
+  contentHeight,
+}: {
+  scrollMargin: number;
+  contentHeight: number;
+}) {
+  const markersRef = useRef<(HTMLDivElement | null)[]>([]);
+  const textRef = useRef<HTMLPreElement>(null);
+  const scrollMarginRef = useRef(scrollMargin);
+  scrollMarginRef.current = scrollMargin;
+  const contentHeightRef = useRef(contentHeight);
+  contentHeightRef.current = contentHeight;
+
+  useEffect(() => {
+    const update = () => {
+      const scrollY = window.scrollY;
+      const viewportH = window.innerHeight;
+      const docH = document.documentElement.scrollHeight;
+      const scrollableH = docH - viewportH;
+      const scrollPct = scrollableH > 0 ? scrollY / scrollableH : 0;
+      const ctx: DebugCalcContext = {
+        scrollPct,
+        viewportH,
+        docH,
+        scrollY,
+        scrollMargin: scrollMarginRef.current,
+        contentHeight: contentHeightRef.current,
+        markerH: DEBUG_MARKER_HEIGHT,
+        markerPad: DEBUG_MARKER_PADDING,
+      };
+
+      for (let i = 0; i < DEBUG_VARIANTS.length; i++) {
+        const el = markersRef.current[i];
+        if (el) {
+          el.style.top = `${DEBUG_VARIANTS[i].calc(ctx)}px`;
+        }
+      }
+
+      if (textRef.current) {
+        textRef.current.textContent = [
+          `scrollY: ${scrollY.toFixed(0)}  viewportH: ${viewportH}  docH: ${docH}`,
+          `scrollPct: ${(scrollPct * 100).toFixed(2)}%`,
+          `contentStart: ${scrollMarginRef.current}  contentH: ${contentHeightRef.current.toFixed(0)}`,
+          ``,
+          ...DEBUG_VARIANTS.map((v) => {
+            const top = v.calc(ctx);
+            const bottom = top + DEBUG_MARKER_HEIGHT;
+            return `${v.label.padEnd(14)} top: ${top.toFixed(1)}  bottom: ${bottom.toFixed(1)}`;
+          }),
+        ].join("\n");
+      }
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  return (
+    <>
+      {/* Visual markers — colored bars along the right edge, same height as the real indicator */}
+      {DEBUG_VARIANTS.map((v, i) => (
+        <div
+          key={v.label}
+          ref={(el) => {
+            markersRef.current[i] = el;
+          }}
+          style={{
+            position: "fixed",
+            right: 48 + i * 20,
+            top: 0,
+            zIndex: 9999,
+            pointerEvents: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 8,
+              fontFamily: "monospace",
+              color: v.color,
+              whiteSpace: "nowrap",
+              textShadow: "0 0 3px rgba(0,0,0,0.9)",
+            }}
+          >
+            {v.label}
+          </span>
+          <div
+            style={{
+              width: 4,
+              height: DEBUG_MARKER_HEIGHT,
+              borderRadius: 2,
+              background: v.color,
+              boxShadow: `0 0 4px ${v.color}`,
+            }}
+          />
+        </div>
+      ))}
+
+      {/* Data readout */}
+      <pre
+        ref={textRef}
+        style={{
+          position: "fixed",
+          bottom: 12,
+          left: 12,
+          zIndex: 9999,
+          background: "rgba(0,0,0,0.85)",
+          color: "#ccc",
+          fontSize: 11,
+          fontFamily: "monospace",
+          padding: "8px 12px",
+          borderRadius: 6,
+          pointerEvents: "none",
+          lineHeight: 1.6,
+          whiteSpace: "pre",
+        }}
+      />
     </>
   );
 }

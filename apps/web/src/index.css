@@ -8,6 +8,11 @@
 html,
 body {
   overscroll-behavior-y: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
 }
 
 :root {
