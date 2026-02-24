@@ -142,15 +142,20 @@ export function CardDetail({
             {isFoilCard && <FoilOverlay active={tilt.active} shimmer={showShimmer} />}
           </div>
         </div>
-        {isFoilCard && IS_COARSE_POINTER && gyro.available && gyro.permissionState === "prompt" && (
-          <button
-            type="button"
-            className="text-xs text-muted-foreground underline"
-            onClick={() => requestGyroPermission()}
-          >
-            Enable tilt effect
-          </button>
-        )}
+        {isFoilCard &&
+          IS_COARSE_POINTER &&
+          gyro.available &&
+          gyro.permissionState !== "granted" && (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline"
+              onClick={() => requestGyroPermission()}
+            >
+              {gyro.permissionState === "denied"
+                ? "Tilt effect blocked — tap to retry"
+                : "Enable tilt effect"}
+            </button>
+          )}
 
         {/* Stats */}
         <div className="flex flex-wrap items-center justify-center gap-1.5">
