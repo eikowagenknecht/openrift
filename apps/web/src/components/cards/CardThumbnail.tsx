@@ -147,9 +147,7 @@ export function CardThumbnail({
               {card.price.normal && (
                 <span>
                   {formatPrice(card.price.normal.market)}
-                  {card.price.foil && (
-                    <span className="ml-0.5 text-[10px] text-muted-foreground">normal</span>
-                  )}
+                  <span className="ml-0.5 text-[10px] text-muted-foreground">normal</span>
                 </span>
               )}
               {card.price.normal && card.price.foil && (
@@ -158,9 +156,7 @@ export function CardThumbnail({
               {card.price.foil && (
                 <span>
                   {formatPrice(card.price.foil.market)}
-                  {card.price.normal && (
-                    <span className="ml-0.5 text-[10px] text-muted-foreground">foil</span>
-                  )}
+                  <span className="ml-0.5 text-[10px] text-muted-foreground">foil</span>
                 </span>
               )}
             </p>
