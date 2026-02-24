@@ -226,6 +226,9 @@ export function CardGrid({
   const virtualRowsRef = useRef(virtualRows);
   virtualRowsRef.current = virtualRows;
 
+  const rowStartsRef = useRef(rowStarts);
+  rowStartsRef.current = rowStarts;
+
   const [indicator, setIndicator] = useState({
     cardId: "",
     thumbTop: 0,
@@ -347,7 +350,7 @@ export function CardGrid({
     const handleMove = (clientY: number) => {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        const { viewportH } = dragStartRef.current;
+        const { viewportH, docH } = dragStartRef.current;
 
         // Only move the indicator handle — the actual scroll happens on release
         // (handleUp). This avoids expensive virtualizer re-renders during drag.
@@ -358,6 +361,35 @@ export function CardGrid({
         dragTopRef.current = indicatorTop;
         if (indicatorRef.current) {
           indicatorRef.current.style.top = `${indicatorTop}px`;
+        }
+
+        // Project which card would be visible at this indicator position and
+        // update the label so the user sees where they'll land on release.
+        const scrollableHeight = docH - viewportH;
+        if (scrollableHeight > 0 && cardIdRef.current) {
+          const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+          const thumbTop = indicatorTop - thumbH / 2 + 12;
+          const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
+          const targetScrollY = yPercent * scrollableHeight;
+          const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
+
+          const rows = virtualRowsRef.current;
+          const starts = rowStartsRef.current;
+          let cardId = "";
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.kind !== "cards") {
+              continue;
+            }
+            const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
+            if (rowEnd > threshold) {
+              cardId = row.items[0]?.id ?? "";
+              break;
+            }
+          }
+          if (cardId) {
+            cardIdRef.current.textContent = cardId;
+          }
         }
       });
     };
@@ -757,7 +789,7 @@ export function CardGrid({
                 }}
               >
                 {row.kind === "header" ? (
-                  <div className="flex items-center gap-3 py-2">
+                  <div className="flex items-center gap-3 pt-4 pb-2">
                     <div className="h-px flex-1 bg-border" />
                     <button
                       type="button"
