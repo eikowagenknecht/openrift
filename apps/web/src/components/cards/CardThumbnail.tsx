@@ -5,7 +5,12 @@ import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
 import { FoilOverlay } from "@/components/cards/FoilOverlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { getDomainGradientStyle } from "@/lib/domain";
-import { formatCardId, formatPrice } from "@/lib/format";
+import {
+  formatCardId,
+  formatCardIdCompact,
+  formatPriceCompact,
+  priceColorClass,
+} from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
@@ -58,6 +63,7 @@ export function CardThumbnail({
   const isFoilCard = Boolean(card.price?.foil) && !card.price?.normal;
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
   const compact = cardWidth !== undefined && cardWidth < 160;
+  const hidePriceLabels = cardWidth !== undefined && cardWidth < 200;
 
   return (
     <button
@@ -113,7 +119,9 @@ export function CardThumbnail({
             <>
               {(cardFields.number || cardFields.type || cardFields.rarity) && (
                 <div className="flex items-center justify-between gap-1 text-xs text-muted-foreground">
-                  {cardFields.number && <span className="truncate font-medium">{cardId}</span>}
+                  {cardFields.number && (
+                    <span className="truncate font-medium">{formatCardIdCompact(card)}</span>
+                  )}
                   {(cardFields.type || cardFields.rarity) && (
                     <span className="flex shrink-0 items-center gap-1">
                       {cardFields.type && (
@@ -185,20 +193,24 @@ export function CardThumbnail({
             </>
           )}
           {cardFields.price && card.price && (
-            <p className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <p className="flex flex-wrap items-center gap-1 text-xs font-medium">
               {card.price.normal && (
-                <span>
-                  {formatPrice(card.price.normal.market)}
-                  <span className="ml-0.5 text-[10px] text-muted-foreground">normal</span>
+                <span className={priceColorClass(card.price.normal.market)}>
+                  {formatPriceCompact(card.price.normal.market)}
+                  {!hidePriceLabels && (
+                    <span className="ml-0.5 text-[10px] text-muted-foreground">normal</span>
+                  )}
                 </span>
               )}
               {card.price.normal && card.price.foil && (
                 <span className="text-muted-foreground">&middot;</span>
               )}
               {card.price.foil && (
-                <span>
-                  {formatPrice(card.price.foil.market)}
-                  <span className="ml-0.5 text-[10px] text-muted-foreground">foil</span>
+                <span className={priceColorClass(card.price.foil.market)}>
+                  {formatPriceCompact(card.price.foil.market)}
+                  {!hidePriceLabels && (
+                    <span className="ml-0.5 text-[10px] text-muted-foreground">foil</span>
+                  )}
                 </span>
               )}
             </p>

@@ -2,6 +2,9 @@
 
 ## 2026-02-24
 
+- fix: Prices no longer burst out of small cards — they now wrap, drop labels when narrow, and use a compact format ($25, $1.2k) to fit tight spaces
+- feat: Prices are now color-coded by value — grey for bulk, green for $1–10, amber for $10–50, and rose for $50+
+- fix: Card IDs in compact view now show as #001 instead of OGS-001, so they fit without clipping
 - fix: Card info below thumbnails no longer gets cut off on narrow columns — the ID, type, and rarity now share a compact row with icons only, and the title gets its own line
 - fix: The column zoom control now resets to auto when you tap the number, and stepping from auto snaps to the next size up or down
 - feat: Card prices in the grid now always show whether they're normal or foil, even when only one variant exists

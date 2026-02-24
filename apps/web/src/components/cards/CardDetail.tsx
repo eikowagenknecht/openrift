@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { requestGyroPermission, useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
-import { formatPrice, formatPublicCode } from "@/lib/format";
+import { formatPrice, formatPublicCode, priceColorClass } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { getCardImageUrl } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
@@ -359,7 +359,7 @@ function PriceChip({ label, value, url }: { label: string; value: number; url: s
     <Wrapper
       {...linkProps}
       className={cn(
-        "inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400",
+        `inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-sm font-semibold ${priceColorClass(value)}`,
         url && "transition-opacity hover:opacity-70",
       )}
     >
