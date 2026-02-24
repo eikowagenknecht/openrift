@@ -7,7 +7,7 @@ RUN corepack enable
 WORKDIR /app
 
 # Copy workspace config and package.json files first (layer cache)
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
@@ -34,11 +34,11 @@ COPY --from=build /app/apps/api/dist ./dist/
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
 
-# ─── Stage 3: Caddy (static frontend + reverse proxy) ─────────────────────────
-FROM caddy:2-alpine AS caddy
+# ─── Stage 3: Static files (one-off, copies frontend to host) ─────────────────
+FROM alpine:3 AS static
 
 COPY --from=build /app/apps/web/dist /srv
-COPY Caddyfile /etc/caddy/Caddyfile
+CMD ["cp", "-r", "/srv/.", "/out/"]
 
 # ─── Stage 4: Migrate (one-off, runs from the full build image) ───────────────
 FROM build AS migrate

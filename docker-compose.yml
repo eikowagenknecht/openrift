@@ -23,24 +23,18 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
-    expose:
-      - "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
     restart: unless-stopped
 
-  caddy:
+  static:
     build:
       context: .
-      target: caddy
-    depends_on:
-      - api
-    ports:
-      - "80:80"
-      - "443:443"
+      target: static
     volumes:
-      - ./certs:/etc/caddy/certs:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    restart: unless-stopped
+      - /var/www/beta.openrift.app:/out
+    profiles:
+      - tools
 
   migrate:
     build:
@@ -56,5 +50,3 @@ services:
 
 volumes:
   pg_data:
-  caddy_data:
-  caddy_config:
