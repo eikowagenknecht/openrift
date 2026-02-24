@@ -2,6 +2,9 @@
 
 ## 2026-02-24
 
+- feat: Card descriptions and effects now sit in distinct styled panels, with effects tinted in the card's domain color
+- feat: Pricing is now shown as compact chips at the bottom of the card detail instead of a separate block
+- feat: Card thumbnails now load at the right resolution for their display size, saving bandwidth on smaller screens
 - feat: Keywords are now styled inline within card descriptions, with reminder text in italics and proper line breaks
 - feat: The card detail sidebar has a fresh layout with card-accurate keyword styling and clearer type info
 - fix: Sticky set headers now appear as compact floating pills instead of stretching the full width

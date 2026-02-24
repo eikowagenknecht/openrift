@@ -7,7 +7,7 @@ import { FoilOverlay } from "@/components/cards/FoilOverlay";
 import { Button } from "@/components/ui/button";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { requestGyroPermission, useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
-import { formatDomainDisplay, getDomainTintStyle } from "@/lib/domain";
+import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPrice, formatPublicCode } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { getCardImageUrl } from "@/lib/images";
@@ -60,7 +60,7 @@ export function CardDetail({
     },
     {
       target: asideRef,
-      pointer: { touch: true },
+      enabled: IS_COARSE_POINTER,
       filterTaps: true,
       axis: "lock",
     },
@@ -85,96 +85,29 @@ export function CardDetail({
         "fixed inset-0 z-50 overflow-y-auto bg-background",
         "md:sticky md:inset-auto md:z-auto md:top-[4.5rem]",
         "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-4.5rem)]",
-        "md:border-l md:px-6",
+        "md:rounded-lg md:px-3",
       )}
       style={getDomainTintStyle(card.faction)}
     >
       {/* Mobile header */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/30 p-4 backdrop-blur md:hidden">
-        <Button variant="ghost" size="icon-sm" onClick={onClose}>
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
-          <span className="truncate">{card.name}</span>
-          {card.tags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className="relative inline-flex cursor-pointer items-center px-0.5 py-0.5"
-              onClick={() => onTagClick?.(tag)}
-            >
-              <span className="absolute inset-0 -skew-x-[15deg] bg-black dark:bg-white" />
-              <span className="relative text-xs font-semibold uppercase italic tracking-wide scale-x-75 text-white dark:text-black">
-                {tag}
-              </span>
-            </button>
-          ))}
-        </h2>
+      <div className="sticky top-0 z-10 border-b border-border/30 p-4 backdrop-blur md:hidden">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <ArrowLeft className="size-4" />
+          </Button>
+          <CardDetailHeading card={card} setNumber={setNumber} onTagClick={onTagClick} truncate />
+        </div>
       </div>
 
       {/* Desktop header */}
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
-        <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
-          {card.name}
-          {card.tags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className="relative inline-flex cursor-pointer items-center px-0.5 py-0.5"
-              onClick={() => onTagClick?.(tag)}
-            >
-              <span className="absolute inset-0 -skew-x-[15deg] bg-black dark:bg-white" />
-              <span className="relative text-xs font-semibold uppercase italic tracking-wide scale-x-75 text-white dark:text-black">
-                {tag}
-              </span>
-            </button>
-          ))}
-        </h2>
+        <CardDetailHeading card={card} setNumber={setNumber} onTagClick={onTagClick} />
         <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={onClose}>
           <X className="size-4" />
         </Button>
       </div>
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
-        {/* Pricing */}
-        {card.price && <PricingSection card={card} />}
-
-        {/* Type / Rarity / Domain */}
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <img
-              src={getTypeIconPath(card.type, card.superTypes)}
-              alt=""
-              className="size-4 brightness-0 dark:invert"
-            />
-            {card.superTypes.length > 0 ? `${card.superTypes.join(" ")} ${card.type}` : card.type}
-          </span>
-          &middot;
-          <span className="inline-flex items-center gap-1">
-            <img
-              src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
-              alt=""
-              className="size-4"
-            />
-            {card.rarity}
-          </span>
-          &middot;
-          <span className="inline-flex items-center gap-1">
-            {card.faction !== "Colorless" &&
-              card.faction
-                .split("/")
-                .map((d) => (
-                  <img
-                    key={d}
-                    src={`/icons/domains/${d.toLowerCase()}.webp`}
-                    alt=""
-                    className="size-4"
-                  />
-                ))}
-            {formatDomainDisplay(card.faction)}
-          </span>
-        </div>
-
         {/* Card image */}
         <div ref={tilt.containerRef} style={tilt.style}>
           <div
@@ -220,7 +153,7 @@ export function CardDetail({
         )}
 
         {/* Stats */}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {card.stats.energy > 0 && <StatChip label="Energy" value={card.stats.energy} />}
           {(card.type === "Unit" || card.type === "Gear" || card.type === "Spell") &&
             card.stats.power > 0 && (
@@ -229,42 +162,111 @@ export function CardDetail({
           {card.type === "Unit" && (
             <StatChip label="Might" value={card.stats.might} icon="/icons/might.svg" />
           )}
-          {card.type === "Gear" && card.mightBonus > 0 && (
-            <StatChip label="Might Bonus" value={`+${card.mightBonus}`} icon="/icons/might.svg" />
-          )}
+          {card.faction !== "Colorless" &&
+            card.faction
+              .split("/")
+              .map((d) => (
+                <img
+                  key={d}
+                  src={`/icons/domains/${d.toLowerCase()}.webp`}
+                  alt={d}
+                  title={d}
+                  className="size-5"
+                />
+              ))}
+          <img
+            src={`/icons/rarities/${card.rarity.toLowerCase()}.webp`}
+            alt={card.rarity}
+            title={card.rarity}
+            className="size-5"
+          />
         </div>
 
         {/* Text */}
-        <div className="pt-2">
-          <p className="mb-1 text-sm font-medium">Description</p>
-          <p className="text-sm text-muted-foreground">
-            <CardText text={card.description} onKeywordClick={onKeywordClick} />
-          </p>
+        <div className="space-y-3 pt-2">
+          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
+            <p className="text-sm text-muted-foreground">
+              <CardText text={card.description} onKeywordClick={onKeywordClick} />
+            </p>
+          </div>
+
+          {(card.effect || (card.type === "Gear" && card.mightBonus > 0)) && (
+            <div
+              className="rounded-lg border border-border/50 px-3 py-2.5"
+              style={getDomainGradientStyle(card.faction, "18")}
+            >
+              {card.effect && (
+                <p className="text-sm text-muted-foreground">
+                  <CardText text={card.effect} onKeywordClick={onKeywordClick} />
+                </p>
+              )}
+              {card.type === "Gear" && card.mightBonus > 0 && (
+                <div className={cn(card.effect && "mt-2")}>
+                  <StatChip
+                    label="Might Bonus"
+                    value={`+${card.mightBonus}`}
+                    icon="/icons/might.svg"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {card.effect && (
-          <div>
-            <p className="mb-1 text-sm font-medium">Effect</p>
-            <p className="text-sm text-muted-foreground">
-              <CardText text={card.effect} onKeywordClick={onKeywordClick} />
-            </p>
-          </div>
-        )}
-
         {/* Footer */}
-        <div className="-mx-4 mt-2 rounded-lg bg-muted/50 px-4 py-3 md:-mx-0">
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <p>
-              {setNumber} · {card.set}
-            </p>
-            <p className="flex items-center gap-1">
-              <img src="/icons/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
-              {card.art.artist}
-            </p>
-          </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <img src="/icons/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
+            {card.art.artist}
+          </p>
+          {card.price && <PricingSection card={card} />}
         </div>
       </div>
     </aside>
+  );
+}
+
+function CardDetailHeading({
+  card,
+  setNumber,
+  onTagClick,
+  truncate,
+}: {
+  card: Card;
+  setNumber: string;
+  onTagClick?: (tag: string) => void;
+  truncate?: boolean;
+}) {
+  return (
+    <div className={cn(truncate && "min-w-0")}>
+      <h2 className={cn("text-lg font-semibold", truncate && "truncate")}>
+        {card.name}
+        <span className="ml-2 text-sm font-normal text-muted-foreground">{setNumber}</span>
+      </h2>
+      <div className="flex flex-wrap items-center gap-1.5 text-sm uppercase text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          <img
+            src={getTypeIconPath(card.type, card.superTypes)}
+            alt=""
+            className="size-4 brightness-0 dark:invert"
+          />
+          {card.superTypes.length > 0 ? `${card.superTypes.join(" ")} ${card.type}` : card.type}
+        </span>
+        {card.tags.map((tag) => (
+          <button
+            key={tag}
+            type="button"
+            className="relative inline-flex cursor-pointer items-center px-0.5 py-0.5"
+            onClick={() => onTagClick?.(tag)}
+          >
+            <span className="absolute inset-0 -skew-x-[15deg] bg-black dark:bg-white" />
+            <span className="relative text-xs font-semibold uppercase italic tracking-wide scale-x-75 text-white dark:text-black">
+              {tag}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -289,43 +291,34 @@ function StatChip({
   );
 }
 
-function PricingSection({ card }: { card: Card }) {
-  const price = card.price;
-  if (!price) {
-    return null;
-  }
-  const hasBoth = price.normal && price.foil;
-
-  const Wrapper = price.url ? "a" : "div";
-  const linkProps = price.url
-    ? { href: price.url, target: "_blank", rel: "noopener noreferrer" }
-    : {};
+function PriceChip({ label, value, url }: { label: string; value: number; url: string | null }) {
+  const Wrapper = url ? "a" : "span";
+  const linkProps = url ? { href: url, target: "_blank" as const, rel: "noopener noreferrer" } : {};
 
   return (
     <Wrapper
       {...linkProps}
       className={cn(
-        "grid gap-4 rounded-md bg-muted p-3",
-        hasBoth ? "grid-cols-2" : "grid-cols-1",
-        price.url && "transition-colors hover:bg-muted/70",
+        "inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400",
+        url && "transition-opacity hover:opacity-70",
       )}
     >
-      {price.normal && (
-        <div className="flex items-baseline gap-2">
-          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-            {formatPrice(price.normal.market)}
-          </p>
-          <p className="text-[10px] uppercase text-muted-foreground">Normal</p>
-        </div>
-      )}
-      {price.foil && (
-        <div className="flex items-baseline gap-2">
-          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-            {formatPrice(price.foil.market)}
-          </p>
-          <p className="text-[10px] uppercase text-muted-foreground">Foil</p>
-        </div>
-      )}
+      <span className="text-xs font-normal text-muted-foreground">{label}</span>
+      {formatPrice(value)}
     </Wrapper>
+  );
+}
+
+function PricingSection({ card }: { card: Card }) {
+  const price = card.price;
+  if (!price) {
+    return null;
+  }
+
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      {price.normal && <PriceChip label="Normal" value={price.normal.market} url={price.url} />}
+      {price.foil && <PriceChip label="Foil" value={price.foil.market} url={price.url} />}
+    </div>
   );
 }

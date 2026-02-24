@@ -7,7 +7,7 @@ import { useCardTilt } from "@/hooks/use-card-tilt";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatCardId, formatPrice } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
-import { getCardImageUrl } from "@/lib/images";
+import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,7 @@ interface CardThumbnailProps {
   showImages?: boolean;
   isSelected?: boolean;
   cardFields?: CardFields;
+  cardWidth?: number;
 }
 
 export function CardThumbnail({
@@ -41,12 +42,17 @@ export function CardThumbnail({
   showImages,
   isSelected,
   cardFields = DEFAULT_CARD_FIELDS,
+  cardWidth,
 }: CardThumbnailProps) {
   const cardId = formatCardId(card);
   const thumbnailUrl =
     showImages && card.art.thumbnailURL
       ? getCardImageUrl(card.art.thumbnailURL, "thumbnail", card.orientation)
       : null;
+  const srcSet =
+    showImages && card.art.thumbnailURL
+      ? getCardImageSrcSet(card.art.thumbnailURL, card.orientation)
+      : undefined;
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const isFoilCard = Boolean(card.price?.foil) && !card.price?.normal;
@@ -82,6 +88,8 @@ export function CardThumbnail({
           {thumbnailUrl && (
             <img
               src={thumbnailUrl}
+              srcSet={srcSet}
+              sizes={cardWidth ? `${Math.round(cardWidth)}px` : undefined}
               alt={card.name}
               loading="lazy"
               className={cn(

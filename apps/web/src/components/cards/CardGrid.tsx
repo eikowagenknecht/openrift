@@ -92,6 +92,9 @@ export function CardGrid({
     prevPhysicalMax.current = physicalMax;
     onPhysicalMaxChange?.(physicalMax);
   }
+  const outerWidth = containerRef.current?.offsetWidth ?? 400;
+  const thumbWidth = (outerWidth - GAP * (columns - 1)) / columns;
+
   const groups = groupCardsBySet(cards, setOrder);
   const multipleGroups = groups.length > 1;
 
@@ -805,6 +808,7 @@ export function CardGrid({
                         showImages={showImages}
                         isSelected={card.id === selectedCardId}
                         cardFields={cardFields}
+                        cardWidth={thumbWidth}
                       />
                     ))}
                   </div>
