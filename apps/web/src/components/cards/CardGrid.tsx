@@ -237,8 +237,8 @@ export function CardGrid({
   const cardIdRef = useRef<HTMLElement>(null);
   const rafIdRef = useRef(0);
   const dragTopRef = useRef(0);
-  const debugRef = useRef<HTMLPreElement>(null);
   const dragPointerIdRef = useRef(-1);
+  const lastScrolledRef = useRef(0);
 
   // Prevent native touch scrolling while the indicator is being dragged.
   // touch-action: none on the element alone is unreliable on mobile — the
@@ -319,6 +319,7 @@ export function CardGrid({
     // pointermove to report garbage clientY values (±100000).
     isDraggingRef.current = true;
     dragPointerIdRef.current = e.pointerId;
+    lastScrolledRef.current = window.scrollY;
     // Grab offset in style.top space so the indicator stays pinned to the finger.
     // Freeze viewport & document dimensions so mobile browser chrome changes
     // (address bar collapse/expand) don't shift the scroll-to-thumb mapping.
@@ -352,6 +353,7 @@ export function CardGrid({
         }
         const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
 
+        // Always update indicator position (cheap DOM write, stays smooth).
         const indicatorTop = Math.max(
           APP_HEADER_HEIGHT + 4,
           Math.min(viewportH - 28, clientY - dragStartRef.current.grabOffsetY),
@@ -361,35 +363,15 @@ export function CardGrid({
           indicatorRef.current.style.top = `${indicatorTop}px`;
         }
 
+        // Throttle actual scrolling — only scroll when target moved enough.
+        // Each scrollTo triggers a full virtualizer re-render; on 120 Hz
+        // displays this overwhelms the main thread and produces black tiles.
         const thumbTop = indicatorTop - thumbH / 2 + 12;
         const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
         const targetScrollY = yPercent * scrollableHeight;
-        window.scrollTo(0, targetScrollY);
-
-        // Debug overlay
-        if (debugRef.current) {
-          const liveVH = window.innerHeight;
-          const liveDocH = document.documentElement.scrollHeight;
-          const liveSY = window.scrollY;
-          const vItems = virtualizerRef.current.getVirtualItems();
-          const totalSize = virtualizerRef.current.getTotalSize();
-          debugRef.current.textContent =
-            `clientY:    ${clientY}\n` +
-            `indTop:     ${Math.round(indicatorTop)}\n` +
-            `thumbTop:   ${Math.round(thumbTop)}\n` +
-            `yPct:       ${yPercent.toFixed(3)}\n` +
-            `─── frozen ───\n` +
-            `viewportH:  ${viewportH}\n` +
-            `docH:       ${docH}\n` +
-            `scrollable: ${scrollableHeight}\n` +
-            `─── live ─────\n` +
-            `innerH:     ${liveVH}  ${liveVH !== viewportH ? `Δ${liveVH - viewportH}` : ""}\n` +
-            `scrollH:    ${liveDocH}  ${liveDocH !== docH ? `Δ${liveDocH - docH}` : ""}\n` +
-            `scrollY:    ${Math.round(liveSY)} → ${Math.round(targetScrollY)}\n` +
-            `─── virt ─────\n` +
-            `totalSize:  ${totalSize}\n` +
-            `items:      ${vItems.length} (${vItems[0]?.index}..${vItems.at(-1)?.index})\n` +
-            `scrollMarg: ${scrollMarginRef.current}`;
+        if (Math.abs(targetScrollY - lastScrolledRef.current) > 200) {
+          lastScrolledRef.current = targetScrollY;
+          window.scrollTo(0, targetScrollY);
         }
       });
     };
@@ -399,19 +381,30 @@ export function CardGrid({
       dragPointerIdRef.current = -1;
       cancelAnimationFrame(rafIdRef.current);
 
-      const viewportH = window.innerHeight;
-      const docH = document.documentElement.scrollHeight;
-      const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+      // Final exact scroll to sync content with indicator position.
+      const { viewportH, docH } = dragStartRef.current;
       const scrollableHeight = docH - viewportH;
-      const yPercent = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-      const thumbTop = yPercent * (viewportH - thumbH);
+      if (scrollableHeight > 0) {
+        const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
+        const thumbTop = dragTopRef.current - thumbH / 2 + 12;
+        const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
+        window.scrollTo(0, yPercent * scrollableHeight);
+      }
+
+      // Read back the actual scroll position for React state sync.
+      const liveViewportH = window.innerHeight;
+      const liveDocH = document.documentElement.scrollHeight;
+      const liveThumbH = Math.max(18, Math.floor((liveViewportH / liveDocH) * liveViewportH));
+      const liveScrollable = liveDocH - liveViewportH;
+      const liveYPercent = liveScrollable > 0 ? window.scrollY / liveScrollable : 0;
+      const liveThumbTop = liveYPercent * (liveViewportH - liveThumbH);
       const currentCardId = cardIdRef.current?.textContent || "";
 
       setIndicator((prev) => ({
         ...prev,
         dragging: false,
-        thumbTop,
-        thumbH,
+        thumbTop: liveThumbTop,
+        thumbH: liveThumbH,
         cardId: currentCardId,
       }));
 
@@ -673,19 +666,6 @@ export function CardGrid({
 
   return (
     <>
-      {/* Debug overlay — visible during drag on touch devices */}
-      {IS_COARSE_POINTER && (
-        <pre
-          ref={debugRef}
-          className="fixed bottom-0 left-0 z-50 max-h-[50vh] overflow-auto bg-black/85 p-2 font-mono text-[10px] leading-tight text-green-400"
-          style={{
-            opacity: indicator.dragging ? 1 : 0,
-            pointerEvents: "none",
-            transition: "opacity 200ms",
-          }}
-        />
-      )}
-
       {/* Scroll position indicator — appears while scrolling, fades out after idle.
           Draggable: grab to scrub through the page; snaps to set headers on release. */}
       <div
