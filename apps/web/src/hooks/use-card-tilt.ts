@@ -57,8 +57,11 @@ export function useCardTilt({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         const rect = el.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width; // 0..1
-        const y = (e.clientY - rect.top) / rect.height; // 0..1
+        // Clamp to 0..1 — when a scrollable parent (e.g. the detail aside)
+        // scrolls the card away from the pointer, pointerleave doesn't fire,
+        // so the next pointermove can report coordinates outside the element.
+        const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
 
         const rotateY = (x - 0.5) * maxTilt * 2; // -maxTilt..maxTilt
         const rotateX = (0.5 - y) * maxTilt * 2;
