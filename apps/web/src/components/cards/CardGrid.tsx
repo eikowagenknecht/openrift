@@ -1,6 +1,5 @@
 import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { GripVertical } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
@@ -545,6 +544,17 @@ export function CardGrid({
         firstCardId,
       });
     }
+
+    // Collision avoidance: push badges apart when they overlap vertically.
+    // Each badge is roughly 24px tall (text + padding); use a minimum gap.
+    const MIN_GAP = IS_COARSE_POINTER ? 32 : 26;
+    for (let p = 1; p < points.length; p++) {
+      const gap = points[p].screenY - points[p - 1].screenY;
+      if (gap < MIN_GAP) {
+        points[p].screenY = points[p - 1].screenY + MIN_GAP;
+      }
+    }
+
     return points;
   })();
 
@@ -705,13 +715,13 @@ export function CardGrid({
         }}
         onPointerDown={enableDrag ? handleIndicatorPointerDown : undefined}
       >
-        <div
-          className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "pr-3 pl-1.5 py-1.5 text-sm" : "pr-2.5 pl-1 py-1 text-xs"} ${enableDrag ? (indicator.dragging ? "cursor-grabbing ring-primary/50" : "cursor-grab ring-border/50") : "ring-border/50"}`}
-        >
-          {enableDrag && (
-            <GripVertical className="mr-0.5 size-3 shrink-0 text-muted-foreground/40" />
-          )}
-          <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
+        <div className="flex items-center gap-1.5">
+          <div
+            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${enableDrag ? (indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40") : "ring-border/50"}`}
+          >
+            <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
+          </div>
+          <div className="size-2 shrink-0 rounded-full bg-primary/70" />
         </div>
       </div>
 
@@ -732,14 +742,19 @@ export function CardGrid({
             onMouseEnter={handleSnapBadgeEnter}
             onMouseLeave={handleSnapBadgeLeave}
           >
-            <div
-              className={`rounded-md font-mono font-medium select-none ring-1 backdrop-blur-sm transition-all ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${
-                indicator.dragging
-                  ? "bg-popover/40 text-popover-foreground/30 ring-border/20"
-                  : "cursor-pointer bg-popover/80 text-popover-foreground/70 ring-border/40 hover:bg-popover/95 hover:text-popover-foreground hover:ring-border/60"
-              }`}
-            >
-              {pt.firstCardId || pt.setInfo.code}
+            <div className="flex items-center gap-1.5">
+              <div
+                className={`rounded-md font-mono font-medium select-none ring-1 backdrop-blur-sm transition-all ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${
+                  indicator.dragging
+                    ? "bg-popover/40 text-popover-foreground/30 ring-border/20"
+                    : "cursor-pointer bg-popover/80 text-popover-foreground/70 ring-border/40 hover:bg-popover/95 hover:text-popover-foreground hover:ring-border/60"
+                }`}
+              >
+                {pt.firstCardId || pt.setInfo.code}
+              </div>
+              <div
+                className={`size-1.5 shrink-0 rounded-full transition-all ${indicator.dragging ? "bg-muted-foreground/20" : "bg-muted-foreground/40"}`}
+              />
             </div>
           </button>
         ))}
