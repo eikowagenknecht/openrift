@@ -226,8 +226,8 @@ export function CardGrid({
   const virtualRowsRef = useRef(virtualRows);
   virtualRowsRef.current = virtualRows;
 
-  const rowStartsRef = useRef(rowStarts);
-  rowStartsRef.current = rowStarts;
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
 
   const [indicator, setIndicator] = useState({
     cardId: "",
@@ -370,23 +370,12 @@ export function CardGrid({
           const thumbH = Math.max(18, Math.floor((viewportH / docH) * viewportH));
           const thumbTop = indicatorTop - thumbH / 2 + 12;
           const yPercent = Math.max(0, Math.min(1, thumbTop / (viewportH - thumbH)));
-          const targetScrollY = yPercent * scrollableHeight;
-          const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
-
-          const rows = virtualRowsRef.current;
-          const starts = rowStartsRef.current;
-          let cardId = "";
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            if (row.kind !== "cards") {
-              continue;
-            }
-            const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
-            if (rowEnd > threshold) {
-              cardId = row.items[0]?.id ?? "";
-              break;
-            }
-          }
+          const allCards = cardsRef.current;
+          const idx = Math.min(
+            allCards.length - 1,
+            Math.max(0, Math.floor(yPercent * allCards.length)),
+          );
+          const cardId = allCards[idx]?.id;
           if (cardId) {
             cardIdRef.current.textContent = cardId;
           }
