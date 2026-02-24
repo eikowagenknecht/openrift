@@ -86,13 +86,13 @@ export function CardGrid({
 }: CardGridProps) {
   const { containerRef, columns, physicalMax, autoColumns } = useResponsiveColumns(maxColumns);
 
-  const prevPhysicalMax = useRef(physicalMax);
+  const prevPhysicalMax = useRef<number | null>(null);
   if (prevPhysicalMax.current !== physicalMax) {
     prevPhysicalMax.current = physicalMax;
     onPhysicalMaxChange?.(physicalMax);
   }
 
-  const prevAutoColumns = useRef(autoColumns);
+  const prevAutoColumns = useRef<number | null>(null);
   if (prevAutoColumns.current !== autoColumns) {
     prevAutoColumns.current = autoColumns;
     onAutoColumnsChange?.(autoColumns);
