@@ -58,7 +58,7 @@ function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boo
 const CARD_ASPECT = 1039 / 744;
 const GAP = 16; // gap-4
 const APP_HEADER_HEIGHT = 56; // h-14
-const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 1200;
+const HIDE_DELAY = 3000;
 const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
 const INDICATOR_H_FALLBACK = IS_COARSE_POINTER ? 56 : 48;
 const INDICATOR_PAD = 4;
@@ -246,6 +246,7 @@ export function CardGrid({
   });
   const hideTimerRef = useRef(0);
   const isDraggingRef = useRef(false);
+  const isHoveredRef = useRef(false);
   const postDragCooldownRef = useRef(false);
   const dragStartRef = useRef({
     grabOffsetY: 0,
@@ -261,6 +262,7 @@ export function CardGrid({
   const dragTopRef = useRef(0);
   const dragTargetRowRef = useRef(-1);
   const dragPointerIdRef = useRef(-1);
+  const snapPointsRef = useRef<{ screenY: number; rowIndex: number; firstCardId: string }[]>([]);
 
   // Measure the indicator's rendered height so track bounds are always accurate.
   useLayoutEffect(() => {
@@ -340,7 +342,9 @@ export function CardGrid({
         visible: true,
       }));
       hideTimerRef.current = window.setTimeout(() => {
-        setIndicator((prev) => ({ ...prev, visible: false }));
+        if (!isHoveredRef.current) {
+          setIndicator((prev) => ({ ...prev, visible: false }));
+        }
       }, HIDE_DELAY);
     };
     window.addEventListener("scroll", update, { passive: true });
@@ -387,42 +391,64 @@ export function CardGrid({
 
         // Only move the indicator handle — the actual scroll happens on release
         // (handleUp). This avoids expensive virtualizer re-renders during drag.
-        const indicatorTop = Math.max(
+        let indicatorTop = Math.max(
           trackTop,
           Math.min(trackBottom, clientY - dragStartRef.current.grabOffsetY),
         );
-        dragTopRef.current = indicatorTop;
-        if (indicatorRef.current) {
-          indicatorRef.current.style.top = `${indicatorTop}px`;
+
+        // Snap to nearby ghost badges (set headers).
+        const SNAP_DISTANCE = 20;
+        let snapped = false;
+        for (const sp of snapPointsRef.current) {
+          if (Math.abs(indicatorTop - sp.screenY) <= SNAP_DISTANCE) {
+            indicatorTop = sp.screenY;
+            dragTopRef.current = indicatorTop;
+            dragTargetRowRef.current = sp.rowIndex;
+            if (indicatorRef.current) {
+              indicatorRef.current.style.top = `${indicatorTop}px`;
+            }
+            if (cardIdRef.current && sp.firstCardId) {
+              cardIdRef.current.textContent = sp.firstCardId;
+            }
+            snapped = true;
+            break;
+          }
         }
 
-        // Project which card would be visible at this indicator position and
-        // update the label so the user sees where they'll land on release.
-        if (contentRange > 0 && cardIdRef.current) {
-          const trackRange = trackBottom - trackTop;
-          const contentPct = trackRange > 0 ? (indicatorTop - trackTop) / trackRange : 0;
-          const targetScrollY = contentStart + contentPct * contentRange;
-          const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
-
-          const rows = virtualRowsRef.current;
-          const starts = rowStartsRef.current;
-          let cardId = "";
-          let matchedRow = -1;
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            if (row.kind !== "cards") {
-              continue;
-            }
-            const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
-            if (rowEnd > threshold) {
-              cardId = row.items[0]?.id ?? "";
-              matchedRow = i;
-              break;
-            }
+        if (!snapped) {
+          dragTopRef.current = indicatorTop;
+          if (indicatorRef.current) {
+            indicatorRef.current.style.top = `${indicatorTop}px`;
           }
-          dragTargetRowRef.current = matchedRow;
-          if (cardId) {
-            cardIdRef.current.textContent = cardId;
+
+          // Project which card would be visible at this indicator position and
+          // update the label so the user sees where they'll land on release.
+          if (contentRange > 0 && cardIdRef.current) {
+            const trackRange = trackBottom - trackTop;
+            const contentPct = trackRange > 0 ? (indicatorTop - trackTop) / trackRange : 0;
+            const targetScrollY = contentStart + contentPct * contentRange;
+            const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
+
+            const rows = virtualRowsRef.current;
+            const starts = rowStartsRef.current;
+            let cardId = "";
+            let matchedRow = -1;
+            for (let i = 0; i < rows.length; i++) {
+              const row = rows[i];
+              if (row.kind !== "cards") {
+                continue;
+              }
+              const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
+              if (rowEnd > threshold) {
+                cardId = row.items[0]?.id ?? "";
+                matchedRow = i;
+                break;
+              }
+            }
+            dragTargetRowRef.current = matchedRow;
+            if (cardId) {
+              cardIdRef.current.textContent = cardId;
+            }
           }
         }
       });
@@ -599,6 +625,7 @@ export function CardGrid({
 
     return points;
   })();
+  snapPointsRef.current = snapPoints;
 
   // Click a ghost badge to jump directly to that set header.
   // Arrow-key navigation: when a card is selected, Left/Right/Up/Down moves
@@ -730,6 +757,18 @@ export function CardGrid({
           touchAction: "none",
         }}
         onPointerDown={handleIndicatorPointerDown}
+        onMouseEnter={() => {
+          isHoveredRef.current = true;
+          window.clearTimeout(hideTimerRef.current);
+        }}
+        onMouseLeave={() => {
+          isHoveredRef.current = false;
+          if (indicator.visible && !isDraggingRef.current) {
+            hideTimerRef.current = window.setTimeout(() => {
+              setIndicator((prev) => ({ ...prev, visible: false }));
+            }, HIDE_DELAY);
+          }
+        }}
       >
         <div className="flex items-center gap-1.5">
           <div
@@ -756,11 +795,11 @@ export function CardGrid({
           >
             <div className="flex items-center gap-1.5">
               <div
-                className={`rounded-md bg-popover/40 font-mono font-medium text-popover-foreground/30 ring-1 ring-border/20 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"}`}
+                className={`rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"}`}
               >
                 {pt.firstCardId || pt.setInfo.code}
               </div>
-              <div className="size-1.5 shrink-0 rounded-full bg-muted-foreground/20" />
+              <div className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
             </div>
           </div>
         ))}
