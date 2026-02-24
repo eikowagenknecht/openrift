@@ -43,5 +43,5 @@ CMD ["cp", "-r", "/srv/.", "/out/"]
 # ─── Stage 4: Migrate (one-off, runs from the full build image) ───────────────
 FROM build AS migrate
 
-WORKDIR /app
-CMD ["node", "--import", "tsx", "packages/shared/src/db/migrate.ts"]
+WORKDIR /app/packages/shared
+CMD ["node", "--import", "tsx", "src/db/migrate.ts"]
