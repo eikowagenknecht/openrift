@@ -1,23 +1,17 @@
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-
 import type {
   Card,
   CardArt,
+  CardPrice,
   CardStats,
   CardType,
   ContentSet,
-  PricesData,
+  PricePoint,
   Rarity,
   RiftboundContent,
 } from "@openrift/shared";
 import { Hono } from "hono";
 
 import { db } from "../db.js";
-
-const require = createRequire(import.meta.url);
-const pricesPath = require.resolve("@openrift/shared/data/prices.json");
-const pricesData: PricesData = JSON.parse(readFileSync(pricesPath, "utf-8"));
 
 export const cardsRoute = new Hono();
 
@@ -82,4 +76,40 @@ cardsRoute.get("/cards", async (c) => {
   return c.json(content);
 });
 
-cardsRoute.get("/prices", (c) => c.json(pricesData));
+cardsRoute.get("/prices", async (c) => {
+  const rows = await db.selectFrom("prices").selectAll().execute();
+
+  const cards: Record<string, CardPrice> = {};
+
+  for (const row of rows) {
+    const point: PricePoint = {
+      low: (row.low_cents ?? 0) / 100,
+      mid: (row.mid_cents ?? 0) / 100,
+      high: (row.high_cents ?? 0) / 100,
+      market: row.market_cents / 100,
+      directLow: row.direct_low_cents != null ? row.direct_low_cents / 100 : null,
+    };
+
+    let entry = cards[row.card_id];
+    if (!entry) {
+      entry = {
+        productId: row.product_id ?? 0,
+        url: row.url,
+      };
+      cards[row.card_id] = entry;
+    }
+
+    if (row.variant === "Normal") {
+      entry.normal = point;
+    } else if (row.variant === "Foil") {
+      entry.foil = point;
+    }
+  }
+
+  return c.json({
+    source: rows[0]?.source ?? "",
+    fetchedAt: new Date().toISOString(),
+    cards,
+    unmatched: [],
+  });
+});

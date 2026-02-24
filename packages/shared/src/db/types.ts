@@ -4,7 +4,7 @@ import type { ColumnType, Generated } from "kysely";
 // Keep in sync with the canonical definitions in ../types.ts.
 type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
 type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
-type CardVariant = "Normal" | "Alt Art" | "Overnumbered" | "Signed";
+type CardVariant = "Normal" | "Alt Art" | "Overnumbered" | "Signed" | "Foil";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
 
@@ -63,7 +63,13 @@ export interface PricesTable {
   id: Generated<number>;
   card_id: string;
   variant: CardVariant;
-  price_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+  market_cents: number;
+  direct_low_cents: number | null;
+  product_id: number | null;
+  url: string | null;
   source: string;
   recorded_at: CreatedAt;
 }

@@ -59,8 +59,32 @@ interface GalleryData {
   sets: GallerySet[];
 }
 
+interface PricePoint {
+  low: number;
+  mid: number;
+  high: number;
+  market: number;
+  directLow: number | null;
+}
+
+interface CardPrice {
+  productId: number;
+  url: string | null;
+  normal?: PricePoint;
+  foil?: PricePoint;
+}
+
+interface PricesJson {
+  source: string;
+  fetchedAt: string;
+  cards: Record<string, CardPrice>;
+}
+
 const galleryPath = path.join(__dirname, "../../data/gallery.json");
 const gallery: GalleryData = JSON.parse(readFileSync(galleryPath, "utf-8"));
+
+const pricesPath = path.join(__dirname, "../../data/prices.json");
+const prices: PricesJson = JSON.parse(readFileSync(pricesPath, "utf-8"));
 
 console.log("Seeding database...");
 
@@ -135,6 +159,66 @@ for (const set of gallery.sets) {
       .execute();
   }
 }
+
+// ── Prices ──────────────────────────────────────────────────────────────────
+// Truncate first since (card_id, variant) isn't a unique constraint.
+await db.deleteFrom("prices").execute();
+
+function toCents(value: number | null | undefined): number | null {
+  return value != null ? Math.round(value * 100) : null;
+}
+
+type PriceVariant = "Normal" | "Foil";
+
+const priceRows: {
+  card_id: string;
+  variant: PriceVariant;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+  market_cents: number;
+  direct_low_cents: number | null;
+  product_id: number | null;
+  url: string | null;
+  source: string;
+}[] = [];
+
+for (const [cardId, cardPrice] of Object.entries(prices.cards)) {
+  if (cardPrice.normal?.market) {
+    priceRows.push({
+      card_id: cardId,
+      variant: "Normal",
+      low_cents: toCents(cardPrice.normal.low),
+      mid_cents: toCents(cardPrice.normal.mid),
+      high_cents: toCents(cardPrice.normal.high),
+      market_cents: Math.round(cardPrice.normal.market * 100),
+      direct_low_cents: toCents(cardPrice.normal.directLow),
+      product_id: cardPrice.productId,
+      url: cardPrice.url ?? null,
+      source: prices.source,
+    });
+  }
+  if (cardPrice.foil?.market) {
+    priceRows.push({
+      card_id: cardId,
+      variant: "Foil",
+      low_cents: toCents(cardPrice.foil.low),
+      mid_cents: toCents(cardPrice.foil.mid),
+      high_cents: toCents(cardPrice.foil.high),
+      market_cents: Math.round(cardPrice.foil.market * 100),
+      direct_low_cents: toCents(cardPrice.foil.directLow),
+      product_id: cardPrice.productId,
+      url: cardPrice.url ?? null,
+      source: prices.source,
+    });
+  }
+}
+
+if (priceRows.length > 0) {
+  await db.insertInto("prices").values(priceRows).execute();
+}
+
+console.log(`  ✓ Prices: ${priceRows.length} rows`);
 
 console.log("Seed complete.");
 await db.destroy();
