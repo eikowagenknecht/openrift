@@ -10,7 +10,8 @@ pre-commit:
   parallel: false
   commands:
     typescript-check:
-      run: pnpm turbo run build
+      glob: "*.{ts,tsx}"
+      run: pnpm --filter @openrift/shared exec tsc && pnpm --filter web exec tsc -b
     oxlint-check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}"
       run: pnpm exec oxlint '{staged_files}'
