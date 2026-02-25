@@ -400,6 +400,11 @@ export function CardGrid({
       contentStart,
       contentRange: contentEnd - contentStart,
     };
+    // Lock the badge width so it doesn't jump as card IDs change length.
+    const badge = cardIdRef.current?.parentElement as HTMLElement | null;
+    if (badge) {
+      badge.style.width = `${badge.offsetWidth}px`;
+    }
     window.clearTimeout(hideTimerRef.current);
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
   };
@@ -483,6 +488,11 @@ export function CardGrid({
 
     const handleUp = () => {
       isDraggingRef.current = false;
+      // Unlock the badge width that was frozen on drag start.
+      const badge = cardIdRef.current?.parentElement as HTMLElement | null;
+      if (badge) {
+        badge.style.width = "";
+      }
       // Scroll to the exact row that the label is showing, so the card
       // aligns precisely below the header instead of a percentage estimate.
       if (dragTargetRowRef.current >= 0) {
