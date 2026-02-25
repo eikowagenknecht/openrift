@@ -1,6 +1,5 @@
-const AFFILIATE_PARAM = "utm_campaign=affiliate&utm_medium=openrift&utm_source=impact";
+const AFFILIATE_BASE = "https://partner.tcgplayer.com/NGKP0P";
 
 export function affiliateUrl(url: string): string {
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}${AFFILIATE_PARAM}`;
+  return `${AFFILIATE_BASE}?u=${encodeURIComponent(url)}`;
 }
