@@ -36,3 +36,6 @@ deploy.sh
 
 # Exploration data dumps
 /data/
+
+# Private docs (not for public repo)
+docs-private/
