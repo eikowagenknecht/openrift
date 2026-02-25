@@ -256,10 +256,8 @@ export function CardGrid({
   const indicatorRef = useRef<HTMLDivElement>(null);
   const indicatorHRef = useRef(INDICATOR_H_FALLBACK);
   const cardIdRef = useRef<HTMLElement>(null);
-  const rafIdRef = useRef(0);
   const dragTopRef = useRef(0);
   const dragTargetRowRef = useRef(-1);
-  const dragPointerIdRef = useRef(-1);
   const snapPointsRef = useRef<{ screenY: number; rowIndex: number; firstCardId: string }[]>([]);
 
   // Measure the indicator's rendered height so track bounds are always accurate.
@@ -355,10 +353,13 @@ export function CardGrid({
 
   const handleIndicatorPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
-    // Don't use setPointerCapture — on mobile WebKit it causes
-    // pointermove to report garbage clientY values (±100000).
     isDraggingRef.current = true;
-    dragPointerIdRef.current = e.pointerId;
+    // Capture pointer on desktop so all subsequent move/up events route
+    // directly to this element (no document listeners needed). Skipped on
+    // touch — mobile WebKit reports garbage clientY with pointer capture.
+    if (!IS_COARSE_POINTER) {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
     // Grab offset in style.top space so the indicator stays pinned to the finger.
     // Freeze dimensions so mobile browser chrome changes don't shift the mapping.
     const styleTop = parseFloat((e.currentTarget as HTMLElement).style.top) || 0;
@@ -378,86 +379,85 @@ export function CardGrid({
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
   };
 
-  // Document-level move/up listeners for drag.
-  // Touch devices use TouchEvent (touchmove/touchend) because PointerEvent
-  // pointermove reports garbage clientY values (±100000) on mobile WebKit.
-  // Desktop uses PointerEvent as usual.
+  // Drag move/up handlers. On desktop these fire on the indicator element
+  // itself (via setPointerCapture). On touch they use document-level
+  // TouchEvent listeners because mobile WebKit's PointerEvent is unreliable.
+  // eslint-disable-next-line no-empty-function
+  const handleMoveRef = useRef((_clientY: number) => {});
+  // eslint-disable-next-line no-empty-function
+  const handleUpRef = useRef(() => {});
   useEffect(() => {
     const handleMove = (clientY: number) => {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = requestAnimationFrame(() => {
-        const { trackTop, trackBottom, contentStart, contentRange } = dragStartRef.current;
+      const { trackTop, trackBottom, contentStart, contentRange } = dragStartRef.current;
 
-        // Only move the indicator handle — the actual scroll happens on release
-        // (handleUp). This avoids expensive virtualizer re-renders during drag.
-        let indicatorTop = Math.max(
-          trackTop,
-          Math.min(trackBottom, clientY - dragStartRef.current.grabOffsetY),
-        );
+      // Only move the indicator handle — the actual scroll happens on release
+      // (handleUp). This avoids expensive virtualizer re-renders during drag.
+      // Runs synchronously (no rAF) because the work is cheap (clamp, snap
+      // check, two DOM writes) and deferring adds a full frame of latency.
+      let indicatorTop = Math.max(
+        trackTop,
+        Math.min(trackBottom, clientY - dragStartRef.current.grabOffsetY),
+      );
 
-        // Snap to nearby ghost badges (set headers).
-        const SNAP_DISTANCE = 20;
-        let snapped = false;
-        for (const sp of snapPointsRef.current) {
-          if (Math.abs(indicatorTop - sp.screenY) <= SNAP_DISTANCE) {
-            indicatorTop = sp.screenY;
-            dragTopRef.current = indicatorTop;
-            dragTargetRowRef.current = sp.rowIndex;
-            if (indicatorRef.current) {
-              indicatorRef.current.style.top = `${indicatorTop}px`;
-            }
-            if (cardIdRef.current && sp.firstCardId) {
-              cardIdRef.current.textContent = sp.firstCardId;
-            }
-            snapped = true;
-            break;
-          }
-        }
-
-        if (!snapped) {
+      // Snap to nearby ghost badges (set headers).
+      const SNAP_DISTANCE = 20;
+      let snapped = false;
+      for (const sp of snapPointsRef.current) {
+        if (Math.abs(indicatorTop - sp.screenY) <= SNAP_DISTANCE) {
+          indicatorTop = sp.screenY;
           dragTopRef.current = indicatorTop;
+          dragTargetRowRef.current = sp.rowIndex;
           if (indicatorRef.current) {
             indicatorRef.current.style.top = `${indicatorTop}px`;
           }
+          if (cardIdRef.current && sp.firstCardId) {
+            cardIdRef.current.textContent = sp.firstCardId;
+          }
+          snapped = true;
+          break;
+        }
+      }
 
-          // Project which card would be visible at this indicator position and
-          // update the label so the user sees where they'll land on release.
-          if (contentRange > 0 && cardIdRef.current) {
-            const trackRange = trackBottom - trackTop;
-            const contentPct = trackRange > 0 ? (indicatorTop - trackTop) / trackRange : 0;
-            const targetScrollY = contentStart + contentPct * contentRange;
-            const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
+      if (!snapped) {
+        dragTopRef.current = indicatorTop;
+        if (indicatorRef.current) {
+          indicatorRef.current.style.top = `${indicatorTop}px`;
+        }
 
-            const rows = virtualRowsRef.current;
-            const starts = rowStartsRef.current;
-            let cardId = "";
-            let matchedRow = -1;
-            for (let i = 0; i < rows.length; i++) {
-              const row = rows[i];
-              if (row.kind !== "cards") {
-                continue;
-              }
-              const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
-              if (rowEnd > threshold) {
-                cardId = row.items[0]?.id ?? "";
-                matchedRow = i;
-                break;
-              }
+        // Project which card would be visible at this indicator position and
+        // update the label so the user sees where they'll land on release.
+        if (contentRange > 0 && cardIdRef.current) {
+          const trackRange = trackBottom - trackTop;
+          const contentPct = trackRange > 0 ? (indicatorTop - trackTop) / trackRange : 0;
+          const targetScrollY = contentStart + contentPct * contentRange;
+          const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
+
+          const rows = virtualRowsRef.current;
+          const starts = rowStartsRef.current;
+          let cardId = "";
+          let matchedRow = -1;
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.kind !== "cards") {
+              continue;
             }
-            dragTargetRowRef.current = matchedRow;
-            if (cardId) {
-              cardIdRef.current.textContent = cardId;
+            const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
+            if (rowEnd > threshold) {
+              cardId = row.items[0]?.id ?? "";
+              matchedRow = i;
+              break;
             }
           }
+          dragTargetRowRef.current = matchedRow;
+          if (cardId) {
+            cardIdRef.current.textContent = cardId;
+          }
         }
-      });
+      }
     };
 
     const handleUp = () => {
       isDraggingRef.current = false;
-      dragPointerIdRef.current = -1;
-      cancelAnimationFrame(rafIdRef.current);
-
       // Scroll to the exact row that the label is showing, so the card
       // aligns precisely below the header instead of a percentage estimate.
       if (dragTargetRowRef.current >= 0) {
@@ -499,6 +499,10 @@ export function CardGrid({
       }, POST_DRAG_HIDE_DELAY);
     };
 
+    // Expose to element-level handlers (desktop) via refs.
+    handleMoveRef.current = handleMove;
+    handleUpRef.current = handleUp;
+
     if (IS_COARSE_POINTER) {
       // Touch path — Touch.clientY is reliable on all mobile browsers.
       const onTouchMove = (e: TouchEvent) => {
@@ -526,27 +530,8 @@ export function CardGrid({
       };
     }
 
-    // Pointer path — desktop only.
-    const onPointerMove = (e: PointerEvent) => {
-      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
-        return;
-      }
-      handleMove(e.clientY);
-    };
-    const onPointerUp = (e: PointerEvent) => {
-      if (!isDraggingRef.current || e.pointerId !== dragPointerIdRef.current) {
-        return;
-      }
-      handleUp();
-    };
-    document.addEventListener("pointermove", onPointerMove);
-    document.addEventListener("pointerup", onPointerUp);
-    document.addEventListener("pointercancel", onPointerUp);
-    return () => {
-      document.removeEventListener("pointermove", onPointerMove);
-      document.removeEventListener("pointerup", onPointerUp);
-      document.removeEventListener("pointercancel", onPointerUp);
-    };
+    // Desktop: pointer events are handled on the element via setPointerCapture
+    // (see onPointerMove/onPointerUp props on the indicator div).
   }, []);
 
   // Screen-space positions of each set header on the scrollbar track.
@@ -759,6 +744,33 @@ export function CardGrid({
           touchAction: "none",
         }}
         onPointerDown={handleIndicatorPointerDown}
+        onPointerMove={
+          IS_COARSE_POINTER
+            ? undefined
+            : (e) => {
+                if (isDraggingRef.current) {
+                  handleMoveRef.current(e.clientY);
+                }
+              }
+        }
+        onPointerUp={
+          IS_COARSE_POINTER
+            ? undefined
+            : () => {
+                if (isDraggingRef.current) {
+                  handleUpRef.current();
+                }
+              }
+        }
+        onLostPointerCapture={
+          IS_COARSE_POINTER
+            ? undefined
+            : () => {
+                if (isDraggingRef.current) {
+                  handleUpRef.current();
+                }
+              }
+        }
         onMouseEnter={() => {
           isHoveredRef.current = true;
           window.clearTimeout(hideTimerRef.current);
