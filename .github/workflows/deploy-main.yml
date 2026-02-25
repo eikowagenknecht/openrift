@@ -1,11 +1,11 @@
-name: Deploy beta to VPS
+name: Deploy main to VPS
 
 on:
   push:
-    branches: [beta]
+    branches: [main]
 
 concurrency:
-  group: deploy-beta
+  group: deploy-main
   cancel-in-progress: false
 
 jobs:
@@ -18,4 +18,4 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: cd ~/openrift-beta && ./deploy.sh
+          script: cd ~/openrift && ./deploy.sh

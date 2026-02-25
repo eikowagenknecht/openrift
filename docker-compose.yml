@@ -5,7 +5,7 @@ services:
   db:
     image: postgres:16-alpine
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     env_file:
@@ -28,7 +28,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:${API_PORT:-3001}:3000"
     restart: unless-stopped
 
   # Nginx: serves the SPA and proxies /api to the API container.
@@ -39,7 +39,7 @@ services:
     depends_on:
       - api
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
     restart: unless-stopped
 
   # One-off: runs Kysely database migrations.

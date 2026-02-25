@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy the beta branch to the VPS.
+# Deploy a branch to the VPS.
 # Usage: ./deploy.sh
 #
-# Pulls the latest beta branch, rebuilds containers, runs migrations,
+# Pulls the latest branch, rebuilds containers, runs migrations,
 # restarts services, and cleans up old Docker images.
+#
+# Set BRANCH below to match the instance (main or beta).
 
 cd "$(dirname "$0")"
 
-BRANCH="beta"
+BRANCH="main"
 
 echo "==> Pulling latest $BRANCH..."
 git fetch origin "$BRANCH"
