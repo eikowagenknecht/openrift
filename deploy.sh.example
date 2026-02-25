@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Deploy the beta branch to the VPS.
+# Usage: ./deploy.sh
+#
+# Pulls the latest beta branch, rebuilds containers, runs migrations,
+# restarts services, and cleans up old Docker images.
+
+cd "$(dirname "$0")"
+
+BRANCH="beta"
+
+echo "==> Pulling latest $BRANCH..."
+git fetch origin "$BRANCH"
+git checkout "$BRANCH"
+git reset --hard "origin/$BRANCH"
+
+echo "==> Building images..."
+docker compose build
+
+echo "==> Running database migrations..."
+docker compose run --rm migrate
+
+echo "==> Restarting services..."
+docker compose up -d
+
+echo "==> Cleaning up old images..."
+docker image prune -f
+
+echo "==> Done. Current status:"
+docker compose ps
