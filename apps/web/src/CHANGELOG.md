@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-02-25
+
+- feat: Filters now show in a persistent sidebar on wide screens (1600px+), so you don't need to open a panel to change them
+- feat: The grid now uses more screen space on ultrawide monitors with new wider layout breakpoints
+- feat: The scroll indicator grows while dragging and snaps more precisely to set boundaries
+- feat: Card data is now served from a real database instead of static files — everything should feel just as fast
+- fix: The grid no longer jumps when a sticky set header pill appears or when the window is resized
+- fix: The header and footer now stretch to match the content width on wide screens
+- fix: The scroll indicator no longer drifts, resizes, or disappears unexpectedly during and after dragging
+
 ## 2026-02-24
 
 - fix: Prices no longer burst out of small cards — they now wrap, drop labels when narrow, and use a compact format ($25, $1.2k) to fit tight spaces
