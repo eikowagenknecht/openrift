@@ -4,7 +4,10 @@ export function formatCardId(card: Card): string {
   return card.id;
 }
 
-/** Short card ID for compact layouts: `#001` instead of `OGS-001`. */
+/**
+ * Short card ID for compact layouts: `#001` instead of `OGS-001`.
+ * @returns The numeric suffix prefixed with `#`.
+ */
 export function formatCardIdCompact(card: Card): string {
   const dashIndex = card.id.lastIndexOf("-");
   return `#${dashIndex !== -1 ? card.id.slice(dashIndex + 1) : card.id}`;
@@ -21,7 +24,10 @@ export function formatPrice(value: number | null | undefined): string {
   return `$${value.toFixed(2)}`;
 }
 
-/** Tailwind color classes for a price value based on threshold bands. */
+/**
+ * Tailwind color classes for a price value based on threshold bands.
+ * @returns A Tailwind color class string.
+ */
 export function priceColorClass(value: number | null | undefined): string {
   if (value === null || value === undefined || value < 1) {
     return "text-muted-foreground";
@@ -35,7 +41,10 @@ export function priceColorClass(value: number | null | undefined): string {
   return "text-rose-600 dark:text-rose-400";
 }
 
-/** Compact price for grid thumbnails: max 4 characters after the `$`. */
+/**
+ * Compact price for grid thumbnails: max 4 characters after the `$`.
+ * @returns Formatted price string like `$1.50`, `$42`, or `$1.2k`.
+ */
 export function formatPriceCompact(value: number | null | undefined): string {
   if (value === null || value === undefined) {
     return "--";

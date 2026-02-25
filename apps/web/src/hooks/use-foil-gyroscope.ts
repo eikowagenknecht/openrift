@@ -25,7 +25,7 @@ let hasPending = false;
 
 function notify() {
   for (const cb of listeners) {
-    cb();
+    cb(); // oxlint-disable-line promise/prefer-await-to-callbacks -- useSyncExternalStore subscriber callbacks
   }
 }
 

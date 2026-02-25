@@ -5,6 +5,7 @@ const SUPERTYPE_ICONS = new Set(["Champion", "Signature", "Token"]);
 /**
  * Icon for a card's type row — uses the champion icon for Champion/Signature
  * Units, otherwise falls back to the standard type icon.
+ * @returns Path to the SVG icon.
  */
 export function getTypeIconPath(type: string, superTypes: string[]): string {
   if (type === "Unit" && (superTypes.includes("Champion") || superTypes.includes("Signature"))) {
