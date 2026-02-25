@@ -1,7 +1,7 @@
 export function Footer() {
   return (
     <footer className="border-t border-border bg-muted/50 py-6">
-      <div className="mx-auto max-w-7xl px-4">
+      <div className="mx-auto max-w-7xl px-4 wide:max-w-(--container-max-wide)">
         <p className="text-center text-xs text-muted-foreground">
           OpenRift isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot
           Games or anyone officially involved in producing or managing Riot Games properties. Riot
