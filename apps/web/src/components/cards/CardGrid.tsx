@@ -496,7 +496,9 @@ export function CardGrid({
 
       hideTimerRef.current = window.setTimeout(() => {
         postDragCooldownRef.current = false;
-        setIndicator((prev) => ({ ...prev, visible: false }));
+        if (!isHoveredRef.current) {
+          setIndicator((prev) => ({ ...prev, visible: false }));
+        }
       }, POST_DRAG_HIDE_DELAY);
     };
 
