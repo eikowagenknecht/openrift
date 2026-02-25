@@ -41,9 +41,10 @@ function DrawerContent({
 }: React.ComponentProps<typeof DrawerPrimitive.Popup>) {
   return (
     <DrawerPrimitive.Portal data-slot="drawer-portal">
+      {/* custom: removed keyframe animation classes; drawer transitions are in index.css */}
       <DrawerPrimitive.Backdrop
         data-slot="drawer-overlay"
-        className="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/10 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 z-50"
+        className="bg-black/10 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 z-50"
       />
       <DrawerPrimitive.Viewport className="fixed inset-0 z-50 flex">
         <DrawerPrimitive.Popup

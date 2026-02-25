@@ -2,6 +2,7 @@
 
 ## 2026-02-25
 
+- fix: Drawers now smoothly slide closed when tapping outside or releasing a half-swipe, instead of instantly disappearing
 - feat: Filters now show in a persistent sidebar on wide screens (1600px+), so you don't need to open a panel to change them
 - feat: The grid now uses more screen space on ultrawide monitors with new wider layout breakpoints
 - feat: The scroll indicator grows while dragging and snaps more precisely to set boundaries
