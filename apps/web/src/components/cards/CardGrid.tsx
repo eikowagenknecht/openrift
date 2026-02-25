@@ -151,27 +151,6 @@ export function CardGrid({
   // header row from being visible at the same time.
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
-  // Track the grid container's horizontal bounds so the sticky set header
-  // pill centers over the grid, not the full viewport.
-  const [gridLeft, setGridLeft] = useState(0);
-  const [gridWidth, setGridWidth] = useState(0);
-
-  useLayoutEffect(() => {
-    const el = containerRef.current;
-    if (!el) {
-      return;
-    }
-    const measure = () => {
-      const { left, width } = el.getBoundingClientRect();
-      setGridLeft(left);
-      setGridWidth(width);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [containerRef]);
-
   // Re-measure the container's document offset when the card list changes.
   // useLayoutEffect runs before paint so corrections are invisible to the user.
   useLayoutEffect(() => {
@@ -819,30 +798,27 @@ export function CardGrid({
           </div>
         ))}
 
-      {/* Sticky set header overlay — visible only after a section header has
-          fully scrolled above the sticky threshold. Just the label, no lines. */}
-      {multipleGroups && activeHeaderRow && (
-        <div
-          className="fixed z-10 flex justify-center py-2"
-          style={{ top: APP_HEADER_HEIGHT, left: gridLeft, width: gridWidth }}
-        >
-          <button
-            type="button"
-            className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-            onClick={() => scrollToGroup(activeHeaderRow.set.name)}
-          >
-            <span className="text-sm font-medium text-muted-foreground">
-              {activeHeaderRow.set.code}
-            </span>
-            <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {activeHeaderRow.cardCount}
-            </span>
-          </button>
-        </div>
-      )}
-
       <div ref={containerRef}>
+        {/* Sticky set header overlay — lives inside the grid container so it
+            naturally inherits the container's width and centers via CSS,
+            avoiding fragile JS-measured left/width positioning. */}
+        {multipleGroups && activeHeaderRow && (
+          <div className="sticky z-10 flex justify-center py-2" style={{ top: APP_HEADER_HEIGHT }}>
+            <button
+              type="button"
+              className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+              onClick={() => scrollToGroup(activeHeaderRow.set.name)}
+            >
+              <span className="text-sm font-medium text-muted-foreground">
+                {activeHeaderRow.set.code}
+              </span>
+              <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {activeHeaderRow.cardCount}
+              </span>
+            </button>
+          </div>
+        )}
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
           {items.map((vItem) => {
             const row = virtualRows[vItem.index];
