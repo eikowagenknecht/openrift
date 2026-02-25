@@ -6,8 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./db": "./src/db/index.ts",
-    "./data/gallery.json": "./data/gallery.json",
-    "./data/prices.json": "./data/prices.json"
+    "./data/cards.json": "../../data/cards.json",
+    "./data/prices.json": "../../data/prices.json"
   },
   "scripts": {
     "build": "tsc",

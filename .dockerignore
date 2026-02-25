@@ -24,5 +24,7 @@ Thumbs.db
 # Logs
 *.log
 
-# Data dumps
-/data/
+# Data dumps (allow seed JSON, exclude raw dumps)
+/data/*
+!/data/cards.json
+!/data/prices.json

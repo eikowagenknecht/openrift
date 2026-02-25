@@ -9,7 +9,7 @@
  *
  * Usage: node scripts/build-prices.mjs
  *
- * Reads:  packages/shared/data/gallery.json
+ * Reads:  data/cards.json
  *         data/tcgcsv-dump/products-{groupId}.json
  *         data/tcgcsv-dump/prices-{groupId}.json
  *         scripts/price-overrides.json
@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, "..");
 const dumpDir = join(rootDir, "data", "tcgcsv-dump");
-const outDir = join(rootDir, "packages", "shared", "data");
+const outDir = join(rootDir, "data");
 
 // Gallery set name → tcgcsv groupId
 const SET_GROUP_MAP = {
@@ -39,7 +39,7 @@ function loadJson(filePath) {
 
 function main() {
   // 1. Load gallery
-  const galleryPath = join(rootDir, "packages", "shared", "data", "gallery.json");
+  const galleryPath = join(rootDir, "data", "cards.json");
   const gallery = loadJson(galleryPath);
   console.log(`Loaded gallery: ${gallery.sets.length} sets`);
 

@@ -80,10 +80,10 @@ interface PricesJson {
   cards: Record<string, CardPrice>;
 }
 
-const galleryPath = path.join(__dirname, "../../data/gallery.json");
-const gallery: GalleryData = JSON.parse(readFileSync(galleryPath, "utf-8"));
+const cardsPath = path.join(__dirname, "../../../../data/cards.json");
+const gallery: GalleryData = JSON.parse(readFileSync(cardsPath, "utf-8"));
 
-const pricesPath = path.join(__dirname, "../../data/prices.json");
+const pricesPath = path.join(__dirname, "../../../../data/prices.json");
 const prices: PricesJson = JSON.parse(readFileSync(pricesPath, "utf-8"));
 
 console.log("Seeding database...");

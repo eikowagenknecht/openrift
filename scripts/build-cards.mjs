@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 
 /**
- * Scrapes the Riftbound card gallery page and converts it into the
- * gallery.json format used by the app.
+ * Transforms the raw gallery dump into cards.json for the app.
  *
- * This is the primary data source — it replaces both source.json/content.json
- * and gallery-extra.json with a single, richer dataset.
+ * Reads the raw card data dumped by dump-gallery.mjs, validates each card
+ * against the Zod schema, converts to the app format, and writes cards.json.
  *
- * Usage: node packages/shared/scripts/scrape-gallery.mjs
+ * Usage: node scripts/build-cards.mjs
  *
- * Output: packages/shared/data/gallery.json
+ * Reads:  data/gallery-dump/cards.json
+ * Output: data/cards.json
  */
 
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { galleryCardSchema } from "../src/schemas.ts";
+import { galleryCardSchema } from "../packages/shared/src/schemas.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(__dirname, "..", "data");
-
-const GALLERY_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/";
+const rootDir = join(__dirname, "..");
+const dataDir = join(rootDir, "data");
+const dumpPath = join(dataDir, "gallery-dump", "cards.json");
 
 function stripHtml(html) {
   return html
@@ -102,30 +102,10 @@ function convertCard(src) {
   };
 }
 
-async function scrape() {
-  console.log(`Fetching ${GALLERY_URL} ...`);
-  const res = await fetch(GALLERY_URL);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-  }
-  const html = await res.text();
-
-  const match = html.match(
-    /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/,
-  );
-  if (!match) {
-    throw new Error("Could not find __NEXT_DATA__ script tag in the page");
-  }
-
-  const nextData = JSON.parse(match[1]);
-  const blades = nextData.props?.pageProps?.page?.blades ?? [];
-  const galleryBlade = blades.find((b) => b.type === "riftboundCardGallery");
-  const cards = galleryBlade?.cards?.items;
-  if (!cards || cards.length === 0) {
-    throw new Error("Could not find riftboundCardGallery blade in __NEXT_DATA__");
-  }
-
-  console.log(`Found ${cards.length} cards in gallery data`);
+function main() {
+  const dump = JSON.parse(readFileSync(dumpPath, "utf-8"));
+  const cards = dump.cards;
+  console.log(`Loaded ${cards.length} raw cards from gallery dump`);
 
   // Validate each card against the schema
   const validated = [];
@@ -190,7 +170,7 @@ async function scrape() {
       }),
   };
 
-  const outputPath = join(dataDir, "gallery.json");
+  const outputPath = join(dataDir, "cards.json");
   writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 
   // Summary
@@ -210,7 +190,4 @@ async function scrape() {
   console.log(`Written to ${outputPath}`);
 }
 
-scrape().catch((error) => {
-  console.error("Scrape failed:", error.message);
-  process.exit(1);
-});
+main();
