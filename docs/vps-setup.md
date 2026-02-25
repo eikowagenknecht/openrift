@@ -62,8 +62,8 @@ Test: `ssh -i ~/.ssh/openrift-deploy openrift@your-server-ip`
 ## 5. Clone the repo and configure
 
 ```bash
-git clone git@github.com:eikowagenknecht/openrift.git ~/app
-cd ~/app
+git clone git@github.com:eikowagenknecht/openrift.git ~/openrift
+cd ~/openrift
 
 cp .env.example .env
 ```
@@ -153,7 +153,7 @@ The workflow at `.github/workflows/deploy-beta.yml` triggers on every push to `b
 
 ```
 /home/openrift/
-└── app/                          # Git repo (beta branch)
+└── openrift/                     # Git repo (beta branch)
     ├── .env                      # Production secrets (gitignored)
     ├── deploy.sh                 # Deploy script (gitignored, from deploy.sh.example)
     ├── deploy.sh.example         # Template checked into git
@@ -162,7 +162,7 @@ The workflow at `.github/workflows/deploy-beta.yml` triggers on every push to `b
     └── ...
 
 Docker-managed:
-  /var/lib/docker/volumes/app_pg_data/   # PostgreSQL data (persists across deploys)
+  /var/lib/docker/volumes/openrift_pg_data/   # PostgreSQL data (persists across deploys)
 ```
 
 ## Common operations
@@ -172,7 +172,7 @@ Docker-managed:
 ssh openrift@your-server-ip
 
 # Manual deploy
-cd ~/app && ./deploy.sh
+cd ~/openrift && ./deploy.sh
 
 # View logs
 docker compose logs -f           # All services
