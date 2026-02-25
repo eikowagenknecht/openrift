@@ -800,25 +800,28 @@ export function CardGrid({
 
       <div ref={containerRef}>
         {/* Sticky set header overlay — lives inside the grid container so it
-            naturally inherits the container's width and centers via CSS,
-            avoiding fragile JS-measured left/width positioning. */}
-        {multipleGroups && activeHeaderRow && (
-          <div className="sticky z-10 flex justify-center py-2" style={{ top: APP_HEADER_HEIGHT }}>
-            <button
-              type="button"
-              className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-              onClick={() => scrollToGroup(activeHeaderRow.set.name)}
-            >
-              <span className="text-sm font-medium text-muted-foreground">
-                {activeHeaderRow.set.code}
-              </span>
-              <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                {activeHeaderRow.cardCount}
-              </span>
-            </button>
-          </div>
-        )}
+            naturally inherits the container's width and centers via CSS.
+            height:0 + overflow:visible keeps it out of the flow so toggling
+            activeHeaderRow never shifts the virtualizer content. */}
+        <div className="sticky z-10 h-0" style={{ top: APP_HEADER_HEIGHT }}>
+          {multipleGroups && activeHeaderRow && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+                onClick={() => scrollToGroup(activeHeaderRow.set.name)}
+              >
+                <span className="text-sm font-medium text-muted-foreground">
+                  {activeHeaderRow.set.code}
+                </span>
+                <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {activeHeaderRow.cardCount}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
           {items.map((vItem) => {
             const row = virtualRows[vItem.index];
