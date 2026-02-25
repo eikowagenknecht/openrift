@@ -314,8 +314,9 @@ export function CardGrid({
         contentRange > 0
           ? Math.max(0, Math.min(1, (window.scrollY - contentStart) / contentRange))
           : 0;
-      const trackTop = APP_HEADER_HEIGHT + INDICATOR_PAD;
-      const trackBottom = viewportH - indicatorHRef.current - INDICATOR_PAD;
+      const halfH = indicatorHRef.current / 2;
+      const trackTop = APP_HEADER_HEIGHT + halfH + INDICATOR_PAD;
+      const trackBottom = viewportH - halfH - INDICATOR_PAD;
       const indicatorTop = trackTop + contentPct * (trackBottom - trackTop);
 
       // During drag: only update the card ID label. The pointer handler drives
@@ -370,8 +371,8 @@ export function CardGrid({
     const contentEnd = scrollMarginRef.current + totalSize - viewportH;
     dragStartRef.current = {
       grabOffsetY: e.clientY - styleTop,
-      trackTop: APP_HEADER_HEIGHT + INDICATOR_PAD,
-      trackBottom: viewportH - indicatorHRef.current - INDICATOR_PAD,
+      trackTop: APP_HEADER_HEIGHT + indicatorHRef.current / 2 + INDICATOR_PAD,
+      trackBottom: viewportH - indicatorHRef.current / 2 - INDICATOR_PAD,
       contentStart,
       contentRange: contentEnd - contentStart,
     };
@@ -481,8 +482,9 @@ export function CardGrid({
         liveContentRange > 0
           ? Math.max(0, Math.min(1, (window.scrollY - liveContentStart) / liveContentRange))
           : 0;
-      const liveTrackTop = APP_HEADER_HEIGHT + INDICATOR_PAD;
-      const liveTrackBottom = liveViewportH - indicatorHRef.current - INDICATOR_PAD;
+      const liveHalfH = indicatorHRef.current / 2;
+      const liveTrackTop = APP_HEADER_HEIGHT + liveHalfH + INDICATOR_PAD;
+      const liveTrackBottom = liveViewportH - liveHalfH - INDICATOR_PAD;
       const liveIndicatorTop = liveTrackTop + liveContentPct * (liveTrackBottom - liveTrackTop);
 
       postDragCooldownRef.current = true;
@@ -563,8 +565,9 @@ export function CardGrid({
     if (contentRange <= 0) {
       return [];
     }
-    const trackTop = APP_HEADER_HEIGHT + INDICATOR_PAD;
-    const trackBottom = viewportH - indicatorHRef.current - INDICATOR_PAD;
+    const halfH = indicatorHRef.current / 2;
+    const trackTop = APP_HEADER_HEIGHT + halfH + INDICATOR_PAD;
+    const trackBottom = viewportH - halfH - INDICATOR_PAD;
 
     // Prefer the virtualizer's measured positions over rowStarts (estimated).
     // rowStarts accumulates Math.ceil rounding across many rows, so ghost badges
@@ -753,6 +756,7 @@ export function CardGrid({
         style={{
           right: 20,
           top: indicator.dragging ? dragTopRef.current : indicator.indicatorTop,
+          transform: "translateY(-50%)",
           opacity: indicator.visible ? 1 : 0,
           touchAction: "none",
         }}
@@ -790,6 +794,7 @@ export function CardGrid({
             style={{
               right: 20,
               top: pt.screenY,
+              transform: "translateY(-50%)",
               opacity: indicator.dragging ? 1 : 0,
             }}
           >
