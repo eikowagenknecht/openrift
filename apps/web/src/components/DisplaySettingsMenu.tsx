@@ -128,7 +128,7 @@ export function DisplaySettingsMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Drawer direction="right" open={changelogOpen} onOpenChange={setChangelogOpen}>
+      <Drawer swipeDirection="right" open={changelogOpen} onOpenChange={setChangelogOpen}>
         <DrawerContent className="flex flex-col gap-0 overflow-hidden">
           <DrawerHeader className="pb-4">
             <DrawerTitle>What's new</DrawerTitle>
