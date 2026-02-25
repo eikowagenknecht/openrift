@@ -4,6 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/CardGrid";
 
+export type HealthStatus = "db_unreachable" | "db_not_migrated" | "db_empty" | null;
+
+export class ApiError extends Error {
+  healthStatus: HealthStatus;
+
+  constructor(message: string, healthStatus: HealthStatus = null) {
+    super(message);
+    this.name = "ApiError";
+    this.healthStatus = healthStatus;
+  }
+}
+
 interface UseCardsResult {
   allCards: Card[];
   setInfoList: SetInfo[];
@@ -18,10 +30,28 @@ const PREVIEW_HOSTS = (import.meta.env.VITE_PREVIEW_HOSTS ?? "").split(",").filt
 const API_FALLBACK = import.meta.env.VITE_API_FALLBACK_URL ?? "";
 const API_BASE = PREVIEW_HOSTS.some((h) => location.hostname.endsWith(h)) ? API_FALLBACK : "";
 
+async function checkHealth(): Promise<HealthStatus> {
+  try {
+    const res = await fetch(`${API_BASE}/api/health`);
+    const data = (await res.json()) as { status: string };
+    if (
+      data.status === "db_unreachable" ||
+      data.status === "db_not_migrated" ||
+      data.status === "db_empty"
+    ) {
+      return data.status;
+    }
+  } catch {
+    // Health endpoint itself is unreachable — no extra info to surface
+  }
+  return null;
+}
+
 async function fetchCards(): Promise<RiftboundContent> {
   const res = await fetch(`${API_BASE}/api/cards`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch cards: ${res.status}`);
+    const healthStatus = await checkHealth();
+    throw new ApiError(`Failed to fetch cards: ${res.status}`, healthStatus);
   }
   return res.json() as Promise<RiftboundContent>;
 }
@@ -29,7 +59,8 @@ async function fetchCards(): Promise<RiftboundContent> {
 async function fetchPrices(): Promise<PricesData> {
   const res = await fetch(`${API_BASE}/api/prices`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch prices: ${res.status}`);
+    const healthStatus = await checkHealth();
+    throw new ApiError(`Failed to fetch prices: ${res.status}`, healthStatus);
   }
   return res.json() as Promise<PricesData>;
 }

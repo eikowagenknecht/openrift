@@ -1,7 +1,9 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { sql } from "kysely";
 
+import { db } from "./db.js";
 import { cardsRoute } from "./routes/cards.js";
 
 const app = new Hono();
@@ -27,7 +29,24 @@ app.use(
   }),
 );
 
-app.get("/api/health", (c) => c.json({ status: "ok" }));
+app.get("/api/health", async (c) => {
+  try {
+    await sql`SELECT 1`.execute(db);
+  } catch {
+    return c.json({ status: "db_unreachable" }, 503);
+  }
+
+  try {
+    const result = await db.selectFrom("sets").select("id").limit(1).execute();
+    if (result.length === 0) {
+      return c.json({ status: "db_empty" }, 503);
+    }
+  } catch {
+    return c.json({ status: "db_not_migrated" }, 503);
+  }
+
+  return c.json({ status: "ok" });
+});
 
 app.route("/api", cardsRoute);
 

@@ -9,7 +9,7 @@ import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { useCardFilters } from "@/hooks/use-card-filters";
-import { useCards } from "@/hooks/use-cards";
+import { ApiError, useCards } from "@/hooks/use-cards";
 import type { CardFields } from "@/lib/card-fields";
 
 interface CardBrowserProps {
@@ -131,9 +131,27 @@ export function CardBrowser({
   }
 
   if (error) {
+    const healthStatus = error instanceof ApiError ? error.healthStatus : null;
+    let title = "Failed to load cards.";
+    let hint: string | null = null;
+
+    if (healthStatus === "db_unreachable") {
+      title = "The database isn't running.";
+      hint = "docker compose up db -d";
+    } else if (healthStatus === "db_not_migrated") {
+      title = "The database hasn't been set up yet.";
+      hint = "pnpm db:migrate && pnpm db:seed";
+    } else if (healthStatus === "db_empty") {
+      title = "The database is empty.";
+      hint = "pnpm db:seed";
+    }
+
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-32">
-        <p className="text-muted-foreground">Failed to load cards.</p>
+        <p className="text-muted-foreground">{title}</p>
+        {hint && (
+          <code className="bg-muted text-muted-foreground rounded px-3 py-1.5 text-sm">{hint}</code>
+        )}
         <button
           type="button"
           className="text-sm underline"
