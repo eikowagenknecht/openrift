@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps all data from Riftbinder's public REST API.
@@ -9,7 +9,7 @@
  *
  * No auth required.
  *
- * Usage: node scripts/dump-riftbinder.mjs
+ * Usage: pnpm tsx scripts/dump-riftbinder.ts
  *
  * Output: data/riftbinder-dump/cards.json
  *         data/riftbinder-dump/guides.json
@@ -26,7 +26,7 @@ const BASE_URL = "https://riftbinder.com/api";
 const PAGE_SIZE = 100;
 
 /** Fetch a single page from a paginated endpoint */
-async function fetchPage(endpoint, key, offset) {
+async function fetchPage(endpoint: string, key: string, offset: number) {
   const url = `${BASE_URL}/${endpoint}?limit=${PAGE_SIZE}&offset=${offset}`;
   const res = await fetch(url);
   if (!res.ok) {
@@ -38,7 +38,7 @@ async function fetchPage(endpoint, key, offset) {
 }
 
 /** Fetch all items from a paginated endpoint */
-async function fetchAll(endpoint, key) {
+async function fetchAll(endpoint: string, key: string) {
   const allItems = [];
   let offset = 0;
 

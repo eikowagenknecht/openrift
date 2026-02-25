@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Merges tcgcsv dump data with gallery card IDs to produce prices.json.
@@ -7,7 +7,7 @@
  * the gallery publicCode and looking up the tcgcsv Number extended data field.
  * Manual overrides in price-overrides.json handle cases where auto-matching fails.
  *
- * Usage: node scripts/build-prices.mjs
+ * Usage: pnpm tsx scripts/build-prices.ts
  *
  * Reads:  data/cards.json
  *         data/tcgcsv-dump/products-{groupId}.json
@@ -33,7 +33,7 @@ const SET_GROUP_MAP = {
   Spiritforged: 24519,
 };
 
-function loadJson(filePath) {
+function loadJson(filePath: string) {
   return JSON.parse(readFileSync(filePath, "utf-8"));
 }
 

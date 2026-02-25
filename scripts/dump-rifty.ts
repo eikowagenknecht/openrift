@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps all card and edition data from Rifty's public GraphQL API.
@@ -6,7 +6,7 @@
  * 684 cards across 4 sets (OGN, SFD, OGS, ARC) with TCGPlayer pricing.
  * No authentication required for server-side requests (CORS blocks browsers).
  *
- * Usage: node scripts/dump-rifty.mjs
+ * Usage: pnpm tsx scripts/dump-rifty.ts
  *
  * Output: data/rifty-dump/cards.json, data/rifty-dump/editions.json
  */
@@ -20,7 +20,7 @@ const dumpDir = join(__dirname, "..", "data", "rifty-dump");
 
 const GRAPHQL_URL = "https://api.rifty.app/graphql";
 
-async function graphql(query) {
+async function graphql(query: string) {
   const res = await fetch(GRAPHQL_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

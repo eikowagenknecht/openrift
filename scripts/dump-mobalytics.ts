@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps all card data from Mobalytics' public GraphQL API.
@@ -6,7 +6,7 @@
  * Single query returns all 652 entries (628 active + 24 deprecated battlefields).
  * No authentication required.
  *
- * Usage: node scripts/dump-mobalytics.mjs
+ * Usage: pnpm tsx scripts/dump-mobalytics.ts
  *
  * Output: data/mobalytics-dump/cards.json
  */

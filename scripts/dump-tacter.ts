@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps the Tacter S3 bucket image listing for Riftbound card images.
@@ -7,7 +7,7 @@
  * This script enumerates all card images and writes the listing as JSON.
  * Images are NOT downloaded — only metadata (key, size, lastModified).
  *
- * Usage: node scripts/dump-tacter.mjs
+ * Usage: pnpm tsx scripts/dump-tacter.ts
  *
  * Output: data/tacter-dump/image-listing.json
  */
@@ -24,7 +24,7 @@ const PREFIX = "images/riftbound/cards/";
 const MAX_KEYS = 1000;
 
 /** Parse S3 ListObjectsV2 XML response */
-function parseS3Listing(xml) {
+function parseS3Listing(xml: string) {
   const contents = [];
   const regex = /<Contents>([\s\S]*?)<\/Contents>/g;
   let match;

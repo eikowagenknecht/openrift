@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Formats all markdown tables in .md files under docs/ to be rectangular
  * (columns padded to equal width with aligned pipe separators).
  *
- * Usage: node scripts/format-md-tables.mjs [dir]
+ * Usage: pnpm tsx scripts/format-md-tables.ts [dir]
  *        Defaults to docs/ if no directory given.
  */
 
@@ -13,7 +13,7 @@ import { join } from "node:path";
 
 const root = process.argv[2] || "docs";
 
-function formatTable(lines) {
+function formatTable(lines: string[]) {
   // Parse cells (strip leading/trailing whitespace per cell)
   const rows = lines.map((line) =>
     line
@@ -65,7 +65,7 @@ function formatTable(lines) {
   return result;
 }
 
-async function* walkMd(dir) {
+async function* walkMd(dir: string): AsyncGenerator<string> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const path = join(dir, entry.name);

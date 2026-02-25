@@ -1,12 +1,12 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Transforms the raw gallery dump into cards.json for the app.
  *
- * Reads the raw card data dumped by dump-gallery.mjs, validates each card
+ * Reads the raw card data dumped by dump-gallery.ts, validates each card
  * against the Zod schema, converts to the app format, and writes cards.json.
  *
- * Usage: node scripts/build-cards.mjs
+ * Usage: pnpm tsx scripts/build-cards.ts
  *
  * Reads:  data/gallery-dump/cards.json
  * Output: data/cards.json
@@ -23,7 +23,7 @@ const rootDir = join(__dirname, "..");
 const dataDir = join(rootDir, "data");
 const dumpPath = join(dataDir, "gallery-dump", "cards.json");
 
-function stripHtml(html) {
+function stripHtml(html: string) {
   return html
     .replaceAll(/<br\s*\/?>/gi, "\n")
     .replaceAll(/<[^>]+>/g, "")
@@ -36,7 +36,7 @@ function stripHtml(html) {
     .trim();
 }
 
-function parseKeywords(text) {
+function parseKeywords(text: string) {
   const matches = text.match(/\[([A-Z][a-zA-Z\- ]+(?:\s+\d+)?)\]/g);
   if (!matches) {
     return [];
@@ -53,7 +53,7 @@ function parseKeywords(text) {
   return keywords;
 }
 
-function convertCard(src) {
+function convertCard(src: any) {
   const id = src.publicCode.split("/")[0];
   const type = src.cardType.type[0]?.label ?? "Unit";
   const superTypes = (src.cardType.superType ?? []).map((s) => s.label);

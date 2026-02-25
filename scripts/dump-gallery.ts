@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps raw card data from the official Riftbound card gallery page.
@@ -6,7 +6,7 @@
  * Fetches the gallery HTML, extracts the __NEXT_DATA__ JSON payload,
  * and saves the raw card items to disk.
  *
- * Usage: node scripts/dump-gallery.mjs
+ * Usage: pnpm tsx scripts/dump-gallery.ts
  *
  * Output: data/gallery-dump/cards.json
  */

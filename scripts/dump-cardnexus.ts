@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps all Riftbound product data from CardNexus' public oRPC API.
@@ -7,7 +7,7 @@
  * (Cardmarket EUR + TCGplayer USD). Paginated at 200 items per request.
  * No authentication required.
  *
- * Usage: node scripts/dump-cardnexus.mjs
+ * Usage: pnpm tsx scripts/dump-cardnexus.ts
  *
  * Output: data/cardnexus-dump/products.json
  */
@@ -22,7 +22,7 @@ const dumpDir = join(__dirname, "..", "data", "cardnexus-dump");
 const API_URL = "https://api.cardnexus.com/orpc/product/getProducts";
 const PAGE_SIZE = 200;
 
-async function fetchPage(offset) {
+async function fetchPage(offset: number) {
   const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

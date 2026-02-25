@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps all Riftbound data from TCGCSV (TCGplayer mirror).
@@ -6,7 +6,7 @@
  * Fetches groups (sets), products, and prices for all Riftbound sets.
  * No authentication required. Category ID 89 = Riftbound.
  *
- * Usage: node scripts/dump-tcgcsv.mjs
+ * Usage: pnpm tsx scripts/dump-tcgcsv.ts
  *
  * Output: data/tcgcsv-dump/groups.json
  *         data/tcgcsv-dump/products-{groupId}.json (per set)
@@ -24,7 +24,7 @@ const dumpDir = join(__dirname, "..", "data", "tcgcsv-dump");
 const BASE_URL = "https://tcgcsv.com/tcgplayer";
 const CATEGORY_ID = 89; // Riftbound
 
-async function fetchJson(url) {
+async function fetchJson(url: string) {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} for ${url}: ${await res.text()}`);

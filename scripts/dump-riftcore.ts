@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Dumps all readable tables from Riftcore's Supabase database into
  * data/riftcore-dump/ as individual JSON files.
  *
- * Usage: node scripts/dump-riftcore.mjs
+ * Usage: pnpm tsx scripts/dump-riftcore.ts
  *
  * Output: data/riftcore-dump/<table>.json
  *
@@ -232,7 +232,7 @@ const headers = {
 };
 
 /** Fetch a single page of data */
-async function fetchPage(table, offset, limit) {
+async function fetchPage(table: string, offset: number, limit: number) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?select=*&limit=${limit}&offset=${offset}`;
   const res = await fetch(url, { headers });
   if (!res.ok) {
@@ -242,7 +242,7 @@ async function fetchPage(table, offset, limit) {
 }
 
 /** Fetch all rows from a table, paginating if needed */
-async function fetchTable(table) {
+async function fetchTable(table: string) {
   let allRows = [];
   let offset = 0;
 

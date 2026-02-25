@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Downloads the Magical Meta Riftbound static JSON file.
@@ -7,7 +7,7 @@
  * including cards, sealed products, and accessories — all with TCGPlayer
  * pricing, 366 days of price history, and market analytics.
  *
- * Usage: node scripts/dump-magicalmeta.mjs
+ * Usage: pnpm tsx scripts/dump-magicalmeta.ts
  *
  * Output: data/magicalmeta-dump/cards_data.json
  */
