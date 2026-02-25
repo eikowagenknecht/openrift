@@ -3,7 +3,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import changelogMd from "@/CHANGELOG.md?raw";
-import type { CardFields } from "@/components/cards/CardThumbnail";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -21,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSWUpdate } from "@/hooks/use-sw-update";
+import type { CardFields } from "@/lib/card-fields";
 import { parseChangelog } from "@/lib/changelog";
 
 const changelogGroups = parseChangelog(changelogMd);

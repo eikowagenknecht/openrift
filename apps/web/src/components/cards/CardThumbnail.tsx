@@ -4,6 +4,8 @@ import { useState } from "react";
 import { CardPlaceholderImage } from "@/components/cards/CardPlaceholderImage";
 import { FoilOverlay } from "@/components/cards/FoilOverlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
+import type { CardFields } from "@/lib/card-fields";
+import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
 import { getDomainGradientStyle } from "@/lib/domain";
 import {
   formatCardId,
@@ -15,22 +17,6 @@ import { getTypeIconPath } from "@/lib/icons";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
-
-export interface CardFields {
-  number: boolean;
-  title: boolean;
-  type: boolean;
-  rarity: boolean;
-  price: boolean;
-}
-
-export const DEFAULT_CARD_FIELDS: CardFields = {
-  number: true,
-  title: true,
-  type: true,
-  rarity: true,
-  price: true,
-};
 
 interface CardThumbnailProps {
   card: Card;

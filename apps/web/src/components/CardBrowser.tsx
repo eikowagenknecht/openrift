@@ -7,11 +7,11 @@ import { useDeferredValue, useEffect, useState } from "react";
 import { CardDetail } from "@/components/cards/CardDetail";
 import type { SetInfo } from "@/components/cards/CardGrid";
 import { CardGrid } from "@/components/cards/CardGrid";
-import type { CardFields } from "@/components/cards/CardThumbnail";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { useCardFilters } from "@/hooks/use-card-filters";
+import type { CardFields } from "@/lib/card-fields";
 
 const typedGallery = galleryData as RiftboundContent;
 const pricesData = pricesJson as PricesData;

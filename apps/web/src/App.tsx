@@ -1,6 +1,4 @@
 import { CardBrowser } from "@/components/CardBrowser";
-import type { CardFields } from "@/components/cards/CardThumbnail";
-import { DEFAULT_CARD_FIELDS } from "@/components/cards/CardThumbnail";
 import { DisplaySettingsMenu } from "@/components/DisplaySettingsMenu";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
@@ -10,6 +8,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { SWUpdateProvider } from "@/hooks/use-sw-update";
 import { useTheme } from "@/hooks/use-theme";
+import type { CardFields } from "@/lib/card-fields";
+import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
 
 function App() {
   const { theme, toggleTheme } = useTheme();

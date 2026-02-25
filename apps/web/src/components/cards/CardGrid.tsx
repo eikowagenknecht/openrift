@@ -3,9 +3,9 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import type { CardFields } from "@/lib/card-fields";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 
-import type { CardFields } from "./CardThumbnail";
 import { CardThumbnail } from "./CardThumbnail";
 
 export interface SetInfo {
