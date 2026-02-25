@@ -355,12 +355,9 @@ export function CardGrid({
   const handleIndicatorPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     isDraggingRef.current = true;
-    // Capture pointer on desktop so all subsequent move/up events route
-    // directly to this element (no document listeners needed). Skipped on
-    // touch — mobile WebKit reports garbage clientY with pointer capture.
-    if (!IS_COARSE_POINTER) {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    }
+    // Capture pointer so all subsequent move/up events route directly to
+    // this element — no document-level listeners needed.
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     // Freeze dimensions so mobile browser chrome changes don't shift the mapping.
     // dragTopRef is kept in sync by the scroll handler, so it always has the
     // current indicator Y — no need to parse style.top.
@@ -502,39 +499,10 @@ export function CardGrid({
       }, POST_DRAG_HIDE_DELAY);
     };
 
-    // Expose to element-level handlers (desktop) via refs.
+    // Expose to element-level handlers via refs (the element uses
+    // setPointerCapture, so onPointerMove/onPointerUp fire on it directly).
     handleMoveRef.current = handleMove;
     handleUpRef.current = handleUp;
-
-    if (IS_COARSE_POINTER) {
-      // Touch path — Touch.clientY is reliable on all mobile browsers.
-      const onTouchMove = (e: TouchEvent) => {
-        if (!isDraggingRef.current) {
-          return;
-        }
-        const touch = e.touches[0];
-        if (touch) {
-          handleMove(touch.clientY);
-        }
-      };
-      const onTouchEnd = () => {
-        if (!isDraggingRef.current) {
-          return;
-        }
-        handleUp();
-      };
-      document.addEventListener("touchmove", onTouchMove);
-      document.addEventListener("touchend", onTouchEnd);
-      document.addEventListener("touchcancel", onTouchEnd);
-      return () => {
-        document.removeEventListener("touchmove", onTouchMove);
-        document.removeEventListener("touchend", onTouchEnd);
-        document.removeEventListener("touchcancel", onTouchEnd);
-      };
-    }
-
-    // Desktop: pointer events are handled on the element via setPointerCapture
-    // (see onPointerMove/onPointerUp props on the indicator div).
   }, []);
 
   // Screen-space positions of each set header on the scrollbar track.
@@ -748,33 +716,21 @@ export function CardGrid({
           touchAction: "none",
         }}
         onPointerDown={handleIndicatorPointerDown}
-        onPointerMove={
-          IS_COARSE_POINTER
-            ? undefined
-            : (e) => {
-                if (isDraggingRef.current) {
-                  handleMoveRef.current(e.clientY);
-                }
-              }
-        }
-        onPointerUp={
-          IS_COARSE_POINTER
-            ? undefined
-            : () => {
-                if (isDraggingRef.current) {
-                  handleUpRef.current();
-                }
-              }
-        }
-        onLostPointerCapture={
-          IS_COARSE_POINTER
-            ? undefined
-            : () => {
-                if (isDraggingRef.current) {
-                  handleUpRef.current();
-                }
-              }
-        }
+        onPointerMove={(e) => {
+          if (isDraggingRef.current) {
+            handleMoveRef.current(e.clientY);
+          }
+        }}
+        onPointerUp={() => {
+          if (isDraggingRef.current) {
+            handleUpRef.current();
+          }
+        }}
+        onLostPointerCapture={() => {
+          if (isDraggingRef.current) {
+            handleUpRef.current();
+          }
+        }}
         onMouseEnter={() => {
           isHoveredRef.current = true;
           window.clearTimeout(hideTimerRef.current);
