@@ -80,7 +80,7 @@ for await (const filePath of walkMd(root)) {
   const content = await readFile(filePath, "utf8");
   const lines = content.split("\n");
   const output = [];
-  let tableBuffer = [];
+  let tableBuffer: string[] = [];
   let inTable = false;
 
   for (let i = 0; i <= lines.length; i++) {
