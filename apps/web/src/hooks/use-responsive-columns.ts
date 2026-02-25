@@ -54,7 +54,9 @@ export function useResponsiveColumns(maxColumns?: number | null) {
 
       // Only update state when values actually change
       const changed = pMax !== prevPMax || auto !== prevAuto || cols !== prevCols;
-      if (!changed) return;
+      if (!changed) {
+        return;
+      }
 
       prevPMax = pMax;
       prevAuto = auto;
