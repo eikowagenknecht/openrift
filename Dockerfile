@@ -34,11 +34,13 @@ COPY --from=build /app/apps/api/dist ./dist/
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
 
-# ─── Stage 3: Static files (one-off, copies frontend to host) ─────────────────
-FROM alpine:3 AS static
+# ─── Stage 3: Web (nginx serves the SPA + proxies /api to the API container) ──
+FROM nginx:alpine AS web
 
-COPY --from=build /app/apps/web/dist /srv
-CMD ["cp", "-r", "/srv/.", "/out/"]
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx/web.conf /etc/nginx/conf.d/web.conf
+COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+EXPOSE 8080
 
 # ─── Stage 4: Migrate (one-off, runs from the full build image) ───────────────
 FROM build AS migrate

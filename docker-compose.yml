@@ -1,5 +1,5 @@
 # Dev:  docker compose up db       (just Postgres; run API + Vite natively with pnpm dev)
-# Prod: docker compose up -d       (Postgres + API; static/migrate via --profile tools)
+# Prod: docker compose up -d       (Postgres + API + web; migrate via --profile tools)
 services:
   # PostgreSQL database.
   db:
@@ -31,15 +31,16 @@ services:
       - "127.0.0.1:3001:3000"
     restart: unless-stopped
 
-  # One-off: copies the frontend build to STATIC_OUT_DIR.
-  static:
+  # Nginx: serves the SPA and proxies /api to the API container.
+  web:
     build:
       context: .
-      target: static
-    volumes:
-      - ${STATIC_OUT_DIR:?Set STATIC_OUT_DIR in .env}:/out
-    profiles:
-      - tools
+      target: web
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
 
   # One-off: runs Kysely database migrations.
   migrate:
