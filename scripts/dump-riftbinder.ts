@@ -15,12 +15,11 @@
  *         data/riftbinder-dump/guides.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "riftbinder-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "riftbinder");
 
 const BASE_URL = "https://riftbinder.com/api";
 const PAGE_SIZE = 100;
@@ -63,8 +62,6 @@ async function fetchAll(endpoint: string, key: string) {
 }
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   const cards = await fetchAll("cards", "cards");
   const guides = await fetchAll("guides", "guides");
 
@@ -96,7 +93,7 @@ async function main() {
   };
 
   const cardsPath = join(dumpDir, "cards.json");
-  writeFileSync(cardsPath, `${JSON.stringify(cardsOutput, null, 2)}\n`);
+  writeJson(cardsPath, cardsOutput);
 
   // Write guides
   const guidesOutput = {
@@ -107,7 +104,7 @@ async function main() {
   };
 
   const guidesPath = join(dumpDir, "guides.json");
-  writeFileSync(guidesPath, `${JSON.stringify(guidesOutput, null, 2)}\n`);
+  writeJson(guidesPath, guidesOutput);
 
   // Summary
   console.log(`\nFetched ${cards.length} cards across ${setMap.size} sets:`);
@@ -157,7 +154,4 @@ async function main() {
   console.log(`  ${guidesPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

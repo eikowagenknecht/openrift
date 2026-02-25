@@ -12,12 +12,11 @@
  * Output: data/tacter-dump/image-listing.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "tacter-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "tacter");
 
 const S3_URL = "https://s3.us-east-1.amazonaws.com/assets.tacter.com";
 const PREFIX = "images/riftbound/cards/";
@@ -43,8 +42,6 @@ function parseS3Listing(xml: string) {
 }
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   console.log("Listing Tacter S3 bucket for Riftbound card images...");
 
   const allFiles = [];
@@ -99,7 +96,7 @@ async function main() {
   };
 
   const outputPath = join(dumpDir, "image-listing.json");
-  writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+  writeJson(outputPath, output);
 
   // Summary by set
   const setMap = new Map();
@@ -123,7 +120,4 @@ async function main() {
   console.log("(Images not downloaded — listing only. Use CDN URLs to fetch individual images.)");
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

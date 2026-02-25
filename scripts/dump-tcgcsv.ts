@@ -14,12 +14,11 @@
  *         data/tcgcsv-dump/_summary.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "tcgcsv-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "tcgcsv");
 
 const BASE_URL = "https://tcgcsv.com/tcgplayer";
 const CATEGORY_ID = 89; // Riftbound
@@ -33,15 +32,13 @@ async function fetchJson(url: string) {
 }
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   // Fetch groups (sets)
   console.log("Fetching Riftbound groups from TCGCSV...");
   const groupsData = await fetchJson(`${BASE_URL}/${CATEGORY_ID}/groups`);
   const groups = groupsData.results;
 
   const groupsPath = join(dumpDir, "groups.json");
-  writeFileSync(groupsPath, `${JSON.stringify(groupsData, null, 2)}\n`);
+  writeJson(groupsPath, groupsData);
   console.log(`  Found ${groups.length} groups`);
 
   let totalProducts = 0;
@@ -58,7 +55,7 @@ async function main() {
     const productsData = await fetchJson(`${BASE_URL}/${CATEGORY_ID}/${groupId}/products`);
     const products = productsData.results || [];
     const productsPath = join(dumpDir, `products-${groupId}.json`);
-    writeFileSync(productsPath, `${JSON.stringify(productsData, null, 2)}\n`);
+    writeJson(productsPath, productsData);
     process.stdout.write(`${products.length}\n`);
 
     // Fetch prices
@@ -66,7 +63,7 @@ async function main() {
     const pricesData = await fetchJson(`${BASE_URL}/${CATEGORY_ID}/${groupId}/prices`);
     const prices = pricesData.results || [];
     const pricesPath = join(dumpDir, `prices-${groupId}.json`);
-    writeFileSync(pricesPath, `${JSON.stringify(pricesData, null, 2)}\n`);
+    writeJson(pricesPath, pricesData);
     process.stdout.write(`${prices.length}\n`);
 
     totalProducts += products.length;
@@ -91,7 +88,7 @@ async function main() {
     groups: summary,
   };
   const summaryPath = join(dumpDir, "_summary.json");
-  writeFileSync(summaryPath, `${JSON.stringify(summaryData, null, 2)}\n`);
+  writeJson(summaryPath, summaryData);
 
   console.log(
     `\nDone: ${groups.length} groups, ${totalProducts} products, ${totalPrices} price entries`,
@@ -99,7 +96,4 @@ async function main() {
   console.log(`Summary: ${summaryPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

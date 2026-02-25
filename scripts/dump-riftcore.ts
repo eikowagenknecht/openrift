@@ -12,12 +12,11 @@
  * Tables that return errors or empty results are skipped.
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "riftcore-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "riftcore");
 
 const SUPABASE_URL = "https://qwdkezknmjggodbiqigy.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -259,8 +258,6 @@ async function fetchTable(table: string) {
 }
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   const summary = [];
   let totalRows = 0;
   let successCount = 0;
@@ -278,7 +275,7 @@ async function main() {
       }
 
       const outputPath = join(dumpDir, `${table}.json`);
-      writeFileSync(outputPath, `${JSON.stringify(rows, null, 2)}\n`);
+      writeJson(outputPath, rows);
       totalRows += rows.length;
       successCount++;
       process.stdout.write(` ${rows.length} rows\n`);
@@ -291,26 +288,16 @@ async function main() {
 
   // Write summary
   const summaryPath = join(dumpDir, "_summary.json");
-  writeFileSync(
-    summaryPath,
-    `${JSON.stringify(
-      {
-        dumpedAt: new Date().toISOString(),
-        tablesTotal: TABLES.length,
-        tablesWithData: successCount,
-        totalRows,
-        tables: summary,
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  writeJson(summaryPath, {
+    dumpedAt: new Date().toISOString(),
+    tablesTotal: TABLES.length,
+    tablesWithData: successCount,
+    totalRows,
+    tables: summary,
+  });
 
   console.log(`\nDone: ${successCount} tables with data, ${totalRows} total rows`);
   console.log(`Summary: ${summaryPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

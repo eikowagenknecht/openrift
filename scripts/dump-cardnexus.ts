@@ -12,12 +12,11 @@
  * Output: data/cardnexus-dump/products.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "cardnexus-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "cardnexus");
 
 const API_URL = "https://api.cardnexus.com/orpc/product/getProducts";
 const PAGE_SIZE = 200;
@@ -48,8 +47,6 @@ async function fetchPage(offset: number) {
 }
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   console.log("Fetching all Riftbound products from CardNexus oRPC API...");
 
   const allProducts = [];
@@ -81,7 +78,7 @@ async function main() {
   };
 
   const outputPath = join(dumpDir, "products.json");
-  writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+  writeJson(outputPath, output);
 
   // Summary
   const cards = allProducts.filter((p) => p.productType === "card");
@@ -121,7 +118,4 @@ async function main() {
   console.log(`\nWritten to ${outputPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

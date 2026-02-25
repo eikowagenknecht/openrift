@@ -11,12 +11,11 @@
  * Output: data/rifty-dump/cards.json, data/rifty-dump/editions.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "rifty-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "rifty");
 
 const GRAPHQL_URL = "https://api.rifty.app/graphql";
 
@@ -39,8 +38,6 @@ async function graphql(query: string) {
 }
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   // Fetch editions first to know the total count
   console.log("Fetching editions from Rifty GraphQL API...");
   const editionsData = await graphql(`{
@@ -53,18 +50,11 @@ async function main() {
   console.log(`  Found ${editions.length} editions: ${editions.map((e) => e.code).join(", ")}`);
 
   const editionsPath = join(dumpDir, "editions.json");
-  writeFileSync(
-    editionsPath,
-    `${JSON.stringify(
-      {
-        source: "rifty.app",
-        fetchedAt: new Date().toISOString(),
-        editions,
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  writeJson(editionsPath, {
+    source: "rifty.app",
+    fetchedAt: new Date().toISOString(),
+    editions,
+  });
 
   // Fetch all cards with a large page size
   console.log("\nFetching all cards...");
@@ -114,7 +104,7 @@ async function main() {
   };
 
   const cardsPath = join(dumpDir, "cards.json");
-  writeFileSync(cardsPath, `${JSON.stringify(output, null, 2)}\n`);
+  writeJson(cardsPath, output);
 
   // Summary
   const setMap = new Map();
@@ -142,7 +132,4 @@ async function main() {
   console.log(`  ${editionsPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

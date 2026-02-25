@@ -11,12 +11,11 @@
  * Output: data/mobalytics-dump/cards.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "mobalytics-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "mobalytics");
 
 const GRAPHQL_URL = "https://mobalytics.gg/api/riftbound/v1/graphql/query";
 
@@ -61,8 +60,6 @@ const CARDS_QUERY = `query {
 }`;
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   console.log("Fetching all cards from Mobalytics GraphQL API...");
 
   const res = await fetch(GRAPHQL_URL, {
@@ -93,7 +90,7 @@ async function main() {
   };
 
   const outputPath = join(dumpDir, "cards.json");
-  writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+  writeJson(outputPath, output);
 
   // Summary
   const active = cards.filter((c) => !c.deprecated);
@@ -135,7 +132,4 @@ async function main() {
   console.log(`\nWritten to ${outputPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

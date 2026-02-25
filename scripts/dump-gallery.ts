@@ -11,18 +11,15 @@
  * Output: data/gallery-dump/cards.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "gallery-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "gallery");
 
 const GALLERY_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/";
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   console.log(`Fetching ${GALLERY_URL} ...`);
   const res = await fetch(GALLERY_URL);
   if (!res.ok) {
@@ -53,13 +50,10 @@ async function main() {
   };
 
   const outPath = join(dumpDir, "cards.json");
-  writeFileSync(outPath, `${JSON.stringify(output, null, 2)}\n`);
+  writeJson(outPath, output);
 
   console.log(`Dumped ${cards.length} raw cards`);
   console.log(`Written to ${outPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);

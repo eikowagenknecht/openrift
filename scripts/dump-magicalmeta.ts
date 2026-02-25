@@ -12,18 +12,15 @@
  * Output: data/magicalmeta-dump/cards_data.json
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dumpDir = join(__dirname, "..", "data", "magicalmeta-dump");
+import { createDumpDir, runDump, writeJson } from "./dump-utils.js";
+
+const dumpDir = createDumpDir(import.meta.url, "magicalmeta");
 
 const DATA_URL = "https://magicalmeta.ink/riftbound/data/cards_data.json";
 
 async function main() {
-  mkdirSync(dumpDir, { recursive: true });
-
   console.log("Downloading Magical Meta Riftbound data...");
   console.log(`  URL: ${DATA_URL}`);
 
@@ -35,7 +32,7 @@ async function main() {
   const data = await res.json();
 
   const outputPath = join(dumpDir, "cards_data.json");
-  writeFileSync(outputPath, `${JSON.stringify(data, null, 2)}\n`);
+  writeJson(outputPath, data);
 
   // Summary
   const cards = data.cards || [];
@@ -77,7 +74,4 @@ async function main() {
   console.log(`Written to ${outputPath}`);
 }
 
-main().catch((error) => {
-  console.error("Dump failed:", error.message);
-  process.exit(1);
-});
+runDump(main);
