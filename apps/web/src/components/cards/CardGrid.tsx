@@ -325,6 +325,13 @@ export function CardGrid({
         return;
       }
 
+      // When hovered, freeze the indicator so the user can grab it easily.
+      // Without this, it repositions on every scroll event making it a
+      // moving target that's nearly impossible to click.
+      if (isHoveredRef.current) {
+        return;
+      }
+
       // After a drag release, scrollTo triggers scroll events. Don't let
       // those reset the shorter post-drag hide timer.
       if (postDragCooldownRef.current) {
