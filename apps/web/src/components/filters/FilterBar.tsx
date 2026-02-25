@@ -146,97 +146,19 @@ export function FilterBar({
   }, [debouncedSearch, filterState.search, onSearchChange]);
 
   const filterSections = (
-    <>
-      <FilterSection
-        label="Set"
-        options={availableFilters.sets}
-        selected={filterState.sets}
-        onToggle={(v) => onToggleFilter("sets", v)}
-      />
-      <FilterSection
-        label="Domain"
-        options={availableFilters.domains}
-        selected={filterState.domains}
-        onToggle={(v) => onToggleFilter("domains", v)}
-        iconPath={(v) => getFilterIconPath("domains", v)}
-        displayLabel={formatDomainFilterLabel}
-      />
-      <FilterSection
-        label="Type"
-        options={availableFilters.types}
-        selected={filterState.types}
-        onToggle={(v) => onToggleFilter("types", v)}
-        iconPath={(v) => getFilterIconPath("types", v)}
-      />
-      {availableFilters.superTypes.length > 0 && (
-        <FilterSection
-          label="Super Type"
-          options={availableFilters.superTypes}
-          selected={filterState.superTypes}
-          onToggle={(v) => onToggleFilter("superTypes", v)}
-          iconPath={(v) => getFilterIconPath("superTypes", v)}
-        />
-      )}
-      <FilterSection
-        label="Rarity"
-        options={availableFilters.rarities}
-        selected={filterState.rarities}
-        onToggle={(v) => onToggleFilter("rarities", v)}
-        iconPath={(v) => getFilterIconPath("rarities", v)}
-      />
-      {availableFilters.variants.length > 0 && (
-        <FilterSection
-          label="Version"
-          options={availableFilters.variants}
-          selected={filterState.variants}
-          onToggle={(v) => onToggleFilter("variants", v)}
-        />
-      )}
-      <div className="flex flex-wrap gap-4">
-        {availableFilters.energyMin !== availableFilters.energyMax && (
-          <RangeFilterSection
-            label="Energy"
-            availableMin={availableFilters.energyMin}
-            availableMax={availableFilters.energyMax}
-            selectedMin={energyRange[0]}
-            selectedMax={energyRange[1]}
-            onChange={onEnergyRangeChange}
-          />
-        )}
-        {availableFilters.mightMin !== availableFilters.mightMax && (
-          <RangeFilterSection
-            label="Might"
-            availableMin={availableFilters.mightMin}
-            availableMax={availableFilters.mightMax}
-            selectedMin={mightRange[0]}
-            selectedMax={mightRange[1]}
-            onChange={onMightRangeChange}
-          />
-        )}
-        {availableFilters.powerMin !== availableFilters.powerMax && (
-          <RangeFilterSection
-            label="Power"
-            availableMin={availableFilters.powerMin}
-            availableMax={availableFilters.powerMax}
-            selectedMin={powerRange[0]}
-            selectedMax={powerRange[1]}
-            onChange={onPowerRangeChange}
-          />
-        )}
-        {availableFilters.priceMax > 0 && (
-          <RangeFilterSection
-            label="Price"
-            availableMin={availableFilters.priceMin}
-            availableMax={availableFilters.priceMax}
-            selectedMin={priceRange[0]}
-            selectedMax={priceRange[1]}
-            onChange={onPriceRangeChange}
-            step={1}
-            formatValue={(v) => `$${v}`}
-          />
-        )}
-      </div>
-    </>
+    <FilterPanelContent
+      availableFilters={availableFilters}
+      filterState={filterState}
+      energyRange={energyRange}
+      mightRange={mightRange}
+      powerRange={powerRange}
+      priceRange={priceRange}
+      onToggleFilter={onToggleFilter}
+      onEnergyRangeChange={onEnergyRangeChange}
+      onMightRangeChange={onMightRangeChange}
+      onPowerRangeChange={onPowerRangeChange}
+      onPriceRangeChange={onPriceRangeChange}
+    />
   );
 
   const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
@@ -404,8 +326,8 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* Desktop: inline filter sections */}
-      <div className="hidden flex-wrap gap-4 sm:flex">{filterSections}</div>
+      {/* Desktop: inline filter sections (hidden at wide breakpoint where sidebar takes over) */}
+      <div className="hidden flex-wrap gap-4 sm:flex wide:hidden">{filterSections}</div>
 
       {/* Mobile: bottom drawer with filter sections */}
       <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -427,6 +349,128 @@ export function FilterBar({
         </DrawerContent>
       </Drawer>
     </div>
+  );
+}
+
+export interface FilterPanelContentProps {
+  availableFilters: AvailableFilters;
+  filterState: FilterBarProps["filterState"];
+  energyRange: [number | null, number | null];
+  mightRange: [number | null, number | null];
+  powerRange: [number | null, number | null];
+  priceRange: [number | null, number | null];
+  onToggleFilter: FilterBarProps["onToggleFilter"];
+  onEnergyRangeChange: FilterBarProps["onEnergyRangeChange"];
+  onMightRangeChange: FilterBarProps["onMightRangeChange"];
+  onPowerRangeChange: FilterBarProps["onPowerRangeChange"];
+  onPriceRangeChange: FilterBarProps["onPriceRangeChange"];
+}
+
+export function FilterPanelContent({
+  availableFilters,
+  filterState,
+  energyRange,
+  mightRange,
+  powerRange,
+  priceRange,
+  onToggleFilter,
+  onEnergyRangeChange,
+  onMightRangeChange,
+  onPowerRangeChange,
+  onPriceRangeChange,
+}: FilterPanelContentProps) {
+  return (
+    <>
+      <FilterSection
+        label="Set"
+        options={availableFilters.sets}
+        selected={filterState.sets}
+        onToggle={(v) => onToggleFilter("sets", v)}
+      />
+      <FilterSection
+        label="Domain"
+        options={availableFilters.domains}
+        selected={filterState.domains}
+        onToggle={(v) => onToggleFilter("domains", v)}
+        iconPath={(v) => getFilterIconPath("domains", v)}
+        displayLabel={formatDomainFilterLabel}
+      />
+      <FilterSection
+        label="Type"
+        options={availableFilters.types}
+        selected={filterState.types}
+        onToggle={(v) => onToggleFilter("types", v)}
+        iconPath={(v) => getFilterIconPath("types", v)}
+      />
+      {availableFilters.superTypes.length > 0 && (
+        <FilterSection
+          label="Super Type"
+          options={availableFilters.superTypes}
+          selected={filterState.superTypes}
+          onToggle={(v) => onToggleFilter("superTypes", v)}
+          iconPath={(v) => getFilterIconPath("superTypes", v)}
+        />
+      )}
+      <FilterSection
+        label="Rarity"
+        options={availableFilters.rarities}
+        selected={filterState.rarities}
+        onToggle={(v) => onToggleFilter("rarities", v)}
+        iconPath={(v) => getFilterIconPath("rarities", v)}
+      />
+      {availableFilters.variants.length > 0 && (
+        <FilterSection
+          label="Version"
+          options={availableFilters.variants}
+          selected={filterState.variants}
+          onToggle={(v) => onToggleFilter("variants", v)}
+        />
+      )}
+      <div className="flex flex-wrap gap-4">
+        {availableFilters.energyMin !== availableFilters.energyMax && (
+          <RangeFilterSection
+            label="Energy"
+            availableMin={availableFilters.energyMin}
+            availableMax={availableFilters.energyMax}
+            selectedMin={energyRange[0]}
+            selectedMax={energyRange[1]}
+            onChange={onEnergyRangeChange}
+          />
+        )}
+        {availableFilters.mightMin !== availableFilters.mightMax && (
+          <RangeFilterSection
+            label="Might"
+            availableMin={availableFilters.mightMin}
+            availableMax={availableFilters.mightMax}
+            selectedMin={mightRange[0]}
+            selectedMax={mightRange[1]}
+            onChange={onMightRangeChange}
+          />
+        )}
+        {availableFilters.powerMin !== availableFilters.powerMax && (
+          <RangeFilterSection
+            label="Power"
+            availableMin={availableFilters.powerMin}
+            availableMax={availableFilters.powerMax}
+            selectedMin={powerRange[0]}
+            selectedMax={powerRange[1]}
+            onChange={onPowerRangeChange}
+          />
+        )}
+        {availableFilters.priceMax > 0 && (
+          <RangeFilterSection
+            label="Price"
+            availableMin={availableFilters.priceMin}
+            availableMax={availableFilters.priceMax}
+            selectedMin={priceRange[0]}
+            selectedMax={priceRange[1]}
+            onChange={onPriceRangeChange}
+            step={1}
+            formatValue={(v) => `$${v}`}
+          />
+        )}
+      </div>
+    </>
   );
 }
 

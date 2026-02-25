@@ -10,6 +10,7 @@ import { CardGrid } from "@/components/cards/CardGrid";
 import type { CardFields } from "@/components/cards/CardThumbnail";
 import { ActiveFilters } from "@/components/filters/ActiveFilters";
 import { FilterBar } from "@/components/filters/FilterBar";
+import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { useCardFilters } from "@/hooks/use-card-filters";
 
 const typedGallery = galleryData as RiftboundContent;
@@ -179,6 +180,19 @@ export function CardBrowser({
       />
 
       <div className="flex items-start gap-6">
+        <FilterSidebar
+          availableFilters={availableFilters}
+          filterState={filterState}
+          onToggleFilter={toggleArrayFilter}
+          energyRange={[filterState.energyMin, filterState.energyMax]}
+          mightRange={[filterState.mightMin, filterState.mightMax]}
+          powerRange={[filterState.powerMin, filterState.powerMax]}
+          priceRange={[filterState.priceMin, filterState.priceMax]}
+          onEnergyRangeChange={setEnergyRange}
+          onMightRangeChange={setMightRange}
+          onPowerRangeChange={setPowerRange}
+          onPriceRangeChange={setPriceRange}
+        />
         <div
           className={`min-w-0 flex-1 transition-opacity duration-150 ${isGridStale ? "opacity-60" : "opacity-100"}`}
         >
