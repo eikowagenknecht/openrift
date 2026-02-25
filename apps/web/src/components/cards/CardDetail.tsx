@@ -94,8 +94,8 @@ export function CardDetail({
       ref={asideRef}
       className={cn(
         "fixed inset-0 z-50 overflow-y-auto bg-background",
-        "md:sticky md:inset-auto md:z-auto md:top-[4.5rem]",
-        "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-4.5rem)]",
+        "md:sticky md:inset-auto md:z-auto md:top-(--sticky-top)",
+        "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-var(--sticky-top))]",
         "md:rounded-lg md:px-3",
       )}
       style={getDomainTintStyle(card.faction)}

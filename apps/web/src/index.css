@@ -125,7 +125,10 @@ html::-webkit-scrollbar {
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-foil-shimmer: foil-shimmer 4s ease-in-out infinite;
+  --header-height: 3.5rem;
+  --sticky-top: calc(var(--header-height) + 1rem);
   --breakpoint-wide: 100rem;
+  --container-max-wide: 112.5rem;
 }
 
 @layer base {
