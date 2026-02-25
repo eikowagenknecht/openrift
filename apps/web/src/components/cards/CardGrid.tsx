@@ -332,6 +332,7 @@ export function CardGrid({
       }
 
       window.clearTimeout(hideTimerRef.current);
+      dragTopRef.current = indicatorTop;
       setIndicator((prev) => ({
         ...prev,
         cardId: firstCard.id,
@@ -360,16 +361,15 @@ export function CardGrid({
     if (!IS_COARSE_POINTER) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     }
-    // Grab offset in style.top space so the indicator stays pinned to the finger.
     // Freeze dimensions so mobile browser chrome changes don't shift the mapping.
-    const styleTop = parseFloat((e.currentTarget as HTMLElement).style.top) || 0;
-    dragTopRef.current = styleTop;
+    // dragTopRef is kept in sync by the scroll handler, so it always has the
+    // current indicator Y — no need to parse style.top.
     const viewportH = window.innerHeight;
     const totalSize = virtualizerRef.current.getTotalSize();
     const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
     const contentEnd = scrollMarginRef.current + totalSize - viewportH;
     dragStartRef.current = {
-      grabOffsetY: e.clientY - styleTop,
+      grabOffsetY: e.clientY - dragTopRef.current,
       trackTop: APP_HEADER_HEIGHT + indicatorHRef.current / 2 + INDICATOR_PAD,
       trackBottom: viewportH - indicatorHRef.current / 2 - INDICATOR_PAD,
       contentStart,
@@ -408,7 +408,7 @@ export function CardGrid({
           dragTopRef.current = indicatorTop;
           dragTargetRowRef.current = sp.rowIndex;
           if (indicatorRef.current) {
-            indicatorRef.current.style.top = `${indicatorTop}px`;
+            indicatorRef.current.style.transform = `translateY(calc(${indicatorTop}px - 50%))`;
           }
           if (cardIdRef.current && sp.firstCardId) {
             cardIdRef.current.textContent = sp.firstCardId;
@@ -421,7 +421,7 @@ export function CardGrid({
       if (!snapped) {
         dragTopRef.current = indicatorTop;
         if (indicatorRef.current) {
-          indicatorRef.current.style.top = `${indicatorTop}px`;
+          indicatorRef.current.style.transform = `translateY(calc(${indicatorTop}px - 50%))`;
         }
 
         // Project which card would be visible at this indicator position and
@@ -486,6 +486,7 @@ export function CardGrid({
       const liveIndicatorTop = liveTrackTop + liveContentPct * (liveTrackBottom - liveTrackTop);
 
       postDragCooldownRef.current = true;
+      dragTopRef.current = liveIndicatorTop;
       setIndicator((prev) => ({
         ...prev,
         dragging: false,
@@ -738,8 +739,9 @@ export function CardGrid({
         className={`fixed z-20 transition-opacity duration-300 ${indicator.visible ? "pointer-events-auto" : "pointer-events-none"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
         style={{
           right: 20,
-          top: indicator.dragging ? dragTopRef.current : indicator.indicatorTop,
-          transform: "translateY(-50%)",
+          top: 0,
+          transform: `translateY(calc(${indicator.dragging ? dragTopRef.current : indicator.indicatorTop}px - 50%))`,
+          willChange: "transform",
           opacity: indicator.visible ? 1 : 0,
           touchAction: "none",
         }}
