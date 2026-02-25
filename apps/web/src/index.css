@@ -127,7 +127,7 @@ html::-webkit-scrollbar {
   --animate-foil-shimmer: foil-shimmer 4s ease-in-out infinite;
   --header-height: 3.5rem;
   --sticky-top: calc(var(--header-height) + 1rem);
-  --breakpoint-wide: 100rem;
+  --breakpoint-wide: 112.5rem;
   --container-max-wide: 112.5rem;
 }
 

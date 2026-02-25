@@ -34,32 +34,44 @@ export function useResponsiveColumns(maxColumns?: number | null) {
       return;
     }
 
+    // Track previous computed values to skip redundant state updates
+    let prevPMax = -1;
+    let prevAuto = -1;
+    let prevCols = -1;
+    let rafId = 0;
+
     const updateColumns = () => {
       const width = el.offsetWidth;
       const pMax = Math.max(1, Math.floor((width + GAP) / (MIN_CARD_WIDTH + GAP)));
-      setPhysicalMax(pMax);
 
       const match = breakpoints.find((bp) => width >= bp.minWidth);
       const auto = match?.cols ?? 2;
-      setAutoColumns(auto);
 
-      if (maxColumns !== undefined && maxColumns !== null) {
-        setColumns(Math.min(maxColumns, pMax));
-      } else {
-        if (match) {
-          setColumns(match.cols);
-        }
-      }
+      const cols =
+        maxColumns !== undefined && maxColumns !== null ? Math.min(maxColumns, pMax) : auto;
+
+      // Only update state when values actually change
+      const changed = pMax !== prevPMax || auto !== prevAuto || cols !== prevCols;
+      if (!changed) return;
+
+      prevPMax = pMax;
+      prevAuto = auto;
+      prevCols = cols;
+      setPhysicalMax(pMax);
+      setAutoColumns(auto);
+      setColumns(cols);
     };
 
     updateColumns();
 
     const observer = new ResizeObserver(() => {
-      updateColumns();
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateColumns);
     });
     observer.observe(el);
 
     return () => {
+      cancelAnimationFrame(rafId);
       observer.disconnect();
     };
   }, [maxColumns]);
