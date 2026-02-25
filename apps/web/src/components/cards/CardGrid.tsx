@@ -60,7 +60,7 @@ const GAP = 16; // gap-4
 const APP_HEADER_HEIGHT = 56; // h-14
 const HIDE_DELAY = 3000;
 const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
-const INDICATOR_H_FALLBACK = IS_COARSE_POINTER ? 56 : 48;
+const INDICATOR_H_FALLBACK = 48;
 const INDICATOR_PAD = 4;
 
 interface CardGridProps {
@@ -150,6 +150,27 @@ export function CardGrid({
   // is no longer visible — this prevents the sticky overlay and the virtual
   // header row from being visible at the same time.
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
+
+  // Track the grid container's horizontal bounds so the sticky set header
+  // pill centers over the grid, not the full viewport.
+  const [gridLeft, setGridLeft] = useState(0);
+  const [gridWidth, setGridWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+    const measure = () => {
+      const { left, width } = el.getBoundingClientRect();
+      setGridLeft(left);
+      setGridWidth(width);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [containerRef]);
 
   // Re-measure the container's document offset when the card list changes.
   // useLayoutEffect runs before paint so corrections are invisible to the user.
@@ -751,9 +772,11 @@ export function CardGrid({
           }
         }}
       >
-        <div className="flex items-center gap-1.5">
+        <div
+          className={`flex origin-right items-center gap-1.5 transition-transform duration-200 ease-out ${indicator.dragging ? "scale-110" : "scale-100"}`}
+        >
           <div
-            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-6 py-3 text-lg" : "px-5 py-2 text-sm"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
+            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
           >
             <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
           </div>
@@ -790,8 +813,8 @@ export function CardGrid({
           fully scrolled above the sticky threshold. Just the label, no lines. */}
       {multipleGroups && activeHeaderRow && (
         <div
-          className="fixed left-0 right-0 z-10 flex justify-center py-2"
-          style={{ top: APP_HEADER_HEIGHT }}
+          className="fixed z-10 flex justify-center py-2"
+          style={{ top: APP_HEADER_HEIGHT, left: gridLeft, width: gridWidth }}
         >
           <button
             type="button"
