@@ -16,7 +16,6 @@ riftbound/
 ├── scripts/
 │   └── card-import/        → Card data scraping/import scripts
 ├── docker-compose.yml
-├── docker-compose.dev.yml
 ├── Caddyfile
 ├── turbo.json
 └── package.json
@@ -155,7 +154,7 @@ services:
     expose:
       - "3000"
     env_file:
-      - .env.production
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -170,7 +169,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     env_file:
-      - .env.production
+      - .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U riftbound_app -d riftbound"]
       interval: 5s
@@ -196,28 +195,9 @@ attacker still can't touch the database.
 
 ### Development
 
-```yaml
-# docker-compose.dev.yml
-# Usage: docker compose -f docker-compose.dev.yml up
-services:
-  db:
-    image: postgres:16-alpine
-    ports:
-      - "5432:5432" # exposed for local dev tools (pgAdmin, etc.)
-    volumes:
-      - pg_dev_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: riftbound
-      POSTGRES_USER: riftbound_app
-      POSTGRES_PASSWORD: dev_password
-
-volumes:
-  pg_dev_data:
-```
-
-In development, only Postgres runs in Docker. You run the Hono API
-and Vite dev server natively with `pnpm dev` (via Turborepo) for
-fast hot reload without Docker volume performance issues.
+In development, only Postgres needs to run in Docker (`docker compose up db`).
+You run the Hono API and Vite dev server natively with `pnpm dev` (via Turborepo)
+for fast hot reload without Docker volume performance issues.
 
 ---
 
@@ -377,7 +357,7 @@ New VPS
   │
   ├── Install Docker
   ├── git clone your repo
-  ├── Copy .env.production (from password manager / secrets)
+  ├── Copy .env (from password manager / secrets)
   ├── Restore Postgres backup:
   │     cat backup.sql | docker exec -i db psql -U riftbound_app riftbound
   ├── rsync card images from backup / old server

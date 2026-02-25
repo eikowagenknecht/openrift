@@ -14,7 +14,6 @@ out/
 .env
 .env.local
 .env.*.local
-.env.production
 
 # TLS certificates
 certs/

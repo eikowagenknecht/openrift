@@ -1,12 +1,15 @@
+# Dev:  docker compose up db       (just Postgres; run API + Vite natively with pnpm dev)
+# Prod: docker compose up -d       (Postgres + API; static/migrate via --profile tools)
 services:
+  # PostgreSQL database.
   db:
     image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -14,6 +17,7 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Hono API server.
   api:
     build:
       context: .
@@ -27,15 +31,17 @@ services:
       - "127.0.0.1:3001:3000"
     restart: unless-stopped
 
+  # One-off: copies the frontend build to STATIC_OUT_DIR.
   static:
     build:
       context: .
       target: static
     volumes:
-      - /var/www/beta.openrift.app:/out
+      - ${STATIC_OUT_DIR:?Set STATIC_OUT_DIR in .env}:/out
     profiles:
       - tools
 
+  # One-off: runs Kysely database migrations.
   migrate:
     build:
       context: .
