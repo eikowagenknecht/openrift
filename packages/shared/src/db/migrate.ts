@@ -3,27 +3,13 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { FileMigrationProvider, Kysely, Migrator, PostgresDialect } from "kysely";
-import { Pool } from "pg";
+import { FileMigrationProvider, Migrator } from "kysely";
 
-import type { Database } from "./types.js";
+import { createDb } from "./connect.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error("DATABASE_URL environment variable is required.");
-  console.error(
-    "Example: DATABASE_URL=postgres://riftbound_app:dev_password@localhost:5432/riftbound",
-  );
-  process.exit(1);
-}
-
-const db = new Kysely<Database>({
-  dialect: new PostgresDialect({
-    pool: new Pool({ connectionString }),
-  }),
-});
+const db = createDb();
 
 const migrator = new Migrator({
   db,
