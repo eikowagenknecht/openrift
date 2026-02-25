@@ -59,7 +59,7 @@ function App() {
             />
           }
         />
-        <main className="mx-auto w-full max-w-7xl wide:max-w-(--container-max-wide) flex-1 px-4 py-6">
+        <main className="mx-auto w-full max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide) flex-1 px-4 py-6">
           <CardBrowser
             showImages={showImages}
             cardFields={cardFields}

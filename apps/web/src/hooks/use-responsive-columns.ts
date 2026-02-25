@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
 const breakpoints = [
+  { minWidth: 1920, cols: 8 },
+  { minWidth: 1600, cols: 7 },
   { minWidth: 1280, cols: 6 },
   { minWidth: 1024, cols: 5 },
   { minWidth: 768, cols: 4 },

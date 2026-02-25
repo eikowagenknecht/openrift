@@ -129,6 +129,10 @@ html::-webkit-scrollbar {
   --sticky-top: calc(var(--header-height) + 1rem);
   --breakpoint-wide: 112.5rem;
   --container-max-wide: 112.5rem;
+  --breakpoint-xwide: 140rem;
+  --container-max-xwide: 140rem;
+  --breakpoint-xxwide: 160rem;
+  --container-max-xxwide: 160rem;
 }
 
 @layer base {
