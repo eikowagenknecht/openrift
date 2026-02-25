@@ -9,7 +9,21 @@ const app = new Hono();
 app.use(
   "/api/*",
   cors({
-    origin: process.env.CORS_ORIGIN ?? "*",
+    origin: (origin) => {
+      const allowed = process.env.CORS_ORIGIN;
+      if (!allowed || allowed === "*") return origin;
+      // Support comma-separated origins and wildcard subdomains
+      // e.g. "https://openrift.app,https://*.openrift-web.workers.dev"
+      const patterns = allowed.split(",").map((s) => s.trim());
+      for (const pattern of patterns) {
+        if (pattern === origin) return origin;
+        if (pattern.includes("*")) {
+          const regex = new RegExp(`^${pattern.replace(/\./g, "\\.").replace("*", "[^.]+")}$`);
+          if (regex.test(origin)) return origin;
+        }
+      }
+      return undefined;
+    },
   }),
 );
 
