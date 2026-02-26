@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { NuqsAdapter } from "nuqs/adapters/react";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import App from "./App.tsx";
+import { routeTree } from "./routeTree.gen";
 
 import "./index.css";
 
@@ -35,6 +35,17 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
+const router = createRouter({
+  routeTree,
+  context: { queryClient },
+});
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
 const root = document.querySelector<HTMLElement>("#root");
 if (!root) {
   throw new Error("Root element not found");
@@ -43,9 +54,7 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <NuqsAdapter>
-        <App />
-      </NuqsAdapter>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   </StrictMode>,
 );

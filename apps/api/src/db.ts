@@ -7,8 +7,8 @@ if (!connectionString) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
+export const pool = new Pool({ connectionString });
+
 export const db = new Kysely<Database>({
-  dialect: new PostgresDialect({
-    pool: new Pool({ connectionString }),
-  }),
+  dialect: new PostgresDialect({ pool }),
 });

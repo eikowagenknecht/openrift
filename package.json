@@ -15,6 +15,7 @@
     "db:rollback": "pnpm --filter @openrift/shared db:rollback",
     "db:seed": "pnpm --filter @openrift/shared db:seed",
     "dev:api": "turbo run dev --filter=api",
+    "routes:generate": "pnpm --filter web routes:generate",
     "knip": "knip",
     "postinstall": "lefthook install"
   },

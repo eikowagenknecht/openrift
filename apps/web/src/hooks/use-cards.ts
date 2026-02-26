@@ -3,6 +3,7 @@ import { flattenWithVariants } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/CardGrid";
+import { API_BASE } from "@/lib/api-base";
 
 export type HealthStatus = "db_unreachable" | "db_not_migrated" | "db_empty" | null;
 
@@ -22,13 +23,6 @@ interface UseCardsResult {
   isLoading: boolean;
   error: Error | null;
 }
-
-// Preview deployments (e.g. Cloudflare Workers) have no backend — fall back
-// to a shared API via VITE_API_FALLBACK_URL when the hostname matches
-// VITE_PREVIEW_HOSTS (comma-separated suffix patterns like ".workers.dev").
-const PREVIEW_HOSTS = (import.meta.env.VITE_PREVIEW_HOSTS ?? "").split(",").filter(Boolean);
-const API_FALLBACK = import.meta.env.VITE_API_FALLBACK_URL ?? "";
-const API_BASE = PREVIEW_HOSTS.some((h) => location.hostname.endsWith(h)) ? API_FALLBACK : "";
 
 async function checkHealth(): Promise<HealthStatus> {
   try {

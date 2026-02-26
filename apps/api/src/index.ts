@@ -3,14 +3,21 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { sql } from "kysely";
 
+import { auth } from "./auth.js";
 import { db } from "./db.js";
 import { cardsRoute } from "./routes/cards.js";
 
-const app = new Hono();
+type Variables = {
+  user: typeof auth.$Infer.Session.user | null;
+  session: typeof auth.$Infer.Session.session | null;
+};
+
+const app = new Hono<{ Variables: Variables }>();
 
 app.use(
   "/api/*",
   cors({
+    credentials: true,
     origin: (origin) => {
       const allowed = process.env.CORS_ORIGIN;
       if (!allowed || allowed === "*") return origin;
@@ -28,6 +35,15 @@ app.use(
     },
   }),
 );
+
+app.on(["POST", "GET"], "/api/auth/**", (c) => auth.handler(c.req.raw));
+
+app.use("/api/*", async (c, next) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  c.set("user", session?.user ?? null);
+  c.set("session", session?.session ?? null);
+  await next();
+});
 
 app.get("/api/health", async (c) => {
   try {

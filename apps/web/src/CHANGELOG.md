@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-02-26
+
+- feat: Your profile page shows your account info and lets you update your display name
+- feat: You can now sign up and sign in with email and password — your account is ready for upcoming collection features
+- feat: Browser back and forward buttons now work correctly between pages
+
 ## 2026-02-25
 
 - fix: Drawers now smoothly slide closed when tapping outside or releasing a half-swipe, instead of instantly disappearing

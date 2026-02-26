@@ -37,5 +37,8 @@ deploy.sh
 # Exploration data dumps
 /data/
 
+# TanStack Router (auto-generated)
+routeTree.gen.ts
+
 # Private docs (not for public repo)
 docs-private/

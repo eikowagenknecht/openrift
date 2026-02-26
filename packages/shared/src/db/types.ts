@@ -74,8 +74,7 @@ export interface PricesTable {
   recorded_at: CreatedAt;
 }
 
-// ─── Auth (Better Auth will manage these — types here for Kysely queries) ────
-// ⚠ No migration yet — tables created by Better Auth when auth is set up.
+// ─── Auth (migration 003) ─────────────────────────────────────────────────
 
 export interface UsersTable {
   id: string;
@@ -163,13 +162,13 @@ export interface Database {
   cards: CardsTable;
   prices: PricesTable;
 
-  // ⚠ No migration yet — managed by Better Auth when auth is set up
+  // Auth tables (migration 003)
   users: UsersTable;
   sessions: SessionsTable;
   accounts: AccountsTable;
   verifications: VerificationsTable;
 
-  // ⚠ No migration yet — added when auth is set up
+  // ⚠ No migration yet
   user_cards: UserCardsTable;
   user_decks: UserDecksTable;
   deck_cards: DeckCardsTable;

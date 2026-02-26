@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 
 import tailwindcss from "@tailwindcss/vite";
+import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -13,6 +14,7 @@ export default defineConfig({
     __COMMIT_HASH__: JSON.stringify(commitHash),
   },
   plugins: [
+    TanStackRouterVite(),
     tailwindcss(),
     react({
       babel: {
