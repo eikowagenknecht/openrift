@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-02-28
+
+- fix: Scrollbar handle text no longer wraps to multiple lines on mobile when dragging
+
 ## 2026-02-26
 
 - feat: Your profile page shows your account info and lets you update your display name

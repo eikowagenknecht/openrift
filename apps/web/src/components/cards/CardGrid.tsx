@@ -765,7 +765,7 @@ export function CardGrid({
           className={`flex origin-right items-center gap-1.5 transition-transform duration-200 ease-out ${indicator.dragging ? "scale-110" : "scale-100"}`}
         >
           <div
-            className={`inline-flex items-center rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
+            className={`inline-flex items-center whitespace-nowrap rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
           >
             <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
           </div>
@@ -789,7 +789,7 @@ export function CardGrid({
           >
             <div className="flex items-center gap-1.5">
               <div
-                className={`rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"}`}
+                className={`whitespace-nowrap rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"}`}
               >
                 {pt.firstCardId || pt.setInfo.code}
               </div>
