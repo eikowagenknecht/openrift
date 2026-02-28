@@ -31,6 +31,24 @@ export function useCardTilt({ mode, enabled, maxTilt = 8, gyro }: CardTiltOption
     innerElRef.current = node;
   };
 
+  // Reset CSS vars + smooth transition when tilt is disabled
+  useEffect(() => {
+    if (enabled || mode === "none") {
+      return;
+    }
+    const el = containerElRef.current;
+    const inner = innerElRef.current;
+    if (inner) {
+      inner.style.transition = "transform 0.4s ease-out";
+    }
+    if (el) {
+      el.style.setProperty("--foil-rotate-x", "0deg");
+      el.style.setProperty("--foil-rotate-y", "0deg");
+      el.style.setProperty("--foil-bg-x", "50%");
+      el.style.setProperty("--foil-bg-y", "50%");
+    }
+  }, [enabled, mode]);
+
   // Pointer mode: attach DOM listeners directly
   useEffect(() => {
     if (!enabled || mode !== "pointer") {

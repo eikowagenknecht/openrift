@@ -86,7 +86,7 @@ export function CardDetail({
       : ("none" as const)
     : ("pointer" as const);
 
-  const tilt = useCardTilt({ mode: foilMode, enabled: true, gyro });
+  const tilt = useCardTilt({ mode: foilMode, enabled: !IS_COARSE_POINTER || showFoil, gyro });
   const showShimmer = IS_COARSE_POINTER && foilMode === "none";
 
   return (

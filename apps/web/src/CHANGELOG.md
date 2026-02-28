@@ -2,6 +2,7 @@
 
 ## 2026-02-28
 
+- fix: Tapping a foil card on mobile now properly toggles the tilt effect off again instead of getting stuck
 - fix: Scrollbar drag now ends correctly when your finger slides off the screen edge, instead of getting stuck showing a wrong card number
 - fix: Scrollbar handle text no longer wraps to multiple lines on mobile when dragging
 
