@@ -70,7 +70,7 @@ Consumed by both `apps/web` and `apps/api`. Contains shared TypeScript types, Zo
 └────────────────────────────────────────────────────────┘
 ```
 
-Only the database runs in Docker (`docker compose up db`). The API and frontend run natively via `pnpm dev`.
+Only the database runs in Docker (`docker compose up db`). The API and frontend run natively via `bun dev`.
 
 ### Production — Docker Compose (`openrift.app` / `beta.openrift.app`)
 

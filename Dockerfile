@@ -1,38 +1,36 @@
 # ─── Stage 1: Install dependencies & build ────────────────────────────────────
-FROM node:22-alpine AS build
+FROM oven/bun:1-alpine AS build
 
 RUN apk add --no-cache git
-RUN corepack enable
 
 WORKDIR /app
 
 # Copy workspace config and package.json files first (layer cache)
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY bun.lock package.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 
 # Stub .git so lefthook postinstall doesn't fail (real .git is copied below)
 RUN git init
-RUN pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 # Copy source and build
 COPY . .
-RUN pnpm build
+RUN bun run build
 
-# Create a production-only deployment for the API
-RUN pnpm --filter api deploy /deploy/api --prod
+# Compile the API server into a single self-contained binary
+RUN bun build --compile --minify-whitespace --minify-syntax \
+    --target bun-linux-x64 --outfile /app/api-server apps/api/src/index.ts
 
 # ─── Stage 2: API server ──────────────────────────────────────────────────────
-FROM node:22-alpine AS api
+FROM gcr.io/distroless/base AS api
 
 WORKDIR /app
-
-COPY --from=build /deploy/api/node_modules ./node_modules/
-COPY --from=build /app/apps/api/dist ./dist/
+COPY --from=build /app/api-server ./api-server
 
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+CMD ["./api-server"]
 
 # ─── Stage 3: Web (nginx serves the SPA + proxies /api to the API container) ──
 FROM nginx:alpine AS web
@@ -42,8 +40,15 @@ COPY nginx/web.conf /etc/nginx/conf.d/web.conf
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080
 
-# ─── Stage 4: Migrate (one-off, runs from the full build image) ───────────────
-FROM build AS migrate
+# ─── Stage 4: Migrate (one-off container with only what the runner needs) ─────
+FROM oven/bun:1-alpine AS migrate
 
-WORKDIR /app/packages/shared
-CMD ["node", "--import", "tsx", "src/db/migrate.ts"]
+WORKDIR /app
+
+# Copy only the migration runner, its source deps, and the two runtime packages
+COPY --from=build /app/packages/shared/src/db ./packages/shared/src/db
+COPY --from=build /app/packages/shared/package.json ./packages/shared/
+COPY --from=build /app/node_modules/kysely ./node_modules/kysely
+COPY --from=build /app/node_modules/kysely-postgres-js ./node_modules/kysely-postgres-js
+
+CMD ["bun", "packages/shared/src/db/migrate.ts"]

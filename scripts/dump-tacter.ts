@@ -7,7 +7,7 @@
  * This script enumerates all card images and writes the listing as JSON.
  * Images are NOT downloaded — only metadata (key, size, lastModified).
  *
- * Usage: pnpm tsx scripts/dump-tacter.ts
+ * Usage: bun scripts/dump-tacter.ts
  *
  * Output: data/tacter-dump/image-listing.json
  */

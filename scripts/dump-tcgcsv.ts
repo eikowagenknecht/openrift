@@ -6,7 +6,7 @@
  * Fetches groups (sets), products, and prices for all Riftbound sets.
  * No authentication required. Category ID 89 = Riftbound.
  *
- * Usage: pnpm tsx scripts/dump-tcgcsv.ts
+ * Usage: bun scripts/dump-tcgcsv.ts
  *
  * Output: data/tcgcsv-dump/groups.json
  *         data/tcgcsv-dump/products-{groupId}.json (per set)

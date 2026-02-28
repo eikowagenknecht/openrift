@@ -4,7 +4,7 @@
  * Formats all markdown tables in .md files under docs/ to be rectangular
  * (columns padded to equal width with aligned pipe separators).
  *
- * Usage: pnpm tsx scripts/format-md-tables.ts [dir]
+ * Usage: bun scripts/format-md-tables.ts [dir]
  *        Defaults to docs/ if no directory given.
  */
 

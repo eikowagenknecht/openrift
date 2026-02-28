@@ -4,7 +4,7 @@
  * Dumps all readable tables from Riftcore's Supabase database into
  * data/riftcore-dump/ as individual JSON files.
  *
- * Usage: pnpm tsx scripts/dump-riftcore.ts
+ * Usage: bun scripts/dump-riftcore.ts
  *
  * Output: data/riftcore-dump/<table>.json
  *

@@ -11,7 +11,7 @@
 Components in `apps/web/src/components/ui/` are scaffolded from shadcn's `base-nova` style (built on Base UI, not Radix). Add new ones with:
 
 ```bash
-pnpm dlx shadcn@latest add <component-name>
+bunx shadcn@latest add <component-name>
 ```
 
 When customizing a scaffolded component, add a `// custom: <reason>` comment on every changed or added line. This makes it easy to re-scaffold with `--overwrite` and diff to re-apply customizations.

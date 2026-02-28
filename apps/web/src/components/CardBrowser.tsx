@@ -140,10 +140,10 @@ export function CardBrowser({
       hint = "docker compose up db -d";
     } else if (healthStatus === "db_not_migrated") {
       title = "The database hasn't been set up yet.";
-      hint = "pnpm db:migrate && pnpm db:seed";
+      hint = "bun db:migrate && bun db:seed";
     } else if (healthStatus === "db_empty") {
       title = "The database is empty.";
-      hint = "pnpm db:seed";
+      hint = "bun db:seed";
     }
 
     return (

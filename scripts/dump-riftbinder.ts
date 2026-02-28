@@ -9,7 +9,7 @@
  *
  * No auth required.
  *
- * Usage: pnpm tsx scripts/dump-riftbinder.ts
+ * Usage: bun scripts/dump-riftbinder.ts
  *
  * Output: data/riftbinder-dump/cards.json
  *         data/riftbinder-dump/guides.json

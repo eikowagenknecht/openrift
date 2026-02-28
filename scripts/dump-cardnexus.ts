@@ -7,7 +7,7 @@
  * (Cardmarket EUR + TCGplayer USD). Paginated at 200 items per request.
  * No authentication required.
  *
- * Usage: pnpm tsx scripts/dump-cardnexus.ts
+ * Usage: bun scripts/dump-cardnexus.ts
  *
  * Output: data/cardnexus-dump/products.json
  */

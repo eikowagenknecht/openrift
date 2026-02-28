@@ -1,6 +1,7 @@
 /* eslint-disable no-console -- CLI helper */
-import { Kysely, PostgresDialect } from "kysely";
-import { Pool } from "pg";
+import { SQL } from "bun";
+import { Kysely } from "kysely";
+import { PostgresJSDialect } from "kysely-postgres-js";
 
 import type { Database } from "./types.js";
 
@@ -20,8 +21,8 @@ export function createDb(): Kysely<Database> {
   }
 
   return new Kysely<Database>({
-    dialect: new PostgresDialect({
-      pool: new Pool({ connectionString }),
+    dialect: new PostgresJSDialect({
+      postgres: new SQL(connectionString),
     }),
   });
 }

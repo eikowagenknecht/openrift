@@ -1,4 +1,3 @@
-import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { sql } from "kysely";
@@ -69,4 +68,4 @@ app.route("/api", cardsRoute);
 const port = Number(process.env.PORT ?? 3000);
 
 console.log(`API server listening on http://localhost:${port}`);
-serve({ fetch: app.fetch, port });
+export default { fetch: app.fetch, port };

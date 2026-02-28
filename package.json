@@ -1,21 +1,25 @@
 {
   "name": "openrift",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "type": "module",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "dev:web": "turbo run dev --filter=web",
     "format": "oxfmt",
-    "lint": "pnpm turbo run build && pnpm lint:oxlint && pnpm lint:oxfmt",
+    "lint": "turbo run build && bun run lint:oxlint && bun run lint:oxfmt",
     "lint:oxlint": "oxlint --fix",
     "lint:oxfmt": "oxfmt ./apps ./packages",
     "lefthook": "lefthook",
-    "db:migrate": "pnpm --filter @openrift/shared db:migrate",
-    "db:rollback": "pnpm --filter @openrift/shared db:rollback",
-    "db:seed": "pnpm --filter @openrift/shared db:seed",
+    "db:migrate": "bun run --cwd packages/shared db:migrate",
+    "db:rollback": "bun run --cwd packages/shared db:rollback",
+    "db:seed": "bun run --cwd packages/shared db:seed",
     "dev:api": "turbo run dev --filter=api",
-    "routes:generate": "pnpm --filter web routes:generate",
+    "routes:generate": "bun run --cwd apps/web routes:generate",
     "knip": "knip",
     "postinstall": "lefthook install"
   },
@@ -27,19 +31,16 @@
     "lefthook": "2.1.1",
     "oxfmt": "0.34.0",
     "oxlint": "1.49.0",
-    "tsx": "4.21.0",
     "turbo": "2.8.11"
   },
-  "packageManager": "pnpm@10.30.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "@tailwindcss/oxide",
-      "esbuild",
-      "lefthook",
-      "msw",
-      "oxfmt",
-      "oxlint"
-    ]
-  }
+  "packageManager": "bun@1.3.9",
+  "trustedDependencies": [
+    "@swc/core",
+    "@tailwindcss/oxide",
+    "esbuild",
+    "lefthook",
+    "msw",
+    "oxfmt",
+    "oxlint"
+  ]
 }

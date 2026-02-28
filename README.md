@@ -14,7 +14,7 @@ A card collection browser for [Riftbound](https://riftbound.leagueoflegends.com/
 
 ## Tech Stack
 
-- **Monorepo** — pnpm + Turborepo
+- **Monorepo** — Bun + Turborepo
 - **Frontend** — React 19, Vite, TypeScript, shadcn/ui (Base UI), Tailwind CSS 4
 - **Backend** — Hono, Kysely, PostgreSQL
 - **Infrastructure** — Docker Compose, Nginx, Cloudflare

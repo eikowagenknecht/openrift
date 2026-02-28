@@ -6,7 +6,7 @@
  * 684 cards across 4 sets (OGN, SFD, OGS, ARC) with TCGPlayer pricing.
  * No authentication required for server-side requests (CORS blocks browsers).
  *
- * Usage: pnpm tsx scripts/dump-rifty.ts
+ * Usage: bun scripts/dump-rifty.ts
  *
  * Output: data/rifty-dump/cards.json, data/rifty-dump/editions.json
  */

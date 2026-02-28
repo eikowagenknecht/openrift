@@ -7,7 +7,7 @@
  * the gallery publicCode and looking up the tcgcsv Number extended data field.
  * Manual overrides in price-overrides.json handle cases where auto-matching fails.
  *
- * Usage: pnpm tsx scripts/build-prices.ts
+ * Usage: bun scripts/build-prices.ts
  *
  * Reads:  data/cards.json
  *         data/tcgcsv-dump/products-{groupId}.json

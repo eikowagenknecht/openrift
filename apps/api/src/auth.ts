@@ -1,9 +1,9 @@
 import { betterAuth } from "better-auth";
 
-import { pool } from "./db.js";
+import { dialect } from "./db.js";
 
 export const auth = betterAuth({
-  database: pool,
+  database: { dialect, type: "postgres" },
   basePath: "/api/auth",
   secret: process.env.BETTER_AUTH_SECRET,
   emailAndPassword: {

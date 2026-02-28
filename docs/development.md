@@ -2,15 +2,14 @@
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 22.x
-- [pnpm](https://pnpm.io/) 10.x
+- [Bun](https://bun.sh/) 1.2+
 - [Docker](https://www.docker.com/) (for PostgreSQL)
 
 ## Getting Started
 
 ```bash
 # Install dependencies (also installs lefthook git hooks)
-pnpm install
+bun install
 
 # Copy and configure environment
 cp .env.example .env
@@ -19,11 +18,11 @@ cp .env.example .env
 docker compose up db -d
 
 # Run database migrations and seed card/price data
-pnpm db:migrate
-pnpm db:seed
+bun db:migrate
+bun db:seed
 
 # Start all dev servers
-pnpm dev
+bun dev
 ```
 
 The frontend is available at `http://localhost:5173`. The API runs at `http://localhost:3000`. Vite proxies `/api/*` requests to the API server automatically.
@@ -31,9 +30,9 @@ The frontend is available at `http://localhost:5173`. The API runs at `http://lo
 ## Running Individual Apps
 
 ```bash
-pnpm dev:web    # Vite dev server only (apps/web)
-pnpm dev:api    # Hono API server only (apps/api)
-pnpm dev        # All apps + shared type checking in parallel
+bun dev:web    # Vite dev server only (apps/web)
+bun dev:api    # Hono API server only (apps/api)
+bun dev        # All apps + shared type checking in parallel
 ```
 
 ## Database
@@ -41,9 +40,9 @@ pnpm dev        # All apps + shared type checking in parallel
 PostgreSQL runs in Docker. Data persists in the `pg_data` volume — to wipe it: `docker compose down -v`.
 
 ```bash
-pnpm db:migrate    # Run pending migrations
-pnpm db:rollback   # Roll back the last migration
-pnpm db:seed       # Seed sets, cards, and prices from JSON data
+bun db:migrate    # Run pending migrations
+bun db:rollback   # Roll back the last migration
+bun db:seed       # Seed sets, cards, and prices from JSON data
 ```
 
 Migrations and seed data live in `packages/shared/src/db/`. Seed data (JSON files) lives in `data/` (gitignored — private data, not checked in).
@@ -51,9 +50,9 @@ Migrations and seed data live in `packages/shared/src/db/`. Seed data (JSON file
 ## Linting and Formatting
 
 ```bash
-pnpm lint          # Full lint: build all packages, then oxlint + oxfmt
-pnpm lint:oxlint   # Run oxlint with --fix
-pnpm lint:oxfmt    # Run oxfmt on apps/ and packages/
+bun lint          # Full lint: build all packages, then oxlint + oxfmt
+bun lint:oxlint   # Run oxlint with --fix
+bun lint:oxfmt    # Run oxfmt on apps/ and packages/
 ```
 
 [Lefthook](https://github.com/evilmartians/lefthook) runs pre-commit hooks automatically: TypeScript type checking, oxlint, ESLint (React Compiler rules), and oxfmt. Commit messages are validated by [commitlint](https://commitlint.js.org/) to enforce [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, etc.).

@@ -68,7 +68,7 @@ Indexes: `(card_id, variant)`, `recorded_at`.
 
 ## Seed Data
 
-Card and price data lives in `data/` (gitignored — not checked into the public repo). Seeded via `pnpm db:seed`:
+Card and price data lives in `data/` (gitignored — not checked into the public repo). Seeded via `bun db:seed`:
 
 - Sets and cards are upserted (insert or update on conflict)
 - Prices are truncated and re-inserted on each run

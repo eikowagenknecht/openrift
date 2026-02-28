@@ -1,4 +1,4 @@
-# Dev:  docker compose up db       (just Postgres; run API + Vite natively with pnpm dev)
+# Dev:  docker compose up db       (just Postgres; run API + Vite natively with bun dev)
 # Prod: docker compose up -d       (Postgres + API + web; migrate via --profile tools)
 services:
   # PostgreSQL database.

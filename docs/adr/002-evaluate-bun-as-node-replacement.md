@@ -1,7 +1,7 @@
 # ADR-002: Evaluate Bun as Node.js Replacement
 
 **Date:** 2026-02-25
-**Status:** Pending
+**Status:** Accepted
 **Deciders:** @eiko
 
 ## Context
@@ -79,7 +79,7 @@ Bun.sql is comprehensive (transactions, connection pooling, prepared statements,
 - `@hono/node-server` — Hono runs natively on Bun
 - `pg` driver — replaced by Bun's built-in `SQL`
 
-## Decision (Pending)
+## Decision
 
 Migrate from Node.js to Bun using a phased approach:
 

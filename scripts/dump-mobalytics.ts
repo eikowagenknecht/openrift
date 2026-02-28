@@ -6,7 +6,7 @@
  * Single query returns all 652 entries (628 active + 24 deprecated battlefields).
  * No authentication required.
  *
- * Usage: pnpm tsx scripts/dump-mobalytics.ts
+ * Usage: bun scripts/dump-mobalytics.ts
  *
  * Output: data/mobalytics-dump/cards.json
  */

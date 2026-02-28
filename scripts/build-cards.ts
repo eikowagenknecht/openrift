@@ -6,7 +6,7 @@
  * Reads the raw card data dumped by dump-gallery.ts, validates each card
  * against the Zod schema, converts to the app format, and writes cards.json.
  *
- * Usage: pnpm tsx scripts/build-cards.ts
+ * Usage: bun scripts/build-cards.ts
  *
  * Reads:  data/gallery-dump/cards.json
  * Output: data/cards.json

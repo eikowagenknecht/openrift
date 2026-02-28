@@ -6,7 +6,7 @@
  * Fetches the gallery HTML, extracts the __NEXT_DATA__ JSON payload,
  * and saves the raw card items to disk.
  *
- * Usage: pnpm tsx scripts/dump-gallery.ts
+ * Usage: bun scripts/dump-gallery.ts
  *
  * Output: data/gallery-dump/cards.json
  */

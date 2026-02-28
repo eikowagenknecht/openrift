@@ -7,7 +7,7 @@
  * including cards, sealed products, and accessories — all with TCGPlayer
  * pricing, 366 days of price history, and market analytics.
  *
- * Usage: pnpm tsx scripts/dump-magicalmeta.ts
+ * Usage: bun scripts/dump-magicalmeta.ts
  *
  * Output: data/magicalmeta-dump/cards_data.json
  */
