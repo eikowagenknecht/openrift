@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut, useSession } from "@/lib/auth-client";
+import { featureFlags } from "@/lib/feature-flags";
 
 interface HeaderProps {
   actions?: ReactNode;
@@ -38,7 +39,7 @@ export function Header({ actions }: HeaderProps) {
         </button>
         <div className="flex items-center gap-1">
           <InstallButton />
-          {!isPending && !session?.user && (
+          {featureFlags.auth && !isPending && !session?.user && (
             <Button
               variant="ghost"
               size="sm"
@@ -47,7 +48,7 @@ export function Header({ actions }: HeaderProps) {
               Sign in
             </Button>
           )}
-          {session?.user && (
+          {featureFlags.auth && session?.user && (
             <DropdownMenu>
               <DropdownMenuTrigger>
                 <Button variant="ghost" size="icon-sm" aria-label="User menu">

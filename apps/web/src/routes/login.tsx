@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -8,16 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { signIn, signUp } from "@/lib/auth-client";
+import { featureFlags } from "@/lib/feature-flags";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: (search.redirect as string) || "/",
   }),
+  beforeLoad: () => {
+    if (!featureFlags.auth) {
+      throw redirect({ to: "/" });
+    }
+  },
   component: LoginPage,
 });
 
 function LoginPage() {
-  const { redirect } = Route.useSearch();
+  const { redirect: redirectTo } = Route.useSearch();
   const navigate = useNavigate();
 
   const [signInEmail, setSignInEmail] = useState("");
@@ -41,7 +47,7 @@ function LoginPage() {
       toast.error(error.message || "Failed to sign in");
       return;
     }
-    void navigate({ to: redirect as "/" });
+    void navigate({ to: redirectTo as "/" });
   }
 
   async function handleSignUp(e: React.FormEvent) {
@@ -57,7 +63,7 @@ function LoginPage() {
       toast.error(error.message || "Failed to sign up");
       return;
     }
-    void navigate({ to: redirect as "/" });
+    void navigate({ to: redirectTo as "/" });
   }
 
   return (
