@@ -743,6 +743,11 @@ export function CardGrid({
             handleUpRef.current();
           }
         }}
+        onPointerCancel={() => {
+          if (isDraggingRef.current) {
+            handleUpRef.current();
+          }
+        }}
         onLostPointerCapture={() => {
           if (isDraggingRef.current) {
             handleUpRef.current();

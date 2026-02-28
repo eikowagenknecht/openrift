@@ -2,6 +2,7 @@
 
 ## 2026-02-28
 
+- fix: Scrollbar drag now ends correctly when your finger slides off the screen edge, instead of getting stuck showing a wrong card number
 - fix: Scrollbar handle text no longer wraps to multiple lines on mobile when dragging
 
 ## 2026-02-26
