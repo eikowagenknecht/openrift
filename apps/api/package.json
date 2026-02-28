@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@openrift/shared": "workspace:*",
-    "better-auth": "1.4.19",
-    "hono": "4.12.2",
+    "better-auth": "1.4.20",
+    "hono": "4.12.3",
     "kysely": "0.28.11",
     "kysely-postgres-js": "3.0.0"
   },
