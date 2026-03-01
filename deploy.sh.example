@@ -27,7 +27,7 @@ if git symbolic-ref -q HEAD >/dev/null 2>&1; then
 fi
 
 echo "==> Building images..."
-docker compose build
+docker compose --profile tools build
 
 echo "==> Running database migrations..."
 docker compose run --rm migrate
