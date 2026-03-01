@@ -1,7 +1,7 @@
 # ─── Stage 1: Install dependencies & build ────────────────────────────────────
-FROM oven/bun:1-alpine AS build
+FROM oven/bun:1 AS build
 
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
