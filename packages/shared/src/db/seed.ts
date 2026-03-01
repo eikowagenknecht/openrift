@@ -3,11 +3,20 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { sql, type RawBuilder } from "kysely";
+
 import { createDb } from "./connect.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const db = createDb();
+
+/** Wrap a JS string array as a Kysely raw Postgres array literal. */
+function pgArray(values: string[]): RawBuilder<string[]> {
+  return sql<
+    string[]
+  >`${`{${values.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(",")}}`}::text[]`;
+}
 
 type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
 type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
@@ -97,14 +106,14 @@ for (const set of gallery.sets) {
         id: card.id,
         name: card.name,
         type: card.type,
-        super_types: card.superTypes,
+        super_types: pgArray(card.superTypes),
         rarity: card.rarity,
         collector_number: card.collectorNumber,
         faction: card.faction,
         might: card.stats.might,
         energy: card.stats.energy,
         power: card.stats.power,
-        keywords: card.keywords,
+        keywords: pgArray(card.keywords),
         description: card.description,
         effect: card.effect,
         might_bonus: card.mightBonus,
@@ -112,7 +121,7 @@ for (const set of gallery.sets) {
         thumbnail_url: card.art.thumbnailURL,
         full_url: card.art.fullURL,
         artist: card.art.artist,
-        tags: card.tags,
+        tags: pgArray(card.tags),
         orientation: card.orientation,
         public_code: card.publicCode,
       })
@@ -120,14 +129,14 @@ for (const set of gallery.sets) {
         oc.column("id").doUpdateSet({
           name: card.name,
           type: card.type,
-          super_types: card.superTypes,
+          super_types: pgArray(card.superTypes),
           rarity: card.rarity,
           collector_number: card.collectorNumber,
           faction: card.faction,
           might: card.stats.might,
           energy: card.stats.energy,
           power: card.stats.power,
-          keywords: card.keywords,
+          keywords: pgArray(card.keywords),
           description: card.description,
           effect: card.effect,
           might_bonus: card.mightBonus,
@@ -135,7 +144,7 @@ for (const set of gallery.sets) {
           thumbnail_url: card.art.thumbnailURL,
           full_url: card.art.fullURL,
           artist: card.art.artist,
-          tags: card.tags,
+          tags: pgArray(card.tags),
           orientation: card.orientation,
           public_code: card.publicCode,
         }),
