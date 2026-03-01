@@ -58,5 +58,19 @@ services:
     profiles:
       - tools
 
+  # One-off: seeds cards and prices from JSON data.
+  seed:
+    build:
+      context: .
+      target: migrate
+    command: ["bun", "packages/shared/src/db/seed.ts"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - tools
+
 volumes:
   pg_data:

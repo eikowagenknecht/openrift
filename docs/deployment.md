@@ -80,6 +80,9 @@ docker compose logs -f api       # API only
 # Run migrations manually
 docker compose run --rm migrate
 
+# Seed cards and prices (first deploy, or after wiping the database)
+docker compose run --rm seed
+
 # Access the database
 docker compose exec db psql -U openrift -d openrift
 
@@ -213,9 +216,11 @@ su - openrift
 
 # Stable
 cd ~/openrift && ./deploy.sh
+docker compose run --rm seed
 
 # Preview
 cd ~/openrift-preview && ./deploy.sh
+docker compose run --rm seed
 ```
 
 Verify:
