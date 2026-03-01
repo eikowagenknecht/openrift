@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy a branch to the VPS.
-# Usage: ./deploy.sh
+# Deploy a ref to the VPS.
+# Usage: ./deploy.sh [ref]
 #
-# Pulls the latest branch, rebuilds containers, runs migrations,
-# restarts services, and cleans up old Docker images.
+# Fetches the latest state, checks out the given ref, rebuilds containers,
+# runs migrations, restarts services, and cleans up old Docker images.
 #
-# Set BRANCH below to match the instance (main or beta).
+# Examples:
+#   ./deploy.sh          # Deploys main (default, used by preview instance)
+#   ./deploy.sh v1.2.0   # Deploys a version tag (used by stable instance)
 
 cd "$(dirname "$0")"
 
-BRANCH="main"
+REF="${1:-main}"
 
-echo "==> Pulling latest $BRANCH..."
-git fetch origin "$BRANCH"
-git checkout "$BRANCH"
-git reset --hard "origin/$BRANCH"
+echo "==> Fetching latest..."
+git fetch origin --tags
+
+echo "==> Checking out $REF..."
+git checkout "$REF"
+
+# For branches, reset to match remote exactly
+if git symbolic-ref -q HEAD >/dev/null 2>&1; then
+  git reset --hard "origin/$REF"
+fi
 
 echo "==> Building images..."
 docker compose build

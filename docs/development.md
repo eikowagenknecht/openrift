@@ -67,4 +67,4 @@ See `.env.example` for all required variables:
 | `POSTGRES_USER`     | Database user                          | `openrift`                                             |
 | `POSTGRES_PASSWORD` | Database password                      | `password` (change in production)                      |
 | `DATABASE_URL`      | Full Postgres connection string        | `postgres://openrift:password@localhost:5432/openrift` |
-| `CORS_ORIGIN`       | Allowed CORS origins (comma-separated) | `https://openrift.app,https://beta.openrift.app`       |
+| `CORS_ORIGIN`       | Allowed CORS origins (comma-separated) | `https://openrift.app,https://preview.openrift.app`       |

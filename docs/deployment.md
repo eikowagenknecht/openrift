@@ -1,6 +1,31 @@
 # Deployment
 
-OpenRift runs on a VPS with Docker Compose behind Cloudflare. Pushes to `main` auto-deploy to `openrift.app` (from `~/openrift`), pushes to `beta` auto-deploy to `beta.openrift.app` (from `~/openrift-beta`). Each instance has its own Docker Compose stack with separate ports and database volumes.
+OpenRift runs on a VPS with Docker Compose behind Cloudflare. Two instances share the same host:
+
+- **Stable** (`openrift.app`) — deploys when a version tag (`v*`) is pushed (from `~/openrift`)
+- **Preview** (`preview.openrift.app`) — auto-deploys on every push to `main` (from `~/openrift-preview`)
+
+## Release Strategy
+
+Development follows a trunk-based model: all work lands on `main` and immediately deploys to the preview instance. When we're happy with an arbitrary set of changes, we manually tag a release:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+This triggers the stable deploy workflow, which checks out the tag on the VPS. Tags follow [semantic versioning](https://semver.org/) (`v<major>.<minor>.<patch>`).
+
+### Feature Flags
+
+Feature flags gate longer-lived features that take multiple commits to complete. Flagged code can be pushed to `main`, tested on preview, and kept hidden on stable until it's ready. Once the feature is ready, the flag is removed and the code runs unconditionally.
+
+Flags are defined in `apps/web/src/lib/feature-flags.ts` and controlled by `VITE_FEATURE_*` env vars, which are baked into the web build at image build time. Omitting a flag keeps it disabled — only add it where you want the feature turned on:
+
+```bash
+# ~/openrift-preview/.env
+VITE_FEATURE_AUTH=true
+```
 
 ## How It Works
 
@@ -8,13 +33,17 @@ The `Dockerfile` uses a single multi-stage build: a shared `build` stage compile
 
 **Deploy script** (`deploy.sh`):
 
-1. Pulls the latest branch (`main` or `beta`)
-2. Builds all Docker images
-3. Runs database migrations
-4. Restarts services
-5. Cleans up old images
+1. Fetches the latest state (branches and tags)
+2. Checks out the given ref (`main` by default, or a tag like `v1.2.0`)
+3. Builds all Docker images
+4. Runs database migrations
+5. Restarts services
+6. Cleans up old images
 
-**GitHub Actions** SSHes into the VPS to run `./deploy.sh` on every push to `main` or `beta`.
+**GitHub Actions** SSHes into the VPS to run `./deploy.sh`:
+
+- `deploy-preview.yml` — triggers on push to `main`, runs `./deploy.sh` (defaults to `main`)
+- `deploy-stable.yml` — triggers on `v*` tag push, runs `./deploy.sh v1.2.0` (checks out the tag)
 
 ## Regular Deploys
 
@@ -119,12 +148,12 @@ Add these as **repository secrets** in GitHub (Settings → Secrets → Actions)
 
 ### 5. Clone and configure
 
-Clone the repo once per instance. The main instance lives at `~/openrift`, beta at `~/openrift-beta`:
+Clone the repo once per instance. The stable instance lives at `~/openrift`, preview at `~/openrift-preview`:
 
 ```bash
 su - openrift
 
-# Main instance
+# Stable instance
 git clone git@github.com:eikowagenknecht/openrift.git ~/openrift
 cd ~/openrift
 cp .env.example .env
@@ -135,15 +164,15 @@ chmod +x deploy.sh
 ```
 
 ```bash
-# Beta instance
-git clone git@github.com:eikowagenknecht/openrift.git ~/openrift-beta
-cd ~/openrift-beta
+# Preview instance
+git clone git@github.com:eikowagenknecht/openrift.git ~/openrift-preview
+cd ~/openrift-preview
 cp .env.example .env
-# Edit .env: set BRANCH="beta", use beta ports (DB_PORT=5433, API_PORT=3002, WEB_PORT=8081)
+# Edit .env: use preview ports (DB_PORT=5433, API_PORT=3002, WEB_PORT=8081)
+# Optionally enable feature flags: VITE_FEATURE_AUTH=true
 
 cp deploy.sh.example deploy.sh
 chmod +x deploy.sh
-# Edit deploy.sh: change BRANCH="main" to BRANCH="beta"
 ```
 
 Edit `.env` with production values for each instance. Note: `DATABASE_URL` host must be `db` (the Docker Compose service name), not `localhost`.
@@ -152,17 +181,17 @@ Edit `.env` with production values for each instance. Note: `DATABASE_URL` host 
 
 OpenRift uses Cloudflare as a reverse proxy (orange cloud / proxied DNS). TLS between Cloudflare and the VPS is terminated by host nginx using a Cloudflare Origin Certificate.
 
-**DNS:** Create A records (proxied) for `openrift.app` and `beta.openrift.app` pointing to the VPS IP. Set Cloudflare SSL/TLS mode to **Full (strict)**.
+**DNS:** Create A records (proxied) for `openrift.app` and `preview.openrift.app` pointing to the VPS IP. Set Cloudflare SSL/TLS mode to **Full (strict)**.
 
 **Origin Certificates:** In the Cloudflare dashboard (SSL/TLS → Origin Server), generate certificates for each domain:
 
 ```bash
-# Main
+# Stable
 mkdir -p ~/openrift/certs
 # Paste certificate → certs/origin.pem, private key → certs/origin-key.pem
 
-# Beta
-mkdir -p ~/openrift-beta/certs
+# Preview
+mkdir -p ~/openrift-preview/certs
 # Paste certificate → certs/origin.pem, private key → certs/origin-key.pem
 ```
 
@@ -171,34 +200,34 @@ mkdir -p ~/openrift-beta/certs
 ```bash
 apt install -y nginx
 ln -s /home/openrift/openrift/nginx/openrift.conf /etc/nginx/sites-enabled/openrift.app
-ln -s /home/openrift/openrift-beta/nginx/beta.openrift.conf /etc/nginx/sites-enabled/beta.openrift.app
+ln -s /home/openrift/openrift-preview/nginx/preview.openrift.conf /etc/nginx/sites-enabled/preview.openrift.app
 nginx -t && systemctl reload nginx
 ```
 
-`openrift.conf` proxies `openrift.app` → `:8080`, `beta.openrift.conf` proxies `beta.openrift.app` → `:8081`.
+`openrift.conf` proxies `openrift.app` → `:8080`, `preview.openrift.conf` proxies `preview.openrift.app` → `:8081`.
 
 ### 7. First deploy
 
 ```bash
 su - openrift
 
-# Main
+# Stable
 cd ~/openrift && ./deploy.sh
 
-# Beta
-cd ~/openrift-beta && ./deploy.sh
+# Preview
+cd ~/openrift-preview && ./deploy.sh
 ```
 
 Verify:
 
 ```bash
-# Main
+# Stable
 cd ~/openrift && docker compose ps
 curl -s localhost:8080    # Should return HTML
 curl -s localhost:3001    # API should respond
 
-# Beta
-cd ~/openrift-beta && docker compose ps
+# Preview
+cd ~/openrift-preview && docker compose ps
 curl -s localhost:8081    # Should return HTML
 curl -s localhost:3002    # API should respond
 ```
@@ -207,20 +236,20 @@ curl -s localhost:3002    # API should respond
 
 ```plaintext
 /home/openrift/
-├── openrift/                        # Main branch (openrift.app)
+├── openrift/                        # Stable (openrift.app), checked out at version tag
 │   ├── certs/                       # Cloudflare Origin Certificate (gitignored)
 │   ├── .env                         # Production secrets (gitignored)
-│   ├── deploy.sh                    # Deploy script (gitignored, BRANCH="main")
+│   ├── deploy.sh                    # Deploy script (gitignored)
 │   ├── docker-compose.yml           # Ports: 5432, 3001, 8080
 │   └── ...
-└── openrift-beta/                   # Beta branch (beta.openrift.app)
+└── openrift-preview/                   # Preview (preview.openrift.app), tracks main
     ├── certs/                       # Cloudflare Origin Certificate (gitignored)
     ├── .env                         # Production secrets (gitignored)
-    ├── deploy.sh                    # Deploy script (gitignored, BRANCH="beta")
+    ├── deploy.sh                    # Deploy script (gitignored)
     ├── docker-compose.yml           # Ports: 5433, 3002, 8081
     └── ...
 
 Docker-managed:
-  /var/lib/docker/volumes/openrift_pg_data/        # Main PostgreSQL data
-  /var/lib/docker/volumes/openrift-beta_pg_data/   # Beta PostgreSQL data
+  /var/lib/docker/volumes/openrift_pg_data/        # Stable PostgreSQL data
+  /var/lib/docker/volumes/openrift-preview_pg_data/   # Preview PostgreSQL data
 ```

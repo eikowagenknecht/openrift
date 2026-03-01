@@ -2,7 +2,7 @@
 
 A card collection browser for [Riftbound](https://riftbound.leagueoflegends.com/), the League of Legends trading card game. Browse cards with filtering, sorting, and price data.
 
-**Live:** [openrift.app](https://openrift.app) · **Beta:** [beta.openrift.app](https://beta.openrift.app)
+**Live:** [openrift.app](https://openrift.app) · **Preview:** [preview.openrift.app](https://preview.openrift.app)
 
 ## Documentation
 
