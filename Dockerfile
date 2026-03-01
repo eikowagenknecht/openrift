@@ -50,6 +50,7 @@ COPY --from=build /app/packages/shared/src/db ./packages/shared/src/db
 COPY --from=build /app/packages/shared/package.json ./packages/shared/
 COPY --from=build /app/packages/shared/node_modules/kysely ./node_modules/kysely
 COPY --from=build /app/packages/shared/node_modules/kysely-postgres-js ./node_modules/kysely-postgres-js
+COPY --from=build /app/packages/shared/node_modules/postgres ./node_modules/postgres
 COPY --from=build /app/data/cards.json /app/data/prices.json ./data/
 
 CMD ["bun", "packages/shared/src/db/migrate.ts"]
