@@ -48,7 +48,7 @@ WORKDIR /app
 # Copy only the migration runner, its source deps, and the two runtime packages
 COPY --from=build /app/packages/shared/src/db ./packages/shared/src/db
 COPY --from=build /app/packages/shared/package.json ./packages/shared/
-COPY --from=build /app/node_modules/kysely ./node_modules/kysely
-COPY --from=build /app/node_modules/kysely-postgres-js ./node_modules/kysely-postgres-js
+COPY --from=build /app/packages/shared/node_modules/kysely ./node_modules/kysely
+COPY --from=build /app/packages/shared/node_modules/kysely-postgres-js ./node_modules/kysely-postgres-js
 
 CMD ["bun", "packages/shared/src/db/migrate.ts"]
