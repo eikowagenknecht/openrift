@@ -510,9 +510,21 @@ describe("filterCards", () => {
     expect(result[0].name).toBe("Ice Golem");
   });
 
+  it("filters by powerMin", () => {
+    const result = filterCards(cards, emptyFilters({ powerMin: 3 }));
+    expect(result).toHaveLength(1); // Fire Dragon (6)
+    expect(result[0].name).toBe("Fire Dragon");
+  });
+
   it("filters by powerMax", () => {
     const result = filterCards(cards, emptyFilters({ powerMax: 3 }));
     expect(result).toHaveLength(2); // Ice Golem (2), Mind Weaver (0)
+  });
+
+  it("filters by mightMax", () => {
+    const result = filterCards(cards, emptyFilters({ mightMax: 3 }));
+    expect(result).toHaveLength(1); // Mind Weaver (0)
+    expect(result[0].name).toBe("Mind Weaver");
   });
 
   // -- Variant filter --
