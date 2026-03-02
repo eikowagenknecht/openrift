@@ -60,7 +60,7 @@ export function formatPriceCompact(value: number | null | undefined): string {
   }
   // ≥ 1000: k-tier
   const k = rounded / 1000;
-  if (k < 10) {
+  if (Math.round(k * 10) < 100) {
     return `$${k.toFixed(1)}k`;
   }
   return `$${Math.round(k)}k`;

@@ -152,15 +152,16 @@ describe("formatPriceCompact", () => {
     expect(formatPriceCompact(999)).toBe("$999");
   });
 
-  it("uses k-tier with one decimal for 1000–9999", () => {
+  it("uses k-tier with one decimal for 1000–9499", () => {
     expect(formatPriceCompact(1000)).toBe("$1.0k");
     expect(formatPriceCompact(2500)).toBe("$2.5k");
-    expect(formatPriceCompact(9999)).toBe("$10.0k");
+    expect(formatPriceCompact(9499)).toBe("$9.5k");
   });
 
-  it("rounds to integer k for >= 10000", () => {
-    expect(formatPriceCompact(10000)).toBe("$10k");
-    expect(formatPriceCompact(25000)).toBe("$25k");
+  it("rounds to integer k when one decimal would exceed 4 chars", () => {
+    expect(formatPriceCompact(9999)).toBe("$10k");
+    expect(formatPriceCompact(10_000)).toBe("$10k");
+    expect(formatPriceCompact(25_000)).toBe("$25k");
   });
 
   it("bumps to k-tier when rounding crosses 1000", () => {
