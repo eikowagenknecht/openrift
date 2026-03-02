@@ -11,6 +11,7 @@
     "./data/prices.json": "../../data/prices.json"
   },
   "scripts": {
+    "test": "bun test",
     "build": "tsc",
     "typecheck": "tsc",
     "dev": "tsc --watch",

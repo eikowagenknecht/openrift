@@ -20,6 +20,7 @@
     "db:seed": "bun run --cwd packages/shared db:seed",
     "dev:api": "turbo run dev --filter=api",
     "routes:generate": "bun run --cwd apps/web routes:generate",
+    "test": "turbo run test",
     "knip": "knip",
     "postinstall": "lefthook install"
   },

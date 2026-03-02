@@ -10,6 +10,10 @@
       "dependsOn": ["^typecheck"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**"]
+    },
     "lint": {},
     "dev": {
       "cache": false,
