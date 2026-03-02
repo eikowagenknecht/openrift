@@ -528,6 +528,16 @@ describe("filterCards", () => {
     expect(result).toHaveLength(3);
   });
 
+  it("excludes cards with undefined variant when variant filter is active", () => {
+    const cardsWithMissingVariant = [
+      makeCard({ name: "Has Variant", variant: "Normal" }),
+      makeCard({ name: "No Variant", variant: undefined }),
+    ];
+    const result = filterCards(cardsWithMissingVariant, emptyFilters({ variants: ["Normal"] }));
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("Has Variant");
+  });
+
   // -- Price filter --
 
   it("excludes cards with null price when price filter is active", () => {
@@ -707,9 +717,8 @@ describe("getAvailableFilters", () => {
     expect(result.superTypes).toEqual([]);
     expect(result.domains).toEqual([]);
     expect(result.variants).toEqual([]);
-    // Math.min/max on empty spread gives Infinity/-Infinity
-    expect(result.energyMin).toBe(Infinity);
-    expect(result.energyMax).toBe(-Infinity);
+    expect(result.energyMin).toBe(0);
+    expect(result.energyMax).toBe(0);
     expect(result.priceMin).toBe(0);
     expect(result.priceMax).toBe(0);
   });

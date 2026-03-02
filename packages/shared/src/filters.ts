@@ -143,7 +143,10 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.powerMax !== null && card.stats.power > filters.powerMax) {
       return false;
     }
-    if (filters.variants.length > 0 && card.variant && !filters.variants.includes(card.variant)) {
+    if (
+      filters.variants.length > 0 &&
+      (!card.variant || !filters.variants.includes(card.variant))
+    ) {
       return false;
     }
     if (filters.priceMin !== null || filters.priceMax !== null) {
@@ -205,12 +208,12 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     superTypes,
     domains,
     variants,
-    energyMin: Math.min(...energies),
-    energyMax: Math.max(...energies),
-    mightMin: Math.min(...mights),
-    mightMax: Math.max(...mights),
-    powerMin: Math.min(...powers),
-    powerMax: Math.max(...powers),
+    energyMin: energies.length > 0 ? Math.min(...energies) : 0,
+    energyMax: energies.length > 0 ? Math.max(...energies) : 0,
+    mightMin: mights.length > 0 ? Math.min(...mights) : 0,
+    mightMax: mights.length > 0 ? Math.max(...mights) : 0,
+    powerMin: powers.length > 0 ? Math.min(...powers) : 0,
+    powerMax: powers.length > 0 ? Math.max(...powers) : 0,
     priceMin: prices.length > 0 ? Math.floor(Math.min(...prices)) : 0,
     priceMax: prices.length > 0 ? Math.ceil(Math.max(...prices)) : 0,
   };
