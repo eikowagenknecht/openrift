@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-stable
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Determine next version
+        id: version
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+          fallbackTag: v0.0.0
+
+      - name: Create tag
+        if: steps.version.outputs.bump != 'none'
+        run: |
+          echo "## Release ${{ steps.version.outputs.next }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Bump:** ${{ steps.version.outputs.bump }} (from ${{ steps.version.outputs.current }})" >> "$GITHUB_STEP_SUMMARY"
+          git tag ${{ steps.version.outputs.next }}
+          git push origin ${{ steps.version.outputs.next }}
+
+      - name: No release needed
+        if: steps.version.outputs.bump == 'none'
+        run: |
+          echo "::error::No releasable commits since ${{ steps.version.outputs.current }}"
+          exit 1
+
+      - name: Deploy via SSH
+        if: steps.version.outputs.bump != 'none'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: cd ~/openrift && ./deploy.sh ${{ steps.version.outputs.next }}
