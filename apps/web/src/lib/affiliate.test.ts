@@ -6,7 +6,7 @@ describe("affiliateUrl", () => {
   it("wraps a URL with the affiliate base and encodes it", () => {
     const url = "https://www.tcgplayer.com/product/12345";
     const result = affiliateUrl(url);
-    expect(result).toBe(`https://partner.tcgplayer.com/NGKP0P?u=${encodeURIComponent(url)}`);
+    expect(result).toBe(`https://partner.tcgplayer.com/openrift?u=${encodeURIComponent(url)}`);
   });
 
   it("encodes special characters in the URL", () => {

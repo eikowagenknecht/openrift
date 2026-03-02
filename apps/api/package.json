@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "DATABASE_URL=postgresql://test@localhost/test bun test",
     "dev": "bun --env-file=../../.env --watch src/index.ts",
     "build": "tsc"
   },
