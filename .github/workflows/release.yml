@@ -20,7 +20,17 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Check for existing tag on HEAD
+        id: existing
+        run: |
+          TAG=$(git tag -l 'v*' --points-at HEAD --sort=-v:refname | head -n1)
+          if [ -n "$TAG" ]; then
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "Found existing tag $TAG on HEAD — skipping version bump, deploying directly"
+          fi
+
       - name: Determine next version
+        if: '!steps.existing.outputs.tag'
         id: version
         uses: ietf-tools/semver-action@v1
         with:
@@ -29,24 +39,26 @@ jobs:
           fallbackTag: v0.0.0
 
       - name: Create tag
-        if: steps.version.outputs.bump != 'none'
+        if: '!steps.existing.outputs.tag && steps.version.outputs.bump != ''none'''
         run: |
-          echo "## Release ${{ steps.version.outputs.next }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Bump:** ${{ steps.version.outputs.bump }} (from ${{ steps.version.outputs.current }})" >> "$GITHUB_STEP_SUMMARY"
           git tag ${{ steps.version.outputs.next }}
           git push origin ${{ steps.version.outputs.next }}
 
       - name: No release needed
-        if: steps.version.outputs.bump == 'none'
+        if: '!steps.existing.outputs.tag && steps.version.outputs.bump == ''none'''
         run: |
           echo "::error::No releasable commits since ${{ steps.version.outputs.current }}"
           exit 1
 
+      - name: Summary
+        env:
+          TAG: ${{ steps.existing.outputs.tag || steps.version.outputs.next }}
+        run: echo "## Deploying $TAG" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Deploy via SSH
-        if: steps.version.outputs.bump != 'none'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: cd ~/openrift && ./deploy.sh ${{ steps.version.outputs.next }}
+          script: cd ~/openrift && ./deploy.sh ${{ steps.existing.outputs.tag || steps.version.outputs.next }}
