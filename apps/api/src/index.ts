@@ -70,7 +70,7 @@ app.use(
   }),
 );
 
-const authRateLimit = rateLimiter({
+const authRateLimit = rateLimiter<{ Variables: Variables }>({
   windowMs: 60_000,
   limit: 10,
   standardHeaders: "draft-6",
