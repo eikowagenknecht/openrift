@@ -1,0 +1,29 @@
+node_modules/
+dist/
+.turbo
+.cache
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+
+# Claude
+.claude/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data dumps (allow seed JSON, exclude raw dumps)
+/data/*
+!/data/prices.json

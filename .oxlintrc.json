@@ -1,0 +1,128 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "jsdoc",
+    "import",
+    "typescript",
+    "oxc",
+    "unicorn",
+    "react",
+    "react-perf",
+    "jsx-a11y",
+    "promise"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "pedantic": "warn",
+    "style": "warn"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "es2024": true
+  },
+  "rules": {
+    // Correctness Overwrites
+    "jsdoc/check-tag-names": [
+      "error",
+      {
+        "typed": true
+      }
+    ],
+
+    // Suspicious Overwrites
+    "preserve-caught-error": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/no-array-sort": "off",
+
+    // Style Overwrites
+    "max-statements": "off",
+    "max-params": "off",
+    "capitalized-comments": "off",
+    "no-continue": "off",
+    "no-magic-numbers": "off",
+    "no-duplicate-imports": "off",
+    "no-ternary": "off",
+    "no-nested-ternary": "off",
+    "no-namespace": "off",
+    "id-length": "off",
+    "init-declarations": "off",
+    "prefer-destructuring": "off",
+    "sort-imports": "off",
+    "sort-keys": "off",
+    "func-style": "off",
+    "new-cap": "off",
+    "import/exports-last": "off",
+    "import/no-named-export": "off",
+    "import/group-exports": "off",
+    "import/prefer-default-export": "off",
+    "import/no-mutable-exports": "off",
+    "unicorn/no-null": "off",
+
+    // Pedantic Overwrites
+    "max-lines-per-function": "off",
+    "no-warning-comments": "off",
+    "no-inline-comments": "off",
+    "max-dependencies": "off",
+    "max-depth": "off",
+    "max-lines": "off",
+    "max-classes-per-file": "off",
+    "no-lonely-if": "off",
+    "jsdoc/require-param-type": "off",
+    "jsdoc/require-returns-type": "off",
+    "jsdoc/require-param": "off",
+    "typescript/restrict-plus-operands": [
+      "warn",
+      {
+        "allowAny": false,
+        "allowBoolean": false,
+        "allowNullish": false,
+        "allowNumberAndString": false,
+        "allowRegExp": false
+      }
+    ],
+    "unicorn/number-literal-case": "off", // Conflicts with oxfmt
+    "unicorn/no-nested-ternary": "off", // Conflicts with oxfmt
+    "unicorn/no-object-as-default-parameter": "off",
+
+    // Restriction Overwrites
+    "no-empty": "error",
+    "no-regex-spaces": "error",
+    "no-empty-function": "error",
+    "jsdoc/check-access": "warn",
+    "typescript/no-dynamic-delete": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-non-null-asserted-nullish-coalescing": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error",
+    "typescript/non-nullable-type-assertion-style": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["../*"],
+            "message": "Use '@/' imports instead of relative parent imports"
+          }
+          // {
+          //   "group": ["./*"],
+          //   "message": "Use '@/' imports instead of relative parent imports"
+          // },
+          // {
+          //   "group": ["."],
+          //   "message": "Use '@/' imports instead of relative parent imports"
+          // }
+        ]
+      }
+    ],
+
+    // React Overwrites
+    "react/react-in-jsx-scope": "off", // React 17+ automatic JSX runtime
+    "react/jsx-max-depth": "off", // Impractical for real component trees
+    "react/jsx-props-no-spreading": "off" // Idiomatic React, essential for shadcn/ui
+  },
+  "ignorePatterns": []
+}
