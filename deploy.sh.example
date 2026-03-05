@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy to the VPS by pulling pre-built images from GHCR and restarting services.
-# Usage: ./deploy.sh [ref]
-#
-# Examples:
-#   ./deploy.sh          # Pulls latest compose file from main (preview instance)
-#   ./deploy.sh v1.2.0   # Checks out a version tag (stable instance)
+# Deploy by pulling pre-built images from GHCR and restarting services.
+# The IMAGE_TAG in .env controls which version runs (latest, preview, v1.2.3).
 
 cd "$(dirname "$0")"
 
@@ -21,19 +17,6 @@ touch "$LOCKFILE"
 trap 'rm -f "$LOCKFILE"' EXIT
 # On signal (SSH disconnect, Ctrl-C, kill), kill all child processes first
 trap 'trap - INT TERM HUP; kill -- -$$ 2>/dev/null' INT TERM HUP
-
-REF="${1:-main}"
-
-echo "==> Fetching latest..."
-git fetch origin --tags
-
-echo "==> Checking out $REF..."
-git checkout "$REF"
-
-# For branches, reset to match remote exactly
-if git symbolic-ref -q HEAD >/dev/null 2>&1; then
-  git reset --hard "origin/$REF"
-fi
 
 echo "==> Pulling images..."
 docker compose pull
