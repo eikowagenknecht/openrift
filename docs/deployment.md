@@ -2,10 +2,10 @@
 
 OpenRift runs on a VPS with Docker Compose behind Cloudflare. Two instances share the same host:
 
-- **Stable** (`openrift.app`) — deploys when a version tag (`v*`) is pushed (from `~/openrift`)
+- **Stable** (`openrift.app`) — deploys when a release is triggered (from `~/openrift`)
 - **Preview** (`preview.openrift.app`) — auto-deploys on every push to `main` (from `~/openrift-preview`)
 
-Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls pre-built images — no building on prod.
+Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls pre-built images — no building on prod, no git clone needed.
 
 ## Architecture
 
@@ -36,17 +36,15 @@ Flags are defined in `apps/web/src/lib/feature-flags.ts` and controlled by `VITE
 ### CI/CD Pipeline
 
 1. **Push to `main`** → `preview.yml` builds both images with `:preview` tag, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
-2. **Manual release** → `release.yml` (triggered via `workflow_dispatch`) runs semantic-release to determine the next version, builds both images with `:vX.Y.Z` + `:latest` tags, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh vX.Y.Z`
+2. **Manual release** → `release.yml` (triggered via `workflow_dispatch`) runs semantic-release to determine the next version, builds both images with `:vX.Y.Z` + `:latest` tags, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
 
 ### Deploy Script
 
-The `deploy.sh` on the VPS is minimal — no building:
+The `deploy.sh` on the VPS is minimal — no git operations, no building:
 
-1. Fetches the latest git state (for compose file updates)
-2. Checks out the given ref (`main` by default, or a tag like `v1.2.0`)
-3. Pulls pre-built images from GHCR
-4. Restarts services (migrations run automatically on api startup)
-5. Cleans up old images
+1. Pulls pre-built images from GHCR (the `IMAGE_TAG` in `.env` controls which tag)
+2. Restarts services (migrations run automatically on api startup)
+3. Cleans up old images
 
 ### Startup Sequence
 
@@ -211,7 +209,7 @@ This user owns the app and can run Docker commands, but has no root privileges.
 
 ### 3. Authenticate with GHCR
 
-The VPS needs to pull images from the private GHCR registry. Create a GitHub PAT with `read:packages` scope:
+The VPS needs to pull images from GHCR. Create a GitHub PAT with `read:packages` scope:
 
 ```bash
 su - openrift
@@ -220,19 +218,7 @@ echo "$PAT" | docker login ghcr.io -u eikowagenknecht --password-stdin
 
 Docker stores the credential in `~/.docker/config.json`. This only needs to be done once (or when the PAT is rotated).
 
-### 4. Set up GitHub deploy key
-
-The `openrift` user needs read-only access to pull the repo (for compose file and deploy script updates).
-
-```bash
-su - openrift
-ssh-keygen -t ed25519 -C "openrift-vps" -N ""
-cat ~/.ssh/id_ed25519.pub
-```
-
-Add the public key as a **deploy key** (read-only) in the GitHub repo settings. Test with `ssh -T git@github.com`.
-
-### 5. Set up SSH access for GitHub Actions
+### 4. Set up SSH access for GitHub Actions
 
 On your **local machine**, generate a key for CI deploys:
 
@@ -256,38 +242,43 @@ Add these as **repository secrets** in GitHub (Settings → Secrets → Actions)
 | `VPS_USER`    | `openrift`                                         |
 | `VPS_SSH_KEY` | Contents of `~/.ssh/openrift-deploy` (private key) |
 
-### 6. Clone and configure
+### 5. Copy files to the VPS
 
-Clone the repo once per instance. The stable instance lives at `~/openrift`, preview at `~/openrift-preview`:
+Each instance needs only three files: `docker-compose.yml`, `.env`, and `deploy.sh`. No git clone required.
 
 ```bash
 su - openrift
-
-# Stable instance
-git clone git@github.com:eikowagenknecht/openrift.git ~/openrift
-cd ~/openrift
-cp .env.example .env
-# Edit .env: use default ports (5432/3001/8080), set IMAGE_TAG=latest
-
-cp deploy.sh.example deploy.sh
-chmod +x deploy.sh
+mkdir -p ~/openrift ~/openrift-preview
 ```
+
+From your **local machine**, copy the files:
 
 ```bash
-# Preview instance
-git clone git@github.com:eikowagenknecht/openrift.git ~/openrift-preview
-cd ~/openrift-preview
-cp .env.example .env
-# Edit .env: use preview ports (DB_PORT=5433, API_PORT=3002, WEB_PORT=8081)
-# Set IMAGE_TAG=preview
+# Stable instance
+scp docker-compose.yml openrift@VPS:~/openrift/
+scp deploy.sh.example openrift@VPS:~/openrift/deploy.sh
 
-cp deploy.sh.example deploy.sh
-chmod +x deploy.sh
+# Preview instance
+scp docker-compose.yml openrift@VPS:~/openrift-preview/
+scp deploy.sh.example openrift@VPS:~/openrift-preview/deploy.sh
 ```
 
-Edit `.env` with production values for each instance. Note: `DATABASE_URL` host must be `db` (the Docker Compose service name), not `localhost`.
+On the **server**:
 
-### 7. Set up TLS with Cloudflare
+```bash
+chmod +x ~/openrift/deploy.sh ~/openrift-preview/deploy.sh
+```
+
+Create `.env` for each instance from `.env.example`:
+
+```bash
+# Stable: use default ports (5432/3001/8080), set IMAGE_TAG=latest
+# Preview: use preview ports (DB_PORT=5433, API_PORT=3002, WEB_PORT=8081), set IMAGE_TAG=preview
+```
+
+Note: `DATABASE_URL` host must be `db` (the Docker Compose service name), not `localhost`.
+
+### 6. Set up TLS with Cloudflare
 
 OpenRift uses Cloudflare as a reverse proxy (orange cloud / proxied DNS). TLS between Cloudflare and the VPS is terminated by host nginx using a Cloudflare Origin Certificate.
 
@@ -305,18 +296,24 @@ mkdir -p ~/openrift-preview/certs
 # Paste certificate → certs/origin.pem, private key → certs/origin-key.pem
 ```
 
-**Host nginx:** Install nginx and link both configs:
+**Host nginx:** Install nginx and copy the config files from the repo:
 
 ```bash
 apt install -y nginx
-ln -s /home/openrift/openrift/nginx/openrift.conf /etc/nginx/sites-enabled/openrift.app
-ln -s /home/openrift/openrift-preview/nginx/preview.openrift.conf /etc/nginx/sites-enabled/preview.openrift.app
+
+# Copy nginx configs from the repo to the VPS
+scp nginx/openrift.conf openrift@VPS:~/openrift/
+scp nginx/preview.openrift.conf openrift@VPS:~/openrift-preview/
+
+# On the server, symlink them
+ln -s /home/openrift/openrift/openrift.conf /etc/nginx/sites-enabled/openrift.app
+ln -s /home/openrift/openrift-preview/preview.openrift.conf /etc/nginx/sites-enabled/preview.openrift.app
 nginx -t && systemctl reload nginx
 ```
 
 `openrift.conf` proxies `openrift.app` → `:8080`, `preview.openrift.conf` proxies `preview.openrift.app` → `:8081`.
 
-### 8. First deploy
+### 7. First deploy
 
 ```bash
 su - openrift
@@ -347,18 +344,18 @@ curl -s localhost:3002/api/health | jq .
 
 ```plaintext
 /home/openrift/
-├── openrift/                        # Stable (openrift.app), checked out at version tag
-│   ├── certs/                       # Cloudflare Origin Certificate (gitignored)
-│   ├── .env                         # Production secrets (gitignored)
-│   ├── deploy.sh                    # Deploy script (gitignored)
+├── openrift/                        # Stable (openrift.app)
+│   ├── certs/                       # Cloudflare Origin Certificate
+│   ├── .env                         # Production secrets
+│   ├── deploy.sh                    # Deploy script
 │   ├── docker-compose.yml           # Ports: 5432, 3001, 8080
-│   └── ...
-└── openrift-preview/                # Preview (preview.openrift.app), tracks main
-    ├── certs/                       # Cloudflare Origin Certificate (gitignored)
-    ├── .env                         # Production secrets (gitignored)
-    ├── deploy.sh                    # Deploy script (gitignored)
+│   └── openrift.conf                # nginx config for host nginx
+└── openrift-preview/                # Preview (preview.openrift.app)
+    ├── certs/                       # Cloudflare Origin Certificate
+    ├── .env                         # Production secrets
+    ├── deploy.sh                    # Deploy script
     ├── docker-compose.yml           # Ports: 5433, 3002, 8081
-    └── ...
+    └── preview.openrift.conf        # nginx config for host nginx
 
 Docker-managed:
   /var/lib/docker/volumes/openrift_pg_data/          # Stable PostgreSQL data
