@@ -1,0 +1,135 @@
+# Changelog
+
+## 2026-03-05
+
+- feat: Cardmarket prices now show as a badge in the card detail view and version list
+- feat: The reset password page now shows a random funny email placeholder
+- fix: Signing up with an email that was already registered but not yet verified now correctly re-sends the verification code
+
+## 2026-03-04
+
+- feat: Price history charts show how a card's price has changed over time
+- feat: The card detail sidebar now shows a compact price trend sparkline
+- fix: Each end of the price range now has its own color in stacked view
+
+## 2026-03-03
+
+- feat: Cardmarket prices now appear alongside TCGplayer prices, with all prices refreshing daily
+- feat: Card detail now shows the official card text, with a note when the printed version differs
+- feat: Price chips now show a TCGplayer icon instead of a text label
+- feat: The card browser now groups printings of the same card into one tile by default, with a price range and fan preview on hover — switch to "Printings" view to see every version individually
+- feat: You can now link or unlink Google and Discord accounts from your profile page
+- feat: You can now sign in with your Google or Discord account
+- feat: You can now filter cards by Signed and Promo status using three-state toggles in the filter panel
+- feat: Your Gravatar profile picture now appears in the header and on the profile page
+- feat: The card detail view now shows a "Versions" section when a card has multiple printings, letting you switch between finishes, art variants, and other versions
+- feat: You can now reset a forgotten password from the login page using a 6-digit email code
+- feat: Changing your email on the profile page now uses a secure two-step code verification instead of email links
+- feat: The profile page now lets you change your email, update your password, and delete your account
+- feat: Profile page has a new card-based layout with separate sections for each setting
+- fix: The column stepper no longer lets you shrink to absurdly few columns on wide screens — the minimum now scales with your screen size
+- fix: The card grid now shows a "Couldn't load cards" message with a retry button when data fails to load, instead of "No cards found"
+- fix: Empty filter sections no longer show bare headings when no cards are loaded
+- fix: The column plus/minus buttons no longer start disabled when you first open the page
+
+## 2026-03-02
+
+- feat: New accounts now require email verification before signing in, keeping fake signups out
+- feat: The login and signup pages have a fresh design with inline form validation
+- fix: Closing the card detail panel now deselects the card instead of leaving it highlighted
+- fix: The variant filter no longer shows cards that have no variant when filtering by a specific one
+- fix: Prices near the $10k boundary no longer overflow their display space
+- fix: The sticky set header no longer caused a rendering stutter while scrolling
+
+## 2026-02-28
+
+- fix: Tapping a foil card on mobile now properly toggles the tilt effect off again instead of getting stuck
+- fix: Scrollbar drag now ends correctly when your finger slides off the screen edge, instead of getting stuck showing a wrong card number
+- fix: Scrollbar handle text no longer wraps to multiple lines on mobile when dragging
+
+## 2026-02-26
+
+- feat: Your profile page shows your account info and lets you update your display name
+- feat: You can now sign up and sign in with email and password — your account is ready for upcoming collection features
+- feat: Browser back and forward buttons now work correctly between pages
+
+## 2026-02-25
+
+- feat: Filters now show in a persistent sidebar on wide screens (1600px+), so you don't need to open a panel to change them
+- feat: The grid now uses more screen space on ultrawide monitors with new wider layout breakpoints
+- feat: The scroll indicator grows while dragging and snaps more precisely to set boundaries
+- feat: Card data is now served from a real database instead of static files — everything should feel just as fast
+- fix: Drawers now smoothly slide closed when tapping outside or releasing a half-swipe, instead of instantly disappearing
+- fix: The grid no longer jumps when a sticky set header pill appears or when the window is resized
+- fix: The header and footer now stretch to match the content width on wide screens
+- fix: The scroll indicator no longer drifts, resizes, or disappears unexpectedly during and after dragging
+
+## 2026-02-24
+
+- feat: Prices are now color-coded by value — grey for bulk, green for $1–10, amber for $10–50, and rose for $50+
+- feat: Card prices in the grid now always show whether they're normal or foil, even when only one variant exists
+- feat: Tap the card image in the detail view to toggle the holographic foil effect on or off
+- feat: The scroll indicator is now always draggable — no need to enable it in settings
+- feat: The scroll indicator now has an accent dot, a glowing ring, and smartly avoids overlapping other elements
+- feat: Card descriptions and effects now sit in distinct styled panels, with effects tinted in the card's domain color
+- feat: Pricing is now shown as compact chips at the bottom of the card detail instead of a separate block
+- feat: Card thumbnails now load at the right resolution for their display size, saving bandwidth on smaller screens
+- feat: Keywords are now styled inline within card descriptions, with reminder text in italics and proper line breaks
+- feat: The card detail sidebar has a fresh layout with card-accurate keyword styling and clearer type info
+- fix: Prices no longer burst out of small cards — they now wrap, drop labels when narrow, and use a compact format ($25, $1.2k) to fit tight spaces
+- fix: Card IDs in compact view now show as #001 instead of OGS-001, so they fit without clipping
+- fix: Card info below thumbnails no longer gets cut off on narrow columns — the ID, type, and rarity now share a compact row with icons only, and the title gets its own line
+- fix: The column zoom control now resets to auto when you tap the number, and stepping from auto snaps to the next size up or down
+- fix: Dismissing the update popup and then checking for updates again now correctly re-shows the update instead of saying you're on the latest version
+- fix: Tapping a keyword or tag in the card detail now closes the detail pane on mobile so you can see the filtered results
+- fix: The card grid no longer shows 4 columns on mobile when first opened — it now matches your screen size immediately
+- fix: The tilt effect toggle on iOS no longer disappears after denying gyroscope permission
+- fix: Cards without a description no longer show an empty text box in the detail view
+- fix: The 3D tilt effect on cards is now subtler and less exaggerated
+- fix: Sticky set headers now appear as compact floating pills instead of stretching the full width
+
+## 2026-02-23
+
+- feat: Dragging the scroll indicator is now opt-in via "Draggable scroll indicator" in settings
+- feat: Swipe left or right on mobile to browse between cards without closing the detail view
+- feat: Arrow keys navigate between cards when one is selected, and the grid scrolls to keep it in view
+- feat: Mobile filter and changelog panels now support swipe gestures to dismiss
+- feat: Update and offline notifications now appear as toast popups instead of fixed overlays
+- feat: Cards shimmer with a holographic foil effect when you hover them on desktop, or tilt your phone in the detail view
+- feat: The cards-per-row control now lives in the filter bar next to sort, and you can pinch to zoom on mobile
+- feat: You can now set the maximum number of cards per row from the settings menu
+- feat: TCGPlayer price data now shows on cards
+- feat: A draggable scroll indicator with a ghost badge lets you quickly jump between sets
+- feat: The settings menu now shows when an update is available
+- fix: The card detail pane no longer hides behind sticky set headers
+
+## 2026-02-21
+
+- feat: The app works offline and can be installed to your home screen
+- feat: A "What's new" panel in the settings menu shows recent changes
+- feat: A bottom overlay lets you jump to the next set section
+- feat: The settings menu now shows the current build version
+- feat: Tapping the header logo scrolls back to the top
+- feat: A short slogan now shows in the header on mobile
+- feat: Display settings are now in one place on mobile
+- feat: Active filters show with a distinct background and icons
+- feat: You can now flip the sort order with a toggle
+- feat: Tapping a set header scrolls back to the start of that set
+- feat: Each card can show or hide specific fields — ID, title, type, rarity
+- feat: Filters slide up from the bottom on mobile — easier to reach with one hand
+- feat: Cards are grouped by set, with the set name staying visible as you scroll
+- feat: You can now filter by the Signed card variant
+- fix: Tapping a filter quickly no longer accidentally deselects it
+
+## 2026-02-20
+
+- feat: You can filter by card version (Normal, Alt Art, Overnumbered) and search by ID
+- feat: Search works across name, type, and card text — scope chips let you choose which fields to search
+- feat: The card count shows inline in the filter bar
+- feat: Card detail opens as a sidebar — tap any card to see more
+- feat: Cards show rarity, type, and domain icons with domain-based coloring
+- feat: A settings menu gives you access to dark mode and filter controls
+- feat: Cards are sorted by ID by default
+- feat: Cards show real images, with a toggle to rotate to landscape
+- feat: The app uses official Riftbound card data
+- feat: Domain colors match the official icons, including multi-domain cards

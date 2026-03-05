@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+out/
+.wrangler/
+
+# Turbo
+.turbo
+.cache
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# TLS certificates
+certs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+
+# Deploy script (local copy from deploy.sh.example)
+deploy.sh
+
+# Exploration data dumps
+/data/
+
+# TanStack Router (auto-generated)
+routeTree.gen.ts
+
+# Private docs (not for public repo)
+docs-private/
