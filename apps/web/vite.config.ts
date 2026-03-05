@@ -63,6 +63,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,webp,svg,woff,woff2}"],
+        navigateFallbackDenylist: [/\.txt$/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/cmsassets\.rgpub\.io\/.*/i,
