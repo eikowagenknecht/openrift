@@ -29,7 +29,23 @@ Development follows a trunk-based model: all work lands on `main` and immediatel
 
 Feature flags gate longer-lived features that take multiple commits to complete. Flagged code can be pushed to `main`, tested on preview, and kept hidden on stable until it's ready. Once the feature is ready, the flag is removed and the code runs unconditionally.
 
-Flags are defined in `apps/web/src/lib/feature-flags.ts` and controlled by `VITE_FEATURE_*` env vars, which are baked into the web image at build time in GitHub Actions. Preview flags are configured as GitHub repository variables; tag builds use stable flags (or no flags = all disabled).
+Flags are configured at runtime via `FEATURE_*` environment variables — no rebuild needed, just restart the container.
+
+**In the web app** (`apps/web`): The nginx entrypoint script generates `/config.js` from `FEATURE_*` env vars at container start. The SPA loads this before boot. Use the typed helper to check flags:
+
+```ts
+import { featureEnabled } from "@/lib/feature-flags";
+
+if (featureEnabled("FEATURE_AUTH")) { /* ... */ }
+```
+
+**In the API** (`apps/api`): Read env vars directly — the API container already receives all `.env` variables:
+
+```ts
+if (process.env.FEATURE_AUTH === "true") { /* ... */ }
+```
+
+**To add a new flag:** Add `FEATURE_<NAME>=true` to the `web` and/or `api` service `environment` in `docker-compose.yml`, then restart. Values `true`, `1`, and `yes` are truthy; everything else is falsy.
 
 ## How It Works
 

@@ -38,4 +38,5 @@ FROM nginx:alpine AS web
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/web.conf /etc/nginx/conf.d/web.conf
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+COPY apps/web/docker-entrypoint.sh /docker-entrypoint.d/90-feature-flags.sh
 EXPOSE 8080

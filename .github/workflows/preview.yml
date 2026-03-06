@@ -46,8 +46,6 @@ jobs:
           target: web
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/openrift-web:preview
-          build-args: |
-            VITE_FEATURE_AUTH=${{ vars.VITE_FEATURE_AUTH }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
