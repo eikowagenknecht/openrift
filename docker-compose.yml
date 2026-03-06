@@ -28,22 +28,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
-      CORS_ORIGIN: ${CORS_ORIGIN}
-      CRON_ENABLED: ${CRON_ENABLED:-true}
-      CRON_TCGPLAYER: ${CRON_TCGPLAYER:-0 6 * * *}
-      CRON_CARDMARKET: ${CRON_CARDMARKET:-15 6 * * *}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-}
+    env_file:
+      - .env
     ports:
       - "127.0.0.1:${API_PORT:-3001}:3000"
     logging:
