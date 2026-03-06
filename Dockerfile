@@ -24,7 +24,7 @@ RUN bun build --compile --minify-whitespace --minify-syntax \
     --target bun-linux-x64 --outfile /app/api-server apps/api/src/index.ts
 
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
-FROM gcr.io/distroless/base AS api
+FROM gcr.io/distroless/base:nonroot AS api
 
 WORKDIR /app
 COPY --from=build /app/api-server ./api-server
