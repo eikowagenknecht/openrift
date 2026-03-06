@@ -1,5 +1,11 @@
 import type { MappingGroup, MappingPrinting, StagedProduct } from "./price-mappings-types";
 
+/** Minimum score for a product to be suggested as a mapping candidate. */
+export const SUGGESTION_THRESHOLD = 100;
+
+/** Score at or above which a suggestion is considered a strong (high-confidence) match. */
+export const STRONG_MATCH_THRESHOLD = 150;
+
 export interface Suggestion {
   product: StagedProduct;
   score: number;
@@ -131,7 +137,7 @@ export function computeSuggestions(group: MappingGroup): Map<string, Suggestion>
   for (const printing of unmapped) {
     for (const product of available) {
       const score = scorePrintingProduct(printing, product, group.cardName);
-      if (score >= 100) {
+      if (score >= SUGGESTION_THRESHOLD) {
         pairs.push({ printing, product, score });
       }
     }

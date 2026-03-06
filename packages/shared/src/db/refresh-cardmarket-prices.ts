@@ -14,11 +14,9 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import {
-  cmProductUrl,
   fetchJson,
   loadReferenceData,
   logUpsertCounts,
-  reconcileCardmarketStaging,
   toCents,
   upsertCardmarketPriceData,
 } from "./refresh-prices-shared.js";
@@ -62,22 +60,6 @@ interface CmPriceGuide {
 
 export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<void> {
   const ref = await loadReferenceData(db);
-
-  // ── Reconcile staged Cardmarket prices ────────────────────────────────────
-
-  const cmExpansionRows = await db
-    .selectFrom("cardmarket_expansions")
-    .select(["expansion_id", "set_id"])
-    .where("set_id", "is not", null)
-    .execute();
-  const cmExpansionSetMap = new Map<number, string>();
-  for (const row of cmExpansionRows) {
-    if (row.set_id) {
-      cmExpansionSetMap.set(row.expansion_id, row.set_id);
-    }
-  }
-
-  await reconcileCardmarketStaging(db, ref, cmExpansionSetMap);
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
@@ -288,47 +270,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<voi
       // 2. Filter out CM products whose external_ids are already mapped
       const remainingProducts = nameProducts.filter((p) => !mappedExternalIds.has(p.idProduct));
 
-      if (remainingProducts.length === 1 && nameProducts.length === 1) {
-        // Single product for this card name -> auto-match to all unmapped printings
-        const product = remainingProducts[0];
-        const pg = cmPriceById.get(product.idProduct);
-        if (!pg) {
-          continue;
-        }
-
-        for (const finish of ["normal", "foil"] as const) {
-          const marketCents = finish === "foil" ? toCents(pg["avg-foil"]) : toCents(pg.avg);
-          if (marketCents === null) {
-            continue;
-          }
-          const pids = ref.printingsByCardSetFinish.get(`${cardId}|${setId}|${finish}`) || [];
-          if (pids.length > 1) {
-            continue; // Multiple art variants — needs manual mapping
-          }
-          for (const pid of pids) {
-            if (existingCmSources.has(pid)) {
-              continue;
-            } // already mapped above
-            allSources.push({
-              printing_id: pid,
-              external_id: product.idProduct,
-              group_id: product.idExpansion,
-              product_name: product.name,
-              url: cmProductUrl(product.idProduct),
-            });
-            allSnapshots.push({
-              printing_id: pid,
-              recorded_at: cmRecordedAt,
-              market_cents: marketCents,
-              low_cents: finish === "foil" ? toCents(pg["low-foil"]) : toCents(pg.low),
-              trend_cents: finish === "foil" ? toCents(pg["trend-foil"]) : toCents(pg.trend),
-              avg1_cents: finish === "foil" ? toCents(pg["avg1-foil"]) : toCents(pg.avg1),
-              avg7_cents: finish === "foil" ? toCents(pg["avg7-foil"]) : toCents(pg.avg7),
-              avg30_cents: finish === "foil" ? toCents(pg["avg30-foil"]) : toCents(pg.avg30),
-            });
-          }
-        }
-      } else if (remainingProducts.length > 0) {
+      if (remainingProducts.length > 0) {
         // Multiple products for this card name (or multiple remaining) -> stage all (admin UI will resolve)
 
         for (const product of remainingProducts) {

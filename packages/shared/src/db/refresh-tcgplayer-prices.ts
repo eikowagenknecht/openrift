@@ -13,9 +13,7 @@ import { sql } from "kysely";
 
 import {
   fetchJson,
-  loadReferenceData,
   logUpsertCounts,
-  reconcileTcgplayerStaging,
   toCents,
   upsertTcgplayerPriceData,
 } from "./refresh-prices-shared.js";
@@ -57,18 +55,6 @@ interface TcgcsvPrice {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<void> {
-  // ── Reconcile staged TCGplayer prices ──────────────────────────────────────
-
-  const ref = await loadReferenceData(db);
-
-  const dbGroups = await db.selectFrom("tcgplayer_groups").select(["group_id", "set_id"]).execute();
-  const groupSetMap = new Map<number, string | null>();
-  for (const row of dbGroups) {
-    groupSetMap.set(row.group_id, row.set_id);
-  }
-
-  await reconcileTcgplayerStaging(db, ref, groupSetMap);
-
   // ── Collected rows ─────────────────────────────────────────────────────────
 
   const allStaging: TcgplayerStagingRow[] = [];
@@ -102,7 +88,7 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<void
   }
 
   // Build group -> set mapping from DB (refresh for any newly-upserted groups)
-  groupSetMap.clear();
+  const groupSetMap = new Map<number, string | null>();
   const allDbGroups = await db
     .selectFrom("tcgplayer_groups")
     .select(["group_id", "name", "set_id"])

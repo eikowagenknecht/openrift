@@ -42,7 +42,7 @@ import type {
   SourceMappingConfig,
   StagedProduct,
 } from "./price-mappings-types";
-import { computeSuggestions } from "./suggest-mapping";
+import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 import type { Suggestion } from "./suggest-mapping";
 
 // oxlint-disable-next-line no-empty-function -- intentional no-op for non-interactive CardThumbnail
@@ -257,6 +257,8 @@ function CardGroupRow({
   isUnmapping: boolean;
 }) {
   const unmappedCount = group.printings.filter((p) => p.externalId === null).length;
+  const suggestions = computeSuggestions(group);
+  const suggestionCount = suggestions.size;
 
   return (
     <>
@@ -278,7 +280,15 @@ function CardGroupRow({
             </Badge>
           )}
         </TableCell>
-        <TableCell className="text-center">{group.stagedProducts.length}</TableCell>
+        <TableCell className="text-center">
+          {group.stagedProducts.length}
+          {suggestionCount > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1 text-xs text-primary">
+              <WandSparklesIcon className="size-3" />
+              {suggestionCount}
+            </span>
+          )}
+        </TableCell>
       </TableRow>
 
       {isExpanded && (
@@ -311,20 +321,28 @@ function SuggestionButton({
   onClick: () => void;
 }) {
   const sp = suggestion.product;
+  const isStrong = suggestion.score >= STRONG_MATCH_THRESHOLD;
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-primary/40 bg-primary/5 px-2 py-1 text-xs text-primary hover:bg-primary/10 disabled:opacity-50"
+      className={cn(
+        "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs disabled:opacity-50",
+        isStrong
+          ? "border border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
+          : "border border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10",
+      )}
       disabled={disabled}
       onClick={onClick}
     >
       <WandSparklesIcon className="size-3 shrink-0" />
-      <span className="truncate">
-        Assign{" "}
-        <ProductLink config={config} externalId={sp.externalId}>
-          #{sp.externalId}
-        </ProductLink>{" "}
-        · {sp.finish} · {formatCents(sp.marketCents, sp.currency)}
+      <span className="min-w-0">
+        <span className="block truncate font-medium">{sp.productName}</span>
+        <span className="block truncate text-[10px] opacity-70">
+          <ProductLink config={config} externalId={sp.externalId}>
+            #{sp.externalId}
+          </ProductLink>{" "}
+          · {sp.finish} · {formatCents(sp.marketCents, sp.currency)}
+        </span>
       </span>
     </button>
   );
@@ -553,7 +571,8 @@ function ProductSelect({
             <SelectLabel>Staged</SelectLabel>
             {sortedStaged.map((p, i) => (
               <SelectItem key={`s::${p.externalId}::${i}`} value={`${p.externalId}::s${i}`}>
-                #{p.externalId} · {p.finish} · {formatCents(p.marketCents, p.currency)}
+                {p.productName.length > 30 ? `${p.productName.slice(0, 30)}…` : p.productName} ·{" "}
+                {p.finish} · {formatCents(p.marketCents, p.currency)}
               </SelectItem>
             ))}
           </SelectGroup>
@@ -563,7 +582,8 @@ function ProductSelect({
             <SelectLabel>Assigned</SelectLabel>
             {sortedAssigned.map((p, i) => (
               <SelectItem key={`a::${p.externalId}::${i}`} value={`${p.externalId}::a${i}`}>
-                #{p.externalId} · {p.finish} · {formatCents(p.marketCents, p.currency)}
+                {p.productName.length > 30 ? `${p.productName.slice(0, 30)}…` : p.productName} ·{" "}
+                {p.finish} · {formatCents(p.marketCents, p.currency)}
               </SelectItem>
             ))}
           </SelectGroup>
