@@ -22,7 +22,6 @@ export interface UpsertRowCounts {
   new: number;
   updated: number;
   unchanged: number;
-  stale?: number;
 }
 
 export interface UpsertCounts {
@@ -64,9 +63,6 @@ export function logUpsertCounts(counts: UpsertCounts): void {
   console.log(`  Inserted:  ${inserted.length > 0 ? inserted.join(", ") : "—"}`);
   console.log(`  Updated:   ${updated.length > 0 ? updated.join(", ") : "—"}`);
   console.log(`  Unchanged: ${unchanged.length > 0 ? unchanged.join(", ") : "—"}`);
-  if (counts.staging.stale) {
-    console.log(`  Cleaned:   ${counts.staging.stale} stale staging rows removed`);
-  }
 }
 
 async function countRows(db: Kysely<Database>, table: keyof Database): Promise<number> {
