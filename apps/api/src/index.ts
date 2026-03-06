@@ -17,8 +17,11 @@ import { adminRoute } from "./routes/admin.js";
 import { cardsRoute } from "./routes/cards.js";
 import type { Variables } from "./types.js";
 
+console.log("Starting API server...");
+
 // ── 1. Run migrations (blocks until complete) ───────────────────────────────
 
+console.log("Running migrations...");
 await migrate(db);
 
 // ── 2. Register cron jobs (non-blocking timers) ─────────────────────────────
