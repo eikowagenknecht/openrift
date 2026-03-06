@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -36,6 +37,7 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div"> & { redirectTo?: string; initialEmail?: string }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [emailPlaceholder] = useState(randomEmailPlaceholder);
   const [method, setMethod] = useState<"password" | "otp">("password");
   const [loading, setLoading] = useState(false);
@@ -47,6 +49,8 @@ export function LoginForm({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: initialEmail, password: "" },
   });
+
+  const watchedEmail = form.watch("email");
 
   // OTP state
   const [otpEmail, setOtpEmail] = useState(initialEmail);
@@ -68,6 +72,7 @@ export function LoginForm({
       setServerError(form, error);
       return;
     }
+    void queryClient.invalidateQueries({ queryKey: ["admin", "me"] });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
@@ -113,6 +118,7 @@ export function LoginForm({
       }
       return;
     }
+    void queryClient.invalidateQueries({ queryKey: ["admin", "me"] });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
@@ -185,7 +191,7 @@ export function LoginForm({
                         <FieldLabel htmlFor={field.name}>Password</FieldLabel>
                         <Link
                           to="/reset-password"
-                          search={{ email: form.getValues("email") }}
+                          search={{ email: watchedEmail }}
                           className="ml-auto text-sm underline-offset-2 hover:underline"
                         >
                           Forgot your password?
@@ -256,7 +262,7 @@ export function LoginForm({
                     to="/signup"
                     search={{
                       redirect: redirectTo === "/" ? undefined : redirectTo,
-                      email: form.getValues("email") || undefined,
+                      email: watchedEmail || undefined,
                     }}
                   >
                     Sign up
