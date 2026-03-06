@@ -172,7 +172,7 @@ function ResetPasswordPage() {
             <p className="text-muted-foreground text-sm">
               <Link
                 to="/login"
-                search={{ redirect: undefined, email: undefined }}
+                search={{ redirect: undefined, email: email.trim() || undefined }}
                 className="underline underline-offset-2"
               >
                 Back to login
