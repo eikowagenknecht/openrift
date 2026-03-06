@@ -77,9 +77,6 @@ export default defineConfig({
               cacheableResponse: {
                 statuses: [0, 200],
               },
-              fetchOptions: {
-                mode: "cors",
-              },
             },
           },
         ],
