@@ -415,9 +415,9 @@ export function CardGrid({
   // Drag move/up handlers. On desktop these fire on the indicator element
   // itself (via setPointerCapture). On touch they use document-level
   // TouchEvent listeners because mobile WebKit's PointerEvent is unreliable.
-  // eslint-disable-next-line no-empty-function
+  // oxlint-disable-next-line no-empty-function
   const handleMoveRef = useRef((_clientY: number) => {});
-  // eslint-disable-next-line no-empty-function
+  // oxlint-disable-next-line no-empty-function
   const handleUpRef = useRef(() => {});
   useEffect(() => {
     const handleMove = (clientY: number) => {

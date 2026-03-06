@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- CLI helper */
+/* oxlint-disable no-console -- CLI helper */
 
 /**
  * Shared helpers for the TCGPlayer and Cardmarket price refresh scripts.

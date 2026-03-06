@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- CLI script */
+/* oxlint-disable no-console -- CLI script */
 
 import type { Kysely } from "kysely";
 import { Migrator } from "kysely";

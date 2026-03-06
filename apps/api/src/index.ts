@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- server startup logging */
+/* oxlint-disable no-console -- server startup logging */
 
 import { migrate } from "@openrift/shared/db/migrate";
 import { refreshCardmarketPrices } from "@openrift/shared/db/refresh-cardmarket-prices";

@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- CLI helper */
+/* oxlint-disable no-console -- CLI helper */
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";

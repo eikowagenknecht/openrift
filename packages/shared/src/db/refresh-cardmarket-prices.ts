@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- CLI script */
+/* oxlint-disable no-console -- CLI script */
 
 /**
  * Refreshes Cardmarket price data from the Cardmarket product catalog API.

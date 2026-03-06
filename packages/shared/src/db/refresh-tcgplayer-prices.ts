@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- CLI script */
+/* oxlint-disable no-console -- CLI script */
 
 /**
  * Refreshes TCGPlayer price data from the TCGCSV API.
