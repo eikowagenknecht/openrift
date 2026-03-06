@@ -20,5 +20,5 @@ pre-commit:
       root: "apps/web/"
       run: bunx eslint --no-warn-ignored '{staged_files}'
     oxfmt-fix:
-      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
+      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,md}"
       run: bunx oxfmt '{staged_files}' && git update-index --again
