@@ -10,13 +10,6 @@ const transporter = createTransport({
   },
 });
 
-// Warm the SMTP connection so the first email doesn't race against signup
-try {
-  await transporter.verify();
-} catch (error) {
-  console.error("[email] SMTP connection failed:", error);
-}
-
 export async function sendEmail({
   to,
   subject,
