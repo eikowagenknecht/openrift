@@ -1,7 +1,7 @@
 import type { MappingGroup, MappingPrinting, StagedProduct } from "./price-mappings-types";
 
 /** Minimum score for a product to be suggested as a mapping candidate. */
-export const SUGGESTION_THRESHOLD = 100;
+const SUGGESTION_THRESHOLD = 100;
 
 /** Score at or above which a suggestion is considered a strong (high-confidence) match. */
 export const STRONG_MATCH_THRESHOLD = 150;

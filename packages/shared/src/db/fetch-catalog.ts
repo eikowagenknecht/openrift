@@ -4,7 +4,7 @@ import type { CardArt, CardStats, CardType, Rarity } from "../types.js";
 
 // ── Public types ────────────────────────────────────────────────────────────
 
-export interface GameCard {
+interface GameCard {
   name: string;
   type: CardType;
   superTypes: string[];
@@ -17,7 +17,7 @@ export interface GameCard {
   tags: string[];
 }
 
-export interface PrintingData {
+interface PrintingData {
   sourceId: string;
   cardId: string;
   set: string;
@@ -32,13 +32,13 @@ export interface PrintingData {
   printedEffectText: string;
 }
 
-export interface SetData {
+interface SetData {
   id: string;
   name: string;
   printedTotal: number;
 }
 
-export interface CardsJson {
+interface CardsJson {
   sets: SetData[];
   cards: Record<string, GameCard>;
   printings: PrintingData[];

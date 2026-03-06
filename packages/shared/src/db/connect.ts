@@ -5,8 +5,6 @@ import postgres from "postgres";
 
 import type { Database } from "./types.js";
 
-export { sql } from "kysely";
-
 /**
  * Creates a Kysely instance from DATABASE_URL, or exits with an error.
  *

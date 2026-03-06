@@ -102,8 +102,8 @@ export const refreshActions = {
   },
 } as const;
 
-export type RefreshActionKey = keyof typeof refreshActions;
-export type RefreshAction = (typeof refreshActions)[RefreshActionKey];
+type RefreshActionKey = keyof typeof refreshActions;
+type RefreshAction = (typeof refreshActions)[RefreshActionKey];
 
 export const clearActions = {
   tcgplayer: {
@@ -120,8 +120,8 @@ export const clearActions = {
   },
 } as const;
 
-export type ClearActionKey = keyof typeof clearActions;
-export type ClearAction = (typeof clearActions)[ClearActionKey];
+type ClearActionKey = keyof typeof clearActions;
+type ClearAction = (typeof clearActions)[ClearActionKey];
 
 // ── Hook ────────────────────────────────────────────────────────────────────
 
