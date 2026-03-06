@@ -173,24 +173,24 @@ export function FilterBar({
     }
   }, [debouncedSearch, filterState.search, onSearchChange]);
 
-  const filterSections = (
-    <FilterPanelContent
-      availableFilters={availableFilters}
-      filterState={filterState}
-      energyRange={energyRange}
-      mightRange={mightRange}
-      powerRange={powerRange}
-      priceRange={priceRange}
-      onToggleFilter={onToggleFilter}
-      onToggleSigned={onToggleSigned}
-      onTogglePromo={onTogglePromo}
-      onEnergyRangeChange={onEnergyRangeChange}
-      onMightRangeChange={onMightRangeChange}
-      onPowerRangeChange={onPowerRangeChange}
-      onPriceRangeChange={onPriceRangeChange}
-      setDisplayLabel={setDisplayLabel}
-    />
-  );
+  const filterPanelProps = {
+    availableFilters,
+    filterState,
+    energyRange,
+    mightRange,
+    powerRange,
+    priceRange,
+    onToggleFilter,
+    onToggleSigned,
+    onTogglePromo,
+    onEnergyRangeChange,
+    onMightRangeChange,
+    onPowerRangeChange,
+    onPriceRangeChange,
+    setDisplayLabel,
+  };
+
+  const filterSections = <FilterPanelContent {...filterPanelProps} layout="drawer" />;
 
   const unitLabel = view === "cards" ? "cards" : "printings";
   const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
@@ -386,7 +386,9 @@ export function FilterBar({
       </div>
 
       {/* Desktop: inline filter sections (hidden at wide breakpoint where sidebar takes over) */}
-      <div className="hidden flex-wrap gap-4 sm:flex wide:hidden">{filterSections}</div>
+      <div className="hidden flex-wrap gap-4 sm:flex wide:hidden">
+        <FilterPanelContent {...filterPanelProps} />
+      </div>
 
       {/* Mobile: bottom drawer with sort, display, and filter sections */}
       <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -544,6 +546,7 @@ export interface FilterPanelContentProps {
   onPowerRangeChange: FilterBarProps["onPowerRangeChange"];
   onPriceRangeChange: FilterBarProps["onPriceRangeChange"];
   setDisplayLabel?: (code: string) => string;
+  layout?: "inline" | "drawer";
 }
 
 export function FilterPanelContent({
@@ -561,6 +564,7 @@ export function FilterPanelContent({
   onPowerRangeChange,
   onPriceRangeChange,
   setDisplayLabel,
+  layout = "inline",
 }: FilterPanelContentProps) {
   return (
     <>
@@ -570,6 +574,7 @@ export function FilterPanelContent({
         selected={filterState.sets}
         onToggle={(v) => onToggleFilter("sets", v)}
         displayLabel={setDisplayLabel}
+        layout={layout}
       />
       <FilterSection
         label="Domain"
@@ -578,6 +583,7 @@ export function FilterPanelContent({
         onToggle={(v) => onToggleFilter("domains", v)}
         iconPath={(v) => getFilterIconPath("domains", v)}
         displayLabel={formatDomainFilterLabel}
+        layout={layout}
       />
       <FilterSection
         label="Type"
@@ -585,6 +591,7 @@ export function FilterPanelContent({
         selected={filterState.types}
         onToggle={(v) => onToggleFilter("types", v)}
         iconPath={(v) => getFilterIconPath("types", v)}
+        layout={layout}
       />
       {availableFilters.superTypes.length > 0 && (
         <FilterSection
@@ -593,6 +600,7 @@ export function FilterPanelContent({
           selected={filterState.superTypes}
           onToggle={(v) => onToggleFilter("superTypes", v)}
           iconPath={(v) => getFilterIconPath("superTypes", v)}
+          layout={layout}
         />
       )}
       <FilterSection
@@ -601,6 +609,7 @@ export function FilterPanelContent({
         selected={filterState.rarities}
         onToggle={(v) => onToggleFilter("rarities", v)}
         iconPath={(v) => getFilterIconPath("rarities", v)}
+        layout={layout}
       />
       {availableFilters.artVariants.length > 1 && (
         <FilterSection
@@ -609,6 +618,7 @@ export function FilterPanelContent({
           selected={filterState.artVariants}
           onToggle={(v) => onToggleFilter("artVariants", v)}
           displayLabel={(v) => ART_VARIANT_LABELS[v] ?? v}
+          layout={layout}
         />
       )}
       {availableFilters.finishes.length > 1 && (
@@ -618,11 +628,16 @@ export function FilterPanelContent({
           selected={filterState.finishes}
           onToggle={(v) => onToggleFilter("finishes", v)}
           displayLabel={(v) => FINISH_LABELS[v] ?? v}
+          layout={layout}
         />
       )}
       {(availableFilters.hasSigned || availableFilters.hasPromo) && (
-        <div className="flex min-w-0 gap-2 sm:block sm:space-y-1.5">
-          <p className="w-16 shrink-0 pt-1 text-xs font-medium text-muted-foreground sm:w-auto sm:pt-0">
+        <div className={layout === "drawer" ? "flex min-w-0 gap-2" : "block space-y-1.5"}>
+          <p
+            className={`text-xs font-medium text-muted-foreground ${
+              layout === "drawer" ? "w-16 shrink-0 pt-1" : ""
+            }`}
+          >
             Special
           </p>
           <div className="flex flex-1 flex-wrap gap-1">
@@ -647,7 +662,9 @@ export function FilterPanelContent({
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+      <div
+        className={layout === "drawer" ? "flex flex-col gap-3" : "flex flex-row flex-wrap gap-4"}
+      >
         {availableFilters.energyMin !== availableFilters.energyMax && (
           <RangeFilterSection
             label="Energy"
@@ -656,6 +673,7 @@ export function FilterPanelContent({
             selectedMin={energyRange[0]}
             selectedMax={energyRange[1]}
             onChange={onEnergyRangeChange}
+            layout={layout}
           />
         )}
         {availableFilters.mightMin !== availableFilters.mightMax && (
@@ -666,6 +684,7 @@ export function FilterPanelContent({
             selectedMin={mightRange[0]}
             selectedMax={mightRange[1]}
             onChange={onMightRangeChange}
+            layout={layout}
           />
         )}
         {availableFilters.powerMin !== availableFilters.powerMax && (
@@ -676,6 +695,7 @@ export function FilterPanelContent({
             selectedMin={powerRange[0]}
             selectedMax={powerRange[1]}
             onChange={onPowerRangeChange}
+            layout={layout}
           />
         )}
         {availableFilters.priceMax > 0 && (
@@ -688,6 +708,7 @@ export function FilterPanelContent({
             onChange={onPriceRangeChange}
             step={1}
             formatValue={(v) => `$${v}`}
+            layout={layout}
           />
         )}
       </div>
@@ -704,6 +725,7 @@ function RangeFilterSection({
   onChange,
   step = 1,
   formatValue,
+  layout = "inline",
 }: {
   label: string;
   availableMin: number;
@@ -713,15 +735,20 @@ function RangeFilterSection({
   onChange: (min: number | null, max: number | null) => void;
   step?: number;
   formatValue?: (value: number) => string;
+  layout?: "inline" | "drawer";
 }) {
   const resolvedMin = selectedMin ?? availableMin;
   const resolvedMax = selectedMax ?? availableMax;
   const fmt = formatValue ?? String;
 
   return (
-    <div className="flex min-w-0 items-center gap-2 sm:block sm:space-y-1.5">
-      <p className="w-16 shrink-0 text-xs font-medium text-muted-foreground sm:w-auto">{label}</p>
-      <div className="flex flex-1 items-center gap-1.5 sm:w-36 sm:flex-initial">
+    <div className={layout === "drawer" ? "flex min-w-0 items-center gap-2" : "block space-y-1.5"}>
+      <p
+        className={`text-xs font-medium text-muted-foreground ${layout === "drawer" ? "w-16 shrink-0" : ""}`}
+      >
+        {label}
+      </p>
+      <div className={`flex items-center gap-1.5 ${layout === "drawer" ? "flex-1" : "w-36"}`}>
         <span className="shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
           {fmt(resolvedMin)}
         </span>
@@ -756,6 +783,7 @@ function FilterSection({
   onToggle,
   iconPath,
   displayLabel,
+  layout = "inline",
 }: {
   label: string;
   options: string[];
@@ -763,14 +791,19 @@ function FilterSection({
   onToggle: (value: string) => void;
   iconPath?: (value: string) => string | undefined;
   displayLabel?: (value: string) => string;
+  layout?: "inline" | "drawer";
 }) {
   if (options.length === 0) {
     return null;
   }
 
   return (
-    <div className="flex min-w-0 gap-2 sm:block sm:space-y-1.5">
-      <p className="w-16 shrink-0 pt-1 text-xs font-medium text-muted-foreground sm:w-auto sm:pt-0">
+    <div className={layout === "drawer" ? "flex min-w-0 gap-2" : "block space-y-1.5"}>
+      <p
+        className={`text-xs font-medium text-muted-foreground ${
+          layout === "drawer" ? "w-16 shrink-0 pt-1" : ""
+        }`}
+      >
         {label}
       </p>
       <div className="flex flex-1 flex-wrap gap-1">
