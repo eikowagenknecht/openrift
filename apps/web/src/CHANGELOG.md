@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-03-06
+
+- fix: The email you typed on the login page now carries over when you click "Forgot your password?" or navigate back
+- fix: Signing up no longer hangs when the mail server is slow to respond
+
 ## 2026-03-05
 
 - feat: Cardmarket prices now show as a badge in the card detail view and version list
