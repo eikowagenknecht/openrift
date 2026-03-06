@@ -146,17 +146,19 @@ export function computeSuggestions(group: MappingGroup): Map<string, Suggestion>
   // Sort descending by score
   pairs.sort((a, b) => b.score - a.score);
 
-  // Greedy assignment
+  // Greedy assignment — key products by externalId+finish since the same
+  // externalId can appear as separate staged rows for normal and foil.
   const usedPrintings = new Set<string>();
-  const usedProducts = new Set<number>();
+  const usedProducts = new Set<string>();
   const suggestions = new Map<string, Suggestion>();
 
   for (const { printing, product, score } of pairs) {
-    if (usedPrintings.has(printing.printingId) || usedProducts.has(product.externalId)) {
+    const productKey = `${product.externalId}|${product.finish}`;
+    if (usedPrintings.has(printing.printingId) || usedProducts.has(productKey)) {
       continue;
     }
     usedPrintings.add(printing.printingId);
-    usedProducts.add(product.externalId);
+    usedProducts.add(productKey);
     suggestions.set(printing.printingId, { product, score });
   }
 

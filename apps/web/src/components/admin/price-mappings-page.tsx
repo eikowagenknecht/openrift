@@ -329,10 +329,10 @@ function CardGroupRow({
         <TableCell className="text-center">
           {group.stagedProducts.length}
           {suggestionCount > 0 && (
-            <span className="ml-2 inline-flex items-center gap-1 text-xs text-primary">
+            <Badge className="ml-2 border-primary/30 bg-primary/10 text-primary">
               <WandSparklesIcon className="size-3" />
-              {suggestionCount}
-            </span>
+              {suggestionCount} suggested
+            </Badge>
           )}
         </TableCell>
       </TableRow>
@@ -372,7 +372,7 @@ function SuggestionButton({
     <button
       type="button"
       className={cn(
-        "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs disabled:opacity-50",
+        "flex w-full items-center rounded-md px-2 py-1.5 text-xs disabled:opacity-50",
         isStrong
           ? "border border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
           : "border border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10",
@@ -380,15 +380,20 @@ function SuggestionButton({
       disabled={disabled}
       onClick={onClick}
     >
-      <WandSparklesIcon className="size-3 shrink-0" />
-      <span className="min-w-0">
-        <span className="block truncate font-medium">{sp.productName}</span>
-        <span className="block truncate text-[10px] opacity-70">
+      <span className="min-w-0 flex-1 text-left">
+        <span className="flex items-center gap-1 truncate font-medium">
+          <WandSparklesIcon className="size-3 shrink-0" />
+          {sp.productName}
+        </span>
+        <span className="block truncate text-xs opacity-80 pl-4">
+          {sp.finish} ·{" "}
           <ProductLink config={config} externalId={sp.externalId}>
             #{sp.externalId}
-          </ProductLink>{" "}
-          · {sp.finish} · {formatCents(sp.marketCents, sp.currency)}
+          </ProductLink>
         </span>
+      </span>
+      <span className="shrink-0 text-sm font-semibold tabular-nums">
+        {formatCents(sp.marketCents, sp.currency)}
       </span>
     </button>
   );
