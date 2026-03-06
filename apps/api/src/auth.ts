@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
 
 import { matchOrigin } from "./cors.js";
-import { dialect } from "./db.js";
+import { db, dialect } from "./db.js";
 import { sendEmail } from "./email.js";
 
 export const auth = betterAuth({
@@ -129,6 +129,22 @@ export const auth = betterAuth({
       updatedAt: "updated_at",
     },
     modelName: "verifications",
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        async after(user) {
+          const adminEmail = process.env.ADMIN_EMAIL;
+          if (adminEmail && user.email === adminEmail) {
+            await db
+              .insertInto("admins")
+              .values({ user_id: user.id })
+              .onConflict((oc) => oc.column("user_id").doNothing())
+              .execute();
+          }
+        },
+      },
+    },
   },
   trustedOrigins: (request) => {
     const origin = request?.headers.get("origin");
