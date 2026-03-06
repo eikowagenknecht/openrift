@@ -56,7 +56,7 @@ mock.module("./auth.js", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- mock.module must come before imports
-import app from "./index";
+import { app } from "./index";
 
 // ---------------------------------------------------------------------------
 // GET /api/health
