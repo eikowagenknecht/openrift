@@ -32,6 +32,7 @@ import {
 import {
   usePriceMappings,
   useSavePriceMappings,
+  useUnmapAllMappings,
   useUnmapPrinting,
 } from "@/hooks/use-price-mappings";
 import { cn } from "@/lib/utils";
@@ -113,7 +114,9 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   const { data, isLoading, error } = usePriceMappings(config, showAll);
   const saveMutation = useSavePriceMappings(config);
   const unmapMutation = useUnmapPrinting(config);
+  const unmapAllMutation = useUnmapAllMappings(config);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [confirmUnmapAll, setConfirmUnmapAll] = useState(false);
 
   const toggleExpanded = (cardId: string) => {
     setExpandedCards((prev) => {
@@ -160,6 +163,44 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
             : `${groups.length} card${groups.length === 1 ? "" : "s"} with ${showAll ? `${config.shortName} mappings or` : ""} staged ${config.shortName} products`}
         </p>
         <div className="flex items-center gap-2">
+          {showAll && !confirmUnmapAll && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmUnmapAll(true)}
+              disabled={unmapAllMutation.isPending}
+            >
+              <Undo2Icon />
+              Unmap all
+            </Button>
+          )}
+          {confirmUnmapAll && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-destructive">
+                Unmap all {config.shortName} mappings?
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  unmapAllMutation.mutate(undefined, {
+                    onSettled: () => setConfirmUnmapAll(false),
+                  });
+                }}
+                disabled={unmapAllMutation.isPending}
+              >
+                {unmapAllMutation.isPending ? "Unmapping…" : "Confirm"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmUnmapAll(false)}
+                disabled={unmapAllMutation.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
           <Button
             variant={showAll ? "default" : "outline"}
             size="sm"
@@ -174,6 +215,11 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
         {saveMutation.isError && (
           <div className="mb-4">
             <span className="text-destructive text-sm">{saveMutation.error.message}</span>
+          </div>
+        )}
+        {unmapAllMutation.isError && (
+          <div className="mb-4">
+            <span className="text-destructive text-sm">{unmapAllMutation.error.message}</span>
           </div>
         )}
 

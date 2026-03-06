@@ -52,6 +52,7 @@ adminRoute.get("/admin/me", async (c) => {
 
 function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
   app.use(path, requireAdmin);
+  app.use(`${path}/all`, requireAdmin);
 
   // ── GET ──────────────────────────────────────────────────────────────────
 
@@ -538,12 +539,72 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
 
     return c.json({ ok: true });
   });
+
+  // ── DELETE /all — unmap every printing, return all to staging ────────────
+
+  app.delete(`${path}/all`, async (c) => {
+    let unmapped = 0;
+
+    const sources = await db
+      .selectFrom("tcgplayer_sources")
+      .selectAll()
+      .where("external_id", "is not", null)
+      .execute();
+
+    for (const ps of sources) {
+      const externalId = ps.external_id;
+      if (externalId === null) {
+        continue;
+      }
+
+      await db.transaction().execute(async (tx) => {
+        const printing = await tx
+          .selectFrom("printings as p")
+          .innerJoin("cards as c", "c.id", "p.card_id")
+          .select(["p.set_id", "p.finish", "c.name as card_name"])
+          .where("p.id", "=", ps.printing_id)
+          .executeTakeFirstOrThrow();
+
+        const snapshots = await tx
+          .selectFrom("tcgplayer_snapshots")
+          .selectAll()
+          .where("source_id", "=", ps.id)
+          .execute();
+
+        for (const snap of snapshots) {
+          await tx
+            .insertInto("tcgplayer_staging")
+            .values({
+              set_id: printing.set_id,
+              external_id: externalId,
+              product_name: printing.card_name,
+              finish: printing.finish,
+              recorded_at: snap.recorded_at,
+              market_cents: snap.market_cents,
+              low_cents: snap.low_cents,
+              mid_cents: snap.mid_cents,
+              high_cents: snap.high_cents,
+            })
+            .onConflict((oc) => oc.columns(["external_id", "finish", "recorded_at"]).doNothing())
+            .execute();
+        }
+
+        await tx.deleteFrom("tcgplayer_snapshots").where("source_id", "=", ps.id).execute();
+        await tx.deleteFrom("tcgplayer_sources").where("id", "=", ps.id).execute();
+      });
+
+      unmapped++;
+    }
+
+    return c.json({ ok: true, unmapped });
+  });
 }
 
 // ── Cardmarket mapping routes ────────────────────────────────────────────────
 
 function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
   app.use(path, requireAdmin);
+  app.use(`${path}/all`, requireAdmin);
 
   // ── GET ──────────────────────────────────────────────────────────────────
 
@@ -1029,6 +1090,67 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
     });
 
     return c.json({ ok: true });
+  });
+
+  // ── DELETE /all — unmap every printing, return all to staging ────────────
+
+  app.delete(`${path}/all`, async (c) => {
+    let unmapped = 0;
+
+    const sources = await db
+      .selectFrom("cardmarket_sources")
+      .selectAll()
+      .where("external_id", "is not", null)
+      .execute();
+
+    for (const ps of sources) {
+      const externalId = ps.external_id;
+      if (externalId === null) {
+        continue;
+      }
+
+      await db.transaction().execute(async (tx) => {
+        const printing = await tx
+          .selectFrom("printings as p")
+          .innerJoin("cards as c", "c.id", "p.card_id")
+          .select(["p.set_id", "p.finish", "c.name as card_name"])
+          .where("p.id", "=", ps.printing_id)
+          .executeTakeFirstOrThrow();
+
+        const snapshots = await tx
+          .selectFrom("cardmarket_snapshots")
+          .selectAll()
+          .where("source_id", "=", ps.id)
+          .execute();
+
+        for (const snap of snapshots) {
+          await tx
+            .insertInto("cardmarket_staging")
+            .values({
+              set_id: printing.set_id,
+              external_id: externalId,
+              product_name: printing.card_name,
+              finish: printing.finish,
+              recorded_at: snap.recorded_at,
+              market_cents: snap.market_cents,
+              low_cents: snap.low_cents,
+              trend_cents: snap.trend_cents,
+              avg1_cents: snap.avg1_cents,
+              avg7_cents: snap.avg7_cents,
+              avg30_cents: snap.avg30_cents,
+            })
+            .onConflict((oc) => oc.columns(["external_id", "finish", "recorded_at"]).doNothing())
+            .execute();
+        }
+
+        await tx.deleteFrom("cardmarket_snapshots").where("source_id", "=", ps.id).execute();
+        await tx.deleteFrom("cardmarket_sources").where("id", "=", ps.id).execute();
+      });
+
+      unmapped++;
+    }
+
+    return c.json({ ok: true, unmapped });
   });
 }
 

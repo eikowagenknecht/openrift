@@ -61,6 +61,29 @@ export function useSavePriceMappings(config: SourceMappingConfig) {
   });
 }
 
+async function unmapAllMappings(
+  config: SourceMappingConfig,
+): Promise<{ ok: boolean; unmapped: number }> {
+  const res = await fetch(`${API_BASE}${config.apiPath}/all`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to unmap all ${config.shortName} mappings: ${res.status}`);
+  }
+  return res.json() as Promise<{ ok: boolean; unmapped: number }>;
+}
+
+export function useUnmapAllMappings(config: SourceMappingConfig) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unmapAllMappings(config),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+    },
+  });
+}
+
 async function unmapPrinting(
   config: SourceMappingConfig,
   printingId: string,
