@@ -19,7 +19,7 @@ export function FilterSidebar(props: FilterSidebarProps) {
       </div>
 
       <div className="space-y-4 pb-4">
-        <FilterPanelContent {...props} />
+        <FilterPanelContent {...props} layout="drawer" />
       </div>
     </aside>
   );
