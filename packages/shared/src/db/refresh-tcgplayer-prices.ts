@@ -17,7 +17,7 @@ import {
   toCents,
   upsertTcgplayerPriceData,
 } from "./refresh-prices-shared.js";
-import type { TcgplayerStagingRow } from "./refresh-prices-shared.js";
+import type { PriceRefreshResult, TcgplayerStagingRow } from "./refresh-prices-shared.js";
 import type { Database } from "./types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ interface TcgcsvPrice {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
-export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<void> {
+export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<PriceRefreshResult> {
   // ── Collected rows ─────────────────────────────────────────────────────────
 
   const allStaging: TcgplayerStagingRow[] = [];
@@ -179,6 +179,17 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<void
   const counts = await upsertTcgplayerPriceData(db, [], [], allStaging);
 
   logUpsertCounts(counts);
+
+  return {
+    fetched: {
+      groups: groups.length,
+      mapped: mappedCount,
+      unmapped: unmappedCount,
+      products: totalProducts,
+      prices: allStaging.length,
+    },
+    upserted: counts,
+  };
 }
 
 if (import.meta.main) {

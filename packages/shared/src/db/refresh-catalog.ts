@@ -49,13 +49,78 @@ function getFinishes(
   return ["foil"];
 }
 
-export async function refreshCatalog(db: Kysely<Database>): Promise<void> {
+export interface CatalogChange {
+  kind: "added" | "updated" | "stale";
+  entity: "set" | "card" | "printing";
+  id: string;
+  name?: string;
+  fields?: string[];
+}
+
+export interface CatalogRefreshResult {
+  sets: { total: number; names: string[] };
+  cards: { total: number };
+  printings: { total: number };
+  changes: CatalogChange[];
+}
+
+export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefreshResult> {
   const data = await fetchCatalog();
+  const changes: CatalogChange[] = [];
 
   console.log("Seeding database...");
 
+  // ── Snapshot existing data for change detection ─────────────────────────────
+  const setRows = await db.selectFrom("sets").select(["id", "name", "printed_total"]).execute();
+  const existingSets = new Map(setRows.map((r) => [r.id, r]));
+
+  const cardRows = await db
+    .selectFrom("cards")
+    .select([
+      "id",
+      "name",
+      "type",
+      "super_types",
+      "domains",
+      "might",
+      "energy",
+      "power",
+      "might_bonus",
+      "keywords",
+      "rules_text",
+      "effect_text",
+      "tags",
+    ])
+    .execute();
+  const existingCards = new Map(cardRows.map((r) => [r.id, r]));
+
+  const printingRows_ = await db.selectFrom("printings").select("id").execute();
+  const existingPrintingIds = new Set(printingRows_.map((r) => r.id));
+
   // ── Sets ───────────────────────────────────────────────────────────────────
   for (const set of data.sets) {
+    const existing = existingSets.get(set.id);
+    if (existing) {
+      const changed: string[] = [];
+      if (existing.name !== set.name) {
+        changed.push("name");
+      }
+      if (existing.printed_total !== set.printedTotal) {
+        changed.push("printed_total");
+      }
+      if (changed.length > 0) {
+        changes.push({
+          kind: "updated",
+          entity: "set",
+          id: set.id,
+          name: set.name,
+          fields: changed,
+        });
+      }
+    } else {
+      changes.push({ kind: "added", entity: "set", id: set.id, name: set.name });
+    }
+
     await db
       .insertInto("sets")
       .values({
@@ -76,6 +141,52 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<void> {
 
   // ── Game cards ─────────────────────────────────────────────────────────────
   for (const [id, card] of Object.entries(data.cards)) {
+    const existing = existingCards.get(id);
+    if (existing) {
+      const changed: string[] = [];
+      if (existing.name !== card.name) {
+        changed.push("name");
+      }
+      if (existing.type !== card.type) {
+        changed.push("type");
+      }
+      if (JSON.stringify(existing.super_types) !== JSON.stringify(card.superTypes)) {
+        changed.push("super_types");
+      }
+      if (JSON.stringify(existing.domains) !== JSON.stringify(card.domains)) {
+        changed.push("domains");
+      }
+      if (existing.might !== card.stats.might) {
+        changed.push("might");
+      }
+      if (existing.energy !== card.stats.energy) {
+        changed.push("energy");
+      }
+      if (existing.power !== card.stats.power) {
+        changed.push("power");
+      }
+      if (existing.might_bonus !== card.mightBonus) {
+        changed.push("might_bonus");
+      }
+      if (JSON.stringify(existing.keywords) !== JSON.stringify(card.keywords)) {
+        changed.push("keywords");
+      }
+      if (existing.rules_text !== card.rulesText) {
+        changed.push("rules_text");
+      }
+      if (existing.effect_text !== card.effectText) {
+        changed.push("effect_text");
+      }
+      if (JSON.stringify(existing.tags) !== JSON.stringify(card.tags)) {
+        changed.push("tags");
+      }
+      if (changed.length > 0) {
+        changes.push({ kind: "updated", entity: "card", id, name: card.name, fields: changed });
+      }
+    } else {
+      changes.push({ kind: "added", entity: "card", id, name: card.name });
+    }
+
     await db
       .insertInto("cards")
       .values({
@@ -179,6 +290,13 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<void> {
       .execute();
   }
 
+  // Track new printings
+  for (const row of printingRows) {
+    if (!existingPrintingIds.has(row.id)) {
+      changes.push({ kind: "added", entity: "printing", id: row.id });
+    }
+  }
+
   console.log(`  ✓ Printings: ${printingRows.length} rows`);
 
   // ── Stale row detection ───────────────────────────────────────────────────
@@ -186,31 +304,41 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<void> {
   const seedCardIds = new Set(Object.keys(data.cards));
   const seedPrintingIds = new Set(printingRows.map((r) => r.id));
 
-  const dbSets = await db.selectFrom("sets").select("id").execute();
-  const staleSets = dbSets.filter((r) => !seedSetIds.has(r.id));
+  const staleSets = [...existingSets.keys()].filter((id) => !seedSetIds.has(id));
+  const staleCards = [...existingCards.keys()].filter((id) => !seedCardIds.has(id));
+  const stalePrintings = [...existingPrintingIds].filter((id) => !seedPrintingIds.has(id));
 
-  const dbCards = await db.selectFrom("cards").select("id").execute();
-  const staleCards = dbCards.filter((r) => !seedCardIds.has(r.id));
-
-  const dbPrintings = await db.selectFrom("printings").select("id").execute();
-  const stalePrintings = dbPrintings.filter((r) => !seedPrintingIds.has(r.id));
+  for (const id of staleSets) {
+    changes.push({ kind: "stale", entity: "set", id, name: existingSets.get(id)?.name });
+  }
+  for (const id of staleCards) {
+    changes.push({ kind: "stale", entity: "card", id, name: existingCards.get(id)?.name });
+  }
+  for (const id of stalePrintings) {
+    changes.push({ kind: "stale", entity: "printing", id });
+  }
 
   if (staleSets.length > 0 || staleCards.length > 0 || stalePrintings.length > 0) {
     console.log("\n⚠ Stale rows (in DB but not in seed data):");
     if (staleSets.length > 0) {
-      console.log(`  Sets (${staleSets.length}): ${staleSets.map((r) => r.id).join(", ")}`);
+      console.log(`  Sets (${staleSets.length}): ${staleSets.join(", ")}`);
     }
     if (staleCards.length > 0) {
-      console.log(`  Cards (${staleCards.length}): ${staleCards.map((r) => r.id).join(", ")}`);
+      console.log(`  Cards (${staleCards.length}): ${staleCards.join(", ")}`);
     }
     if (stalePrintings.length > 0) {
-      console.log(
-        `  Printings (${stalePrintings.length}): ${stalePrintings.map((r) => r.id).join(", ")}`,
-      );
+      console.log(`  Printings (${stalePrintings.length}): ${stalePrintings.join(", ")}`);
     }
   }
 
   console.log("\nRefresh complete.");
+
+  return {
+    sets: { total: data.sets.length, names: data.sets.map((s) => s.name) },
+    cards: { total: Object.keys(data.cards).length },
+    printings: { total: printingRows.length },
+    changes,
+  };
 }
 
 if (import.meta.main) {

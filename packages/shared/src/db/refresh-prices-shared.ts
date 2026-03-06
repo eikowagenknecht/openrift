@@ -30,6 +30,17 @@ export interface UpsertCounts {
   staging: UpsertRowCounts;
 }
 
+export interface PriceRefreshResult {
+  fetched: {
+    groups: number;
+    mapped: number;
+    unmapped: number;
+    products: number;
+    prices: number;
+  };
+  upserted: UpsertCounts;
+}
+
 export function logUpsertCounts(counts: UpsertCounts): void {
   const inserted = [
     counts.sources.new > 0 ? `${counts.sources.new} sources` : null,

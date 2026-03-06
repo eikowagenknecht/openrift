@@ -24,6 +24,7 @@ import type {
   CardmarketSnapshotData,
   CardmarketSourceRow,
   CardmarketStagingRow,
+  PriceRefreshResult,
 } from "./refresh-prices-shared.js";
 import type { Database } from "./types.js";
 
@@ -58,7 +59,7 @@ interface CmPriceGuide {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
-export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<void> {
+export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<PriceRefreshResult> {
   const ref = await loadReferenceData(db);
 
   // ── Collected rows ─────────────────────────────────────────────────────────
@@ -375,6 +376,17 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<voi
   const counts = await upsertCardmarketPriceData(db, allSources, allSnapshots, allStaging);
 
   logUpsertCounts(counts);
+
+  return {
+    fetched: {
+      groups: dbExpansions.length,
+      mapped: cmMappedCount,
+      unmapped: cmUnmappedCount,
+      products: cmSingles.length,
+      prices: cmPriceGuides.length,
+    },
+    upserted: counts,
+  };
 }
 
 if (import.meta.main) {
