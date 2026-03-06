@@ -56,7 +56,10 @@ function DrawerContent({
           {...props}
         >
           <div className="bg-muted mt-4 h-1 w-[100px] rounded-full mx-auto hidden shrink-0 group-data-[swipe-direction=down]/drawer-content:block" />
-          <DrawerPrimitive.Content>{children}</DrawerPrimitive.Content>
+          <DrawerPrimitive.Content className="flex min-h-0 flex-1 flex-col">
+            {children}
+          </DrawerPrimitive.Content>{" "}
+          {/* custom: flex passthrough so children can scroll */}
         </DrawerPrimitive.Popup>
       </DrawerPrimitive.Viewport>
     </DrawerPrimitive.Portal>

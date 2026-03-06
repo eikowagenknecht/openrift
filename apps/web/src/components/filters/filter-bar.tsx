@@ -198,7 +198,7 @@ export function FilterBar({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -263,121 +263,124 @@ export function FilterBar({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
-            <SelectTrigger className="w-full sm:w-[160px]" aria-label="Sort by">
-              <span className="text-muted-foreground">Sort:&nbsp;</span>
-              <SelectValue placeholder="Sort by">
-                {(value: string) => sortOptions.find((o) => o.value === value)?.label ?? value}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Desktop: inline sort, view, columns controls */}
+          <div className="hidden items-center gap-3 sm:flex">
+            <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
+              <SelectTrigger className="w-[160px]" aria-label="Sort by">
+                <span className="text-muted-foreground">Sort:&nbsp;</span>
+                <SelectValue placeholder="Sort by">
+                  {(value: string) => sortOptions.find((o) => o.value === value)?.label ?? value}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
+              title={sortDir === "asc" ? "Ascending" : "Descending"}
+            >
+              {sortDir === "asc" ? (
+                <ArrowDownNarrowWide className="size-4" />
+              ) : (
+                <ArrowUpNarrowWide className="size-4" />
+              )}
+            </Button>
+
+            {/* View mode toggle */}
+            <ButtonGroup aria-label="View mode">
+              <Button
+                variant={view === "cards" ? "default" : "outline"}
+                size="icon"
+                onClick={() => onViewChange("cards")}
+                title="One per card"
+              >
+                <Square className="size-4" />
+              </Button>
+              <Button
+                variant={view === "printings" ? "default" : "outline"}
+                size="icon"
+                onClick={() => onViewChange("printings")}
+                title="Every printing"
+              >
+                <SquareStack className="size-4" />
+              </Button>
+            </ButtonGroup>
+
+            {/* Columns stepper */}
+            {onMaxColumnsChange && (
+              <ButtonGroup aria-label="Columns">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    if (maxColumns === null) {
+                      const next = autoColumns - 1;
+                      if (next >= minColumns) {
+                        onMaxColumnsChange(next);
+                      }
+                    } else {
+                      if (maxColumns > minColumns) {
+                        onMaxColumnsChange(maxColumns - 1);
+                      }
+                    }
+                  }}
+                  disabled={
+                    (maxColumns !== null && maxColumns <= minColumns) ||
+                    (maxColumns === null && autoColumns <= minColumns)
+                  }
+                  aria-label="Fewer columns"
+                >
+                  <Minus className="size-4" />
+                </Button>
+                <ButtonGroupText
+                  className="min-w-10 cursor-pointer justify-center tabular-nums"
+                  onClick={() => {
+                    if (maxColumns !== null) {
+                      onMaxColumnsChange(null);
+                    }
+                  }}
+                  title={maxColumns === null ? "Auto columns" : "Reset to auto"}
+                >
+                  {maxColumns === null ? "Auto" : maxColumns}
+                </ButtonGroupText>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
+                    if (next <= maxColumnsLimit) {
+                      onMaxColumnsChange(next);
+                    }
+                  }}
+                  disabled={
+                    maxColumns === null
+                      ? autoColumns >= maxColumnsLimit
+                      : maxColumns >= maxColumnsLimit
+                  }
+                  aria-label="More columns"
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </ButtonGroup>
+            )}
+          </div>
+
+          {/* Mobile: icon-only button that opens options drawer */}
           <Button
             variant="outline"
             size="icon"
-            onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
-            title={sortDir === "asc" ? "Ascending" : "Descending"}
-          >
-            {sortDir === "asc" ? (
-              <ArrowDownNarrowWide className="size-4" />
-            ) : (
-              <ArrowUpNarrowWide className="size-4" />
-            )}
-          </Button>
-
-          {/* View mode toggle */}
-          <ButtonGroup aria-label="View mode">
-            <Button
-              variant={view === "cards" ? "default" : "outline"}
-              size="icon"
-              onClick={() => onViewChange("cards")}
-              title="One per card"
-            >
-              <Square className="size-4" />
-            </Button>
-            <Button
-              variant={view === "printings" ? "default" : "outline"}
-              size="icon"
-              onClick={() => onViewChange("printings")}
-              title="Every printing"
-            >
-              <SquareStack className="size-4" />
-            </Button>
-          </ButtonGroup>
-
-          {/* Columns stepper */}
-          {onMaxColumnsChange && (
-            <ButtonGroup aria-label="Columns">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  if (maxColumns === null) {
-                    const next = autoColumns - 1;
-                    if (next >= minColumns) {
-                      onMaxColumnsChange(next);
-                    }
-                  } else {
-                    if (maxColumns > minColumns) {
-                      onMaxColumnsChange(maxColumns - 1);
-                    }
-                  }
-                }}
-                disabled={
-                  (maxColumns !== null && maxColumns <= minColumns) ||
-                  (maxColumns === null && autoColumns <= minColumns)
-                }
-                aria-label="Fewer columns"
-              >
-                <Minus className="size-4" />
-              </Button>
-              <ButtonGroupText
-                className="min-w-10 cursor-pointer justify-center tabular-nums"
-                onClick={() => {
-                  if (maxColumns !== null) {
-                    onMaxColumnsChange(null);
-                  }
-                }}
-                title={maxColumns === null ? "Auto columns" : "Reset to auto"}
-              >
-                {maxColumns === null ? "Auto" : maxColumns}
-              </ButtonGroupText>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
-                  if (next <= maxColumnsLimit) {
-                    onMaxColumnsChange(next);
-                  }
-                }}
-                disabled={
-                  maxColumns === null
-                    ? autoColumns >= maxColumnsLimit
-                    : maxColumns >= maxColumnsLimit
-                }
-                aria-label="More columns"
-              >
-                <Plus className="size-4" />
-              </Button>
-            </ButtonGroup>
-          )}
-
-          {/* Mobile: Filters button that opens bottom sheet */}
-          <Button
-            variant="outline"
-            size="default"
             className="relative sm:hidden"
             onClick={() => setSheetOpen(true)}
+            aria-label="Options"
           >
-            <SlidersHorizontal className="mr-2 size-4" />
-            Filters
+            <SlidersHorizontal className="size-4" />
           </Button>
         </div>
       </div>
@@ -385,14 +388,134 @@ export function FilterBar({
       {/* Desktop: inline filter sections (hidden at wide breakpoint where sidebar takes over) */}
       <div className="hidden flex-wrap gap-4 sm:flex wide:hidden">{filterSections}</div>
 
-      {/* Mobile: bottom drawer with filter sections */}
+      {/* Mobile: bottom drawer with sort, display, and filter sections */}
       <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
         <DrawerContent className="sm:hidden">
-          <DrawerHeader>
-            <DrawerTitle>Filters</DrawerTitle>
-            <DrawerDescription className="sr-only">Filter options</DrawerDescription>
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Options</DrawerTitle>
+            <DrawerDescription>Sort, display, and filter options</DrawerDescription>
           </DrawerHeader>
-          <div className="flex flex-col gap-4 overflow-y-auto px-4">{filterSections}</div>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4">
+            {/* Options: sort + display */}
+            <div className="space-y-2.5">
+              <p className="text-sm font-medium">Options</p>
+              <div className="flex items-center gap-2">
+                <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
+                  <SelectTrigger size="sm" className="flex-1 text-xs" aria-label="Sort by">
+                    <span className="text-muted-foreground">Sort:&nbsp;</span>
+                    <SelectValue placeholder="Sort by">
+                      {(value: string) =>
+                        sortOptions.find((o) => o.value === value)?.label ?? value
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="size-7 p-0"
+                  onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
+                  title={sortDir === "asc" ? "Ascending" : "Descending"}
+                >
+                  {sortDir === "asc" ? <ArrowDownNarrowWide /> : <ArrowUpNarrowWide />}
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <ButtonGroup aria-label="View mode" className="mr-auto">
+                  <Button
+                    variant={view === "cards" ? "default" : "outline"}
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => onViewChange("cards")}
+                  >
+                    <Square />
+                    Cards
+                  </Button>
+                  <Button
+                    variant={view === "printings" ? "default" : "outline"}
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => onViewChange("printings")}
+                  >
+                    <SquareStack />
+                    Printings
+                  </Button>
+                </ButtonGroup>
+
+                {onMaxColumnsChange && (
+                  <ButtonGroup aria-label="Columns">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="size-7 p-0"
+                      onClick={() => {
+                        if (maxColumns === null) {
+                          const next = autoColumns - 1;
+                          if (next >= minColumns) {
+                            onMaxColumnsChange(next);
+                          }
+                        } else {
+                          if (maxColumns > minColumns) {
+                            onMaxColumnsChange(maxColumns - 1);
+                          }
+                        }
+                      }}
+                      disabled={
+                        (maxColumns !== null && maxColumns <= minColumns) ||
+                        (maxColumns === null && autoColumns <= minColumns)
+                      }
+                      aria-label="Fewer columns"
+                    >
+                      <Minus />
+                    </Button>
+                    <ButtonGroupText
+                      className="flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
+                      onClick={() => {
+                        if (maxColumns !== null) {
+                          onMaxColumnsChange(null);
+                        }
+                      }}
+                      title={maxColumns === null ? "Auto columns" : "Reset to auto"}
+                    >
+                      {maxColumns === null ? "Auto" : maxColumns}
+                    </ButtonGroupText>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="size-7 p-0"
+                      onClick={() => {
+                        const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
+                        if (next <= maxColumnsLimit) {
+                          onMaxColumnsChange(next);
+                        }
+                      }}
+                      disabled={
+                        maxColumns === null
+                          ? autoColumns >= maxColumnsLimit
+                          : maxColumns >= maxColumnsLimit
+                      }
+                      aria-label="More columns"
+                    >
+                      <Plus />
+                    </Button>
+                  </ButtonGroup>
+                )}
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="border-t pt-4">
+              <p className="mb-2.5 text-sm font-medium">Filters</p>
+              <div className="flex flex-col gap-4">{filterSections}</div>
+            </div>
+          </div>
           <DrawerFooter>
             <DrawerClose asChild>
               <Button className="w-full">
@@ -498,9 +621,11 @@ export function FilterPanelContent({
         />
       )}
       {(availableFilters.hasSigned || availableFilters.hasPromo) && (
-        <div className="min-w-0 space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Special</p>
-          <div className="flex flex-wrap gap-1">
+        <div className="flex min-w-0 gap-2 sm:block sm:space-y-1.5">
+          <p className="w-16 shrink-0 pt-1 text-xs font-medium text-muted-foreground sm:w-auto sm:pt-0">
+            Special
+          </p>
+          <div className="flex flex-1 flex-wrap gap-1">
             {availableFilters.hasSigned && (
               <Badge
                 variant={filterState.signed === null ? "outline" : "default"}
@@ -522,7 +647,7 @@ export function FilterPanelContent({
           </div>
         </div>
       )}
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
         {availableFilters.energyMin !== availableFilters.energyMax && (
           <RangeFilterSection
             label="Energy"
@@ -594,10 +719,10 @@ function RangeFilterSection({
   const fmt = formatValue ?? String;
 
   return (
-    <div className="min-w-0 space-y-1.5">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="flex w-36 items-center gap-1.5">
-        <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+    <div className="flex min-w-0 items-center gap-2 sm:block sm:space-y-1.5">
+      <p className="w-16 shrink-0 text-xs font-medium text-muted-foreground sm:w-auto">{label}</p>
+      <div className="flex flex-1 items-center gap-1.5 sm:w-36 sm:flex-initial">
+        <span className="shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
           {fmt(resolvedMin)}
         </span>
         <Slider
@@ -644,9 +769,11 @@ function FilterSection({
   }
 
   return (
-    <div className="min-w-0 space-y-1.5">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="flex flex-wrap gap-1">
+    <div className="flex min-w-0 gap-2 sm:block sm:space-y-1.5">
+      <p className="w-16 shrink-0 pt-1 text-xs font-medium text-muted-foreground sm:w-auto sm:pt-0">
+        {label}
+      </p>
+      <div className="flex flex-1 flex-wrap gap-1">
         {options.map((option) => {
           const icon = iconPath?.(option);
           return (
