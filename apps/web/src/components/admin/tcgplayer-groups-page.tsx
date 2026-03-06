@@ -1,3 +1,10 @@
+import {
+  ActionCard,
+  ClearPriceCard,
+  clearActions,
+  refreshActions,
+  useCronStatus,
+} from "@/components/admin/refresh-actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -19,6 +26,7 @@ import { useTcgplayerGroups, useUpdateTcgplayerGroup } from "@/hooks/use-tcgplay
 
 export function TcgplayerGroupsPage() {
   const { data, isLoading, error } = useTcgplayerGroups();
+  const { data: cronStatus } = useCronStatus();
   const mutation = useUpdateTcgplayerGroup();
 
   if (isLoading) {
@@ -46,6 +54,10 @@ export function TcgplayerGroupsPage() {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+        <ActionCard action={refreshActions.tcgplayer} cronStatus={cronStatus} />
+        <ClearPriceCard action={clearActions.tcgplayer} />
+      </div>
       <Table>
         <TableHeader>
           <TableRow>

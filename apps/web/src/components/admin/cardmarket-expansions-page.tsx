@@ -1,3 +1,10 @@
+import {
+  ActionCard,
+  ClearPriceCard,
+  clearActions,
+  refreshActions,
+  useCronStatus,
+} from "@/components/admin/refresh-actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -22,6 +29,7 @@ import {
 
 export function CardmarketExpansionsPage() {
   const { data, isLoading, error } = useCardmarketExpansions();
+  const { data: cronStatus } = useCronStatus();
   const mutation = useUpdateCardmarketExpansion();
 
   if (isLoading) {
@@ -49,6 +57,10 @@ export function CardmarketExpansionsPage() {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+        <ActionCard action={refreshActions.cardmarket} cronStatus={cronStatus} />
+        <ClearPriceCard action={clearActions.cardmarket} />
+      </div>
       <Table>
         <TableHeader>
           <TableRow>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { ActionCard, refreshActions, useCronStatus } from "@/components/admin/refresh-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ interface EditingRow {
 
 export function SetsPage() {
   const { data, isLoading, error } = useSets();
+  const { data: cronStatus } = useCronStatus();
   const updateMutation = useUpdateSet();
   const createMutation = useCreateSet();
   const [editing, setEditing] = useState<EditingRow | null>(null);
@@ -95,6 +97,7 @@ export function SetsPage() {
 
   return (
     <div className="space-y-4">
+      <ActionCard action={refreshActions.catalog} cronStatus={cronStatus} />
       <div className="flex items-center justify-end">
         {!adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>

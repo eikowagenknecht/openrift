@@ -6,12 +6,12 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { API_BASE } from "@/lib/api-base";
 
 const pageTitles: Record<string, string> = {
-  "/_authenticated/admin/": "Dashboard",
+  "/_authenticated/admin/": "Overview",
   "/_authenticated/admin/sets": "Sets",
-  "/_authenticated/admin/tcgplayer-groups": "TCGPlayer Groups",
-  "/_authenticated/admin/tcgplayer-mappings": "TCGPlayer Mappings",
-  "/_authenticated/admin/cardmarket-expansions": "Cardmarket Expansions",
-  "/_authenticated/admin/cm-mappings": "Cardmarket Mappings",
+  "/_authenticated/admin/tcgplayer-groups": "TCGplayer Sets",
+  "/_authenticated/admin/tcgplayer-mappings": "TCGplayer Products",
+  "/_authenticated/admin/cardmarket-expansions": "Cardmarket Sets",
+  "/_authenticated/admin/cm-mappings": "Cardmarket Products",
 };
 
 export const Route = createFileRoute("/_authenticated/admin")({

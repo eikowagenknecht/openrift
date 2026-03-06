@@ -1,5 +1,11 @@
 import { Link, useMatches } from "@tanstack/react-router";
-import { ArrowLeftIcon, DatabaseIcon, LayersIcon, MapIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  DatabaseIcon,
+  LayoutDashboardIcon,
+  LayersIcon,
+  MapIcon,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -14,6 +20,8 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
+const topPages = [{ to: "/admin" as const, icon: LayoutDashboardIcon, title: "Overview" }];
+
 const groups = [
   {
     label: "Catalog",
@@ -22,15 +30,15 @@ const groups = [
   {
     label: "TCGplayer",
     pages: [
-      { to: "/admin/tcgplayer-groups" as const, icon: LayersIcon, title: "Groups" },
-      { to: "/admin/tcgplayer-mappings" as const, icon: MapIcon, title: "Mappings" },
+      { to: "/admin/tcgplayer-groups" as const, icon: LayersIcon, title: "Sets" },
+      { to: "/admin/tcgplayer-mappings" as const, icon: MapIcon, title: "Products" },
     ],
   },
   {
     label: "Cardmarket",
     pages: [
-      { to: "/admin/cardmarket-expansions" as const, icon: LayersIcon, title: "Expansions" },
-      { to: "/admin/cm-mappings" as const, icon: MapIcon, title: "Mappings" },
+      { to: "/admin/cardmarket-expansions" as const, icon: LayersIcon, title: "Sets" },
+      { to: "/admin/cm-mappings" as const, icon: MapIcon, title: "Products" },
     ],
   },
 ];
@@ -47,6 +55,21 @@ export function AdminSidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            {topPages.map((page) => (
+              <SidebarMenuItem key={page.to}>
+                <SidebarMenuButton
+                  isActive={currentPath === page.to}
+                  render={<Link to={page.to} />}
+                >
+                  <page.icon />
+                  <span>{page.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
         {groups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>

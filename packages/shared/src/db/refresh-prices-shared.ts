@@ -8,7 +8,7 @@
  * `refresh-cardmarket-prices.ts`.
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "./types.js";
@@ -21,6 +21,7 @@ export interface UpsertRowCounts {
   total: number;
   new: number;
   updated: number;
+  unchanged: number;
   stale?: number;
 }
 
@@ -54,10 +55,17 @@ export function logUpsertCounts(counts: UpsertCounts): void {
     counts.staging.updated > 0 ? `${counts.staging.updated} staged` : null,
   ].filter(Boolean);
 
-  console.log(`  Inserted: ${inserted.length > 0 ? inserted.join(", ") : "—"}`);
-  console.log(`  Updated:  ${updated.length > 0 ? updated.join(", ") : "—"}`);
+  const unchanged = [
+    counts.sources.unchanged > 0 ? `${counts.sources.unchanged} sources` : null,
+    counts.snapshots.unchanged > 0 ? `${counts.snapshots.unchanged} snapshots` : null,
+    counts.staging.unchanged > 0 ? `${counts.staging.unchanged} staged` : null,
+  ].filter(Boolean);
+
+  console.log(`  Inserted:  ${inserted.length > 0 ? inserted.join(", ") : "—"}`);
+  console.log(`  Updated:   ${updated.length > 0 ? updated.join(", ") : "—"}`);
+  console.log(`  Unchanged: ${unchanged.length > 0 ? unchanged.join(", ") : "—"}`);
   if (counts.staging.stale) {
-    console.log(`  Cleaned:  ${counts.staging.stale} stale staging rows removed`);
+    console.log(`  Cleaned:   ${counts.staging.stale} stale staging rows removed`);
   }
 }
 
@@ -282,20 +290,29 @@ export async function upsertTcgplayerPriceData(
 
   const sourceRows = [...uniqueSources.values()];
   const sourcesBefore = await countRows(db, "tcgplayer_sources");
+  let sourcesAffected = 0;
 
   for (let i = 0; i < sourceRows.length; i += BATCH_SIZE) {
     const batch = sourceRows.slice(i, i + BATCH_SIZE);
-    await db
+    const rows = await db
       .insertInto("tcgplayer_sources")
       .values(batch)
       .onConflict((oc) =>
-        oc.column("printing_id").doUpdateSet({
-          group_id: sql<number | null>`excluded.group_id`,
-          url: sql<string | null>`excluded.url`,
-          updated_at: sql<Date>`now()`,
-        }),
+        oc
+          .column("printing_id")
+          .doUpdateSet({
+            group_id: sql<number | null>`excluded.group_id`,
+            url: sql<string | null>`excluded.url`,
+            updated_at: sql<Date>`now()`,
+          })
+          .where(
+            sql<SqlBool>`excluded.group_id IS DISTINCT FROM tcgplayer_sources.group_id
+              OR excluded.url IS DISTINCT FROM tcgplayer_sources.url`,
+          ),
       )
+      .returning(sql<number>`1`.as("_"))
       .execute();
+    sourcesAffected += rows.length;
   }
 
   const sourcesAfter = await countRows(db, "tcgplayer_sources");
@@ -344,21 +361,32 @@ export async function upsertTcgplayerPriceData(
 
   const snapshotRows = [...uniqueSnapshots.values()];
   const snapshotsBefore = await countRows(db, "tcgplayer_snapshots");
+  let snapshotsAffected = 0;
 
   for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
     const batch = snapshotRows.slice(i, i + BATCH_SIZE);
-    await db
+    const rows = await db
       .insertInto("tcgplayer_snapshots")
       .values(batch)
       .onConflict((oc) =>
-        oc.columns(["source_id", "recorded_at"]).doUpdateSet({
-          market_cents: sql<number>`excluded.market_cents`,
-          low_cents: sql<number | null>`excluded.low_cents`,
-          mid_cents: sql<number | null>`excluded.mid_cents`,
-          high_cents: sql<number | null>`excluded.high_cents`,
-        }),
+        oc
+          .columns(["source_id", "recorded_at"])
+          .doUpdateSet({
+            market_cents: sql<number>`excluded.market_cents`,
+            low_cents: sql<number | null>`excluded.low_cents`,
+            mid_cents: sql<number | null>`excluded.mid_cents`,
+            high_cents: sql<number | null>`excluded.high_cents`,
+          })
+          .where(
+            sql<SqlBool>`excluded.market_cents IS DISTINCT FROM tcgplayer_snapshots.market_cents
+              OR excluded.low_cents IS DISTINCT FROM tcgplayer_snapshots.low_cents
+              OR excluded.mid_cents IS DISTINCT FROM tcgplayer_snapshots.mid_cents
+              OR excluded.high_cents IS DISTINCT FROM tcgplayer_snapshots.high_cents`,
+          ),
       )
+      .returning(sql<number>`1`.as("_"))
       .execute();
+    snapshotsAffected += rows.length;
   }
 
   const snapshotsAfter = await countRows(db, "tcgplayer_snapshots");
@@ -372,38 +400,58 @@ export async function upsertTcgplayerPriceData(
 
   const stagingRows = [...uniqueStaging.values()];
   const stagingBefore = await countRows(db, "tcgplayer_staging");
+  let stagingAffected = 0;
 
   for (let i = 0; i < stagingRows.length; i += BATCH_SIZE) {
     const batch = stagingRows.slice(i, i + BATCH_SIZE);
-    await db
+    const rows = await db
       .insertInto("tcgplayer_staging")
       .values(batch)
       .onConflict((oc) =>
-        oc.columns(["external_id", "finish", "recorded_at"]).doUpdateSet({
-          group_id: sql<number | null>`excluded.group_id`,
-          market_cents: sql<number>`excluded.market_cents`,
-          low_cents: sql<number | null>`excluded.low_cents`,
-          mid_cents: sql<number | null>`excluded.mid_cents`,
-          high_cents: sql<number | null>`excluded.high_cents`,
-        }),
+        oc
+          .columns(["external_id", "finish", "recorded_at"])
+          .doUpdateSet({
+            group_id: sql<number | null>`excluded.group_id`,
+            market_cents: sql<number>`excluded.market_cents`,
+            low_cents: sql<number | null>`excluded.low_cents`,
+            mid_cents: sql<number | null>`excluded.mid_cents`,
+            high_cents: sql<number | null>`excluded.high_cents`,
+          })
+          .where(
+            sql<SqlBool>`excluded.group_id IS DISTINCT FROM tcgplayer_staging.group_id
+              OR excluded.market_cents IS DISTINCT FROM tcgplayer_staging.market_cents
+              OR excluded.low_cents IS DISTINCT FROM tcgplayer_staging.low_cents
+              OR excluded.mid_cents IS DISTINCT FROM tcgplayer_staging.mid_cents
+              OR excluded.high_cents IS DISTINCT FROM tcgplayer_staging.high_cents`,
+          ),
       )
+      .returning(sql<number>`1`.as("_"))
       .execute();
+    stagingAffected += rows.length;
   }
 
   const stagingAfter = await countRows(db, "tcgplayer_staging");
   const newStaging = stagingAfter - stagingBefore;
+  const updatedStaging = stagingAffected - newStaging;
 
   return {
-    sources: { total: sourceRows.length, new: newSources, updated: sourceRows.length - newSources },
+    sources: {
+      total: sourceRows.length,
+      new: newSources,
+      updated: sourcesAffected - newSources,
+      unchanged: sourceRows.length - sourcesAffected,
+    },
     snapshots: {
       total: snapshotRows.length,
       new: newSnapshots,
-      updated: snapshotRows.length - newSnapshots,
+      updated: snapshotsAffected - newSnapshots,
+      unchanged: snapshotRows.length - snapshotsAffected,
     },
     staging: {
       total: stagingRows.length,
       new: newStaging,
-      updated: stagingRows.length - newStaging,
+      updated: updatedStaging,
+      unchanged: stagingRows.length - newStaging - updatedStaging,
     },
   };
 }
@@ -424,20 +472,29 @@ export async function upsertCardmarketPriceData(
 
   const sourceRows = [...uniqueSources.values()];
   const sourcesBefore = await countRows(db, "cardmarket_sources");
+  let sourcesAffected = 0;
 
   for (let i = 0; i < sourceRows.length; i += BATCH_SIZE) {
     const batch = sourceRows.slice(i, i + BATCH_SIZE);
-    await db
+    const rows = await db
       .insertInto("cardmarket_sources")
       .values(batch)
       .onConflict((oc) =>
-        oc.column("printing_id").doUpdateSet({
-          group_id: sql<number | null>`excluded.group_id`,
-          url: sql<string | null>`excluded.url`,
-          updated_at: sql<Date>`now()`,
-        }),
+        oc
+          .column("printing_id")
+          .doUpdateSet({
+            group_id: sql<number | null>`excluded.group_id`,
+            url: sql<string | null>`excluded.url`,
+            updated_at: sql<Date>`now()`,
+          })
+          .where(
+            sql<SqlBool>`excluded.group_id IS DISTINCT FROM cardmarket_sources.group_id
+              OR excluded.url IS DISTINCT FROM cardmarket_sources.url`,
+          ),
       )
+      .returning(sql<number>`1`.as("_"))
       .execute();
+    sourcesAffected += rows.length;
   }
 
   const sourcesAfter = await countRows(db, "cardmarket_sources");
@@ -490,23 +547,36 @@ export async function upsertCardmarketPriceData(
 
   const snapshotRows = [...uniqueSnapshots.values()];
   const snapshotsBefore = await countRows(db, "cardmarket_snapshots");
+  let snapshotsAffected = 0;
 
   for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
     const batch = snapshotRows.slice(i, i + BATCH_SIZE);
-    await db
+    const rows = await db
       .insertInto("cardmarket_snapshots")
       .values(batch)
       .onConflict((oc) =>
-        oc.columns(["source_id", "recorded_at"]).doUpdateSet({
-          market_cents: sql<number>`excluded.market_cents`,
-          low_cents: sql<number | null>`excluded.low_cents`,
-          trend_cents: sql<number | null>`excluded.trend_cents`,
-          avg1_cents: sql<number | null>`excluded.avg1_cents`,
-          avg7_cents: sql<number | null>`excluded.avg7_cents`,
-          avg30_cents: sql<number | null>`excluded.avg30_cents`,
-        }),
+        oc
+          .columns(["source_id", "recorded_at"])
+          .doUpdateSet({
+            market_cents: sql<number>`excluded.market_cents`,
+            low_cents: sql<number | null>`excluded.low_cents`,
+            trend_cents: sql<number | null>`excluded.trend_cents`,
+            avg1_cents: sql<number | null>`excluded.avg1_cents`,
+            avg7_cents: sql<number | null>`excluded.avg7_cents`,
+            avg30_cents: sql<number | null>`excluded.avg30_cents`,
+          })
+          .where(
+            sql<SqlBool>`excluded.market_cents IS DISTINCT FROM cardmarket_snapshots.market_cents
+              OR excluded.low_cents IS DISTINCT FROM cardmarket_snapshots.low_cents
+              OR excluded.trend_cents IS DISTINCT FROM cardmarket_snapshots.trend_cents
+              OR excluded.avg1_cents IS DISTINCT FROM cardmarket_snapshots.avg1_cents
+              OR excluded.avg7_cents IS DISTINCT FROM cardmarket_snapshots.avg7_cents
+              OR excluded.avg30_cents IS DISTINCT FROM cardmarket_snapshots.avg30_cents`,
+          ),
       )
+      .returning(sql<number>`1`.as("_"))
       .execute();
+    snapshotsAffected += rows.length;
   }
 
   const snapshotsAfter = await countRows(db, "cardmarket_snapshots");
@@ -520,40 +590,62 @@ export async function upsertCardmarketPriceData(
 
   const stagingRows = [...uniqueStaging.values()];
   const stagingBefore = await countRows(db, "cardmarket_staging");
+  let stagingAffected = 0;
 
   for (let i = 0; i < stagingRows.length; i += BATCH_SIZE) {
     const batch = stagingRows.slice(i, i + BATCH_SIZE);
-    await db
+    const rows = await db
       .insertInto("cardmarket_staging")
       .values(batch)
       .onConflict((oc) =>
-        oc.columns(["external_id", "finish", "recorded_at"]).doUpdateSet({
-          group_id: sql<number | null>`excluded.group_id`,
-          market_cents: sql<number>`excluded.market_cents`,
-          low_cents: sql<number | null>`excluded.low_cents`,
-          trend_cents: sql<number | null>`excluded.trend_cents`,
-          avg1_cents: sql<number | null>`excluded.avg1_cents`,
-          avg7_cents: sql<number | null>`excluded.avg7_cents`,
-          avg30_cents: sql<number | null>`excluded.avg30_cents`,
-        }),
+        oc
+          .columns(["external_id", "finish", "recorded_at"])
+          .doUpdateSet({
+            group_id: sql<number | null>`excluded.group_id`,
+            market_cents: sql<number>`excluded.market_cents`,
+            low_cents: sql<number | null>`excluded.low_cents`,
+            trend_cents: sql<number | null>`excluded.trend_cents`,
+            avg1_cents: sql<number | null>`excluded.avg1_cents`,
+            avg7_cents: sql<number | null>`excluded.avg7_cents`,
+            avg30_cents: sql<number | null>`excluded.avg30_cents`,
+          })
+          .where(
+            sql<SqlBool>`excluded.group_id IS DISTINCT FROM cardmarket_staging.group_id
+              OR excluded.market_cents IS DISTINCT FROM cardmarket_staging.market_cents
+              OR excluded.low_cents IS DISTINCT FROM cardmarket_staging.low_cents
+              OR excluded.trend_cents IS DISTINCT FROM cardmarket_staging.trend_cents
+              OR excluded.avg1_cents IS DISTINCT FROM cardmarket_staging.avg1_cents
+              OR excluded.avg7_cents IS DISTINCT FROM cardmarket_staging.avg7_cents
+              OR excluded.avg30_cents IS DISTINCT FROM cardmarket_staging.avg30_cents`,
+          ),
       )
+      .returning(sql<number>`1`.as("_"))
       .execute();
+    stagingAffected += rows.length;
   }
 
   const stagingAfter = await countRows(db, "cardmarket_staging");
   const newStaging = stagingAfter - stagingBefore;
+  const updatedStaging = stagingAffected - newStaging;
 
   return {
-    sources: { total: sourceRows.length, new: newSources, updated: sourceRows.length - newSources },
+    sources: {
+      total: sourceRows.length,
+      new: newSources,
+      updated: sourcesAffected - newSources,
+      unchanged: sourceRows.length - sourcesAffected,
+    },
     snapshots: {
       total: snapshotRows.length,
       new: newSnapshots,
-      updated: snapshotRows.length - newSnapshots,
+      updated: snapshotsAffected - newSnapshots,
+      unchanged: snapshotRows.length - snapshotsAffected,
     },
     staging: {
       total: stagingRows.length,
       new: newStaging,
-      updated: stagingRows.length - newStaging,
+      updated: updatedStaging,
+      unchanged: stagingRows.length - newStaging - updatedStaging,
     },
   };
 }
