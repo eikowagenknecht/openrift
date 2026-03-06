@@ -155,12 +155,11 @@ docker compose run --rm -e SCHEDULE= backup
 
 ### Restore from backup
 
-```bash
-# Download the .dump.gpg file from R2
-# (use the Cloudflare dashboard, rclone, or aws cli)
+Download the `.dump.gpg` file from R2 (use the Cloudflare dashboard, rclone, or aws cli), then decrypt and restore. On Windows, `gpg` is included with Git for Windows — use Git Bash. Otherwise install [GPG4Win](https://gpg4win.org/).
 
+```bash
 # Decrypt
-gpg --decrypt --batch --passphrase "$BACKUP_ENCRYPTION_PASSWORD" openrift_2026-03-06T03:00:00.dump.gpg > openrift.dump
+gpg --decrypt --batch --passphrase "your-passphrase" openrift_2026-03-06T03:00:00.dump.gpg > openrift.dump
 
 # Restore into the running database
 docker compose exec -T db pg_restore -U openrift -d openrift --clean --if-exists < openrift.dump
