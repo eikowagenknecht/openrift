@@ -435,6 +435,177 @@ export async function reconcileCardmarketStaging(
   return { reconciled: reconciledCount, pending: stagedRows.length - reconciledCount };
 }
 
+// ── Reconcile TCGPlayer staging rows ───────────────────────────────────────
+
+export async function reconcileTcgplayerStaging(
+  db: Kysely<Database>,
+  ref: ReferenceData,
+  groupSetMap: Map<number, string | null>,
+): Promise<{ reconciled: number; pending: number }> {
+  const stagedRows = await db.selectFrom("tcgplayer_staging").selectAll().execute();
+
+  let reconciledCount = 0;
+  const reconciledIds: number[] = [];
+  const reconciledSources: TcgplayerSourceRow[] = [];
+  const reconciledSnapshots: TcgplayerSnapshotData[] = [];
+
+  const stagedGroups = new Map<string, typeof stagedRows>();
+  for (const row of stagedRows) {
+    let effectiveSetId = row.set_id;
+    if (!effectiveSetId && row.group_id !== null) {
+      effectiveSetId = groupSetMap.get(row.group_id) ?? null;
+    }
+    if (!effectiveSetId) {
+      continue;
+    }
+
+    const key = `${effectiveSetId}|${row.product_name.toLowerCase()}|${row.finish}`;
+    let arr = stagedGroups.get(key);
+    if (!arr) {
+      arr = [];
+      stagedGroups.set(key, arr);
+    }
+    arr.push(row);
+  }
+
+  for (const [groupKey, groupRows] of stagedGroups) {
+    const distinctExtIds = new Set(groupRows.map((r) => r.external_id));
+    if (distinctExtIds.size > 1) {
+      continue;
+    }
+
+    const first = groupRows[0];
+    const effectiveSetId = groupKey.split("|")[0];
+    const setNameMap = ref.namesBySet.get(effectiveSetId);
+    if (!setNameMap) {
+      continue;
+    }
+
+    const cardId = setNameMap.get(first.product_name.toLowerCase());
+    if (!cardId) {
+      continue;
+    }
+
+    const printingIds =
+      ref.printingsByCardSetFinish.get(`${cardId}|${effectiveSetId}|${first.finish}`) || [];
+    if (printingIds.length === 0 || printingIds.length > 1) {
+      continue;
+    }
+
+    for (const printingId of printingIds) {
+      reconciledSources.push({
+        printing_id: printingId,
+        external_id: first.external_id,
+        group_id: first.group_id ?? null,
+        product_name: first.product_name,
+        url: first.external_id ? `https://www.tcgplayer.com/product/${first.external_id}` : null,
+      });
+      for (const row of groupRows) {
+        reconciledSnapshots.push({
+          printing_id: printingId,
+          recorded_at: row.recorded_at,
+          market_cents: row.market_cents,
+          low_cents: row.low_cents,
+          mid_cents: row.mid_cents,
+          high_cents: row.high_cents,
+        });
+      }
+    }
+
+    for (const row of groupRows) {
+      reconciledIds.push(row.id);
+    }
+    reconciledCount += groupRows.length;
+  }
+
+  if (reconciledSources.length > 0) {
+    const uniqueReconciledSources = new Map<string, TcgplayerSourceRow>();
+    for (const src of reconciledSources) {
+      uniqueReconciledSources.set(src.printing_id, src);
+    }
+    const srcRows = [...uniqueReconciledSources.values()];
+    for (let i = 0; i < srcRows.length; i += BATCH_SIZE) {
+      const batch = srcRows.slice(i, i + BATCH_SIZE);
+      await db
+        .insertInto("tcgplayer_sources")
+        .values(batch)
+        .onConflict((oc) =>
+          oc.column("printing_id").doUpdateSet({
+            group_id: sql<number | null>`excluded.group_id`,
+            url: sql<string | null>`excluded.url`,
+            updated_at: sql<Date>`now()`,
+          }),
+        )
+        .execute();
+    }
+
+    const reconciledDbSources = await db
+      .selectFrom("tcgplayer_sources")
+      .select(["id", "printing_id"])
+      .execute();
+    const reconciledSourceIdLookup = new Map<string, number>();
+    for (const row of reconciledDbSources) {
+      reconciledSourceIdLookup.set(row.printing_id, row.id);
+    }
+
+    const uniqueReconciledSnaps = new Map<
+      string,
+      {
+        source_id: number;
+        recorded_at: Date;
+        market_cents: number;
+        low_cents: number | null;
+        mid_cents: number | null;
+        high_cents: number | null;
+      }
+    >();
+    for (const snap of reconciledSnapshots) {
+      const sourceId = reconciledSourceIdLookup.get(snap.printing_id);
+      if (sourceId === undefined) {
+        continue;
+      }
+      const key = `${sourceId}|${snap.recorded_at.toISOString()}`;
+      uniqueReconciledSnaps.set(key, {
+        source_id: sourceId,
+        recorded_at: snap.recorded_at,
+        market_cents: snap.market_cents,
+        low_cents: snap.low_cents,
+        mid_cents: snap.mid_cents,
+        high_cents: snap.high_cents,
+      });
+    }
+    const snapRows = [...uniqueReconciledSnaps.values()];
+    for (let i = 0; i < snapRows.length; i += BATCH_SIZE) {
+      const batch = snapRows.slice(i, i + BATCH_SIZE);
+      await db
+        .insertInto("tcgplayer_snapshots")
+        .values(batch)
+        .onConflict((oc) =>
+          oc.columns(["source_id", "recorded_at"]).doUpdateSet({
+            market_cents: sql<number>`excluded.market_cents`,
+            low_cents: sql<number | null>`excluded.low_cents`,
+            mid_cents: sql<number | null>`excluded.mid_cents`,
+            high_cents: sql<number | null>`excluded.high_cents`,
+          }),
+        )
+        .execute();
+    }
+  }
+
+  if (reconciledIds.length > 0) {
+    for (let i = 0; i < reconciledIds.length; i += BATCH_SIZE) {
+      const batch = reconciledIds.slice(i, i + BATCH_SIZE);
+      await db.deleteFrom("tcgplayer_staging").where("id", "in", batch).execute();
+    }
+  }
+
+  if (reconciledCount > 0) {
+    console.log(`  Reconciled ${reconciledCount} staged TCGplayer rows`);
+  }
+
+  return { reconciled: reconciledCount, pending: stagedRows.length - reconciledCount };
+}
+
 // ── Upsert TCGPlayer price data ────────────────────────────────────────────
 
 export async function upsertTcgplayerPriceData(
@@ -559,17 +730,6 @@ export async function upsertTcgplayerPriceData(
       .execute();
   }
 
-  // Clean up staging rows that are already assigned
-  const staleStaging = await db
-    .deleteFrom("tcgplayer_staging")
-    .where(
-      "external_id",
-      "in",
-      db.selectFrom("tcgplayer_sources").select("external_id").where("external_id", "is not", null),
-    )
-    .executeTakeFirst();
-  const staleCount = Number(staleStaging.numDeletedRows);
-
   const stagingAfter = await countRows(db, "tcgplayer_staging");
   const newStaging = stagingAfter - stagingBefore;
 
@@ -582,9 +742,8 @@ export async function upsertTcgplayerPriceData(
     },
     staging: {
       total: stagingRows.length,
-      new: newStaging + staleCount,
-      updated: stagingRows.length - newStaging - staleCount,
-      stale: staleCount,
+      new: newStaging,
+      updated: stagingRows.length - newStaging,
     },
   };
 }
@@ -721,20 +880,6 @@ export async function upsertCardmarketPriceData(
       .execute();
   }
 
-  // Clean up staging rows that are already assigned
-  const staleStaging = await db
-    .deleteFrom("cardmarket_staging")
-    .where(
-      "external_id",
-      "in",
-      db
-        .selectFrom("cardmarket_sources")
-        .select("external_id")
-        .where("external_id", "is not", null),
-    )
-    .executeTakeFirst();
-  const staleCount = Number(staleStaging.numDeletedRows);
-
   const stagingAfter = await countRows(db, "cardmarket_staging");
   const newStaging = stagingAfter - stagingBefore;
 
@@ -747,9 +892,8 @@ export async function upsertCardmarketPriceData(
     },
     staging: {
       total: stagingRows.length,
-      new: newStaging + staleCount,
-      updated: stagingRows.length - newStaging - staleCount,
-      stale: staleCount,
+      new: newStaging,
+      updated: stagingRows.length - newStaging,
     },
   };
 }

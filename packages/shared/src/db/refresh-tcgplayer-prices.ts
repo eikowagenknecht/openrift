@@ -13,7 +13,9 @@ import { sql } from "kysely";
 
 import {
   fetchJson,
+  loadReferenceData,
   logUpsertCounts,
+  reconcileTcgplayerStaging,
   toCents,
   upsertTcgplayerPriceData,
 } from "./refresh-prices-shared.js";
@@ -55,6 +57,18 @@ interface TcgcsvPrice {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<void> {
+  // ── Reconcile staged TCGplayer prices ──────────────────────────────────────
+
+  const ref = await loadReferenceData(db);
+
+  const dbGroups = await db.selectFrom("tcgplayer_groups").select(["group_id", "set_id"]).execute();
+  const groupSetMap = new Map<number, string | null>();
+  for (const row of dbGroups) {
+    groupSetMap.set(row.group_id, row.set_id);
+  }
+
+  await reconcileTcgplayerStaging(db, ref, groupSetMap);
+
   // ── Collected rows ─────────────────────────────────────────────────────────
 
   const allStaging: TcgplayerStagingRow[] = [];
@@ -87,18 +101,18 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<void
       .execute();
   }
 
-  // Build group -> set mapping from DB
-  const groupSetMap = new Map<number, string | null>();
-  const dbGroups = await db
+  // Build group -> set mapping from DB (refresh for any newly-upserted groups)
+  groupSetMap.clear();
+  const allDbGroups = await db
     .selectFrom("tcgplayer_groups")
     .select(["group_id", "name", "set_id"])
     .execute();
-  for (const row of dbGroups) {
+  for (const row of allDbGroups) {
     groupSetMap.set(row.group_id, row.set_id);
   }
 
-  const mappedCount = dbGroups.filter((g) => g.set_id).length;
-  const unmappedCount = dbGroups.filter((g) => !g.set_id).length;
+  const mappedCount = allDbGroups.filter((g) => g.set_id).length;
+  const unmappedCount = allDbGroups.filter((g) => !g.set_id).length;
 
   // Fetch all products per group
   const groupProducts = new Map<number, TcgcsvProduct[]>();
