@@ -1286,8 +1286,8 @@ adminRoute.post("/admin/refresh-catalog", async (c) => {
     await refreshCatalog(db);
     return c.json({ status: "ok" });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return c.json({ error: message }, 500);
+    console.error("[admin] refresh-catalog failed:", error);
+    return c.json({ error: "Catalog refresh failed" }, 500);
   }
 });
 
@@ -1297,8 +1297,8 @@ adminRoute.post("/admin/refresh-tcgplayer-prices", async (c) => {
     await refreshTcgplayerPrices(db);
     return c.json({ status: "ok" });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return c.json({ error: message }, 500);
+    console.error("[admin] refresh-tcgplayer-prices failed:", error);
+    return c.json({ error: "TCGPlayer price refresh failed" }, 500);
   }
 });
 
@@ -1308,7 +1308,7 @@ adminRoute.post("/admin/refresh-cardmarket-prices", async (c) => {
     await refreshCardmarketPrices(db);
     return c.json({ status: "ok" });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return c.json({ error: message }, 500);
+    console.error("[admin] refresh-cardmarket-prices failed:", error);
+    return c.json({ error: "Cardmarket price refresh failed" }, 500);
   }
 });
