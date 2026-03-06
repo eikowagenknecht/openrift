@@ -33,7 +33,6 @@ interface UpsertRowCounts {
   new: number;
   updated: number;
   unchanged: number;
-  stale?: number;
 }
 
 interface PriceResult {
@@ -235,7 +234,6 @@ function PriceResultDisplay({ result }: { result: PriceResult }) {
       <p>Inserted: {insertedParts.length > 0 ? insertedParts.join(", ") : "—"}</p>
       <p>Updated: {updatedParts.length > 0 ? updatedParts.join(", ") : "—"}</p>
       <p>Unchanged: {unchangedParts.length > 0 ? unchangedParts.join(", ") : "—"}</p>
-      {upserted.staging.stale ? <p>Cleaned: {upserted.staging.stale} stale staging rows</p> : null}
     </div>
   );
 }
