@@ -1400,13 +1400,63 @@ adminRoute.post("/admin/sets", async (c) => {
   return c.json({ ok: true });
 });
 
+// ── Clear price data ─────────────────────────────────────────────────────────
+
+const clearPriceSourceSchema = z.enum(["tcgplayer", "cardmarket"]);
+
+adminRoute.use("/admin/clear-prices", requireAdmin);
+adminRoute.post("/admin/clear-prices", async (c) => {
+  const body = await c.req.json();
+  const parsed = clearPriceSourceSchema.safeParse(body.source);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid source — must be 'tcgplayer' or 'cardmarket'" }, 400);
+  }
+  const source = parsed.data;
+
+  try {
+    if (source === "tcgplayer") {
+      const snapshots = await db.deleteFrom("tcgplayer_snapshots").execute();
+      const sources = await db.deleteFrom("tcgplayer_sources").execute();
+      const staging = await db.deleteFrom("tcgplayer_staging").execute();
+      return c.json({
+        status: "ok",
+        result: {
+          source,
+          deleted: {
+            snapshots: Number(snapshots[0].numDeletedRows),
+            sources: Number(sources[0].numDeletedRows),
+            staging: Number(staging[0].numDeletedRows),
+          },
+        },
+      });
+    }
+    const snapshots = await db.deleteFrom("cardmarket_snapshots").execute();
+    const sources = await db.deleteFrom("cardmarket_sources").execute();
+    const staging = await db.deleteFrom("cardmarket_staging").execute();
+    return c.json({
+      status: "ok",
+      result: {
+        source,
+        deleted: {
+          snapshots: Number(snapshots[0].numDeletedRows),
+          sources: Number(sources[0].numDeletedRows),
+          staging: Number(staging[0].numDeletedRows),
+        },
+      },
+    });
+  } catch (error) {
+    console.error(`[admin] clear-prices (${source}) failed:`, error);
+    return c.json({ error: `Failed to clear ${source} price data` }, 500);
+  }
+});
+
 // ── Manual refresh endpoints ────────────────────────────────────────────────
 
 adminRoute.use("/admin/refresh-catalog", requireAdmin);
 adminRoute.post("/admin/refresh-catalog", async (c) => {
   try {
-    await refreshCatalog(db);
-    return c.json({ status: "ok" });
+    const result = await refreshCatalog(db);
+    return c.json({ status: "ok", result });
   } catch (error) {
     console.error("[admin] refresh-catalog failed:", error);
     return c.json({ error: "Catalog refresh failed" }, 500);
@@ -1416,8 +1466,8 @@ adminRoute.post("/admin/refresh-catalog", async (c) => {
 adminRoute.use("/admin/refresh-tcgplayer-prices", requireAdmin);
 adminRoute.post("/admin/refresh-tcgplayer-prices", async (c) => {
   try {
-    await refreshTcgplayerPrices(db);
-    return c.json({ status: "ok" });
+    const result = await refreshTcgplayerPrices(db);
+    return c.json({ status: "ok", result });
   } catch (error) {
     console.error("[admin] refresh-tcgplayer-prices failed:", error);
     return c.json({ error: "TCGPlayer price refresh failed" }, 500);
@@ -1427,8 +1477,8 @@ adminRoute.post("/admin/refresh-tcgplayer-prices", async (c) => {
 adminRoute.use("/admin/refresh-cardmarket-prices", requireAdmin);
 adminRoute.post("/admin/refresh-cardmarket-prices", async (c) => {
   try {
-    await refreshCardmarketPrices(db);
-    return c.json({ status: "ok" });
+    const result = await refreshCardmarketPrices(db);
+    return c.json({ status: "ok", result });
   } catch (error) {
     console.error("[admin] refresh-cardmarket-prices failed:", error);
     return c.json({ error: "Cardmarket price refresh failed" }, 500);
