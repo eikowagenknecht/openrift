@@ -77,15 +77,15 @@ See `.env.example` for all required variables:
 | `POSTGRES_DB`           | Database name                          | `openrift`                                             |
 | `POSTGRES_USER`         | Database user                          | `openrift`                                             |
 | `POSTGRES_PASSWORD`     | Database password                      | `password` (change in production)                      |
-| `DATABASE_URL`          | Full Postgres connection string        | `postgres://openrift:password@localhost:5432/openrift`  |
+| `DATABASE_URL`          | Full Postgres connection string        | `postgres://openrift:password@localhost:5432/openrift` |
 | `DB_PORT`               | Host-side Postgres port                | `5432`                                                 |
 | `API_PORT`              | Host-side API port                     | `3001`                                                 |
 | `WEB_PORT`              | Host-side web port                     | `8080`                                                 |
 | `IMAGE_TAG`             | GHCR image tag                         | `latest`                                               |
 | `CRON_ENABLED`          | Enable price refresh cron jobs         | `true`                                                 |
 | `CORS_ORIGIN`           | Allowed CORS origins (comma-separated) | `https://openrift.app,https://preview.openrift.app`    |
-| `BETTER_AUTH_SECRET`    | Auth secret key                        | *(generate with `openssl rand -base64 32`)*            |
-| `BETTER_AUTH_URL`       | Auth base URL                          | `http://localhost:5173`                                 |
+| `BETTER_AUTH_SECRET`    | Auth secret key                        | _(generate with `openssl rand -base64 32`)_            |
+| `BETTER_AUTH_URL`       | Auth base URL                          | `http://localhost:5173`                                |
 | `SMTP_HOST`             | SMTP server for email verification     | `smtp.fastmail.com`                                    |
 | `SMTP_PORT`             | SMTP port                              | `465`                                                  |
 | `SMTP_SECURE`           | Use TLS for SMTP                       | `true`                                                 |

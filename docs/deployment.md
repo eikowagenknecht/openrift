@@ -9,11 +9,12 @@ Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls
 
 ## Architecture
 
-| Container | Image                      | Role                                                                  |
-| --------- | -------------------------- | --------------------------------------------------------------------- |
-| `db`      | `postgres:16-alpine`       | Database (unchanged across deploys)                                   |
-| `api`     | `ghcr.io/.../openrift-api` | API + migrations on startup + cron jobs (distroless, compiled binary) |
-| `web`     | `ghcr.io/.../openrift-web` | SPA + API proxy (nginx)                                               |
+| Container | Image                                  | Role                                                                  |
+| --------- | -------------------------------------- | --------------------------------------------------------------------- |
+| `db`      | `postgres:16-alpine`                   | Database (unchanged across deploys)                                   |
+| `api`     | `ghcr.io/eikowagenknecht/openrift-api` | API + migrations on startup + cron jobs (distroless, compiled binary) |
+| `web`     | `ghcr.io/eikowagenknecht/openrift-web` | SPA + API proxy (nginx)                                               |
+| `backup`  | `eeshugerman/postgres-backup-s3:16`    | Scheduled pg_dump to Cloudflare R2                                    |
 
 The `api` container:
 
@@ -36,13 +37,17 @@ Flags are configured at runtime via `FEATURE_*` environment variables — no reb
 ```ts
 import { featureEnabled } from "@/lib/feature-flags";
 
-if (featureEnabled("FEATURE_AUTH")) { /* ... */ }
+if (featureEnabled("FEATURE_AUTH")) {
+  /* ... */
+}
 ```
 
 **In the API** (`apps/api`): Read env vars directly — the API container already receives all `.env` variables:
 
 ```ts
-if (process.env.FEATURE_AUTH === "true") { /* ... */ }
+if (process.env.FEATURE_AUTH === "true") {
+  /* ... */
+}
 ```
 
 **To add a new flag:** Add `FEATURE_<NAME>=true` to the `web` and/or `api` service `environment` in `docker-compose.yml`, then restart. Values `true`, `1`, and `yes` are truthy; everything else is falsy.
@@ -120,6 +125,55 @@ curl -X POST -H "Cookie: ..." https://openrift.app/api/admin/refresh-catalog
 docker compose down              # Keeps data
 docker compose down -v           # Destroys database volume too (!)
 ```
+
+## Database Backups
+
+The `backup` sidecar container runs `pg_dump` on a schedule and uploads GPG-encrypted backups to Cloudflare R2. It uses the [eeshugerman/postgres-backup-s3](https://github.com/eeshugerman/postgres-backup-s3) image (`:16` tag matches our PostgreSQL version). Old backups are automatically pruned after `BACKUP_KEEP_DAYS`.
+
+### Configuration
+
+Set these in `.env` on the VPS:
+
+| Variable                      | Description                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------- |
+| `BACKUP_S3_ENDPOINT`          | R2 endpoint (no bucket name): `https://<account-id>.r2.cloudflarestorage.com` |
+| `BACKUP_S3_BUCKET`            | R2 bucket name (e.g. `openrift-backups`)                                      |
+| `BACKUP_S3_PREFIX`            | Path prefix inside the bucket (default: `backups`)                            |
+| `BACKUP_S3_ACCESS_KEY_ID`     | R2 API token access key (needs Object Read & Write)                           |
+| `BACKUP_S3_SECRET_ACCESS_KEY` | R2 API token secret key                                                       |
+| `BACKUP_ENCRYPTION_PASSWORD`  | GPG symmetric encryption passphrase                                           |
+| `BACKUP_SCHEDULE`             | Cron expression (default: `@daily`)                                           |
+| `BACKUP_KEEP_DAYS`            | Delete backups older than this many days (default: `30`)                      |
+
+### Manual backup
+
+Run a one-off backup (dumps immediately, then exits):
+
+```bash
+docker compose run --rm -e SCHEDULE= backup
+```
+
+### Restore from backup
+
+```bash
+# Download the .dump.gpg file from R2
+# (use the Cloudflare dashboard, rclone, or aws cli)
+
+# Decrypt
+gpg --decrypt --batch --passphrase "$BACKUP_ENCRYPTION_PASSWORD" openrift_2026-03-06T03:00:00.dump.gpg > openrift.dump
+
+# Restore into the running database
+docker compose exec -T db pg_restore -U openrift -d openrift --clean --if-exists < openrift.dump
+```
+
+### Setup (first time)
+
+1. Create an R2 bucket (e.g. `openrift-backups`) in the Cloudflare dashboard (R2 → Create bucket, EU region)
+2. Create an R2 API token: R2 → Manage R2 API Tokens → Object Read & Write, scoped to the backup bucket only
+3. Generate an encryption passphrase: `openssl rand -base64 32` — save it in a password manager
+4. Add `BACKUP_S3_*` and `BACKUP_ENCRYPTION_PASSWORD` to `.env` on the VPS
+5. Restart: `docker compose up -d`
+6. Verify with a one-off backup: `docker compose run --rm -e SCHEDULE= backup` — check the R2 bucket for the uploaded file
 
 ## Logs
 
