@@ -171,8 +171,8 @@ const RANGE_DAYS: Record<TimeRange, number | null> = {
 
 cardsRoute.get("/prices/:printingId/history", async (c) => {
   const printingId = c.req.param("printingId");
-  const rangeParam = (c.req.query("range") ?? "30d") as TimeRange;
-  const days = rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam] : RANGE_DAYS["30d"];
+  const rangeParam = c.req.query("range") ?? "30d";
+  const days = rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam as TimeRange] : RANGE_DAYS["30d"];
   const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
   // Look up sources
