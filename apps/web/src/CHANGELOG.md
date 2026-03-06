@@ -2,6 +2,7 @@
 
 ## 2026-03-06
 
+- fix: Signing in with Google no longer shows a "Not Found" page on the redirect back
 - fix: The email you typed on the login page now carries over when you click "Forgot your password?" or navigate back
 - fix: Signing up no longer hangs when the mail server is slow to respond
 
