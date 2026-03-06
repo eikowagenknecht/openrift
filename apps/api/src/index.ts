@@ -128,6 +128,5 @@ app.route("/api", adminRoute);
 
 const port = Number(process.env.PORT ?? 3000);
 
+Bun.serve({ fetch: app.fetch, port });
 console.log(`API server listening on http://localhost:${port}`);
-const server = { fetch: app.fetch, port };
-export default server;
