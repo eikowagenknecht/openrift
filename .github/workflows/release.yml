@@ -6,6 +6,8 @@ on:
 permissions:
   contents: write
   packages: write
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: release
