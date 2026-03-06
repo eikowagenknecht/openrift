@@ -25,7 +25,7 @@ await migrate(db);
 
 if (process.env.CRON_ENABLED === "true") {
   cronJobs.tcgplayer = new Cron(
-    process.env.CRON_TCGPLAYER ?? "0 6 * * *",
+    process.env.CRON_TCGPLAYER || "0 6 * * *",
     { protect: true },
     async () => {
       try {
@@ -39,7 +39,7 @@ if (process.env.CRON_ENABLED === "true") {
   );
 
   cronJobs.cardmarket = new Cron(
-    process.env.CRON_CARDMARKET ?? "15 6 * * *",
+    process.env.CRON_CARDMARKET || "15 6 * * *",
     { protect: true },
     async () => {
       try {
@@ -53,8 +53,8 @@ if (process.env.CRON_ENABLED === "true") {
   );
 
   console.log(
-    `Cron jobs registered: TCGPlayer (${process.env.CRON_TCGPLAYER ?? "0 6 * * *"}), ` +
-      `Cardmarket (${process.env.CRON_CARDMARKET ?? "15 6 * * *"})`,
+    `Cron jobs registered: TCGPlayer (${process.env.CRON_TCGPLAYER || "0 6 * * *"}), ` +
+      `Cardmarket (${process.env.CRON_CARDMARKET || "15 6 * * *"})`,
   );
 }
 
