@@ -11,8 +11,9 @@ import { useCardFilters } from "@/hooks/use-card-filters";
 import { ApiError, useCards } from "@/hooks/use-cards";
 import type { CardFields } from "@/lib/card-fields";
 
+const cardDetailImport = import("@/components/cards/card-detail");
 const CardDetail = lazy(async () => {
-  const m = await import("@/components/cards/card-detail");
+  const m = await cardDetailImport;
   return { default: m.CardDetail };
 });
 
@@ -351,7 +352,7 @@ export function CardBrowser({
           />
         </div>
         {selectedCard && detailOpen && (
-          <Suspense>
+          <Suspense fallback={<CardDetailSkeleton />}>
             <CardDetail
               card={selectedCard}
               onClose={handleDetailClose}
@@ -377,5 +378,27 @@ export function CardBrowser({
         )}
       </div>
     </div>
+  );
+}
+
+function CardDetailSkeleton() {
+  return (
+    <aside className="fixed inset-0 z-50 bg-background md:sticky md:inset-auto md:z-auto md:top-(--sticky-top) md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-var(--sticky-top))] md:rounded-lg md:px-3">
+      <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
+        <div className="space-y-1.5">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </div>
+      <div className="space-y-4 p-4 md:p-0 md:pb-4">
+        <Skeleton className="aspect-[744/1039] w-full rounded-xl" />
+        <div className="flex justify-center gap-1.5">
+          <Skeleton className="h-7 w-16 rounded-md" />
+          <Skeleton className="h-7 w-16 rounded-md" />
+          <Skeleton className="h-7 w-16 rounded-md" />
+        </div>
+        <Skeleton className="h-20 w-full rounded-lg" />
+      </div>
+    </aside>
   );
 }
