@@ -84,7 +84,7 @@ function AdminOverviewPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -97,7 +97,7 @@ function AdminOverviewPage() {
     <div className="space-y-6">
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Catalog</h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
           <StatCard title="Sets" value={sets.length} />
           <StatCard title="Cards" value={totalCards} />
           <StatCard title="Printings" value={totalPrintings} />
@@ -106,7 +106,7 @@ function AdminOverviewPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">TCGplayer</h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
           <StatCard
             title="Sets"
             value={`${tcgMapped} / ${tcgGroups.length}`}
@@ -119,7 +119,7 @@ function AdminOverviewPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Cardmarket</h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
           <StatCard
             title="Sets"
             value={`${cmMapped} / ${cmExpansions.length}`}
@@ -132,7 +132,7 @@ function AdminOverviewPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Next automatic refresh</h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
           <ScheduleCard label="TCGplayer" cronKey="tcgplayer" cronStatus={cronStatus} />
           <ScheduleCard label="Cardmarket" cronKey="cardmarket" cronStatus={cronStatus} />
         </div>

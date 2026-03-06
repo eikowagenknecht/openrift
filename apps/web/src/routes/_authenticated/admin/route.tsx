@@ -51,7 +51,7 @@ function AdminContent() {
         <Separator orientation="vertical" className="mx-1 h-4! self-center!" />
         <h1 className="text-sm font-medium">{title}</h1>
       </header>
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-4 sm:p-6">
         <Outlet />
       </div>
     </div>

@@ -156,7 +156,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <p className="text-sm text-muted-foreground">
           {groups.length === 0
             ? `No staged ${config.displayName} products need mapping.`
@@ -224,42 +224,44 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
         )}
 
         {groups.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>Card</TableHead>
-                <TableHead>Set</TableHead>
-                <TableHead
-                  className="text-center"
-                  title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
-                >
-                  Printings
-                </TableHead>
-                <TableHead
-                  className="text-center"
-                  title={`${config.displayName} products awaiting manual assignment to a printing`}
-                >
-                  Staged {config.shortName}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groups.map((group) => (
-                <CardGroupRow
-                  key={`${group.setId}::${group.cardId}`}
-                  config={config}
-                  group={group}
-                  isExpanded={expandedCards.has(group.cardId)}
-                  onToggle={() => toggleExpanded(group.cardId)}
-                  onMap={handleMap}
-                  isSaving={saveMutation.isPending}
-                  onUnmap={(printingId) => unmapMutation.mutate(printingId)}
-                  isUnmapping={unmapMutation.isPending}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead>Card</TableHead>
+                  <TableHead>Set</TableHead>
+                  <TableHead
+                    className="text-center"
+                    title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
+                  >
+                    Printings
+                  </TableHead>
+                  <TableHead
+                    className="text-center"
+                    title={`${config.displayName} products awaiting manual assignment to a printing`}
+                  >
+                    Staged {config.shortName}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groups.map((group) => (
+                  <CardGroupRow
+                    key={`${group.setId}::${group.cardId}`}
+                    config={config}
+                    group={group}
+                    isExpanded={expandedCards.has(group.cardId)}
+                    onToggle={() => toggleExpanded(group.cardId)}
+                    onMap={handleMap}
+                    isSaving={saveMutation.isPending}
+                    onUnmap={(printingId) => unmapMutation.mutate(printingId)}
+                    isUnmapping={unmapMutation.isPending}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
 
         {unmatchedProducts.length > 0 && (
@@ -267,7 +269,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Unmatched {config.shortName} Products ({unmatchedProducts.length})
             </h4>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
               {unmatchedProducts.map((sp) => (
                 <StagedProductCard
                   key={`${sp.externalId}::${sp.finish}`}
@@ -417,7 +419,7 @@ function ExpandedDetail({
   const suggestions = computeSuggestions(group);
 
   return (
-    <div className="flex gap-6 bg-muted/30 px-6 py-4">
+    <div className="flex flex-col gap-6 bg-muted/30 px-4 py-4 sm:flex-row sm:px-6">
       {/* Printings — card-like grid */}
       <div className="min-w-0">
         <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -491,7 +493,7 @@ function ExpandedDetail({
       </div>
 
       {/* Products — sidebar */}
-      <div className="w-80 shrink-0 space-y-5">
+      <div className="w-full shrink-0 space-y-5 sm:w-80">
         <div>
           <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Staged {config.shortName} Products
