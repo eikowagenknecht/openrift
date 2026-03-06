@@ -130,3 +130,5 @@ const port = Number(process.env.PORT ?? 3000);
 
 Bun.serve({ fetch: app.fetch, port });
 console.log(`API server listening on http://localhost:${port}`);
+
+export default app;
