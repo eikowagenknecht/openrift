@@ -134,10 +134,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">{config.displayName} Mappings</h1>
-          <p className="text-sm text-muted-foreground">Loading staged products…</p>
-        </div>
+        <p className="text-sm text-muted-foreground">Loading staged products…</p>
         <div className="space-y-3">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -148,12 +145,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   }
 
   if (error) {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold">{config.displayName} Mappings</h1>
-        <p className="text-sm text-destructive">Failed to load: {error.message}</p>
-      </div>
-    );
+    return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
   }
 
   const groups = data?.groups ?? [];
@@ -162,14 +154,11 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{config.displayName} Mappings</h1>
-          <p className="text-sm text-muted-foreground">
-            {groups.length === 0
-              ? `No staged ${config.displayName} products need mapping.`
-              : `${groups.length} card${groups.length === 1 ? "" : "s"} with ${showAll ? `${config.shortName} mappings or` : ""} staged ${config.shortName} products`}
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {groups.length === 0
+            ? `No staged ${config.displayName} products need mapping.`
+            : `${groups.length} card${groups.length === 1 ? "" : "s"} with ${showAll ? `${config.shortName} mappings or` : ""} staged ${config.shortName} products`}
+        </p>
         <div className="flex items-center gap-2">
           <Button
             variant={showAll ? "default" : "outline"}

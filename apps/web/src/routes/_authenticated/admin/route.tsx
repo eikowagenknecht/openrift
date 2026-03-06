@@ -1,6 +1,18 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-router";
 
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { Separator } from "@/components/ui/separator";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { API_BASE } from "@/lib/api-base";
+
+const pageTitles: Record<string, string> = {
+  "/_authenticated/admin/": "Dashboard",
+  "/_authenticated/admin/sets": "Sets",
+  "/_authenticated/admin/tcgplayer-groups": "TCGPlayer Groups",
+  "/_authenticated/admin/tcgplayer-mappings": "TCGPlayer Mappings",
+  "/_authenticated/admin/cardmarket-expansions": "Cardmarket Expansions",
+  "/_authenticated/admin/cm-mappings": "Cardmarket Mappings",
+};
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
@@ -19,5 +31,29 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminLayout() {
-  return <Outlet />;
+  return (
+    <SidebarProvider className="min-h-0!">
+      <AdminSidebar />
+      <AdminContent />
+    </SidebarProvider>
+  );
+}
+
+function AdminContent() {
+  const matches = useMatches();
+  const routeId = matches.at(-1)?.routeId ?? "";
+  const title = pageTitles[routeId] ?? "Admin";
+
+  return (
+    <div className="relative flex w-full flex-1 flex-col">
+      <header className="flex h-12 items-center gap-2 border-b px-4">
+        <SidebarTrigger />
+        <Separator orientation="vertical" className="mx-1 h-4! self-center!" />
+        <h1 className="text-sm font-medium">{title}</h1>
+      </header>
+      <div className="flex-1 p-6">
+        <Outlet />
+      </div>
+    </div>
+  );
 }

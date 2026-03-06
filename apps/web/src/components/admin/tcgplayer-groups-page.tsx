@@ -31,12 +31,7 @@ export function TcgplayerGroupsPage() {
   }
 
   if (error) {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold">TCGPlayer Groups</h1>
-        <p className="text-sm text-destructive">Failed to load: {error.message}</p>
-      </div>
-    );
+    return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
   }
 
   if (!data) {
@@ -51,7 +46,6 @@ export function TcgplayerGroupsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">TCGPlayer Groups</h1>
       <Table>
         <TableHeader>
           <TableRow>

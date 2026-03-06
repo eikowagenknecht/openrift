@@ -39,12 +39,7 @@ export function SetsPage() {
   }
 
   if (error) {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold">Sets</h1>
-        <p className="text-sm text-destructive">Failed to load: {error.message}</p>
-      </div>
-    );
+    return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
   }
 
   if (!data) {
@@ -100,8 +95,7 @@ export function SetsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Sets</h1>
+      <div className="flex items-center justify-end">
         {!adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
             Add Set

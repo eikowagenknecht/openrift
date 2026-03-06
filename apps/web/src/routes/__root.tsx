@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import { createRootRouteWithContext, Outlet, useMatch } from "@tanstack/react-router";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { createContext, lazy, useContext } from "react";
 
@@ -51,6 +51,7 @@ export const Route = createRootRouteWithContext<{
 
 function RootComponent() {
   const { theme, toggleTheme } = useTheme();
+  const isAdmin = useMatch({ from: "/_authenticated/admin", shouldThrow: false });
 
   const [showImages, setShowImages] = useLocalStorage(
     "showImages",
@@ -118,10 +119,18 @@ function RootComponent() {
                 />
               }
             />
-            <main className="mx-auto flex w-full max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide) flex-1 flex-col px-4 py-6">
-              <Outlet />
-            </main>
-            <Footer />
+            {isAdmin ? (
+              <div className="mx-auto flex w-full max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide) flex-1 flex-col">
+                <Outlet />
+              </div>
+            ) : (
+              <>
+                <main className="mx-auto flex w-full max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide) flex-1 flex-col px-4 py-6">
+                  <Outlet />
+                </main>
+                <Footer />
+              </>
+            )}
             <Toaster position="bottom-right" />
             <ReloadPrompt />
             <OfflineIndicator />

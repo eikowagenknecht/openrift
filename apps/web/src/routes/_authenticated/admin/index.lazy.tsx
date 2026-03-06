@@ -1,15 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRightIcon,
-  CheckIcon,
-  DatabaseIcon,
-  LayersIcon,
-  LoaderIcon,
-  MapIcon,
-  RefreshCwIcon,
-  XIcon,
-} from "lucide-react";
+import { createLazyFileRoute } from "@tanstack/react-router";
+import { CheckIcon, LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,56 +54,6 @@ const actions = [
     description: "Fetch latest prices from Cardmarket",
     endpoint: "/api/admin/refresh-cardmarket-prices",
     cronKey: "cardmarket" as const,
-  },
-];
-
-// ── Nav groups config ───────────────────────────────────────────────────────
-
-const groups = [
-  {
-    label: "Catalog",
-    pages: [
-      {
-        to: "/admin/sets" as const,
-        icon: DatabaseIcon,
-        title: "Sets",
-        description: "View and manage card sets",
-      },
-    ],
-  },
-  {
-    label: "TCGplayer",
-    pages: [
-      {
-        to: "/admin/tcgplayer-groups" as const,
-        icon: LayersIcon,
-        title: "Groups",
-        description: "Map TCGPlayer groups to internal sets",
-      },
-      {
-        to: "/admin/tcgplayer-mappings" as const,
-        icon: MapIcon,
-        title: "Mappings",
-        description: "Map staged TCGplayer products to card printings",
-      },
-    ],
-  },
-  {
-    label: "Cardmarket",
-    pages: [
-      {
-        to: "/admin/cardmarket-expansions" as const,
-        icon: LayersIcon,
-        title: "Expansions",
-        description: "Map Cardmarket expansions to internal sets",
-      },
-      {
-        to: "/admin/cm-mappings" as const,
-        icon: MapIcon,
-        title: "Mappings",
-        description: "Map staged Cardmarket products to card printings",
-      },
-    ],
   },
 ];
 
@@ -197,39 +138,14 @@ function AdminIndexPage() {
   });
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Admin</h1>
-
+    <div className="space-y-4">
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-muted-foreground">Actions</h2>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
           {actions.map((action) => (
             <ActionCard key={action.key} action={action} cronStatus={cronStatus} />
           ))}
         </div>
       </section>
-
-      {groups.map((group) => (
-        <section key={group.label} className="space-y-3">
-          <h2 className="text-lg font-semibold text-muted-foreground">{group.label}</h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
-            {group.pages.map((page) => (
-              <Link key={page.to} to={page.to}>
-                <Card className="h-full transition-colors hover:bg-muted/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <page.icon className="size-5" />
-                      {page.title}
-                      <ArrowRightIcon className="ml-auto size-4 text-muted-foreground" />
-                    </CardTitle>
-                    <CardDescription>{page.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ))}
     </div>
   );
 }
