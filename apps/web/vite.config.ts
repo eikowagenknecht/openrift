@@ -66,8 +66,8 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/riot\.txt$/, /^\/robots\.txt$/],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/cmsassets\.rgpub\.io\/.*/i,
-            handler: "StaleWhileRevalidate",
+            urlPattern: /\.(?:png|jpe?g|webp|avif|svg)(?:\?.*)?$/i,
+            handler: "CacheFirst",
             options: {
               cacheName: "card-images",
               expiration: {
@@ -75,7 +75,10 @@ export default defineConfig({
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
               },
               cacheableResponse: {
-                statuses: [200],
+                statuses: [0, 200],
+              },
+              fetchOptions: {
+                mode: "cors",
               },
             },
           },
