@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckIcon, LoaderIcon, RefreshCwIcon, Trash2Icon, XIcon } from "lucide-react";
+import { CheckIcon, EyeIcon, LoaderIcon, RefreshCwIcon, Trash2Icon, XIcon } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +86,7 @@ export const refreshActions = {
     description: "Re-import sets, cards, and printings from JSON data",
     endpoint: "/api/admin/refresh-catalog",
     cronKey: "catalog" as const,
+    dryRunSupported: true,
   },
   tcgplayer: {
     key: "tcgplayer",
@@ -240,6 +242,20 @@ function PriceResultDisplay({ result }: { result: PriceResult }) {
 
 // ── Components ──────────────────────────────────────────────────────────────
 
+async function callRefreshEndpoint(
+  endpoint: string,
+  dryRun?: boolean,
+): Promise<RefreshResult | null> {
+  const url = dryRun ? `${API_BASE}${endpoint}?dry_run=true` : `${API_BASE}${endpoint}`;
+  const res = await fetch(url, { method: "POST", credentials: "include" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Request failed (${res.status})`);
+  }
+  const body = await res.json();
+  return body.result ?? null;
+}
+
 export function ActionCard({
   action,
   cronStatus,
@@ -247,23 +263,30 @@ export function ActionCard({
   action: RefreshAction;
   cronStatus?: CronStatus;
 }) {
-  const mutation = useMutation({
-    mutationFn: async (): Promise<RefreshResult | null> => {
-      const res = await fetch(`${API_BASE}${action.endpoint}`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? `Request failed (${res.status})`);
+  const hasDryRun = "dryRunSupported" in action && action.dryRunSupported;
+  const [preview, setPreview] = useState<CatalogResult | null>(null);
+
+  const previewMutation = useMutation({
+    mutationFn: () => callRefreshEndpoint(action.endpoint, true),
+    onSuccess: (data) => {
+      if (data && isCatalogResult(data)) {
+        setPreview(data);
       }
-      const body = await res.json();
-      return body.result ?? null;
     },
+  });
+
+  const applyMutation = useMutation({
+    mutationFn: () => callRefreshEndpoint(action.endpoint),
+    onSuccess: () => setPreview(null),
+  });
+
+  const mutation = useMutation({
+    mutationFn: () => callRefreshEndpoint(action.endpoint),
   });
 
   const cronEntry = cronStatus?.[action.cronKey];
   const nextRun = cronEntry?.nextRun;
+  const isPending = previewMutation.isPending || applyMutation.isPending || mutation.isPending;
 
   return (
     <Card className="h-full">
@@ -281,15 +304,83 @@ export function ActionCard({
               </p>
             )}
           </div>
-          <Button
-            size="sm"
-            disabled={mutation.isPending}
-            onClick={() => mutation.mutate()}
-            className="shrink-0"
-          >
-            {mutation.isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Run"}
-          </Button>
+          {hasDryRun ? (
+            <div className="flex shrink-0 gap-1.5">
+              {preview ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isPending}
+                    onClick={() => {
+                      setPreview(null);
+                      previewMutation.reset();
+                      applyMutation.reset();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={isPending || preview.changes.length === 0}
+                    onClick={() => applyMutation.mutate()}
+                  >
+                    {applyMutation.isPending ? (
+                      <LoaderIcon className="size-4 animate-spin" />
+                    ) : (
+                      "Apply"
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => previewMutation.mutate()}
+                >
+                  {previewMutation.isPending ? (
+                    <LoaderIcon className="size-4 animate-spin" />
+                  ) : (
+                    <>
+                      <EyeIcon className="size-4" />
+                      Preview
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              disabled={isPending}
+              onClick={() => mutation.mutate()}
+              className="shrink-0"
+            >
+              {mutation.isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Run"}
+            </Button>
+          )}
         </div>
+        {preview && (
+          <div>
+            <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+              <EyeIcon className="size-4" />
+              Preview — no changes applied yet
+            </p>
+            <CatalogResultDisplay result={preview} />
+          </div>
+        )}
+        {applyMutation.isSuccess && (
+          <div>
+            <p className="mt-2 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+              <CheckIcon className="size-4" />
+              Applied successfully
+            </p>
+            {applyMutation.data && isCatalogResult(applyMutation.data) && (
+              <CatalogResultDisplay result={applyMutation.data} />
+            )}
+          </div>
+        )}
         {mutation.isSuccess && (
           <div>
             <p className="mt-2 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
@@ -304,10 +395,12 @@ export function ActionCard({
               ))}
           </div>
         )}
-        {mutation.isError && (
+        {(previewMutation.isError || applyMutation.isError || mutation.isError) && (
           <p className="mt-2 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
             <XIcon className="size-4" />
-            {mutation.error.message}
+            {previewMutation.error?.message ??
+              applyMutation.error?.message ??
+              mutation.error?.message}
           </p>
         )}
       </CardHeader>
