@@ -337,7 +337,7 @@ export function CardBrowser({
             totalCards={allCards.length}
             setOrder={setInfoList}
             onCardClick={handleCardClick}
-            onSiblingClick={setSelectedCard}
+            onSiblingClick={handleCardClick}
             showImages={showImages}
             selectedCardId={gridSelectedId}
             priceRangeByCardId={priceRangeByCardId}
