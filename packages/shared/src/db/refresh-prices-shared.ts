@@ -101,7 +101,6 @@ export interface TcgplayerSnapshotData {
 }
 
 export interface TcgplayerStagingRow {
-  set_id: string | null;
   external_id: number | null;
   group_id: number | null;
   product_name: string;
@@ -135,7 +134,6 @@ export interface CardmarketSnapshotData {
 }
 
 export interface CardmarketStagingRow {
-  set_id: string | null;
   external_id: number | null;
   group_id: number | null;
   product_name: string;

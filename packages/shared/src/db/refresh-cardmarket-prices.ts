@@ -200,7 +200,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
           const normalMarket = toCents(pg.avg);
           if (normalMarket !== null) {
             allStaging.push({
-              set_id: setId,
               external_id: product.idProduct,
               group_id: product.idExpansion,
               product_name: product.name,
@@ -217,7 +216,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
           const foilMarket = toCents(pg["avg-foil"]);
           if (foilMarket !== null) {
             allStaging.push({
-              set_id: setId,
               external_id: product.idProduct,
               group_id: product.idExpansion,
               product_name: product.name,
@@ -282,7 +280,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
           const normalMarket = toCents(pg.avg);
           if (normalMarket !== null) {
             allStaging.push({
-              set_id: setId,
               external_id: product.idProduct,
               group_id: product.idExpansion,
               product_name: product.name,
@@ -299,7 +296,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
           const foilMarket = toCents(pg["avg-foil"]);
           if (foilMarket !== null) {
             allStaging.push({
-              set_id: setId,
               external_id: product.idProduct,
               group_id: product.idExpansion,
               product_name: product.name,
@@ -332,7 +328,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
       const normalMarket = toCents(pg.avg);
       if (normalMarket !== null) {
         allStaging.push({
-          set_id: null,
           external_id: product.idProduct,
           group_id: product.idExpansion,
           product_name: product.name,
@@ -349,7 +344,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
       const foilMarket = toCents(pg["avg-foil"]);
       if (foilMarket !== null) {
         allStaging.push({
-          set_id: null,
           external_id: product.idProduct,
           group_id: product.idExpansion,
           product_name: product.name,

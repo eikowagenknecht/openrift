@@ -117,7 +117,7 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
   // TCGCSV updates daily at ~20:00 UTC; this makes same-day re-runs idempotent.
   let tcgcsvRecordedAt: Date | null = null;
 
-  for (const [groupId, setIdOrNull] of groupSetMap) {
+  for (const [groupId] of groupSetMap) {
     const products = groupProducts.get(groupId);
     if (!products) {
       continue;
@@ -150,7 +150,6 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
         }
         const finish = entry.subTypeName === "Foil" ? "foil" : "normal";
         allStaging.push({
-          set_id: setIdOrNull ?? null,
           external_id: product.productId,
           group_id: groupId,
           product_name: product.cleanName,
