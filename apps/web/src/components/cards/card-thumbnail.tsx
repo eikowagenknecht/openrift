@@ -135,6 +135,7 @@ export function CardThumbnail({
               {siblingUrl && (
                 <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
               )}
+              {sibling.finish === "foil" && <FoilOverlay active shimmer dim />}
             </div>
           );
         })}

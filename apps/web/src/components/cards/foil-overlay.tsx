@@ -3,9 +3,11 @@ import { cn } from "@/lib/utils";
 interface FoilOverlayProps {
   active: boolean;
   shimmer?: boolean;
+  /** Reduce intensity for background/stacked cards */
+  dim?: boolean;
 }
 
-export function FoilOverlay({ active, shimmer }: FoilOverlayProps) {
+export function FoilOverlay({ active, shimmer, dim }: FoilOverlayProps) {
   return (
     <div
       className={cn(
@@ -13,8 +15,8 @@ export function FoilOverlay({ active, shimmer }: FoilOverlayProps) {
         "bg-foil bg-[length:200%_200%]",
         "mix-blend-color-dodge",
         "transition-opacity duration-300",
-        // 50% balances rainbow visibility without washing out card art
-        active ? "opacity-50" : "opacity-0",
+        // 50% balances rainbow visibility without washing out card art; 25% for background cards
+        active ? (dim ? "opacity-25" : "opacity-50") : "opacity-0",
         shimmer && active && "animate-foil-shimmer",
       )}
       style={
