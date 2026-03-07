@@ -55,6 +55,14 @@ interface TcgcsvPrice {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<PriceRefreshResult> {
+  // ── Load ignored products ────────────────────────────────────────────────
+
+  const ignoredRows = await db
+    .selectFrom("tcgplayer_ignored_products")
+    .select("external_id")
+    .execute();
+  const ignoredIds = new Set(ignoredRows.map((r) => r.external_id));
+
   // ── Collected rows ─────────────────────────────────────────────────────────
 
   const allStaging: TcgplayerStagingRow[] = [];
@@ -142,6 +150,9 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
 
     // Stage all products — mapping is done via the admin UI
     for (const product of products) {
+      if (ignoredIds.has(product.productId)) {
+        continue;
+      }
       const priceEntries = pricesByProductId.get(product.productId) || [];
       for (const entry of priceEntries) {
         const marketCents = toCents(entry.marketPrice);
@@ -170,9 +181,9 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
 
   // ── Upsert ──────────────────────────────────────────────────────────────────
 
+  const ignoredSuffix = ignoredIds.size > 0 ? `, ${ignoredIds.size} ignored` : "";
   console.log(
-    `TCGPlayer fetched: ${groups.length} groups (${mappedCount} mapped, ${unmappedCount} unmapped), ` +
-      `${totalProducts} products, ${allStaging.length} prices`,
+    `TCGPlayer fetched: ${groups.length} groups (${mappedCount} mapped, ${unmappedCount} unmapped), ${totalProducts} products, ${allStaging.length} prices${ignoredSuffix}`,
   );
 
   const counts = await upsertTcgplayerPriceData(db, [], [], allStaging);

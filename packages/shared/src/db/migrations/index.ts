@@ -10,6 +10,7 @@ import * as m004 from "./004-pricing.js";
 import * as m005 from "./005-drop-staging-set-id.js";
 import * as m006 from "./006-add-missing-timestamps.js";
 import * as m007 from "./007-add-group-id-fks.js";
+import * as m008 from "./008-ignored-products.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -19,4 +20,5 @@ export const migrations: Record<string, Migration> = {
   "005-drop-staging-set-id": m005,
   "006-add-missing-timestamps": m006,
   "007-add-group-id-fks": m007,
+  "008-ignored-products": m008,
 };

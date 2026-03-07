@@ -62,6 +62,14 @@ interface CmPriceGuide {
 export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<PriceRefreshResult> {
   const ref = await loadReferenceData(db);
 
+  // ── Load ignored products ────────────────────────────────────────────────
+
+  const ignoredRows = await db
+    .selectFrom("cardmarket_ignored_products")
+    .select("external_id")
+    .execute();
+  const ignoredIds = new Set(ignoredRows.map((r) => r.external_id));
+
   // ── Collected rows ─────────────────────────────────────────────────────────
 
   const allSources: CardmarketSourceRow[] = [];
@@ -80,7 +88,8 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
   ]);
 
   const cmPriceGuides = cmPriceGuideRes.data.priceGuides || [];
-  const cmSingles = cmSinglesRes.data.products || [];
+  const cmSinglesAll = cmSinglesRes.data.products || [];
+  const cmSingles = cmSinglesAll.filter((p) => !ignoredIds.has(p.idProduct));
 
   // Use createdAt from response body if available, otherwise Last-Modified header, otherwise now
   const cmRecordedAt = cmPriceGuideRes.data.createdAt
@@ -360,9 +369,9 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
     }
   }
 
+  const ignoredSuffix = ignoredIds.size > 0 ? `, ${ignoredIds.size} ignored` : "";
   console.log(
-    `Cardmarket fetched: ${dbExpansions.length} expansions (${cmMappedCount} mapped, ${cmUnmappedCount} unmapped), ` +
-      `${cmSingles.length} products, ${cmPriceGuides.length} prices`,
+    `Cardmarket fetched: ${dbExpansions.length} expansions (${cmMappedCount} mapped, ${cmUnmappedCount} unmapped), ${cmSingles.length} products, ${cmPriceGuides.length} prices${ignoredSuffix}`,
   );
 
   // ── Upsert ──────────────────────────────────────────────────────────────────

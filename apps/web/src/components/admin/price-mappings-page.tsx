@@ -1,5 +1,6 @@
 import type { Card as CardData, CardType, Rarity } from "@openrift/shared";
 import {
+  BanIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   EyeIcon,
@@ -30,8 +31,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  useIgnoreProducts,
   usePriceMappings,
   useSavePriceMappings,
+  useUnignoreProducts,
   useUnmapAllMappings,
   useUnmapPrinting,
 } from "@/hooks/use-price-mappings";
@@ -115,8 +118,11 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   const saveMutation = useSavePriceMappings(config);
   const unmapMutation = useUnmapPrinting(config);
   const unmapAllMutation = useUnmapAllMappings(config);
+  const ignoreMutation = useIgnoreProducts(config);
+  const unignoreMutation = useUnignoreProducts(config);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [confirmUnmapAll, setConfirmUnmapAll] = useState(false);
+  const [showIgnored, setShowIgnored] = useState(false);
 
   const toggleExpanded = (cardId: string) => {
     setExpandedCards((prev) => {
@@ -153,6 +159,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
 
   const groups = data?.groups ?? [];
   const unmatchedProducts = data?.unmatchedProducts ?? [];
+  const ignoredProducts = data?.ignoredProducts ?? [];
 
   return (
     <div className="space-y-4">
@@ -275,9 +282,41 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                   key={`${sp.externalId}::${sp.finish}`}
                   config={config}
                   product={sp}
+                  onIgnore={() => ignoreMutation.mutate([sp.externalId])}
+                  isIgnoring={ignoreMutation.isPending}
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {ignoredProducts.length > 0 && (
+          <div className="mt-6">
+            <button
+              type="button"
+              className="mb-3 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+              onClick={() => setShowIgnored((v) => !v)}
+            >
+              {showIgnored ? (
+                <ChevronDownIcon className="size-3.5" />
+              ) : (
+                <ChevronRightIcon className="size-3.5" />
+              )}
+              Ignored Products ({ignoredProducts.length})
+            </button>
+            {showIgnored && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
+                {ignoredProducts.map((sp) => (
+                  <StagedProductCard
+                    key={`ignored::${sp.externalId}`}
+                    config={config}
+                    product={sp}
+                    onUnignore={() => unignoreMutation.mutate([sp.externalId])}
+                    isUnignoring={unignoreMutation.isPending}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -545,28 +584,77 @@ const EXTRA_FIELDS = [
 function StagedProductCard({
   config,
   product: sp,
+  onIgnore,
+  isIgnoring,
+  onUnignore,
+  isUnignoring,
 }: {
   config: SourceMappingConfig;
   product: StagedProduct;
+  onIgnore?: () => void;
+  isIgnoring?: boolean;
+  onUnignore?: () => void;
+  isUnignoring?: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-background px-3 py-2.5">
-      <p className="truncate text-sm font-medium" title={sp.productName}>
-        {sp.productName}
-      </p>
-      <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="text-lg font-semibold tabular-nums">
-          {formatCents(sp.marketCents, sp.currency)}
-        </span>
-        <Badge variant="outline" className="shrink-0">
-          {sp.finish}
-        </Badge>
-        <Badge variant="outline" className="shrink-0">
-          <ProductLink config={config} externalId={sp.externalId}>
-            #{sp.externalId}
-          </ProductLink>
-        </Badge>
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 truncate text-sm font-medium" title={sp.productName}>
+          {sp.productName}
+        </p>
+        {onIgnore && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 shrink-0 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+            onClick={onIgnore}
+            disabled={isIgnoring}
+            title="Ignore this product"
+          >
+            <BanIcon className="size-3.5" />
+            Ignore
+          </Button>
+        )}
+        {onUnignore && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 shrink-0 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={onUnignore}
+            disabled={isUnignoring}
+            title="Unignore — product will reappear on next refresh"
+          >
+            <Undo2Icon className="size-3.5" />
+            Unignore
+          </Button>
+        )}
       </div>
+      {sp.marketCents > 0 && (
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <span className="text-lg font-semibold tabular-nums">
+            {formatCents(sp.marketCents, sp.currency)}
+          </span>
+          {sp.finish && (
+            <Badge variant="outline" className="shrink-0">
+              {sp.finish}
+            </Badge>
+          )}
+          <Badge variant="outline" className="shrink-0">
+            <ProductLink config={config} externalId={sp.externalId}>
+              #{sp.externalId}
+            </ProductLink>
+          </Badge>
+        </div>
+      )}
+      {sp.marketCents === 0 && (
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <Badge variant="outline" className="shrink-0">
+            <ProductLink config={config} externalId={sp.externalId}>
+              #{sp.externalId}
+            </ProductLink>
+          </Badge>
+        </div>
+      )}
       {EXTRA_FIELDS.some((f) => sp[f.key] !== null) && (
         <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
           {EXTRA_FIELDS.filter((f) => sp[f.key] !== null).map((f) => (

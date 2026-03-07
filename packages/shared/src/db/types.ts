@@ -228,6 +228,22 @@ export interface VerificationsTable {
   updated_at: UpdatedAt;
 }
 
+// ─── Ignored products ───────────────────────────────────────────────────────
+
+export interface TcgplayerIgnoredProductsTable {
+  external_id: number;
+  product_name: string;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface CardmarketIgnoredProductsTable {
+  external_id: number;
+  product_name: string;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -243,6 +259,8 @@ export interface Database {
   cardmarket_staging: CardmarketStagingTable;
   tcgplayer_groups: TcgplayerGroupsTable;
   cardmarket_expansions: CardmarketExpansionsTable;
+  tcgplayer_ignored_products: TcgplayerIgnoredProductsTable;
+  cardmarket_ignored_products: CardmarketIgnoredProductsTable;
 
   // Admin (migration 012)
   admins: AdminsTable;
