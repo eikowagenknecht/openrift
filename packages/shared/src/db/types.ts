@@ -89,6 +89,8 @@ export interface TcgplayerSnapshotsTable {
   low_cents: number | null;
   mid_cents: number | null;
   high_cents: number | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 export interface TcgplayerStagingTable {
@@ -103,6 +105,7 @@ export interface TcgplayerStagingTable {
   mid_cents: number | null;
   high_cents: number | null;
   created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 // ─── Cardmarket pricing ─────────────────────────────────────────────────────
@@ -128,6 +131,8 @@ export interface CardmarketSnapshotsTable {
   avg1_cents: number | null;
   avg7_cents: number | null;
   avg30_cents: number | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 export interface CardmarketStagingTable {
@@ -144,6 +149,7 @@ export interface CardmarketStagingTable {
   avg7_cents: number | null;
   avg30_cents: number | null;
   created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 // ─── TCGPlayer groups (migration 016) ─────────────────────────────────────
@@ -173,6 +179,7 @@ export interface CardmarketExpansionsTable {
 export interface AdminsTable {
   user_id: string;
   created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 // ─── Auth (migration 003) ─────────────────────────────────────────────────
