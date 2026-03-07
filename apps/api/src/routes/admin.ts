@@ -1454,9 +1454,10 @@ adminRoute.post("/admin/clear-prices", async (c) => {
 
 adminRoute.use("/admin/refresh-catalog", requireAdmin);
 adminRoute.post("/admin/refresh-catalog", async (c) => {
+  const dryRun = c.req.query("dry_run") === "true";
   try {
-    const result = await refreshCatalog(db);
-    return c.json({ status: "ok", result });
+    const result = await refreshCatalog(db, { dryRun });
+    return c.json({ status: "ok", dryRun, result });
   } catch (error) {
     console.error("[admin] refresh-catalog failed:", error);
     return c.json({ error: "Catalog refresh failed" }, 500);

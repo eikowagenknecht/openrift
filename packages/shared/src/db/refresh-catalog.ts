@@ -64,7 +64,11 @@ export interface CatalogRefreshResult {
   changes: CatalogChange[];
 }
 
-export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefreshResult> {
+export async function refreshCatalog(
+  db: Kysely<Database>,
+  options?: { dryRun?: boolean },
+): Promise<CatalogRefreshResult> {
+  const dryRun = options?.dryRun ?? false;
   const data = await fetchCatalog();
   const changes: CatalogChange[] = [];
 
@@ -121,22 +125,24 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefre
       changes.push({ kind: "added", entity: "set", id: set.id, name: set.name });
     }
 
-    await db
-      .insertInto("sets")
-      .values({
-        id: set.id,
-        name: set.name,
-        printed_total: set.printedTotal,
-      })
-      .onConflict((oc) =>
-        oc.column("id").doUpdateSet({
+    if (!dryRun) {
+      await db
+        .insertInto("sets")
+        .values({
+          id: set.id,
           name: set.name,
           printed_total: set.printedTotal,
-        }),
-      )
-      .execute();
+        })
+        .onConflict((oc) =>
+          oc.column("id").doUpdateSet({
+            name: set.name,
+            printed_total: set.printedTotal,
+          }),
+        )
+        .execute();
+    }
 
-    console.log(`  ✓ Set: ${set.name}`);
+    console.log(`  ${dryRun ? "(dry run)" : "✓"} Set: ${set.name}`);
   }
 
   // ── Game cards ─────────────────────────────────────────────────────────────
@@ -187,25 +193,11 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefre
       changes.push({ kind: "added", entity: "card", id, name: card.name });
     }
 
-    await db
-      .insertInto("cards")
-      .values({
-        id,
-        name: card.name,
-        type: card.type,
-        super_types: card.superTypes,
-        domains: card.domains,
-        might: card.stats.might,
-        energy: card.stats.energy,
-        power: card.stats.power,
-        might_bonus: card.mightBonus,
-        keywords: card.keywords,
-        rules_text: card.rulesText,
-        effect_text: card.effectText,
-        tags: card.tags,
-      })
-      .onConflict((oc) =>
-        oc.column("id").doUpdateSet({
+    if (!dryRun) {
+      await db
+        .insertInto("cards")
+        .values({
+          id,
           name: card.name,
           type: card.type,
           super_types: card.superTypes,
@@ -218,12 +210,30 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefre
           rules_text: card.rulesText,
           effect_text: card.effectText,
           tags: card.tags,
-        }),
-      )
-      .execute();
+        })
+        .onConflict((oc) =>
+          oc.column("id").doUpdateSet({
+            name: card.name,
+            type: card.type,
+            super_types: card.superTypes,
+            domains: card.domains,
+            might: card.stats.might,
+            energy: card.stats.energy,
+            power: card.stats.power,
+            might_bonus: card.mightBonus,
+            keywords: card.keywords,
+            rules_text: card.rulesText,
+            effect_text: card.effectText,
+            tags: card.tags,
+          }),
+        )
+        .execute();
+    }
   }
 
-  console.log(`  ✓ Cards: ${Object.keys(data.cards).length} game cards`);
+  console.log(
+    `  ${dryRun ? "(dry run)" : "✓"} Cards: ${Object.keys(data.cards).length} game cards`,
+  );
 
   // ── Printings ──────────────────────────────────────────────────────────────
   const printingRows: {
@@ -269,25 +279,27 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefre
   }
 
   // Upsert in batches — preserves price history across re-seeds
-  const BATCH_SIZE = 200;
-  for (let i = 0; i < printingRows.length; i += BATCH_SIZE) {
-    await db
-      .insertInto("printings")
-      .values(printingRows.slice(i, i + BATCH_SIZE))
-      .onConflict((oc) =>
-        oc.column("id").doUpdateSet({
-          card_id: sql<string>`excluded.card_id`,
-          set_id: sql<string>`excluded.set_id`,
-          collector_number: sql<number>`excluded.collector_number`,
-          rarity: sql<Rarity>`excluded.rarity`,
-          image_url: sql<string>`excluded.image_url`,
-          artist: sql<string>`excluded.artist`,
-          public_code: sql<string>`excluded.public_code`,
-          printed_rules_text: sql<string>`excluded.printed_rules_text`,
-          printed_effect_text: sql<string>`excluded.printed_effect_text`,
-        }),
-      )
-      .execute();
+  if (!dryRun) {
+    const BATCH_SIZE = 200;
+    for (let i = 0; i < printingRows.length; i += BATCH_SIZE) {
+      await db
+        .insertInto("printings")
+        .values(printingRows.slice(i, i + BATCH_SIZE))
+        .onConflict((oc) =>
+          oc.column("id").doUpdateSet({
+            card_id: sql<string>`excluded.card_id`,
+            set_id: sql<string>`excluded.set_id`,
+            collector_number: sql<number>`excluded.collector_number`,
+            rarity: sql<Rarity>`excluded.rarity`,
+            image_url: sql<string>`excluded.image_url`,
+            artist: sql<string>`excluded.artist`,
+            public_code: sql<string>`excluded.public_code`,
+            printed_rules_text: sql<string>`excluded.printed_rules_text`,
+            printed_effect_text: sql<string>`excluded.printed_effect_text`,
+          }),
+        )
+        .execute();
+    }
   }
 
   // Track new printings
@@ -297,7 +309,7 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefre
     }
   }
 
-  console.log(`  ✓ Printings: ${printingRows.length} rows`);
+  console.log(`  ${dryRun ? "(dry run)" : "✓"} Printings: ${printingRows.length} rows`);
 
   // ── Stale row detection ───────────────────────────────────────────────────
   const seedSetIds = new Set(data.sets.map((s) => s.id));
@@ -331,7 +343,7 @@ export async function refreshCatalog(db: Kysely<Database>): Promise<CatalogRefre
     }
   }
 
-  console.log("\nRefresh complete.");
+  console.log(`\n${dryRun ? "Dry run" : "Refresh"} complete.`);
 
   return {
     sets: { total: data.sets.length, names: data.sets.map((s) => s.name) },
