@@ -410,6 +410,7 @@ export async function upsertTcgplayerPriceData(
             low_cents: sql<number | null>`excluded.low_cents`,
             mid_cents: sql<number | null>`excluded.mid_cents`,
             high_cents: sql<number | null>`excluded.high_cents`,
+            updated_at: sql`now()`,
           })
           .where(
             sql<SqlBool>`excluded.group_id IS DISTINCT FROM tcgplayer_staging.group_id
@@ -602,6 +603,7 @@ export async function upsertCardmarketPriceData(
             avg1_cents: sql<number | null>`excluded.avg1_cents`,
             avg7_cents: sql<number | null>`excluded.avg7_cents`,
             avg30_cents: sql<number | null>`excluded.avg30_cents`,
+            updated_at: sql`now()`,
           })
           .where(
             sql<SqlBool>`excluded.group_id IS DISTINCT FROM cardmarket_staging.group_id
