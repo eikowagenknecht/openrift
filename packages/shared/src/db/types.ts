@@ -93,7 +93,6 @@ export interface TcgplayerSnapshotsTable {
 
 export interface TcgplayerStagingTable {
   id: Generated<number>;
-  set_id: string | null;
   external_id: number | null;
   group_id: number | null;
   product_name: string;
@@ -133,7 +132,6 @@ export interface CardmarketSnapshotsTable {
 
 export interface CardmarketStagingTable {
   id: Generated<number>;
-  set_id: string | null;
   external_id: number | null;
   group_id: number | null;
   product_name: string;

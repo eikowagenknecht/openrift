@@ -80,7 +80,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
       return true;
     });
 
-    // 2. Normalize helper + collect staged set IDs
+    // 2. Normalize helper + resolve set IDs via tcgplayer_groups
     const normalizeName = (name: string) =>
       name
         .toLowerCase()
@@ -88,7 +88,24 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
         .replaceAll(/\s+/g, " ")
         .trim();
 
-    const stagedSetIds = [...new Set(uniqueStaged.map((r) => r.set_id).filter(Boolean))];
+    const groupRows = await db
+      .selectFrom("tcgplayer_groups")
+      .select(["group_id", "set_id"])
+      .execute();
+    const groupSetMap = new Map<number, string>();
+    for (const row of groupRows) {
+      if (row.set_id) {
+        groupSetMap.set(row.group_id, row.set_id);
+      }
+    }
+
+    const stagedSetIds = [
+      ...new Set(
+        uniqueStaged
+          .map((r) => (r.group_id === null ? undefined : groupSetMap.get(r.group_id)))
+          .filter((id): id is string => id !== undefined),
+      ),
+    ];
 
     // 3. Build the card query — fetch all cards in staged sets
     let query = db
@@ -214,11 +231,12 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
     const stagedByCard = new Map<string, typeof uniqueStaged>();
     const matchedStagingKeys = new Set<string>();
     for (const row of uniqueStaged) {
-      if (!row.set_id) {
+      const setId = row.group_id === null ? undefined : groupSetMap.get(row.group_id);
+      if (!setId) {
         continue;
       }
       const normProduct = normalizeName(row.product_name);
-      const candidates = cardNamesBySet.get(row.set_id) ?? [];
+      const candidates = cardNamesBySet.get(setId) ?? [];
       for (const { normName, groupKey } of candidates) {
         if (
           normProduct === normName ||
@@ -505,7 +523,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
       const printing = await tx
         .selectFrom("printings as p")
         .innerJoin("cards as c", "c.id", "p.card_id")
-        .select(["p.set_id", "p.finish", "c.name as card_name"])
+        .select(["p.finish", "c.name as card_name"])
         .where("p.id", "=", printingId)
         .executeTakeFirstOrThrow();
 
@@ -519,7 +537,6 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
         await tx
           .insertInto("tcgplayer_staging")
           .values({
-            set_id: printing.set_id,
             external_id: ps.external_id,
             product_name: printing.card_name,
             finish: printing.finish,
@@ -561,7 +578,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
         const printing = await tx
           .selectFrom("printings as p")
           .innerJoin("cards as c", "c.id", "p.card_id")
-          .select(["p.set_id", "p.finish", "c.name as card_name"])
+          .select(["p.finish", "c.name as card_name"])
           .where("p.id", "=", ps.printing_id)
           .executeTakeFirstOrThrow();
 
@@ -575,7 +592,6 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
           await tx
             .insertInto("tcgplayer_staging")
             .values({
-              set_id: printing.set_id,
               external_id: externalId,
               product_name: printing.card_name,
               finish: printing.finish,
@@ -638,7 +654,24 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
         .replaceAll(/\s+/g, " ")
         .trim();
 
-    const stagedSetIds = [...new Set(uniqueStaged.map((r) => r.set_id).filter(Boolean))];
+    const expansionRows = await db
+      .selectFrom("cardmarket_expansions")
+      .select(["expansion_id", "set_id"])
+      .execute();
+    const expansionSetMap = new Map<number, string>();
+    for (const row of expansionRows) {
+      if (row.set_id) {
+        expansionSetMap.set(row.expansion_id, row.set_id);
+      }
+    }
+
+    const stagedSetIds = [
+      ...new Set(
+        uniqueStaged
+          .map((r) => (r.group_id === null ? undefined : expansionSetMap.get(r.group_id)))
+          .filter((id): id is string => id !== undefined),
+      ),
+    ];
 
     let query = db
       .selectFrom("cards as c")
@@ -761,11 +794,12 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
     const stagedByCard = new Map<string, typeof uniqueStaged>();
     const matchedStagingKeys = new Set<string>();
     for (const row of uniqueStaged) {
-      if (!row.set_id) {
+      const setId = row.group_id === null ? undefined : expansionSetMap.get(row.group_id);
+      if (!setId) {
         continue;
       }
       const normProduct = normalizeName(row.product_name);
-      const candidates = cardNamesBySet.get(row.set_id) ?? [];
+      const candidates = cardNamesBySet.get(setId) ?? [];
       for (const { normName, groupKey } of candidates) {
         if (
           normProduct === normName ||
@@ -1055,7 +1089,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
       const printing = await tx
         .selectFrom("printings as p")
         .innerJoin("cards as c", "c.id", "p.card_id")
-        .select(["p.set_id", "p.finish", "c.name as card_name"])
+        .select(["p.finish", "c.name as card_name"])
         .where("p.id", "=", printingId)
         .executeTakeFirstOrThrow();
 
@@ -1069,7 +1103,6 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
         await tx
           .insertInto("cardmarket_staging")
           .values({
-            set_id: printing.set_id,
             external_id: ps.external_id,
             product_name: printing.card_name,
             finish: printing.finish,
@@ -1113,7 +1146,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
         const printing = await tx
           .selectFrom("printings as p")
           .innerJoin("cards as c", "c.id", "p.card_id")
-          .select(["p.set_id", "p.finish", "c.name as card_name"])
+          .select(["p.finish", "c.name as card_name"])
           .where("p.id", "=", ps.printing_id)
           .executeTakeFirstOrThrow();
 
@@ -1127,7 +1160,6 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
           await tx
             .insertInto("cardmarket_staging")
             .values({
-              set_id: printing.set_id,
               external_id: externalId,
               product_name: printing.card_name,
               finish: printing.finish,
@@ -1219,20 +1251,11 @@ adminRoute.put("/admin/cardmarket-expansions", async (c) => {
 
   const { expansionId, setId } = parsed.data;
 
-  await db.transaction().execute(async (tx) => {
-    await tx
-      .updateTable("cardmarket_expansions")
-      .set({ set_id: setId, updated_at: new Date() })
-      .where("expansion_id", "=", expansionId)
-      .execute();
-
-    // Backfill set_id on staged rows so they appear on the mappings page
-    await tx
-      .updateTable("cardmarket_staging")
-      .set({ set_id: setId })
-      .where("group_id", "=", expansionId)
-      .execute();
-  });
+  await db
+    .updateTable("cardmarket_expansions")
+    .set({ set_id: setId, updated_at: new Date() })
+    .where("expansion_id", "=", expansionId)
+    .execute();
 
   return c.json({ ok: true });
 });
@@ -1299,20 +1322,11 @@ adminRoute.put("/admin/tcgplayer-groups", async (c) => {
 
   const { groupId, setId } = parsed.data;
 
-  await db.transaction().execute(async (tx) => {
-    await tx
-      .updateTable("tcgplayer_groups")
-      .set({ set_id: setId, updated_at: new Date() })
-      .where("group_id", "=", groupId)
-      .execute();
-
-    // Backfill set_id on staged rows so they appear on the mappings page
-    await tx
-      .updateTable("tcgplayer_staging")
-      .set({ set_id: setId })
-      .where("group_id", "=", groupId)
-      .execute();
-  });
+  await db
+    .updateTable("tcgplayer_groups")
+    .set({ set_id: setId, updated_at: new Date() })
+    .where("group_id", "=", groupId)
+    .execute();
 
   return c.json({ ok: true });
 });
