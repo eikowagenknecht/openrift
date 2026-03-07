@@ -830,6 +830,22 @@ export function CardGrid({
     return () => clearTimeout(timer);
   }, [selectedCardId]);
 
+  // Re-scroll the selected card into view when columns change (e.g. detail
+  // pane opening/closing resizes the grid, shifting the card out of view).
+  useEffect(() => {
+    if (!selectedCardId) {
+      return;
+    }
+    const rows = virtualRowsRef.current;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.kind === "cards" && row.items.some((c) => c.id === selectedCardId)) {
+        virtualizerRef.current.scrollToIndex(i, { align: "auto" });
+        break;
+      }
+    }
+  }, [columns, selectedCardId]);
+
   const scrollToGroup = (setName: string) => {
     const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
     if (rowIndex !== -1) {
