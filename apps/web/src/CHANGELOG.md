@@ -11,6 +11,12 @@
 - fix: The blue update dot no longer disappears when dismissing the update notification
 - fix: Scrolling up on the card grid no longer stutters after jumping to a distant position
 
+## 2026-03-07
+
+- feat: Stacked cards in the grid now show a foil shimmer effect
+- fix: Clicking a fanned sibling card now correctly opens the detail pane
+- fix: The selected card stays in view when the grid resizes from the detail pane opening
+
 ## 2026-03-06
 
 - feat: Sort, view, and column controls now live inside the filter drawer on mobile for a cleaner layout
