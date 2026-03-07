@@ -437,22 +437,23 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
           .execute();
 
         const first = stagingRows[0];
+        if (!first) {
+          continue;
+        }
 
         const ps = await tx
           .insertInto("tcgplayer_sources")
           .values({
             printing_id: printingId,
             external_id: externalId,
-            group_id: first?.group_id ?? null,
-            product_name: first?.product_name ?? null,
-            url: `https://www.tcgplayer.com/product/${externalId}`,
+            group_id: first.group_id,
+            product_name: first.product_name,
           })
           .onConflict((oc) =>
             oc.column("printing_id").doUpdateSet({
               external_id: externalId,
-              group_id: first?.group_id ?? null,
-              product_name: first?.product_name ?? null,
-              url: `https://www.tcgplayer.com/product/${externalId}`,
+              group_id: first.group_id,
+              product_name: first.product_name,
               updated_at: new Date(),
             }),
           )
@@ -521,10 +522,9 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
       }
 
       const printing = await tx
-        .selectFrom("printings as p")
-        .innerJoin("cards as c", "c.id", "p.card_id")
-        .select(["p.finish", "c.name as card_name"])
-        .where("p.id", "=", printingId)
+        .selectFrom("printings")
+        .select("finish")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
 
       const snapshots = await tx
@@ -538,7 +538,8 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
           .insertInto("tcgplayer_staging")
           .values({
             external_id: ps.external_id,
-            product_name: printing.card_name,
+            group_id: ps.group_id,
+            product_name: ps.product_name,
             finish: printing.finish,
             recorded_at: snap.recorded_at,
             market_cents: snap.market_cents,
@@ -576,10 +577,9 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
 
       await db.transaction().execute(async (tx) => {
         const printing = await tx
-          .selectFrom("printings as p")
-          .innerJoin("cards as c", "c.id", "p.card_id")
-          .select(["p.finish", "c.name as card_name"])
-          .where("p.id", "=", ps.printing_id)
+          .selectFrom("printings")
+          .select("finish")
+          .where("id", "=", ps.printing_id)
           .executeTakeFirstOrThrow();
 
         const snapshots = await tx
@@ -593,7 +593,8 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
             .insertInto("tcgplayer_staging")
             .values({
               external_id: externalId,
-              product_name: printing.card_name,
+              group_id: ps.group_id,
+              product_name: ps.product_name,
               finish: printing.finish,
               recorded_at: snap.recorded_at,
               market_cents: snap.market_cents,
@@ -999,22 +1000,23 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
           .execute();
 
         const first = stagingRows[0];
+        if (!first) {
+          continue;
+        }
 
         const ps = await tx
           .insertInto("cardmarket_sources")
           .values({
             printing_id: printingId,
             external_id: externalId,
-            group_id: first?.group_id ?? null,
-            product_name: first?.product_name ?? null,
-            url: `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${externalId}`,
+            group_id: first.group_id,
+            product_name: first.product_name,
           })
           .onConflict((oc) =>
             oc.column("printing_id").doUpdateSet({
               external_id: externalId,
-              group_id: first?.group_id ?? null,
-              product_name: first?.product_name ?? null,
-              url: `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${externalId}`,
+              group_id: first.group_id,
+              product_name: first.product_name,
               updated_at: new Date(),
             }),
           )
@@ -1087,10 +1089,9 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
       }
 
       const printing = await tx
-        .selectFrom("printings as p")
-        .innerJoin("cards as c", "c.id", "p.card_id")
-        .select(["p.finish", "c.name as card_name"])
-        .where("p.id", "=", printingId)
+        .selectFrom("printings")
+        .select("finish")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
 
       const snapshots = await tx
@@ -1104,7 +1105,8 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
           .insertInto("cardmarket_staging")
           .values({
             external_id: ps.external_id,
-            product_name: printing.card_name,
+            group_id: ps.group_id,
+            product_name: ps.product_name,
             finish: printing.finish,
             recorded_at: snap.recorded_at,
             market_cents: snap.market_cents,
@@ -1144,10 +1146,9 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
 
       await db.transaction().execute(async (tx) => {
         const printing = await tx
-          .selectFrom("printings as p")
-          .innerJoin("cards as c", "c.id", "p.card_id")
-          .select(["p.finish", "c.name as card_name"])
-          .where("p.id", "=", ps.printing_id)
+          .selectFrom("printings")
+          .select("finish")
+          .where("id", "=", ps.printing_id)
           .executeTakeFirstOrThrow();
 
         const snapshots = await tx
@@ -1161,7 +1162,8 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
             .insertInto("cardmarket_staging")
             .values({
               external_id: externalId,
-              product_name: printing.card_name,
+              group_id: ps.group_id,
+              product_name: ps.product_name,
               finish: printing.finish,
               recorded_at: snap.recorded_at,
               market_cents: snap.market_cents,

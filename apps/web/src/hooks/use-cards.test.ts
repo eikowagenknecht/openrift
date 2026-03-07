@@ -59,7 +59,6 @@ const PRICES_RESPONSE: PricesData = {
   cards: {
     "RB1-001:normal:::normal": {
       productId: 1,
-      url: null,
       low: 0.5,
       mid: 1,
       high: 2,

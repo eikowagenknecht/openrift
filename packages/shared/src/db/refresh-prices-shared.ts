@@ -85,10 +85,9 @@ function normalizeName(name: string): string {
 
 export interface TcgplayerSourceRow {
   printing_id: string;
-  external_id: number | null;
-  group_id: number | null;
-  product_name: string | null;
-  url: string | null;
+  external_id: number;
+  group_id: number;
+  product_name: string;
 }
 
 export interface TcgplayerSnapshotData {
@@ -101,8 +100,8 @@ export interface TcgplayerSnapshotData {
 }
 
 export interface TcgplayerStagingRow {
-  external_id: number | null;
-  group_id: number | null;
+  external_id: number;
+  group_id: number;
   product_name: string;
   finish: string;
   recorded_at: Date;
@@ -116,10 +115,9 @@ export interface TcgplayerStagingRow {
 
 export interface CardmarketSourceRow {
   printing_id: string;
-  external_id: number | null;
-  group_id: number | null;
-  product_name: string | null;
-  url: string | null;
+  external_id: number;
+  group_id: number;
+  product_name: string;
 }
 
 export interface CardmarketSnapshotData {
@@ -134,8 +132,8 @@ export interface CardmarketSnapshotData {
 }
 
 export interface CardmarketStagingRow {
-  external_id: number | null;
-  group_id: number | null;
+  external_id: number;
+  group_id: number;
   product_name: string;
   finish: string;
   recorded_at: Date;
@@ -295,14 +293,10 @@ export async function upsertTcgplayerPriceData(
         oc
           .column("printing_id")
           .doUpdateSet({
-            group_id: sql<number | null>`excluded.group_id`,
-            url: sql<string | null>`excluded.url`,
+            group_id: sql<number>`excluded.group_id`,
             updated_at: sql<Date>`now()`,
           })
-          .where(
-            sql<SqlBool>`excluded.group_id IS DISTINCT FROM tcgplayer_sources.group_id
-              OR excluded.url IS DISTINCT FROM tcgplayer_sources.url`,
-          ),
+          .where(sql<SqlBool>`excluded.group_id IS DISTINCT FROM tcgplayer_sources.group_id`),
       )
       .returning(sql<number>`1`.as("_"))
       .execute();
@@ -405,7 +399,7 @@ export async function upsertTcgplayerPriceData(
         oc
           .columns(["external_id", "finish", "recorded_at"])
           .doUpdateSet({
-            group_id: sql<number | null>`excluded.group_id`,
+            group_id: sql<number>`excluded.group_id`,
             market_cents: sql<number>`excluded.market_cents`,
             low_cents: sql<number | null>`excluded.low_cents`,
             mid_cents: sql<number | null>`excluded.mid_cents`,
@@ -478,14 +472,10 @@ export async function upsertCardmarketPriceData(
         oc
           .column("printing_id")
           .doUpdateSet({
-            group_id: sql<number | null>`excluded.group_id`,
-            url: sql<string | null>`excluded.url`,
+            group_id: sql<number>`excluded.group_id`,
             updated_at: sql<Date>`now()`,
           })
-          .where(
-            sql<SqlBool>`excluded.group_id IS DISTINCT FROM cardmarket_sources.group_id
-              OR excluded.url IS DISTINCT FROM cardmarket_sources.url`,
-          ),
+          .where(sql<SqlBool>`excluded.group_id IS DISTINCT FROM cardmarket_sources.group_id`),
       )
       .returning(sql<number>`1`.as("_"))
       .execute();
@@ -596,7 +586,7 @@ export async function upsertCardmarketPriceData(
         oc
           .columns(["external_id", "finish", "recorded_at"])
           .doUpdateSet({
-            group_id: sql<number | null>`excluded.group_id`,
+            group_id: sql<number>`excluded.group_id`,
             market_cents: sql<number>`excluded.market_cents`,
             low_cents: sql<number | null>`excluded.low_cents`,
             trend_cents: sql<number | null>`excluded.trend_cents`,

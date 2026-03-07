@@ -358,8 +358,14 @@ function PricingSection({ card, range }: { card: Card; range: TimeRange }) {
     return null;
   }
 
-  const tcgUrl = price?.url ? affiliateUrl(price.url) : null;
-  const cmUrl = history?.cardmarket.url ?? null;
+  const tcgProductId = price?.productId ?? history?.tcgplayer.productId;
+  const tcgUrl = tcgProductId
+    ? affiliateUrl(`https://www.tcgplayer.com/product/${tcgProductId}`)
+    : null;
+  const cmProductId = history?.cardmarket.productId;
+  const cmUrl = cmProductId
+    ? `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${cmProductId}`
+    : null;
 
   return (
     <div className="flex items-center justify-end gap-1.5">

@@ -21,8 +21,7 @@ export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
 export type SortDirection = "asc" | "desc";
 
 export interface CardPrice {
-  productId: number | null;
-  url: string | null;
+  productId: number;
   low: number;
   mid: number;
   high: number;
@@ -148,13 +147,13 @@ export interface PriceHistoryResponse {
   tcgplayer: {
     available: boolean;
     currency: "USD";
-    url: string | null;
+    productId: number | null;
     snapshots: TcgplayerSnapshot[];
   };
   cardmarket: {
     available: boolean;
     currency: "EUR";
-    url: string | null;
+    productId: number | null;
     snapshots: CardmarketSnapshot[];
   };
 }

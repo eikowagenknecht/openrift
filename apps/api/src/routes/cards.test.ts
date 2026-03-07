@@ -75,7 +75,6 @@ const dbJoinedRow = {
 const dbPrice = {
   printing_id: "OGS-001:normal:::normal",
   external_id: 12_345,
-  url: "https://example.com/product",
   market_cents: 275,
   low_cents: 150,
   mid_cents: 250,
@@ -86,7 +85,6 @@ const dbPrice = {
 const dbPriceFoil = {
   printing_id: "OGS-001:normal:::foil",
   external_id: 12_345,
-  url: "https://example.com/product",
   market_cents: 800,
   low_cents: 500,
   mid_cents: 750,
@@ -252,13 +250,12 @@ describe("GET /api/prices", () => {
     expect(json.cards["OGS-001:normal:::foil"].market).toBe(8);
   });
 
-  it("sets productId and url from the price row", async () => {
+  it("sets productId from the price row", async () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
     const price = json.cards["OGS-001:normal:::normal"];
 
     expect(price.productId).toBe(12_345);
-    expect(price.url).toBe("https://example.com/product");
   });
 
   it("defaults null cents to 0 before conversion", async () => {

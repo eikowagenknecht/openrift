@@ -154,7 +154,7 @@ describe("getMarketPrice", () => {
     const card = makeCard({
       price: {
         productId: 1,
-        url: null,
+
         low: 1,
         mid: 2,
         high: 3,
@@ -479,7 +479,7 @@ describe("filterCards", () => {
         name: "Cheap Card",
         price: {
           productId: 1,
-          url: null,
+
           low: 0.5,
           mid: 1,
           high: 2,
@@ -490,7 +490,7 @@ describe("filterCards", () => {
         name: "Expensive Card",
         price: {
           productId: 2,
-          url: null,
+
           low: 10,
           mid: 20,
           high: 30,
@@ -627,7 +627,7 @@ describe("getAvailableFilters", () => {
       makeCard({
         price: {
           productId: 1,
-          url: null,
+
           low: 1,
           mid: 2,
           high: 3,
@@ -637,7 +637,7 @@ describe("getAvailableFilters", () => {
       makeCard({
         price: {
           productId: 2,
-          url: null,
+
           low: 10,
           mid: 20,
           high: 30,
@@ -759,7 +759,7 @@ describe("sortCards", () => {
         name: "Expensive",
         price: {
           productId: 1,
-          url: null,
+
           low: 1,
           mid: 2,
           high: 3,
@@ -771,7 +771,7 @@ describe("sortCards", () => {
         name: "Cheap",
         price: {
           productId: 2,
-          url: null,
+
           low: 1,
           mid: 2,
           high: 3,
@@ -791,7 +791,7 @@ describe("sortCards", () => {
           name: "Bravo",
           price: {
             productId: 1,
-            url: null,
+
             low: 1,
             mid: 2,
             high: 3,
@@ -802,7 +802,7 @@ describe("sortCards", () => {
           name: "Alpha",
           price: {
             productId: 2,
-            url: null,
+
             low: 1,
             mid: 2,
             high: 3,

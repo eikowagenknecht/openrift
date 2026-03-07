@@ -127,7 +127,6 @@ cardsRoute.get("/prices", async (c) => {
     .select([
       "ps.printing_id",
       "ps.external_id",
-      "ps.url",
       "snap.market_cents",
       "snap.low_cents",
       "snap.mid_cents",
@@ -146,8 +145,7 @@ cardsRoute.get("/prices", async (c) => {
     }
 
     cards[row.printing_id] = {
-      productId: row.external_id ?? null,
-      url: row.url ?? null,
+      productId: row.external_id,
       low: (row.low_cents ?? 0) / 100,
       mid: (row.mid_cents ?? 0) / 100,
       high: (row.high_cents ?? 0) / 100,
@@ -178,13 +176,13 @@ cardsRoute.get("/prices/:printingId/history", async (c) => {
   // Look up sources
   const tcgSource = await db
     .selectFrom("tcgplayer_sources")
-    .select(["id", "url"])
+    .select(["id", "external_id"])
     .where("printing_id", "=", printingId)
     .executeTakeFirst();
 
   const cmSource = await db
     .selectFrom("cardmarket_sources")
-    .select(["id", "url"])
+    .select(["id", "external_id"])
     .where("printing_id", "=", printingId)
     .executeTakeFirst();
 
@@ -245,13 +243,13 @@ cardsRoute.get("/prices/:printingId/history", async (c) => {
     tcgplayer: {
       available: Boolean(tcgSource),
       currency: "USD",
-      url: tcgSource?.url ?? null,
+      productId: tcgSource?.external_id ?? null,
       snapshots: tcgSnapshots,
     },
     cardmarket: {
       available: Boolean(cmSource),
       currency: "EUR",
-      url: cmSource?.url ?? null,
+      productId: cmSource?.external_id ?? null,
       snapshots: cmSnapshots,
     },
   };

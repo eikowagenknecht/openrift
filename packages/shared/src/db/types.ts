@@ -73,10 +73,9 @@ export interface PrintingsTable {
 export interface TcgplayerSourcesTable {
   id: Generated<number>;
   printing_id: string;
-  external_id: number | null;
-  group_id: number | null;
-  product_name: string | null;
-  url: string | null;
+  external_id: number;
+  group_id: number;
+  product_name: string;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -95,8 +94,8 @@ export interface TcgplayerSnapshotsTable {
 
 export interface TcgplayerStagingTable {
   id: Generated<number>;
-  external_id: number | null;
-  group_id: number | null;
+  external_id: number;
+  group_id: number;
   product_name: string;
   finish: string;
   recorded_at: Date;
@@ -113,10 +112,9 @@ export interface TcgplayerStagingTable {
 export interface CardmarketSourcesTable {
   id: Generated<number>;
   printing_id: string;
-  external_id: number | null;
-  group_id: number | null;
-  product_name: string | null;
-  url: string | null;
+  external_id: number;
+  group_id: number;
+  product_name: string;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -137,8 +135,8 @@ export interface CardmarketSnapshotsTable {
 
 export interface CardmarketStagingTable {
   id: Generated<number>;
-  external_id: number | null;
-  group_id: number | null;
+  external_id: number;
+  group_id: number;
   product_name: string;
   finish: string;
   recorded_at: Date;
