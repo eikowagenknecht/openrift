@@ -55,44 +55,27 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
   const [checking, setChecking] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
 
-  // DEBUG: touch scroll debugging for iOS — uses callback ref because
-  // base-ui delays drawer mount (internal `mounted` state), so useEffect
-  // with changelogOpen fires before the DOM exists.
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-  const addDebug = (msg: string) => setDebugLog((prev) => [...prev.slice(-15), msg]);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  // Work around base-ui drawer blocking vertical scroll in right-swipe drawers.
+  // Base-ui's Viewport registers a document-level touchmove handler (capture, non-passive)
+  // that calls preventDefault() when it finds no horizontally-scrollable element — but our
+  // content only scrolls vertically. By stopping touchstart propagation on the scroll area,
+  // the Viewport's React onTouchStart never fires, its internal touchScrollStateRef stays
+  // null, and the document handler returns early without blocking scroll.
+  // Trade-off: swipe-to-dismiss doesn't work from inside the scroll area (header/footer still work).
+  const scrollCleanupRef = useRef<(() => void) | null>(null);
   const scrollRef = (el: HTMLDivElement | null) => {
-    cleanupRef.current?.();
-    cleanupRef.current = null;
+    scrollCleanupRef.current?.();
+    scrollCleanupRef.current = null;
     if (!el) {
       return;
     }
 
-    const style = globalThis.getComputedStyle(el);
-    addDebug(
-      `MOUNT scroll: ${el.scrollHeight}/${el.clientHeight} overflow-y: ${style.overflowY} touch: ${style.touchAction}`,
-    );
-
-    const onStart = (e: TouchEvent) => {
-      const s = globalThis.getComputedStyle(el);
-      addDebug(
-        `scroll: ${el.scrollHeight}/${el.clientHeight} ov-y: ${s.overflowY} touch: ${s.touchAction}`,
-      );
-      addDebug(
-        `touchstart: target=${(e.target as HTMLElement)?.tagName} touches=${e.touches.length}`,
-      );
-    };
-    const onMove = (e: TouchEvent) => {
-      addDebug(
-        `touchmove: cancelable=${e.cancelable} prevented=${e.defaultPrevented} y=${e.touches[0]?.clientY.toFixed(0)}`,
-      );
-    };
-
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: true });
-    cleanupRef.current = () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
+    const stopTouch = (e: TouchEvent) => e.stopPropagation();
+    el.addEventListener("touchstart", stopTouch, { passive: true });
+    el.addEventListener("touchmove", stopTouch, { passive: true });
+    scrollCleanupRef.current = () => {
+      el.removeEventListener("touchstart", stopTouch);
+      el.removeEventListener("touchmove", stopTouch);
     };
   };
 
@@ -212,7 +195,7 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
               <span className="text-[10px] tabular-nums">{__COMMIT_HASH__}</span>
             </DrawerDescription>
           </DrawerHeader>
-          <div ref={scrollRef} className="min-h-0 flex-1 touch-pan-y overflow-y-auto px-4 pb-4">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
             {changelogGroups.map((group) => (
               <div key={group.date} className="mb-6">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">{group.date}</p>
@@ -234,22 +217,6 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
                 </ul>
               </div>
             ))}
-          </div>
-          {/* DEBUG: remove after fixing scroll */}
-          <div className="shrink-0 border-t bg-black/90 p-2 font-mono text-[10px] text-green-400">
-            <button
-              type="button"
-              className="mb-1 text-yellow-400 underline"
-              onClick={() => setDebugLog([])}
-            >
-              clear
-            </button>
-            <div className="max-h-24 overflow-y-auto">
-              {debugLog.map((msg, i) => (
-                <div key={i}>{msg}</div>
-              ))}
-              {debugLog.length === 0 && <div>Touch the scroll area above...</div>}
-            </div>
           </div>
           <DrawerFooter className="border-t">
             {needRefresh ? (
