@@ -74,7 +74,7 @@ function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boo
   return rows;
 }
 
-const HIDE_DELAY = 3000;
+const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 800;
 const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
 const INDICATOR_H_FALLBACK = 48;
 const INDICATOR_PAD = 4;
