@@ -221,6 +221,22 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
               <DrawerDescription>
                 Recent changes and improvements to OpenRift.{" "}
                 <span className="text-[10px] tabular-nums">{__COMMIT_HASH__}</span>
+                {" · "}
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-baseline gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                  onClick={async () => {
+                    setChecking(true);
+                    const updateAvailable = await checkForUpdate();
+                    setChecking(false);
+                    if (!updateAvailable) {
+                      toast("You're on the latest version");
+                    }
+                  }}
+                >
+                  <RefreshCw className={`size-2.5 self-center ${checking ? "animate-spin" : ""}`} />
+                  Check for updates
+                </button>
               </DrawerDescription>
             </DrawerHeader>
             {changelogGroups.map((group) => (
@@ -253,31 +269,14 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
               </div>
             ))}
           </div>
-          <DrawerFooter className="border-t">
-            {needRefresh ? (
+          {needRefresh && (
+            <DrawerFooter className="border-t">
               <Button size="sm" onClick={() => applyUpdate()} className="w-full">
                 <RefreshCw className="size-3.5" />
                 Update available — reload
               </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-xs text-muted-foreground"
-                onClick={async () => {
-                  setChecking(true);
-                  const updateAvailable = await checkForUpdate();
-                  setChecking(false);
-                  if (!updateAvailable) {
-                    toast("You're on the latest version");
-                  }
-                }}
-              >
-                <RefreshCw className={`size-3 ${checking ? "animate-spin" : ""}`} />
-                Check for updates
-              </Button>
-            )}
-          </DrawerFooter>
+            </DrawerFooter>
+          )}
         </DrawerContent>
       </Drawer>
     </>
