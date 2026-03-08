@@ -352,46 +352,62 @@ export function CardGrid({
       ];
 
       // Find first card row and measure its DOM
+      const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
+      const hasMetaFields = f.number || f.title || f.type || f.rarity;
+      const hasLabel = hasMetaFields || f.price;
       const firstCard = items.find((it) => virtualRows[it.index]?.kind === "cards");
       if (firstCard) {
         const rowEl = document.querySelector(`[data-index="${firstCard.index}"]`);
         const gridEl = rowEl?.firstElementChild;
         const btn = gridEl?.querySelector("button");
         const imgDiv = btn?.children[0]; // image wrapper
-        const lblDiv = btn?.children[1]; // label wrapper (mt-2.5)
-        const metaEl = lblDiv?.children[0]; // CardMetaLabel
-        const priceEl = lblDiv?.children[1]; // price <p>
+        const lblDiv = hasLabel ? btn?.children[1] : undefined; // label wrapper (mt-2.5) — only exists when fields are on
+        const metaEl = hasMetaFields && lblDiv ? lblDiv.children[0] : undefined;
+        // price <p> is children[1] when meta exists, children[0] when only price is on
+        const priceEl = f.price && lblDiv ? lblDiv.children[hasMetaFields ? 1 : 0] : undefined;
         const gridStyle = gridEl instanceof HTMLElement ? getComputedStyle(gridEl) : null;
 
         const measRow = firstCard.size;
         const measBtn = btn?.getBoundingClientRect().height ?? 0;
         const measImg = imgDiv?.getBoundingClientRect().height ?? 0;
-        const measLblMt = lblDiv ? Number.parseFloat(getComputedStyle(lblDiv).marginTop) : 0;
-        const measLbl = lblDiv?.getBoundingClientRect().height ?? 0;
-        const measMeta = metaEl?.getBoundingClientRect().height ?? 0;
-        const measPrice = priceEl?.getBoundingClientRect().height ?? 0;
-        const measPriceMt = priceEl ? Number.parseFloat(getComputedStyle(priceEl).marginTop) : 0;
         const measPadB = Number.parseFloat(gridStyle?.paddingBottom ?? "0");
 
         lines.push(
           diff("row", expRow, measRow),
           diff("  imgH", expImgH, measImg),
           diff("  pad*2", BUTTON_PAD * 2, BUTTON_PAD * 2),
-          diff("  lblMt", LABEL_WRAPPER_MT, measLblMt),
-          diff(
-            "  meta",
-            META_LABEL_PY + META_LINE_HEIGHT + META_LINE_GAP + META_LINE_HEIGHT,
-            measMeta,
-          ),
-          diff("  priceMt", PRICE_MT, measPriceMt),
-          diff("  priceH", PRICE_LINE_HEIGHT, measPrice),
+        );
+
+        if (hasLabel) {
+          const measLblMt = lblDiv ? Number.parseFloat(getComputedStyle(lblDiv).marginTop) : 0;
+          lines.push(diff("  lblMt", LABEL_WRAPPER_MT, measLblMt));
+        }
+        if (hasMetaFields) {
+          const measMeta = metaEl?.getBoundingClientRect().height ?? 0;
+          // Compute expected meta height using same logic as labelHeight
+          const compact = thumbWidth < COMPACT_THRESHOLD;
+          const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
+          const hasLine1 = f.number || f.title;
+          const hasLine2 = f.type || f.rarity;
+          const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
+          let expMeta = META_LABEL_PY;
+          if (hasLine1) expMeta += line1Height;
+          if (hasLine1 && hasLine2) expMeta += META_LINE_GAP;
+          if (hasLine2) expMeta += META_LINE_HEIGHT;
+          lines.push(diff("  meta", expMeta, measMeta));
+        }
+        if (f.price) {
+          const measPriceMt = priceEl ? Number.parseFloat(getComputedStyle(priceEl).marginTop) : 0;
+          const measPrice = priceEl?.getBoundingClientRect().height ?? 0;
+          lines.push(
+            diff("  priceMt", PRICE_MT, measPriceMt),
+            diff("  priceH", PRICE_LINE_HEIGHT, measPrice),
+          );
+        }
+
+        lines.push(
           diff("  padBot", GAP, measPadB),
-          diff(
-            "  btn",
-            Math.ceil(expImgH) + BUTTON_PAD * 2 + LABEL_WRAPPER_MT + labelHeight,
-            measBtn,
-          ),
-          `  lbl content=${measLbl.toFixed(1)} (exp=${labelHeight - LABEL_WRAPPER_MT})`,
+          diff("  btn", Math.ceil(expImgH) + BUTTON_PAD * 2 + labelHeight, measBtn),
         );
       }
 
