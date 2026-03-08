@@ -65,11 +65,9 @@ const APP_HEADER_HEIGHT = 56; // h-14
 // can predict row heights without measuring. When a class changes, update
 // the matching constant here.
 const LABEL_WRAPPER_MT = 10; // mt-2.5 on CardThumbnail label wrapper
-const META_LABEL_PY = 4; // py-0.5 on CardMetaLabel root (2 + 2)
+const META_LABEL_PY = 2; // py-0.5 on CardMetaLabel root — measured as 2px total (browser rounds 0.125rem per side)
 const META_LINE_HEIGHT = 16; // text-xs line-height (see note about sm:text-sm below)
 const META_LINE_GAP = 2; // space-y-0.5 between CardMetaLabel lines
-const PRICE_MT = 2; // mt-0.5 on price <p>
-const PRICE_LINE_HEIGHT = 16; // text-xs line-height on price <p>
 const META_LINE_HEIGHT_SM = 20; // sm:text-sm line-height (line 1, non-compact only)
 const SM_BREAKPOINT = 640; // Tailwind sm: breakpoint (px)
 const COMPACT_THRESHOLD = 190; // cardWidth below which CardThumbnail uses compact layout
@@ -147,8 +145,7 @@ export function CardGrid({
   const labelHeight = (() => {
     const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
     const hasMetaFields = f.number || f.title || f.type || f.rarity;
-    const hasPrice = f.price;
-    if (!hasMetaFields && !hasPrice) {
+    if (!hasMetaFields && !f.price) {
       return 0;
     }
 
@@ -175,9 +172,9 @@ export function CardGrid({
       }
     }
 
-    if (hasPrice) {
-      h += PRICE_MT + PRICE_LINE_HEIGHT;
-    }
+    // NOTE: price height is NOT included here — card.price can be null so the
+    // price <p> may or may not render. The estimate uses the no-price height as
+    // the baseline; the virtualizer self-corrects when a price IS rendered.
 
     return h;
   })();
@@ -194,7 +191,8 @@ export function CardGrid({
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
     // Image sits inside the button's p-1.5, so its width is cardWidth - 12.
     const imgHeight = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
-    return Math.ceil(imgHeight + labelHeight + BUTTON_PAD * 2);
+    // +GAP accounts for paddingBottom on the grid div inside each card row.
+    return Math.ceil(imgHeight + labelHeight + BUTTON_PAD * 2) + GAP;
   };
 
   // Precompute cumulative start offsets (within the virtual list) for each row.
