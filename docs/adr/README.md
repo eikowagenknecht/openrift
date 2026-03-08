@@ -21,3 +21,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-002](002-use-bun-as-node-pnpm-replacement.md)**: Use Bun as Node.js and pnpm Replacement — accepted
 - **[ADR-003](003-adopt-ssr.md)**: Adopt SSR via TanStack Start — rejected
 - **[ADR-004](004-replace-nuqs-with-tanstack-router.md)**: Replace nuqs with TanStack Router Search Params — rejected
+- **[ADR-005](005-collection-tracking-data-model.md)**: Collection Tracking Data Model — proposed
