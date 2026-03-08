@@ -17,7 +17,7 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 
 ## Overview
 
-- **[ADR-001](001-defer-virtual-scrolling.md)**: Virtual Scrolling for Card Grid — accepted
+- **[ADR-001](001-virtual-scrolling.md)**: Virtual Scrolling for Card Grid — accepted
 - **[ADR-002](002-use-bun-as-node-pnpm-replacement.md)**: Use Bun as Node.js and pnpm Replacement — accepted
-- **[ADR-003](003-evaluate-tanstack-start.md)**: Evaluate TanStack Start as a Replacement for the Vite SPA + Hono Architecture — rejected
-- **[ADR-004](004-evaluate-nuqs-to-router-search-params.md)**: Evaluate Migrating from nuqs to TanStack Router Search Params — proposed
+- **[ADR-003](003-adopt-ssr.md)**: Adopt SSR via TanStack Start — rejected
+- **[ADR-004](004-replace-nuqs-with-tanstack-router.md)**: Replace nuqs with TanStack Router Search Params — rejected

@@ -3,7 +3,7 @@ status: rejected
 date: 2026-02-25
 ---
 
-# ADR-003: Evaluate TanStack Start as a Replacement for the Vite SPA + Hono Architecture
+# ADR-003: Adopt SSR via TanStack Start
 
 ## Context and Problem Statement
 

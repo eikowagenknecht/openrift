@@ -1,9 +1,9 @@
 ---
-status: proposed
+status: rejected
 date: 2026-02-26
 ---
 
-# ADR-004: Evaluate Migrating from nuqs to TanStack Router Search Params
+# ADR-004: Replace nuqs with TanStack Router Search Params
 
 ## Context and Problem Statement
 
