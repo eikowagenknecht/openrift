@@ -8,7 +8,6 @@ const UPDATE_INTERVAL_MS = 60_000;
 
 interface SWUpdateContextValue {
   needRefresh: boolean;
-  dismiss: () => void;
   applyUpdate: () => Promise<void>;
   /** Check for updates. Returns `true` if an update is available. */
   checkForUpdate: () => Promise<boolean>;
@@ -52,7 +51,6 @@ export function SWUpdateProvider({ children }: { children: ReactNode }) {
     <SWUpdateContext.Provider
       value={{
         needRefresh,
-        dismiss: () => setNeedRefresh(false),
         applyUpdate: () => updateServiceWorker(true),
         checkForUpdate,
       }}

@@ -3,6 +3,7 @@ import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
+  Eye,
   Minus,
   Plus,
   Square,
@@ -26,6 +27,13 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -36,8 +44,10 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { useDebounce } from "@/hooks/use-debounce";
+import type { CardFields } from "@/lib/card-fields";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
+import { useDisplaySettings } from "@/routes/__root";
 
 const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
   name: { label: "Name", prefix: "n:" },
@@ -148,6 +158,9 @@ export function FilterBar({
   onMaxColumnsChange,
   setDisplayLabel,
 }: FilterBarProps) {
+  const { showImages, setShowImages, richEffects, setRichEffects, cardFields, setCardFields } =
+    useDisplaySettings();
+
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -370,6 +383,16 @@ export function FilterBar({
                 </Button>
               </ButtonGroup>
             )}
+
+            {/* Display settings */}
+            <DisplaySettingsDropdown
+              showImages={showImages}
+              onShowImagesChange={setShowImages}
+              richEffects={richEffects}
+              onRichEffectsChange={setRichEffects}
+              cardFields={cardFields}
+              onCardFieldsChange={(update) => setCardFields((prev) => ({ ...prev, ...update }))}
+            />
           </div>
 
           {/* Mobile: icon-only button that opens options drawer */}
@@ -509,6 +532,62 @@ export function FilterBar({
                     </Button>
                   </ButtonGroup>
                 )}
+              </div>
+            </div>
+
+            {/* Display */}
+            <div className="space-y-2.5">
+              <p className="text-sm font-medium">Display</p>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={showImages ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setShowImages(!showImages)}
+                >
+                  Card images
+                </Badge>
+                <Badge
+                  variant={richEffects ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setRichEffects(!richEffects)}
+                >
+                  Rich effects
+                </Badge>
+                <Badge
+                  variant={cardFields.number ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setCardFields((prev) => ({ ...prev, number: !prev.number }))}
+                >
+                  ID
+                </Badge>
+                <Badge
+                  variant={cardFields.title ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setCardFields((prev) => ({ ...prev, title: !prev.title }))}
+                >
+                  Title
+                </Badge>
+                <Badge
+                  variant={cardFields.type ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setCardFields((prev) => ({ ...prev, type: !prev.type }))}
+                >
+                  Type
+                </Badge>
+                <Badge
+                  variant={cardFields.rarity ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setCardFields((prev) => ({ ...prev, rarity: !prev.rarity }))}
+                >
+                  Rarity
+                </Badge>
+                <Badge
+                  variant={cardFields.price ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setCardFields((prev) => ({ ...prev, price: !prev.price }))}
+                >
+                  Price
+                </Badge>
               </div>
             </div>
 
@@ -773,6 +852,71 @@ function RangeFilterSection({
         </span>
       </div>
     </div>
+  );
+}
+
+function DisplaySettingsDropdown({
+  showImages,
+  onShowImagesChange,
+  richEffects,
+  onRichEffectsChange,
+  cardFields: fields,
+  onCardFieldsChange,
+}: {
+  showImages: boolean;
+  onShowImagesChange: (v: boolean) => void;
+  richEffects: boolean;
+  onRichEffectsChange: (v: boolean) => void;
+  cardFields: CardFields;
+  onCardFieldsChange: (update: Partial<CardFields>) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="outline" size="icon" aria-label="Display settings" />}
+      >
+        <Eye className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuCheckboxItem checked={showImages} onCheckedChange={onShowImagesChange}>
+          Show card images
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem checked={richEffects} onCheckedChange={onRichEffectsChange}>
+          Rich effects
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem
+          checked={fields.number}
+          onCheckedChange={(v) => onCardFieldsChange({ number: v })}
+        >
+          Show ID
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={fields.title}
+          onCheckedChange={(v) => onCardFieldsChange({ title: v })}
+        >
+          Show title
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={fields.type}
+          onCheckedChange={(v) => onCardFieldsChange({ type: v })}
+        >
+          Show type
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={fields.rarity}
+          onCheckedChange={(v) => onCardFieldsChange({ rarity: v })}
+        >
+          Show rarity
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={fields.price}
+          onCheckedChange={(v) => onCardFieldsChange({ price: v })}
+        >
+          Show price
+        </DropdownMenuCheckboxItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

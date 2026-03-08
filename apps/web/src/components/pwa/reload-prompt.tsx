@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useSWUpdate } from "@/hooks/use-sw-update";
 
 export function ReloadPrompt() {
-  const { needRefresh, dismiss, applyUpdate } = useSWUpdate();
+  const { needRefresh, applyUpdate } = useSWUpdate();
 
   useEffect(() => {
     if (needRefresh) {
@@ -12,12 +12,15 @@ export function ReloadPrompt() {
         id: "sw-update",
         duration: Infinity,
         action: { label: "Reload", onClick: () => applyUpdate() },
-        cancel: { label: "Dismiss", onClick: dismiss },
+        cancel: {
+          label: "Dismiss",
+          onClick: () => toast.dismiss("sw-update"),
+        },
       });
     } else {
       toast.dismiss("sw-update");
     }
-  }, [needRefresh, dismiss, applyUpdate]);
+  }, [needRefresh, applyUpdate]);
 
   return null;
 }

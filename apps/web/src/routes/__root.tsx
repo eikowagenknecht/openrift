@@ -3,7 +3,6 @@ import { createRootRouteWithContext, Outlet, useMatch } from "@tanstack/react-ro
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { createContext, lazy, useContext } from "react";
 
-import { DisplaySettingsMenu } from "@/components/display-settings-menu";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
@@ -81,14 +80,6 @@ function RootComponent() {
     },
   );
 
-  const handleShowImagesChange = (show: boolean) => {
-    setShowImages(show);
-  };
-
-  const handleCardFieldsChange = (update: Partial<CardFields>) => {
-    setCardFields((prev) => ({ ...prev, ...update }));
-  };
-
   return (
     <NuqsAdapter>
       <SWUpdateProvider>
@@ -105,20 +96,7 @@ function RootComponent() {
           }}
         >
           <div className="flex min-h-screen flex-col bg-background text-foreground">
-            <Header
-              actions={
-                <DisplaySettingsMenu
-                  showImages={showImages}
-                  onShowImagesChange={handleShowImagesChange}
-                  richEffects={richEffects}
-                  onRichEffectsChange={setRichEffects}
-                  cardFields={cardFields}
-                  onCardFieldsChange={handleCardFieldsChange}
-                  darkMode={theme === "dark"}
-                  onDarkModeChange={() => toggleTheme()}
-                />
-              }
-            />
+            <Header darkMode={theme === "dark"} onDarkModeChange={toggleTheme} />
             {isAdmin ? (
               <div className="mx-auto flex w-full max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide) flex-1 flex-col">
                 <Outlet />
