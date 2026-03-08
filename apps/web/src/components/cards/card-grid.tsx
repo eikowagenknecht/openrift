@@ -57,8 +57,22 @@ function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boo
 
 const CARD_ASPECT = 1039 / 744;
 const GAP = 16; // gap-4
-const BUTTON_PAD = 6; // p-1.5 (top + bottom = 12px total)
+const BUTTON_PAD = 6; // p-1.5 on CardThumbnail <button>
 const APP_HEADER_HEIGHT = 56; // h-14
+
+// ── Size-estimate constants (keep in sync with CardThumbnail / CardMetaLabel) ──
+// These mirror Tailwind classes used in the rendered DOM so estimateSize()
+// can predict row heights without measuring. When a class changes, update
+// the matching constant here.
+const LABEL_WRAPPER_MT = 10; // mt-2.5 on CardThumbnail label wrapper
+const META_LABEL_PY = 4; // py-0.5 on CardMetaLabel root (2 + 2)
+const META_LINE_HEIGHT = 16; // text-xs line-height (see note about sm:text-sm below)
+const META_LINE_GAP = 2; // space-y-0.5 between CardMetaLabel lines
+const PRICE_MT = 2; // mt-0.5 on price <p>
+const PRICE_LINE_HEIGHT = 16; // text-xs line-height on price <p>
+const HEADER_PT = 16; // pt-4 on header row
+const HEADER_PB = 8; // pb-2 on header row
+const HEADER_CONTENT_HEIGHT = 20; // text-sm line-height (tallest child)
 const HIDE_DELAY = 3000;
 const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
 const INDICATOR_H_FALLBACK = 48;
@@ -135,31 +149,31 @@ export function CardGrid({
       return 0;
     }
 
-    // mt-2.5 on the wrapper
-    let h = 10;
+    let h = LABEL_WRAPPER_MT;
 
     if (hasMetaFields) {
-      // CardMetaLabel: py-0.5 = 4px vertical padding
-      h += 4;
+      h += META_LABEL_PY;
       const hasLine1 = f.number || f.title;
       const hasLine2 = f.type || f.rarity;
-      // text-xs = 16px line-height (mobile); sm:text-sm = 20px only on
-      // line 1 in non-compact mode, but we can't know screen width here
-      // so we use 16 which matches mobile (the main jank scenario).
+      // Line 1 in non-compact mode uses sm:text-sm (20px line-height)
+      // on viewports ≥ 640px, otherwise text-xs (16px). Compact mode
+      // (cardWidth < 190) always uses text-xs for both lines.
+      const compact = thumbWidth < 190;
+      const isDesktop = globalThis.innerWidth >= 640;
+      const line1Height = !compact && isDesktop && hasLine1 ? 20 : META_LINE_HEIGHT;
       if (hasLine1) {
-        h += 16;
+        h += line1Height;
       }
       if (hasLine1 && hasLine2) {
-        h += 2; // space-y-0.5
+        h += META_LINE_GAP;
       }
       if (hasLine2) {
-        h += 16;
+        h += META_LINE_HEIGHT;
       }
     }
 
     if (hasPrice) {
-      // mt-0.5 = 2px, text-xs = 16px line-height
-      h += 2 + 16;
+      h += PRICE_MT + PRICE_LINE_HEIGHT;
     }
 
     return h;
@@ -171,7 +185,7 @@ export function CardGrid({
       return 200;
     }
     if (row.kind === "header") {
-      return 44;
+      return HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB;
     }
     const containerWidth = containerRef.current?.offsetWidth ?? 400;
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
