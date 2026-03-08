@@ -4,6 +4,6 @@
 const PREVIEW_HOSTS = (import.meta.env.VITE_PREVIEW_HOSTS ?? "").split(",").filter(Boolean);
 const API_FALLBACK = import.meta.env.VITE_API_FALLBACK_URL ?? "";
 
-export const API_BASE = PREVIEW_HOSTS.some((h) => location.hostname.endsWith(h))
-  ? API_FALLBACK
-  : "";
+export const IS_PREVIEW = PREVIEW_HOSTS.some((h) => location.hostname.endsWith(h));
+
+export const API_BASE = IS_PREVIEW ? API_FALLBACK : "";
