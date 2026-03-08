@@ -2,6 +2,8 @@ import type { Card } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { useIsAdmin } from "@/hooks/use-admin";
+import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import type { CardFields } from "@/lib/card-fields";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
@@ -116,6 +118,10 @@ export function CardGrid({
   onPhysicalMinChange,
   onAutoColumnsChange,
 }: CardGridProps) {
+  const { data: isAdmin } = useIsAdmin();
+  const { settings: adminSettings } = useAdminSettings();
+  const debugOverlayEnabled = isAdmin === true && adminSettings.debugOverlay;
+
   const { containerRef, columns, physicalMax, physicalMin, autoColumns } =
     useResponsiveColumns(maxColumns);
 
@@ -876,7 +882,7 @@ export function CardGrid({
   return (
     <div ref={containerRef}>
       <CardGridDebug
-        enabled={false}
+        enabled={debugOverlayEnabled}
         virtualizer={virtualizer}
         virtualRows={virtualRows}
         containerRef={containerRef}

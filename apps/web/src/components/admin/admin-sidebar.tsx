@@ -5,6 +5,7 @@ import {
   LayoutDashboardIcon,
   LayersIcon,
   MapIcon,
+  SettingsIcon,
 } from "lucide-react";
 
 import {
@@ -92,6 +93,15 @@ export function AdminSidebar() {
       <SidebarFooter>
         <SidebarSeparator />
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={currentPath === "/admin/settings"}
+              render={<Link to="/admin/settings" />}
+            >
+              <SettingsIcon />
+              <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton render={<Link to="/" />}>
               <ArrowLeftIcon />
