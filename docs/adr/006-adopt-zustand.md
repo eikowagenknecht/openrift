@@ -33,7 +33,7 @@ If Zustand is adopted for user preferences:
 - Good, because the `DisplaySettingsContext` provider, `createContext`, and `useContext` null-check are replaced by a single `useDisplayStore` hook — any component can read settings without provider nesting.
 - Good, because Zustand's `persist` middleware replaces the four manual `useLocalStorage` calls and their custom serializers with a declarative `partialize` config.
 - Good, because child components (`CardGrid`, `CardThumbnail`, `FilterBar`) can read display settings directly from the store, removing ~8 props from `CardBrowser`'s pass-through surface.
-- Good, because theme and search scope can be folded into the same store (or a second store), giving a single pattern for all persisted preferences.
+- Good, because theme and search scope each get their own small store (or share one), giving a single pattern for all persisted preferences while keeping unrelated domains separate.
 - Neutral, because Zustand adds a dependency (~1 KB gzipped, no transitive dependencies).
 - Bad, because it introduces a new state management pattern alongside the existing ones (React Query, nuqs, useSyncExternalStore), increasing the number of concepts a contributor must know.
 
@@ -41,7 +41,7 @@ If Zustand is adopted for user preferences:
 
 ### Adopt Zustand for user preferences
 
-Scope: replace `DisplaySettingsContext` + `useLocalStorage` with a Zustand store using `persist` middleware. Optionally fold in `useTheme` and `useSearchScope`.
+Scope: replace `DisplaySettingsContext` + `useLocalStorage` with a `useDisplayStore`. Theme gets a separate `useThemeStore` (it's app-wide, not card-browser-specific). Search scope can live in its own store or alongside display settings.
 
 - Good, because it eliminates the context provider from `__root.tsx`, reducing component nesting depth.
 - Good, because `persist` middleware handles localStorage serialization, storage events, and hydration out of the box — replacing ~80 lines of custom `useLocalStorage` logic.
@@ -72,14 +72,25 @@ Scope: also move `selectedCard`/`detailOpen` from `CardBrowser` useState, and po
 | State category | Current mechanism | Zustand candidate? |
 |---|---|---|
 | Display settings (showImages, richEffects, cardFields, maxColumns) | `DisplaySettingsContext` + `useLocalStorage` | Yes — primary target |
-| Theme (light/dark) | `useTheme` + localStorage | Yes — fold into settings store |
-| Search scope (searchable fields) | `useSearchScope` + localStorage | Yes — fold into settings store |
+| Theme (light/dark) | `useTheme` + localStorage | Yes — own `useThemeStore` (app-wide, separate domain from card display) |
+| Search scope (searchable fields) | `useSearchScope` + localStorage | Yes — own store or alongside display settings |
 | Card filters (20+ params) | `nuqs` (URL query params) | No — URL sync is the purpose |
 | Server data (cards, prices) | React Query | No — purpose-built for server state |
 | Browser APIs (gyroscope, online status) | `useSyncExternalStore` | No — already idiomatic |
 | Selected card / detail panel | `useState` in `CardBrowser` | No — correctly scoped as local |
 | Grid layout (column counts) | `useState` in `CardBrowser` | No — derived from ResizeObserver |
 | SW update state | `SWUpdateContext` | No — single consumer |
+
+### Store boundaries
+
+Theme and display settings are separate domains despite both being "user preferences":
+
+| Store | State | Scope |
+|---|---|---|
+| `useThemeStore` | `theme`, `setTheme` | App-wide — affects layout shell, every themed component |
+| `useDisplayStore` | `showImages`, `richEffects`, `cardFields`, `maxColumns` | Card browser — affects `CardGrid`, `CardDetail`, `FilterBar` |
+
+Grouping by organizational category ("preferences") rather than by domain would couple unrelated consumers. A theme toggle shouldn't trigger selectors in card grid components, and card display settings shouldn't live in a global theme store.
 
 ### Prop drilling reduction
 
