@@ -203,7 +203,7 @@ export function CardGrid({
     let acc = 0;
     for (let i = 0; i < virtualRows.length; i++) {
       starts.push(acc);
-      acc += estimateSize(i) + GAP;
+      acc += estimateSize(i);
     }
     return starts;
   })();
@@ -311,7 +311,6 @@ export function CardGrid({
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
     estimateSize,
-    gap: GAP,
     scrollMargin,
     scrollPaddingStart: APP_HEADER_HEIGHT,
     overscan: 3,
