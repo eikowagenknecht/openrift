@@ -197,23 +197,28 @@ export function CardThumbnail({
             compact={compact}
             cardFields={cardFields}
           />
-          {cardFields.price && card.price && (
-            // ⚠ mt-0.5 / text-xs are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together
-            <p className="mt-0.5 flex flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
-              {view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
+          {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
+          {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when card.price is null */}
+          {cardFields.price && (
+            <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
+              {card.price && (
                 <>
-                  <span className={priceColorClass(priceRange.min)}>
-                    {formatPriceCompact(priceRange.min)}
-                  </span>
-                  <span className="text-muted-foreground/60">&ndash;</span>
-                  <span className={priceColorClass(priceRange.max)}>
-                    {formatPriceCompact(priceRange.max)}
-                  </span>
+                  {view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
+                    <>
+                      <span className={priceColorClass(priceRange.min)}>
+                        {formatPriceCompact(priceRange.min)}
+                      </span>
+                      <span className="text-muted-foreground/60">&ndash;</span>
+                      <span className={priceColorClass(priceRange.max)}>
+                        {formatPriceCompact(priceRange.max)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className={priceColorClass(card.price.market)}>
+                      {formatPriceCompact(card.price.market)}
+                    </span>
+                  )}
                 </>
-              ) : (
-                <span className={priceColorClass(card.price.market)}>
-                  {formatPriceCompact(card.price.market)}
-                </span>
               )}
             </p>
           )}

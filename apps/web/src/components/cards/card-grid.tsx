@@ -68,6 +68,8 @@ const LABEL_WRAPPER_MT = 10; // mt-2.5 on CardThumbnail label wrapper
 const META_LABEL_PY = 2; // py-0.5 on CardMetaLabel root — measured as 2px total (browser rounds 0.125rem per side)
 const META_LINE_HEIGHT = 16; // text-xs line-height (see note about sm:text-sm below)
 const META_LINE_GAP = 2; // space-y-0.5 between CardMetaLabel lines
+const PRICE_MT = 2; // mt-0.5 on price <p>
+const PRICE_LINE_HEIGHT = 16; // min-h-4 on price <p> (always rendered when cardFields.price is on)
 const META_LINE_HEIGHT_SM = 20; // sm:text-sm line-height (line 1, non-compact only)
 const SM_BREAKPOINT = 640; // Tailwind sm: breakpoint (px)
 const COMPACT_THRESHOLD = 190; // cardWidth below which CardThumbnail uses compact layout
@@ -172,9 +174,9 @@ export function CardGrid({
       }
     }
 
-    // NOTE: price height is NOT included here — card.price can be null so the
-    // price <p> may or may not render. The estimate uses the no-price height as
-    // the baseline; the virtualizer self-corrects when a price IS rendered.
+    if (f.price) {
+      h += PRICE_MT + PRICE_LINE_HEIGHT;
+    }
 
     return h;
   })();
@@ -323,6 +325,12 @@ export function CardGrid({
   const debugLinesRef = useRef<string[]>([]);
   const debugPrevTotalRef = useRef(0);
   useEffect(() => {
+    const diff = (label: string, exp: number | string, meas: number | string) => {
+      const e = typeof exp === "number" ? exp.toFixed(1) : exp;
+      const m = typeof meas === "number" ? meas.toFixed(1) : meas;
+      const ok = e === m ? "✓" : "✗";
+      return `${ok} ${label}: exp=${e} meas=${m}`;
+    };
     const check = () => {
       const el = debugRef.current;
       if (!el) {
@@ -332,96 +340,71 @@ export function CardGrid({
       const items = virtualizer.getVirtualItems();
       const prevTotal = debugPrevTotalRef.current;
 
-      // Always show estimate breakdown for first card row
+      // Expected values from constants
       const containerWidth = containerRef.current?.offsetWidth ?? 0;
       const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
-      const imgW = cardWidth - BUTTON_PAD * 2;
-      const imgH = imgW * CARD_ASPECT;
-      const estTotal = Math.ceil(imgH + labelHeight + BUTTON_PAD * 2);
-      const statusLines = [
+      const expImgW = cardWidth - BUTTON_PAD * 2;
+      const expImgH = expImgW * CARD_ASPECT;
+      const expRow = estimateSize(items[0]?.index ?? 0);
+
+      const lines = [
         `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length}`,
-        `cols=${columns} ctnW=${containerWidth} cardW=${cardWidth.toFixed(1)}`,
-        `imgW=${imgW.toFixed(1)} imgH=${imgH.toFixed(2)} label=${labelHeight} pad=${BUTTON_PAD * 2}`,
-        `est=${estTotal} (ceil of ${(imgH + labelHeight + BUTTON_PAD * 2).toFixed(2)})`,
       ];
 
-      // Show first measured card row for comparison
-      const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
-      const compact = thumbWidth < COMPACT_THRESHOLD;
-      const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
-      statusLines.push(
-        `fields: n=${f.number ? 1 : 0} t=${f.title ? 1 : 0} tp=${f.type ? 1 : 0} r=${f.rarity ? 1 : 0} p=${f.price ? 1 : 0}`,
-      );
-      statusLines.push(`compact=${compact} aboveSm=${aboveSm} thumbW=${thumbWidth.toFixed(1)}`);
+      // Find first card row and measure its DOM
       const firstCard = items.find((it) => virtualRows[it.index]?.kind === "cards");
       if (firstCard) {
-        const row = virtualRows[firstCard.index];
-        statusLines.push(`meas[${firstCard.index}]=${firstCard.size}`);
-        // Check if first card in row has a price
-        if (row?.kind === "cards") {
-          const c0 = row.items[0];
-          statusLines.push(`card0.price=${c0?.price ? "yes" : "null"}`);
-        }
         const rowEl = document.querySelector(`[data-index="${firstCard.index}"]`);
-        if (rowEl) {
-          const gridEl = rowEl.firstElementChild;
-          if (gridEl) {
-            const firstBtn = gridEl.querySelector("button");
-            if (firstBtn) {
-              const btnRect = firstBtn.getBoundingClientRect();
-              // Measure every direct child of the button
-              const children = [...firstBtn.children];
-              const childInfo = children
-                .map(
-                  (c, i) =>
-                    `ch${i}=${c.getBoundingClientRect().height.toFixed(1)}(${c.tagName}.${[...c.classList].join(".")})`,
-                )
-                .join(" ");
-              statusLines.push(`btn=${btnRect.height.toFixed(1)} ${childInfo}`);
-              // Drill into label wrapper (ch1) children
-              const labelWrapper = firstBtn.children[1];
-              if (labelWrapper) {
-                const lwChildren = [...labelWrapper.children];
-                const lwInfo = lwChildren
-                  .map(
-                    (c, i) =>
-                      `lw${i}=${c.getBoundingClientRect().height.toFixed(1)}(${c.tagName}.${[...c.classList].join(".")})`,
-                  )
-                  .join(" ");
-                statusLines.push(`labelWrapper: ${lwInfo}`);
-              }
-            }
-          }
-          // Check computed paddingBottom on grid div
-          if (gridEl instanceof HTMLElement) {
-            const cs = getComputedStyle(gridEl);
-            statusLines.push(`grid pB=${cs.paddingBottom} gap=${cs.gap}`);
-          }
-          statusLines.push(`rowEl.offsetH=${(rowEl as HTMLElement).offsetHeight}`);
-        }
+        const gridEl = rowEl?.firstElementChild;
+        const btn = gridEl?.querySelector("button");
+        const imgDiv = btn?.children[0]; // image wrapper
+        const lblDiv = btn?.children[1]; // label wrapper (mt-2.5)
+        const metaEl = lblDiv?.children[0]; // CardMetaLabel
+        const priceEl = lblDiv?.children[1]; // price <p>
+        const gridStyle = gridEl instanceof HTMLElement ? getComputedStyle(gridEl) : null;
+
+        const measRow = firstCard.size;
+        const measBtn = btn?.getBoundingClientRect().height ?? 0;
+        const measImg = imgDiv?.getBoundingClientRect().height ?? 0;
+        const measLblMt = lblDiv ? Number.parseFloat(getComputedStyle(lblDiv).marginTop) : 0;
+        const measLbl = lblDiv?.getBoundingClientRect().height ?? 0;
+        const measMeta = metaEl?.getBoundingClientRect().height ?? 0;
+        const measPrice = priceEl?.getBoundingClientRect().height ?? 0;
+        const measPriceMt = priceEl ? Number.parseFloat(getComputedStyle(priceEl).marginTop) : 0;
+        const measPadB = Number.parseFloat(gridStyle?.paddingBottom ?? "0");
+
+        lines.push(
+          diff("row", expRow, measRow),
+          diff("  imgH", expImgH, measImg),
+          diff("  pad*2", BUTTON_PAD * 2, BUTTON_PAD * 2),
+          diff("  lblMt", LABEL_WRAPPER_MT, measLblMt),
+          diff(
+            "  meta",
+            META_LABEL_PY + META_LINE_HEIGHT + META_LINE_GAP + META_LINE_HEIGHT,
+            measMeta,
+          ),
+          diff("  priceMt", PRICE_MT, measPriceMt),
+          diff("  priceH", PRICE_LINE_HEIGHT, measPrice),
+          diff("  padBot", GAP, measPadB),
+          diff(
+            "  btn",
+            Math.ceil(expImgH) + BUTTON_PAD * 2 + LABEL_WRAPPER_MT + labelHeight,
+            measBtn,
+          ),
+          `  lbl content=${measLbl.toFixed(1)} (exp=${labelHeight - LABEL_WRAPPER_MT})`,
+        );
       }
 
       // Log jumps
       if (prevTotal && Math.abs(total - prevTotal) > 1) {
         debugLinesRef.current.push(`JUMP ${prevTotal}→${total} (Δ${total - prevTotal})`);
-        for (const item of items) {
-          const est = estimateSize(item.index);
-          const delta = item.size - est;
-          if (Math.abs(delta) > 1) {
-            const row = virtualRows[item.index];
-            const label = row?.kind === "header" ? `hdr:${row.set.code}` : "cards";
-            debugLinesRef.current.push(
-              `  [${item.index}] ${label}: est=${est} meas=${item.size} Δ${delta}`,
-            );
-          }
-        }
-        if (debugLinesRef.current.length > 15) {
-          debugLinesRef.current.splice(0, debugLinesRef.current.length - 15);
+        if (debugLinesRef.current.length > 6) {
+          debugLinesRef.current.splice(0, debugLinesRef.current.length - 6);
         }
       }
       debugPrevTotalRef.current = total;
 
-      el.textContent = [...statusLines, ...debugLinesRef.current].join("\n");
+      el.textContent = [...lines, ...debugLinesRef.current].join("\n");
     };
     check();
     globalThis.addEventListener("scroll", check, { passive: true });
