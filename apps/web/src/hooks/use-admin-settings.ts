@@ -1,21 +1,30 @@
-import { useLocalStorage } from "@/hooks/use-local-storage";
-
-const ADMIN_SETTINGS_KEY = "admin-settings";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface AdminSettings {
   debugOverlay: boolean;
 }
 
-const defaults: AdminSettings = {
-  debugOverlay: false,
-};
+interface AdminSettingsState {
+  settings: AdminSettings;
+  update: (patch: Partial<AdminSettings>) => void;
+}
+
+const useAdminSettingsStore = create<AdminSettingsState>()(
+  persist(
+    (set) => ({
+      settings: { debugOverlay: false },
+      update: (patch) =>
+        set((state) => ({
+          settings: { ...state.settings, ...patch },
+        })),
+    }),
+    { name: "admin-settings" },
+  ),
+);
 
 export function useAdminSettings() {
-  const [settings, setSettings] = useLocalStorage<AdminSettings>(ADMIN_SETTINGS_KEY, defaults);
-
-  const update = (patch: Partial<AdminSettings>) => {
-    setSettings((prev) => ({ ...prev, ...patch }));
-  };
-
+  const settings = useAdminSettingsStore((s) => s.settings);
+  const update = useAdminSettingsStore((s) => s.update);
   return { settings, update };
 }
