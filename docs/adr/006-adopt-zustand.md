@@ -19,6 +19,7 @@ The web app manages client-side state through several independent mechanisms: a 
 ## Considered Options
 
 - Adopt Zustand for user preferences (display settings, theme, search scope)
+- Adopt Jotai for user preferences
 - Adopt Zustand broadly for all non-server, non-URL state
 - Keep the current approach
 
@@ -48,6 +49,20 @@ Scope: replace `DisplaySettingsContext` + `useLocalStorage` with a `useDisplaySt
 - Good, because components can subscribe to individual slices (e.g., `useDisplayStore(s => s.showImages)`), avoiding re-renders when unrelated settings change — an improvement over the current context which re-renders all consumers on any setting change.
 - Neutral, because the migration is small (~2–3 files changed) and can be done incrementally.
 - Bad, because the current approach works and the improvement is ergonomic, not functional.
+
+### Adopt Jotai for user preferences
+
+Scope: same as the Zustand option — replace `DisplaySettingsContext`, theme, and search scope — but using Jotai's atomic model instead of Zustand's store model.
+
+- Good, because Jotai's atomic model (`atom()` + `useAtom()`) feels closer to `useState`, which may be more intuitive for contributors already familiar with React primitives.
+- Good, because `atomWithStorage` provides built-in localStorage persistence per atom, similar to Zustand's `persist`.
+- Good, because each setting is an independent atom, so components naturally subscribe only to what they read — no selector functions needed.
+- Neutral, because bundle size is comparable (~1 KB gzipped, no transitive dependencies).
+- Bad, because the current state is naturally grouped (display settings are a cohesive unit of 4 fields that change together in a settings panel). Jotai would scatter this into four independent atoms (`showImagesAtom`, `richEffectsAtom`, `cardFieldsAtom`, `maxColumnsAtom`) with no structural grouping — the "these belong together" relationship only exists by convention (e.g., a shared file).
+- Bad, because actions that update multiple settings at once (e.g., "reset display settings to defaults") require updating each atom individually or introducing a derived/writable atom, whereas Zustand handles this with a single `set()` call.
+- Bad, because Jotai needs a `<Provider>` for test isolation (to avoid shared global state between tests), while Zustand stores can be trivially recreated.
+
+**Why Zustand over Jotai for this use case:** The existing `DisplaySettingsContext` is already a grouped bag of related settings with a single provider. Zustand's store model maps 1:1 to this pattern — it's a like-for-like replacement with less boilerplate. Jotai's strength is composing fine-grained, independent atoms with derived state — a pattern we don't need here.
 
 ### Adopt Zustand broadly
 
