@@ -318,22 +318,29 @@ export function CardGrid({
     overscan: 3,
   });
 
-  // DEBUG: log estimate vs measured deltas to find what's causing scroll stops.
+  // DEBUG: on-screen overlay showing estimate vs measured deltas.
   // Remove after debugging.
+  const debugRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let prevTotal = 0;
+    const lines: string[] = [];
+    const MAX_LINES = 20;
+    const log = (msg: string) => {
+      lines.push(msg);
+      if (lines.length > MAX_LINES) lines.splice(0, lines.length - MAX_LINES);
+      if (debugRef.current) debugRef.current.textContent = lines.join("\n");
+    };
     const check = () => {
       const total = virtualizer.getTotalSize();
       if (prevTotal && Math.abs(total - prevTotal) > 1) {
-        console.log(`[virt] totalSize jumped ${prevTotal} → ${total} (Δ${total - prevTotal})`);
-        // Log per-item deltas for currently rendered items
+        log(`totalSize ${prevTotal}→${total} (Δ${total - prevTotal})`);
         for (const item of virtualizer.getVirtualItems()) {
           const est = estimateSize(item.index);
           const delta = item.size - est;
           if (Math.abs(delta) > 1) {
             const row = virtualRows[item.index];
-            const label = row?.kind === "header" ? `header:${row.set.code}` : "cards";
-            console.log(`  row[${item.index}] ${label}: est=${est} meas=${item.size} Δ${delta}`);
+            const label = row?.kind === "header" ? `hdr:${row.set.code}` : "cards";
+            log(`  [${item.index}] ${label}: est=${est} meas=${item.size} Δ${delta}`);
           }
         }
       }
@@ -886,6 +893,27 @@ export function CardGrid({
 
   return (
     <div ref={containerRef}>
+      {/* DEBUG overlay — remove after debugging */}
+      <div
+        ref={debugRef}
+        style={{
+          position: "fixed",
+          top: 60,
+          left: 4,
+          right: 4,
+          zIndex: 9999,
+          background: "rgba(0,0,0,0.85)",
+          color: "#0f0",
+          fontSize: 10,
+          fontFamily: "monospace",
+          padding: 6,
+          borderRadius: 6,
+          whiteSpace: "pre",
+          pointerEvents: "none",
+          maxHeight: "40vh",
+          overflow: "hidden",
+        }}
+      />
       {cards.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
           {totalCards === 0 ? (
