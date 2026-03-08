@@ -40,15 +40,25 @@ Chosen option: "Individual copy tracking", because it enables per-copy metadata 
 
 Collections represent physical storage locations (binders, deck boxes, drawers, "lent to Sebastian"). Each copy belongs to exactly one collection.
 
+**Inbox collection:** Every user has exactly one inbox collection, auto-created the first time they interact with collection tracking. The inbox is where cards land during intake (booster openings, quick-adds) before the user sorts them into their real collections. It cannot be deleted. A boolean `is_inbox` flag identifies it, enforced by a partial unique index (`one inbox per user`). The inbox is always `available_for_deckbuilding = true`.
+
 A boolean `available_for_deckbuilding` flag controls whether copies in a collection are considered when building decks. Default true. Collections like "Deck Box 1" (an assembled deck the user doesn't want to cannibalize) can be excluded while still being visible as "available if needed" in the UI.
 
-**Collection deletion:** A collection can only be deleted after all its copies have been moved elsewhere. The API endpoint for deleting a collection requires a `move_copies_to` collection ID — it moves all copies to the target collection (creating `reorganization` activity items), then deletes the now-empty collection. The bare FK on `copies.collection_id` (default `RESTRICT`) acts as a safety net: Postgres blocks the delete if any copies still reference it.
+**Collection deletion:** A collection can only be deleted after all its copies have been moved elsewhere. The inbox collection cannot be deleted. For other collections, the API endpoint requires a `move_copies_to` collection ID — it moves all copies to the target collection (creating `reorganization` activity items), then deletes the now-empty collection. The bare FK on `copies.collection_id` (default `RESTRICT`) acts as a safety net: Postgres blocks the delete if any copies still reference it.
+
+### Sources
+
+A source represents where or how cards were acquired — "Booster Display 2", "Trade with Sebastian", "Singles order from Cardmarket". It's a first-class entity: user creates a source, and copies minted during intake are linked to it via a nullable `source_id` FK.
+
+Sources are orthogonal to activities. An activity records _what happened_ (the mutation event), a source records _where it came from_ (provenance). A source can span multiple activities (opening a booster display across several evenings), and an activity can involve multiple sources (unlikely but not forbidden). When creating an acquisition activity, the user can optionally pick or create a source. Copies added without a source simply have `source_id = NULL`.
+
+"Show me all cards from Booster Display 2" is a simple query on `copies.source_id` — no need to traverse activity items.
 
 ### Copies
 
-One row per physical card. References a `printing_id` and a `collection_id`. Hard-deleted when a card leaves the user's possession — the activity ledger preserves history. This avoids the pervasive `WHERE deleted_at IS NULL` filtering that soft-delete would require across every query touching copies (joins, counts, collection value, trade list evaluation, deck availability).
+One row per physical card. References a `printing_id`, a `collection_id`, and an optional `source_id`. Hard-deleted when a card leaves the user's possession — the activity ledger preserves history. This avoids the pervasive `WHERE deleted_at IS NULL` filtering that soft-delete would require across every query touching copies (joins, counts, collection value, trade list evaluation, deck availability).
 
-When a copy is removed, relevant metadata is snapshot into the activity item's `metadata_snapshot` JSONB field before deletion. The snapshot includes the copy's UUID (`copy_id`), condition, notes, and any other per-copy fields — preserving everything needed for historical queries and undo. The activity item's `copy_id` FK is set to NULL by `ON DELETE SET NULL` when the copy row is hard-deleted, so undo reads the original UUID from `metadata_snapshot` to re-insert the copy with its original identity.
+When a copy is removed, relevant metadata is snapshot into the activity item's `metadata_snapshot` JSONB field before deletion. The snapshot includes the copy's UUID (`copy_id`), source, condition, notes, and any other per-copy fields — preserving everything needed for historical queries and undo. The activity item's `copy_id` FK is set to NULL by `ON DELETE SET NULL` when the copy row is hard-deleted, so undo reads the original UUID from `metadata_snapshot` to re-insert the copy with its original identity.
 
 ### Activities (Collection History)
 
@@ -122,12 +132,27 @@ CREATE TABLE collections (
   name                      text NOT NULL,
   description               text,
   available_for_deckbuilding boolean NOT NULL DEFAULT true,
+  is_inbox                  boolean NOT NULL DEFAULT false,
   sort_order                integer NOT NULL DEFAULT 0,
   share_token               text UNIQUE,
   created_at                timestamptz NOT NULL DEFAULT now(),
   updated_at                timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_collections_user_id ON collections(user_id);
+CREATE UNIQUE INDEX uq_collections_user_inbox
+  ON collections(user_id) WHERE is_inbox = true;
+
+-- ── Sources ──────────────────────────────────────────────────────
+CREATE TABLE sources (
+  id          uuid PRIMARY KEY,
+  user_id     text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        text NOT NULL,
+  description text,
+  date        date,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_sources_user_id ON sources(user_id);
 
 -- ── Copies ────────────────────────────────────────────────────────
 CREATE TABLE copies (
@@ -135,11 +160,13 @@ CREATE TABLE copies (
   user_id       text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   printing_id   text NOT NULL REFERENCES printings(id),
   collection_id uuid NOT NULL REFERENCES collections(id),
+  source_id     uuid REFERENCES sources(id) ON DELETE SET NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_copies_user_printing ON copies(user_id, printing_id);
 CREATE INDEX idx_copies_collection ON copies(collection_id);
+CREATE INDEX idx_copies_source ON copies(source_id);
 
 -- ── Activities ────────────────────────────────────────────────────
 CREATE TABLE activities (
