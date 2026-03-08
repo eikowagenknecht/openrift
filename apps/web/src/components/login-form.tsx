@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { previewCallbackURL } from "@/lib/api-base";
 import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
 import { randomEmailPlaceholder } from "@/lib/placeholders";
@@ -230,7 +231,7 @@ export function LoginForm({
                     onClick={() =>
                       authClient.signIn.social({
                         provider: "google",
-                        callbackURL: redirectTo ?? "/",
+                        callbackURL: previewCallbackURL(redirectTo ?? "/"),
                       })
                     }
                   >
@@ -246,7 +247,7 @@ export function LoginForm({
                     onClick={() =>
                       authClient.signIn.social({
                         provider: "discord",
-                        callbackURL: redirectTo ?? "/",
+                        callbackURL: previewCallbackURL(redirectTo ?? "/"),
                       })
                     }
                   >
@@ -358,7 +359,7 @@ export function LoginForm({
                     onClick={() =>
                       authClient.signIn.social({
                         provider: "google",
-                        callbackURL: redirectTo ?? "/",
+                        callbackURL: previewCallbackURL(redirectTo ?? "/"),
                       })
                     }
                   >
@@ -374,7 +375,7 @@ export function LoginForm({
                     onClick={() =>
                       authClient.signIn.social({
                         provider: "discord",
-                        callbackURL: redirectTo ?? "/",
+                        callbackURL: previewCallbackURL(redirectTo ?? "/"),
                       })
                     }
                   >
