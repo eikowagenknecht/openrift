@@ -96,7 +96,7 @@ Format rules are kept simple for now. User-configurable format definitions (e.g.
 
 **Wanted flag:** Decks have an `is_wanted` boolean (default false). When true, the deck's card requirements feed the shopping list, counting only copies in collections where `available_for_deckbuilding = true`. When false, the deck is just a reference (an idea, a historical tournament deck, or an already-assembled deck whose cards live in a collection). There is no formal link between a deck and a collection — when the user physically assembles a deck, they move the copies into a collection (e.g., "Deck Box 1") with `available_for_deckbuilding = false` and toggle `is_wanted` off.
 
-Decks belong to a user, but `user_id` is nullable to support curated public decks (e.g., top tournament decks) that don't belong to any user. Visibility is derived: `user_id IS NULL` = public and discoverable, `share_token IS NOT NULL` = unlisted but accessible via link, otherwise private.
+Every deck has an owner (`user_id NOT NULL`). Curated public decks (e.g., top tournament decks) are owned by whichever user or bot account created them. An `is_public` boolean controls visibility: `is_public = true` → public and discoverable, `share_token IS NOT NULL` → unlisted but accessible via link, otherwise private. A user's personal deck list filters on `user_id = ? AND is_public = false`, so curated decks created by the same user don't clutter their view.
 
 ### Wish Lists
 
@@ -104,9 +104,9 @@ Three sources of "what do I need":
 
 1. **Deck requirements (virtual):** Not stored as wish list items. For each card in a wanted deck (`is_wanted = true`), the query counts available copies (in collections where `available_for_deckbuilding = true`) and computes the shortfall. Always accurate, never goes stale. No table needed.
 
-2. **Manual wish lists:** User-curated stored items. Can target a specific printing ("I want this exact foil") or a card ("I want 4 copies of Fireball, any printing"). Each item has a `quantity_desired`. Items persist when fulfilled — the "still needed" count is computed at query time (`desired - owned`), so if the user later trades away a card, the wish list automatically reflects the gap.
+2. **Manual wish lists:** User-curated stored items. Can target a specific printing ("I want this exact foil") or a card ("I want 4 copies of Fireball, any printing"). Each item has a `quantity_desired`. Items persist when fulfilled — the "still needed" count is computed at query time (`desired - owned`), so if the user later trades away a card, the wish list automatically reflects the gap. When a wish item targets a specific printing, only copies of that exact printing count toward fulfillment — other printings of the same card are not considered.
 
-3. **Dynamic wish lists:** A saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card" or "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level validation via Zod. Postgres JSONB supports indexing and querying, and Kysely handles JSONB columns natively.
+3. **Dynamic wish lists:** A saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card" or "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level validation via Zod. Postgres JSONB supports indexing and querying, and Kysely handles JSONB columns natively. The exact rule schema will be defined as Zod types in `packages/shared` at implementation time.
 
 A unified "shopping list" UI view merges all three sources. All desired quantities are summed independently across all sources (wanted decks, manual wish lists, dynamic wish lists), then available copies are subtracted once. For example: own 5 available Fireballs, Deck A wants 4, Deck B wants 4, manual wish list wants 6 → `4 + 4 + 6 - 5 = 9 needed`.
 
@@ -201,14 +201,16 @@ CREATE TABLE activity_items (
     CHECK (action IN ('added', 'removed', 'moved'))
 );
 CREATE INDEX idx_activity_items_activity ON activity_items(activity_id);
+CREATE INDEX idx_activity_items_copy ON activity_items(copy_id);
 
 -- ── Decks ─────────────────────────────────────────────────────────
 CREATE TABLE decks (
   id         uuid PRIMARY KEY,
-  user_id    text REFERENCES users(id) ON DELETE CASCADE,
+  user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name        text NOT NULL,
   format      text NOT NULL,
   is_wanted   boolean NOT NULL DEFAULT false,
+  is_public   boolean NOT NULL DEFAULT false,
   share_token text UNIQUE,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
