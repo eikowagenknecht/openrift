@@ -51,6 +51,7 @@ export function CardMetaLabel({
   const typeLabel = superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type;
 
   return (
+    // ⚠ space-y-0.5 and py-0.5 are mirrored as META_LINE_GAP / META_LABEL_PY in card-grid.tsx — update both together
     <div className={cn("w-fit space-y-0.5 rounded-md bg-background px-1.5 py-0.5", className)}>
       {compact ? (
         <>
@@ -90,6 +91,7 @@ export function CardMetaLabel({
       ) : (
         <>
           {(showNumber || showTitle) && (
+            // ⚠ text-xs / sm:text-sm are mirrored as META_LINE_HEIGHT / META_LINE_HEIGHT_SM in card-grid.tsx — update both together
             <p className="truncate text-xs font-medium sm:text-sm">
               {showNumber && <span className="text-muted-foreground">{sourceId}</span>}
               {showNumber && showTitle && " "}
@@ -97,6 +99,7 @@ export function CardMetaLabel({
             </p>
           )}
           {(showType || showRarity) && (
+            // ⚠ text-xs is mirrored as META_LINE_HEIGHT in card-grid.tsx — update both together
             <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
               {showType && (
                 <>

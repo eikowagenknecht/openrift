@@ -6,6 +6,25 @@ import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import type { CardFields } from "@/lib/card-fields";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 
+import {
+  APP_HEADER_HEIGHT,
+  BUTTON_PAD,
+  CARD_ASPECT,
+  COMPACT_THRESHOLD,
+  GAP,
+  HEADER_CONTENT_HEIGHT,
+  HEADER_PB,
+  HEADER_PT,
+  LABEL_WRAPPER_MT,
+  META_LABEL_PY,
+  META_LINE_GAP,
+  META_LINE_HEIGHT,
+  META_LINE_HEIGHT_SM,
+  PRICE_LINE_HEIGHT,
+  PRICE_MT,
+  SM_BREAKPOINT,
+} from "./card-grid-constants";
+import { CardGridDebug } from "./card-grid-debug";
 import { CardThumbnail } from "./card-thumbnail";
 
 export interface SetInfo {
@@ -55,9 +74,6 @@ function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boo
   return rows;
 }
 
-const CARD_ASPECT = 1039 / 744;
-const GAP = 16; // gap-4
-const APP_HEADER_HEIGHT = 56; // h-14
 const HIDE_DELAY = 3000;
 const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
 const INDICATOR_H_FALLBACK = 48;
@@ -122,9 +138,46 @@ export function CardGrid({
 
   const virtualRows = buildVirtualRows(groups, columns, multipleGroups);
 
-  const hasLabel = cardFields
-    ? cardFields.number || cardFields.title || cardFields.type || cardFields.rarity
-    : true;
+  // Compute the label area height that CardThumbnail actually renders.
+  // The wrapper (<div class="mt-2.5">) appears when ANY field is enabled.
+  // Inside it, CardMetaLabel renders when number/title/type/rarity are on,
+  // and the price <p> renders when cardFields.price is on.
+  const labelHeight = (() => {
+    const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
+    const hasMetaFields = f.number || f.title || f.type || f.rarity;
+    if (!hasMetaFields && !f.price) {
+      return 0;
+    }
+
+    let h = LABEL_WRAPPER_MT;
+
+    if (hasMetaFields) {
+      h += META_LABEL_PY;
+      const hasLine1 = f.number || f.title;
+      const hasLine2 = f.type || f.rarity;
+      // Line 1 in non-compact mode uses sm:text-sm (20px line-height)
+      // on viewports ≥ 640px, otherwise text-xs (16px). Compact mode
+      // (cardWidth < 190) always uses text-xs for both lines.
+      const compact = thumbWidth < COMPACT_THRESHOLD;
+      const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
+      const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
+      if (hasLine1) {
+        h += line1Height;
+      }
+      if (hasLine1 && hasLine2) {
+        h += META_LINE_GAP;
+      }
+      if (hasLine2) {
+        h += META_LINE_HEIGHT;
+      }
+    }
+
+    if (f.price) {
+      h += PRICE_MT + PRICE_LINE_HEIGHT;
+    }
+
+    return h;
+  })();
 
   const estimateSize = (index: number): number => {
     const row = virtualRows[index];
@@ -132,13 +185,13 @@ export function CardGrid({
       return 200;
     }
     if (row.kind === "header") {
-      return 44;
+      return HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB;
     }
     const containerWidth = containerRef.current?.offsetWidth ?? 400;
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
-    const imgHeight = cardWidth * CARD_ASPECT;
-    const labelHeight = hasLabel ? 50 : 0;
-    return Math.ceil(imgHeight + labelHeight) + GAP;
+    // Image sits inside the button's p-1.5, so its width is cardWidth - 12.
+    const imgHeight = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
+    return Math.ceil(imgHeight + labelHeight + BUTTON_PAD * 2);
   };
 
   // Precompute cumulative start offsets (within the virtual list) for each row.
@@ -149,7 +202,7 @@ export function CardGrid({
     let acc = 0;
     for (let i = 0; i < virtualRows.length; i++) {
       starts.push(acc);
-      acc += estimateSize(i);
+      acc += estimateSize(i) + GAP;
     }
     return starts;
   })();
@@ -216,7 +269,7 @@ export function CardGrid({
       const threshold = globalThis.scrollY - scrollMarginRef.current + APP_HEADER_HEIGHT;
 
       // Build a map of measured start positions for currently-rendered items.
-      // rowStarts uses estimated sizes and can drift significantly with many rows
+      // rowStarts uses estimated sizes and can still drift with many rows
       // (Math.ceil rounding accumulates). The virtualizer's own positions are
       // accurate for rendered items, so we prefer those at boundaries.
       const measuredStarts = new Map(
@@ -239,7 +292,14 @@ export function CardGrid({
           active = row;
         }
       }
-      setActiveHeaderRow(active);
+      // Compare by set code to avoid re-renders from new object references.
+      // virtualRows is rebuilt each render, so `active` is always a new object
+      // even when the same header is active — Object.is would always differ.
+      setActiveHeaderRow((prev) => {
+        const prevCode = prev?.set.code ?? null;
+        const nextCode = active?.set.code ?? null;
+        return prevCode === nextCode ? prev : active;
+      });
     };
 
     update();
@@ -250,6 +310,7 @@ export function CardGrid({
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
     estimateSize,
+    gap: GAP,
     scrollMargin,
     scrollPaddingStart: APP_HEADER_HEIGHT,
     overscan: 3,
@@ -306,6 +367,7 @@ export function CardGrid({
   }, []);
 
   useEffect(() => {
+    let rafId = 0;
     const update = () => {
       const threshold = globalThis.scrollY + APP_HEADER_HEIGHT + 1;
       const vItems = virtualizerRef.current.getVirtualItems();
@@ -364,21 +426,32 @@ export function CardGrid({
 
       globalThis.clearTimeout(hideTimerRef.current);
       dragTopRef.current = indicatorTop;
-      setIndicator((prev) => ({
-        ...prev,
-        cardId: firstCard.sourceId,
-        indicatorTop,
-        visible: true,
-      }));
+      // Skip the state update when nothing meaningful changed — avoids
+      // re-rendering the entire grid on every scroll frame.
+      setIndicator((prev) => {
+        const sameCard = prev.cardId === firstCard.sourceId;
+        const sameTop = Math.abs(prev.indicatorTop - indicatorTop) < 0.5;
+        if (prev.visible && sameCard && sameTop) {
+          return prev;
+        }
+        return { ...prev, cardId: firstCard.sourceId, indicatorTop, visible: true };
+      });
       hideTimerRef.current = globalThis.setTimeout(() => {
         if (!isHoveredRef.current) {
           setIndicator((prev) => ({ ...prev, visible: false }));
         }
       }, HIDE_DELAY);
     };
-    globalThis.addEventListener("scroll", update, { passive: true });
+    // Throttle to once per animation frame so scroll events don't trigger
+    // multiple React re-renders within the same frame.
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(update);
+    };
+    globalThis.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      globalThis.removeEventListener("scroll", update);
+      globalThis.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafId);
       globalThis.clearTimeout(hideTimerRef.current);
     };
   }, []);
@@ -565,8 +638,8 @@ export function CardGrid({
     const trackBottom = viewportH - halfH - INDICATOR_PAD;
 
     // Prefer the virtualizer's measured positions over rowStarts (estimated).
-    // rowStarts accumulates Math.ceil rounding across many rows, so ghost badges
-    // computed from it drift away from the indicator (which uses real scrollY).
+    // rowStarts can still drift from rounding across many rows, so ghost badges
+    // computed from it may drift from the indicator (which uses real scrollY).
     const measuredStarts = new Map(
       virtualizerRef.current
         .getVirtualItems()
@@ -786,6 +859,17 @@ export function CardGrid({
 
   return (
     <div ref={containerRef}>
+      <CardGridDebug
+        enabled={false}
+        virtualizer={virtualizer}
+        virtualRows={virtualRows}
+        containerRef={containerRef}
+        columns={columns}
+        labelHeight={labelHeight}
+        thumbWidth={thumbWidth}
+        cardFields={cardFields}
+        estimateSize={estimateSize}
+      />
       {cards.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
           {totalCards === 0 ? (
@@ -937,6 +1021,7 @@ export function CardGrid({
                   }}
                 >
                   {row.kind === "header" ? (
+                    // ⚠ pt-4 / pb-2 are mirrored as HEADER_PT / HEADER_PB above — update both together
                     <div className="flex items-center gap-3 pt-4 pb-2">
                       <div className="h-px flex-1 bg-border" />
                       <button
@@ -960,7 +1045,6 @@ export function CardGrid({
                         display: "grid",
                         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                         gap: `${GAP}px`,
-                        paddingBottom: `${GAP}px`,
                       }}
                     >
                       {row.items.map((card, colIndex) => {
