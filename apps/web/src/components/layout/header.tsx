@@ -225,7 +225,7 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
             {changelogGroups.map((group) => (
               <div key={group.date} className="mb-4">
-                <div className="sticky top-0 z-10 -mx-4 mb-2 flex items-center gap-3 border-b border-border bg-background px-4 py-2">
+                <div className="sticky top-0 z-10 -mx-4 mb-2 flex items-baseline gap-3 border-b border-border bg-background px-4 py-2">
                   <span className="text-sm font-semibold text-foreground">
                     {formatRelativeDate(group.date)}
                   </span>
