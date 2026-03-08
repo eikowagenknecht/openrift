@@ -7,8 +7,3 @@ const API_FALLBACK = import.meta.env.VITE_API_FALLBACK_URL ?? "";
 export const IS_PREVIEW = PREVIEW_HOSTS.some((h) => location.hostname.endsWith(h));
 
 export const API_BASE = IS_PREVIEW ? API_FALLBACK : "";
-
-/** On preview deployments, return an absolute URL so OAuth redirects back here. */
-export function previewCallbackURL(path: string): string {
-  return IS_PREVIEW ? `${location.origin}${path}` : path;
-}
