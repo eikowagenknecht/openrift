@@ -109,7 +109,12 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
                     )}
                   </Avatar>
                 ) : (
-                  <EllipsisVertical className="size-5" />
+                  <span className="relative">
+                    <EllipsisVertical className="size-5" />
+                    {needRefresh && (
+                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-blue-500 ring-2 ring-background" /> // custom: update-available indicator
+                    )}
+                  </span>
                 )}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
