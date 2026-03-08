@@ -42,11 +42,13 @@ Collections represent physical storage locations (binders, deck boxes, drawers, 
 
 A boolean `available_for_deckbuilding` flag controls whether copies in a collection are considered when building decks. Default true. Collections like "Deck Box 1" (an assembled deck the user doesn't want to cannibalize) can be excluded while still being visible as "available if needed" in the UI.
 
+**Collection deletion:** A collection can only be deleted after all its copies have been moved elsewhere. The API endpoint for deleting a collection requires a `move_copies_to` collection ID — it moves all copies to the target collection (creating `reorganization` activity items), then deletes the now-empty collection. The bare FK on `copies.collection_id` (default `RESTRICT`) acts as a safety net: Postgres blocks the delete if any copies still reference it.
+
 ### Copies
 
 One row per physical card. References a `printing_id` and a `collection_id`. Hard-deleted when a card leaves the user's possession — the activity ledger preserves history. This avoids the pervasive `WHERE deleted_at IS NULL` filtering that soft-delete would require across every query touching copies (joins, counts, collection value, trade list evaluation, deck availability).
 
-When a copy is removed, relevant metadata is snapshot into the activity item's `metadata_snapshot` JSONB field before deletion, preserving condition/notes for historical queries.
+When a copy is removed, relevant metadata is snapshot into the activity item's `metadata_snapshot` JSONB field before deletion. The snapshot includes the copy's UUID (`copy_id`), condition, notes, and any other per-copy fields — preserving everything needed for historical queries and undo. The activity item's `copy_id` FK is set to NULL by `ON DELETE SET NULL` when the copy row is hard-deleted, so undo reads the original UUID from `metadata_snapshot` to re-insert the copy with its original identity.
 
 ### Activities (Collection History)
 
@@ -69,7 +71,7 @@ Every mutation to the collection happens through an activity — analogous to a 
 
 **Collection deletion:** Activity items denormalize collection names (`from_collection_name`, `to_collection_name`) at creation time. The collection FKs use `ON DELETE SET NULL`, so deleting a collection nulls the FK but the human-readable name survives in the history. This keeps history readable ("moved from Binder 1 to Deck Box 12") even after Binder 1 is deleted.
 
-**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies (from the `printing_id` and `to_collection_id` stored in activity items), restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity.
+**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Note: undo restores copies but does not restore trade list memberships that were removed before disposal — that removal was an explicit user action.
 
 ### Decks
 
@@ -102,7 +104,7 @@ A unified "shopping list" UI view merges all three sources. All desired quantiti
 
 Two flavors:
 
-1. **Manual trade lists:** User curates a list of specific copies to trade/sell. A copy can appear in multiple trade lists but cannot appear in any single list more times than the user owns it.
+1. **Manual trade lists:** User curates a list of specific copies to trade/sell. A copy can appear in multiple trade lists but cannot appear in any single list more times than the user owns it. Disposing a copy that appears on trade lists is not automatic — the UI prompts the user to confirm removal from all affected trade lists first ("This copy is on Trade List X. Remove it and dispose? This can't be undone."). The FK on `trade_list_items.copy_id` uses default `RESTRICT`, so Postgres blocks disposal if the app layer somehow skips the check.
 
 2. **Dynamic trade lists:** A saved JSONB filter definition evaluated at query time (e.g., "all copies beyond the 4th of each card, in Binder 1 or Deck Box 12, worth < 1 EUR on Cardmarket"). Results change as prices and inventory change.
 
@@ -159,7 +161,7 @@ CREATE INDEX idx_activities_user_id ON activities(user_id);
 CREATE TABLE activity_items (
   id                   uuid PRIMARY KEY,
   activity_id          uuid NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-  copy_id              uuid,
+  copy_id              uuid REFERENCES copies(id) ON DELETE SET NULL,
   printing_id          text NOT NULL REFERENCES printings(id),
   action               text NOT NULL,
   from_collection_id   uuid REFERENCES collections(id) ON DELETE SET NULL,
