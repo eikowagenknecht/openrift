@@ -2,6 +2,9 @@
 
 ## 2026-03-08
 
+- feat: Changelog date headers now stick as you scroll, showing relative dates like "Today" or "3 days ago"
+- feat: The changelog header scrolls away to give more room for entries
+- feat: Check for updates now lives inline in the changelog panel instead of taking up footer space
 - feat: Profile menu now includes dark mode, what's new, and update controls — the separate settings gear icon is gone
 - feat: Card display settings (show images, rich effects, visible fields) now live in the card browser next to sort and view controls
 - fix: Scrolling up on the card grid no longer stutters after jumping to a distant position
