@@ -47,7 +47,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import type { CardFields } from "@/lib/card-fields";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
-import { useDisplaySettings } from "@/routes/__root";
+import { useDisplayStore } from "@/stores/display-store";
 
 const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
   name: { label: "Name", prefix: "n:" },
@@ -158,8 +158,12 @@ export function FilterBar({
   onMaxColumnsChange,
   setDisplayLabel,
 }: FilterBarProps) {
-  const { showImages, setShowImages, richEffects, setRichEffects, cardFields, setCardFields } =
-    useDisplaySettings();
+  const showImages = useDisplayStore((s) => s.showImages);
+  const setShowImages = useDisplayStore((s) => s.setShowImages);
+  const richEffects = useDisplayStore((s) => s.richEffects);
+  const setRichEffects = useDisplayStore((s) => s.setRichEffects);
+  const cardFields = useDisplayStore((s) => s.cardFields);
+  const setCardFields = useDisplayStore((s) => s.setCardFields);
 
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
