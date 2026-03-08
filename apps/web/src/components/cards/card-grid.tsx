@@ -191,8 +191,7 @@ export function CardGrid({
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
     // Image sits inside the button's p-1.5, so its width is cardWidth - 12.
     const imgHeight = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
-    // +GAP accounts for paddingBottom on the grid div inside each card row.
-    return Math.ceil(imgHeight + labelHeight + BUTTON_PAD * 2) + GAP;
+    return Math.ceil(imgHeight + labelHeight + BUTTON_PAD * 2);
   };
 
   // Precompute cumulative start offsets (within the virtual list) for each row.
@@ -311,6 +310,7 @@ export function CardGrid({
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
     estimateSize,
+    gap: GAP,
     scrollMargin,
     scrollPaddingStart: APP_HEADER_HEIGHT,
     overscan: 3,
@@ -1045,7 +1045,6 @@ export function CardGrid({
                         display: "grid",
                         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                         gap: `${GAP}px`,
-                        paddingBottom: `${GAP}px`,
                       }}
                     >
                       {row.items.map((card, colIndex) => {

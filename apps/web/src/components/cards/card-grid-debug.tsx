@@ -90,12 +90,9 @@ export function CardGridDebug({
         const lblDiv = hasLabel ? btn?.children[1] : undefined;
         const metaEl = hasMetaFields && lblDiv ? lblDiv.children[0] : undefined;
         const priceEl = f.price && lblDiv ? lblDiv.children[hasMetaFields ? 1 : 0] : undefined;
-        const gridStyle = gridEl instanceof HTMLElement ? getComputedStyle(gridEl) : null;
-
         const measRow = firstCard.size;
         const measBtn = btn?.getBoundingClientRect().height ?? 0;
         const measImg = imgDiv?.getBoundingClientRect().height ?? 0;
-        const measPadB = Number.parseFloat(gridStyle?.paddingBottom ?? "0");
 
         lines.push(
           diff("row", expRow, measRow),
@@ -135,10 +132,7 @@ export function CardGridDebug({
           );
         }
 
-        lines.push(
-          diff("  padBot", GAP, measPadB),
-          diff("  btn", Math.ceil(expImgH) + BUTTON_PAD * 2 + labelHeight, measBtn),
-        );
+        lines.push(diff("  btn", Math.ceil(expImgH) + BUTTON_PAD * 2 + labelHeight, measBtn));
       }
 
       // Log jumps
