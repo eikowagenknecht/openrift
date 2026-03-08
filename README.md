@@ -11,7 +11,7 @@ A card collection browser for [Riftbound](https://riftbound.leagueoflegends.com/
 - [Development](docs/development.md) — prerequisites, setup, commands
 - [Deployment](docs/deployment.md) — VPS setup, Docker Compose, CI/CD
 - [Contributing](docs/contributing.md) — code style, conventions, changelog
-- [Decisions](docs/decisions/) — architecture decision records (ADRs)
+- [ADRs](docs/adr/) — architecture decision records
 
 ## Tech Stack
 
