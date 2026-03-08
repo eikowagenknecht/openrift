@@ -128,6 +128,12 @@ export const auth = betterAuth({
       },
     },
   },
+  advanced: {
+    defaultCookieAttributes: {
+      sameSite: process.env.AUTH_COOKIE_CROSS_ORIGIN === "true" ? "none" : "lax",
+      secure: true,
+    },
+  },
   trustedOrigins: (request) => {
     const origin = request?.headers.get("origin");
     if (origin && matchOrigin(origin, process.env.CORS_ORIGIN)) {

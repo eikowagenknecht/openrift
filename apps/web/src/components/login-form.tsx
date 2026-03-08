@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { IS_PREVIEW } from "@/lib/api-base";
 import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
 import { randomEmailPlaceholder } from "@/lib/placeholders";
@@ -219,43 +220,47 @@ export function LoginForm({
                 >
                   Sign in with email code
                 </button>
-                <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                  Or continue with
-                </FieldSeparator>
-                <Field className="grid grid-cols-2 gap-4">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full"
-                    onClick={() =>
-                      authClient.signIn.social({
-                        provider: "google",
-                        callbackURL: redirectTo ?? "/",
-                      })
-                    }
-                  >
-                    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                      <path d={siGoogle.path} fill="currentColor" />
-                    </svg>
-                    Google
-                  </Button>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full"
-                    onClick={() =>
-                      authClient.signIn.social({
-                        provider: "discord",
-                        callbackURL: redirectTo ?? "/",
-                      })
-                    }
-                  >
-                    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                      <path d={siDiscord.path} fill="currentColor" />
-                    </svg>
-                    Discord
-                  </Button>
-                </Field>
+                {!IS_PREVIEW && (
+                  <>
+                    <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                      Or continue with
+                    </FieldSeparator>
+                    <Field className="grid grid-cols-2 gap-4">
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="w-full"
+                        onClick={() =>
+                          authClient.signIn.social({
+                            provider: "google",
+                            callbackURL: redirectTo ?? "/",
+                          })
+                        }
+                      >
+                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                          <path d={siGoogle.path} fill="currentColor" />
+                        </svg>
+                        Google
+                      </Button>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="w-full"
+                        onClick={() =>
+                          authClient.signIn.social({
+                            provider: "discord",
+                            callbackURL: redirectTo ?? "/",
+                          })
+                        }
+                      >
+                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                          <path d={siDiscord.path} fill="currentColor" />
+                        </svg>
+                        Discord
+                      </Button>
+                    </Field>
+                  </>
+                )}
                 <FieldDescription className="text-center">
                   Don&apos;t have an account?{" "}
                   <Link
@@ -347,43 +352,47 @@ export function LoginForm({
                 >
                   Sign in with password
                 </button>
-                <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                  Or continue with
-                </FieldSeparator>
-                <Field className="grid grid-cols-2 gap-4">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full"
-                    onClick={() =>
-                      authClient.signIn.social({
-                        provider: "google",
-                        callbackURL: redirectTo ?? "/",
-                      })
-                    }
-                  >
-                    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                      <path d={siGoogle.path} fill="currentColor" />
-                    </svg>
-                    Google
-                  </Button>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full"
-                    onClick={() =>
-                      authClient.signIn.social({
-                        provider: "discord",
-                        callbackURL: redirectTo ?? "/",
-                      })
-                    }
-                  >
-                    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                      <path d={siDiscord.path} fill="currentColor" />
-                    </svg>
-                    Discord
-                  </Button>
-                </Field>
+                {!IS_PREVIEW && (
+                  <>
+                    <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                      Or continue with
+                    </FieldSeparator>
+                    <Field className="grid grid-cols-2 gap-4">
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="w-full"
+                        onClick={() =>
+                          authClient.signIn.social({
+                            provider: "google",
+                            callbackURL: redirectTo ?? "/",
+                          })
+                        }
+                      >
+                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                          <path d={siGoogle.path} fill="currentColor" />
+                        </svg>
+                        Google
+                      </Button>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="w-full"
+                        onClick={() =>
+                          authClient.signIn.social({
+                            provider: "discord",
+                            callbackURL: redirectTo ?? "/",
+                          })
+                        }
+                      >
+                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                          <path d={siDiscord.path} fill="currentColor" />
+                        </svg>
+                        Discord
+                      </Button>
+                    </Field>
+                  </>
+                )}
                 <FieldDescription className="text-center">
                   Don&apos;t have an account?{" "}
                   <Link
