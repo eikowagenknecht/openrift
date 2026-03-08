@@ -35,6 +35,7 @@ import { useSWUpdate } from "@/hooks/use-sw-update";
 import { signOut, useSession } from "@/lib/auth-client";
 import { parseChangelog } from "@/lib/changelog";
 import { useGravatarUrl } from "@/lib/gravatar";
+import { useThemeStore } from "@/stores/theme-store";
 
 const changelogGroups = parseChangelog(changelogMd);
 
@@ -65,12 +66,10 @@ function formatRelativeDate(dateStr: string): string {
   return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-interface HeaderProps {
-  darkMode: boolean;
-  onDarkModeChange: () => void;
-}
-
-export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
+export function Header() {
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const darkMode = theme === "dark";
   const { data: session, isPending } = useSession();
   const { data: isAdmin } = useIsAdmin();
   const router = useRouter();
@@ -185,7 +184,7 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem onClick={onDarkModeChange}>
+                <DropdownMenuItem onClick={toggleTheme}>
                   {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
                   {darkMode ? "Light mode" : "Dark mode"}
                 </DropdownMenuItem>

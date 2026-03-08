@@ -22,3 +22,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-003](003-adopt-ssr.md)**: Adopt SSR via TanStack Start — rejected
 - **[ADR-004](004-replace-nuqs-with-tanstack-router.md)**: Replace nuqs with TanStack Router Search Params — rejected
 - **[ADR-005](005-collection-tracking-data-model.md)**: Collection Tracking Data Model — proposed
+- **[ADR-006](006-adopt-zustand.md)**: Adopt Zustand for Client-Side State Management — proposed

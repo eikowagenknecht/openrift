@@ -13,13 +13,11 @@ vi.mock("nuqs", () => ({
   useQueryStates: () => [mockFilterState, mockSetFilterState],
 }));
 
-// Mock useSearchScope
+// Mock useSearchScopeStore
 const mockToggleSearchField = vi.fn();
-vi.mock("@/hooks/use-search-scope", () => ({
-  useSearchScope: () => ({
-    scope: ["name"],
-    toggleField: mockToggleSearchField,
-  }),
+vi.mock("@/stores/search-scope-store", () => ({
+  useSearchScopeStore: (selector: (s: { scope: string[]; toggleField: () => void }) => unknown) =>
+    selector({ scope: ["name"], toggleField: mockToggleSearchField }),
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock

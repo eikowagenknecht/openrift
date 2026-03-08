@@ -13,7 +13,7 @@ import { formatPriceCompact, priceColorClass } from "@/lib/format";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
-import { useDisplaySettings } from "@/routes/__root";
+import { useDisplayStore } from "@/stores/display-store";
 
 interface CardThumbnailProps {
   card: Card;
@@ -55,7 +55,7 @@ export function CardThumbnail({
       : undefined;
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  const { richEffects } = useDisplaySettings();
+  const richEffects = useDisplayStore((s) => s.richEffects);
   const isFoilCard = card.finish === "foil";
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
   // ⚠ 190 is mirrored as COMPACT_THRESHOLD in card-grid.tsx — update both together

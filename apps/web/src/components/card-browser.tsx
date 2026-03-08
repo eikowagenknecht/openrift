@@ -9,7 +9,7 @@ import { FilterSidebar } from "@/components/filters/filter-sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardFilters } from "@/hooks/use-card-filters";
 import { ApiError, useCards } from "@/hooks/use-cards";
-import type { CardFields } from "@/lib/card-fields";
+import { useDisplayStore } from "@/stores/display-store";
 
 const cardDetailImport = import("@/components/cards/card-detail");
 const CardDetail = lazy(async () => {
@@ -17,19 +17,11 @@ const CardDetail = lazy(async () => {
   return { default: m.CardDetail };
 });
 
-interface CardBrowserProps {
-  showImages: boolean;
-  cardFields: CardFields;
-  maxColumns?: number | null;
-  onMaxColumnsChange?: (value: number | null) => void;
-}
-
-export function CardBrowser({
-  showImages,
-  cardFields,
-  maxColumns,
-  onMaxColumnsChange,
-}: CardBrowserProps) {
+export function CardBrowser() {
+  const showImages = useDisplayStore((s) => s.showImages);
+  const cardFields = useDisplayStore((s) => s.cardFields);
+  const maxColumns = useDisplayStore((s) => s.maxColumns);
+  const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
   const { allCards, setInfoList, isLoading, error } = useCards();
 
   const {
@@ -289,7 +281,7 @@ export function CardBrowser({
         maxColumnsLimit={physicalMaxColumns}
         minColumnsLimit={physicalMinColumns}
         autoColumns={autoColumns}
-        onMaxColumnsChange={onMaxColumnsChange}
+        onMaxColumnsChange={setMaxColumns}
         setDisplayLabel={setDisplayLabel}
       />
       <ActiveFilters

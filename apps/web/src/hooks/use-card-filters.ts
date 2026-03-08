@@ -2,7 +2,7 @@ import type { CardType, Rarity, SortDirection, SortOption } from "@openrift/shar
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef } from "react";
 
-import { useSearchScope } from "@/hooks/use-search-scope";
+import { useSearchScopeStore } from "@/stores/search-scope-store";
 
 const filterParsers = {
   search: parseAsString.withDefault(""),
@@ -32,7 +32,8 @@ export function useCardFilters() {
   const [filterState, setFilterState] = useQueryStates(filterParsers, {
     history: "push",
   });
-  const { scope: searchScope, toggleField: toggleSearchField } = useSearchScope();
+  const searchScope = useSearchScopeStore((s) => s.scope);
+  const toggleSearchField = useSearchScopeStore((s) => s.toggleField);
 
   // nuqs uses startTransition for history pushes, so filterState may lag behind
   // rapid successive clicks. Track the latest intended array values in a ref so
