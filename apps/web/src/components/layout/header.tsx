@@ -9,7 +9,7 @@ import {
   Sun,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import changelogMd from "@/CHANGELOG.md?raw";
@@ -54,6 +54,44 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
   const { needRefresh, applyUpdate, checkForUpdate } = useSWUpdate();
   const [checking, setChecking] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
+
+  // DEBUG: touch scroll debugging for iOS
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const addDebug = (msg: string) => setDebugLog((prev) => [...prev.slice(-15), msg]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+
+    const info = () => {
+      const style = globalThis.getComputedStyle(el);
+      addDebug(
+        `scroll: ${el.scrollHeight}/${el.clientHeight} overflow-y: ${style.overflowY} touch: ${style.touchAction}`,
+      );
+    };
+
+    const onStart = (e: TouchEvent) => {
+      info();
+      addDebug(
+        `touchstart: target=${(e.target as HTMLElement)?.tagName} touches=${e.touches.length}`,
+      );
+    };
+    const onMove = (e: TouchEvent) => {
+      addDebug(
+        `touchmove: cancelable=${e.cancelable} defaultPrevented=${e.defaultPrevented} y=${e.touches[0]?.clientY.toFixed(0)}`,
+      );
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+    };
+  }, [changelogOpen]);
 
   return (
     <>
@@ -171,7 +209,7 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
               <span className="text-[10px] tabular-nums">{__COMMIT_HASH__}</span>
             </DrawerDescription>
           </DrawerHeader>
-          <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto px-4 pb-4">
+          <div ref={scrollRef} className="min-h-0 flex-1 touch-pan-y overflow-y-auto px-4 pb-4">
             {changelogGroups.map((group) => (
               <div key={group.date} className="mb-6">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">{group.date}</p>
@@ -193,6 +231,22 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
                 </ul>
               </div>
             ))}
+          </div>
+          {/* DEBUG: remove after fixing scroll */}
+          <div className="shrink-0 border-t bg-black/90 p-2 font-mono text-[10px] text-green-400">
+            <button
+              type="button"
+              className="mb-1 text-yellow-400 underline"
+              onClick={() => setDebugLog([])}
+            >
+              clear
+            </button>
+            <div className="max-h-24 overflow-y-auto">
+              {debugLog.map((msg, i) => (
+                <div key={i}>{msg}</div>
+              ))}
+              {debugLog.length === 0 && <div>Touch the scroll area above...</div>}
+            </div>
           </div>
           <DrawerFooter className="border-t">
             {needRefresh ? (
