@@ -202,14 +202,15 @@ export function Header({ darkMode, onDarkModeChange }: HeaderProps) {
                 <ul className="space-y-2">
                   {group.entries.map((entry, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
-                      <span
-                        className={`mt-0.5 shrink-0 rounded px-1 py-0.5 text-[10px] font-medium uppercase leading-none ${
-                          entry.type === "feat"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                        }`}
-                      >
-                        {entry.type}
+                      <span className="relative mt-1 inline-flex w-8 shrink-0 items-center justify-center px-1">
+                        <span
+                          className={`absolute inset-0 -skew-x-[15deg] ${
+                            entry.type === "feat" ? "bg-[#24705f]" : "bg-[#cd346f]"
+                          }`}
+                        />
+                        <span className="relative text-[10px] font-semibold uppercase italic leading-none tracking-tight text-white">
+                          {entry.type}
+                        </span>
                       </span>
                       <span>{entry.message}</span>
                     </li>
