@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-08
+
+- fix: Scrolling up on the card grid no longer stutters after jumping to a distant position
+
 ## 2026-03-06
 
 - feat: Sort, view, and column controls now live inside the filter drawer on mobile for a cleaner layout
