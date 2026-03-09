@@ -32,12 +32,60 @@ interface CardGridDebugProps {
   estimateSize: (index: number) => number;
 }
 
-function diff(label: string, exp: number, meas: number): string {
-  const e = exp.toFixed(1);
-  const m = meas.toFixed(1);
-  const ok = e === m ? "✓" : "✗";
-  return `${ok} ${label}: exp=${e} meas=${m}`;
+// ── Tree types & rendering ──────────────────────────────────────────
+//
+// Every node shows:  label  exp → meas  ✓/✗
+// Composite nodes show their formula so you can see which children sum
+// to the parent.  Mismatches at any level propagate visually — nothing
+// is hidden behind tolerances.
+
+interface Node {
+  label: string;
+  /** Expected value (from constants / formula). */
+  exp: number;
+  /** Measured value (from DOM). */
+  meas: number;
+  /** Shown after ✓/✗ — formula for composite nodes, context for leaves. */
+  note?: string;
+  children?: Node[];
 }
+
+function match(n: Node): boolean {
+  return Math.abs(n.exp - n.meas) < 0.5;
+}
+
+function fmtNode(n: Node, prefix: string, connector: string): string {
+  const ok = match(n);
+  const mark = ok ? "✓" : "✗";
+  const vals = ok ? `${n.meas}` : `${n.meas} exp=${n.exp}`;
+  const note = n.note ? `  ${n.note}` : "";
+  return `${prefix}${connector}${n.label} ${vals} ${mark}${note}`;
+}
+
+function renderChildren(children: Node[], indent: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    const last = i === children.length - 1;
+    const connector = last ? "└ " : "├ ";
+    const nextIndent = indent + (last ? "  " : "│ ");
+    out.push(fmtNode(child, indent, connector));
+    if (child.children) {
+      out.push(...renderChildren(child.children, nextIndent));
+    }
+  }
+  return out;
+}
+
+function renderTree(root: Node): string[] {
+  const lines = [fmtNode(root, "", "")];
+  if (root.children) {
+    lines.push(...renderChildren(root.children, ""));
+  }
+  return lines;
+}
+
+// ── Component ───────────────────────────────────────────────────────
 
 export function CardGridDebug({
   enabled,
@@ -67,72 +115,175 @@ export function CardGridDebug({
       const items: VirtualItem[] = virtualizer.getVirtualItems();
       const prevTotal = prevTotalRef.current;
 
-      // Expected values from constants
+      // Derived layout values — mirrors estimateSize logic
       const containerWidth = containerRef.current?.offsetWidth ?? 0;
       const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
       const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
       const expRow = estimateSize(items[0]?.index ?? 0);
 
-      const lines = [
-        `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length}`,
-      ];
-
-      // Find first card row and measure its DOM
       const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
       const hasMetaFields = f.number || f.title || f.type || f.rarity;
       const hasLabel = hasMetaFields || f.price;
+      const compact = thumbWidth < COMPACT_THRESHOLD;
+      const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
+      const hasLine1 = f.number || f.title;
+      const hasLine2 = f.type || f.rarity;
+      const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
+
+      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const interLoaded = document.fonts.check('12px "Inter Variable"');
+      const lines = [
+        `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length} cols=${columns} cW=${cardWidth.toFixed(0)} rem=${rootFontSize} inter=${interLoaded}`,
+      ];
+
+      // Find first card row and build measurement tree
       const firstCard = items.find((it) => virtualRows[it.index]?.kind === "cards");
       if (firstCard) {
         const rowEl = document.querySelector(`[data-index="${firstCard.index}"]`);
         const gridEl = rowEl?.firstElementChild;
         const btn = gridEl?.querySelector("button");
         const imgDiv = btn?.children[0];
-        const lblDiv = hasLabel ? btn?.children[1] : undefined;
+        const lblDiv = hasLabel && btn ? btn.children[btn.childElementCount - 1] : undefined;
         const metaEl = hasMetaFields && lblDiv ? lblDiv.children[0] : undefined;
         const priceEl = f.price && lblDiv ? lblDiv.children[hasMetaFields ? 1 : 0] : undefined;
-        const measRow = firstCard.size;
-        const measBtn = btn?.getBoundingClientRect().height ?? 0;
+
+        // Row-level measurements — use raw getBoundingClientRect for fractional
+        // precision (firstCard.size is the virtualizer's rounded integer).
+        const virtSize = firstCard.size;
+        const measRow = rowEl?.getBoundingClientRect().height ?? virtSize;
         const measImg = imgDiv?.getBoundingClientRect().height ?? 0;
+        const btnCS = btn ? getComputedStyle(btn) : undefined;
+        const measPadT = btnCS ? Number.parseFloat(btnCS.paddingTop) : 0;
+        const measPadB = btnCS ? Number.parseFloat(btnCS.paddingBottom) : 0;
+
+        const rowChildren: Node[] = [
+          { label: "padT", exp: BUTTON_PAD, meas: measPadT },
+          { label: "imgH", exp: expImgH, meas: measImg },
+        ];
+
+        // Label area — margin is outside the element, so it's a row-level sibling
+        if (hasLabel && lblDiv) {
+          const measLblMt = Number.parseFloat(getComputedStyle(lblDiv as Element).marginTop);
+          const measLblH = (lblDiv as Element).getBoundingClientRect().height;
+          rowChildren.push({ label: "lblMt", exp: LABEL_WRAPPER_MT, meas: measLblMt });
+          const labelChildren: Node[] = [];
+
+          // Meta subtree
+          if (hasMetaFields && metaEl) {
+            const measMeta = (metaEl as Element).getBoundingClientRect().height;
+            const metaCS = getComputedStyle(metaEl as Element);
+            const measPy =
+              Number.parseFloat(metaCS.paddingTop) + Number.parseFloat(metaCS.paddingBottom);
+
+            let expMeta = META_LABEL_PY;
+            if (hasLine1) {
+              expMeta += line1Height;
+            }
+            if (hasLine1 && hasLine2) {
+              expMeta += META_LINE_GAP;
+            }
+            if (hasLine2) {
+              expMeta += META_LINE_HEIGHT;
+            }
+
+            const metaChildren: Node[] = [{ label: "py", exp: META_LABEL_PY, meas: measPy }];
+
+            let childIdx = 0;
+            let l1Rect: DOMRect | undefined;
+            if (hasLine1) {
+              const l1 = (metaEl as Element).children[childIdx] as HTMLElement | undefined;
+              l1Rect = l1?.getBoundingClientRect();
+              const l1CS = l1 ? getComputedStyle(l1) : undefined;
+              const l1Info = l1CS
+                ? `lh=${l1CS.lineHeight} fs=${l1CS.fontSize} font=${l1CS.fontFamily.split(",")[0]}`
+                : "";
+              // Show multiple height measurements to diagnose clipping
+              const l1Box = l1
+                ? `rect=${l1Rect?.height} offset=${l1.offsetHeight} scroll=${l1.scrollHeight} overflow=${l1CS?.overflow}`
+                : "";
+              metaChildren.push({
+                label: "L1",
+                exp: line1Height,
+                meas: l1Rect?.height ?? 0,
+                note: `${!compact && aboveSm ? "sm:text-sm" : "text-xs"} ${l1Info}\n          ${l1Box}`,
+              });
+              childIdx++;
+            }
+            if (hasLine1 && hasLine2) {
+              const l2 = (metaEl as Element).children[childIdx];
+              const l2Rect = l2?.getBoundingClientRect();
+              // Measure actual pixel distance between L1 bottom and L2 top —
+              // works regardless of whether spacing comes from margin, gap, etc.
+              const measGap = l1Rect && l2Rect ? l2Rect.top - l1Rect.bottom : 0;
+              metaChildren.push({
+                label: "gap",
+                exp: META_LINE_GAP,
+                meas: measGap,
+              });
+            }
+            if (hasLine2) {
+              const l2 = (metaEl as Element).children[childIdx];
+              metaChildren.push({
+                label: "L2",
+                exp: META_LINE_HEIGHT,
+                meas: l2?.getBoundingClientRect().height ?? 0,
+                note: "text-xs",
+              });
+            }
+
+            labelChildren.push({
+              label: "meta",
+              exp: expMeta,
+              meas: measMeta,
+              note: "py+L1+gap+L2",
+              children: metaChildren,
+            });
+          }
+
+          // Price subtree
+          if (f.price && priceEl) {
+            const measPriceMt = Number.parseFloat(getComputedStyle(priceEl as Element).marginTop);
+            const measPriceH = (priceEl as Element).getBoundingClientRect().height;
+            labelChildren.push({
+              label: "price",
+              exp: PRICE_MT + PRICE_LINE_HEIGHT,
+              meas: measPriceMt + measPriceH,
+              note: "mt+h",
+              children: [
+                { label: "mt", exp: PRICE_MT, meas: measPriceMt },
+                { label: "h", exp: PRICE_LINE_HEIGHT, meas: measPriceH },
+              ],
+            });
+          }
+
+          rowChildren.push({
+            label: "label",
+            exp: labelHeight - LABEL_WRAPPER_MT,
+            meas: measLblH,
+            note: "meta+price",
+            children: labelChildren,
+          });
+        }
+        rowChildren.push({ label: "padB", exp: BUTTON_PAD, meas: measPadB });
+
+        // Tree: fractional expected (from constants, before ceil) vs fractional
+        // DOM measurement.  This is where you fix constant mismatches.
+        const rawSum = expImgH + BUTTON_PAD * 2 + labelHeight;
 
         lines.push(
-          diff("row", expRow, measRow),
-          diff("  imgH", expImgH, measImg),
-          diff("  pad*2", BUTTON_PAD * 2, BUTTON_PAD * 2),
+          ...renderTree({
+            label: "row",
+            exp: rawSum,
+            meas: measRow,
+            note: "imgH+pad+label",
+            children: rowChildren,
+          }),
         );
 
-        if (hasLabel) {
-          const measLblMt = lblDiv ? Number.parseFloat(getComputedStyle(lblDiv).marginTop) : 0;
-          lines.push(diff("  lblMt", LABEL_WRAPPER_MT, measLblMt));
-        }
-        if (hasMetaFields) {
-          const measMeta = metaEl?.getBoundingClientRect().height ?? 0;
-          const compact = thumbWidth < COMPACT_THRESHOLD;
-          const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
-          const hasLine1 = f.number || f.title;
-          const hasLine2 = f.type || f.rarity;
-          const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
-          let expMeta = META_LABEL_PY;
-          if (hasLine1) {
-            expMeta += line1Height;
-          }
-          if (hasLine1 && hasLine2) {
-            expMeta += META_LINE_GAP;
-          }
-          if (hasLine2) {
-            expMeta += META_LINE_HEIGHT;
-          }
-          lines.push(diff("  meta", expMeta, measMeta));
-        }
-        if (f.price) {
-          const measPriceMt = priceEl ? Number.parseFloat(getComputedStyle(priceEl).marginTop) : 0;
-          const measPrice = priceEl?.getBoundingClientRect().height ?? 0;
-          lines.push(
-            diff("  priceMt", PRICE_MT, measPriceMt),
-            diff("  priceH", PRICE_LINE_HEIGHT, measPrice),
-          );
-        }
-
-        lines.push(diff("  btn", Math.ceil(expImgH) + BUTTON_PAD * 2 + labelHeight, measBtn));
+        // Virtualizer line: integer comparison that drives scroll stability.
+        // est = estimateSize (our prediction), virt = what the virtualizer stored.
+        const estOk = expRow === virtSize ? "✓" : "✗";
+        lines.push(`est=${expRow} virt=${virtSize} ${estOk}  ⌈${rawSum}⌉→${expRow}`);
       }
 
       // Log jumps

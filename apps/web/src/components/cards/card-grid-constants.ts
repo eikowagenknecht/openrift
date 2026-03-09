@@ -9,7 +9,7 @@ export const BUTTON_PAD = 6; // p-1.5 on CardThumbnail <button>
 export const APP_HEADER_HEIGHT = 56; // h-14
 
 export const LABEL_WRAPPER_MT = 10; // mt-2.5 on CardThumbnail label wrapper
-export const META_LABEL_PY = 2; // py-0.5 on CardMetaLabel root — measured as 2px total (browser rounds 0.125rem per side)
+export const META_LABEL_PY = 4; // py-0.5 on CardMetaLabel root — 0.125rem × 2 sides × 16px = 4px total
 export const META_LINE_HEIGHT = 16; // text-xs line-height (see note about sm:text-sm below)
 export const META_LINE_GAP = 2; // space-y-0.5 between CardMetaLabel lines
 export const PRICE_MT = 2; // mt-0.5 on price <p>
