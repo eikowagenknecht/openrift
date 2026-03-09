@@ -354,15 +354,17 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
               Unmatched {config.shortName} Products ({unmatchedProducts.length})
             </h4>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-              {unmatchedProducts.map((sp) => (
-                <StagedProductCard
-                  key={`${sp.externalId}::${sp.finish}`}
-                  config={config}
-                  product={sp}
-                  onIgnore={() => ignoreMutation.mutate([sp.externalId])}
-                  isIgnoring={ignoreMutation.isPending}
-                />
-              ))}
+              {unmatchedProducts
+                .toSorted((a, b) => a.productName.localeCompare(b.productName))
+                .map((sp) => (
+                  <StagedProductCard
+                    key={`${sp.externalId}::${sp.finish}`}
+                    config={config}
+                    product={sp}
+                    onIgnore={() => ignoreMutation.mutate([sp.externalId])}
+                    isIgnoring={ignoreMutation.isPending}
+                  />
+                ))}
             </div>
           </div>
         )}
@@ -383,15 +385,17 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
             </button>
             {showIgnored && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-                {ignoredProducts.map((sp) => (
-                  <StagedProductCard
-                    key={`ignored::${sp.externalId}`}
-                    config={config}
-                    product={sp}
-                    onUnignore={() => unignoreMutation.mutate([sp.externalId])}
-                    isUnignoring={unignoreMutation.isPending}
-                  />
-                ))}
+                {ignoredProducts
+                  .toSorted((a, b) => a.productName.localeCompare(b.productName))
+                  .map((sp) => (
+                    <StagedProductCard
+                      key={`ignored::${sp.externalId}`}
+                      config={config}
+                      product={sp}
+                      onUnignore={() => unignoreMutation.mutate([sp.externalId])}
+                      isUnignoring={unignoreMutation.isPending}
+                    />
+                  ))}
               </div>
             )}
           </div>
@@ -656,13 +660,15 @@ function ExpandedDetail({
             Staged {config.shortName} Products
           </h4>
           <div className="flex flex-col gap-2">
-            {group.stagedProducts.map((sp) => (
-              <StagedProductCard
-                key={`${sp.externalId}::${sp.finish}`}
-                config={config}
-                product={sp}
-              />
-            ))}
+            {group.stagedProducts
+              .toSorted((a, b) => a.productName.localeCompare(b.productName))
+              .map((sp) => (
+                <StagedProductCard
+                  key={`${sp.externalId}::${sp.finish}`}
+                  config={config}
+                  product={sp}
+                />
+              ))}
             {group.stagedProducts.length === 0 && (
               <p className="text-xs text-muted-foreground">No staged products</p>
             )}
@@ -674,13 +680,15 @@ function ExpandedDetail({
               Assigned {config.shortName} Products
             </h4>
             <div className="flex flex-col gap-2">
-              {group.assignedProducts.map((sp) => (
-                <StagedProductCard
-                  key={`${sp.externalId}::${sp.finish}`}
-                  config={config}
-                  product={sp}
-                />
-              ))}
+              {group.assignedProducts
+                .toSorted((a, b) => a.productName.localeCompare(b.productName))
+                .map((sp) => (
+                  <StagedProductCard
+                    key={`${sp.externalId}::${sp.finish}`}
+                    config={config}
+                    product={sp}
+                  />
+                ))}
             </div>
           </div>
         )}
@@ -805,8 +813,12 @@ function ProductSelect({
   disabled?: boolean;
   onSelect: (externalId: number) => void;
 }) {
-  const sortedStaged = stagedProducts.toSorted((a, b) => a.externalId - b.externalId);
-  const sortedAssigned = assignedProducts.toSorted((a, b) => a.externalId - b.externalId);
+  const sortedStaged = stagedProducts.toSorted((a, b) =>
+    a.productName.localeCompare(b.productName),
+  );
+  const sortedAssigned = assignedProducts.toSorted((a, b) =>
+    a.productName.localeCompare(b.productName),
+  );
 
   return (
     <Select
