@@ -15,6 +15,8 @@ import { requireAdmin } from "../middleware/require-admin.js";
 import { getRehostStatus, regenerateImages, rehostImages } from "../services/image-rehost.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { candidatesRoute } from "./candidates.js";
 
 export const adminRoute = new Hono<{ Variables: Variables }>();
 
@@ -187,7 +189,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
           isPromo: boolean;
           finish: string;
           collectorNumber: number;
-          imageUrl: string;
+          imageUrl: string | null;
           externalId: number | null;
         }[];
       }
@@ -815,7 +817,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
           isPromo: boolean;
           finish: string;
           collectorNumber: number;
-          imageUrl: string;
+          imageUrl: string | null;
           externalId: number | null;
         }[];
       }
@@ -1823,3 +1825,9 @@ adminRoute.get("/admin/rehost-status", async (c) => {
     return c.json({ error: "Failed to get rehost status" }, 500);
   }
 });
+
+// ── Candidate import routes ─────────────────────────────────────────────────
+
+adminRoute.use("/admin/candidates/*", requireAdmin);
+adminRoute.use("/admin/candidates", requireAdmin);
+adminRoute.route("/admin", candidatesRoute);

@@ -3,22 +3,9 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { CardType, Rarity } from "../types.js";
+import { buildPrintingId } from "./build-printing-id.js";
 import { fetchCatalog } from "./fetch-catalog.js";
 import type { Database } from "./types.js";
-
-/**
- * Build composite printing ID.
- * @returns Deterministic ID string.
- */
-function buildPrintingId(
-  sourceId: string,
-  artVariant: string,
-  isSigned: boolean,
-  isPromo: boolean,
-  finish: string,
-): string {
-  return `${sourceId}:${artVariant}:${isSigned ? "signed" : ""}:${isPromo ? "promo" : ""}:${finish}`;
-}
 
 // Finish rules:
 // - OGS → non-foil only
@@ -247,7 +234,7 @@ export async function refreshCatalog(
     is_signed: boolean;
     is_promo: boolean;
     finish: string;
-    image_url: string;
+    image_url: string | null;
     artist: string;
     public_code: string;
     printed_rules_text: string;
@@ -269,7 +256,7 @@ export async function refreshCatalog(
         is_signed: p.isSigned,
         is_promo: p.isPromo,
         finish,
-        image_url: p.art.imageURL.split("?")[0],
+        image_url: p.art.imageURL?.split("?")[0] ?? null,
         artist: p.art.artist,
         public_code: p.publicCode,
         printed_rules_text: p.printedRulesText,

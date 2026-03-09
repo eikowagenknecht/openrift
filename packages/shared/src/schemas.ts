@@ -94,7 +94,7 @@ export const cardStatsSchema = z.object({
 });
 
 export const cardArtSchema = z.object({
-  imageURL: z.string(),
+  imageURL: z.string().nullable(),
   artist: z.string(),
 });
 
@@ -273,4 +273,55 @@ export const updateTradeListSchema = z.object({
 
 export const createTradeListItemSchema = z.object({
   copyId: z.string().uuid(),
+});
+
+// ---------------------------------------------------------------------------
+// Candidate import schemas
+// ---------------------------------------------------------------------------
+
+const candidateCardTypeSchema = z.enum(["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"]);
+
+const candidateRaritySchema = z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]);
+
+const candidateFinishSchema = z.enum(["normal", "foil"]);
+
+export const candidatePrintingSchema = z.object({
+  source_id: z.string().min(1),
+  set_id: z.string().min(1),
+  set_name: z.string().optional(),
+  collector_number: z.number().int(),
+  rarity: candidateRaritySchema,
+  art_variant: z.string(),
+  is_signed: z.boolean().default(false),
+  is_promo: z.boolean().default(false),
+  finish: candidateFinishSchema,
+  artist: z.string(),
+  public_code: z.string(),
+  printed_rules_text: z.string(),
+  printed_effect_text: z.string().default(""),
+  image_url: z.string().optional(),
+});
+
+export const candidateCardSchema = z.object({
+  card: z.object({
+    source_id: z.string().min(1),
+    name: z.string().min(1),
+    type: candidateCardTypeSchema,
+    super_types: z.array(z.string()).default([]),
+    domains: z.array(z.string()),
+    might: z.number().int().nullable(),
+    energy: z.number().int().nullable(),
+    power: z.number().int().nullable(),
+    might_bonus: z.number().int().nullable().default(null),
+    keywords: z.array(z.string()).default([]),
+    tags: z.array(z.string()).default([]),
+    rules_text: z.string(),
+    effect_text: z.string().default(""),
+  }),
+  printings: z.array(candidatePrintingSchema).min(1),
+});
+
+export const candidateUploadSchema = z.object({
+  source: z.string().default(""),
+  candidates: z.array(candidateCardSchema).min(1),
 });

@@ -26,7 +26,9 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use("/card-images", (req, res, next) => {
           const filePath = path.join(cardImagesDir, req.url?.split("?")[0] ?? "");
-          if (!existsSync(filePath)) return next();
+          if (!existsSync(filePath)) {
+            return next();
+          }
           const ext = path.extname(filePath).toLowerCase();
           const mime =
             ext === ".webp"

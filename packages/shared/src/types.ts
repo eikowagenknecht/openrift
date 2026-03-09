@@ -41,7 +41,7 @@ export interface CardStats {
 }
 
 export interface CardArt {
-  imageURL: string;
+  imageURL: string | null;
   artist: string;
 }
 
@@ -270,6 +270,63 @@ export interface TradeListItem {
   id: string;
   tradeListId: string;
   copyId: string;
+}
+
+// ─── Candidate import ────────────────────────────────────────────────────────
+
+export type CandidateStatus = "pending" | "accepted" | "rejected";
+
+export interface CandidatePrinting {
+  id: string;
+  sourceId: string;
+  setId: string;
+  setName: string | null;
+  collectorNumber: number;
+  rarity: Rarity;
+  artVariant: string;
+  isSigned: boolean;
+  isPromo: boolean;
+  finish: string;
+  artist: string;
+  publicCode: string;
+  printedRulesText: string;
+  printedEffectText: string;
+  imageUrl: string | null;
+}
+
+export interface CandidateCard {
+  id: string;
+  status: CandidateStatus;
+  source: string;
+  matchCardId: string | null;
+  sourceId: string;
+  name: string;
+  type: CardType;
+  superTypes: string[];
+  domains: string[];
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+  mightBonus: number | null;
+  keywords: string[];
+  rulesText: string;
+  effectText: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  printings: CandidatePrinting[];
+  matchedCard?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface CandidateUploadResult {
+  newCards: number;
+  updates: number;
+  errors: string[];
 }
 
 // ─── Card filters ───────────────────────────────────────────────────────────

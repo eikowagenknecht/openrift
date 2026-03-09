@@ -59,7 +59,7 @@ export interface PrintingsTable {
   is_signed: boolean;
   is_promo: boolean;
   finish: string;
-  image_url: string;
+  image_url: string | null;
   artist: string;
   public_code: string;
   printed_rules_text: string;
@@ -373,6 +373,57 @@ export interface TradeListItemsTable {
   copy_id: string;
 }
 
+// ─── Candidate import (migration 012) ────────────────────────────────────────
+
+export interface CandidateCardsTable {
+  id: Generated<string>;
+  status: string;
+  source: string;
+  match_card_id: string | null;
+  source_id: string;
+  name: string;
+  type: CardType;
+  super_types: string[];
+  domains: string[];
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+  might_bonus: number | null;
+  keywords: string[];
+  rules_text: string;
+  effect_text: string;
+  tags: string[];
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+  reviewed_at: Date | null;
+  reviewed_by: string | null;
+}
+
+export interface CandidatePrintingsTable {
+  id: Generated<string>;
+  candidate_card_id: string;
+  source_id: string;
+  set_id: string;
+  set_name: string | null;
+  collector_number: number;
+  rarity: Rarity;
+  art_variant: string;
+  is_signed: boolean;
+  is_promo: boolean;
+  finish: string;
+  artist: string;
+  public_code: string;
+  printed_rules_text: string;
+  printed_effect_text: string;
+  image_url: string | null;
+  created_at: CreatedAt;
+}
+
+export interface CardNameAliasesTable {
+  alias: string;
+  card_id: string;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -414,4 +465,9 @@ export interface Database {
   wish_list_items: WishListItemsTable;
   trade_lists: TradeListsTable;
   trade_list_items: TradeListItemsTable;
+
+  // Candidate import (migration 012)
+  candidate_cards: CandidateCardsTable;
+  candidate_printings: CandidatePrintingsTable;
+  card_name_aliases: CardNameAliasesTable;
 }

@@ -11,6 +11,7 @@
     "./db/migrate": "./src/db/migrate.ts",
     "./db/refresh-tcgplayer-prices": "./src/db/refresh-tcgplayer-prices.ts",
     "./db/refresh-cardmarket-prices": "./src/db/refresh-cardmarket-prices.ts",
+    "./db/build-printing-id": "./src/db/build-printing-id.ts",
     "./db/refresh-catalog": "./src/db/refresh-catalog.ts",
     "./data/prices.json": "../../data/prices.json"
   },

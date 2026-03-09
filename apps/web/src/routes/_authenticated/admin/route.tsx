@@ -10,6 +10,8 @@ const pageTitles: Record<string, string> = {
   "/_authenticated/admin/tcgplayer-mappings": "TCGplayer Products",
   "/_authenticated/admin/cardmarket-expansions": "Cardmarket Sets",
   "/_authenticated/admin/cm-mappings": "Cardmarket Products",
+  "/_authenticated/admin/candidates-upload": "Upload Candidates",
+  "/_authenticated/admin/candidates": "Review Candidates",
   "/_authenticated/admin/settings": "Settings",
 };
 

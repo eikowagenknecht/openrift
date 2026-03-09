@@ -1,12 +1,14 @@
 import { Link, useMatches } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
+  ClipboardCheckIcon,
   DatabaseIcon,
   ImageIcon,
   LayoutDashboardIcon,
   LayersIcon,
   MapIcon,
   SettingsIcon,
+  UploadIcon,
 } from "lucide-react";
 
 import {
@@ -30,6 +32,13 @@ const groups = [
     pages: [
       { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
       { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
+    ],
+  },
+  {
+    label: "Import",
+    pages: [
+      { to: "/admin/candidates-upload" as const, icon: UploadIcon, title: "Upload" },
+      { to: "/admin/candidates" as const, icon: ClipboardCheckIcon, title: "Review" },
     ],
   },
   {
