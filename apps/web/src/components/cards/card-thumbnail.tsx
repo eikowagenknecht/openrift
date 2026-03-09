@@ -10,7 +10,12 @@ import type { CardFields } from "@/lib/card-fields";
 import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPriceCompact, priceColorClass } from "@/lib/format";
-import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
+import {
+  LANDSCAPE_ROTATION_STYLE,
+  getCardImageSrcSet,
+  getCardImageUrl,
+  needsCssRotation,
+} from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -28,6 +33,7 @@ interface CardThumbnailProps {
   cardFields?: CardFields;
   cardWidth?: number;
   priority?: boolean;
+  ownedCount?: number;
 }
 
 export function CardThumbnail({
@@ -43,6 +49,7 @@ export function CardThumbnail({
   cardFields = DEFAULT_CARD_FIELDS,
   cardWidth,
   priority,
+  ownedCount,
 }: CardThumbnailProps) {
   const orientation = getOrientation(card.type);
   const thumbnailUrl =
@@ -53,6 +60,7 @@ export function CardThumbnail({
     showImages && card.art.imageURL
       ? getCardImageSrcSet(card.art.imageURL, orientation)
       : undefined;
+  const rotated = card.art.imageURL ? needsCssRotation(card.art.imageURL, orientation) : false;
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const richEffects = useDisplayStore((s) => s.richEffects);
@@ -104,6 +112,11 @@ export function CardThumbnail({
         />
       )}
       <div className="relative">
+        {ownedCount !== undefined && ownedCount > 0 && (
+          <span className="absolute right-1.5 top-1.5 z-20 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground shadow">
+            ×{ownedCount}
+          </span>
+        )}
         {otherPrintings.map((sibling, i) => {
           const depth = otherPrintings.length - i;
           const siblingUrl =
@@ -134,9 +147,22 @@ export function CardThumbnail({
                   : undefined
               }
             >
-              {siblingUrl && (
-                <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
-              )}
+              {siblingUrl &&
+                (rotated ? (
+                  <div
+                    className="absolute top-1/2 left-1/2 overflow-hidden"
+                    style={LANDSCAPE_ROTATION_STYLE}
+                  >
+                    <img
+                      src={siblingUrl}
+                      alt=""
+                      loading="lazy"
+                      className="size-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
+                ))}
               {sibling.finish === "foil" && <FoilOverlay active shimmer dim />}
             </div>
           );
@@ -162,21 +188,41 @@ export function CardThumbnail({
               might={card.stats.might}
               className={thumbnailUrl && imgLoaded ? "invisible" : undefined}
             />
-            {thumbnailUrl && (
-              <img
-                src={thumbnailUrl}
-                srcSet={srcSet}
-                sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                alt={card.name}
-                loading={priority ? "eager" : "lazy"}
-                fetchPriority={priority ? "high" : undefined}
-                className={cn(
-                  "absolute inset-0 aspect-[744/1039] w-full object-cover transition-opacity duration-300",
-                  imgLoaded ? "opacity-100" : "opacity-0",
-                )}
-                onLoad={() => setImgLoaded(true)}
-              />
-            )}
+            {thumbnailUrl &&
+              (rotated ? (
+                <div
+                  className={cn(
+                    "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
+                    imgLoaded ? "opacity-100" : "opacity-0",
+                  )}
+                  style={LANDSCAPE_ROTATION_STYLE}
+                >
+                  <img
+                    src={thumbnailUrl}
+                    srcSet={srcSet}
+                    sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                    alt={card.name}
+                    loading={priority ? "eager" : "lazy"}
+                    fetchPriority={priority ? "high" : undefined}
+                    className="size-full object-cover"
+                    onLoad={() => setImgLoaded(true)}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={thumbnailUrl}
+                  srcSet={srcSet}
+                  sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                  alt={card.name}
+                  loading={priority ? "eager" : "lazy"}
+                  fetchPriority={priority ? "high" : undefined}
+                  className={cn(
+                    "absolute inset-0 aspect-[744/1039] w-full object-cover transition-opacity duration-300",
+                    imgLoaded ? "opacity-100" : "opacity-0",
+                  )}
+                  onLoad={() => setImgLoaded(true)}
+                />
+              ))}
             {isFoilCard && <FoilOverlay active={tilt.active} />}
           </div>
         </div>

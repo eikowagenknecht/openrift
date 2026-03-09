@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getCardImageSrcSet, getCardImageUrl } from "./images";
+import { getCardImageSrcSet, getCardImageUrl, needsCssRotation } from "./images";
 
 const BASE = "https://example.com/card.png";
 const BASE_WITH_PARAMS = "https://example.com/card.png?accountingTag=RB";
@@ -79,5 +79,23 @@ describe("getCardImageSrcSet", () => {
     for (const entry of srcSet.split(", ")) {
       expect(entry).toContain("?accountingTag=RB&w=");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// needsCssRotation
+// ---------------------------------------------------------------------------
+
+describe("needsCssRotation", () => {
+  it("returns true for self-hosted landscape images", () => {
+    expect(needsCssRotation("/card-images/OGN/OGN-027-normal-n-n-foil", "landscape")).toBe(true);
+  });
+
+  it("returns false for self-hosted portrait images", () => {
+    expect(needsCssRotation("/card-images/OGN/OGN-027-normal-n-n-foil", "portrait")).toBe(false);
+  });
+
+  it("returns false for external landscape images (CDN handles rotation)", () => {
+    expect(needsCssRotation(BASE, "landscape")).toBe(false);
   });
 });
