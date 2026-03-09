@@ -13,8 +13,16 @@ import { auth } from "./auth.js";
 import { matchOrigin } from "./cors.js";
 import { cronJobs } from "./cron-jobs.js";
 import { db } from "./db.js";
+import { activitiesRoute } from "./routes/activities.js";
 import { adminRoute } from "./routes/admin.js";
 import { cardsRoute } from "./routes/cards.js";
+import { collectionsRoute } from "./routes/collections.js";
+import { copiesRoute } from "./routes/copies.js";
+import { decksRoute } from "./routes/decks.js";
+import { shoppingListRoute } from "./routes/shopping-list.js";
+import { sourcesRoute } from "./routes/sources.js";
+import { tradeListsRoute } from "./routes/trade-lists.js";
+import { wishListsRoute } from "./routes/wish-lists.js";
 import type { Variables } from "./types.js";
 
 console.log("Starting API server...");
@@ -125,6 +133,14 @@ app.get("/api/health", async (c) => {
 
 app.route("/api", cardsRoute);
 app.route("/api", adminRoute);
+app.route("/api", collectionsRoute);
+app.route("/api", sourcesRoute);
+app.route("/api", copiesRoute);
+app.route("/api", activitiesRoute);
+app.route("/api", decksRoute);
+app.route("/api", wishListsRoute);
+app.route("/api", tradeListsRoute);
+app.route("/api", shoppingListRoute);
 
 const port = Number(process.env.PORT ?? 3000);
 
