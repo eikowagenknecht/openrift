@@ -58,7 +58,7 @@ Sources are orthogonal to activities. An activity records _what happened_ (the m
 
 One row per physical card. References a `printing_id`, a `collection_id`, and an optional `source_id`. Hard-deleted when a card leaves the user's possession — the activity ledger preserves history. This avoids the pervasive `WHERE deleted_at IS NULL` filtering that soft-delete would require across every query touching copies (joins, counts, collection value, trade list evaluation, deck availability).
 
-When a copy is removed, relevant metadata is snapshot into the activity item's `metadata_snapshot` JSONB field before deletion. The snapshot includes the copy's UUID (`copy_id`), source, condition, notes, and any other per-copy fields — preserving everything needed for historical queries and undo. The activity item's `copy_id` FK is set to NULL by `ON DELETE SET NULL` when the copy row is hard-deleted, so undo reads the original UUID from `metadata_snapshot` to re-insert the copy with its original identity.
+When a copy is removed, relevant metadata is snapshot into the activity item's `metadata_snapshot` JSONB field before deletion. The snapshot includes the copy's UUID (`copy_id`), source, condition, notes, and any other per-copy fields — preserving everything needed for historical queries. The activity item's `copy_id` FK is set to NULL by `ON DELETE SET NULL` when the copy row is hard-deleted.
 
 ### Activities (Collection History)
 
@@ -71,7 +71,7 @@ Every mutation to the collection happens through an activity — analogous to a 
 - `trade` — both directions in one session
 - `reorganization` — cards move between collections, net zero
 
-**Auto-activities:** Casual actions (dragging a card between collections, quick-adding a card) don't require the user to fill out a form. Each casual action creates its own auto-activity (`is_auto = true`, `name = NULL`) with a single activity item. This keeps undo granular — undoing the latest activity always reverses exactly one action. _UI note:_ The activity history groups auto-activities by date and type for display (e.g., "2 cards added · 3 cards reorganized"), so the history stays clean despite the one-activity-per-action granularity.
+**Auto-activities:** Casual actions (dragging a card between collections, quick-adding a card) don't require the user to fill out a form. Each casual action creates its own auto-activity (`is_auto = true`, `name = NULL`) with a single activity item. _UI note:_ The activity history groups auto-activities by date and type for display (e.g., "2 cards added · 3 cards reorganized"), so the history stays clean despite the one-activity-per-action granularity.
 
 **Activity items** record individual copy mutations:
 
@@ -80,8 +80,6 @@ Every mutation to the collection happens through an activity — analogous to a 
 - `moved` — copy changed collections, both `from_collection_id` and `to_collection_id` set
 
 **Collection deletion:** Activity items denormalize collection names (`from_collection_name`, `to_collection_name`) at creation time. The collection FKs use `ON DELETE SET NULL`, so deleting a collection nulls the FK but the human-readable name survives in the history. This keeps history readable ("moved from Binder 1 to Deck Box 12") even after Binder 1 is deleted.
-
-**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). The entire undo runs in a single transaction — either every mutation is reversed or none are. Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Undo is blocked when the world has changed in ways that make reversal ambiguous: (1) any collection referenced by the activity's items has been deleted — detectable because the collection FK columns (`from_collection_id`, `to_collection_id`) are never legitimately NULL (each action type always sets the columns relevant to it), so a NULL means `ON DELETE SET NULL` fired, i.e. the collection is gone; (2) any copies that would be deleted (reversing an acquisition) are on a trade list — the `RESTRICT` FK on `trade_list_items.copy_id` enforces this at the database level, and the app checks proactively so it can explain why. _UI note:_ In both cases the undo button is disabled with an explanation of what needs to change first (remove copies from trade lists, or accept that the collection is gone). When undo re-creates copies (reversing a disposal), it does not restore trade list memberships that the user manually removed before the disposal — that removal was an explicit user action.
 
 ### Decks
 
@@ -237,7 +235,7 @@ CREATE TABLE activity_items (
   -- 'removed' one. A NULL copy_id on an 'added' or 'moved' item simply
   -- means the copy was later disposed. printing_id (always non-null) is
   -- the stable identifier for history; metadata_snapshot is only written
-  -- on the 'removed' item where it's needed for undo.
+  -- on the 'removed' item where it's needed for historical queries.
   -- Composite FK: ensures the copy belongs to the same user. When copy_id
   -- is NULL (copy was disposed), the FK is not evaluated.
   copy_id              uuid,
@@ -266,7 +264,7 @@ CREATE TABLE activity_items (
   CONSTRAINT chk_activity_items_action
     CHECK (action IN ('added', 'removed', 'moved'))
 );
--- Load all items for an activity (activity detail view, undo)
+-- Load all items for an activity (activity detail view)
 CREATE INDEX idx_activity_items_activity ON activity_items(activity_id);
 -- "Show history for this copy" — per-copy audit trail
 CREATE INDEX idx_activity_items_copy ON activity_items(copy_id);
@@ -314,6 +312,10 @@ CREATE TABLE wish_lists (
 );
 -- List a user's wish lists (wish list page, shopping list aggregation)
 CREATE INDEX idx_wish_lists_user_id ON wish_lists(user_id);
+-- Required so that wish_list_items can FK on (id, user_id) together —
+-- prevents an item from referencing another user's wish list.
+ALTER TABLE wish_lists ADD CONSTRAINT uq_wish_lists_id_user
+  UNIQUE (id, user_id);
 
 -- ── Wish List Items ──────────────────────────────────────────────
 -- Each unique constraint only fires for its non-NULL column (Postgres
@@ -321,7 +323,12 @@ CREATE INDEX idx_wish_lists_user_id ON wish_lists(user_id);
 -- prevent duplicate card-targeted or printing-targeted items per list.
 CREATE TABLE wish_list_items (
   id               uuid PRIMARY KEY,
-  wish_list_id     uuid NOT NULL REFERENCES wish_lists(id) ON DELETE CASCADE,
+  wish_list_id     uuid NOT NULL,
+  user_id          text NOT NULL,
+  -- Composite FK: ensures the wish list belongs to the same user.
+  CONSTRAINT fk_wish_list_items_list_user
+    FOREIGN KEY (wish_list_id, user_id) REFERENCES wish_lists(id, user_id)
+    ON DELETE CASCADE,
   card_id          text REFERENCES cards(id),
   printing_id      text REFERENCES printings(id),
   quantity_desired integer NOT NULL DEFAULT 1,
@@ -380,4 +387,5 @@ CREATE INDEX idx_trade_list_items_list ON trade_list_items(trade_list_id);
 - **Copy metadata:** Condition (NM/LP/MP/HP/DMG), notes, provenance on copies. When added, condition becomes a filter option in dynamic trade/wish list rules, and wish list items gain an optional `desired_condition` field so the shopping list only counts copies matching the desired condition as fulfilling a wish.
 - **Acquisition cost:** Per-copy purchase price for portfolio vs. cost basis tracking
 - **Format rules engine:** User-configurable deck format definitions beyond standard/freeform
+- **Activity undo:** Reversing the latest activity (re-creating deleted copies, restoring moved copies, removing added copies). Needs detailed design around edge cases: deleted collections, copies on trade lists, restoring source references, and transaction semantics.
 - **Trade activities:** Structured trade events linking two users' activities together

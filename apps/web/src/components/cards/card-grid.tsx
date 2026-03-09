@@ -197,7 +197,7 @@ export function CardGrid({
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
     // Image sits inside the button's p-1.5, so its width is cardWidth - 12.
     const imgHeight = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
-    return Math.ceil(imgHeight + labelHeight + BUTTON_PAD * 2);
+    return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2);
   };
 
   // Precompute cumulative start offsets (within the virtual list) for each row.
