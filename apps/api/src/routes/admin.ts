@@ -91,7 +91,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
     const normalizeName = (name: string) =>
       name
         .toLowerCase()
-        .replaceAll(/[^a-z0-9\s]/g, "")
+        .replaceAll(/[^a-z0-9\s]/g, " ")
         .replaceAll(/\s+/g, " ")
         .trim();
 
@@ -665,7 +665,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
     const normalizeName = (name: string) =>
       name
         .toLowerCase()
-        .replaceAll(/[^a-z0-9\s]/g, "")
+        .replaceAll(/[^a-z0-9\s]/g, " ")
         .replaceAll(/\s+/g, " ")
         .trim();
 
