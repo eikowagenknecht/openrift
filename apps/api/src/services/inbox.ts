@@ -3,7 +3,7 @@ import type { Kysely } from "kysely";
 
 /**
  * Ensures the user has an inbox collection. Creates one if it doesn't exist.
- * Returns the inbox collection ID.
+ * @returns The inbox collection ID
  */
 export async function ensureInbox(db: Kysely<Database>, userId: string): Promise<string> {
   const existing = await db

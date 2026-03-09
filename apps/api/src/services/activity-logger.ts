@@ -25,7 +25,7 @@ interface CreateActivityInput {
 
 /**
  * Creates an activity with its items inside an existing transaction.
- * Returns the activity ID.
+ * @returns The activity ID
  */
 export async function createActivity(
   trx: Transaction<Database>,
@@ -73,8 +73,9 @@ export async function createActivity(
 
 /**
  * Creates an auto-activity (single item, no name) inside an existing transaction.
+ * @returns The activity ID
  */
-export async function createAutoActivity(
+export function createAutoActivity(
   trx: Transaction<Database>,
   userId: string,
   type: ActivityType,

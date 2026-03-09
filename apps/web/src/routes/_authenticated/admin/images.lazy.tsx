@@ -107,14 +107,17 @@ function AdminImagesPage() {
           const body = await res.json().catch(() => null);
           throw new Error(body?.error ?? `Request failed (${res.status})`);
         }
-        const batch = (await res.json()).result;
+        const json = await res.json();
+        const batch = json.result;
         totals.total += batch.total;
         totals.regenerated += batch.regenerated;
         totals.failed += batch.failed;
         totals.errors.push(...batch.errors);
         setRegenProgress({ processed: offset + batch.total, totalFiles: batch.totalFiles });
 
-        if (!batch.hasMore) break;
+        if (!batch.hasMore) {
+          break;
+        }
         offset += batch.total;
       }
 
@@ -140,7 +143,8 @@ function AdminImagesPage() {
           const body = await res.json().catch(() => null);
           throw new Error(body?.error ?? `Request failed (${res.status})`);
         }
-        const batch: RehostResult = (await res.json()).result;
+        const rehostJson = await res.json();
+        const batch: RehostResult = rehostJson.result;
         totals.total += batch.total;
         totals.rehosted += batch.rehosted;
         totals.skipped += batch.skipped;
@@ -150,7 +154,9 @@ function AdminImagesPage() {
         // Refresh stats so the progress bar updates live
         refetch();
 
-        if (batch.total === 0) break;
+        if (batch.total === 0) {
+          break;
+        }
       }
 
       return totals;
@@ -171,7 +177,7 @@ function AdminImagesPage() {
 
   const allDone = status !== undefined && status.external === 0;
   const pct = status && status.total > 0 ? (status.rehosted / status.total) * 100 : 0;
-  const diskBySet = new Map(status?.disk.sets.map((s) => [s.setId, s]) ?? []);
+  const diskBySet = new Map(status?.disk.sets.map((s) => [s.setId, s]));
 
   return (
     <div className="space-y-6">

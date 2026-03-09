@@ -1,5 +1,8 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { existsSync } from "node:fs";
+// oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, extname, join } from "node:path";
 
 import type { Database } from "@openrift/shared/db";
@@ -9,7 +12,9 @@ import sharp from "sharp";
 function findProjectRoot(): string {
   let dir = import.meta.dir;
   while (dir !== dirname(dir)) {
-    if (existsSync(join(dir, "bun.lock"))) return dir;
+    if (existsSync(join(dir, "bun.lock"))) {
+      return dir;
+    }
     dir = dirname(dir);
   }
   throw new Error("Could not find project root (no bun.lock found)");
@@ -36,6 +41,7 @@ interface RehostProgress {
  *
  * Printing ID format: `{source_id}:{art_variant}:{signed|}:{promo|}:{finish}`
  * File format:        `{source_id}-{art_variant}-{y|n}-{y|n}-{finish}`
+ * @returns The filesystem-safe filename base
  */
 function printingIdToFileBase(printingId: string): string {
   const [sourceId, artVariant, signed, promo, finish] = printingId.split(":");
@@ -170,7 +176,8 @@ export async function regenerateImages(
   // Collect all orig files across all sets
   const allOrigFiles: { setDir: string; setId: string; file: string }[] = [];
   try {
-    const setDirs = (await readdir(CARD_IMAGES_DIR, { withFileTypes: true }))
+    const entries = await readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    const setDirs = entries
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort();
