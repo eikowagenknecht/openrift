@@ -34,6 +34,7 @@ interface CardThumbnailProps {
   cardWidth?: number;
   priority?: boolean;
   ownedCount?: number;
+  onAdd?: (card: Card, anchorEl: HTMLElement) => void;
 }
 
 export function CardThumbnail({
@@ -50,6 +51,7 @@ export function CardThumbnail({
   cardWidth,
   priority,
   ownedCount,
+  onAdd,
 }: CardThumbnailProps) {
   const orientation = getOrientation(card.type);
   const thumbnailUrl =
@@ -116,6 +118,21 @@ export function CardThumbnail({
           <span className="absolute right-1.5 top-1.5 z-20 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground shadow">
             ×{ownedCount}
           </span>
+        )}
+        {onAdd && (
+          <button
+            type="button"
+            tabIndex={-1}
+            className="absolute left-1.5 top-1.5 z-20 flex size-7 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow transition-transform hover:scale-110"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdd(card, e.currentTarget);
+            }}
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" className="size-4">
+              <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
+            </svg>
+          </button>
         )}
         {otherPrintings.map((sibling, i) => {
           const depth = otherPrintings.length - i;

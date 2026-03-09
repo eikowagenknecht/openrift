@@ -1,4 +1,4 @@
-import { Link, useMatch, useRouter } from "@tanstack/react-router";
+import { Link, useMatch, useMatchRoute, useRouter } from "@tanstack/react-router";
 import {
   EllipsisVertical,
   LogOut,
@@ -76,6 +76,8 @@ export function Header() {
   const isHome = useMatch({ from: "/", shouldThrow: false });
   const gravatarUrl = useGravatarUrl(session?.user?.email);
 
+  const matchRoute = useMatchRoute();
+  const isCollectionRoute = matchRoute({ to: "/collection", fuzzy: true });
   const { needRefresh, applyUpdate, checkForUpdate } = useSWUpdate();
   const [checking, setChecking] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -129,6 +131,16 @@ export function Header() {
             </span>
           </button>
           <div className="flex items-center gap-1">
+            {session?.user && (
+              <Button
+                variant={isCollectionRoute ? "secondary" : "ghost"}
+                size="sm"
+                nativeButton={false}
+                render={<Link to="/collection" />}
+              >
+                Collection
+              </Button>
+            )}
             <InstallButton />
             {!isPending && !session?.user && (
               <Button

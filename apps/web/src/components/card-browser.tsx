@@ -1,14 +1,23 @@
 import type { Card } from "@openrift/shared";
 import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
-import { Suspense, lazy, useDeferredValue, useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
+import { Suspense, lazy, useDeferredValue, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { CardGrid } from "@/components/cards/card-grid";
+import { AddCardPopover } from "@/components/collection/add-card-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardFilters } from "@/hooks/use-card-filters";
 import { ApiError, useCards } from "@/hooks/use-cards";
+import { useCollections } from "@/hooks/use-collections";
+import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useCreateSource, useSources } from "@/hooks/use-sources";
+import { useSession } from "@/lib/auth-client";
 import { useDisplayStore } from "@/stores/display-store";
 
 const cardDetailImport = import("@/components/cards/card-detail");
@@ -23,6 +32,47 @@ export function CardBrowser() {
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
   const { allCards, setInfoList, isLoading, error } = useCards();
+  const { data: session } = useSession();
+  const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
+
+  // Adding mode state
+  const [adding] = useQueryState("adding", parseAsBoolean.withDefault(false));
+  const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
+  const { data: collections } = useCollections();
+  const addingCollection = collections?.find((c) => c.id === addingTo);
+  const { data: sources } = useSources();
+  const navigate = useNavigate();
+
+  const [addingSourceId, setAddingSourceId] = useState<string>("");
+  const [creatingSource, setCreatingSource] = useState(false);
+  const [newSourceName, setNewSourceName] = useState("");
+  const createSource = useCreateSource();
+  const [popoverCard, setPopoverCard] = useState<Card | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!popoverCard) {
+      return;
+    }
+    const handleClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPopoverCard(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [popoverCard]);
+
+  const handleAddClick = (card: Card, anchorEl: HTMLElement) => {
+    const rect = anchorEl.getBoundingClientRect();
+    setPopoverPos({
+      top: rect.bottom + 4,
+      left: Math.max(8, Math.min(rect.left, globalThis.innerWidth - 240)),
+    });
+    setPopoverCard(card);
+  };
 
   const {
     filters,
@@ -166,6 +216,37 @@ export function CardBrowser() {
         })()
       : null;
 
+  // Build owned count map keyed by printing ID (card.id in frontend Card type).
+  // In "cards" view, the representative printing gets the total across all printings.
+  const ownedCounts = (() => {
+    if (!ownedCountByPrinting) {
+      return;
+    }
+    const map = new Map<string, number>();
+    if (view === "cards") {
+      // Sum counts by cardId, then assign to the representative printing shown in the grid
+      const countByCard = new Map<string, number>();
+      for (const card of allCards) {
+        const count = ownedCountByPrinting[card.id] ?? 0;
+        countByCard.set(card.cardId, (countByCard.get(card.cardId) ?? 0) + count);
+      }
+      for (const card of displayCards) {
+        const count = countByCard.get(card.cardId) ?? 0;
+        if (count > 0) {
+          map.set(card.id, count);
+        }
+      }
+    } else {
+      for (const card of allCards) {
+        const count = ownedCountByPrinting[card.id] ?? 0;
+        if (count > 0) {
+          map.set(card.id, count);
+        }
+      }
+    }
+    return map;
+  })();
+
   const totalUniqueCards =
     view === "cards" ? new Set(allCards.map((c) => c.cardId)).size : allCards.length;
 
@@ -251,6 +332,90 @@ export function CardBrowser() {
 
   return (
     <div className="min-h-[calc(100svh-3.5rem)] space-y-4">
+      {adding && addingTo && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2">
+          <span className="text-sm font-medium">
+            Adding to: {addingCollection?.name ?? "Collection"}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Source:</span>
+            {creatingSource ? (
+              <form
+                className="flex items-center gap-1"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const trimmed = newSourceName.trim();
+                  if (!trimmed) {
+                    return;
+                  }
+                  createSource.mutate(
+                    { name: trimmed },
+                    {
+                      onSuccess: (source) => {
+                        setAddingSourceId(source.id);
+                        setCreatingSource(false);
+                        setNewSourceName("");
+                      },
+                    },
+                  );
+                }}
+              >
+                <input
+                  type="text"
+                  value={newSourceName}
+                  onChange={(e) => setNewSourceName(e.target.value)}
+                  placeholder="e.g. Local Game Store"
+                  className="h-7 w-40 rounded border bg-background px-2 text-xs"
+                  autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
+                  onBlur={() => {
+                    if (!newSourceName.trim()) {
+                      setCreatingSource(false);
+                    }
+                  }}
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="secondary"
+                  disabled={createSource.isPending}
+                >
+                  Add
+                </Button>
+              </form>
+            ) : (
+              <select
+                value={addingSourceId}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") {
+                    setCreatingSource(true);
+                    setAddingSourceId("");
+                  } else {
+                    setAddingSourceId(e.target.value);
+                  }
+                }}
+                className="h-7 rounded border bg-background px-2 text-xs"
+              >
+                <option value="">None</option>
+                {sources?.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+                <option value="__new__">+ Create new…</option>
+              </select>
+            )}
+          </div>
+          <div className="flex-1" />
+          <Button
+            size="sm"
+            onClick={() =>
+              void navigate({ to: "/collection/$collectionId", params: { collectionId: addingTo } })
+            }
+          >
+            Done
+          </Button>
+        </div>
+      )}
       <FilterBar
         availableFilters={availableFilters}
         filterState={filterState}
@@ -341,6 +506,8 @@ export function CardBrowser() {
             onPhysicalMaxChange={setPhysicalMaxColumns}
             onPhysicalMinChange={setPhysicalMinColumns}
             onAutoColumnsChange={setAutoColumns}
+            ownedCounts={ownedCounts}
+            onAddCard={adding && addingTo ? handleAddClick : undefined}
           />
         </div>
         {selectedCard && detailOpen && (
@@ -369,6 +536,27 @@ export function CardBrowser() {
           </Suspense>
         )}
       </div>
+
+      {/* Add card popover (portal) */}
+      {popoverCard &&
+        popoverPos &&
+        addingTo &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            className="fixed z-[100]"
+            style={{ top: popoverPos.top, left: popoverPos.left }}
+          >
+            <AddCardPopover
+              card={popoverCard}
+              printings={printingsByCardId.get(popoverCard.cardId)}
+              collectionId={addingTo}
+              sourceId={addingSourceId || undefined}
+              onDone={() => setPopoverCard(null)}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

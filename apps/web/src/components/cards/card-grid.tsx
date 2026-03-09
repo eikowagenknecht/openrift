@@ -98,6 +98,8 @@ interface CardGridProps {
   onPhysicalMaxChange?: (max: number) => void;
   onPhysicalMinChange?: (min: number) => void;
   onAutoColumnsChange?: (cols: number) => void;
+  ownedCounts?: Map<string, number>;
+  onAddCard?: (card: Card, anchorEl: HTMLElement) => void;
 }
 
 export function CardGrid({
@@ -117,6 +119,8 @@ export function CardGrid({
   onPhysicalMaxChange,
   onPhysicalMinChange,
   onAutoColumnsChange,
+  ownedCounts,
+  onAddCard,
 }: CardGridProps) {
   const { data: isAdmin } = useIsAdmin();
   const { settings: adminSettings } = useAdminSettings();
@@ -1086,6 +1090,8 @@ export function CardGrid({
                             cardFields={cardFields}
                             cardWidth={thumbWidth}
                             priority={flatIndex < eagerCount}
+                            ownedCount={ownedCounts?.get(card.id)}
+                            onAdd={onAddCard}
                           />
                         );
                       })}
