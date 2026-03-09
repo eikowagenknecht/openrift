@@ -5,8 +5,6 @@ import type {
   SourceMappingConfig,
   StagedProduct,
 } from "@/components/admin/price-mappings-types";
-import { API_BASE } from "@/lib/api-base";
-
 interface MappingsResponse {
   groups: MappingGroup[];
   unmatchedProducts: StagedProduct[];
@@ -17,7 +15,7 @@ async function fetchMappings(
   config: SourceMappingConfig,
   showAll: boolean,
 ): Promise<MappingsResponse> {
-  const url = showAll ? `${API_BASE}${config.apiPath}?all=true` : `${API_BASE}${config.apiPath}`;
+  const url = showAll ? `${config.apiPath}?all=true` : config.apiPath;
   const res = await fetch(url, { credentials: "include" });
   if (!res.ok) {
     throw new Error(`Failed to fetch ${config.shortName} mappings: ${res.status}`);
@@ -40,7 +38,7 @@ async function saveMappings(
   config: SourceMappingConfig,
   body: SaveMappingsBody,
 ): Promise<{ saved: number }> {
-  const res = await fetch(`${API_BASE}${config.apiPath}`, {
+  const res = await fetch(config.apiPath, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -65,7 +63,7 @@ export function useSavePriceMappings(config: SourceMappingConfig) {
 async function unmapAllMappings(
   config: SourceMappingConfig,
 ): Promise<{ ok: boolean; unmapped: number }> {
-  const res = await fetch(`${API_BASE}${config.apiPath}/all`, {
+  const res = await fetch(`${config.apiPath}/all`, {
     method: "DELETE",
     credentials: "include",
   });
@@ -89,7 +87,7 @@ async function unmapPrinting(
   config: SourceMappingConfig,
   printingId: string,
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}${config.apiPath}`, {
+  const res = await fetch(config.apiPath, {
     method: "DELETE",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -115,7 +113,7 @@ async function ignoreProducts(
   config: SourceMappingConfig,
   externalIds: number[],
 ): Promise<{ ok: boolean; ignored: number }> {
-  const res = await fetch(`${API_BASE}/admin/ignored-products`, {
+  const res = await fetch("/admin/ignored-products", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -141,7 +139,7 @@ async function unignoreProducts(
   config: SourceMappingConfig,
   externalIds: number[],
 ): Promise<{ ok: boolean; unignored: number }> {
-  const res = await fetch(`${API_BASE}/admin/ignored-products`, {
+  const res = await fetch("/admin/ignored-products", {
     method: "DELETE",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

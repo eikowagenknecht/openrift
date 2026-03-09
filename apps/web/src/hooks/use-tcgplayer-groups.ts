@@ -1,7 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { API_BASE } from "@/lib/api-base";
-
 interface TcgplayerGroup {
   groupId: number;
   name: string;
@@ -23,7 +21,7 @@ interface TcgplayerGroupsResponse {
 }
 
 async function fetchTcgplayerGroups(): Promise<TcgplayerGroupsResponse> {
-  const res = await fetch(`${API_BASE}/api/admin/tcgplayer-groups`, { credentials: "include" });
+  const res = await fetch(`/api/admin/tcgplayer-groups`, { credentials: "include" });
   if (!res.ok) {
     throw new Error(`Failed to fetch TCGPlayer groups: ${res.status}`);
   }
@@ -43,7 +41,7 @@ interface UpdateGroupBody {
 }
 
 async function updateTcgplayerGroup(body: UpdateGroupBody): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/api/admin/tcgplayer-groups`, {
+  const res = await fetch(`/api/admin/tcgplayer-groups`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

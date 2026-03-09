@@ -1,7 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { API_BASE } from "@/lib/api-base";
-
 interface CardmarketExpansion {
   expansionId: number;
   setId: string | null;
@@ -21,7 +19,7 @@ interface CardmarketExpansionsResponse {
 }
 
 async function fetchCardmarketExpansions(): Promise<CardmarketExpansionsResponse> {
-  const res = await fetch(`${API_BASE}/api/admin/cardmarket-expansions`, {
+  const res = await fetch(`/api/admin/cardmarket-expansions`, {
     credentials: "include",
   });
   if (!res.ok) {
@@ -43,7 +41,7 @@ interface UpdateExpansionBody {
 }
 
 async function updateCardmarketExpansion(body: UpdateExpansionBody): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/api/admin/cardmarket-expansions`, {
+  const res = await fetch(`/api/admin/cardmarket-expansions`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

@@ -1,7 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { API_BASE } from "@/lib/api-base";
-
 interface AdminSet {
   id: string;
   name: string;
@@ -11,7 +9,7 @@ interface AdminSet {
 }
 
 async function fetchSets(): Promise<{ sets: AdminSet[] }> {
-  const res = await fetch(`${API_BASE}/api/admin/sets`, { credentials: "include" });
+  const res = await fetch(`/api/admin/sets`, { credentials: "include" });
   if (!res.ok) {
     throw new Error(`Failed to fetch sets: ${res.status}`);
   }
@@ -32,7 +30,7 @@ interface UpdateSetBody {
 }
 
 async function updateSet(body: UpdateSetBody): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/api/admin/sets`, {
+  const res = await fetch(`/api/admin/sets`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -61,7 +59,7 @@ interface CreateSetBody {
 }
 
 async function createSet(body: CreateSetBody): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/api/admin/sets`, {
+  const res = await fetch(`/api/admin/sets`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

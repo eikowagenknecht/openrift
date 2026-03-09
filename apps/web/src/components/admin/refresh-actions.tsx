@@ -4,8 +4,6 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { API_BASE } from "@/lib/api-base";
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface CronStatus {
@@ -131,7 +129,7 @@ export function useCronStatus() {
   return useQuery<CronStatus>({
     queryKey: ["admin", "cron-status"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/admin/cron-status`, { credentials: "include" });
+      const res = await fetch("/api/admin/cron-status", { credentials: "include" });
       if (!res.ok) {
         throw new Error("Failed to fetch cron status");
       }
@@ -246,7 +244,7 @@ async function callRefreshEndpoint(
   endpoint: string,
   dryRun?: boolean,
 ): Promise<RefreshResult | null> {
-  const url = dryRun ? `${API_BASE}${endpoint}?dry_run=true` : `${API_BASE}${endpoint}`;
+  const url = dryRun ? `${endpoint}?dry_run=true` : endpoint;
   const res = await fetch(url, { method: "POST", credentials: "include" });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -411,7 +409,7 @@ export function ActionCard({
 export function ClearPriceCard({ action }: { action: ClearAction }) {
   const mutation = useMutation({
     mutationFn: async (): Promise<ClearPriceResult> => {
-      const res = await fetch(`${API_BASE}/api/admin/clear-prices`, {
+      const res = await fetch("/api/admin/clear-prices", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

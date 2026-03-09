@@ -2,7 +2,6 @@ import type { Card, PricesData, RiftboundContent } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
-import { API_BASE } from "@/lib/api-base";
 
 type HealthStatus = "db_unreachable" | "db_not_migrated" | "db_empty" | null;
 
@@ -25,7 +24,7 @@ interface UseCardsResult {
 
 async function checkHealth(): Promise<HealthStatus> {
   try {
-    const res = await fetch(`${API_BASE}/api/health`);
+    const res = await fetch(`/api/health`);
     const data = (await res.json()) as { status: string };
     if (
       data.status === "db_unreachable" ||
@@ -41,7 +40,7 @@ async function checkHealth(): Promise<HealthStatus> {
 }
 
 async function fetchCards(): Promise<RiftboundContent> {
-  const res = await fetch(`${API_BASE}/api/cards`);
+  const res = await fetch(`/api/cards`);
   if (!res.ok) {
     const healthStatus = await checkHealth();
     throw new ApiError(`Failed to fetch cards: ${res.status}`, healthStatus);
@@ -50,7 +49,7 @@ async function fetchCards(): Promise<RiftboundContent> {
 }
 
 async function fetchPrices(): Promise<PricesData> {
-  const res = await fetch(`${API_BASE}/api/prices`);
+  const res = await fetch(`/api/prices`);
   if (!res.ok) {
     const healthStatus = await checkHealth();
     throw new ApiError(`Failed to fetch prices: ${res.status}`, healthStatus);

@@ -1,8 +1,13 @@
 {
   "name": "openrift-web",
+  "main": "src/worker.ts",
   "compatibility_date": "2025-02-17",
+  "vars": {
+    "API_BACKEND": "https://preview.openrift.app"
+  },
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
   }
 }

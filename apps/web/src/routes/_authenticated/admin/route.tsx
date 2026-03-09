@@ -3,8 +3,6 @@ import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-r
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { API_BASE } from "@/lib/api-base";
-
 const pageTitles: Record<string, string> = {
   "/_authenticated/admin/": "Overview",
   "/_authenticated/admin/sets": "Sets",
@@ -17,7 +15,7 @@ const pageTitles: Record<string, string> = {
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
-    const res = await fetch(`${API_BASE}/api/admin/me`, {
+    const res = await fetch("/api/admin/me", {
       credentials: "include",
     });
     if (!res.ok) {

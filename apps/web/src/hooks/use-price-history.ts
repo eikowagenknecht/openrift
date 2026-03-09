@@ -1,13 +1,11 @@
 import type { PriceHistoryResponse, TimeRange } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
-import { API_BASE } from "@/lib/api-base";
-
 async function fetchPriceHistory(
   printingId: string,
   range: TimeRange,
 ): Promise<PriceHistoryResponse> {
-  const res = await fetch(`${API_BASE}/api/prices/${printingId}/history?range=${range}`);
+  const res = await fetch(`/api/prices/${printingId}/history?range=${range}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch price history: ${res.status}`);
   }

@@ -20,6 +20,8 @@ openrift/
 
 Vite + React 19 single-page app with TanStack Router. Filter/sort state is synced to URL query parameters via nuqs. The app is installable as a PWA with offline image caching.
 
+For PR previews, the built SPA is deployed to Cloudflare Workers. A thin Worker script (`src/worker.ts`) proxies `/api/*` requests to the preview backend, keeping all requests same-origin so auth cookies work on mobile browsers without cross-site tracking exceptions.
+
 **Key libraries:**
 
 - [shadcn/ui](https://ui.shadcn.com/) (base-nova style) — component primitives, built on [Base UI](https://base-ui.com/), [Tailwind CSS 4](https://tailwindcss.com/) and [Lucide](https://lucide.dev/) icons

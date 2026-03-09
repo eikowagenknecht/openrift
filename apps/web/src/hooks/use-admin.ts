@@ -1,9 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { API_BASE } from "@/lib/api-base";
-
 async function fetchIsAdmin(): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/api/admin/me`, { credentials: "include" });
+  const res = await fetch("/api/admin/me", { credentials: "include" });
   if (!res.ok) {
     return false;
   }

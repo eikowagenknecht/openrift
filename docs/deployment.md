@@ -7,6 +7,8 @@ OpenRift runs on a VPS with Docker Compose behind Cloudflare. Two instances shar
 
 Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls pre-built images — no building on prod, no git clone needed.
 
+PR preview builds are also deployed to **Cloudflare Workers** (`*.openrift-web.workers.dev`). The Workers script proxies `/api/*` to the preview backend, so auth cookies stay same-origin and work on all browsers (including mobile Safari with ITP). See `apps/web/wrangler.json` and `apps/web/src/worker.ts`.
+
 ## Architecture
 
 | Container | Image                                  | Role                                                                  |
