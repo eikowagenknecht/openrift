@@ -2,6 +2,7 @@ import { Link, useMatches } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   DatabaseIcon,
+  ImageIcon,
   LayoutDashboardIcon,
   LayersIcon,
   MapIcon,
@@ -26,7 +27,10 @@ const topPages = [{ to: "/admin" as const, icon: LayoutDashboardIcon, title: "Ov
 const groups = [
   {
     label: "Catalog",
-    pages: [{ to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" }],
+    pages: [
+      { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
+      { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
+    ],
   },
   {
     label: "TCGplayer",

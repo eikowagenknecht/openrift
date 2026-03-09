@@ -19,18 +19,23 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
 
-# Compile the API server into a single self-contained binary
-RUN bun build --compile --minify-whitespace --minify-syntax \
-    --target bun-linux-x64 --outfile /app/api-server apps/api/src/index.ts
-
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
-FROM gcr.io/distroless/base:nonroot AS api
+FROM oven/bun:1-alpine AS api
 
 WORKDIR /app
-COPY --from=build /app/api-server ./api-server
+
+# Install dependencies natively on alpine so native addons (sharp) get musl binaries
+COPY --from=build /app/bun.lock /app/package.json ./
+COPY --from=build /app/apps/api/package.json apps/api/
+COPY --from=build /app/apps/web/package.json apps/web/
+COPY --from=build /app/packages/shared/package.json packages/shared/
+RUN bun install --frozen-lockfile --production
+
+COPY --from=build /app/packages/shared ./packages/shared
+COPY --from=build /app/apps/api ./apps/api
 
 EXPOSE 3000
-CMD ["./api-server"]
+CMD ["bun", "run", "apps/api/src/index.ts"]
 
 # ─── Stage 3: Web (nginx serves the SPA + proxies /api to the api container) ─
 FROM nginx:alpine AS web

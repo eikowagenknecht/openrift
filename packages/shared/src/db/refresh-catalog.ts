@@ -291,7 +291,7 @@ export async function refreshCatalog(
             set_id: sql<string>`excluded.set_id`,
             collector_number: sql<number>`excluded.collector_number`,
             rarity: sql<Rarity>`excluded.rarity`,
-            image_url: sql<string>`excluded.image_url`,
+            // image_url intentionally excluded — preserve self-hosted paths from rehost
             artist: sql<string>`excluded.artist`,
             public_code: sql<string>`excluded.public_code`,
             printed_rules_text: sql<string>`excluded.printed_rules_text`,
