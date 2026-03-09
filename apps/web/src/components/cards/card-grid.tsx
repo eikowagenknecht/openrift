@@ -118,9 +118,9 @@ export function CardGrid({
   onPhysicalMinChange,
   onAutoColumnsChange,
 }: CardGridProps) {
-  const { data: _isAdmin } = useIsAdmin();
-  const { settings: _adminSettings } = useAdminSettings();
-  const debugOverlayEnabled = true; // TEMP: force-enable for mobile testing
+  const { data: isAdmin } = useIsAdmin();
+  const { settings: adminSettings } = useAdminSettings();
+  const debugOverlayEnabled = isAdmin === true && adminSettings.debugOverlay;
 
   const { containerRef, columns, physicalMax, physicalMin, autoColumns } =
     useResponsiveColumns(maxColumns);
