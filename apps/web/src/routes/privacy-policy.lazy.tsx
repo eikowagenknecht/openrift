@@ -138,9 +138,9 @@ function PrivacyPolicyPage() {
         The legal basis is Art. 6(1)(f) GDPR (legitimate interest in an appealing user interface).
       </p>
 
-      <h2>10. External links (TCGPlayer, Cardmarket)</h2>
+      <h2>10. External links</h2>
       <p>
-        Our website contains affiliate links to external marketplaces (TCGPlayer, Cardmarket). When
+        Our website contains links to external websites. Some of these may be affiliate links. When
         you click these links, you are redirected to the respective third-party website, which may
         collect data according to its own privacy policy. We receive no personal data from these
         providers.
