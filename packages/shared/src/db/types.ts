@@ -244,6 +244,125 @@ export interface CardmarketIgnoredProductsTable {
   updated_at: UpdatedAt;
 }
 
+// ─── Collection tracking (migration 009) ────────────────────────────────────
+
+export interface CollectionsTable {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  available_for_deckbuilding: boolean;
+  is_inbox: boolean;
+  sort_order: number;
+  share_token: string | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface SourcesTable {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface CopiesTable {
+  id: string;
+  user_id: string;
+  printing_id: string;
+  collection_id: string;
+  source_id: string | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface ActivitiesTable {
+  id: string;
+  user_id: string;
+  type: string;
+  name: string | null;
+  date: Date;
+  description: string | null;
+  is_auto: boolean;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface ActivityItemsTable {
+  id: string;
+  activity_id: string;
+  user_id: string;
+  activity_type: string;
+  copy_id: string | null;
+  printing_id: string;
+  action: string;
+  from_collection_id: string | null;
+  from_collection_name: string | null;
+  to_collection_id: string | null;
+  to_collection_name: string | null;
+  metadata_snapshot: unknown;
+  created_at: CreatedAt;
+}
+
+export interface DecksTable {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  format: string;
+  is_wanted: boolean;
+  is_public: boolean;
+  share_token: string | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface DeckCardsTable {
+  id: string;
+  deck_id: string;
+  card_id: string;
+  zone: string;
+  quantity: number;
+}
+
+export interface WishListsTable {
+  id: string;
+  user_id: string;
+  name: string;
+  rules: unknown;
+  share_token: string | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface WishListItemsTable {
+  id: string;
+  wish_list_id: string;
+  user_id: string;
+  card_id: string | null;
+  printing_id: string | null;
+  quantity_desired: number;
+}
+
+export interface TradeListsTable {
+  id: string;
+  user_id: string;
+  name: string;
+  rules: unknown;
+  share_token: string | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface TradeListItemsTable {
+  id: string;
+  trade_list_id: string;
+  user_id: string;
+  copy_id: string;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -270,4 +389,17 @@ export interface Database {
   sessions: SessionsTable;
   accounts: AccountsTable;
   verifications: VerificationsTable;
+
+  // Collection tracking (migration 009)
+  collections: CollectionsTable;
+  sources: SourcesTable;
+  copies: CopiesTable;
+  activities: ActivitiesTable;
+  activity_items: ActivityItemsTable;
+  decks: DecksTable;
+  deck_cards: DeckCardsTable;
+  wish_lists: WishListsTable;
+  wish_list_items: WishListItemsTable;
+  trade_lists: TradeListsTable;
+  trade_list_items: TradeListItemsTable;
 }
