@@ -396,7 +396,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
         const hasStaged = stagedByCard.has(key);
         const hasUnmapped = group.printings.some((p) => p.externalId === null);
         if (showAll) {
-          return hasStaged || group.printings.some((p) => p.externalId !== null);
+          return true;
         }
         return hasStaged || hasUnmapped;
       })
@@ -1021,7 +1021,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
         const hasStaged = stagedByCard.has(key);
         const hasUnmapped = group.printings.some((p) => p.externalId === null);
         if (showAll) {
-          return hasStaged || group.printings.some((p) => p.externalId !== null);
+          return true;
         }
         return hasStaged || hasUnmapped;
       })
