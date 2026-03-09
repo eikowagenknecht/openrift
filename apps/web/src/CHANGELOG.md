@@ -1,7 +1,13 @@
 # Changelog
 
+## 2026-03-09
+
+- feat: Legal notice and privacy policy pages are now available from the footer
+- fix: Card heights now render consistently across browsers, fixing a layout issue on Safari and WebKit
+
 ## 2026-03-08
 
+- fix: The scrollbar now fades out faster on desktop after you stop scrolling
 - feat: The menu now shows an "Update" badge on "What's new" so you know where to go when the blue dot appears
 - feat: Changelog date headers now stick as you scroll, showing relative dates like "Today" or "3 days ago"
 - feat: The changelog header scrolls away to give more room for entries
