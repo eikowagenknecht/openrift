@@ -9,6 +9,28 @@ function isSelfHosted(url: string): boolean {
   return url.startsWith("/card-images/");
 }
 
+/**
+ * Returns true when a landscape card uses a self-hosted image that needs
+ * CSS rotation (the CDN previously handled this server-side via `&or=270`).
+ * @returns Whether the image needs a -90deg CSS rotation for display
+ */
+export function needsCssRotation(imageUrl: string, orientation: string): boolean {
+  return orientation === "landscape" && isSelfHosted(imageUrl);
+}
+
+/**
+ * Style for a wrapper div that rotates a landscape image to display as portrait.
+ * The wrapper is sized to landscape dimensions (width = container height,
+ * height = container width via aspect-ratio), centered, then rotated -90deg
+ * so it fills the portrait container exactly. The img inside uses
+ * `size-full object-cover`.
+ */
+export const LANDSCAPE_ROTATION_STYLE: React.CSSProperties = {
+  width: "139.65%",
+  aspectRatio: "1039 / 744",
+  transform: "translate(-50%, -50%) rotate(-90deg)",
+};
+
 export function getCardImageUrl(
   baseUrl: string,
   size: "thumbnail" | "full",

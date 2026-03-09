@@ -21,7 +21,7 @@ import {
   priceColorClass,
 } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
-import { getCardImageUrl } from "@/lib/images";
+import { LANDSCAPE_ROTATION_STYLE, getCardImageUrl, needsCssRotation } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 
@@ -265,11 +265,28 @@ function CardImage({
       }}
     >
       {showImages && card.art.imageURL ? (
-        <img
-          src={getCardImageUrl(card.art.imageURL, "full", orientation)}
-          alt={card.name}
-          className="block w-full"
-        />
+        needsCssRotation(card.art.imageURL, orientation) ? (
+          <>
+            {/* Spacer provides portrait height since the rotated wrapper is absolute */}
+            <div className="w-full" style={{ aspectRatio: "744 / 1039" }} />
+            <div
+              className="absolute top-1/2 left-1/2 overflow-hidden"
+              style={LANDSCAPE_ROTATION_STYLE}
+            >
+              <img
+                src={getCardImageUrl(card.art.imageURL, "full", orientation)}
+                alt={card.name}
+                className="size-full object-cover"
+              />
+            </div>
+          </>
+        ) : (
+          <img
+            src={getCardImageUrl(card.art.imageURL, "full", orientation)}
+            alt={card.name}
+            className="block w-full"
+          />
+        )
       ) : (
         <CardPlaceholderImage
           name={card.name}
