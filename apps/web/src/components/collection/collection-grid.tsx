@@ -75,7 +75,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const stackByPrintingId = new Map(stacks.map((s) => [s.printingId, s]));
   const sortedStacks = sortedCards
     .map((c) => stackByPrintingId.get(c.id))
-    .filter((s): s is StackedEntry => s != null);
+    .filter((s): s is StackedEntry => s !== undefined);
 
   const totalCopies = sortedStacks.reduce((sum, s) => sum + s.copyIds.length, 0);
 
@@ -181,7 +181,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {/* Stats bar */}
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <span>
-          {totalCopies} card{totalCopies !== 1 ? "s" : ""}
+          {totalCopies} card{totalCopies === 1 ? "" : "s"}
           {sortedStacks.length !== totalCopies && ` (${sortedStacks.length} unique)`}
         </span>
         {selected.size > 0 && (

@@ -59,6 +59,7 @@
     "import/prefer-default-export": "off",
     "import/no-mutable-exports": "off",
     "unicorn/no-null": "off",
+    "unicorn/filename-case": "off", // TanStack Router uses $paramName.tsx for dynamic routes
 
     // Pedantic Overwrites
     "max-lines-per-function": "off",
