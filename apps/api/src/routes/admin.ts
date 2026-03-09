@@ -235,9 +235,38 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
       list.sort((a, b) => b.normName.length - a.normName.length);
     }
 
+    // 4c. Load manual card overrides
+    const overrideRows = await db
+      .selectFrom("tcgplayer_staging_card_overrides")
+      .select(["external_id", "finish", "card_id", "set_id"])
+      .execute();
+    const overrideMap = new Map<string, { cardId: string; setId: string }>();
+    for (const row of overrideRows) {
+      overrideMap.set(`${row.external_id}::${row.finish}`, {
+        cardId: row.card_id,
+        setId: row.set_id,
+      });
+    }
+
     const stagedByCard = new Map<string, typeof uniqueStaged>();
     const matchedStagingKeys = new Set<string>();
     for (const row of uniqueStaged) {
+      const stagingKey = `${row.external_id}::${row.finish}`;
+
+      // Check manual override first
+      const override = overrideMap.get(stagingKey);
+      if (override) {
+        const groupKey = `${override.setId}::${override.cardId}`;
+        if (cardGroups.has(groupKey)) {
+          const list = stagedByCard.get(groupKey) ?? [];
+          list.push(row);
+          stagedByCard.set(groupKey, list);
+          matchedStagingKeys.add(stagingKey);
+          continue;
+        }
+      }
+
+      // Fall back to prefix matching
       const setId = row.group_id === null ? undefined : groupSetMap.get(row.group_id);
       if (!setId) {
         continue;
@@ -252,7 +281,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
           const list = stagedByCard.get(groupKey) ?? [];
           list.push(row);
           stagedByCard.set(groupKey, list);
-          matchedStagingKeys.add(`${row.external_id}::${row.finish}`);
+          matchedStagingKeys.add(stagingKey);
           break;
         }
       }
@@ -387,6 +416,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
           avg1Cents: null as number | null,
           avg7Cents: null as number | null,
           avg30Cents: null as number | null,
+          isOverride: overrideMap.has(`${row.external_id}::${row.finish}`),
         }));
 
         const seenAssigned = new Set<string>();
@@ -411,19 +441,43 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
                 avg1Cents: info.avg1Cents,
                 avg7Cents: info.avg7Cents,
                 avg30Cents: info.avg30Cents,
+                isOverride: false,
               });
             }
           }
         }
 
+        // Exclude staged products that are already assigned to a printing
+        const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
+        const filteredStaged = stagedProducts.filter(
+          (p) => !assignedKeys.has(`${p.externalId}::${p.finish}`),
+        );
+
         return {
           ...group,
-          stagedProducts,
+          stagedProducts: filteredStaged,
           assignedProducts,
         };
       });
 
-    return c.json({ groups, unmatchedProducts, ignoredProducts });
+    // Lightweight card list for manual assignment (all cards in queried sets, USD)
+    const allCards = [...cardGroups.values()].map((g) => ({
+      cardId: g.cardId,
+      cardName: g.cardName,
+      setId: g.setId,
+      setName: g.setName,
+      printings: g.printings.map((p) => ({
+        printingId: p.printingId,
+        sourceId: p.sourceId,
+        finish: p.finish,
+        collectorNumber: p.collectorNumber,
+        isSigned: p.isSigned,
+        isPromo: p.isPromo,
+        externalId: p.externalId,
+      })),
+    }));
+
+    return c.json({ groups, unmatchedProducts, ignoredProducts, allCards });
   });
 
   // ── POST ─────────────────────────────────────────────────────────────────
@@ -808,9 +862,38 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
       list.sort((a, b) => b.normName.length - a.normName.length);
     }
 
+    // Load manual card overrides
+    const overrideRows = await db
+      .selectFrom("cardmarket_staging_card_overrides")
+      .select(["external_id", "finish", "card_id", "set_id"])
+      .execute();
+    const overrideMap = new Map<string, { cardId: string; setId: string }>();
+    for (const row of overrideRows) {
+      overrideMap.set(`${row.external_id}::${row.finish}`, {
+        cardId: row.card_id,
+        setId: row.set_id,
+      });
+    }
+
     const stagedByCard = new Map<string, typeof uniqueStaged>();
     const matchedStagingKeys = new Set<string>();
     for (const row of uniqueStaged) {
+      const stagingKey = `${row.external_id}::${row.finish}`;
+
+      // Check manual override first
+      const override = overrideMap.get(stagingKey);
+      if (override) {
+        const groupKey = `${override.setId}::${override.cardId}`;
+        if (cardGroups.has(groupKey)) {
+          const list = stagedByCard.get(groupKey) ?? [];
+          list.push(row);
+          stagedByCard.set(groupKey, list);
+          matchedStagingKeys.add(stagingKey);
+          continue;
+        }
+      }
+
+      // Fall back to prefix matching
       const setId = row.group_id === null ? undefined : expansionSetMap.get(row.group_id);
       if (!setId) {
         continue;
@@ -825,7 +908,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
           const list = stagedByCard.get(groupKey) ?? [];
           list.push(row);
           stagedByCard.set(groupKey, list);
-          matchedStagingKeys.add(`${row.external_id}::${row.finish}`);
+          matchedStagingKeys.add(stagingKey);
           break;
         }
       }
@@ -958,6 +1041,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
           avg1Cents: row.avg1_cents,
           avg7Cents: row.avg7_cents,
           avg30Cents: row.avg30_cents,
+          isOverride: overrideMap.has(`${row.external_id}::${row.finish}`),
         }));
 
         const seenAssigned = new Set<string>();
@@ -982,19 +1066,43 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
                 avg1Cents: info.avg1Cents,
                 avg7Cents: info.avg7Cents,
                 avg30Cents: info.avg30Cents,
+                isOverride: false,
               });
             }
           }
         }
 
+        // Exclude staged products that are already assigned to a printing
+        const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
+        const filteredStaged = stagedProducts.filter(
+          (p) => !assignedKeys.has(`${p.externalId}::${p.finish}`),
+        );
+
         return {
           ...group,
-          stagedProducts,
+          stagedProducts: filteredStaged,
           assignedProducts,
         };
       });
 
-    return c.json({ groups, unmatchedProducts, ignoredProducts });
+    // Lightweight card list for manual assignment (all cards in queried sets, EUR)
+    const allCards = [...cardGroups.values()].map((g) => ({
+      cardId: g.cardId,
+      cardName: g.cardName,
+      setId: g.setId,
+      setName: g.setName,
+      printings: g.printings.map((p) => ({
+        printingId: p.printingId,
+        sourceId: p.sourceId,
+        finish: p.finish,
+        collectorNumber: p.collectorNumber,
+        isSigned: p.isSigned,
+        isPromo: p.isPromo,
+        externalId: p.externalId,
+      })),
+    }));
+
+    return c.json({ groups, unmatchedProducts, ignoredProducts, allCards });
   });
 
   // ── POST ─────────────────────────────────────────────────────────────────
@@ -1289,6 +1397,75 @@ adminRoute.delete("/admin/ignored-products", async (c) => {
   }
 
   return c.json({ ok: true, unignored: products.length });
+});
+
+// ── Staging card overrides (manual product → card association) ───────────────
+
+adminRoute.use("/admin/staging-card-overrides", requireAdmin);
+
+const stagingCardOverrideSchema = z.object({
+  source: z.enum(["tcgplayer", "cardmarket"]),
+  externalId: z.number(),
+  finish: z.string(),
+  cardId: z.string(),
+  setId: z.string(),
+});
+
+adminRoute.post("/admin/staging-card-overrides", async (c) => {
+  const body = await c.req.json();
+  const parsed = stagingCardOverrideSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
+  }
+
+  const { source, externalId, finish, cardId, setId } = parsed.data;
+  const table =
+    source === "tcgplayer"
+      ? ("tcgplayer_staging_card_overrides" as const)
+      : ("cardmarket_staging_card_overrides" as const);
+
+  await db
+    .insertInto(table)
+    .values({
+      external_id: externalId,
+      finish,
+      card_id: cardId,
+      set_id: setId,
+    })
+    .onConflict((oc) =>
+      oc.columns(["external_id", "finish"]).doUpdateSet({ card_id: cardId, set_id: setId }),
+    )
+    .execute();
+
+  return c.json({ ok: true });
+});
+
+const deleteOverrideSchema = z.object({
+  source: z.enum(["tcgplayer", "cardmarket"]),
+  externalId: z.number(),
+  finish: z.string(),
+});
+
+adminRoute.delete("/admin/staging-card-overrides", async (c) => {
+  const body = await c.req.json();
+  const parsed = deleteOverrideSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
+  }
+
+  const { source, externalId, finish } = parsed.data;
+  const table =
+    source === "tcgplayer"
+      ? ("tcgplayer_staging_card_overrides" as const)
+      : ("cardmarket_staging_card_overrides" as const);
+
+  await db
+    .deleteFrom(table)
+    .where("external_id", "=", externalId)
+    .where("finish", "=", finish)
+    .execute();
+
+  return c.json({ ok: true });
 });
 
 // ── Register mapping routes for each source ─────────────────────────────────

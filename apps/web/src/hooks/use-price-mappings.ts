@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
+  AssignableCard,
   MappingGroup,
   SourceMappingConfig,
   StagedProduct,
@@ -9,6 +10,7 @@ interface MappingsResponse {
   groups: MappingGroup[];
   unmatchedProducts: StagedProduct[];
   ignoredProducts: StagedProduct[];
+  allCards: AssignableCard[];
 }
 
 async function fetchMappings(
@@ -103,6 +105,70 @@ export function useUnmapPrinting(config: SourceMappingConfig) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (printingId: string) => unmapPrinting(config, printingId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+    },
+  });
+}
+
+interface StagingCardOverride {
+  externalId: number;
+  finish: string;
+  cardId: string;
+  setId: string;
+}
+
+async function assignToCard(
+  config: SourceMappingConfig,
+  override: StagingCardOverride,
+): Promise<{ ok: boolean }> {
+  const res = await fetch("/api/admin/staging-card-overrides", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source: config.source, ...override }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to assign product to card: ${res.status}`);
+  }
+  return res.json() as Promise<{ ok: boolean }>;
+}
+
+export function useAssignToCard(config: SourceMappingConfig) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (override: StagingCardOverride) => assignToCard(config, override),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+    },
+  });
+}
+
+interface UnassignFromCard {
+  externalId: number;
+  finish: string;
+}
+
+async function unassignFromCard(
+  config: SourceMappingConfig,
+  params: UnassignFromCard,
+): Promise<{ ok: boolean }> {
+  const res = await fetch("/api/admin/staging-card-overrides", {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source: config.source, ...params }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to unassign product from card: ${res.status}`);
+  }
+  return res.json() as Promise<{ ok: boolean }>;
+}
+
+export function useUnassignFromCard(config: SourceMappingConfig) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: UnassignFromCard) => unassignFromCard(config, params),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
     },

@@ -15,14 +15,12 @@ import { sql } from "kysely";
 
 import {
   fetchJson,
-  loadReferenceData,
   logUpsertCounts,
   toCents,
   upsertCardmarketPriceData,
 } from "./refresh-prices-shared.js";
 import type {
   CardmarketSnapshotData,
-  CardmarketSourceRow,
   CardmarketStagingRow,
   PriceRefreshResult,
 } from "./refresh-prices-shared.js";
@@ -60,8 +58,6 @@ interface CmPriceGuide {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<PriceRefreshResult> {
-  const ref = await loadReferenceData(db);
-
   // ── Load ignored products ────────────────────────────────────────────────
 
   const ignoredRows = await db
@@ -72,7 +68,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
-  const allSources: CardmarketSourceRow[] = [];
   const allSnapshots: CardmarketSnapshotData[] = [];
   const allStaging: CardmarketStagingRow[] = [];
 
@@ -102,17 +97,6 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
     cmPriceById.set(pg.idProduct, pg);
   }
 
-  // Group singles by expansion
-  const cmByExpansion = new Map<number, CmProduct[]>();
-  for (const product of cmSingles) {
-    let arr = cmByExpansion.get(product.idExpansion);
-    if (!arr) {
-      arr = [];
-      cmByExpansion.set(product.idExpansion, arr);
-    }
-    arr.push(product);
-  }
-
   // Upsert expansions into cardmarket_expansions
   const expansionIds = new Set<number>();
   for (const product of cmSingles) {
@@ -130,243 +114,96 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
       .execute();
   }
 
-  // Build expansion -> set mapping from DB
-  const expansionSetMap = new Map<number, string>();
   const dbExpansions = await db
     .selectFrom("cardmarket_expansions")
     .select(["expansion_id", "set_id"])
     .execute();
 
-  for (const row of dbExpansions) {
-    if (row.set_id) {
-      expansionSetMap.set(row.expansion_id, row.set_id);
-    }
-  }
-
   const cmMappedCount = dbExpansions.filter((e) => e.set_id).length;
   const cmUnmappedCount = dbExpansions.filter((e) => !e.set_id).length;
 
-  // Pre-load existing Cardmarket cardmarket_sources so we don't overwrite manual mappings
-  const existingCmSources = new Map<string, number>(); // printing_id -> external_id
-  const cmSourceRows = await db
-    .selectFrom("cardmarket_sources")
-    .select(["printing_id", "external_id"])
-    .where("external_id", "is not", null)
+  // Stage ALL products, regardless of mapping status
+  for (const product of cmSingles) {
+    const pg = cmPriceById.get(product.idProduct);
+    if (!pg) {
+      continue;
+    }
+    const normalMarket = toCents(pg.avg);
+    if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
+      allStaging.push({
+        external_id: product.idProduct,
+        group_id: product.idExpansion,
+        product_name: product.name,
+        finish: "normal",
+        recorded_at: cmRecordedAt,
+        market_cents: normalMarket,
+        low_cents: toCents(pg.low),
+        trend_cents: toCents(pg.trend),
+        avg1_cents: toCents(pg.avg1),
+        avg7_cents: toCents(pg.avg7),
+        avg30_cents: toCents(pg.avg30),
+      });
+    }
+    const foilMarket = toCents(pg["avg-foil"]);
+    if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
+      allStaging.push({
+        external_id: product.idProduct,
+        group_id: product.idExpansion,
+        product_name: product.name,
+        finish: "foil",
+        recorded_at: cmRecordedAt,
+        market_cents: foilMarket,
+        low_cents: toCents(pg["low-foil"]),
+        trend_cents: toCents(pg["trend-foil"]),
+        avg1_cents: toCents(pg["avg1-foil"]),
+        avg7_cents: toCents(pg["avg7-foil"]),
+        avg30_cents: toCents(pg["avg30-foil"]),
+      });
+    }
+  }
+
+  // Build snapshots for already-mapped products from staging data
+  const existingSources = await db
+    .selectFrom("cardmarket_sources as cs")
+    .innerJoin("printings as p", "p.id", "cs.printing_id")
+    .select(["cs.printing_id", "cs.external_id", "p.finish"])
     .execute();
 
-  for (const row of cmSourceRows) {
-    if (row.external_id !== null) {
-      existingCmSources.set(row.printing_id, row.external_id);
+  const printingByExtIdFinish = new Map<string, string[]>();
+  for (const src of existingSources) {
+    const key = `${src.external_id}::${src.finish}`;
+    let arr = printingByExtIdFinish.get(key);
+    if (!arr) {
+      arr = [];
+      printingByExtIdFinish.set(key, arr);
     }
+    arr.push(src.printing_id);
   }
 
-  // Process matched expansions: merge products from all expansions that map to the
-  // same set so multi-variant detection works across expansion boundaries.
-
-  const productsBySet = new Map<string, CmProduct[]>();
-  for (const [expId, setId] of expansionSetMap) {
-    const products = cmByExpansion.get(expId);
-    if (!products) {
+  for (const staging of allStaging) {
+    const key = `${staging.external_id}::${staging.finish}`;
+    const printingIds = printingByExtIdFinish.get(key);
+    if (!printingIds) {
       continue;
     }
-    let merged = productsBySet.get(setId);
-    if (!merged) {
-      merged = [];
-      productsBySet.set(setId, merged);
-    }
-    merged.push(...products);
-  }
-
-  for (const [setId, products] of productsBySet) {
-    const setNameMap = ref.namesBySet.get(setId);
-    if (!setNameMap) {
-      continue;
-    }
-
-    // Group CM products by lowercased card name (across all expansions for this set)
-    const productsByName = new Map<string, CmProduct[]>();
-    for (const product of products) {
-      const key = product.name.toLowerCase();
-      let arr = productsByName.get(key);
-      if (!arr) {
-        arr = [];
-        productsByName.set(key, arr);
-      }
-      arr.push(product);
-    }
-
-    for (const [nameLower, nameProducts] of productsByName) {
-      const cardId = setNameMap.get(nameLower);
-
-      if (!cardId) {
-        // No card match -> stage all products in this name group
-
-        for (const product of nameProducts) {
-          const pg = cmPriceById.get(product.idProduct);
-          if (!pg) {
-            continue;
-          }
-          const normalMarket = toCents(pg.avg);
-          if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
-            allStaging.push({
-              external_id: product.idProduct,
-              group_id: product.idExpansion,
-              product_name: product.name,
-              finish: "normal",
-              recorded_at: cmRecordedAt,
-              market_cents: normalMarket,
-              low_cents: toCents(pg.low),
-              trend_cents: toCents(pg.trend),
-              avg1_cents: toCents(pg.avg1),
-              avg7_cents: toCents(pg.avg7),
-              avg30_cents: toCents(pg.avg30),
-            });
-          }
-          const foilMarket = toCents(pg["avg-foil"]);
-          if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
-            allStaging.push({
-              external_id: product.idProduct,
-              group_id: product.idExpansion,
-              product_name: product.name,
-              finish: "foil",
-              recorded_at: cmRecordedAt,
-              market_cents: foilMarket,
-              low_cents: toCents(pg["low-foil"]),
-              trend_cents: toCents(pg["trend-foil"]),
-              avg1_cents: toCents(pg["avg1-foil"]),
-              avg7_cents: toCents(pg["avg7-foil"]),
-              avg30_cents: toCents(pg["avg30-foil"]),
-            });
-          }
-        }
-        continue;
-      }
-
-      // Card matched — handle already-mapped printings first
-      // 1. Write snapshots for printings that already have a CM source mapping
-      const mappedExternalIds = new Set<number>();
-      for (const finish of ["normal", "foil"] as const) {
-        const pids = ref.printingsByCardSetFinish.get(`${cardId}|${setId}|${finish}`) || [];
-        for (const pid of pids) {
-          const extId = existingCmSources.get(pid);
-          if (extId === undefined) {
-            continue;
-          }
-          mappedExternalIds.add(extId);
-          const pg = cmPriceById.get(extId);
-          if (!pg) {
-            continue;
-          }
-          const marketCents = finish === "foil" ? toCents(pg["avg-foil"]) : toCents(pg.avg);
-          if (marketCents === null) {
-            continue;
-          }
-
-          allSnapshots.push({
-            printing_id: pid,
-            recorded_at: cmRecordedAt,
-            market_cents: marketCents,
-            low_cents: finish === "foil" ? toCents(pg["low-foil"]) : toCents(pg.low),
-            trend_cents: finish === "foil" ? toCents(pg["trend-foil"]) : toCents(pg.trend),
-            avg1_cents: finish === "foil" ? toCents(pg["avg1-foil"]) : toCents(pg.avg1),
-            avg7_cents: finish === "foil" ? toCents(pg["avg7-foil"]) : toCents(pg.avg7),
-            avg30_cents: finish === "foil" ? toCents(pg["avg30-foil"]) : toCents(pg.avg30),
-          });
-        }
-      }
-
-      // 2. Filter out CM products whose external_ids are already mapped
-      const remainingProducts = nameProducts.filter((p) => !mappedExternalIds.has(p.idProduct));
-
-      if (remainingProducts.length > 0) {
-        // Multiple products for this card name (or multiple remaining) -> stage all (admin UI will resolve)
-
-        for (const product of remainingProducts) {
-          const pg = cmPriceById.get(product.idProduct);
-          if (!pg) {
-            continue;
-          }
-          const normalMarket = toCents(pg.avg);
-          if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
-            allStaging.push({
-              external_id: product.idProduct,
-              group_id: product.idExpansion,
-              product_name: product.name,
-              finish: "normal",
-              recorded_at: cmRecordedAt,
-              market_cents: normalMarket,
-              low_cents: toCents(pg.low),
-              trend_cents: toCents(pg.trend),
-              avg1_cents: toCents(pg.avg1),
-              avg7_cents: toCents(pg.avg7),
-              avg30_cents: toCents(pg.avg30),
-            });
-          }
-          const foilMarket = toCents(pg["avg-foil"]);
-          if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
-            allStaging.push({
-              external_id: product.idProduct,
-              group_id: product.idExpansion,
-              product_name: product.name,
-              finish: "foil",
-              recorded_at: cmRecordedAt,
-              market_cents: foilMarket,
-              low_cents: toCents(pg["low-foil"]),
-              trend_cents: toCents(pg["trend-foil"]),
-              avg1_cents: toCents(pg["avg1-foil"]),
-              avg7_cents: toCents(pg["avg7-foil"]),
-              avg30_cents: toCents(pg["avg30-foil"]),
-            });
-          }
-        }
-      }
-      // remainingProducts.length === 0: all products already mapped, nothing to do
+    for (const printingId of printingIds) {
+      allSnapshots.push({
+        printing_id: printingId,
+        recorded_at: staging.recorded_at,
+        market_cents: staging.market_cents,
+        low_cents: staging.low_cents,
+        trend_cents: staging.trend_cents,
+        avg1_cents: staging.avg1_cents,
+        avg7_cents: staging.avg7_cents,
+        avg30_cents: staging.avg30_cents,
+      });
     }
   }
 
-  // Stage products from unmapped expansions with set_id = null
-  for (const [expId, products] of cmByExpansion) {
-    if (expansionSetMap.has(expId)) {
-      continue; // already handled above
-    }
-    for (const product of products) {
-      const pg = cmPriceById.get(product.idProduct);
-      if (!pg) {
-        continue;
-      }
-      const normalMarket = toCents(pg.avg);
-      if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
-        allStaging.push({
-          external_id: product.idProduct,
-          group_id: product.idExpansion,
-          product_name: product.name,
-          finish: "normal",
-          recorded_at: cmRecordedAt,
-          market_cents: normalMarket,
-          low_cents: toCents(pg.low),
-          trend_cents: toCents(pg.trend),
-          avg1_cents: toCents(pg.avg1),
-          avg7_cents: toCents(pg.avg7),
-          avg30_cents: toCents(pg.avg30),
-        });
-      }
-      const foilMarket = toCents(pg["avg-foil"]);
-      if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
-        allStaging.push({
-          external_id: product.idProduct,
-          group_id: product.idExpansion,
-          product_name: product.name,
-          finish: "foil",
-          recorded_at: cmRecordedAt,
-          market_cents: foilMarket,
-          low_cents: toCents(pg["low-foil"]),
-          trend_cents: toCents(pg["trend-foil"]),
-          avg1_cents: toCents(pg["avg1-foil"]),
-          avg7_cents: toCents(pg["avg7-foil"]),
-          avg30_cents: toCents(pg["avg30-foil"]),
-        });
-      }
-    }
+  if (allSnapshots.length > 0) {
+    console.log(
+      `Cardmarket: ${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`,
+    );
   }
 
   const ignoredSuffix = ignoredKeys.size > 0 ? `, ${ignoredKeys.size} ignored` : "";
@@ -376,7 +213,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
 
   // ── Upsert ──────────────────────────────────────────────────────────────────
 
-  const counts = await upsertCardmarketPriceData(db, allSources, allSnapshots, allStaging);
+  const counts = await upsertCardmarketPriceData(db, [], allSnapshots, allStaging);
 
   logUpsertCounts(counts);
 

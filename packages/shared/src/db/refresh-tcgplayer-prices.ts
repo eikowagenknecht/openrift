@@ -17,7 +17,11 @@ import {
   toCents,
   upsertTcgplayerPriceData,
 } from "./refresh-prices-shared.js";
-import type { PriceRefreshResult, TcgplayerStagingRow } from "./refresh-prices-shared.js";
+import type {
+  PriceRefreshResult,
+  TcgplayerSnapshotData,
+  TcgplayerStagingRow,
+} from "./refresh-prices-shared.js";
 import type { Database } from "./types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -186,7 +190,51 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
     `TCGPlayer fetched: ${groups.length} groups (${mappedCount} mapped, ${unmappedCount} unmapped), ${totalProducts} products, ${allStaging.length} prices${ignoredSuffix}`,
   );
 
-  const counts = await upsertTcgplayerPriceData(db, [], [], allStaging);
+  // Build snapshots for already-mapped products so prices stay current
+  const existingSources = await db
+    .selectFrom("tcgplayer_sources as ts")
+    .innerJoin("printings as p", "p.id", "ts.printing_id")
+    .select(["ts.printing_id", "ts.external_id", "p.finish"])
+    .execute();
+
+  // Map (external_id, finish) -> printing_ids
+  const printingByExtIdFinish = new Map<string, string[]>();
+  for (const src of existingSources) {
+    const key = `${src.external_id}::${src.finish}`;
+    let arr = printingByExtIdFinish.get(key);
+    if (!arr) {
+      arr = [];
+      printingByExtIdFinish.set(key, arr);
+    }
+    arr.push(src.printing_id);
+  }
+
+  const allSnapshots: TcgplayerSnapshotData[] = [];
+  for (const staging of allStaging) {
+    const key = `${staging.external_id}::${staging.finish}`;
+    const printingIds = printingByExtIdFinish.get(key);
+    if (!printingIds) {
+      continue;
+    }
+    for (const printingId of printingIds) {
+      allSnapshots.push({
+        printing_id: printingId,
+        recorded_at: staging.recorded_at,
+        market_cents: staging.market_cents,
+        low_cents: staging.low_cents,
+        mid_cents: staging.mid_cents,
+        high_cents: staging.high_cents,
+      });
+    }
+  }
+
+  if (allSnapshots.length > 0) {
+    console.log(
+      `TCGPlayer: ${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`,
+    );
+  }
+
+  const counts = await upsertTcgplayerPriceData(db, [], allSnapshots, allStaging);
 
   logUpsertCounts(counts);
 

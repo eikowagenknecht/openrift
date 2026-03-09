@@ -13,6 +13,7 @@ import * as m007 from "./007-add-group-id-fks.js";
 import * as m008 from "./008-ignored-products.js";
 import * as m009 from "./009-collection-tracking.js";
 import * as m010 from "./010-ignored-products-finish.js";
+import * as m011 from "./011-staging-card-overrides.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -25,4 +26,5 @@ export const migrations: Record<string, Migration> = {
   "008-ignored-products": m008,
   "009-collection-tracking": m009,
   "010-ignored-products-finish": m010,
+  "011-staging-card-overrides": m011,
 };
