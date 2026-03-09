@@ -50,7 +50,7 @@ A boolean `available_for_deckbuilding` flag controls whether copies in a collect
 
 A source represents where or how cards were acquired — "Booster Display 2", "Trade with Sebastian", "Singles order from Cardmarket". It's a first-class entity: user creates a source, and copies minted during intake are linked to it via a nullable `source_id` FK.
 
-Sources are orthogonal to activities. An activity records _what happened_ (the mutation event), a source records _where it came from_ (provenance). A source can span multiple activities (opening a booster display across several evenings), and an activity can involve multiple sources (unlikely but not forbidden). When creating an acquisition activity, the user can optionally pick or create a source. Copies added without a source simply have `source_id = NULL`.
+Sources are orthogonal to activities. An activity records _what happened_ (the mutation event), a source records _where it came from_ (provenance). A source can span multiple activities (opening a booster display across several evenings) — the dates a source was used are derived from its linked activities rather than stored on the source itself. An activity can involve multiple sources (unlikely but not forbidden). When creating an acquisition activity, the user can optionally pick or create a source. Copies added without a source simply have `source_id = NULL`.
 
 "Show me all cards from Booster Display 2" is a simple query on `copies.source_id` — no need to traverse activity items.
 
@@ -71,7 +71,7 @@ Every mutation to the collection happens through an activity — analogous to a 
 - `trade` — both directions in one session
 - `reorganization` — cards move between collections, net zero
 
-**Auto-activities:** Casual actions (dragging a card between collections, quick-adding a card) don't require the user to fill out a form. The system silently creates or appends to a daily auto-activity ("Changes on 2026-03-08"). Users can rename or describe it later.
+**Auto-activities:** Casual actions (dragging a card between collections, quick-adding a card) don't require the user to fill out a form. Each casual action creates its own auto-activity (`is_auto = true`, `name = NULL`) with a single activity item. This keeps undo granular — undoing the latest activity always reverses exactly one action. The activity history UI groups auto-activities by date and type for display (e.g., "2 cards added · 3 cards reorganized"), so the history stays clean despite the one-activity-per-action granularity.
 
 **Activity items** record individual copy mutations:
 
@@ -81,7 +81,7 @@ Every mutation to the collection happens through an activity — analogous to a 
 
 **Collection deletion:** Activity items denormalize collection names (`from_collection_name`, `to_collection_name`) at creation time. The collection FKs use `ON DELETE SET NULL`, so deleting a collection nulls the FK but the human-readable name survives in the history. This keeps history readable ("moved from Binder 1 to Deck Box 12") even after Binder 1 is deleted.
 
-**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Note: undo restores copies but does not restore trade list memberships that were removed before disposal — that removal was an explicit user action.
+**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Undo is blocked if any collection referenced by the activity's items (`from_collection_id` or `to_collection_id`) has been deleted since the activity was created — the UI disables the undo button and explains why. When undo removes copies (reversing an acquisition), it first deletes any `trade_list_items` referencing those copies — the copies are being erased entirely, so derived memberships go with them. Conversely, when undo re-creates copies (reversing a disposal), it does not restore trade list memberships that the user manually removed before the disposal — that removal was an explicit user action.
 
 ### Decks
 
@@ -138,9 +138,17 @@ CREATE TABLE collections (
   created_at                timestamptz NOT NULL DEFAULT now(),
   updated_at                timestamptz NOT NULL DEFAULT now()
 );
+-- List all collections for a user (the main collections page)
 CREATE INDEX idx_collections_user_id ON collections(user_id);
+-- Enforces exactly one inbox per user (partial unique index — only rows
+-- with is_inbox = true participate, so non-inbox rows are unconstrained)
 CREATE UNIQUE INDEX uq_collections_user_inbox
   ON collections(user_id) WHERE is_inbox = true;
+-- Redundant as a uniqueness guarantee (id is already the PK), but
+-- required so that copies can FK on (id, user_id) together — which
+-- lets Postgres enforce that a copy's collection belongs to the same user.
+ALTER TABLE collections ADD CONSTRAINT uq_collections_id_user
+  UNIQUE (id, user_id);
 
 -- ── Sources ──────────────────────────────────────────────────────
 CREATE TABLE sources (
@@ -148,10 +156,10 @@ CREATE TABLE sources (
   user_id     text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name        text NOT NULL,
   description text,
-  date        date,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+-- List all sources for a user (source picker in the intake flow)
 CREATE INDEX idx_sources_user_id ON sources(user_id);
 
 -- ── Copies ────────────────────────────────────────────────────────
@@ -159,13 +167,21 @@ CREATE TABLE copies (
   id            uuid PRIMARY KEY,
   user_id       text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   printing_id   text NOT NULL REFERENCES printings(id),
-  collection_id uuid NOT NULL REFERENCES collections(id),
+  collection_id uuid NOT NULL,
+  -- Composite FK: Postgres checks that (collection_id, user_id) matches a
+  -- row in collections, so a copy can never reference another user's collection.
+  CONSTRAINT fk_copies_collection_user
+    FOREIGN KEY (collection_id, user_id) REFERENCES collections(id, user_id),
   source_id     uuid REFERENCES sources(id) ON DELETE SET NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
+-- "How many of this printing do I own?" — used by wish list fulfillment,
+-- shopping list, and the card detail overlay
 CREATE INDEX idx_copies_user_printing ON copies(user_id, printing_id);
+-- "Show all copies in this collection" — the collection detail page
 CREATE INDEX idx_copies_collection ON copies(collection_id);
+-- "Show all copies from this source" — provenance queries
 CREATE INDEX idx_copies_source ON copies(source_id);
 
 -- ── Activities ────────────────────────────────────────────────────
@@ -182,12 +198,18 @@ CREATE TABLE activities (
   CONSTRAINT chk_activities_type
     CHECK (type IN ('acquisition', 'disposal', 'trade', 'reorganization'))
 );
+-- List a user's activity history (activity feed page)
 CREATE INDEX idx_activities_user_id ON activities(user_id);
 
 -- ── Activity Items ────────────────────────────────────────────────
 CREATE TABLE activity_items (
   id                   uuid PRIMARY KEY,
   activity_id          uuid NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+  -- SET NULL fires on ALL items referencing a deleted copy, not just the
+  -- 'removed' one. A NULL copy_id on an 'added' or 'moved' item simply
+  -- means the copy was later disposed. printing_id (always non-null) is
+  -- the stable identifier for history; metadata_snapshot is only written
+  -- on the 'removed' item where it's needed for undo.
   copy_id              uuid REFERENCES copies(id) ON DELETE SET NULL,
   printing_id          text NOT NULL REFERENCES printings(id),
   action               text NOT NULL,
@@ -200,7 +222,9 @@ CREATE TABLE activity_items (
   CONSTRAINT chk_activity_items_action
     CHECK (action IN ('added', 'removed', 'moved'))
 );
+-- Load all items for an activity (activity detail view, undo)
 CREATE INDEX idx_activity_items_activity ON activity_items(activity_id);
+-- "Show history for this copy" — per-copy audit trail
 CREATE INDEX idx_activity_items_copy ON activity_items(copy_id);
 
 -- ── Decks ─────────────────────────────────────────────────────────
@@ -216,6 +240,7 @@ CREATE TABLE decks (
   updated_at  timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT chk_decks_format CHECK (format IN ('standard', 'freeform'))
 );
+-- List a user's decks (deck list page, wanted-deck queries for shopping list)
 CREATE INDEX idx_decks_user_id ON decks(user_id);
 
 -- ── Deck Cards ────────────────────────────────────────────────────
@@ -228,6 +253,7 @@ CREATE TABLE deck_cards (
   CONSTRAINT chk_deck_cards_zone CHECK (zone IN ('main', 'sideboard')),
   CONSTRAINT uq_deck_cards UNIQUE (deck_id, card_id, zone)
 );
+-- Load all cards in a deck (deck detail view, shopping list calculation)
 CREATE INDEX idx_deck_cards_deck ON deck_cards(deck_id);
 
 -- ── Wish Lists ────────────────────────────────────────────────────
@@ -241,9 +267,13 @@ CREATE TABLE wish_lists (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+-- List a user's wish lists (wish list page, shopping list aggregation)
 CREATE INDEX idx_wish_lists_user_id ON wish_lists(user_id);
 
 -- ── Wish List Items (static only) ────────────────────────────────
+-- Each unique constraint only fires for its non-NULL column (Postgres
+-- ignores NULLs in unique indexes), so together with the CHECK they
+-- prevent duplicate card-targeted or printing-targeted items per list.
 CREATE TABLE wish_list_items (
   id               uuid PRIMARY KEY,
   wish_list_id     uuid NOT NULL REFERENCES wish_lists(id) ON DELETE CASCADE,
@@ -254,8 +284,11 @@ CREATE TABLE wish_list_items (
     CHECK (
       (card_id IS NOT NULL AND printing_id IS NULL) OR
       (card_id IS NULL AND printing_id IS NOT NULL)
-    )
+    ),
+  CONSTRAINT uq_wish_list_items_card UNIQUE (wish_list_id, card_id),
+  CONSTRAINT uq_wish_list_items_printing UNIQUE (wish_list_id, printing_id)
 );
+-- Load all items in a wish list (wish list detail, shopping list calculation)
 CREATE INDEX idx_wish_list_items_list ON wish_list_items(wish_list_id);
 
 -- ── Trade Lists ───────────────────────────────────────────────────
@@ -269,6 +302,7 @@ CREATE TABLE trade_lists (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+-- List a user's trade lists (trade list page, trade binder aggregation)
 CREATE INDEX idx_trade_lists_user_id ON trade_lists(user_id);
 
 -- ── Trade List Items (static only) ────────────────────────────────
@@ -278,6 +312,7 @@ CREATE TABLE trade_list_items (
   copy_id       uuid NOT NULL REFERENCES copies(id),
   CONSTRAINT uq_trade_list_items UNIQUE (trade_list_id, copy_id)
 );
+-- Load all copies on a trade list (trade list detail, trade binder dedup)
 CREATE INDEX idx_trade_list_items_list ON trade_list_items(trade_list_id);
 ```
 
