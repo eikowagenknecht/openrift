@@ -589,59 +589,38 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
   // ── DELETE /all — unmap every printing, return all to staging ────────────
 
   app.delete(`${path}/all`, async (c) => {
-    let unmapped = 0;
+    const result = await db.transaction().execute(async (tx) => {
+      // Bulk-copy snapshots back to staging in one query
+      await sql`
+        INSERT INTO tcgplayer_staging (external_id, group_id, product_name, finish, recorded_at, market_cents, low_cents, mid_cents, high_cents)
+        SELECT s.external_id, s.group_id, s.product_name, p.finish, snap.recorded_at, snap.market_cents, snap.low_cents, snap.mid_cents, snap.high_cents
+        FROM tcgplayer_sources s
+        JOIN printings p ON p.id = s.printing_id
+        JOIN tcgplayer_snapshots snap ON snap.source_id = s.id
+        WHERE s.external_id IS NOT NULL
+        ON CONFLICT (external_id, finish, recorded_at) DO NOTHING
+      `.execute(tx);
 
-    const sources = await db
-      .selectFrom("tcgplayer_sources")
-      .selectAll()
-      .where("external_id", "is not", null)
-      .execute();
+      // Count how many sources we're unmapping
+      const countResult = await tx
+        .selectFrom("tcgplayer_sources")
+        .select(sql<number>`count(*)`.as("count"))
+        .where("external_id", "is not", null)
+        .executeTakeFirstOrThrow();
 
-    for (const ps of sources) {
-      const externalId = ps.external_id;
-      if (externalId === null) {
-        continue;
-      }
+      // Bulk-delete snapshots for all mapped sources
+      await sql`
+        DELETE FROM tcgplayer_snapshots
+        WHERE source_id IN (SELECT id FROM tcgplayer_sources WHERE external_id IS NOT NULL)
+      `.execute(tx);
 
-      await db.transaction().execute(async (tx) => {
-        const printing = await tx
-          .selectFrom("printings")
-          .select("finish")
-          .where("id", "=", ps.printing_id)
-          .executeTakeFirstOrThrow();
+      // Bulk-delete all mapped sources
+      await tx.deleteFrom("tcgplayer_sources").where("external_id", "is not", null).execute();
 
-        const snapshots = await tx
-          .selectFrom("tcgplayer_snapshots")
-          .selectAll()
-          .where("source_id", "=", ps.id)
-          .execute();
+      return Number(countResult.count);
+    });
 
-        for (const snap of snapshots) {
-          await tx
-            .insertInto("tcgplayer_staging")
-            .values({
-              external_id: externalId,
-              group_id: ps.group_id,
-              product_name: ps.product_name,
-              finish: printing.finish,
-              recorded_at: snap.recorded_at,
-              market_cents: snap.market_cents,
-              low_cents: snap.low_cents,
-              mid_cents: snap.mid_cents,
-              high_cents: snap.high_cents,
-            })
-            .onConflict((oc) => oc.columns(["external_id", "finish", "recorded_at"]).doNothing())
-            .execute();
-        }
-
-        await tx.deleteFrom("tcgplayer_snapshots").where("source_id", "=", ps.id).execute();
-        await tx.deleteFrom("tcgplayer_sources").where("id", "=", ps.id).execute();
-      });
-
-      unmapped++;
-    }
-
-    return c.json({ ok: true, unmapped });
+    return c.json({ ok: true, unmapped: result });
   });
 }
 
@@ -1185,61 +1164,38 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
   // ── DELETE /all — unmap every printing, return all to staging ────────────
 
   app.delete(`${path}/all`, async (c) => {
-    let unmapped = 0;
+    const result = await db.transaction().execute(async (tx) => {
+      // Bulk-copy snapshots back to staging in one query
+      await sql`
+        INSERT INTO cardmarket_staging (external_id, group_id, product_name, finish, recorded_at, market_cents, low_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents)
+        SELECT s.external_id, s.group_id, s.product_name, p.finish, snap.recorded_at, snap.market_cents, snap.low_cents, snap.trend_cents, snap.avg1_cents, snap.avg7_cents, snap.avg30_cents
+        FROM cardmarket_sources s
+        JOIN printings p ON p.id = s.printing_id
+        JOIN cardmarket_snapshots snap ON snap.source_id = s.id
+        WHERE s.external_id IS NOT NULL
+        ON CONFLICT (external_id, finish, recorded_at) DO NOTHING
+      `.execute(tx);
 
-    const sources = await db
-      .selectFrom("cardmarket_sources")
-      .selectAll()
-      .where("external_id", "is not", null)
-      .execute();
+      // Count how many sources we're unmapping
+      const countResult = await tx
+        .selectFrom("cardmarket_sources")
+        .select(sql<number>`count(*)`.as("count"))
+        .where("external_id", "is not", null)
+        .executeTakeFirstOrThrow();
 
-    for (const ps of sources) {
-      const externalId = ps.external_id;
-      if (externalId === null) {
-        continue;
-      }
+      // Bulk-delete snapshots for all mapped sources
+      await sql`
+        DELETE FROM cardmarket_snapshots
+        WHERE source_id IN (SELECT id FROM cardmarket_sources WHERE external_id IS NOT NULL)
+      `.execute(tx);
 
-      await db.transaction().execute(async (tx) => {
-        const printing = await tx
-          .selectFrom("printings")
-          .select("finish")
-          .where("id", "=", ps.printing_id)
-          .executeTakeFirstOrThrow();
+      // Bulk-delete all mapped sources
+      await tx.deleteFrom("cardmarket_sources").where("external_id", "is not", null).execute();
 
-        const snapshots = await tx
-          .selectFrom("cardmarket_snapshots")
-          .selectAll()
-          .where("source_id", "=", ps.id)
-          .execute();
+      return Number(countResult.count);
+    });
 
-        for (const snap of snapshots) {
-          await tx
-            .insertInto("cardmarket_staging")
-            .values({
-              external_id: externalId,
-              group_id: ps.group_id,
-              product_name: ps.product_name,
-              finish: printing.finish,
-              recorded_at: snap.recorded_at,
-              market_cents: snap.market_cents,
-              low_cents: snap.low_cents,
-              trend_cents: snap.trend_cents,
-              avg1_cents: snap.avg1_cents,
-              avg7_cents: snap.avg7_cents,
-              avg30_cents: snap.avg30_cents,
-            })
-            .onConflict((oc) => oc.columns(["external_id", "finish", "recorded_at"]).doNothing())
-            .execute();
-        }
-
-        await tx.deleteFrom("cardmarket_snapshots").where("source_id", "=", ps.id).execute();
-        await tx.deleteFrom("cardmarket_sources").where("id", "=", ps.id).execute();
-      });
-
-      unmapped++;
-    }
-
-    return c.json({ ok: true, unmapped });
+    return c.json({ ok: true, unmapped: result });
   });
 }
 
