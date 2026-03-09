@@ -1,11 +1,14 @@
 import type { Card as CardData, CardType, Rarity } from "@openrift/shared";
 import {
   BanIcon,
+  CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   EyeIcon,
+  LinkIcon,
   Undo2Icon,
   WandSparklesIcon,
+  XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -31,7 +34,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  useAssignToCard,
   useIgnoreProducts,
+  useUnassignFromCard,
   usePriceMappings,
   useSavePriceMappings,
   useUnignoreProducts,
@@ -41,6 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import type {
+  AssignableCard,
   MappingGroup,
   MappingPrinting,
   SetGroup,
@@ -142,6 +148,8 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   const unmapAllMutation = useUnmapAllMappings(config);
   const ignoreMutation = useIgnoreProducts(config);
   const unignoreMutation = useUnignoreProducts(config);
+  const assignToCardMutation = useAssignToCard(config);
+  const unassignMutation = useUnassignFromCard(config);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [confirmUnmapAll, setConfirmUnmapAll] = useState(false);
   const [showIgnored, setShowIgnored] = useState(false);
@@ -150,6 +158,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   const autoExpandRef = useRef<{ cardId: string; nextCardId: string | null } | null>(null);
 
   const groups = data?.groups ?? [];
+  const allCards = data?.allCards ?? [];
   const setGroups = groupBySet(groups);
 
   // Flat ordered list of card IDs matching the rendered order
@@ -344,6 +353,15 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                         ignoreMutation.mutate([{ externalId, finish }])
                       }
                       isIgnoring={ignoreMutation.isPending}
+                      onUnassign={(externalId, finish) =>
+                        unassignMutation.mutate({ externalId, finish })
+                      }
+                      isUnassigning={unassignMutation.isPending}
+                      allCards={allCards}
+                      onAssignToCard={(externalId, finish, cardId, setId) =>
+                        assignToCardMutation.mutate({ externalId, finish, cardId, setId })
+                      }
+                      isAssigning={assignToCardMutation.isPending}
                     />
                   ))}
                 </TableBody>
@@ -369,6 +387,16 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                       ignoreMutation.mutate([{ externalId: sp.externalId, finish: sp.finish }])
                     }
                     isIgnoring={ignoreMutation.isPending}
+                    allCards={allCards}
+                    onAssignToCard={(cardId, setId) =>
+                      assignToCardMutation.mutate({
+                        externalId: sp.externalId,
+                        finish: sp.finish,
+                        cardId,
+                        setId,
+                      })
+                    }
+                    isAssigning={assignToCardMutation.isPending}
                   />
                 ))}
             </div>
@@ -425,6 +453,11 @@ function CardGroupRow({
   onBatchAccept,
   onIgnore,
   isIgnoring,
+  onUnassign,
+  isUnassigning,
+  allCards,
+  onAssignToCard,
+  isAssigning,
 }: {
   config: SourceMappingConfig;
   group: MappingGroup;
@@ -437,6 +470,11 @@ function CardGroupRow({
   onBatchAccept: () => void;
   onIgnore: (externalId: number, finish: string) => void;
   isIgnoring: boolean;
+  onUnassign: (externalId: number, finish: string) => void;
+  isUnassigning: boolean;
+  allCards: AssignableCard[];
+  onAssignToCard: (externalId: number, finish: string, cardId: string, setId: string) => void;
+  isAssigning: boolean;
 }) {
   const unmappedCount = group.printings.filter((p) => p.externalId === null).length;
   const suggestions = computeSuggestions(group);
@@ -498,6 +536,11 @@ function CardGroupRow({
               onBatchAccept={onBatchAccept}
               onIgnore={onIgnore}
               isIgnoring={isIgnoring}
+              onUnassign={onUnassign}
+              isUnassigning={isUnassigning}
+              allCards={allCards}
+              onAssignToCard={onAssignToCard}
+              isAssigning={isAssigning}
             />
           </TableCell>
         </TableRow>
@@ -560,6 +603,11 @@ function ExpandedDetail({
   onBatchAccept,
   onIgnore,
   isIgnoring,
+  onUnassign,
+  isUnassigning,
+  allCards,
+  onAssignToCard,
+  isAssigning,
 }: {
   config: SourceMappingConfig;
   group: MappingGroup;
@@ -570,6 +618,11 @@ function ExpandedDetail({
   onBatchAccept: () => void;
   onIgnore: (externalId: number, finish: string) => void;
   isIgnoring: boolean;
+  onUnassign: (externalId: number, finish: string) => void;
+  isUnassigning: boolean;
+  allCards: AssignableCard[];
+  onAssignToCard: (externalId: number, finish: string, cardId: string, setId: string) => void;
+  isAssigning: boolean;
 }) {
   const suggestions = computeSuggestions(group);
 
@@ -672,46 +725,44 @@ function ExpandedDetail({
       </div>
 
       {/* Products — sidebar */}
-      <div className="w-full shrink-0 space-y-5 sm:w-80">
-        <div>
-          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Staged {config.shortName} Products
-          </h4>
-          <div className="flex flex-col gap-2">
-            {group.stagedProducts
-              .toSorted((a, b) => a.productName.localeCompare(b.productName))
-              .map((sp) => (
+      <div className="w-full shrink-0 sm:w-80">
+        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {config.shortName} Products
+        </h4>
+        <div className="flex flex-col gap-2">
+          {[...group.stagedProducts, ...group.assignedProducts]
+            .toSorted((a, b) => a.productName.localeCompare(b.productName))
+            .map((sp) => {
+              const isAssigned = group.assignedProducts.some(
+                (ap) => ap.externalId === sp.externalId && ap.finish === sp.finish,
+              );
+              return (
                 <StagedProductCard
                   key={`${sp.externalId}::${sp.finish}`}
                   config={config}
                   product={sp}
-                  onIgnore={() => onIgnore(sp.externalId, sp.finish)}
+                  isAssigned={isAssigned}
+                  onIgnore={isAssigned ? undefined : () => onIgnore(sp.externalId, sp.finish)}
                   isIgnoring={isIgnoring}
+                  onUnassign={
+                    sp.isOverride ? () => onUnassign(sp.externalId, sp.finish) : undefined
+                  }
+                  isUnassigning={isUnassigning}
+                  allCards={sp.isOverride ? undefined : isAssigned ? undefined : allCards}
+                  onAssignToCard={
+                    sp.isOverride || isAssigned
+                      ? undefined
+                      : (cardId, setId) => onAssignToCard(sp.externalId, sp.finish, cardId, setId)
+                  }
+                  isAssigning={isAssigning}
+                  assignLabel="Reassign"
                 />
-              ))}
-            {group.stagedProducts.length === 0 && (
-              <p className="text-xs text-muted-foreground">No staged products</p>
-            )}
-          </div>
+              );
+            })}
+          {group.stagedProducts.length === 0 && group.assignedProducts.length === 0 && (
+            <p className="text-xs text-muted-foreground">No products</p>
+          )}
         </div>
-        {group.assignedProducts.length > 0 && (
-          <div>
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Assigned {config.shortName} Products
-            </h4>
-            <div className="flex flex-col gap-2">
-              {group.assignedProducts
-                .toSorted((a, b) => a.productName.localeCompare(b.productName))
-                .map((sp) => (
-                  <StagedProductCard
-                    key={`${sp.externalId}::${sp.finish}`}
-                    config={config}
-                    product={sp}
-                  />
-                ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -734,6 +785,13 @@ function StagedProductCard({
   isIgnoring,
   onUnignore,
   isUnignoring,
+  allCards,
+  onAssignToCard,
+  isAssigning,
+  onUnassign,
+  isUnassigning,
+  assignLabel = "Assign",
+  isAssigned,
 }: {
   config: SourceMappingConfig;
   product: StagedProduct;
@@ -741,39 +799,87 @@ function StagedProductCard({
   isIgnoring?: boolean;
   onUnignore?: () => void;
   isUnignoring?: boolean;
+  allCards?: AssignableCard[];
+  onAssignToCard?: (cardId: string, setId: string) => void;
+  isAssigning?: boolean;
+  onUnassign?: () => void;
+  isUnassigning?: boolean;
+  assignLabel?: string;
+  isAssigned?: boolean;
 }) {
+  const [showAssign, setShowAssign] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredCards =
+    allCards && search.length >= 2
+      ? allCards.filter((g) => g.cardName.toLowerCase().includes(search.toLowerCase())).slice(0, 10)
+      : [];
+
   return (
     <div className="rounded-lg border bg-background px-3 py-2.5">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 truncate text-sm font-medium" title={sp.productName}>
-          {sp.productName}
+        <p
+          className="flex min-w-0 items-center gap-1 truncate text-sm font-medium"
+          title={sp.productName}
+        >
+          {isAssigned && (
+            <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
+          )}
+          <span className="truncate">{sp.productName}</span>
         </p>
-        {onIgnore && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 shrink-0 px-1.5 text-xs text-muted-foreground hover:text-destructive"
-            onClick={onIgnore}
-            disabled={isIgnoring}
-            title="Ignore this product"
-          >
-            <BanIcon className="size-3.5" />
-            Ignore
-          </Button>
-        )}
-        {onUnignore && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 shrink-0 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-            onClick={onUnignore}
-            disabled={isUnignoring}
-            title="Unignore — product will reappear on next refresh"
-          >
-            <Undo2Icon className="size-3.5" />
-            Unignore
-          </Button>
-        )}
+        <div className="flex shrink-0 gap-1">
+          {onAssignToCard && allCards && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-primary"
+              onClick={() => setShowAssign((v) => !v)}
+              title={`${assignLabel} to a card`}
+            >
+              {showAssign ? <XIcon className="size-3.5" /> : <LinkIcon className="size-3.5" />}
+              {showAssign ? "Cancel" : assignLabel}
+            </Button>
+          )}
+          {onIgnore && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+              onClick={onIgnore}
+              disabled={isIgnoring}
+              title="Ignore this product"
+            >
+              <BanIcon className="size-3.5" />
+              Ignore
+            </Button>
+          )}
+          {onUnignore && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              onClick={onUnignore}
+              disabled={isUnignoring}
+              title="Unignore — product will reappear on next refresh"
+            >
+              <Undo2Icon className="size-3.5" />
+              Unignore
+            </Button>
+          )}
+          {sp.isOverride && onUnassign && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+              onClick={onUnassign}
+              disabled={isUnassigning}
+              title="Unassign — remove manual card assignment"
+            >
+              <XIcon className="size-3.5" />
+              Unassign
+            </Button>
+          )}
+        </div>
       </div>
       {sp.marketCents > 0 && (
         <div className="mt-1.5 flex items-baseline gap-2">
@@ -826,6 +932,50 @@ function StagedProductCard({
       >
         {sp.recordedAt.slice(0, 16).replace("T", " ")}
       </p>
+      {showAssign && onAssignToCard && (
+        <div className="mt-2 space-y-2 border-t pt-2">
+          <input
+            type="text"
+            className="w-full rounded border bg-muted px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Search card name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional
+            autoFocus
+          />
+          {filteredCards.length > 0 && (
+            <div className="max-h-48 space-y-1 overflow-y-auto">
+              {filteredCards.map((g) => {
+                const firstId = g.printings.reduce((best, p) =>
+                  p.collectorNumber < best.collectorNumber ? p : best,
+                ).sourceId;
+                return (
+                  <button
+                    key={g.cardId}
+                    type="button"
+                    className="w-full rounded bg-muted/50 px-2 py-1.5 text-left hover:bg-muted disabled:opacity-50"
+                    disabled={isAssigning}
+                    onClick={() => {
+                      onAssignToCard(g.cardId, g.setId);
+                      setShowAssign(false);
+                      setSearch("");
+                    }}
+                  >
+                    <p className="text-xs font-medium">
+                      <span className="mr-1.5 font-normal text-muted-foreground">{firstId}</span>
+                      {g.cardName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{g.setName}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {search.length >= 2 && filteredCards.length === 0 && (
+            <p className="text-xs text-muted-foreground">No matching cards</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

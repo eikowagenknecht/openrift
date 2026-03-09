@@ -230,6 +230,14 @@ export interface VerificationsTable {
 
 // ─── Ignored products ───────────────────────────────────────────────────────
 
+export interface StagingCardOverridesTable {
+  external_id: number;
+  finish: string;
+  card_id: string;
+  set_id: string;
+  created_at: CreatedAt;
+}
+
 export interface TcgplayerIgnoredProductsTable {
   external_id: number;
   finish: string;
@@ -380,6 +388,8 @@ export interface Database {
   cardmarket_staging: CardmarketStagingTable;
   tcgplayer_groups: TcgplayerGroupsTable;
   cardmarket_expansions: CardmarketExpansionsTable;
+  tcgplayer_staging_card_overrides: StagingCardOverridesTable;
+  cardmarket_staging_card_overrides: StagingCardOverridesTable;
   tcgplayer_ignored_products: TcgplayerIgnoredProductsTable;
   cardmarket_ignored_products: CardmarketIgnoredProductsTable;
 
