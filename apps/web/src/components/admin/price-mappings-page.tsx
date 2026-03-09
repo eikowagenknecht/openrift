@@ -791,7 +791,14 @@ function StagedProductCard({
           ))}
         </div>
       )}
-      <p className="mt-1.5 w-fit rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+      <p
+        className={cn(
+          "mt-1.5 w-fit rounded px-1.5 py-0.5 text-xs",
+          Date.now() - new Date(sp.recordedAt).getTime() > 48 * 60 * 60 * 1000
+            ? "bg-destructive/10 text-destructive"
+            : "bg-muted text-muted-foreground",
+        )}
+      >
         {sp.recordedAt.slice(0, 16).replace("T", " ")}
       </p>
     </div>
