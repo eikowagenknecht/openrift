@@ -49,3 +49,9 @@ export interface MappingGroup {
   stagedProducts: StagedProduct[];
   assignedProducts: StagedProduct[];
 }
+
+export interface SetGroup {
+  setId: string;
+  setName: string;
+  cards: MappingGroup[];
+}

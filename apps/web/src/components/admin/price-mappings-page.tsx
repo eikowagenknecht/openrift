@@ -7,7 +7,7 @@ import {
   Undo2Icon,
   WandSparklesIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import type {
   MappingGroup,
   MappingPrinting,
+  SetGroup,
   SourceMappingConfig,
   StagedProduct,
 } from "./price-mappings-types";
@@ -51,6 +52,27 @@ import type { Suggestion } from "./suggest-mapping";
 
 // oxlint-disable-next-line no-empty-function -- intentional no-op for non-interactive CardThumbnail
 const NOOP = () => {};
+
+function groupBySet(groups: MappingGroup[]): SetGroup[] {
+  const bySet = new Map<string, SetGroup>();
+  for (const group of groups) {
+    let setGroup = bySet.get(group.setId);
+    if (!setGroup) {
+      setGroup = { setId: group.setId, setName: group.setName, cards: [] };
+      bySet.set(group.setId, setGroup);
+    }
+    setGroup.cards.push(group);
+  }
+  // Sort cards within each set by lowest collector number (matches card grid default)
+  for (const setGroup of bySet.values()) {
+    setGroup.cards.sort((a, b) => {
+      const aNum = Math.min(...a.printings.map((p) => p.collectorNumber));
+      const bNum = Math.min(...b.printings.map((p) => p.collectorNumber));
+      return aNum - bNum;
+    });
+  }
+  return [...bySet.values()];
+}
 
 /**
  * Build a minimal Card object from admin API data for CardThumbnail.
@@ -124,6 +146,37 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   const [confirmUnmapAll, setConfirmUnmapAll] = useState(false);
   const [showIgnored, setShowIgnored] = useState(false);
 
+  // Auto-expand: when a card leaves the list after mapping, expand the next one
+  const autoExpandRef = useRef<{ cardId: string; nextCardId: string | null } | null>(null);
+
+  const groups = data?.groups ?? [];
+  const setGroups = groupBySet(groups);
+
+  // Flat ordered list of card IDs matching the rendered order
+  const orderedCardIds = setGroups.flatMap((sg) => sg.cards.map((c) => c.cardId));
+
+  useEffect(() => {
+    if (!autoExpandRef.current) {
+      return;
+    }
+    const { cardId, nextCardId } = autoExpandRef.current;
+    // Card is still in the list — not fully assigned yet
+    if (orderedCardIds.includes(cardId)) {
+      return;
+    }
+    autoExpandRef.current = null;
+    if (nextCardId && orderedCardIds.includes(nextCardId)) {
+      setExpandedCards(new Set([nextCardId]));
+    }
+  }, [orderedCardIds]);
+
+  const queueAutoExpand = (cardId: string) => {
+    const idx = orderedCardIds.indexOf(cardId);
+    const nextCardId =
+      idx !== -1 && idx < orderedCardIds.length - 1 ? orderedCardIds[idx + 1] : null;
+    autoExpandRef.current = { cardId, nextCardId };
+  };
+
   const toggleExpanded = (cardId: string) => {
     setExpandedCards((prev) => {
       const next = new Set(prev);
@@ -136,8 +189,21 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
     });
   };
 
-  const handleMap = (printingId: string, externalId: number) => {
+  const handleMap = (printingId: string, externalId: number, cardId: string) => {
+    queueAutoExpand(cardId);
     saveMutation.mutate({ mappings: [{ printingId, externalId }] });
+  };
+
+  const handleBatchAccept = (group: MappingGroup) => {
+    const suggestions = computeSuggestions(group);
+    const mappings: { printingId: string; externalId: number }[] = [];
+    for (const [printingId, suggestion] of suggestions) {
+      mappings.push({ printingId, externalId: suggestion.product.externalId });
+    }
+    if (mappings.length > 0) {
+      queueAutoExpand(group.cardId);
+      saveMutation.mutate({ mappings });
+    }
   };
 
   if (isLoading) {
@@ -157,7 +223,6 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
     return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
   }
 
-  const groups = data?.groups ?? [];
   const unmatchedProducts = data?.unmatchedProducts ?? [];
   const ignoredProducts = data?.ignoredProducts ?? [];
 
@@ -167,7 +232,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
         <p className="text-sm text-muted-foreground">
           {groups.length === 0
             ? `No staged ${config.displayName} products need mapping.`
-            : `${groups.length} card${groups.length === 1 ? "" : "s"} with ${showAll ? `${config.shortName} mappings or` : ""} staged ${config.shortName} products`}
+            : `${groups.length} card${groups.length === 1 ? "" : "s"} across ${setGroups.length} set${setGroups.length === 1 ? "" : "s"} with ${showAll ? `${config.shortName} mappings or` : ""} staged ${config.shortName} products`}
         </p>
         <div className="flex items-center gap-2">
           {showAll && !confirmUnmapAll && (
@@ -230,46 +295,58 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
           </div>
         )}
 
-        {groups.length > 0 && (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8" />
-                  <TableHead>Card</TableHead>
-                  <TableHead>Set</TableHead>
-                  <TableHead
-                    className="text-center"
-                    title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
-                  >
-                    Printings
-                  </TableHead>
-                  <TableHead
-                    className="text-center"
-                    title={`${config.displayName} products awaiting manual assignment to a printing`}
-                  >
-                    Staged {config.shortName}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groups.map((group) => (
-                  <CardGroupRow
-                    key={`${group.setId}::${group.cardId}`}
-                    config={config}
-                    group={group}
-                    isExpanded={expandedCards.has(group.cardId)}
-                    onToggle={() => toggleExpanded(group.cardId)}
-                    onMap={handleMap}
-                    isSaving={saveMutation.isPending}
-                    onUnmap={(printingId) => unmapMutation.mutate(printingId)}
-                    isUnmapping={unmapMutation.isPending}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+        {setGroups.map((setGroup) => (
+          <div key={setGroup.setId}>
+            {/* Set header — mirrors the card grid's set divider style */}
+            <div className="flex items-center gap-3 pt-4 pb-2">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-sm font-medium text-muted-foreground">{setGroup.setId}</span>
+              <span className="text-sm font-semibold">{setGroup.setName}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {setGroup.cards.length}
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8" />
+                    <TableHead>Card</TableHead>
+                    <TableHead
+                      className="text-center"
+                      title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
+                    >
+                      Printings
+                    </TableHead>
+                    <TableHead
+                      className="text-center"
+                      title={`${config.displayName} products awaiting manual assignment to a printing`}
+                    >
+                      Staged {config.shortName}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {setGroup.cards.map((group) => (
+                    <CardGroupRow
+                      key={`${group.setId}::${group.cardId}`}
+                      config={config}
+                      group={group}
+                      isExpanded={expandedCards.has(group.cardId)}
+                      onToggle={() => toggleExpanded(group.cardId)}
+                      onMap={handleMap}
+                      isSaving={saveMutation.isPending}
+                      onUnmap={(printingId) => unmapMutation.mutate(printingId)}
+                      isUnmapping={unmapMutation.isPending}
+                      onBatchAccept={() => handleBatchAccept(group)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
-        )}
+        ))}
 
         {unmatchedProducts.length > 0 && (
           <div className="mt-6">
@@ -333,19 +410,25 @@ function CardGroupRow({
   isSaving,
   onUnmap,
   isUnmapping,
+  onBatchAccept,
 }: {
   config: SourceMappingConfig;
   group: MappingGroup;
   isExpanded: boolean;
   onToggle: () => void;
-  onMap: (printingId: string, externalId: number) => void;
+  onMap: (printingId: string, externalId: number, cardId: string) => void;
   isSaving: boolean;
   onUnmap: (printingId: string) => void;
   isUnmapping: boolean;
+  onBatchAccept: () => void;
 }) {
   const unmappedCount = group.printings.filter((p) => p.externalId === null).length;
   const suggestions = computeSuggestions(group);
   const suggestionCount = suggestions.size;
+
+  const handleMapForCard = (printingId: string, externalId: number) => {
+    onMap(printingId, externalId, group.cardId);
+  };
 
   return (
     <>
@@ -357,8 +440,16 @@ function CardGroupRow({
             <ChevronRightIcon className="size-4" />
           )}
         </TableCell>
-        <TableCell className="font-medium">{group.cardName}</TableCell>
-        <TableCell>{group.setName}</TableCell>
+        <TableCell className="font-medium">
+          <span className="text-muted-foreground font-normal mr-2">
+            {
+              group.printings.reduce((best, p) =>
+                p.collectorNumber < best.collectorNumber ? p : best,
+              ).sourceId
+            }
+          </span>
+          {group.cardName}
+        </TableCell>
         <TableCell className="text-center">
           {group.printings.length}
           {unmappedCount > 0 && (
@@ -380,14 +471,15 @@ function CardGroupRow({
 
       {isExpanded && (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={5} className="p-0">
+          <TableCell colSpan={4} className="p-0">
             <ExpandedDetail
               config={config}
               group={group}
-              onMap={onMap}
+              onMap={handleMapForCard}
               isSaving={isSaving}
               onUnmap={onUnmap}
               isUnmapping={isUnmapping}
+              onBatchAccept={onBatchAccept}
             />
           </TableCell>
         </TableRow>
@@ -447,6 +539,7 @@ function ExpandedDetail({
   isSaving,
   onUnmap,
   isUnmapping,
+  onBatchAccept,
 }: {
   config: SourceMappingConfig;
   group: MappingGroup;
@@ -454,6 +547,7 @@ function ExpandedDetail({
   isSaving: boolean;
   onUnmap: (printingId: string) => void;
   isUnmapping: boolean;
+  onBatchAccept: () => void;
 }) {
   const suggestions = computeSuggestions(group);
 
@@ -461,9 +555,33 @@ function ExpandedDetail({
     <div className="flex flex-col gap-6 bg-muted/30 px-4 py-4 sm:flex-row sm:px-6">
       {/* Printings — card-like grid */}
       <div className="min-w-0">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Printings
-        </h4>
+        <div className="mb-3 flex items-center gap-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Printings
+          </h4>
+          {suggestions.size > 0 &&
+            (() => {
+              const allStrong = [...suggestions.values()].every(
+                (s) => s.score >= STRONG_MATCH_THRESHOLD,
+              );
+              return (
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium disabled:opacity-50",
+                    allStrong
+                      ? "border border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
+                      : "border border-solid border-yellow-600/50 bg-yellow-500/10 text-yellow-700 hover:bg-yellow-500/20 dark:text-yellow-400",
+                  )}
+                  disabled={isSaving}
+                  onClick={onBatchAccept}
+                >
+                  <WandSparklesIcon className="size-3" />
+                  Accept {suggestions.size} suggestion{suggestions.size === 1 ? "" : "s"}
+                </button>
+              );
+            })()}
+        </div>
         <div className="flex flex-wrap gap-4">
           {group.printings.map((p) => {
             const suggestion = p.externalId === null ? suggestions.get(p.printingId) : undefined;
