@@ -192,11 +192,15 @@ export function CardGridDebug({
             if (hasLine1) {
               const l1 = (metaEl as Element).children[childIdx];
               l1Rect = l1?.getBoundingClientRect();
+              const l1CS = l1 ? getComputedStyle(l1) : undefined;
+              const l1Info = l1CS
+                ? `lh=${l1CS.lineHeight} fs=${l1CS.fontSize} font=${l1CS.fontFamily.split(",")[0]}`
+                : "";
               metaChildren.push({
                 label: "L1",
                 exp: line1Height,
                 meas: l1Rect?.height ?? 0,
-                note: !compact && aboveSm ? "sm:text-sm" : "text-xs",
+                note: `${!compact && aboveSm ? "sm:text-sm" : "text-xs"} ${l1Info}`,
               });
               childIdx++;
             }
