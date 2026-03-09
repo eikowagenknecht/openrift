@@ -9,7 +9,7 @@ const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname.startsWith("/api/")) {
+    if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/card-images/")) {
       const backend = new URL(url.pathname + url.search, env.API_BACKEND);
       const headers = new Headers(request.headers);
       headers.set("Host", new URL(env.API_BACKEND).host);

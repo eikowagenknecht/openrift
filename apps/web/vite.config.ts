@@ -1,6 +1,8 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- Vite config runs in Node.js
 import { execSync } from "node:child_process";
 // oxlint-disable-next-line import/no-nodejs-modules -- Vite config runs in Node.js
+import { createReadStream, existsSync } from "node:fs";
+// oxlint-disable-next-line import/no-nodejs-modules -- Vite config runs in Node.js
 import path from "node:path";
 
 import tailwindcss from "@tailwindcss/vite";
@@ -11,12 +13,32 @@ import { VitePWA } from "vite-plugin-pwa";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
 const proxy = { "/api": "http://localhost:3000" };
+const cardImagesDir = path.resolve(__dirname, "../../card-images");
 
 export default defineConfig({
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
   },
   plugins: [
+    // Serve /card-images/ from repo root in dev (in prod, nginx bind mount handles this)
+    {
+      name: "serve-card-images",
+      configureServer(server) {
+        server.middlewares.use("/card-images", (req, res, next) => {
+          const filePath = path.join(cardImagesDir, req.url?.split("?")[0] ?? "");
+          if (!existsSync(filePath)) return next();
+          const ext = path.extname(filePath).toLowerCase();
+          const mime =
+            ext === ".webp"
+              ? "image/webp"
+              : ext === ".png"
+                ? "image/png"
+                : "application/octet-stream";
+          res.setHeader("Content-Type", mime);
+          createReadStream(filePath).pipe(res);
+        });
+      },
+    },
     TanStackRouterVite(),
     tailwindcss(),
     react({

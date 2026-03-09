@@ -12,6 +12,8 @@ import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { getRehostStatus, regenerateImages, rehostImages } from "../services/image-rehost.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
 export const adminRoute = new Hono<{ Variables: Variables }>();
@@ -1779,5 +1781,45 @@ adminRoute.post("/admin/refresh-cardmarket-prices", async (c) => {
   } catch (error) {
     console.error("[admin] refresh-cardmarket-prices failed:", error);
     return c.json({ error: "Cardmarket price refresh failed" }, 500);
+  }
+});
+
+// ── POST /admin/rehost-images ────────────────────────────────────────────────
+
+adminRoute.use("/admin/rehost-images", requireAdmin);
+adminRoute.post("/admin/rehost-images", async (c) => {
+  try {
+    const result = await rehostImages(db);
+    return c.json({ status: "ok", result });
+  } catch (error) {
+    console.error("[admin] rehost-images failed:", error);
+    return c.json({ error: "Image rehosting failed" }, 500);
+  }
+});
+
+// ── POST /admin/regenerate-images ─────────────────────────────────────────────
+
+adminRoute.use("/admin/regenerate-images", requireAdmin);
+adminRoute.post("/admin/regenerate-images", async (c) => {
+  const offset = Number(c.req.query("offset") ?? 0);
+  try {
+    const result = await regenerateImages(offset);
+    return c.json({ status: "ok", result });
+  } catch (error) {
+    console.error("[admin] regenerate-images failed:", error);
+    return c.json({ error: "Image regeneration failed" }, 500);
+  }
+});
+
+// ── GET /admin/rehost-status ─────────────────────────────────────────────────
+
+adminRoute.use("/admin/rehost-status", requireAdmin);
+adminRoute.get("/admin/rehost-status", async (c) => {
+  try {
+    const result = await getRehostStatus(db);
+    return c.json(result);
+  } catch (error) {
+    console.error("[admin] rehost-status failed:", error);
+    return c.json({ error: "Failed to get rehost status" }, 500);
   }
 });
