@@ -131,8 +131,9 @@ export function CardGridDebug({
       const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
 
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const interLoaded = document.fonts.check('12px "Inter Variable"');
       const lines = [
-        `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length} cols=${columns} cW=${cardWidth.toFixed(0)} rem=${rootFontSize}`,
+        `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length} cols=${columns} cW=${cardWidth.toFixed(0)} rem=${rootFontSize} inter=${interLoaded}`,
       ];
 
       // Find first card row and build measurement tree
