@@ -42,7 +42,7 @@ Collections represent physical storage locations (binders, deck boxes, drawers, 
 
 **Inbox collection:** Every user has exactly one inbox collection, auto-created the first time they interact with collection tracking. The inbox is where cards land during intake (booster openings, quick-adds) before the user sorts them into their real collections. It cannot be deleted. A boolean `is_inbox` flag identifies it, enforced by a partial unique index (`one inbox per user`). The inbox is always `available_for_deckbuilding = true`.
 
-A boolean `available_for_deckbuilding` flag controls whether copies in a collection are considered when building decks. Default true. Collections like "Deck Box 1" (an assembled deck the user doesn't want to cannibalize) can be excluded while still being visible as "available if needed" in the UI.
+A boolean `available_for_deckbuilding` flag controls whether copies in a collection are considered when building decks. Default true. Collections like "Deck Box 1" (an assembled deck the user doesn't want to cannibalize) can be excluded. _UI note:_ Excluded collections are still visible as "available if needed" in the deck builder.
 
 **Collection deletion:** A collection can only be deleted after all its copies have been moved elsewhere. The inbox collection cannot be deleted. For other collections, the API endpoint requires a `move_copies_to` collection ID — it moves all copies to the target collection (creating `reorganization` activity items), then deletes the now-empty collection. The bare FK on `copies.collection_id` (default `RESTRICT`) acts as a safety net: Postgres blocks the delete if any copies still reference it.
 
@@ -71,7 +71,7 @@ Every mutation to the collection happens through an activity — analogous to a 
 - `trade` — both directions in one session
 - `reorganization` — cards move between collections, net zero
 
-**Auto-activities:** Casual actions (dragging a card between collections, quick-adding a card) don't require the user to fill out a form. Each casual action creates its own auto-activity (`is_auto = true`, `name = NULL`) with a single activity item. This keeps undo granular — undoing the latest activity always reverses exactly one action. The activity history UI groups auto-activities by date and type for display (e.g., "2 cards added · 3 cards reorganized"), so the history stays clean despite the one-activity-per-action granularity.
+**Auto-activities:** Casual actions (dragging a card between collections, quick-adding a card) don't require the user to fill out a form. Each casual action creates its own auto-activity (`is_auto = true`, `name = NULL`) with a single activity item. This keeps undo granular — undoing the latest activity always reverses exactly one action. _UI note:_ The activity history groups auto-activities by date and type for display (e.g., "2 cards added · 3 cards reorganized"), so the history stays clean despite the one-activity-per-action granularity.
 
 **Activity items** record individual copy mutations:
 
@@ -81,7 +81,7 @@ Every mutation to the collection happens through an activity — analogous to a 
 
 **Collection deletion:** Activity items denormalize collection names (`from_collection_name`, `to_collection_name`) at creation time. The collection FKs use `ON DELETE SET NULL`, so deleting a collection nulls the FK but the human-readable name survives in the history. This keeps history readable ("moved from Binder 1 to Deck Box 12") even after Binder 1 is deleted.
 
-**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). The entire undo runs in a single transaction — either every mutation is reversed or none are. Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Undo is blocked when the world has changed in ways that make reversal ambiguous: (1) any collection referenced by the activity's items has been deleted — detectable because the collection FK columns (`from_collection_id`, `to_collection_id`) are never legitimately NULL (each action type always sets the columns relevant to it), so a NULL means `ON DELETE SET NULL` fired, i.e. the collection is gone; (2) any copies that would be deleted (reversing an acquisition) are on a trade list — the `RESTRICT` FK on `trade_list_items.copy_id` enforces this at the database level, and the app checks proactively so it can explain why. In both cases the UI disables the undo button and explains what needs to change first (remove copies from trade lists, or accept that the collection is gone). When undo re-creates copies (reversing a disposal), it does not restore trade list memberships that the user manually removed before the disposal — that removal was an explicit user action.
+**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). The entire undo runs in a single transaction — either every mutation is reversed or none are. Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Undo is blocked when the world has changed in ways that make reversal ambiguous: (1) any collection referenced by the activity's items has been deleted — detectable because the collection FK columns (`from_collection_id`, `to_collection_id`) are never legitimately NULL (each action type always sets the columns relevant to it), so a NULL means `ON DELETE SET NULL` fired, i.e. the collection is gone; (2) any copies that would be deleted (reversing an acquisition) are on a trade list — the `RESTRICT` FK on `trade_list_items.copy_id` enforces this at the database level, and the app checks proactively so it can explain why. _UI note:_ In both cases the undo button is disabled with an explanation of what needs to change first (remove copies from trade lists, or accept that the collection is gone). When undo re-creates copies (reversing a disposal), it does not restore trade list memberships that the user manually removed before the disposal — that removal was an explicit user action.
 
 ### Decks
 
@@ -104,23 +104,27 @@ Three sources of "what do I need":
 
 1. **Deck requirements (virtual):** Not stored as wish list items. For each card in a wanted deck (`is_wanted = true`), the query counts available copies (in collections where `available_for_deckbuilding = true`) and computes the shortfall. Always accurate, never goes stale. No table needed.
 
-2. **Manual wish lists:** User-curated stored items. Can target a specific printing ("I want this exact foil") or a card ("I want 4 copies of Fireball, any printing"). Each item has a `quantity_desired`. Items persist when fulfilled — the "still needed" count is computed at query time (`desired - owned`), so if the user later trades away a card, the wish list automatically reflects the gap. When a wish item targets a specific printing, only copies of that exact printing count toward fulfillment — other printings of the same card are not considered.
+2. **Wish lists:** A wish list can have manual items, dynamic rules, or both.
 
-3. **Dynamic wish lists:** A saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card" or "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level validation via Zod. Postgres JSONB supports indexing and querying, and Kysely handles JSONB columns natively. The exact rule schema will be defined as Zod types in `packages/shared` at implementation time.
+   **Manual items** are user-curated. Each targets either a specific printing ("I want this exact foil") or a card ("I want 4 copies of Fireball, any printing") with a `quantity_desired`. Items persist when fulfilled — the "still needed" count is computed at query time (`desired - owned`), so trading away a card automatically reflects the gap. When a wish item targets a specific printing, only copies of that exact printing count toward fulfillment.
 
-A unified "shopping list" UI view merges all three sources. All desired quantities are summed independently across all sources (wanted decks, manual wish lists, dynamic wish lists), then available copies are subtracted once. For example: own 5 available Fireballs, Deck A wants 4, Deck B wants 4, manual wish list wants 6 → `4 + 4 + 6 - 5 = 9 needed`.
+   **Dynamic rules** are a saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card", "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level Zod validation. The exact rule schema will be defined as Zod types in `packages/shared` at implementation time.
+
+   A single list can combine both — e.g., a "Spiritforged" wish list with a dynamic rule for all commons plus manually pinned rares.
+
+_UI note — Shopping list:_ A unified view merges all three sources. Desired quantities are summed independently across all sources (wanted decks, manual items, dynamic rules), then available copies are subtracted once. Example: own 5 available Fireballs, Deck A wants 4, Deck B wants 4, manual wish list wants 6 → `4 + 4 + 6 - 5 = 9 needed`.
 
 ### Trade Lists
 
-Two flavors:
+A trade list can have manual items, dynamic rules, or both.
 
-1. **Manual trade lists:** User curates a list of specific copies to trade/sell. A copy can appear in multiple trade lists but cannot appear in any single list more times than the user owns it. Disposing a copy that appears on trade lists is not automatic — the UI prompts the user to confirm removal from all affected trade lists first ("This copy is on Trade List X. Remove it and dispose? This can't be undone."). The FK on `trade_list_items.copy_id` uses default `RESTRICT`, so Postgres blocks disposal if the app layer somehow skips the check.
+**Manual items** are specific copies the user wants to trade/sell. A copy can appear in multiple trade lists but cannot appear in any single list more times than the user owns it. Disposing a copy on a trade list requires removing it from the list first. _UI note:_ The app prompts confirmation ("This copy is on Trade List X. Remove it and dispose? This can't be undone."). The FK on `trade_list_items.copy_id` uses default `RESTRICT`, so Postgres blocks disposal if the app layer somehow skips the check.
 
-2. **Dynamic trade lists:** A saved JSONB filter definition evaluated at query time (e.g., "all copies beyond the 4th of each card, in Binder 1 or Deck Box 12, worth < 1 EUR on Cardmarket"). Results change as prices and inventory change.
+**Dynamic rules** are a saved JSONB filter definition evaluated at query time (e.g., "all copies beyond the 4th of each card, in Binder 1 or Deck Box 12, worth < 1 EUR on Cardmarket"). Results change as prices and inventory change. Rules are stored as JSONB with app-level Zod validation.
 
-Dynamic trade list rules are also stored as JSONB with app-level Zod validation. Postgres JSONB supports indexing and querying, and Kysely handles JSONB columns natively.
+A single list can combine both — e.g., manually pinned copies plus a dynamic rule for surplus commons.
 
-A unified "trade binder" UI view merges all trade lists into a deduplicated list of copies available for trade. Since a copy can appear in multiple trade lists, the view deduplicates by copy — each physical card appears once regardless of how many lists include it.
+_UI note — Trade binder:_ A unified view merges all trade lists into a deduplicated list of copies available for trade. Each physical card appears once regardless of how many lists include it.
 
 ## Schema
 
@@ -178,11 +182,11 @@ CREATE TABLE copies (
     FOREIGN KEY (collection_id, user_id) REFERENCES collections(id, user_id),
   source_id     uuid,
   -- Composite FK: same pattern as collection — prevents cross-user
-  -- source references. ON DELETE SET NULL nulls source_id when a source
-  -- is deleted (user_id stays, only the FK pair is evaluated).
+  -- source references. Column-list SET NULL (Postgres 15+) nulls only
+  -- source_id when a source is deleted — user_id (NOT NULL) stays intact.
   CONSTRAINT fk_copies_source_user
     FOREIGN KEY (source_id, user_id) REFERENCES sources(id, user_id)
-    ON DELETE SET NULL,
+    ON DELETE SET NULL (source_id),
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
@@ -237,14 +241,25 @@ CREATE TABLE activity_items (
   -- Composite FK: ensures the copy belongs to the same user. When copy_id
   -- is NULL (copy was disposed), the FK is not evaluated.
   copy_id              uuid,
+  -- Column-list SET NULL (Postgres 15+): only copy_id is nulled when a
+  -- copy is deleted — user_id (NOT NULL) stays intact.
   CONSTRAINT fk_activity_items_copy_user
     FOREIGN KEY (copy_id, user_id) REFERENCES copies(id, user_id)
-    ON DELETE SET NULL,
+    ON DELETE SET NULL (copy_id),
   printing_id          text NOT NULL REFERENCES printings(id),
   action               text NOT NULL,
-  from_collection_id   uuid REFERENCES collections(id) ON DELETE SET NULL,
+  -- Composite FKs: ensures collection refs belong to the same user.
+  -- Column-list SET NULL: only the collection ID is nulled when a
+  -- collection is deleted — user_id stays intact.
+  from_collection_id   uuid,
+  CONSTRAINT fk_activity_items_from_collection_user
+    FOREIGN KEY (from_collection_id, user_id) REFERENCES collections(id, user_id)
+    ON DELETE SET NULL (from_collection_id),
   from_collection_name text,
-  to_collection_id     uuid REFERENCES collections(id) ON DELETE SET NULL,
+  to_collection_id     uuid,
+  CONSTRAINT fk_activity_items_to_collection_user
+    FOREIGN KEY (to_collection_id, user_id) REFERENCES collections(id, user_id)
+    ON DELETE SET NULL (to_collection_id),
   to_collection_name   text,
   metadata_snapshot    jsonb,
   created_at           timestamptz NOT NULL DEFAULT now(),
@@ -261,6 +276,7 @@ CREATE TABLE decks (
   id         uuid PRIMARY KEY,
   user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name        text NOT NULL,
+  description text,
   format      text NOT NULL,
   is_wanted   boolean NOT NULL DEFAULT false,
   is_public   boolean NOT NULL DEFAULT false,
@@ -279,6 +295,7 @@ CREATE TABLE deck_cards (
   card_id  text NOT NULL REFERENCES cards(id),
   zone     text NOT NULL,
   quantity integer NOT NULL DEFAULT 1,
+  CONSTRAINT chk_deck_cards_quantity CHECK (quantity > 0),
   CONSTRAINT chk_deck_cards_zone CHECK (zone IN ('main', 'sideboard')),
   CONSTRAINT uq_deck_cards UNIQUE (deck_id, card_id, zone)
 );
@@ -290,7 +307,6 @@ CREATE TABLE wish_lists (
   id         uuid PRIMARY KEY,
   user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       text NOT NULL,
-  is_dynamic  boolean NOT NULL DEFAULT false,
   rules       jsonb,
   share_token text UNIQUE,
   created_at  timestamptz NOT NULL DEFAULT now(),
@@ -299,7 +315,7 @@ CREATE TABLE wish_lists (
 -- List a user's wish lists (wish list page, shopping list aggregation)
 CREATE INDEX idx_wish_lists_user_id ON wish_lists(user_id);
 
--- ── Wish List Items (static only) ────────────────────────────────
+-- ── Wish List Items ──────────────────────────────────────────────
 -- Each unique constraint only fires for its non-NULL column (Postgres
 -- ignores NULLs in unique indexes), so together with the CHECK they
 -- prevent duplicate card-targeted or printing-targeted items per list.
@@ -325,7 +341,6 @@ CREATE TABLE trade_lists (
   id         uuid PRIMARY KEY,
   user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       text NOT NULL,
-  is_dynamic  boolean NOT NULL DEFAULT false,
   rules       jsonb,
   share_token text UNIQUE,
   created_at  timestamptz NOT NULL DEFAULT now(),
@@ -333,12 +348,25 @@ CREATE TABLE trade_lists (
 );
 -- List a user's trade lists (trade list page, trade binder aggregation)
 CREATE INDEX idx_trade_lists_user_id ON trade_lists(user_id);
+-- Required so that trade_list_items can FK on (id, user_id) together —
+-- prevents an item from referencing another user's trade list.
+ALTER TABLE trade_lists ADD CONSTRAINT uq_trade_lists_id_user
+  UNIQUE (id, user_id);
 
--- ── Trade List Items (static only) ────────────────────────────────
+-- ── Trade List Items ─────────────────────────────────────────────
 CREATE TABLE trade_list_items (
   id            uuid PRIMARY KEY,
-  trade_list_id uuid NOT NULL REFERENCES trade_lists(id) ON DELETE CASCADE,
-  copy_id       uuid NOT NULL REFERENCES copies(id),
+  trade_list_id uuid NOT NULL,
+  user_id       text NOT NULL,
+  -- Composite FK: ensures the trade list belongs to the same user.
+  CONSTRAINT fk_trade_list_items_list_user
+    FOREIGN KEY (trade_list_id, user_id) REFERENCES trade_lists(id, user_id)
+    ON DELETE CASCADE,
+  -- Composite FK: ensures the copy belongs to the same user —
+  -- prevents adding another user's copy to your trade list.
+  copy_id       uuid NOT NULL,
+  CONSTRAINT fk_trade_list_items_copy_user
+    FOREIGN KEY (copy_id, user_id) REFERENCES copies(id, user_id),
   CONSTRAINT uq_trade_list_items UNIQUE (trade_list_id, copy_id)
 );
 -- Load all copies on a trade list (trade list detail, trade binder dedup)
