@@ -6,7 +6,6 @@ import { CandidateDiffRow } from "@/components/admin/candidate-diff-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useAcceptCandidate,
   useBatchAcceptCandidates,
@@ -17,8 +16,8 @@ import {
 } from "@/hooks/use-candidates";
 
 export function CandidatesPage() {
-  const [tab, setTab] = useState<"new" | "updates">("new");
-  const { data: candidates, isLoading } = useCandidates(tab);
+  const { data: newCandidates, isLoading: newLoading } = useCandidates("new");
+  const { data: updateCandidates, isLoading: updatesLoading } = useCandidates("updates");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const acceptMutation = useAcceptCandidate();
@@ -40,13 +39,13 @@ export function CandidatesPage() {
   }
 
   function toggleSelectAll() {
-    if (!candidates) {
+    if (!newCandidates) {
       return;
     }
-    if (selected.size === candidates.length) {
+    if (selected.size === newCandidates.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(candidates.map((c) => c.id)));
+      setSelected(new Set(newCandidates.map((c) => c.id)));
     }
   }
 
@@ -60,7 +59,7 @@ export function CandidatesPage() {
     });
   }
 
-  if (isLoading) {
+  if (newLoading || updatesLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-48" />
@@ -69,45 +68,33 @@ export function CandidatesPage() {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      <Tabs
-        value={tab}
-        onValueChange={(v) => {
-          setTab(v as "new" | "updates");
-          setSelected(new Set());
-        }}
-      >
-        <div className="flex items-center justify-between gap-4">
-          <TabsList>
-            <TabsTrigger value="new">
-              New Cards
-              {tab === "new" && candidates && (
-                <Badge variant="secondary" className="ml-1.5">
-                  {candidates.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="updates">
-              Updates
-              {tab === "updates" && candidates && (
-                <Badge variant="secondary" className="ml-1.5">
-                  {candidates.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+  const newCards = newCandidates ?? [];
+  const updates = updateCandidates ?? [];
 
-          {tab === "new" && selected.size > 0 && (
+  return (
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">New Cards</h2>
+            {newCards.length > 0 && <Badge variant="secondary">{newCards.length}</Badge>}
+          </div>
+          {selected.size > 0 && (
             <Button size="sm" disabled={batchAcceptMutation.isPending} onClick={handleBatchAccept}>
               Accept {selected.size} selected
             </Button>
           )}
         </div>
-
-        <TabsContent value="new" className="mt-4">
-          <NewCardsTab
-            candidates={candidates ?? []}
+        <p className="text-sm text-muted-foreground">
+          Accepting a new card adds it to the catalog with its printings. Rejecting discards it.
+        </p>
+        {newCards.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            No new candidates pending.
+          </p>
+        ) : (
+          <NewCardsSection
+            candidates={newCards}
             selected={selected}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
@@ -117,30 +104,47 @@ export function CandidatesPage() {
             acceptPending={acceptMutation.isPending}
             rejectPending={rejectMutation.isPending}
           />
-        </TabsContent>
+        )}
+      </section>
 
-        <TabsContent value="updates" className="mt-4">
-          <UpdatesTab
-            candidates={candidates ?? []}
-            onAccept={(id, acceptedFields) => acceptMutation.mutate({ id, acceptedFields })}
-            onReject={(id) => rejectMutation.mutate(id)}
-            onCreateAlias={(candidateId, cardId) => aliasMutation.mutate({ candidateId, cardId })}
-            acceptPending={acceptMutation.isPending}
-            rejectPending={rejectMutation.isPending}
-          />
-        </TabsContent>
-      </Tabs>
-
-      {candidates && candidates.length === 0 && (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No {tab === "new" ? "new" : "update"} candidates pending.
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Updates</h2>
+          {updates.length > 0 && <Badge variant="secondary">{updates.length}</Badge>}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Accepting an update applies the selected fields to the existing card. Rejecting keeps the
+          current data.
         </p>
-      )}
+        {updates.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            No update candidates pending.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {updates.map((candidate) => (
+              <CandidateDiffRow
+                key={candidate.id}
+                candidate={candidate}
+                onAccept={(fields) =>
+                  acceptMutation.mutate({ id: candidate.id, acceptedFields: fields })
+                }
+                onReject={() => rejectMutation.mutate(candidate.id)}
+                onCreateAlias={(cardId) =>
+                  aliasMutation.mutate({ candidateId: candidate.id, cardId })
+                }
+                acceptPending={acceptMutation.isPending}
+                rejectPending={rejectMutation.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-function NewCardsTab({
+function NewCardsSection({
   candidates,
   selected,
   onToggleSelect,
@@ -161,10 +165,6 @@ function NewCardsTab({
   acceptPending: boolean;
   rejectPending: boolean;
 }) {
-  if (candidates.length === 0) {
-    return null;
-  }
-
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -185,42 +185,6 @@ function NewCardsTab({
           onAccept={() => onAccept(candidate.id)}
           onReject={() => onReject(candidate.id)}
           onEdit={(fields) => onEdit(candidate.id, fields)}
-          acceptPending={acceptPending}
-          rejectPending={rejectPending}
-        />
-      ))}
-    </div>
-  );
-}
-
-function UpdatesTab({
-  candidates,
-  onAccept,
-  onReject,
-  onCreateAlias,
-  acceptPending,
-  rejectPending,
-}: {
-  candidates: CandidateCard[];
-  onAccept: (id: string, acceptedFields: string[]) => void;
-  onReject: (id: string) => void;
-  onCreateAlias: (candidateId: string, cardId: string) => void;
-  acceptPending: boolean;
-  rejectPending: boolean;
-}) {
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-2">
-      {candidates.map((candidate) => (
-        <CandidateDiffRow
-          key={candidate.id}
-          candidate={candidate}
-          onAccept={(fields) => onAccept(candidate.id, fields)}
-          onReject={() => onReject(candidate.id)}
-          onCreateAlias={(cardId) => onCreateAlias(candidate.id, cardId)}
           acceptPending={acceptPending}
           rejectPending={rejectPending}
         />

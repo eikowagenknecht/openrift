@@ -59,7 +59,6 @@ export interface PrintingsTable {
   is_signed: boolean;
   is_promo: boolean;
   finish: string;
-  image_url: string | null;
   artist: string;
   public_code: string;
   printed_rules_text: string;
@@ -419,6 +418,18 @@ export interface CandidatePrintingsTable {
   created_at: CreatedAt;
 }
 
+export interface PrintingImagesTable {
+  id: Generated<string>;
+  printing_id: string;
+  face: string;
+  source: string;
+  original_url: string | null;
+  rehosted_url: string | null;
+  is_active: boolean;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
 export interface CardNameAliasesTable {
   alias: string;
   card_id: string;
@@ -470,4 +481,7 @@ export interface Database {
   candidate_cards: CandidateCardsTable;
   candidate_printings: CandidatePrintingsTable;
   card_name_aliases: CardNameAliasesTable;
+
+  // Image archive (migration 013)
+  printing_images: PrintingImagesTable;
 }

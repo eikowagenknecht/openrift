@@ -1,6 +1,7 @@
 import type { Collection } from "@openrift/shared";
 import { createCollectionSchema, updateCollectionSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
+import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
@@ -259,6 +260,12 @@ collectionsRoute.get("/collections/:id/copies", async (c) => {
     .selectFrom("copies as cp")
     .innerJoin("printings as p", "p.id", "cp.printing_id")
     .innerJoin("cards as c", "c.id", "p.card_id")
+    .leftJoin("printing_images as pi", (join) =>
+      join
+        .onRef("pi.printing_id", "=", "p.id")
+        .on("pi.face", "=", "front")
+        .on("pi.is_active", "=", true),
+    )
     .select([
       "cp.id",
       "cp.printing_id",
@@ -274,7 +281,7 @@ collectionsRoute.get("/collections/:id/copies", async (c) => {
       "p.is_signed",
       "p.is_promo",
       "p.finish",
-      "p.image_url",
+      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
       "p.artist",
       "c.name as card_name",
       "c.type as card_type",

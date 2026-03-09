@@ -1,5 +1,6 @@
 import type { Activity, ActivityType } from "@openrift/shared";
 import { Hono } from "hono";
+import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
@@ -76,6 +77,12 @@ activitiesRoute.get("/activities/:id", async (c) => {
     .selectFrom("activity_items as ai")
     .innerJoin("printings as p", "p.id", "ai.printing_id")
     .innerJoin("cards as card", "card.id", "p.card_id")
+    .leftJoin("printing_images as pi", (join) =>
+      join
+        .onRef("pi.printing_id", "=", "p.id")
+        .on("pi.face", "=", "front")
+        .on("pi.is_active", "=", true),
+    )
     .select([
       "ai.id",
       "ai.activity_id",
@@ -89,7 +96,7 @@ activitiesRoute.get("/activities/:id", async (c) => {
       "ai.to_collection_name",
       "ai.metadata_snapshot",
       "ai.created_at",
-      "p.image_url",
+      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
       "p.set_id",
       "p.collector_number",
       "p.rarity",

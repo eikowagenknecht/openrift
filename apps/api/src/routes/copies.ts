@@ -1,5 +1,6 @@
 import { addCopiesSchema, disposeCopiesSchema, moveCopiesSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
+import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
@@ -18,6 +19,50 @@ export const copiesRoute = new Hono<{ Variables: Variables }>();
 
 copiesRoute.use("/copies/*", requireAuth);
 copiesRoute.use("/copies", requireAuth);
+
+// ── GET /copies ───────────────────────────────────────────────────────────────
+// All copies for the authenticated user (combined view)
+
+copiesRoute.get("/copies", async (c) => {
+  const userId = getUserId(c);
+
+  const copies = await db
+    .selectFrom("copies as cp")
+    .innerJoin("printings as p", "p.id", "cp.printing_id")
+    .innerJoin("cards as card", "card.id", "p.card_id")
+    .leftJoin("printing_images as pi", (join) =>
+      join
+        .onRef("pi.printing_id", "=", "p.id")
+        .on("pi.face", "=", "front")
+        .on("pi.is_active", "=", true),
+    )
+    .select([
+      "cp.id",
+      "cp.printing_id",
+      "cp.collection_id",
+      "cp.source_id",
+      "cp.created_at",
+      "cp.updated_at",
+      "p.card_id",
+      "p.set_id",
+      "p.collector_number",
+      "p.rarity",
+      "p.art_variant",
+      "p.is_signed",
+      "p.is_promo",
+      "p.finish",
+      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
+      "p.artist",
+      "card.name as card_name",
+      "card.type as card_type",
+    ])
+    .where("cp.user_id", "=", userId)
+    .orderBy("card.name")
+    .orderBy("p.collector_number")
+    .execute();
+
+  return c.json(copies);
+});
 
 // ── POST /copies ──────────────────────────────────────────────────────────────
 // Batch add copies (acquisition)
@@ -231,6 +276,12 @@ copiesRoute.get("/copies/:id", async (c) => {
     .selectFrom("copies as cp")
     .innerJoin("printings as p", "p.id", "cp.printing_id")
     .innerJoin("cards as card", "card.id", "p.card_id")
+    .leftJoin("printing_images as pi", (join) =>
+      join
+        .onRef("pi.printing_id", "=", "p.id")
+        .on("pi.face", "=", "front")
+        .on("pi.is_active", "=", true),
+    )
     .select([
       "cp.id",
       "cp.printing_id",
@@ -242,7 +293,7 @@ copiesRoute.get("/copies/:id", async (c) => {
       "p.set_id",
       "p.collector_number",
       "p.rarity",
-      "p.image_url",
+      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
       "card.name as card_name",
       "card.type as card_type",
     ])

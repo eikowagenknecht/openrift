@@ -20,7 +20,7 @@ function findProjectRoot(): string {
   throw new Error("Could not find project root (no bun.lock found)");
 }
 
-const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
+export const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
 
 const SIZES = [
   { suffix: "300w", width: 300, quality: 85 },
@@ -43,7 +43,7 @@ interface RehostProgress {
  * File format:        `{source_id}-{art_variant}-{y|n}-{y|n}-{finish}`
  * @returns The filesystem-safe filename base
  */
-function printingIdToFileBase(printingId: string): string {
+export function printingIdToFileBase(printingId: string): string {
   const [sourceId, artVariant, signed, promo, finish] = printingId.split(":");
   return `${sourceId}-${artVariant}-${signed ? "y" : "n"}-${promo ? "y" : "n"}-${finish}`;
 }
@@ -65,7 +65,7 @@ function guessExtension(contentType: string | null, url: string): string {
   return ext || ".png";
 }
 
-async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string }> {
+export async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string }> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Download failed (${res.status}): ${url}`);
@@ -91,7 +91,7 @@ async function generateWebpVariants(
   }
 }
 
-async function processAndSave(
+export async function processAndSave(
   buffer: Buffer,
   originalExt: string,
   outputDir: string,
@@ -105,49 +105,53 @@ async function processAndSave(
 const BATCH_SIZE = 10;
 
 export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress> {
-  // Process a small batch per request to avoid timeouts
-  const printings = await db
-    .selectFrom("printings")
-    .select(["id", "image_url", "set_id", "source_id"])
-    .where("image_url", "not like", "/card-images/%")
+  // Find active front images that haven't been rehosted yet
+  const images = await db
+    .selectFrom("printing_images as pi")
+    .innerJoin("printings as p", "p.id", "pi.printing_id")
+    .select(["pi.id as image_id", "pi.printing_id", "pi.original_url", "p.set_id"])
+    .where("pi.is_active", "=", true)
+    .where("pi.face", "=", "front")
+    .where("pi.rehosted_url", "is", null)
+    .where("pi.original_url", "is not", null)
     .limit(BATCH_SIZE)
     .execute();
 
   const progress: RehostProgress = {
-    total: printings.length,
+    total: images.length,
     rehosted: 0,
     skipped: 0,
     failed: 0,
     errors: [],
   };
 
-  for (const printing of printings) {
-    if (!printing.image_url) {
+  for (const img of images) {
+    if (!img.original_url) {
       progress.skipped++;
       continue;
     }
 
     try {
-      const { buffer, ext } = await downloadImage(printing.image_url);
-      const fileBase = printingIdToFileBase(printing.id);
-      const outputDir = join(CARD_IMAGES_DIR, printing.set_id);
+      const { buffer, ext } = await downloadImage(img.original_url);
+      const fileBase = printingIdToFileBase(img.printing_id);
+      const outputDir = join(CARD_IMAGES_DIR, img.set_id);
 
       await processAndSave(buffer, ext, outputDir, fileBase);
 
-      // Update image_url to the self-hosted path (without size suffix or extension)
-      const selfHostedPath = `/card-images/${printing.set_id}/${fileBase}`;
+      const selfHostedPath = `/card-images/${img.set_id}/${fileBase}`;
+
       await db
-        .updateTable("printings")
-        .set({ image_url: selfHostedPath })
-        .where("id", "=", printing.id)
+        .updateTable("printing_images")
+        .set({ rehosted_url: selfHostedPath, updated_at: new Date() })
+        .where("id", "=", img.image_id)
         .execute();
 
       progress.rehosted++;
     } catch (error) {
       progress.failed++;
       const message = error instanceof Error ? error.message : String(error);
-      progress.errors.push(`${printing.id}: ${message}`);
-      console.error(`[rehost] Failed for ${printing.id}:`, message);
+      progress.errors.push(`${img.printing_id}: ${message}`);
+      console.error(`[rehost] Failed for ${img.printing_id}:`, message);
     }
   }
 
@@ -267,15 +271,18 @@ export async function getRehostStatus(db: Kysely<Database>): Promise<{
     db
       .selectFrom("printings")
       .innerJoin("sets", "sets.id", "printings.set_id")
+      .leftJoin("printing_images as pi", (jb) =>
+        jb
+          .onRef("pi.printing_id", "=", "printings.id")
+          .on("pi.face", "=", "front")
+          .on("pi.is_active", "=", true),
+      )
       .select([
         "printings.set_id as setId",
         "sets.name as setName",
         ({ fn }) => fn.countAll<number>().as("total"),
         ({ fn }) =>
-          fn
-            .count<number>("printings.id")
-            .filterWhere("printings.image_url", "like", "/card-images/%")
-            .as("rehosted"),
+          fn.count<number>("pi.id").filterWhere("pi.rehosted_url", "is not", null).as("rehosted"),
       ])
       .groupBy(["printings.set_id", "sets.name"])
       .orderBy("sets.name")

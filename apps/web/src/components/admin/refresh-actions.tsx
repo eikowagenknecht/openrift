@@ -14,7 +14,7 @@ export interface CronStatus {
 
 interface CatalogChange {
   kind: "added" | "updated" | "stale";
-  entity: "set" | "card" | "printing";
+  entity: "set" | "card" | "printing" | "image";
   id: string;
   name?: string;
   fields?: string[];
@@ -24,6 +24,7 @@ interface CatalogResult {
   sets: { total: number; names: string[] };
   cards: { total: number };
   printings: { total: number };
+  images: { total: number; added: number; updated: number };
   changes: CatalogChange[];
 }
 
@@ -142,19 +143,35 @@ export function useCronStatus() {
 // ── Result display components ─────────────────────────────────────────────────
 
 function CatalogResultDisplay({ result }: { result: CatalogResult }) {
-  const added = result.changes.filter((c) => c.kind === "added");
-  const updated = result.changes.filter((c) => c.kind === "updated");
-  const stale = result.changes.filter((c) => c.kind === "stale");
+  const images = result.images ?? { total: 0, added: 0, updated: 0 };
+  // Separate image changes (can be very numerous) from entity changes
+  const nonImageChanges = result.changes.filter((c) => c.entity !== "image");
+  const added = nonImageChanges.filter((c) => c.kind === "added");
+  const updated = nonImageChanges.filter((c) => c.kind === "updated");
+  const stale = nonImageChanges.filter((c) => c.kind === "stale");
+  const hasImageChanges = images.added > 0 || images.updated > 0;
 
   return (
     <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
       <p>
-        {result.sets.total} sets, {result.cards.total} cards, {result.printings.total} printings
+        {result.sets.total} sets, {result.cards.total} cards, {result.printings.total} printings,{" "}
+        {images.total} images
       </p>
-      {result.changes.length === 0 ? (
+      {nonImageChanges.length === 0 && !hasImageChanges ? (
         <p className="text-green-600 dark:text-green-400">No changes detected</p>
       ) : (
         <div className="space-y-1">
+          {hasImageChanges && (
+            <p className="font-medium text-blue-600 dark:text-blue-400">
+              Images:{" "}
+              {[
+                images.added > 0 ? `${images.added} new` : null,
+                images.updated > 0 ? `${images.updated} updated` : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          )}
           {added.length > 0 && (
             <div>
               <p className="font-medium text-blue-600 dark:text-blue-400">+ {added.length} added</p>
@@ -320,7 +337,12 @@ export function ActionCard({
                   </Button>
                   <Button
                     size="sm"
-                    disabled={isPending || preview.changes.length === 0}
+                    disabled={
+                      isPending ||
+                      (preview.changes.length === 0 &&
+                        (preview.images?.added ?? 0) === 0 &&
+                        (preview.images?.updated ?? 0) === 0)
+                    }
                     onClick={() => applyMutation.mutate()}
                   >
                     {applyMutation.isPending ? (

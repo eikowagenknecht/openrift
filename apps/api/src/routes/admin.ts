@@ -124,6 +124,12 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
       .innerJoin("printings as p", "p.card_id", "c.id")
       .innerJoin("sets as s", "s.id", "p.set_id")
       .leftJoin("tcgplayer_sources as ps", "ps.printing_id", "p.id")
+      .leftJoin("printing_images as pi", (join) =>
+        join
+          .onRef("pi.printing_id", "=", "p.id")
+          .on("pi.face", "=", "front")
+          .on("pi.is_active", "=", true),
+      )
       .select([
         "c.id as card_id",
         "c.name as card_name",
@@ -142,7 +148,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
         "p.is_promo",
         "p.finish",
         "p.collector_number",
-        "p.image_url",
+        sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
         "ps.external_id",
       ])
       .orderBy("p.set_id")
@@ -753,6 +759,12 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
       .innerJoin("printings as p", "p.card_id", "c.id")
       .innerJoin("sets as s", "s.id", "p.set_id")
       .leftJoin("cardmarket_sources as ps", "ps.printing_id", "p.id")
+      .leftJoin("printing_images as pi", (join) =>
+        join
+          .onRef("pi.printing_id", "=", "p.id")
+          .on("pi.face", "=", "front")
+          .on("pi.is_active", "=", true),
+      )
       .select([
         "c.id as card_id",
         "c.name as card_name",
@@ -771,7 +783,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
         "p.is_promo",
         "p.finish",
         "p.collector_number",
-        "p.image_url",
+        sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
         "ps.external_id",
       ])
       .orderBy("p.set_id")

@@ -13,6 +13,7 @@ import type {
   TimeRange,
 } from "@openrift/shared";
 import { Hono } from "hono";
+import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
@@ -25,6 +26,12 @@ cardsRoute.get("/cards", async (c) => {
   const rows = await db
     .selectFrom("printings as p")
     .innerJoin("cards as c", "c.id", "p.card_id")
+    .leftJoin("printing_images as pi", (join) =>
+      join
+        .onRef("pi.printing_id", "=", "p.id")
+        .on("pi.face", "=", "front")
+        .on("pi.is_active", "=", true),
+    )
     .select([
       "p.id as printing_id",
       "p.card_id",
@@ -36,7 +43,7 @@ cardsRoute.get("/cards", async (c) => {
       "p.is_signed",
       "p.is_promo",
       "p.finish",
-      "p.image_url",
+      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
       "p.artist",
       "p.public_code",
       "p.printed_rules_text",

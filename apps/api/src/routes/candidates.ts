@@ -1,6 +1,8 @@
+import type { Database } from "@openrift/shared/db";
 import { buildPrintingId } from "@openrift/shared/db/build-printing-id";
 import { candidateUploadSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
+import type { Transaction } from "kysely";
 import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -265,9 +267,46 @@ candidatesRoute.patch("/candidates/:id", async (c) => {
 
 // ── POST /candidates/:id/accept ─────────────────────────────────────────────
 
-// Stub: returns the original URL. Replace with ADR-007's processCardImage when available.
-function processCardImage(url: string | null, _printingId: string): string | null {
-  return url;
+/**
+ * Insert an image record into printing_images for a candidate's source.
+ * If no active image exists for that printing+face, marks it active.
+ * If one already exists (e.g. from gallery), inserts as inactive.
+ */
+async function insertPrintingImage(
+  trx: Transaction<Database>,
+  printingId: string,
+  imageUrl: string | null,
+  source: string,
+): Promise<void> {
+  if (!imageUrl) {
+    return;
+  }
+
+  // Check if there's already an active front image
+  const hasActive = await trx
+    .selectFrom("printing_images")
+    .select("id")
+    .where("printing_id", "=", printingId)
+    .where("face", "=", "front")
+    .where("is_active", "=", true)
+    .executeTakeFirst();
+
+  await trx
+    .insertInto("printing_images")
+    .values({
+      printing_id: printingId,
+      face: "front",
+      source,
+      original_url: imageUrl,
+      is_active: !hasActive,
+    })
+    .onConflict((oc) =>
+      oc.columns(["printing_id", "face", "source"]).doUpdateSet({
+        original_url: imageUrl,
+        updated_at: new Date(),
+      }),
+    )
+    .execute();
 }
 
 candidatesRoute.post("/candidates/:id/accept", async (c) => {
@@ -337,7 +376,6 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
           p.is_promo,
           p.finish,
         );
-        const imageUrl = processCardImage(p.image_url, printingId);
 
         // Upsert set if needed
         const existingSet = await trx
@@ -370,7 +408,6 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
             is_signed: p.is_signed,
             is_promo: p.is_promo,
             finish: p.finish,
-            image_url: imageUrl,
             artist: p.artist,
             public_code: p.public_code,
             printed_rules_text: p.printed_rules_text,
@@ -378,7 +415,6 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
           })
           .onConflict((oc) =>
             oc.column("id").doUpdateSet({
-              image_url: sql<string | null>`excluded.image_url`,
               artist: sql<string>`excluded.artist`,
               public_code: sql<string>`excluded.public_code`,
               printed_rules_text: sql<string>`excluded.printed_rules_text`,
@@ -386,6 +422,8 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
             }),
           )
           .execute();
+
+        await insertPrintingImage(trx, printingId, p.image_url, candidate.source);
       }
 
       // Mark as accepted
@@ -453,7 +491,6 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
           p.is_promo,
           p.finish,
         );
-        const imageUrl = processCardImage(p.image_url, printingId);
 
         await trx
           .insertInto("printings")
@@ -468,13 +505,14 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
             is_signed: p.is_signed,
             is_promo: p.is_promo,
             finish: p.finish,
-            image_url: imageUrl,
             artist: p.artist,
             public_code: p.public_code,
             printed_rules_text: p.printed_rules_text,
             printed_effect_text: p.printed_effect_text,
           })
           .execute();
+
+        await insertPrintingImage(trx, printingId, p.image_url, candidate.source);
       }
 
       // Mark as accepted
@@ -605,7 +643,6 @@ candidatesRoute.post("/candidates/batch-accept", async (c) => {
             p.is_promo,
             p.finish,
           );
-          const imageUrl = processCardImage(p.image_url, printingId);
 
           await trx
             .insertInto("printings")
@@ -620,13 +657,14 @@ candidatesRoute.post("/candidates/batch-accept", async (c) => {
               is_signed: p.is_signed,
               is_promo: p.is_promo,
               finish: p.finish,
-              image_url: imageUrl,
               artist: p.artist,
               public_code: p.public_code,
               printed_rules_text: p.printed_rules_text,
               printed_effect_text: p.printed_effect_text,
             })
             .execute();
+
+          await insertPrintingImage(trx, printingId, p.image_url, candidate.source);
         }
 
         // Mark as accepted

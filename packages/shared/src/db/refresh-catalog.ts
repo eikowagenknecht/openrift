@@ -38,7 +38,7 @@ function getFinishes(
 
 export interface CatalogChange {
   kind: "added" | "updated" | "stale";
-  entity: "set" | "card" | "printing";
+  entity: "set" | "card" | "printing" | "image";
   id: string;
   name?: string;
   fields?: string[];
@@ -48,6 +48,7 @@ export interface CatalogRefreshResult {
   sets: { total: number; names: string[] };
   cards: { total: number };
   printings: { total: number };
+  images: { total: number; added: number; updated: number };
   changes: CatalogChange[];
 }
 
@@ -87,6 +88,14 @@ export async function refreshCatalog(
 
   const printingRows_ = await db.selectFrom("printings").select("id").execute();
   const existingPrintingIds = new Set(printingRows_.map((r) => r.id));
+
+  const imageRows_ = await db
+    .selectFrom("printing_images")
+    .select(["printing_id", "original_url"])
+    .where("face", "=", "front")
+    .where("source", "=", "gallery")
+    .execute();
+  const existingGalleryImages = new Map(imageRows_.map((r) => [r.printing_id, r.original_url]));
 
   // ── Sets ───────────────────────────────────────────────────────────────────
   for (const set of data.sets) {
@@ -234,11 +243,11 @@ export async function refreshCatalog(
     is_signed: boolean;
     is_promo: boolean;
     finish: string;
-    image_url: string | null;
     artist: string;
     public_code: string;
     printed_rules_text: string;
     printed_effect_text: string;
+    _image_url: string | null;
   }[] = [];
 
   for (const p of data.printings) {
@@ -256,8 +265,8 @@ export async function refreshCatalog(
         is_signed: p.isSigned,
         is_promo: p.isPromo,
         finish,
-        image_url: p.art.imageURL?.split("?")[0] ?? null,
         artist: p.art.artist,
+        _image_url: p.art.imageURL?.split("?")[0] ?? null,
         public_code: p.publicCode,
         printed_rules_text: p.printedRulesText,
         printed_effect_text: p.printedEffectText,
@@ -269,16 +278,16 @@ export async function refreshCatalog(
   if (!dryRun) {
     const BATCH_SIZE = 200;
     for (let i = 0; i < printingRows.length; i += BATCH_SIZE) {
+      const batch = printingRows.slice(i, i + BATCH_SIZE);
       await db
         .insertInto("printings")
-        .values(printingRows.slice(i, i + BATCH_SIZE))
+        .values(batch.map(({ _image_url, ...row }) => row))
         .onConflict((oc) =>
           oc.column("id").doUpdateSet({
             card_id: sql<string>`excluded.card_id`,
             set_id: sql<string>`excluded.set_id`,
             collector_number: sql<number>`excluded.collector_number`,
             rarity: sql<Rarity>`excluded.rarity`,
-            // image_url intentionally excluded — preserve self-hosted paths from rehost
             artist: sql<string>`excluded.artist`,
             public_code: sql<string>`excluded.public_code`,
             printed_rules_text: sql<string>`excluded.printed_rules_text`,
@@ -286,6 +295,33 @@ export async function refreshCatalog(
           }),
         )
         .execute();
+
+      // Upsert printing_images for gallery source.
+      // Uses the (printing_id, face, source) unique index so gallery rows
+      // are updated without touching images from other sources.
+      // is_active is only set on INSERT (first time) — if another source is
+      // already active, the gallery row stays inactive.
+      const imageRows = batch
+        .filter((r) => r._image_url)
+        .map((r) => ({
+          printing_id: r.id,
+          face: "front" as const,
+          source: "gallery",
+          original_url: r._image_url as string,
+          is_active: true,
+        }));
+      if (imageRows.length > 0) {
+        await db
+          .insertInto("printing_images")
+          .values(imageRows)
+          .onConflict((oc) =>
+            oc.columns(["printing_id", "face", "source"]).doUpdateSet({
+              original_url: sql<string>`excluded.original_url`,
+              updated_at: sql`NOW()`,
+            }),
+          )
+          .execute();
+      }
     }
   }
 
@@ -296,7 +332,29 @@ export async function refreshCatalog(
     }
   }
 
+  // Track image changes
+  let imagesAdded = 0;
+  let imagesUpdated = 0;
+  for (const row of printingRows) {
+    if (!row._image_url) {
+      continue;
+    }
+    const existing = existingGalleryImages.get(row.id);
+    if (existing === undefined) {
+      imagesAdded++;
+      changes.push({ kind: "added", entity: "image", id: row.id });
+    } else if (existing !== row._image_url) {
+      imagesUpdated++;
+      changes.push({ kind: "updated", entity: "image", id: row.id, fields: ["original_url"] });
+    }
+  }
+
   console.log(`  ${dryRun ? "(dry run)" : "✓"} Printings: ${printingRows.length} rows`);
+  if (imagesAdded > 0 || imagesUpdated > 0) {
+    console.log(
+      `  ${dryRun ? "(dry run)" : "✓"} Images: ${imagesAdded} new, ${imagesUpdated} updated`,
+    );
+  }
 
   // ── Stale row detection ───────────────────────────────────────────────────
   const seedSetIds = new Set(data.sets.map((s) => s.id));
@@ -332,10 +390,12 @@ export async function refreshCatalog(
 
   console.log(`\n${dryRun ? "Dry run" : "Refresh"} complete.`);
 
+  const totalImages = printingRows.filter((r) => r._image_url).length;
   return {
     sets: { total: data.sets.length, names: data.sets.map((s) => s.name) },
     cards: { total: Object.keys(data.cards).length },
     printings: { total: printingRows.length },
+    images: { total: totalImages, added: imagesAdded, updated: imagesUpdated },
     changes,
   };
 }
