@@ -109,15 +109,20 @@ export function useUnmapPrinting(config: SourceMappingConfig) {
   });
 }
 
+interface IgnoreProduct {
+  externalId: number;
+  finish: string;
+}
+
 async function ignoreProducts(
   config: SourceMappingConfig,
-  externalIds: number[],
+  products: IgnoreProduct[],
 ): Promise<{ ok: boolean; ignored: number }> {
-  const res = await fetch("/admin/ignored-products", {
+  const res = await fetch("/api/admin/ignored-products", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source: config.source, externalIds }),
+    body: JSON.stringify({ source: config.source, products }),
   });
   if (!res.ok) {
     throw new Error(`Failed to ignore products: ${res.status}`);
@@ -128,7 +133,7 @@ async function ignoreProducts(
 export function useIgnoreProducts(config: SourceMappingConfig) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (externalIds: number[]) => ignoreProducts(config, externalIds),
+    mutationFn: (products: IgnoreProduct[]) => ignoreProducts(config, products),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
     },
@@ -137,13 +142,13 @@ export function useIgnoreProducts(config: SourceMappingConfig) {
 
 async function unignoreProducts(
   config: SourceMappingConfig,
-  externalIds: number[],
+  products: IgnoreProduct[],
 ): Promise<{ ok: boolean; unignored: number }> {
-  const res = await fetch("/admin/ignored-products", {
+  const res = await fetch("/api/admin/ignored-products", {
     method: "DELETE",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source: config.source, externalIds }),
+    body: JSON.stringify({ source: config.source, products }),
   });
   if (!res.ok) {
     throw new Error(`Failed to unignore products: ${res.status}`);
@@ -154,7 +159,7 @@ async function unignoreProducts(
 export function useUnignoreProducts(config: SourceMappingConfig) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (externalIds: number[]) => unignoreProducts(config, externalIds),
+    mutationFn: (products: IgnoreProduct[]) => unignoreProducts(config, products),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
     },
