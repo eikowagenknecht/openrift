@@ -81,7 +81,7 @@ Every mutation to the collection happens through an activity — analogous to a 
 
 **Collection deletion:** Activity items denormalize collection names (`from_collection_name`, `to_collection_name`) at creation time. The collection FKs use `ON DELETE SET NULL`, so deleting a collection nulls the FK but the human-readable name survives in the history. This keeps history readable ("moved from Binder 1 to Deck Box 12") even after Binder 1 is deleted.
 
-**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Undo is blocked if any collection referenced by the activity's items (`from_collection_id` or `to_collection_id`) has been deleted since the activity was created — the UI disables the undo button and explains why. When undo removes copies (reversing an acquisition), it first deletes any `trade_list_items` referencing those copies — the copies are being erased entirely, so derived memberships go with them. Conversely, when undo re-creates copies (reversing a disposal), it does not restore trade list memberships that the user manually removed before the disposal — that removal was an explicit user action.
+**Undo:** Only the latest activity can be undone (like `git reset`, not `git revert`). The entire undo runs in a single transaction — either every mutation is reversed or none are. Undoing hard-deletes the activity and all its activity items, and reverses all associated actions: re-creates any hard-deleted copies using the original UUID and `printing_id` from `metadata_snapshot` and the `to_collection_id` from the activity item, restores moved copies to their previous collections (using `from_collection_id`), and removes any copies that were added. The collection returns to exactly the state it was in before the activity. Undo is blocked when the world has changed in ways that make reversal ambiguous: (1) any collection referenced by the activity's items has been deleted — detectable because the collection FK columns (`from_collection_id`, `to_collection_id`) are never legitimately NULL (each action type always sets the columns relevant to it), so a NULL means `ON DELETE SET NULL` fired, i.e. the collection is gone; (2) any copies that would be deleted (reversing an acquisition) are on a trade list — the `RESTRICT` FK on `trade_list_items.copy_id` enforces this at the database level, and the app checks proactively so it can explain why. In both cases the UI disables the undo button and explains what needs to change first (remove copies from trade lists, or accept that the collection is gone). When undo re-creates copies (reversing a disposal), it does not restore trade list memberships that the user manually removed before the disposal — that removal was an explicit user action.
 
 ### Decks
 
@@ -161,6 +161,10 @@ CREATE TABLE sources (
 );
 -- List all sources for a user (source picker in the intake flow)
 CREATE INDEX idx_sources_user_id ON sources(user_id);
+-- Same pattern as collections: required so that copies can FK on
+-- (id, user_id) together — prevents cross-user source references.
+ALTER TABLE sources ADD CONSTRAINT uq_sources_id_user
+  UNIQUE (id, user_id);
 
 -- ── Copies ────────────────────────────────────────────────────────
 CREATE TABLE copies (
@@ -172,7 +176,13 @@ CREATE TABLE copies (
   -- row in collections, so a copy can never reference another user's collection.
   CONSTRAINT fk_copies_collection_user
     FOREIGN KEY (collection_id, user_id) REFERENCES collections(id, user_id),
-  source_id     uuid REFERENCES sources(id) ON DELETE SET NULL,
+  source_id     uuid,
+  -- Composite FK: same pattern as collection — prevents cross-user
+  -- source references. ON DELETE SET NULL nulls source_id when a source
+  -- is deleted (user_id stays, only the FK pair is evaluated).
+  CONSTRAINT fk_copies_source_user
+    FOREIGN KEY (source_id, user_id) REFERENCES sources(id, user_id)
+    ON DELETE SET NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
@@ -183,6 +193,10 @@ CREATE INDEX idx_copies_user_printing ON copies(user_id, printing_id);
 CREATE INDEX idx_copies_collection ON copies(collection_id);
 -- "Show all copies from this source" — provenance queries
 CREATE INDEX idx_copies_source ON copies(source_id);
+-- Required so that activity_items can FK on (id, user_id) together —
+-- prevents an activity item from referencing another user's copy.
+ALTER TABLE copies ADD CONSTRAINT uq_copies_id_user
+  UNIQUE (id, user_id);
 
 -- ── Activities ────────────────────────────────────────────────────
 CREATE TABLE activities (
@@ -200,17 +214,32 @@ CREATE TABLE activities (
 );
 -- List a user's activity history (activity feed page)
 CREATE INDEX idx_activities_user_id ON activities(user_id);
+-- Required so that activity_items can FK on (id, user_id) together —
+-- prevents an activity item from referencing another user's activity.
+ALTER TABLE activities ADD CONSTRAINT uq_activities_id_user
+  UNIQUE (id, user_id);
 
 -- ── Activity Items ────────────────────────────────────────────────
 CREATE TABLE activity_items (
   id                   uuid PRIMARY KEY,
-  activity_id          uuid NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+  activity_id          uuid NOT NULL,
+  user_id              text NOT NULL,
+  -- Composite FK: ensures the activity belongs to the same user as
+  -- this item. CASCADE: deleting an activity deletes its items.
+  CONSTRAINT fk_activity_items_activity_user
+    FOREIGN KEY (activity_id, user_id) REFERENCES activities(id, user_id)
+    ON DELETE CASCADE,
   -- SET NULL fires on ALL items referencing a deleted copy, not just the
   -- 'removed' one. A NULL copy_id on an 'added' or 'moved' item simply
   -- means the copy was later disposed. printing_id (always non-null) is
   -- the stable identifier for history; metadata_snapshot is only written
   -- on the 'removed' item where it's needed for undo.
-  copy_id              uuid REFERENCES copies(id) ON DELETE SET NULL,
+  -- Composite FK: ensures the copy belongs to the same user. When copy_id
+  -- is NULL (copy was disposed), the FK is not evaluated.
+  copy_id              uuid,
+  CONSTRAINT fk_activity_items_copy_user
+    FOREIGN KEY (copy_id, user_id) REFERENCES copies(id, user_id)
+    ON DELETE SET NULL,
   printing_id          text NOT NULL REFERENCES printings(id),
   action               text NOT NULL,
   from_collection_id   uuid REFERENCES collections(id) ON DELETE SET NULL,
