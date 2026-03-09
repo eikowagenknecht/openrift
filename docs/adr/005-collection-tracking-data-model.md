@@ -44,7 +44,7 @@ Collections represent physical storage locations (binders, deck boxes, drawers, 
 
 A boolean `available_for_deckbuilding` flag controls whether copies in a collection are considered when building decks. Default true. Collections like "Deck Box 1" (an assembled deck the user doesn't want to cannibalize) can be excluded. _UI note:_ Excluded collections are still visible as "available if needed" in the deck builder.
 
-**Collection deletion:** A collection can only be deleted after all its copies have been moved elsewhere. The inbox collection cannot be deleted. For other collections, the API endpoint requires a `move_copies_to` collection ID — it moves all copies to the target collection (creating `reorganization` activity items), then deletes the now-empty collection. The bare FK on `copies.collection_id` (default `RESTRICT`) acts as a safety net: Postgres blocks the delete if any copies still reference it.
+**Collection deletion:** A collection can only be deleted after all its copies have been moved elsewhere. The inbox collection cannot be deleted. For other collections, the API endpoint requires a `move_copies_to` collection ID — it moves all copies to the target collection (creating `reorganization` activity items), then deletes the now-empty collection. The FK on `copies.collection_id` uses `CASCADE` (needed for clean user deletion cascades). A `BEFORE DELETE` trigger on `collections` enforces the "move first" rule at the DB level: it allows the delete only if the collection is empty or the owning user no longer exists (i.e., the delete is part of a user deletion cascade). This is more robust than checking `pg_trigger_depth()`, which would allow any cascade path — not just user deletion — to bypass the guard. This prevents accidental data loss from rogue code paths or direct DB operations while keeping user deletion conflict-free.
 
 ### Sources
 
@@ -79,6 +79,8 @@ Every mutation to the collection happens through an activity — analogous to a 
 - `removed` — copy left possession, `from_collection_id` set, metadata snapshot saved
 - `moved` — copy changed collections, both `from_collection_id` and `to_collection_id` set
 
+**Type–action consistency:** Each activity item denormalizes its parent's `activity_type`. A composite FK ensures the value matches the parent activity. A CHECK constraint then restricts which actions are valid per type: `acquisition` → `added` only, `disposal` → `removed` only, `trade` → `added` or `removed`, `reorganization` → `moved` only. This gives a hard DB-level guarantee that the audit ledger is internally consistent, and also lets queries on `activity_items` filter by activity type without joining back to `activities`.
+
 **Collection deletion:** Activity items denormalize collection names (`from_collection_name`, `to_collection_name`) at creation time. The collection FKs use `ON DELETE SET NULL`, so deleting a collection nulls the FK but the human-readable name survives in the history. This keeps history readable ("moved from Binder 1 to Deck Box 12") even after Binder 1 is deleted.
 
 ### Decks
@@ -110,13 +112,15 @@ Three sources of "what do I need":
 
    A single list can combine both — e.g., a "Spiritforged" wish list with a dynamic rule for all commons plus manually pinned rares.
 
-_UI note — Shopping list:_ A unified view merges all three sources. Desired quantities are summed independently across all sources (wanted decks, manual items, dynamic rules), then available copies are subtracted once. Example: own 5 available Fireballs, Deck A wants 4, Deck B wants 4, manual wish list wants 6 → `4 + 4 + 6 - 5 = 9 needed`.
+_UI note — Shopping list:_ A unified view merges all three sources into a single "still needed" count per card. All demands stack additively — each wanted deck, manual wish list item, and dynamic wish list rule represents an independent need for physical cards. The total demand for a card is the sum across all sources, minus available copies (floored at 0). There is no deduplication between sources: if a wish list asks for 6 Fireballs and two decks each need 4, the user needs 14 total copies. This matches the physical reality — each deck and wish list target requires its own cards.
+
+Example: own 5 available Fireballs, Deck A wants 4, Deck B wants 4, wish list wants 6 → `4 + 4 + 6 - 5 = 9 needed`.
 
 ### Trade Lists
 
 A trade list can have manual items, dynamic rules, or both.
 
-**Manual items** are specific copies the user wants to trade/sell. A copy can appear in multiple trade lists but cannot appear in any single list more times than the user owns it. Disposing a copy on a trade list requires removing it from the list first. _UI note:_ The app prompts confirmation ("This copy is on Trade List X. Remove it and dispose? This can't be undone."). The FK on `trade_list_items.copy_id` uses default `RESTRICT`, so Postgres blocks disposal if the app layer somehow skips the check.
+**Manual items** are specific copies the user wants to trade/sell. A copy can appear in multiple trade lists but cannot appear in any single list more times than the user owns it. Disposing a copy automatically removes it from all trade lists (the FK on `trade_list_items.copy_id` cascades the delete). _UI note:_ The app prompts confirmation ("This copy is on Trade List X. Dispose it? It will be removed from all trade lists. This can't be undone.").
 
 **Dynamic rules** are a saved JSONB filter definition evaluated at query time (e.g., "all copies beyond the 4th of each card, in Binder 1 or Deck Box 12, worth < 1 EUR on Cardmarket"). Results change as prices and inventory change. Rules are stored as JSONB with app-level Zod validation.
 
@@ -152,6 +156,32 @@ CREATE UNIQUE INDEX uq_collections_user_inbox
 ALTER TABLE collections ADD CONSTRAINT uq_collections_id_user
   UNIQUE (id, user_id);
 
+-- Prevents deleting a non-empty collection unless the owning user is
+-- being deleted (in which case the cascade should proceed unimpeded).
+CREATE FUNCTION prevent_nonempty_collection_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Allow if the owning user no longer exists (user deletion cascade).
+  -- This is safer than pg_trigger_depth() which would allow any cascade
+  -- path to bypass the guard, not just user deletion.
+  IF NOT EXISTS (SELECT 1 FROM users WHERE id = OLD.user_id) THEN
+    RETURN OLD;
+  END IF;
+  -- Block if the collection still has copies
+  IF EXISTS (SELECT 1 FROM copies WHERE collection_id = OLD.id LIMIT 1) THEN
+    RAISE EXCEPTION
+      'Cannot delete collection % — it still has copies. Move them first.',
+      OLD.id;
+  END IF;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_nonempty_collection_delete
+  BEFORE DELETE ON collections
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_nonempty_collection_delete();
+
 -- ── Sources ──────────────────────────────────────────────────────
 CREATE TABLE sources (
   id          uuid PRIMARY KEY,
@@ -176,8 +206,12 @@ CREATE TABLE copies (
   collection_id uuid NOT NULL,
   -- Composite FK: Postgres checks that (collection_id, user_id) matches a
   -- row in collections, so a copy can never reference another user's collection.
+  -- CASCADE: deleting a collection deletes its copies (the app enforces
+  -- "move copies first" via the move_copies_to API parameter; this is
+  -- the fallback for user deletion cascades).
   CONSTRAINT fk_copies_collection_user
-    FOREIGN KEY (collection_id, user_id) REFERENCES collections(id, user_id),
+    FOREIGN KEY (collection_id, user_id) REFERENCES collections(id, user_id)
+    ON DELETE CASCADE,
   source_id     uuid,
   -- Composite FK: same pattern as collection — prevents cross-user
   -- source references. Column-list SET NULL (Postgres 15+) nulls only
@@ -216,20 +250,26 @@ CREATE TABLE activities (
 );
 -- List a user's activity history (activity feed page)
 CREATE INDEX idx_activities_user_id ON activities(user_id);
--- Required so that activity_items can FK on (id, user_id) together —
--- prevents an activity item from referencing another user's activity.
-ALTER TABLE activities ADD CONSTRAINT uq_activities_id_user
-  UNIQUE (id, user_id);
+-- Required so that activity_items can FK on (id, user_id, type) together —
+-- prevents an activity item from referencing another user's activity and
+-- ensures the denormalized activity_type matches the parent.
+ALTER TABLE activities ADD CONSTRAINT uq_activities_id_user_type
+  UNIQUE (id, user_id, type);
 
 -- ── Activity Items ────────────────────────────────────────────────
 CREATE TABLE activity_items (
   id                   uuid PRIMARY KEY,
   activity_id          uuid NOT NULL,
   user_id              text NOT NULL,
-  -- Composite FK: ensures the activity belongs to the same user as
-  -- this item. CASCADE: deleting an activity deletes its items.
+  activity_type        text NOT NULL,
+  -- Composite FK: ensures the activity belongs to the same user and
+  -- the denormalized activity_type matches the parent. CASCADE:
+  -- deleting an activity deletes its items. Activities are never
+  -- deleted in normal operation (they are the audit ledger); CASCADE
+  -- only fires during user deletion cascades.
   CONSTRAINT fk_activity_items_activity_user
-    FOREIGN KEY (activity_id, user_id) REFERENCES activities(id, user_id)
+    FOREIGN KEY (activity_id, user_id, activity_type)
+    REFERENCES activities(id, user_id, type)
     ON DELETE CASCADE,
   -- SET NULL fires on ALL items referencing a deleted copy, not just the
   -- 'removed' one. A NULL copy_id on an 'added' or 'moved' item simply
@@ -262,7 +302,14 @@ CREATE TABLE activity_items (
   metadata_snapshot    jsonb,
   created_at           timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT chk_activity_items_action
-    CHECK (action IN ('added', 'removed', 'moved'))
+    CHECK (action IN ('added', 'removed', 'moved')),
+  CONSTRAINT chk_activity_items_type_action
+    CHECK (
+      (activity_type = 'acquisition'    AND action = 'added')   OR
+      (activity_type = 'disposal'       AND action = 'removed') OR
+      (activity_type = 'trade'          AND action IN ('added', 'removed')) OR
+      (activity_type = 'reorganization' AND action = 'moved')
+    )
 );
 -- Load all items for an activity (activity detail view)
 CREATE INDEX idx_activity_items_activity ON activity_items(activity_id);
@@ -332,6 +379,7 @@ CREATE TABLE wish_list_items (
   card_id          text REFERENCES cards(id),
   printing_id      text REFERENCES printings(id),
   quantity_desired integer NOT NULL DEFAULT 1,
+  CONSTRAINT chk_wish_list_items_quantity CHECK (quantity_desired > 0),
   CONSTRAINT chk_wish_list_items_target
     CHECK (
       (card_id IS NOT NULL AND printing_id IS NULL) OR
@@ -371,13 +419,17 @@ CREATE TABLE trade_list_items (
     ON DELETE CASCADE,
   -- Composite FK: ensures the copy belongs to the same user —
   -- prevents adding another user's copy to your trade list.
+  -- CASCADE: disposing a copy automatically removes it from all trade lists.
   copy_id       uuid NOT NULL,
   CONSTRAINT fk_trade_list_items_copy_user
-    FOREIGN KEY (copy_id, user_id) REFERENCES copies(id, user_id),
+    FOREIGN KEY (copy_id, user_id) REFERENCES copies(id, user_id)
+    ON DELETE CASCADE,
   CONSTRAINT uq_trade_list_items UNIQUE (trade_list_id, copy_id)
 );
 -- Load all copies on a trade list (trade list detail, trade binder dedup)
 CREATE INDEX idx_trade_list_items_list ON trade_list_items(trade_list_id);
+-- "Which trade lists is this copy on?" — disposal confirmation, FK cascade
+CREATE INDEX idx_trade_list_items_copy ON trade_list_items(copy_id);
 ```
 
 ## Deferred Features
