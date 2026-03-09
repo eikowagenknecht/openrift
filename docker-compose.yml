@@ -25,6 +25,7 @@ services:
   # Hono API server (runs migrations on startup, schedules cron jobs).
   api:
     image: ghcr.io/eikowagenknecht/openrift-api:${IMAGE_TAG:-latest}
+    user: "${UID:-1000}:${GID:-1000}"
     depends_on:
       db:
         condition: service_healthy
