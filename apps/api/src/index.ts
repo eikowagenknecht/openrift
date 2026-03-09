@@ -103,7 +103,11 @@ app.use("/api/auth/*", async (c, next) => {
   await next();
 });
 
-app.on(["POST", "GET"], "/api/auth/**", (c) => auth.handler(c.req.raw));
+// Split into separate .get/.post — app.on() with method arrays + ** wildcards
+// breaks Hono's router when other routes use fixed+param paths (e.g. /copies/count
+// alongside /copies/:id).
+app.get("/api/auth/*", (c) => auth.handler(c.req.raw));
+app.post("/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.use("/api/*", async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
