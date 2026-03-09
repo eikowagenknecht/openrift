@@ -232,6 +232,7 @@ export interface VerificationsTable {
 
 export interface TcgplayerIgnoredProductsTable {
   external_id: number;
+  finish: string;
   product_name: string;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
@@ -239,6 +240,7 @@ export interface TcgplayerIgnoredProductsTable {
 
 export interface CardmarketIgnoredProductsTable {
   external_id: number;
+  finish: string;
   product_name: string;
   created_at: CreatedAt;
   updated_at: UpdatedAt;

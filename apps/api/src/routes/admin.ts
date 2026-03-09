@@ -59,12 +59,12 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
   app.get(path, async (c) => {
     const showAll = c.req.query("all") === "true";
 
-    // Load ignored external_ids for this source
+    // Load ignored (external_id, finish) pairs for this source
     const ignoredRows = await db
       .selectFrom("tcgplayer_ignored_products")
-      .select(["external_id", "product_name", "created_at"])
+      .select(["external_id", "finish", "product_name", "created_at"])
       .execute();
-    const ignoredIds = new Set(ignoredRows.map((r) => r.external_id));
+    const ignoredKeys = new Set(ignoredRows.map((r) => `${r.external_id}::${r.finish}`));
 
     // 1. Fetch latest staged products, deduplicated by external_id
     const staged = await db
@@ -325,7 +325,7 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
       .filter(
         (row) =>
           !matchedStagingKeys.has(`${row.external_id}::${row.finish}`) &&
-          !ignoredIds.has(row.external_id),
+          !ignoredKeys.has(`${row.external_id}::${row.finish}`),
       )
       .map((row) => ({
         externalId: row.external_id ?? "",
@@ -343,11 +343,11 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
         avg30Cents: null as number | null,
       }));
 
-    // 6b. Build ignoredProducts from the ignore table + staging data
+    // 6b. Build ignoredProducts from the ignore table
     const ignoredProducts = ignoredRows.map((r) => ({
       externalId: r.external_id,
       productName: r.product_name,
-      finish: "",
+      finish: r.finish,
       marketCents: 0,
       lowCents: null as number | null,
       currency: "USD" as string,
@@ -364,10 +364,12 @@ function createTcgplayerMappingRoutes(app: typeof adminRoute, path: string) {
     const groups = [...cardGroups.values()]
       .filter((group) => {
         const key = `${group.setId}::${group.cardId}`;
+        const hasStaged = stagedByCard.has(key);
+        const hasUnmapped = group.printings.some((p) => p.externalId === null);
         if (showAll) {
-          return stagedByCard.has(key) || group.printings.some((p) => p.externalId !== null);
+          return hasStaged || group.printings.some((p) => p.externalId !== null);
         }
-        return stagedByCard.has(key);
+        return hasStaged || hasUnmapped;
       })
       .map((group) => {
         const key = `${group.setId}::${group.cardId}`;
@@ -635,12 +637,12 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
   app.get(path, async (c) => {
     const showAll = c.req.query("all") === "true";
 
-    // Load ignored external_ids for this source
+    // Load ignored (external_id, finish) pairs for this source
     const ignoredRows = await db
       .selectFrom("cardmarket_ignored_products")
-      .select(["external_id", "product_name", "created_at"])
+      .select(["external_id", "finish", "product_name", "created_at"])
       .execute();
-    const ignoredIds = new Set(ignoredRows.map((r) => r.external_id));
+    const ignoredKeys = new Set(ignoredRows.map((r) => `${r.external_id}::${r.finish}`));
 
     const staged = await db
       .selectFrom("cardmarket_staging")
@@ -896,7 +898,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
       .filter(
         (row) =>
           !matchedStagingKeys.has(`${row.external_id}::${row.finish}`) &&
-          !ignoredIds.has(row.external_id),
+          !ignoredKeys.has(`${row.external_id}::${row.finish}`),
       )
       .map((row) => ({
         externalId: row.external_id ?? "",
@@ -917,7 +919,7 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
     const ignoredProducts = ignoredRows.map((r) => ({
       externalId: r.external_id,
       productName: r.product_name,
-      finish: "",
+      finish: r.finish,
       marketCents: 0,
       lowCents: null as number | null,
       currency: "EUR" as string,
@@ -933,10 +935,12 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
     const groups = [...cardGroups.values()]
       .filter((group) => {
         const key = `${group.setId}::${group.cardId}`;
+        const hasStaged = stagedByCard.has(key);
+        const hasUnmapped = group.printings.some((p) => p.externalId === null);
         if (showAll) {
-          return stagedByCard.has(key) || group.printings.some((p) => p.externalId !== null);
+          return hasStaged || group.printings.some((p) => p.externalId !== null);
         }
-        return stagedByCard.has(key);
+        return hasStaged || hasUnmapped;
       })
       .map((group) => {
         const key = `${group.setId}::${group.cardId}`;
@@ -1203,9 +1207,14 @@ function createCardmarketMappingRoutes(app: typeof adminRoute, path: string) {
 
 adminRoute.use("/admin/ignored-products", requireAdmin);
 
+const ignoreProductItemSchema = z.object({
+  externalId: z.number(),
+  finish: z.string(),
+});
+
 const ignoreProductsSchema = z.object({
   source: z.enum(["tcgplayer", "cardmarket"]),
-  externalIds: z.array(z.number()).min(1),
+  products: z.array(ignoreProductItemSchema).min(1),
 });
 
 adminRoute.post("/admin/ignored-products", async (c) => {
@@ -1215,7 +1224,7 @@ adminRoute.post("/admin/ignored-products", async (c) => {
     return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
   }
 
-  const { source, externalIds } = parsed.data;
+  const { source, products } = parsed.data;
   const stagingTable =
     source === "tcgplayer" ? ("tcgplayer_staging" as const) : ("cardmarket_staging" as const);
   const ignoreTable =
@@ -1223,40 +1232,39 @@ adminRoute.post("/admin/ignored-products", async (c) => {
       ? ("tcgplayer_ignored_products" as const)
       : ("cardmarket_ignored_products" as const);
 
-  await db.transaction().execute(async (tx) => {
-    // Look up product names from staging
-    const stagingRows = await tx
-      .selectFrom(stagingTable)
-      .select(["external_id", "product_name"])
-      .where("external_id", "in", externalIds)
-      .execute();
+  // Look up product names from staging
+  const externalIds = products.map((p) => p.externalId);
+  const stagingRows = await db
+    .selectFrom(stagingTable)
+    .select(["external_id", "product_name"])
+    .where("external_id", "in", externalIds)
+    .execute();
 
-    const nameMap = new Map<number, string>();
-    for (const row of stagingRows) {
-      if (!nameMap.has(row.external_id)) {
-        nameMap.set(row.external_id, row.product_name);
-      }
+  const nameMap = new Map<number, string>();
+  for (const row of stagingRows) {
+    if (!nameMap.has(row.external_id)) {
+      nameMap.set(row.external_id, row.product_name);
     }
+  }
 
-    // Insert into ignored products table
-    const values = [...nameMap].map(([external_id, product_name]) => ({
-      external_id,
-      product_name,
+  // Insert into ignored products table (staging data is kept)
+  const values = products
+    .filter((p) => nameMap.has(p.externalId))
+    .map((p) => ({
+      external_id: p.externalId,
+      finish: p.finish,
+      product_name: nameMap.get(p.externalId) ?? "",
     }));
 
-    if (values.length > 0) {
-      await tx
-        .insertInto(ignoreTable)
-        .values(values)
-        .onConflict((oc) => oc.column("external_id").doNothing())
-        .execute();
-    }
+  if (values.length > 0) {
+    await db
+      .insertInto(ignoreTable)
+      .values(values)
+      .onConflict((oc) => oc.columns(["external_id", "finish"]).doNothing())
+      .execute();
+  }
 
-    // Delete from staging
-    await tx.deleteFrom(stagingTable).where("external_id", "in", externalIds).execute();
-  });
-
-  return c.json({ ok: true, ignored: externalIds.length });
+  return c.json({ ok: true, ignored: products.length });
 });
 
 adminRoute.delete("/admin/ignored-products", async (c) => {
@@ -1266,15 +1274,21 @@ adminRoute.delete("/admin/ignored-products", async (c) => {
     return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
   }
 
-  const { source, externalIds } = parsed.data;
+  const { source, products } = parsed.data;
   const ignoreTable =
     source === "tcgplayer"
       ? ("tcgplayer_ignored_products" as const)
       : ("cardmarket_ignored_products" as const);
 
-  await db.deleteFrom(ignoreTable).where("external_id", "in", externalIds).execute();
+  for (const p of products) {
+    await db
+      .deleteFrom(ignoreTable)
+      .where("external_id", "=", p.externalId)
+      .where("finish", "=", p.finish)
+      .execute();
+  }
 
-  return c.json({ ok: true, unignored: externalIds.length });
+  return c.json({ ok: true, unignored: products.length });
 });
 
 // ── Register mapping routes for each source ─────────────────────────────────

@@ -66,9 +66,9 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
 
   const ignoredRows = await db
     .selectFrom("cardmarket_ignored_products")
-    .select("external_id")
+    .select(["external_id", "finish"])
     .execute();
-  const ignoredIds = new Set(ignoredRows.map((r) => r.external_id));
+  const ignoredKeys = new Set(ignoredRows.map((r) => `${r.external_id}::${r.finish}`));
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
 
   const cmPriceGuides = cmPriceGuideRes.data.priceGuides || [];
   const cmSinglesAll = cmSinglesRes.data.products || [];
-  const cmSingles = cmSinglesAll.filter((p) => !ignoredIds.has(p.idProduct));
+  const cmSingles = cmSinglesAll;
 
   // Use createdAt from response body if available, otherwise Last-Modified header, otherwise now
   const cmRecordedAt = cmPriceGuideRes.data.createdAt
@@ -207,7 +207,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
             continue;
           }
           const normalMarket = toCents(pg.avg);
-          if (normalMarket !== null) {
+          if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
             allStaging.push({
               external_id: product.idProduct,
               group_id: product.idExpansion,
@@ -223,7 +223,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
             });
           }
           const foilMarket = toCents(pg["avg-foil"]);
-          if (foilMarket !== null) {
+          if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
             allStaging.push({
               external_id: product.idProduct,
               group_id: product.idExpansion,
@@ -287,7 +287,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
             continue;
           }
           const normalMarket = toCents(pg.avg);
-          if (normalMarket !== null) {
+          if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
             allStaging.push({
               external_id: product.idProduct,
               group_id: product.idExpansion,
@@ -303,7 +303,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
             });
           }
           const foilMarket = toCents(pg["avg-foil"]);
-          if (foilMarket !== null) {
+          if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
             allStaging.push({
               external_id: product.idProduct,
               group_id: product.idExpansion,
@@ -335,7 +335,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
         continue;
       }
       const normalMarket = toCents(pg.avg);
-      if (normalMarket !== null) {
+      if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
         allStaging.push({
           external_id: product.idProduct,
           group_id: product.idExpansion,
@@ -351,7 +351,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
         });
       }
       const foilMarket = toCents(pg["avg-foil"]);
-      if (foilMarket !== null) {
+      if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
         allStaging.push({
           external_id: product.idProduct,
           group_id: product.idExpansion,
@@ -369,7 +369,7 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
     }
   }
 
-  const ignoredSuffix = ignoredIds.size > 0 ? `, ${ignoredIds.size} ignored` : "";
+  const ignoredSuffix = ignoredKeys.size > 0 ? `, ${ignoredKeys.size} ignored` : "";
   console.log(
     `Cardmarket fetched: ${dbExpansions.length} expansions (${cmMappedCount} mapped, ${cmUnmappedCount} unmapped), ${cmSingles.length} products, ${cmPriceGuides.length} prices${ignoredSuffix}`,
   );

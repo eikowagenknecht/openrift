@@ -340,6 +340,10 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                       onUnmap={(printingId) => unmapMutation.mutate(printingId)}
                       isUnmapping={unmapMutation.isPending}
                       onBatchAccept={() => handleBatchAccept(group)}
+                      onIgnore={(externalId, finish) =>
+                        ignoreMutation.mutate([{ externalId, finish }])
+                      }
+                      isIgnoring={ignoreMutation.isPending}
                     />
                   ))}
                 </TableBody>
@@ -361,7 +365,9 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                     key={`${sp.externalId}::${sp.finish}`}
                     config={config}
                     product={sp}
-                    onIgnore={() => ignoreMutation.mutate([sp.externalId])}
+                    onIgnore={() =>
+                      ignoreMutation.mutate([{ externalId: sp.externalId, finish: sp.finish }])
+                    }
                     isIgnoring={ignoreMutation.isPending}
                   />
                 ))}
@@ -392,7 +398,9 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                       key={`ignored::${sp.externalId}`}
                       config={config}
                       product={sp}
-                      onUnignore={() => unignoreMutation.mutate([sp.externalId])}
+                      onUnignore={() =>
+                        unignoreMutation.mutate([{ externalId: sp.externalId, finish: sp.finish }])
+                      }
                       isUnignoring={unignoreMutation.isPending}
                     />
                   ))}
@@ -415,6 +423,8 @@ function CardGroupRow({
   onUnmap,
   isUnmapping,
   onBatchAccept,
+  onIgnore,
+  isIgnoring,
 }: {
   config: SourceMappingConfig;
   group: MappingGroup;
@@ -425,6 +435,8 @@ function CardGroupRow({
   onUnmap: (printingId: string) => void;
   isUnmapping: boolean;
   onBatchAccept: () => void;
+  onIgnore: (externalId: number, finish: string) => void;
+  isIgnoring: boolean;
 }) {
   const unmappedCount = group.printings.filter((p) => p.externalId === null).length;
   const suggestions = computeSuggestions(group);
@@ -484,6 +496,8 @@ function CardGroupRow({
               onUnmap={onUnmap}
               isUnmapping={isUnmapping}
               onBatchAccept={onBatchAccept}
+              onIgnore={onIgnore}
+              isIgnoring={isIgnoring}
             />
           </TableCell>
         </TableRow>
@@ -544,6 +558,8 @@ function ExpandedDetail({
   onUnmap,
   isUnmapping,
   onBatchAccept,
+  onIgnore,
+  isIgnoring,
 }: {
   config: SourceMappingConfig;
   group: MappingGroup;
@@ -552,6 +568,8 @@ function ExpandedDetail({
   onUnmap: (printingId: string) => void;
   isUnmapping: boolean;
   onBatchAccept: () => void;
+  onIgnore: (externalId: number, finish: string) => void;
+  isIgnoring: boolean;
 }) {
   const suggestions = computeSuggestions(group);
 
@@ -667,6 +685,8 @@ function ExpandedDetail({
                   key={`${sp.externalId}::${sp.finish}`}
                   config={config}
                   product={sp}
+                  onIgnore={() => onIgnore(sp.externalId, sp.finish)}
+                  isIgnoring={isIgnoring}
                 />
               ))}
             {group.stagedProducts.length === 0 && (
@@ -774,6 +794,11 @@ function StagedProductCard({
       )}
       {sp.marketCents === 0 && (
         <div className="mt-1.5 flex items-baseline gap-2">
+          {sp.finish && (
+            <Badge variant="outline" className="shrink-0">
+              {sp.finish}
+            </Badge>
+          )}
           <Badge variant="outline" className="shrink-0">
             <ProductLink config={config} externalId={sp.externalId}>
               #{sp.externalId}
