@@ -29,7 +29,7 @@ COPY --from=build /app/bun.lock /app/package.json ./
 COPY --from=build /app/apps/api/package.json apps/api/
 COPY --from=build /app/apps/web/package.json apps/web/
 COPY --from=build /app/packages/shared/package.json packages/shared/
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 COPY --from=build /app/packages/shared ./packages/shared
 COPY --from=build /app/apps/api ./apps/api
