@@ -191,17 +191,21 @@ export function CardGridDebug({
             let childIdx = 0;
             let l1Rect: DOMRect | undefined;
             if (hasLine1) {
-              const l1 = (metaEl as Element).children[childIdx];
+              const l1 = (metaEl as Element).children[childIdx] as HTMLElement | undefined;
               l1Rect = l1?.getBoundingClientRect();
               const l1CS = l1 ? getComputedStyle(l1) : undefined;
               const l1Info = l1CS
                 ? `lh=${l1CS.lineHeight} fs=${l1CS.fontSize} font=${l1CS.fontFamily.split(",")[0]}`
                 : "";
+              // Show multiple height measurements to diagnose clipping
+              const l1Box = l1
+                ? `rect=${l1Rect?.height} offset=${l1.offsetHeight} scroll=${l1.scrollHeight} overflow=${l1CS?.overflow}`
+                : "";
               metaChildren.push({
                 label: "L1",
                 exp: line1Height,
                 meas: l1Rect?.height ?? 0,
-                note: `${!compact && aboveSm ? "sm:text-sm" : "text-xs"} ${l1Info}`,
+                note: `${!compact && aboveSm ? "sm:text-sm" : "text-xs"} ${l1Info}\n          ${l1Box}`,
               });
               childIdx++;
             }
