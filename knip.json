@@ -6,14 +6,14 @@
       "project": []
     },
     "apps/api": {
-      "entry": ["src/**/*.test.ts"],
+      "entry": ["src/**/*.test.ts", "src/test-preload.ts"],
       "ignore": []
     },
     "apps/web": {
-      "entry": ["src/worker.ts"],
+      "entry": ["src/worker.ts", "src/routes/**/*.tsx", "src/components/cards/card-detail.tsx"],
       "ignore": ["src/env.d.ts", "src/components/ui/**"]
     },
     "packages/shared": {}
   },
-  "ignoreBinaries": []
+  "ignoreBinaries": ["wait"]
 }
