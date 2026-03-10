@@ -23,7 +23,7 @@
     "preview": "turbo run build && (bun run --cwd apps/api start & bun run --cwd apps/web preview & wait)",
     "test": "turbo run test",
     "knip": "knip",
-    "postinstall": "lefthook install"
+    "postinstall": "test -z \"$CI\" && lefthook install || true"
   },
   "devDependencies": {
     "@commitlint/cli": "20.4.3",
