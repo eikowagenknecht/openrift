@@ -19,6 +19,7 @@ mock.module("../db.js", () => ({
         select: () => chain,
         innerJoin: () => chain,
         leftJoin: () => chain,
+        distinctOn: () => chain,
         where: () => chain,
         orderBy: () => chain,
         limit: () => chain,
