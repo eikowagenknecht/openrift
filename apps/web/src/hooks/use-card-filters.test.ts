@@ -160,34 +160,34 @@ describe("useCardFilters", () => {
     });
   });
 
-  it("setEnergyRange sets both min and max", () => {
+  it("setRange sets both min and max for energy", () => {
     const { result } = renderHook(() => useCardFilters());
 
-    act(() => result.current.setEnergyRange(1, 5));
+    act(() => result.current.setRange("energy", 1, 5));
 
     expect(mockSetFilterState).toHaveBeenCalledWith({ energyMin: 1, energyMax: 5 });
   });
 
-  it("setMightRange sets both min and max", () => {
+  it("setRange sets both min and max for might", () => {
     const { result } = renderHook(() => useCardFilters());
 
-    act(() => result.current.setMightRange(2, 8));
+    act(() => result.current.setRange("might", 2, 8));
 
     expect(mockSetFilterState).toHaveBeenCalledWith({ mightMin: 2, mightMax: 8 });
   });
 
-  it("setPowerRange sets both min and max", () => {
+  it("setRange sets both min and max for power", () => {
     const { result } = renderHook(() => useCardFilters());
 
-    act(() => result.current.setPowerRange(0, 10));
+    act(() => result.current.setRange("power", 0, 10));
 
     expect(mockSetFilterState).toHaveBeenCalledWith({ powerMin: 0, powerMax: 10 });
   });
 
-  it("setPriceRange sets both min and max", () => {
+  it("setRange sets both min and max for price", () => {
     const { result } = renderHook(() => useCardFilters());
 
-    act(() => result.current.setPriceRange(0.5, 99.99));
+    act(() => result.current.setRange("price", 0.5, 99.99));
 
     expect(mockSetFilterState).toHaveBeenCalledWith({ priceMin: 0.5, priceMax: 99.99 });
   });

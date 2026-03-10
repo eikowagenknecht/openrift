@@ -336,6 +336,8 @@ export interface FilterRange {
   max: number | null;
 }
 
+export type RangeKey = "energy" | "might" | "power" | "price";
+
 export interface CardFilters {
   search: string;
   searchScope: SearchField[];

@@ -11,6 +11,7 @@ export type {
   CardArt,
   CardFilters,
   FilterRange,
+  RangeKey,
   CardmarketSnapshot,
   CardPrice,
   CardStats,

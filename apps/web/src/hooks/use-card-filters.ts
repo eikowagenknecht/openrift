@@ -1,4 +1,4 @@
-import type { CardType, Rarity, SortDirection, SortOption } from "@openrift/shared";
+import type { CardType, RangeKey, Rarity, SortDirection, SortOption } from "@openrift/shared";
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef } from "react";
 
@@ -86,6 +86,13 @@ export function useCardFilters() {
     price: { min: filterState.priceMin, max: filterState.priceMax },
   };
 
+  const ranges: Record<RangeKey, { min: number | null; max: number | null }> = {
+    energy: filters.energy,
+    might: filters.might,
+    power: filters.power,
+    price: filters.price,
+  };
+
   const sortBy = filterState.sort as SortOption;
   const sortDir = filterState.sortDir as SortDirection;
   const view = filterState.view as "cards" | "printings";
@@ -149,14 +156,8 @@ export function useCardFilters() {
     void setFilterState({ [key]: next.length > 0 ? next : null });
   };
 
-  const setEnergyRange = (min: number | null, max: number | null) =>
-    void setFilterState({ energyMin: min, energyMax: max });
-  const setMightRange = (min: number | null, max: number | null) =>
-    void setFilterState({ mightMin: min, mightMax: max });
-  const setPowerRange = (min: number | null, max: number | null) =>
-    void setFilterState({ powerMin: min, powerMax: max });
-  const setPriceRange = (min: number | null, max: number | null) =>
-    void setFilterState({ priceMin: min, priceMax: max });
+  const setRange = (key: RangeKey, min: number | null, max: number | null) =>
+    void setFilterState({ [`${key}Min`]: min, [`${key}Max`]: max });
 
   const toggleSigned = () => {
     const next =
@@ -185,16 +186,14 @@ export function useCardFilters() {
 
   return {
     filters,
+    ranges,
     sortBy,
     sortDir,
     hasActiveFilters,
     clearAllFilters,
     setSearch,
     toggleArrayFilter,
-    setEnergyRange,
-    setMightRange,
-    setPowerRange,
-    setPriceRange,
+    setRange,
     toggleSigned,
     togglePromo,
     clearSigned,

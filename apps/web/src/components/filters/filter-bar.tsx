@@ -1,4 +1,11 @@
-import type { AvailableFilters, SearchField, SortDirection, SortOption } from "@openrift/shared";
+import type {
+  AvailableFilters,
+  FilterRange,
+  RangeKey,
+  SearchField,
+  SortDirection,
+  SortOption,
+} from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
@@ -72,10 +79,7 @@ interface FilterBarProps {
     signed: string | null;
     promo: string | null;
   };
-  energyRange: [number | null, number | null];
-  mightRange: [number | null, number | null];
-  powerRange: [number | null, number | null];
-  priceRange: [number | null, number | null];
+  ranges: Record<RangeKey, FilterRange>;
   sortBy: SortOption;
   sortDir: SortDirection;
   totalCards: number;
@@ -91,10 +95,7 @@ interface FilterBarProps {
   ) => void;
   onToggleSigned: () => void;
   onTogglePromo: () => void;
-  onEnergyRangeChange: (min: number | null, max: number | null) => void;
-  onMightRangeChange: (min: number | null, max: number | null) => void;
-  onPowerRangeChange: (min: number | null, max: number | null) => void;
-  onPriceRangeChange: (min: number | null, max: number | null) => void;
+  onRangeChange: (key: RangeKey, min: number | null, max: number | null) => void;
   onSortChange: (sort: SortOption) => void;
   onSortDirChange: (dir: SortDirection) => void;
   onSearchScopeToggle: (field: SearchField) => void;
@@ -125,13 +126,22 @@ const FINISH_LABELS: Record<string, string> = {
   foil: "Foil",
 };
 
+const RANGE_SECTIONS: {
+  key: RangeKey;
+  label: string;
+  step?: number;
+  formatValue?: (v: number) => string;
+}[] = [
+  { key: "energy", label: "Energy" },
+  { key: "might", label: "Might" },
+  { key: "power", label: "Power" },
+  { key: "price", label: "Price", step: 1, formatValue: (v) => `$${v}` },
+];
+
 export function FilterBar({
   availableFilters,
   filterState,
-  energyRange,
-  mightRange,
-  powerRange,
-  priceRange,
+  ranges,
   sortBy,
   sortDir,
   totalCards,
@@ -144,10 +154,7 @@ export function FilterBar({
   onToggleFilter,
   onToggleSigned,
   onTogglePromo,
-  onEnergyRangeChange,
-  onMightRangeChange,
-  onPowerRangeChange,
-  onPriceRangeChange,
+  onRangeChange,
   onSortChange,
   onSortDirChange,
   onSearchScopeToggle,
@@ -193,17 +200,11 @@ export function FilterBar({
   const filterPanelProps = {
     availableFilters,
     filterState,
-    energyRange,
-    mightRange,
-    powerRange,
-    priceRange,
+    ranges,
     onToggleFilter,
     onToggleSigned,
     onTogglePromo,
-    onEnergyRangeChange,
-    onMightRangeChange,
-    onPowerRangeChange,
-    onPriceRangeChange,
+    onRangeChange,
     setDisplayLabel,
   };
 
@@ -617,17 +618,11 @@ export function FilterBar({
 export interface FilterPanelContentProps {
   availableFilters: AvailableFilters;
   filterState: FilterBarProps["filterState"];
-  energyRange: [number | null, number | null];
-  mightRange: [number | null, number | null];
-  powerRange: [number | null, number | null];
-  priceRange: [number | null, number | null];
+  ranges: Record<RangeKey, FilterRange>;
   onToggleFilter: FilterBarProps["onToggleFilter"];
   onToggleSigned: FilterBarProps["onToggleSigned"];
   onTogglePromo: FilterBarProps["onTogglePromo"];
-  onEnergyRangeChange: FilterBarProps["onEnergyRangeChange"];
-  onMightRangeChange: FilterBarProps["onMightRangeChange"];
-  onPowerRangeChange: FilterBarProps["onPowerRangeChange"];
-  onPriceRangeChange: FilterBarProps["onPriceRangeChange"];
+  onRangeChange: FilterBarProps["onRangeChange"];
   setDisplayLabel?: (code: string) => string;
   layout?: "inline" | "drawer";
 }
@@ -635,17 +630,11 @@ export interface FilterPanelContentProps {
 export function FilterPanelContent({
   availableFilters,
   filterState,
-  energyRange,
-  mightRange,
-  powerRange,
-  priceRange,
+  ranges,
   onToggleFilter,
   onToggleSigned,
   onTogglePromo,
-  onEnergyRangeChange,
-  onMightRangeChange,
-  onPowerRangeChange,
-  onPriceRangeChange,
+  onRangeChange,
   setDisplayLabel,
   layout = "inline",
 }: FilterPanelContentProps) {
@@ -748,52 +737,26 @@ export function FilterPanelContent({
       <div
         className={layout === "drawer" ? "flex flex-col gap-3" : "flex flex-row flex-wrap gap-4"}
       >
-        {availableFilters.energy.min !== availableFilters.energy.max && (
-          <RangeFilterSection
-            label="Energy"
-            availableMin={availableFilters.energy.min}
-            availableMax={availableFilters.energy.max}
-            selectedMin={energyRange[0]}
-            selectedMax={energyRange[1]}
-            onChange={onEnergyRangeChange}
-            layout={layout}
-          />
-        )}
-        {availableFilters.might.min !== availableFilters.might.max && (
-          <RangeFilterSection
-            label="Might"
-            availableMin={availableFilters.might.min}
-            availableMax={availableFilters.might.max}
-            selectedMin={mightRange[0]}
-            selectedMax={mightRange[1]}
-            onChange={onMightRangeChange}
-            layout={layout}
-          />
-        )}
-        {availableFilters.power.min !== availableFilters.power.max && (
-          <RangeFilterSection
-            label="Power"
-            availableMin={availableFilters.power.min}
-            availableMax={availableFilters.power.max}
-            selectedMin={powerRange[0]}
-            selectedMax={powerRange[1]}
-            onChange={onPowerRangeChange}
-            layout={layout}
-          />
-        )}
-        {availableFilters.price.max > 0 && (
-          <RangeFilterSection
-            label="Price"
-            availableMin={availableFilters.price.min}
-            availableMax={availableFilters.price.max}
-            selectedMin={priceRange[0]}
-            selectedMax={priceRange[1]}
-            onChange={onPriceRangeChange}
-            step={1}
-            formatValue={(v) => `$${v}`}
-            layout={layout}
-          />
-        )}
+        {RANGE_SECTIONS.map(({ key, label, ...rest }) => {
+          const available = availableFilters[key];
+          const show = key === "price" ? available.max > 0 : available.min !== available.max;
+          if (!show) {
+            return null;
+          }
+          return (
+            <RangeFilterSection
+              key={key}
+              label={label}
+              availableMin={available.min}
+              availableMax={available.max}
+              selectedMin={ranges[key].min}
+              selectedMax={ranges[key].max}
+              onChange={(min, max) => onRangeChange(key, min, max)}
+              layout={layout}
+              {...rest}
+            />
+          );
+        })}
       </div>
     </>
   );
