@@ -1,21 +1,28 @@
 # OpenRift
 
-A card collection browser for [Riftbound](https://riftbound.leagueoflegends.com/), the League of Legends trading card game. Browse cards with filtering, sorting, and price data.
+Fast, open, and ad-free card browser for [Riftbound](https://riftbound.leagueoflegends.com/), the trading card game.
 
-**Live:** [openrift.app](https://openrift.app) · **Preview:** [preview.openrift.app](https://preview.openrift.app)
+**[openrift.app](https://openrift.app)**
+
+![OpenRift card browser](docs/assets/screenshot.webp)
+
+## Features
+
+- Browse and search every Riftbound card, with filters for set, domain, type, rarity, and more
+- Daily prices from TCGplayer and Cardmarket, with price history charts
+- Fast — smooth scrolling through hundreds of cards with no lag
+- Works on any device — install it to your home screen for offline access
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — monorepo structure, packages, infrastructure diagrams
+For developers:
+
+- [Architecture](docs/architecture.md) — monorepo structure, packages, infrastructure
 - [Data Layer](docs/data-layer.md) — database schema and API endpoints
 - [Development](docs/development.md) — prerequisites, setup, commands
 - [Deployment](docs/deployment.md) — VPS setup, Docker Compose, CI/CD
 - [Contributing](docs/contributing.md) — code style, conventions, changelog
-- [ADRs](docs/adr/) — architecture decision records
 
-## Tech Stack
+## License
 
-- **Monorepo** — Bun + Turborepo
-- **Frontend** — React 19, Vite, TypeScript, shadcn/ui (Base UI), Tailwind CSS 4
-- **Backend** — Hono, Kysely, PostgreSQL
-- **Infrastructure** — Docker Compose, Nginx, Cloudflare
+[AGPL-3.0](LICENSE)
