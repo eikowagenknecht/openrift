@@ -220,7 +220,7 @@ export function LoginForm({
                       <Link
                         to="/reset-password"
                         search={{ email: watchedEmail }}
-                        className="text-muted-foreground text-center text-sm underline-offset-2 hover:underline"
+                        className="text-muted-foreground text-right text-sm underline-offset-2 hover:underline"
                       >
                         Forgot your password?
                       </Link>
