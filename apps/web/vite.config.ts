@@ -49,7 +49,7 @@ export default defineConfig({
       },
     }),
     VitePWA({
-      registerType: "prompt",
+      registerType: "autoUpdate",
       includeAssets: [
         "logo.webp",
         "favicon-64x64.png",

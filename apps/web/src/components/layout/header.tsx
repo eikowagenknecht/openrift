@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 import changelogMd from "@/CHANGELOG.md?raw";
 import { InstallButton } from "@/components/pwa/install-button";
-import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -78,7 +78,7 @@ export function Header() {
 
   const matchRoute = useMatchRoute();
   const isCollectionRoute = matchRoute({ to: "/collections", fuzzy: true });
-  const { needRefresh, applyUpdate, checkForUpdate } = useSWUpdate();
+  const { checkForUpdate } = useSWUpdate();
   const [checking, setChecking] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
@@ -167,17 +167,9 @@ export function Header() {
                     <AvatarFallback>
                       <User className="size-3" />
                     </AvatarFallback>
-                    {needRefresh && (
-                      <AvatarBadge className="bg-blue-500" /> // custom: update-available indicator
-                    )}
                   </Avatar>
                 ) : (
-                  <span className="relative">
-                    <EllipsisVertical className="size-5" />
-                    {needRefresh && (
-                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-blue-500 ring-2 ring-background" /> // custom: update-available indicator
-                    )}
-                  </span>
+                  <EllipsisVertical className="size-5" />
                 )}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -203,11 +195,6 @@ export function Header() {
                 <DropdownMenuItem onClick={() => setChangelogOpen(true)}>
                   <Sparkles className="size-4" />
                   What&apos;s new
-                  {needRefresh && ( // custom: update-available indicator on menu item
-                    <span className="ml-auto rounded-full bg-blue-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white">
-                      Update
-                    </span>
-                  )}
                 </DropdownMenuItem>
                 {session?.user && (
                   <>
@@ -237,40 +224,27 @@ export function Header() {
               <DrawerDescription>
                 Recent changes and improvements.{" "}
                 <span className="text-[10px] tabular-nums">{__COMMIT_HASH__}</span>{" "}
-                {needRefresh ? (
-                  <button
-                    type="button"
-                    className="inline-flex cursor-pointer items-baseline gap-1 text-[10px] font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-400"
-                    onClick={() => applyUpdate()}
-                  >
-                    <RefreshCw className="size-2.5 self-center" />
-                    Update available — reload
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="inline-flex cursor-pointer items-baseline gap-1 text-[10px] text-muted-foreground hover:text-foreground"
-                    onClick={async () => {
-                      setChecking(true);
-                      setSpinning(true);
-                      const updateAvailable = await checkForUpdate();
-                      setChecking(false);
-                      if (!updateAvailable) {
-                        toast("You're on the latest version");
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-baseline gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                  onClick={async () => {
+                    setChecking(true);
+                    setSpinning(true);
+                    await checkForUpdate();
+                    setChecking(false);
+                    toast("You're on the latest version");
+                  }}
+                >
+                  <RefreshCw
+                    className={`size-2.5 self-center ${spinning ? "animate-spin" : ""}`}
+                    onAnimationIteration={() => {
+                      if (!checking) {
+                        setSpinning(false);
                       }
                     }}
-                  >
-                    <RefreshCw
-                      className={`size-2.5 self-center ${spinning ? "animate-spin" : ""}`}
-                      onAnimationIteration={() => {
-                        if (!checking) {
-                          setSpinning(false);
-                        }
-                      }}
-                    />
-                    Check for updates
-                  </button>
-                )}
+                  />
+                  Check for updates
+                </button>
               </DrawerDescription>
             </DrawerHeader>
             {changelogGroups.map((group) => (

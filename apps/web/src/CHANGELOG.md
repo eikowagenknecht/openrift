@@ -2,6 +2,7 @@
 
 ## 2026-03-10
 
+- fix: App updates now install automatically instead of requiring a manual reload — fixes a crash loop on some devices where stale cached code prevented the update prompt from appearing
 - feat: OpenRift now has a landing page at / with sign-in and a quick link to browse cards
 - feat: There's a hidden easter egg on the landing page — see if you can find it
 
