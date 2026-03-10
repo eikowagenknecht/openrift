@@ -128,9 +128,12 @@ cardsRoute.get("/cards", async (c) => {
 });
 
 cardsRoute.get("/prices", async (c) => {
+  // Use DISTINCT ON to fetch only the most recent snapshot per source,
+  // avoiding a full table scan of tcgplayer_snapshots.
   const rows = await db
     .selectFrom("tcgplayer_sources as ps")
     .innerJoin("tcgplayer_snapshots as snap", "snap.source_id", "ps.id")
+    .distinctOn("ps.id")
     .select([
       "ps.printing_id",
       "ps.external_id",
@@ -138,19 +141,14 @@ cardsRoute.get("/prices", async (c) => {
       "snap.low_cents",
       "snap.mid_cents",
       "snap.high_cents",
-      "snap.recorded_at",
     ])
+    .orderBy("ps.id")
     .orderBy("snap.recorded_at", "desc")
     .execute();
 
   const cards: Record<string, CardPrice> = {};
 
   for (const row of rows) {
-    // Keep first row per printing (most recent snapshot)
-    if (cards[row.printing_id]) {
-      continue;
-    }
-
     cards[row.printing_id] = {
       productId: row.external_id,
       low: (row.low_cents ?? 0) / 100,
