@@ -6,7 +6,6 @@ import { lazy } from "react";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
-import { ReloadPrompt } from "@/components/pwa/reload-prompt";
 import { Toaster } from "@/components/ui/sonner";
 import { SWUpdateProvider } from "@/hooks/use-sw-update";
 
@@ -45,7 +44,6 @@ function RootComponent() {
           )}
           <Footer />
           <Toaster position="bottom-right" />
-          <ReloadPrompt />
           <OfflineIndicator />
         </div>
         <TanStackRouterDevtools />

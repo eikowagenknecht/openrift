@@ -49,7 +49,7 @@ export default defineConfig({
       },
     }),
     VitePWA({
-      registerType: "prompt",
+      registerType: "autoUpdate",
       includeAssets: [
         "logo.webp",
         "favicon-64x64.png",
@@ -86,6 +86,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,png,webp,svg,woff,woff2}"],
         navigateFallbackDenylist: [/^\/api\//, /^\/riot\.txt$/, /^\/robots\.txt$/],
         runtimeCaching: [

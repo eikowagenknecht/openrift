@@ -7,10 +7,8 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 const UPDATE_INTERVAL_MS = 60_000;
 
 interface SWUpdateContextValue {
-  needRefresh: boolean;
-  applyUpdate: () => Promise<void>;
-  /** Check for updates. Returns `true` if an update is available. */
-  checkForUpdate: () => Promise<boolean>;
+  /** Manually check for a new service worker. */
+  checkForUpdate: () => Promise<void>;
 }
 
 const SWUpdateContext = createContext<SWUpdateContextValue | null>(null);
@@ -18,10 +16,7 @@ const SWUpdateContext = createContext<SWUpdateContextValue | null>(null);
 export function SWUpdateProvider({ children }: { children: ReactNode }) {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
+  useRegisterSW({
     onRegistered(registration) {
       registrationRef.current = registration ?? null;
       if (!registration) {
@@ -33,31 +28,15 @@ export function SWUpdateProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const checkForUpdate = async (): Promise<boolean> => {
+  const checkForUpdate = async (): Promise<void> => {
     const reg = registrationRef.current;
     if (!reg) {
-      return false;
+      return;
     }
     await reg.update();
-    // A previously-dismissed update still has a waiting worker — resurface it.
-    if (reg.waiting) {
-      setNeedRefresh(true);
-      return true;
-    }
-    return false;
   };
 
-  return (
-    <SWUpdateContext.Provider
-      value={{
-        needRefresh,
-        applyUpdate: () => updateServiceWorker(true),
-        checkForUpdate,
-      }}
-    >
-      {children}
-    </SWUpdateContext.Provider>
-  );
+  return <SWUpdateContext.Provider value={{ checkForUpdate }}>{children}</SWUpdateContext.Provider>;
 }
 
 export function useSWUpdate(): SWUpdateContextValue {
