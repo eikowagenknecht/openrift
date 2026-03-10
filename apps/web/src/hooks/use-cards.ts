@@ -2,6 +2,7 @@ import type { Card, PricesData, RiftboundContent } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
+import { queryKeys } from "@/lib/query-keys";
 
 type HealthStatus = "db_unreachable" | "db_not_migrated" | "db_empty" | null;
 
@@ -59,14 +60,14 @@ async function fetchPrices(): Promise<PricesData> {
 
 export function useCards(): UseCardsResult {
   const cardsQuery = useQuery({
-    queryKey: ["cards"],
+    queryKey: queryKeys.cards.all,
     queryFn: fetchCards,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
   const pricesQuery = useQuery({
-    queryKey: ["prices"],
+    queryKey: queryKeys.cards.prices,
     queryFn: fetchPrices,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

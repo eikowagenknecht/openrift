@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface CronStatus {
@@ -128,7 +129,7 @@ type ClearAction = (typeof clearActions)[ClearActionKey];
 
 export function useCronStatus() {
   return useQuery<CronStatus>({
-    queryKey: ["admin", "cron-status"],
+    queryKey: queryKeys.admin.cronStatus,
     queryFn: async () => {
       const res = await fetch("/api/admin/cron-status", { credentials: "include" });
       if (!res.ok) {

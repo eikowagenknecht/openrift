@@ -1,5 +1,8 @@
 import type { Source } from "@openrift/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 async function fetchSources(): Promise<Source[]> {
   const res = await fetch("/api/sources", { credentials: "include" });
@@ -57,37 +60,28 @@ async function deleteSource(id: string): Promise<void> {
 
 export function useSources() {
   return useQuery({
-    queryKey: ["sources"],
+    queryKey: queryKeys.sources.all,
     queryFn: fetchSources,
   });
 }
 
 export function useCreateSource() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: createSource,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["sources"] });
-    },
+    invalidates: [queryKeys.sources.all],
   });
 }
 
 export function useUpdateSource() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: updateSource,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["sources"] });
-    },
+    invalidates: [queryKeys.sources.all],
   });
 }
 
 export function useDeleteSource() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: deleteSource,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["sources"] });
-    },
+    invalidates: [queryKeys.sources.all],
   });
 }

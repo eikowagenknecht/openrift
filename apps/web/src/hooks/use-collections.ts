@@ -1,5 +1,8 @@
 import type { Collection } from "@openrift/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 async function fetchCollections(): Promise<Collection[]> {
   const res = await fetch("/api/collections", { credentials: "include" });
@@ -69,38 +72,28 @@ async function deleteCollection({
 
 export function useCollections() {
   return useQuery({
-    queryKey: ["collections"],
+    queryKey: queryKeys.collections.all,
     queryFn: fetchCollections,
   });
 }
 
 export function useCreateCollection() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: createCollection,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["collections"] });
-    },
+    invalidates: [queryKeys.collections.all],
   });
 }
 
 export function useUpdateCollection() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: updateCollection,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["collections"] });
-    },
+    invalidates: [queryKeys.collections.all],
   });
 }
 
 export function useDeleteCollection() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: deleteCollection,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["collections"] });
-      void queryClient.invalidateQueries({ queryKey: ["copies"] });
-    },
+    invalidates: [queryKeys.collections.all, queryKeys.copies.all],
   });
 }

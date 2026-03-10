@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { queryKeys } from "@/lib/query-keys";
 
 export const Route = createLazyFileRoute("/_authenticated/admin/images")({
   component: AdminImagesPage,
@@ -72,7 +73,7 @@ function formatBytes(bytes: number): string {
 
 function useRehostStatus() {
   return useQuery<RehostStatus>({
-    queryKey: ["admin", "rehost-status"],
+    queryKey: queryKeys.admin.rehostStatus,
     queryFn: async () => {
       const res = await fetch("/api/admin/rehost-status", { credentials: "include" });
       if (!res.ok) {

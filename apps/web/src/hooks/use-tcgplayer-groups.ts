@@ -1,4 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 interface TcgplayerGroup {
   groupId: number;
@@ -30,7 +33,7 @@ async function fetchTcgplayerGroups(): Promise<TcgplayerGroupsResponse> {
 
 export function useTcgplayerGroups() {
   return useQuery({
-    queryKey: ["admin", "tcgplayer-groups"],
+    queryKey: queryKeys.admin.tcgplayerGroups,
     queryFn: fetchTcgplayerGroups,
   });
 }
@@ -54,11 +57,8 @@ async function updateTcgplayerGroup(body: UpdateGroupBody): Promise<{ ok: boolea
 }
 
 export function useUpdateTcgplayerGroup() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: updateTcgplayerGroup,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "tcgplayer-groups"] });
-    },
+    invalidates: [queryKeys.admin.tcgplayerGroups],
   });
 }

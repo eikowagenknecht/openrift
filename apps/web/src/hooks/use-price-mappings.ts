@@ -6,6 +6,8 @@ import type {
   SourceMappingConfig,
   StagedProduct,
 } from "@/components/admin/price-mappings-types";
+import { queryKeys } from "@/lib/query-keys";
+
 interface MappingsResponse {
   groups: MappingGroup[];
   unmatchedProducts: StagedProduct[];
@@ -27,7 +29,7 @@ async function fetchMappings(
 
 export function usePriceMappings(config: SourceMappingConfig, showAll = false) {
   return useQuery({
-    queryKey: ["admin", config.source, "mappings", { all: showAll }],
+    queryKey: queryKeys.admin.priceMappings.bySourceAndFilter(config, showAll),
     queryFn: () => fetchMappings(config, showAll),
   });
 }
@@ -57,7 +59,9 @@ export function useSavePriceMappings(config: SourceMappingConfig) {
   return useMutation({
     mutationFn: (body: SaveMappingsBody) => saveMappings(config, body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
     },
   });
 }
@@ -80,7 +84,9 @@ export function useUnmapAllMappings(config: SourceMappingConfig) {
   return useMutation({
     mutationFn: () => unmapAllMappings(config),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
     },
   });
 }
@@ -106,7 +112,9 @@ export function useUnmapPrinting(config: SourceMappingConfig) {
   return useMutation({
     mutationFn: (printingId: string) => unmapPrinting(config, printingId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
     },
   });
 }
@@ -139,7 +147,9 @@ export function useAssignToCard(config: SourceMappingConfig) {
   return useMutation({
     mutationFn: (override: StagingCardOverride) => assignToCard(config, override),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
     },
   });
 }
@@ -170,7 +180,9 @@ export function useUnassignFromCard(config: SourceMappingConfig) {
   return useMutation({
     mutationFn: (params: UnassignFromCard) => unassignFromCard(config, params),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
     },
   });
 }
@@ -201,7 +213,9 @@ export function useIgnoreProducts(config: SourceMappingConfig) {
   return useMutation({
     mutationFn: (products: IgnoreProduct[]) => ignoreProducts(config, products),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
     },
   });
 }
@@ -227,7 +241,9 @@ export function useUnignoreProducts(config: SourceMappingConfig) {
   return useMutation({
     mutationFn: (products: IgnoreProduct[]) => unignoreProducts(config, products),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", config.source] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
     },
   });
 }

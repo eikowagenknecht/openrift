@@ -1,4 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 interface CardmarketExpansion {
   expansionId: number;
@@ -30,7 +33,7 @@ async function fetchCardmarketExpansions(): Promise<CardmarketExpansionsResponse
 
 export function useCardmarketExpansions() {
   return useQuery({
-    queryKey: ["admin", "cardmarket-expansions"],
+    queryKey: queryKeys.admin.cardmarketExpansions,
     queryFn: fetchCardmarketExpansions,
   });
 }
@@ -54,11 +57,8 @@ async function updateCardmarketExpansion(body: UpdateExpansionBody): Promise<{ o
 }
 
 export function useUpdateCardmarketExpansion() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: updateCardmarketExpansion,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "cardmarket-expansions"] });
-    },
+    invalidates: [queryKeys.admin.cardmarketExpansions],
   });
 }

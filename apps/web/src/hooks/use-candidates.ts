@@ -1,9 +1,12 @@
 import type { CandidateCard, CandidateStatus, CandidateUploadResult } from "@openrift/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export function useCandidates(tab: "new" | "updates", status: CandidateStatus = "pending") {
   return useQuery<CandidateCard[]>({
-    queryKey: ["admin", "candidates", tab, status],
+    queryKey: queryKeys.admin.candidates.byFilter(tab, status),
     queryFn: async () => {
       const res = await fetch(`/api/admin/candidates?tab=${tab}&status=${status}`, {
         credentials: "include",
@@ -17,8 +20,7 @@ export function useCandidates(tab: "new" | "updates", status: CandidateStatus = 
 }
 
 export function useUploadCandidates() {
-  const queryClient = useQueryClient();
-  return useMutation<CandidateUploadResult, Error, { source: string; candidates: unknown[] }>({
+  return useMutationWithInvalidation<CandidateUploadResult, { source: string; candidates: unknown[] }>({
     mutationFn: async (payload) => {
       const res = await fetch("/api/admin/candidates/upload", {
         method: "POST",
@@ -32,15 +34,12 @@ export function useUploadCandidates() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "candidates"] });
-    },
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
 export function useAcceptCandidate() {
-  const queryClient = useQueryClient();
-  return useMutation<{ ok: boolean }, Error, { id: string; acceptedFields?: string[] }>({
+  return useMutationWithInvalidation<{ ok: boolean }, { id: string; acceptedFields?: string[] }>({
     mutationFn: async ({ id, acceptedFields }) => {
       const res = await fetch(`/api/admin/candidates/${id}/accept`, {
         method: "POST",
@@ -54,15 +53,12 @@ export function useAcceptCandidate() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "candidates"] });
-    },
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
 export function useRejectCandidate() {
-  const queryClient = useQueryClient();
-  return useMutation<{ ok: boolean }, Error, string>({
+  return useMutationWithInvalidation<{ ok: boolean }, string>({
     mutationFn: async (id) => {
       const res = await fetch(`/api/admin/candidates/${id}/reject`, {
         method: "POST",
@@ -74,15 +70,12 @@ export function useRejectCandidate() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "candidates"] });
-    },
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
 export function useBatchAcceptCandidates() {
-  const queryClient = useQueryClient();
-  return useMutation<{ results: { id: string; ok: boolean; error?: string }[] }, Error, string[]>({
+  return useMutationWithInvalidation<{ results: { id: string; ok: boolean; error?: string }[] }, string[]>({
     mutationFn: async (ids) => {
       const res = await fetch("/api/admin/candidates/batch-accept", {
         method: "POST",
@@ -96,15 +89,12 @@ export function useBatchAcceptCandidates() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "candidates"] });
-    },
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
 export function useEditCandidate() {
-  const queryClient = useQueryClient();
-  return useMutation<{ ok: boolean }, Error, { id: string; fields: Record<string, unknown> }>({
+  return useMutationWithInvalidation<{ ok: boolean }, { id: string; fields: Record<string, unknown> }>({
     mutationFn: async ({ id, fields }) => {
       const res = await fetch(`/api/admin/candidates/${id}`, {
         method: "PATCH",
@@ -118,15 +108,12 @@ export function useEditCandidate() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "candidates"] });
-    },
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
 export function useCreateAlias() {
-  const queryClient = useQueryClient();
-  return useMutation<{ ok: boolean }, Error, { candidateId: string; cardId: string }>({
+  return useMutationWithInvalidation<{ ok: boolean }, { candidateId: string; cardId: string }>({
     mutationFn: async ({ candidateId, cardId }) => {
       const res = await fetch(`/api/admin/candidates/${candidateId}/alias`, {
         method: "POST",
@@ -140,8 +127,6 @@ export function useCreateAlias() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "candidates"] });
-    },
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }

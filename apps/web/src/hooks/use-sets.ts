@@ -1,4 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 interface AdminSet {
   id: string;
@@ -18,7 +21,7 @@ async function fetchSets(): Promise<{ sets: AdminSet[] }> {
 
 export function useSets() {
   return useQuery({
-    queryKey: ["admin", "sets"],
+    queryKey: queryKeys.admin.sets,
     queryFn: fetchSets,
   });
 }
@@ -43,12 +46,9 @@ async function updateSet(body: UpdateSetBody): Promise<{ ok: boolean }> {
 }
 
 export function useUpdateSet() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: updateSet,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "sets"] });
-    },
+    invalidates: [queryKeys.admin.sets],
   });
 }
 
@@ -73,11 +73,8 @@ async function createSet(body: CreateSetBody): Promise<{ ok: boolean }> {
 }
 
 export function useCreateSet() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: createSet,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "sets"] });
-    },
+    invalidates: [queryKeys.admin.sets],
   });
 }

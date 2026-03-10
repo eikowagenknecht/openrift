@@ -1,4 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export interface CopyRow {
   id: string;
@@ -83,42 +86,28 @@ async function disposeCopies(body: { copyIds: string[] }): Promise<void> {
 
 export function useCopies(collectionId?: string) {
   return useQuery({
-    queryKey: collectionId ? ["copies", collectionId] : ["copies"],
+    queryKey: collectionId ? queryKeys.copies.byCollection(collectionId) : queryKeys.copies.all,
     queryFn: () => (collectionId ? fetchCollectionCopies(collectionId) : fetchAllCopies()),
   });
 }
 
 export function useAddCopies() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: addCopies,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["copies"] });
-      void queryClient.invalidateQueries({ queryKey: ["ownedCount"] });
-      void queryClient.invalidateQueries({ queryKey: ["collections"] });
-    },
+    invalidates: [queryKeys.copies.all, queryKeys.ownedCount.all, queryKeys.collections.all],
   });
 }
 
 export function useMoveCopies() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: moveCopies,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["copies"] });
-      void queryClient.invalidateQueries({ queryKey: ["collections"] });
-    },
+    invalidates: [queryKeys.copies.all, queryKeys.collections.all],
   });
 }
 
 export function useDisposeCopies() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useMutationWithInvalidation({
     mutationFn: disposeCopies,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["copies"] });
-      void queryClient.invalidateQueries({ queryKey: ["ownedCount"] });
-      void queryClient.invalidateQueries({ queryKey: ["collections"] });
-    },
+    invalidates: [queryKeys.copies.all, queryKeys.ownedCount.all, queryKeys.collections.all],
   });
 }

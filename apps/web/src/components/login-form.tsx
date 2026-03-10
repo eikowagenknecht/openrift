@@ -8,6 +8,7 @@ import { z } from "zod/v4";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 import {
   Field,
   FieldDescription,
@@ -73,7 +74,7 @@ export function LoginForm({
       setServerError(form, error);
       return;
     }
-    void queryClient.invalidateQueries({ queryKey: ["admin", "me"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.me });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
@@ -119,7 +120,7 @@ export function LoginForm({
       }
       return;
     }
-    void queryClient.invalidateQueries({ queryKey: ["admin", "me"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.me });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 

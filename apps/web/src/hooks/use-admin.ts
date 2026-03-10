@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { queryKeys } from "@/lib/query-keys";
+
 async function fetchIsAdmin(): Promise<boolean> {
   const res = await fetch("/api/admin/me", { credentials: "include" });
   if (!res.ok) {
@@ -11,7 +13,7 @@ async function fetchIsAdmin(): Promise<boolean> {
 
 export function useIsAdmin() {
   return useQuery({
-    queryKey: ["admin", "me"],
+    queryKey: queryKeys.admin.me,
     queryFn: fetchIsAdmin,
     staleTime: 5 * 60 * 1000,
   });
