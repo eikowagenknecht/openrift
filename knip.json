@@ -5,10 +5,15 @@
       "entry": [],
       "project": []
     },
+    "apps/api": {
+      "entry": ["src/**/*.test.ts"],
+      "ignore": []
+    },
     "apps/web": {
+      "entry": ["src/worker.ts"],
       "ignore": ["src/env.d.ts", "src/components/ui/**"]
     },
     "packages/shared": {}
   },
-  "ignoreBinaries": ["eslint"]
+  "ignoreBinaries": []
 }

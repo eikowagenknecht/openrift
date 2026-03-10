@@ -20,7 +20,7 @@ function findProjectRoot(): string {
   throw new Error("Could not find project root (no bun.lock found)");
 }
 
-export const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
+const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
 
 const SIZES = [
   { suffix: "300w", width: 300, quality: 85 },
@@ -43,7 +43,7 @@ interface RehostProgress {
  * File format:        `{source_id}-{art_variant}-{y|n}-{y|n}-{finish}`
  * @returns The filesystem-safe filename base
  */
-export function printingIdToFileBase(printingId: string): string {
+function printingIdToFileBase(printingId: string): string {
   const [sourceId, artVariant, signed, promo, finish] = printingId.split(":");
   return `${sourceId}-${artVariant}-${signed ? "y" : "n"}-${promo ? "y" : "n"}-${finish}`;
 }
@@ -65,7 +65,7 @@ function guessExtension(contentType: string | null, url: string): string {
   return ext || ".png";
 }
 
-export async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string }> {
+async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string }> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Download failed (${res.status}): ${url}`);
@@ -91,7 +91,7 @@ async function generateWebpVariants(
   }
 }
 
-export async function processAndSave(
+async function processAndSave(
   buffer: Buffer,
   originalExt: string,
   outputDir: string,

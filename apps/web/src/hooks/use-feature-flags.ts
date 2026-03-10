@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export interface FeatureFlag {
+interface FeatureFlag {
   key: string;
   enabled: boolean;
   description: string | null;
