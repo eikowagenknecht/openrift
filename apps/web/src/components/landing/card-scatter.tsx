@@ -92,8 +92,6 @@ function CardShape({
   );
 }
 
-const FLY_THRESHOLD = 2;
-
 export function CardScatter({
   className,
   flyIn,
@@ -104,7 +102,6 @@ export function CardScatter({
   onAllCollected?: () => void;
 }) {
   const [activated, setActivated] = useState<Set<number>>(() => new Set());
-  const activationCounts = useRef<Map<number, number>>(new Map());
   const [flyingAway, setFlyingAway] = useState<Set<number>>(() => new Set());
   const [gone, setGone] = useState<Set<number>>(() => new Set());
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -147,23 +144,19 @@ export function CardScatter({
         next.delete(index);
         return next;
       });
+      setFlyingAway((p) => new Set(p).add(index));
+      setTimeout(() => {
+        setGone((p) => {
+          const next = new Set(p).add(index);
+          // Check if all reachable cards are now collected
+          if (reachableCount > 0 && next.size >= reachableCount) {
+            setTimeout(() => onAllCollected?.(), 500);
+          }
+          return next;
+        });
+      }, 800);
     } else {
-      const count = (activationCounts.current.get(index) ?? 0) + 1;
-      activationCounts.current.set(index, count);
       setActivated((prev) => new Set(prev).add(index));
-      if (count >= FLY_THRESHOLD) {
-        setFlyingAway((p) => new Set(p).add(index));
-        setTimeout(() => {
-          setGone((p) => {
-            const next = new Set(p).add(index);
-            // Check if all reachable cards are now collected
-            if (reachableCount > 0 && next.size >= reachableCount) {
-              setTimeout(() => onAllCollected?.(), 500);
-            }
-            return next;
-          });
-        }, 800);
-      }
     }
   }
 
