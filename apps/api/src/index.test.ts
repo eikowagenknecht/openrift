@@ -14,17 +14,24 @@ const mockState = {
 // Module mocks — hoisted before imports by bun:test
 // ---------------------------------------------------------------------------
 
-mock.module("kysely", () => ({
-  sql: (_strings: TemplateStringsArray, ..._values: unknown[]) => ({
-    execute: () => {
-      if (mockState.sqlFails) {
-        throw new Error("connection refused");
-      }
-    },
-  }),
-  // oxlint-disable-next-line typescript/no-extraneous-class -- mock placeholder for Kysely class
-  Kysely: class {},
-}));
+mock.module("kysely", () => {
+  const makeSql = (_strings: TemplateStringsArray, ..._values: unknown[]) => {
+    const obj: Record<string, unknown> = {
+      as: () => obj,
+      execute: () => {
+        if (mockState.sqlFails) {
+          throw new Error("connection refused");
+        }
+      },
+    };
+    return obj;
+  };
+  return {
+    sql: makeSql,
+    // oxlint-disable-next-line typescript/no-extraneous-class -- mock placeholder for Kysely class
+    Kysely: class {},
+  };
+});
 
 mock.module("./db.js", () => ({
   db: {
@@ -56,7 +63,7 @@ mock.module("./auth.js", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- mock.module must come before imports
-import { app } from "./index";
+import { app } from "./app";
 
 // ---------------------------------------------------------------------------
 // GET /api/health
