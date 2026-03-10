@@ -1,9 +1,3 @@
----
-name: review
-description: Review code changes for common AI-generated code smells
-disable-model-invocation: true
----
-
 Review code changes for AI-generated code smells.
 
 How to get the diff based on `$ARGUMENTS`:
