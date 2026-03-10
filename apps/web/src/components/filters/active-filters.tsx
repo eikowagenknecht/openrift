@@ -1,4 +1,4 @@
-import type { AvailableFilters } from "@openrift/shared";
+import type { AvailableFilters, FilterRange, RangeKey } from "@openrift/shared";
 import { X } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
@@ -7,6 +7,17 @@ import { Button } from "@/components/ui/button";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+
+const RANGE_BADGE_SECTIONS: {
+  key: RangeKey;
+  label: string;
+  formatValue?: (v: number) => string;
+}[] = [
+  { key: "energy", label: "Energy" },
+  { key: "might", label: "Might" },
+  { key: "power", label: "Power" },
+  { key: "price", label: "Price", formatValue: (v) => `$${v}` },
+];
 
 interface ActiveFiltersProps {
   filterState: {
@@ -22,19 +33,13 @@ interface ActiveFiltersProps {
     promo: string | null;
   };
   availableFilters: AvailableFilters;
-  energyRange: [number | null, number | null];
-  mightRange: [number | null, number | null];
-  powerRange: [number | null, number | null];
-  priceRange: [number | null, number | null];
+  ranges: Record<RangeKey, FilterRange>;
   hasActiveFilters: boolean;
   onToggleFilter: (
     key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "artVariants" | "finishes",
     value: string,
   ) => void;
-  onClearEnergyRange: () => void;
-  onClearMightRange: () => void;
-  onClearPowerRange: () => void;
-  onClearPriceRange: () => void;
+  onClearRange: (key: RangeKey) => void;
   onClearSigned: () => void;
   onClearPromo: () => void;
   onClearAll: () => void;
@@ -45,16 +50,10 @@ interface ActiveFiltersProps {
 export function ActiveFilters({
   filterState,
   availableFilters,
-  energyRange,
-  mightRange,
-  powerRange,
-  priceRange,
+  ranges,
   hasActiveFilters,
   onToggleFilter,
-  onClearEnergyRange,
-  onClearMightRange,
-  onClearPowerRange,
-  onClearPriceRange,
+  onClearRange,
   onClearSigned,
   onClearPromo,
   onClearAll,
@@ -150,47 +149,24 @@ export function ActiveFilters({
             })}
           </div>
         ))}
-        {(energyRange[0] !== null || energyRange[1] !== null) && (
-          <RangeBadge
-            label="Energy"
-            min={energyRange[0]}
-            max={energyRange[1]}
-            availableMin={availableFilters.energy.min}
-            availableMax={availableFilters.energy.max}
-            onClear={onClearEnergyRange}
-          />
-        )}
-        {(mightRange[0] !== null || mightRange[1] !== null) && (
-          <RangeBadge
-            label="Might"
-            min={mightRange[0]}
-            max={mightRange[1]}
-            availableMin={availableFilters.might.min}
-            availableMax={availableFilters.might.max}
-            onClear={onClearMightRange}
-          />
-        )}
-        {(powerRange[0] !== null || powerRange[1] !== null) && (
-          <RangeBadge
-            label="Power"
-            min={powerRange[0]}
-            max={powerRange[1]}
-            availableMin={availableFilters.power.min}
-            availableMax={availableFilters.power.max}
-            onClear={onClearPowerRange}
-          />
-        )}
-        {(priceRange[0] !== null || priceRange[1] !== null) && (
-          <RangeBadge
-            label="Price"
-            min={priceRange[0]}
-            max={priceRange[1]}
-            availableMin={availableFilters.price.min}
-            availableMax={availableFilters.price.max}
-            onClear={onClearPriceRange}
-            formatValue={(v) => `$${v}`}
-          />
-        )}
+        {RANGE_BADGE_SECTIONS.map(({ key, label, formatValue }) => {
+          const range = ranges[key];
+          if (range.min === null && range.max === null) {
+            return null;
+          }
+          return (
+            <RangeBadge
+              key={key}
+              label={label}
+              min={range.min}
+              max={range.max}
+              availableMin={availableFilters[key].min}
+              availableMax={availableFilters[key].max}
+              onClear={() => onClearRange(key)}
+              formatValue={formatValue}
+            />
+          );
+        })}
         {filterState.signed !== null && (
           <div className="flex items-center gap-1">
             <span className="text-xs text-muted-foreground">Flag:</span>

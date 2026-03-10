@@ -76,6 +76,7 @@ export function CardBrowser() {
 
   const {
     filters,
+    ranges,
     sortBy,
     sortDir,
     hasActiveFilters,
@@ -86,10 +87,7 @@ export function CardBrowser() {
     togglePromo,
     clearSigned,
     clearPromo,
-    setEnergyRange,
-    setMightRange,
-    setPowerRange,
-    setPriceRange,
+    setRange,
     setSortBy,
     setSortDir,
     view,
@@ -422,10 +420,7 @@ export function CardBrowser() {
       <FilterBar
         availableFilters={availableFilters}
         filterState={filterState}
-        energyRange={[filterState.energyMin, filterState.energyMax]}
-        mightRange={[filterState.mightMin, filterState.mightMax]}
-        powerRange={[filterState.powerMin, filterState.powerMax]}
-        priceRange={[filterState.priceMin, filterState.priceMax]}
+        ranges={ranges}
         sortBy={sortBy}
         sortDir={sortDir}
         totalCards={totalUniqueCards}
@@ -438,10 +433,7 @@ export function CardBrowser() {
         onToggleFilter={toggleArrayFilter}
         onToggleSigned={toggleSigned}
         onTogglePromo={togglePromo}
-        onEnergyRangeChange={setEnergyRange}
-        onMightRangeChange={setMightRange}
-        onPowerRangeChange={setPowerRange}
-        onPriceRangeChange={setPriceRange}
+        onRangeChange={setRange}
         onSortChange={setSortBy}
         onSortDirChange={setSortDir}
         onSearchScopeToggle={toggleSearchField}
@@ -455,16 +447,10 @@ export function CardBrowser() {
       <ActiveFilters
         filterState={filterState}
         availableFilters={availableFilters}
-        energyRange={[filterState.energyMin, filterState.energyMax]}
-        mightRange={[filterState.mightMin, filterState.mightMax]}
-        powerRange={[filterState.powerMin, filterState.powerMax]}
-        priceRange={[filterState.priceMin, filterState.priceMax]}
+        ranges={ranges}
         hasActiveFilters={hasActiveFilters}
         onToggleFilter={toggleArrayFilter}
-        onClearEnergyRange={() => setEnergyRange(null, null)}
-        onClearMightRange={() => setMightRange(null, null)}
-        onClearPowerRange={() => setPowerRange(null, null)}
-        onClearPriceRange={() => setPriceRange(null, null)}
+        onClearRange={(key) => setRange(key, null, null)}
         onClearSigned={clearSigned}
         onClearPromo={clearPromo}
         onClearAll={clearAllFilters}
@@ -479,14 +465,8 @@ export function CardBrowser() {
           onToggleFilter={toggleArrayFilter}
           onToggleSigned={toggleSigned}
           onTogglePromo={togglePromo}
-          energyRange={[filterState.energyMin, filterState.energyMax]}
-          mightRange={[filterState.mightMin, filterState.mightMax]}
-          powerRange={[filterState.powerMin, filterState.powerMax]}
-          priceRange={[filterState.priceMin, filterState.priceMax]}
-          onEnergyRangeChange={setEnergyRange}
-          onMightRangeChange={setMightRange}
-          onPowerRangeChange={setPowerRange}
-          onPriceRangeChange={setPriceRange}
+          ranges={ranges}
+          onRangeChange={setRange}
           setDisplayLabel={setDisplayLabel}
         />
         <div
