@@ -20,7 +20,10 @@ export function useCandidates(tab: "new" | "updates", status: CandidateStatus = 
 }
 
 export function useUploadCandidates() {
-  return useMutationWithInvalidation<CandidateUploadResult, { source: string; candidates: unknown[] }>({
+  return useMutationWithInvalidation<
+    CandidateUploadResult,
+    { source: string; candidates: unknown[] }
+  >({
     mutationFn: async (payload) => {
       const res = await fetch("/api/admin/candidates/upload", {
         method: "POST",
@@ -75,7 +78,10 @@ export function useRejectCandidate() {
 }
 
 export function useBatchAcceptCandidates() {
-  return useMutationWithInvalidation<{ results: { id: string; ok: boolean; error?: string }[] }, string[]>({
+  return useMutationWithInvalidation<
+    { results: { id: string; ok: boolean; error?: string }[] },
+    string[]
+  >({
     mutationFn: async (ids) => {
       const res = await fetch("/api/admin/candidates/batch-accept", {
         method: "POST",
@@ -94,7 +100,10 @@ export function useBatchAcceptCandidates() {
 }
 
 export function useEditCandidate() {
-  return useMutationWithInvalidation<{ ok: boolean }, { id: string; fields: Record<string, unknown> }>({
+  return useMutationWithInvalidation<
+    { ok: boolean },
+    { id: string; fields: Record<string, unknown> }
+  >({
     mutationFn: async ({ id, fields }) => {
       const res = await fetch(`/api/admin/candidates/${id}`, {
         method: "PATCH",

@@ -14,7 +14,7 @@ import { matchOrigin } from "./cors.js";
 import { cronJobs } from "./cron-jobs.js";
 import { db } from "./db.js";
 import { activitiesRoute } from "./routes/activities.js";
-import { adminRoute } from "./routes/admin.js";
+import { adminRoute } from "./routes/admin/index.js";
 import { cardsRoute } from "./routes/cards.js";
 import { collectionsRoute } from "./routes/collections.js";
 import { copiesRoute } from "./routes/copies.js";

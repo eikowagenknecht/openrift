@@ -1,4 +1,5 @@
-import { type UseMutationOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { UseMutationOptions } from "@tanstack/react-query";
 
 /**
  * A thin wrapper around `useMutation` that automatically invalidates the given

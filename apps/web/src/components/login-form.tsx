@@ -8,7 +8,6 @@ import { z } from "zod/v4";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { queryKeys } from "@/lib/query-keys";
 import {
   Field,
   FieldDescription,
@@ -23,6 +22,7 @@ import { IS_PREVIEW } from "@/lib/api-base";
 import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
 import { randomEmailPlaceholder } from "@/lib/placeholders";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const signInSchema = z.object({

@@ -1,0 +1,235 @@
+import { Hono } from "hono";
+import { sql } from "kysely";
+import { z } from "zod/v4";
+
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { db } from "../../db.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { requireAdmin } from "../../middleware/require-admin.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import type { Variables } from "../../types.js";
+
+export const catalogRoute = new Hono<{ Variables: Variables }>();
+
+// ── Cardmarket Expansions ────────────────────────────────────────────────────
+
+catalogRoute.use("/admin/cardmarket-expansions", requireAdmin);
+
+catalogRoute.get("/admin/cardmarket-expansions", async (c) => {
+  const expansions = await db
+    .selectFrom("cardmarket_expansions as ce")
+    .leftJoin("sets as s", "s.id", "ce.set_id")
+    .select(["ce.expansion_id", "ce.set_id", "s.name as set_name"])
+    .orderBy("ce.expansion_id")
+    .execute();
+
+  // Count staging rows per expansion (group_id stores idExpansion for cardmarket)
+  const stagingCounts = await db
+    .selectFrom("cardmarket_staging")
+    .select(["group_id", sql<number>`count(DISTINCT external_id)::int`.as("count")])
+    .where("group_id", "is not", null)
+    .groupBy("group_id")
+    .execute();
+
+  const countMap = new Map(stagingCounts.map((r) => [r.group_id, r.count]));
+
+  // Count assigned (mapped) products per expansion
+  const assignedCounts = await db
+    .selectFrom("cardmarket_sources")
+    .select(["group_id", sql<number>`count(*)::int`.as("count")])
+    .where("group_id", "is not", null)
+    .groupBy("group_id")
+    .execute();
+
+  const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, r.count]));
+
+  const sets = await db.selectFrom("sets").select(["id", "name"]).orderBy("name").execute();
+
+  return c.json({
+    expansions: expansions.map((e) => ({
+      expansionId: e.expansion_id,
+      setId: e.set_id,
+      setName: e.set_name,
+      stagedCount: countMap.get(e.expansion_id) ?? 0,
+      assignedCount: assignedMap.get(e.expansion_id) ?? 0,
+    })),
+    sets: sets.map((s) => ({ id: s.id, name: s.name })),
+  });
+});
+
+const updateExpansionSchema = z.object({
+  expansionId: z.number(),
+  setId: z.string().nullable(),
+});
+
+catalogRoute.put("/admin/cardmarket-expansions", async (c) => {
+  const body = await c.req.json();
+  const parsed = updateExpansionSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
+  }
+
+  const { expansionId, setId } = parsed.data;
+
+  await db
+    .updateTable("cardmarket_expansions")
+    .set({ set_id: setId, updated_at: new Date() })
+    .where("expansion_id", "=", expansionId)
+    .execute();
+
+  return c.json({ ok: true });
+});
+
+// ── TCGPlayer Groups ─────────────────────────────────────────────────────────
+
+catalogRoute.use("/admin/tcgplayer-groups", requireAdmin);
+
+catalogRoute.get("/admin/tcgplayer-groups", async (c) => {
+  const groups = await db
+    .selectFrom("tcgplayer_groups as tg")
+    .leftJoin("sets as s", "s.id", "tg.set_id")
+    .select(["tg.group_id", "tg.name", "tg.abbreviation", "tg.set_id", "s.name as set_name"])
+    .orderBy("tg.name")
+    .execute();
+
+  // Count staging rows per group_id
+  const stagingCounts = await db
+    .selectFrom("tcgplayer_staging")
+    .select(["group_id", sql<number>`count(DISTINCT external_id)::int`.as("count")])
+    .where("group_id", "is not", null)
+    .groupBy("group_id")
+    .execute();
+
+  const countMap = new Map(stagingCounts.map((r) => [r.group_id, r.count]));
+
+  // Count assigned (mapped) products per group_id
+  const assignedCounts = await db
+    .selectFrom("tcgplayer_sources")
+    .select(["group_id", sql<number>`count(*)::int`.as("count")])
+    .where("group_id", "is not", null)
+    .groupBy("group_id")
+    .execute();
+
+  const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, r.count]));
+
+  const sets = await db.selectFrom("sets").select(["id", "name"]).orderBy("name").execute();
+
+  return c.json({
+    groups: groups.map((g) => ({
+      groupId: g.group_id,
+      name: g.name,
+      abbreviation: g.abbreviation,
+      setId: g.set_id,
+      setName: g.set_name,
+      stagedCount: countMap.get(g.group_id) ?? 0,
+      assignedCount: assignedMap.get(g.group_id) ?? 0,
+    })),
+    sets: sets.map((s) => ({ id: s.id, name: s.name })),
+  });
+});
+
+const updateGroupSchema = z.object({
+  groupId: z.number(),
+  setId: z.string().nullable(),
+});
+
+catalogRoute.put("/admin/tcgplayer-groups", async (c) => {
+  const body = await c.req.json();
+  const parsed = updateGroupSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
+  }
+
+  const { groupId, setId } = parsed.data;
+
+  await db
+    .updateTable("tcgplayer_groups")
+    .set({ set_id: setId, updated_at: new Date() })
+    .where("group_id", "=", groupId)
+    .execute();
+
+  return c.json({ ok: true });
+});
+
+// ── Sets CRUD ─────────────────────────────────────────────────────────────────
+
+catalogRoute.use("/admin/sets", requireAdmin);
+
+catalogRoute.get("/admin/sets", async (c) => {
+  const sets = await db.selectFrom("sets").selectAll().orderBy("name").execute();
+
+  const cardCounts = await db
+    .selectFrom("printings")
+    .select(["set_id", sql<number>`count(DISTINCT card_id)::int`.as("card_count")])
+    .groupBy("set_id")
+    .execute();
+
+  const printingCounts = await db
+    .selectFrom("printings")
+    .select(["set_id", sql<number>`count(*)::int`.as("printing_count")])
+    .groupBy("set_id")
+    .execute();
+
+  const cardCountMap = new Map(cardCounts.map((r) => [r.set_id, r.card_count]));
+  const printingCountMap = new Map(printingCounts.map((r) => [r.set_id, r.printing_count]));
+
+  return c.json({
+    sets: sets.map((s) => ({
+      id: s.id,
+      name: s.name,
+      printedTotal: s.printed_total,
+      cardCount: cardCountMap.get(s.id) ?? 0,
+      printingCount: printingCountMap.get(s.id) ?? 0,
+    })),
+  });
+});
+
+const updateSetSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  printedTotal: z.number().int().min(0),
+});
+
+catalogRoute.put("/admin/sets", async (c) => {
+  const body = await c.req.json();
+  const parsed = updateSetSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
+  }
+
+  const { id, name, printedTotal } = parsed.data;
+
+  await db
+    .updateTable("sets")
+    .set({ name, printed_total: printedTotal, updated_at: new Date() })
+    .where("id", "=", id)
+    .execute();
+
+  return c.json({ ok: true });
+});
+
+const createSetSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  printedTotal: z.number().int().min(0),
+});
+
+catalogRoute.post("/admin/sets", async (c) => {
+  const body = await c.req.json();
+  const parsed = createSetSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
+  }
+
+  const { id, name, printedTotal } = parsed.data;
+
+  const existing = await db.selectFrom("sets").select("id").where("id", "=", id).executeTakeFirst();
+
+  if (existing) {
+    return c.json({ error: `Set with ID "${id}" already exists` }, 409);
+  }
+
+  await db.insertInto("sets").values({ id, name, printed_total: printedTotal }).execute();
+
+  return c.json({ ok: true });
+});
