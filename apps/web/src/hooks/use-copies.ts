@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export interface CopyRow {
+interface CopyRow {
   id: string;
   printing_id: string;
   collection_id: string;

@@ -2,7 +2,7 @@ import type { ActivityAction, ActivityType } from "@openrift/shared";
 import type { Database } from "@openrift/shared/db";
 import type { Transaction } from "kysely";
 
-export interface ActivityItemInput {
+interface ActivityItemInput {
   copyId?: string | null;
   printingId: string;
   action: ActivityAction;
@@ -69,22 +69,4 @@ export async function createActivity(
   }
 
   return activityId;
-}
-
-/**
- * Creates an auto-activity (single item, no name) inside an existing transaction.
- * @returns The activity ID
- */
-export function createAutoActivity(
-  trx: Transaction<Database>,
-  userId: string,
-  type: ActivityType,
-  item: ActivityItemInput,
-): Promise<string> {
-  return createActivity(trx, {
-    userId,
-    type,
-    isAuto: true,
-    items: [item],
-  });
 }

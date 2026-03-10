@@ -28,7 +28,3 @@ export async function loadFeatureFlags(): Promise<void> {
     // Corrupted localStorage — start with no flags
   }
 }
-
-export function featureEnabled(flag: string): boolean {
-  return flags[flag] === true;
-}
