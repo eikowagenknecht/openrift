@@ -19,7 +19,19 @@ trap 'rm -f "$LOCKFILE"' EXIT
 trap 'trap - INT TERM HUP; kill -- -$$ 2>/dev/null' INT TERM HUP
 
 echo "==> Pulling images..."
-docker compose pull
+pull_retries=3
+for i in $(seq 1 "$pull_retries"); do
+  if docker compose pull; then
+    break
+  fi
+  if [ "$i" -eq "$pull_retries" ]; then
+    echo "Image pull failed after $pull_retries attempts, aborting."
+    exit 1
+  fi
+  wait=$((i * 10))
+  echo "Pull attempt $i/$pull_retries failed, retrying in ${wait}s..."
+  sleep "$wait"
+done
 
 echo "==> Restarting services..."
 docker compose up -d
