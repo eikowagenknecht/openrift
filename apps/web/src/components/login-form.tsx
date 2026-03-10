@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IS_PREVIEW } from "@/lib/api-base";
 import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
@@ -124,291 +125,239 @@ export function LoginForm({
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
-  function toggleMethod() {
-    if (method === "password") {
+  function handleTabChange(value: "password" | "otp") {
+    if (value === method) {
+      return;
+    }
+    if (value === "otp") {
       setOtpEmail(form.getValues("email"));
-      setMethod("otp");
     } else {
       form.setValue("email", otpEmail);
-      setMethod("password");
     }
+    setMethod(value);
     setOtpStep("email");
     setOtp("");
     setOtpError("");
     setOtpEmailError("");
   }
 
+  const currentEmail = method === "password" ? watchedEmail : otpEmail;
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          {method === "password" ? (
-            <form className="p-6 md:p-8" onSubmit={form.handleSubmit(onSubmit)} noValidate>
-              <FieldGroup>
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <img src="/logo.webp" alt="OpenRift" className="size-12 md:hidden" />
-                  <h1 className="text-2xl font-bold">Welcome back</h1>
-                  <p className="text-muted-foreground text-balance">
-                    Sign in to your OpenRift account
-                  </p>
-                </div>
-                {form.formState.errors.root && (
-                  <FieldError>
-                    {form.formState.errors.root.message}
-                    {emailNotVerified && (
-                      <button
-                        type="button"
-                        className="ml-1 underline underline-offset-2"
-                        disabled={resending}
-                        onClick={handleResend}
-                      >
-                        {resending ? "Sending..." : "Resend verification email"}
-                      </button>
-                    )}
-                  </FieldError>
-                )}
-                <Controller
-                  name="email"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                      <Input
-                        {...field}
-                        id={field.name}
-                        type="email"
-                        placeholder={emailPlaceholder}
-                        aria-invalid={fieldState.invalid}
+          <div className="p-6 md:p-8">
+            <FieldGroup>
+              <div className="flex flex-col items-center gap-2 text-center">
+                <img src="/logo.webp" alt="OpenRift" className="size-12 md:hidden" />
+                <h1 className="text-2xl font-bold">Welcome back</h1>
+                <p className="text-muted-foreground text-balance">
+                  Sign in to your OpenRift account
+                </p>
+              </div>
+              <Tabs value={method} onValueChange={(v) => handleTabChange(v as "password" | "otp")}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="password">Password</TabsTrigger>
+                  <TabsTrigger value="otp">Email code</TabsTrigger>
+                </TabsList>
+                <TabsContent value="password">
+                  <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+                    <FieldGroup>
+                      {form.formState.errors.root && (
+                        <FieldError>
+                          {form.formState.errors.root.message}
+                          {emailNotVerified && (
+                            <button
+                              type="button"
+                              className="ml-1 underline underline-offset-2"
+                              disabled={resending}
+                              onClick={handleResend}
+                            >
+                              {resending ? "Sending..." : "Resend verification email"}
+                            </button>
+                          )}
+                        </FieldError>
+                      )}
+                      <Controller
+                        name="email"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                            {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: enforce email → password → login → forgot-password tab order */}
+                            <Input
+                              {...field}
+                              id={field.name}
+                              tabIndex={1}
+                              type="email"
+                              placeholder={emailPlaceholder}
+                              aria-invalid={fieldState.invalid}
+                            />
+                            {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
+                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                          </Field>
+                        )}
                       />
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="password"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <div className="flex items-center">
-                        <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                        <Link
-                          to="/reset-password"
-                          search={{ email: watchedEmail }}
-                          className="ml-auto text-sm underline-offset-2 hover:underline"
+                      <Controller
+                        name="password"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <div className="flex items-center justify-between">
+                              <FieldLabel htmlFor={field.name}>Password</FieldLabel>
+                              {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: tab after login button */}
+                              <Link
+                                to="/reset-password"
+                                search={{ email: watchedEmail }}
+                                tabIndex={4}
+                                className="text-muted-foreground text-sm underline-offset-2 hover:underline"
+                              >
+                                Forgot your password?
+                              </Link>
+                              {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
+                            </div>
+                            {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: enforce email → password → login → forgot-password tab order */}
+                            <Input
+                              {...field}
+                              id={field.name}
+                              tabIndex={2}
+                              type="password"
+                              aria-invalid={fieldState.invalid}
+                            />
+                            {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
+                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                          </Field>
+                        )}
+                      />
+                      <Field>
+                        {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: enforce email → password → login → forgot-password tab order */}
+                        <Button type="submit" tabIndex={3} disabled={loading}>
+                          {loading ? "Signing in..." : "Login"}
+                        </Button>
+                        {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
+                      </Field>
+                    </FieldGroup>
+                  </form>
+                </TabsContent>
+                <TabsContent value="otp">
+                  <FieldGroup>
+                    {otpStep === "email" ? (
+                      <>
+                        {otpEmailError && <FieldError>{otpEmailError}</FieldError>}
+                        <Field>
+                          <FieldLabel htmlFor="otp-email">Email</FieldLabel>
+                          <Input
+                            id="otp-email"
+                            type="email"
+                            placeholder={emailPlaceholder}
+                            value={otpEmail}
+                            onChange={(e) => setOtpEmail(e.target.value)}
+                            aria-invalid={Boolean(otpEmailError)}
+                          />
+                        </Field>
+                        <Field>
+                          <Button type="button" disabled={otpLoading} onClick={handleSendOtp}>
+                            {otpLoading ? "Sending..." : "Send code"}
+                          </Button>
+                        </Field>
+                      </>
+                    ) : (
+                      <>
+                        {otpError && <FieldError>{otpError}</FieldError>}
+                        <div className="flex justify-center">
+                          <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                            <InputOTPGroup>
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </div>
+                        <Field>
+                          <Button
+                            type="button"
+                            disabled={otp.length < 6 || otpLoading}
+                            onClick={handleVerifyOtp}
+                          >
+                            {otpLoading ? "Verifying..." : "Verify"}
+                          </Button>
+                        </Field>
+                        <button
+                          type="button"
+                          className="text-muted-foreground text-center text-sm underline underline-offset-2"
+                          disabled={otpLoading}
+                          onClick={() => {
+                            setOtpStep("email");
+                            setOtp("");
+                            setOtpError("");
+                          }}
                         >
-                          Forgot your password?
-                        </Link>
-                      </div>
-                      <Input
-                        {...field}
-                        id={field.name}
-                        type="password"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </Field>
-                  )}
-                />
-                <Field>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Signing in..." : "Login"}
-                  </Button>
-                </Field>
-                <button
-                  type="button"
-                  className="text-muted-foreground text-center text-sm underline underline-offset-2"
-                  onClick={toggleMethod}
-                >
-                  Sign in with email code
-                </button>
-                {!IS_PREVIEW && (
-                  <>
-                    <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                      Or continue with
-                    </FieldSeparator>
-                    <Field className="grid grid-cols-2 gap-4">
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className="w-full"
-                        onClick={() =>
-                          authClient.signIn.social({
-                            provider: "google",
-                            callbackURL: redirectTo ?? "/",
-                          })
-                        }
-                      >
-                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                          <path d={siGoogle.path} fill="currentColor" />
-                        </svg>
-                        Google
-                      </Button>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className="w-full"
-                        onClick={() =>
-                          authClient.signIn.social({
-                            provider: "discord",
-                            callbackURL: redirectTo ?? "/",
-                          })
-                        }
-                      >
-                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                          <path d={siDiscord.path} fill="currentColor" />
-                        </svg>
-                        Discord
-                      </Button>
-                    </Field>
-                  </>
-                )}
-                <FieldDescription className="text-center">
-                  Don&apos;t have an account?{" "}
-                  <Link
-                    to="/signup"
-                    search={{
-                      redirect: redirectTo === "/" ? undefined : redirectTo,
-                      email: watchedEmail || undefined,
-                    }}
-                  >
-                    Sign up
-                  </Link>
-                </FieldDescription>
-              </FieldGroup>
-            </form>
-          ) : (
-            <div className="p-6 md:p-8">
-              <FieldGroup>
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <img src="/logo.webp" alt="OpenRift" className="size-12 md:hidden" />
-                  <h1 className="text-2xl font-bold">Welcome back</h1>
-                  <p className="text-muted-foreground text-balance">
-                    {otpStep === "email"
-                      ? "Enter your email to receive a sign-in code"
-                      : `Enter the 6-digit code sent to ${otpEmail}`}
-                  </p>
-                </div>
-                {otpStep === "email" ? (
-                  <>
-                    {otpEmailError && <FieldError>{otpEmailError}</FieldError>}
-                    <Field>
-                      <FieldLabel htmlFor="otp-email">Email</FieldLabel>
-                      <Input
-                        id="otp-email"
-                        type="email"
-                        placeholder={emailPlaceholder}
-                        value={otpEmail}
-                        onChange={(e) => setOtpEmail(e.target.value)}
-                        aria-invalid={Boolean(otpEmailError)}
-                      />
-                    </Field>
-                    <Field>
-                      <Button type="button" disabled={otpLoading} onClick={handleSendOtp}>
-                        {otpLoading ? "Sending..." : "Send code"}
-                      </Button>
-                    </Field>
-                  </>
-                ) : (
-                  <>
-                    {otpError && <FieldError>{otpError}</FieldError>}
-                    <div className="flex justify-center">
-                      <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                        <InputOTPGroup>
-                          <InputOTPSlot index={0} />
-                          <InputOTPSlot index={1} />
-                          <InputOTPSlot index={2} />
-                          <InputOTPSlot index={3} />
-                          <InputOTPSlot index={4} />
-                          <InputOTPSlot index={5} />
-                        </InputOTPGroup>
-                      </InputOTP>
-                    </div>
-                    <Field>
-                      <Button
-                        type="button"
-                        disabled={otp.length < 6 || otpLoading}
-                        onClick={handleVerifyOtp}
-                      >
-                        {otpLoading ? "Verifying..." : "Verify"}
-                      </Button>
-                    </Field>
-                    <button
+                          Use a different email
+                        </button>
+                      </>
+                    )}
+                  </FieldGroup>
+                </TabsContent>
+              </Tabs>
+              {!IS_PREVIEW && (
+                <>
+                  <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                    Or continue with
+                  </FieldSeparator>
+                  <Field className="grid grid-cols-2 gap-4">
+                    <Button
+                      variant="outline"
                       type="button"
-                      className="text-muted-foreground text-center text-sm underline underline-offset-2"
-                      disabled={otpLoading}
-                      onClick={() => {
-                        setOtpStep("email");
-                        setOtp("");
-                        setOtpError("");
-                      }}
+                      className="w-full"
+                      onClick={() =>
+                        authClient.signIn.social({
+                          provider: "google",
+                          callbackURL: redirectTo ?? "/",
+                        })
+                      }
                     >
-                      Use a different email
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="text-muted-foreground text-center text-sm underline underline-offset-2"
-                  onClick={toggleMethod}
+                      <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                        <path d={siGoogle.path} fill="currentColor" />
+                      </svg>
+                      Google
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full"
+                      onClick={() =>
+                        authClient.signIn.social({
+                          provider: "discord",
+                          callbackURL: redirectTo ?? "/",
+                        })
+                      }
+                    >
+                      <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                        <path d={siDiscord.path} fill="currentColor" />
+                      </svg>
+                      Discord
+                    </Button>
+                  </Field>
+                </>
+              )}
+              <FieldDescription className="text-center">
+                Don&apos;t have an account?{" "}
+                <Link
+                  to="/signup"
+                  search={{
+                    redirect: redirectTo === "/" ? undefined : redirectTo,
+                    email: currentEmail || undefined,
+                  }}
                 >
-                  Sign in with password
-                </button>
-                {!IS_PREVIEW && (
-                  <>
-                    <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                      Or continue with
-                    </FieldSeparator>
-                    <Field className="grid grid-cols-2 gap-4">
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className="w-full"
-                        onClick={() =>
-                          authClient.signIn.social({
-                            provider: "google",
-                            callbackURL: redirectTo ?? "/",
-                          })
-                        }
-                      >
-                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                          <path d={siGoogle.path} fill="currentColor" />
-                        </svg>
-                        Google
-                      </Button>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className="w-full"
-                        onClick={() =>
-                          authClient.signIn.social({
-                            provider: "discord",
-                            callbackURL: redirectTo ?? "/",
-                          })
-                        }
-                      >
-                        <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                          <path d={siDiscord.path} fill="currentColor" />
-                        </svg>
-                        Discord
-                      </Button>
-                    </Field>
-                  </>
-                )}
-                <FieldDescription className="text-center">
-                  Don&apos;t have an account?{" "}
-                  <Link
-                    to="/signup"
-                    search={{
-                      redirect: redirectTo === "/" ? undefined : redirectTo,
-                      email: otpEmail || undefined,
-                    }}
-                  >
-                    Sign up
-                  </Link>
-                </FieldDescription>
-              </FieldGroup>
-            </div>
-          )}
+                  Sign up
+                </Link>
+              </FieldDescription>
+            </FieldGroup>
+          </div>
           <div className="bg-muted relative hidden md:block">
             <img
               src="/logo-gray.webp"
