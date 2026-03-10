@@ -409,7 +409,10 @@ export function CardBrowser() {
           <Button
             size="sm"
             onClick={() =>
-              void navigate({ to: "/collection/$collectionId", params: { collectionId: addingTo } })
+              void navigate({
+                to: "/collections/$collectionId",
+                params: { collectionId: addingTo },
+              })
             }
           >
             Done

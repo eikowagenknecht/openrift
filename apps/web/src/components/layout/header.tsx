@@ -77,7 +77,7 @@ export function Header() {
   const gravatarUrl = useGravatarUrl(session?.user?.email);
 
   const matchRoute = useMatchRoute();
-  const isCollectionRoute = matchRoute({ to: "/collection", fuzzy: true });
+  const isCollectionRoute = matchRoute({ to: "/collections", fuzzy: true });
   const { needRefresh, applyUpdate, checkForUpdate } = useSWUpdate();
   const [checking, setChecking] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -136,7 +136,7 @@ export function Header() {
                 variant={isCollectionRoute ? "secondary" : "ghost"}
                 size="sm"
                 nativeButton={false}
-                render={<Link to="/collection" />}
+                render={<Link to="/collections" />}
               >
                 Collection
               </Button>
