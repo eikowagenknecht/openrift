@@ -1,13 +1,15 @@
 import type {
   Card,
-  CardArt,
   CardmarketSnapshot,
-  CardPrice,
   CardStats,
   CardType,
   ContentSet,
+  Domain,
   PriceHistoryResponse,
+  Printing,
+  PrintingImage,
   Rarity,
+  SuperType,
   RiftboundContent,
   TcgplayerSnapshot,
   TimeRange,
@@ -66,16 +68,15 @@ cardsRoute.get("/cards", async (c) => {
     .orderBy("p.finish", "desc")
     .execute();
 
-  const cardsBySet = new Map<string, Card[]>();
+  const printingsBySet = new Map<string, Printing[]>();
   for (const row of rows) {
+    const images: PrintingImage[] = row.image_url ? [{ face: "front", url: row.image_url }] : [];
     const card: Card = {
-      id: row.printing_id,
-      cardId: row.card_id,
-      sourceId: row.source_id,
+      id: row.card_id,
       name: row.name,
       type: row.type as CardType,
-      superTypes: row.super_types as string[],
-      domains: row.domains as string[],
+      superTypes: row.super_types as SuperType[],
+      domains: row.domains as Domain[],
       stats: {
         might: row.might,
         energy: row.energy,
@@ -84,6 +85,12 @@ cardsRoute.get("/cards", async (c) => {
       keywords: row.keywords as string[],
       tags: row.tags as string[],
       mightBonus: row.might_bonus,
+      description: row.rules_text,
+      effect: row.effect_text,
+    };
+    const printing: Printing = {
+      id: row.printing_id,
+      sourceId: row.source_id,
       set: row.set_id,
       collectorNumber: row.collector_number,
       rarity: row.rarity as Rarity,
@@ -91,30 +98,27 @@ cardsRoute.get("/cards", async (c) => {
       isSigned: row.is_signed,
       isPromo: row.is_promo,
       finish: row.finish,
-      art: {
-        imageURL: row.image_url,
-        artist: row.artist,
-      } satisfies CardArt,
-      description: row.rules_text,
-      effect: row.effect_text,
+      images,
+      artist: row.artist,
+      publicCode: row.public_code,
       ...(row.printed_rules_text !== row.rules_text && {
         printedDescription: row.printed_rules_text,
       }),
       ...(row.printed_effect_text !== row.effect_text && {
         printedEffect: row.printed_effect_text,
       }),
-      publicCode: row.public_code,
+      card,
     };
-    const list = cardsBySet.get(row.set_id) ?? [];
-    list.push(card);
-    cardsBySet.set(row.set_id, list);
+    const list = printingsBySet.get(row.set_id) ?? [];
+    list.push(printing);
+    printingsBySet.set(row.set_id, list);
   }
 
   const contentSets: ContentSet[] = sets.map((s) => ({
     id: s.id,
     name: s.name,
     printedTotal: s.printed_total,
-    cards: cardsBySet.get(s.id) ?? [],
+    printings: printingsBySet.get(s.id) ?? [],
   }));
 
   const content: RiftboundContent = {
@@ -134,34 +138,21 @@ cardsRoute.get("/prices", async (c) => {
     .selectFrom("tcgplayer_sources as ps")
     .innerJoin("tcgplayer_snapshots as snap", "snap.source_id", "ps.id")
     .distinctOn("ps.id")
-    .select([
-      "ps.printing_id",
-      "ps.external_id",
-      "snap.market_cents",
-      "snap.low_cents",
-      "snap.mid_cents",
-      "snap.high_cents",
-    ])
+    .select(["ps.printing_id", "snap.market_cents"])
     .orderBy("ps.id")
     .orderBy("snap.recorded_at", "desc")
     .execute();
 
-  const cards: Record<string, CardPrice> = {};
+  const prices: Record<string, number> = {};
 
   for (const row of rows) {
-    cards[row.printing_id] = {
-      productId: row.external_id,
-      low: (row.low_cents ?? 0) / 100,
-      mid: (row.mid_cents ?? 0) / 100,
-      high: (row.high_cents ?? 0) / 100,
-      market: row.market_cents / 100,
-    };
+    prices[row.printing_id] = row.market_cents / 100;
   }
 
   return c.json({
     source: "tcgplayer",
     fetchedAt: new Date().toISOString(),
-    cards,
+    prices,
   });
 });
 

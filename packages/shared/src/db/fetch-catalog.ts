@@ -1,6 +1,6 @@
 /* oxlint-disable no-console -- CLI script */
 import { galleryCardSchema } from "../schemas.js";
-import type { CardArt, CardStats, CardType, Rarity } from "../types.js";
+import type { CardStats, CardType, Rarity } from "../types.js";
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ interface PrintingData {
   artVariant: string;
   isSigned: boolean;
   isPromo: boolean;
-  art: CardArt;
+  art: { imageURL: string; artist: string };
   publicCode: string;
   printedRulesText: string;
   printedEffectText: string;

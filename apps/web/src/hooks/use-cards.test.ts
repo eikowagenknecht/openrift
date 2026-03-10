@@ -1,4 +1,4 @@
-import type { RiftboundContent, PricesData, Card } from "@openrift/shared";
+import type { RiftboundContent, PricesData, Printing } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -7,31 +7,34 @@ import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
 import { useCards, ApiError } from "./use-cards";
 
-// Stub card for tests
-function stubCard(overrides: Partial<Card> = {}): Card {
+// Stub printing for tests
+function stubPrinting(overrides: Partial<Printing> = {}): Printing {
   return {
     id: "RB1-001:normal:::normal",
-    cardId: "RB1-001",
     sourceId: "RB1-001",
-    name: "Test Card",
-    type: "Unit",
-    superTypes: [],
-    rarity: "Common",
-    collectorNumber: 1,
-    domains: [],
-    stats: { might: 1, energy: 1, power: 1 },
-    keywords: [],
-    description: "",
-    effect: "",
-    mightBonus: 0,
     set: "RB1",
-    art: { imageURL: "", artist: "Artist" },
-    tags: [],
-    publicCode: "rb1-001",
+    collectorNumber: 1,
+    rarity: "Common",
     artVariant: "normal",
     isSigned: false,
     isPromo: false,
     finish: "normal",
+    images: [],
+    artist: "Artist",
+    publicCode: "rb1-001",
+    card: {
+      id: "RB1-001",
+      name: "Test Card",
+      type: "Unit",
+      superTypes: [],
+      domains: [],
+      stats: { might: 1, energy: 1, power: 1 },
+      keywords: [],
+      tags: [],
+      mightBonus: 0,
+      description: "",
+      effect: "",
+    },
     ...overrides,
   };
 }
@@ -45,9 +48,17 @@ const CARDS_RESPONSE: RiftboundContent = {
       id: "RB1",
       name: "First Set",
       printedTotal: 2,
-      cards: [
-        stubCard({ id: "RB1-001:normal:::normal", sourceId: "RB1-001", name: "Card A" }),
-        stubCard({ id: "RB1-002:normal:::normal", sourceId: "RB1-002", name: "Card B" }),
+      printings: [
+        stubPrinting({
+          id: "RB1-001:normal:::normal",
+          sourceId: "RB1-001",
+          card: { ...stubPrinting().card, id: "RB1-001", name: "Card A" },
+        }),
+        stubPrinting({
+          id: "RB1-002:normal:::normal",
+          sourceId: "RB1-002",
+          card: { ...stubPrinting().card, id: "RB1-002", name: "Card B" },
+        }),
       ],
     },
   ],
@@ -56,14 +67,8 @@ const CARDS_RESPONSE: RiftboundContent = {
 const PRICES_RESPONSE: PricesData = {
   source: "test",
   fetchedAt: "2025-01-01",
-  cards: {
-    "RB1-001:normal:::normal": {
-      productId: 1,
-      low: 0.5,
-      mid: 1,
-      high: 2,
-      market: 1,
-    },
+  prices: {
+    "RB1-001:normal:::normal": 1,
   },
 };
 
@@ -133,14 +138,11 @@ describe("useCards", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    const cardWithPrice = result.current.allCards.find((c) => c.id === "RB1-001:normal:::normal");
-    const cardWithoutPrice = result.current.allCards.find(
-      (c) => c.id === "RB1-002:normal:::normal",
-    );
+    const withPrice = result.current.allCards.find((c) => c.id === "RB1-001:normal:::normal");
+    const withoutPrice = result.current.allCards.find((c) => c.id === "RB1-002:normal:::normal");
 
-    expect(cardWithPrice?.price).toBeDefined();
-    expect(cardWithPrice?.price?.market).toBe(1);
-    expect(cardWithoutPrice?.price).toBeUndefined();
+    expect(withPrice?.marketPrice).toBe(1);
+    expect(withoutPrice?.marketPrice).toBeUndefined();
   });
 
   it("returns an ApiError with health status when cards fetch fails", async () => {
@@ -202,6 +204,6 @@ describe("useCards", () => {
 
     // Cards still available since cardsQuery succeeded
     expect(result.current.allCards).toHaveLength(2);
-    expect(result.current.allCards.every((c) => c.price === undefined)).toBe(true);
+    expect(result.current.allCards.every((c) => c.marketPrice === undefined)).toBe(true);
   });
 });

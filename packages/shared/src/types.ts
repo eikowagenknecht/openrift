@@ -1,12 +1,16 @@
 // If you add a value here, also update the CHECK constraint in a new migration
-// (see 009_check_constraints.ts — chk_cards_type).
+// (see 001-core-schema.ts — chk_cards_type).
 export type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
 
 // If you add a value here, also update the CHECK constraint in a new migration
-// (see 009_check_constraints.ts — chk_printings_rarity).
+// (see 001-core-schema.ts — chk_printings_rarity).
 export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
 
 export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order" | "Colorless";
+
+export type SuperType = "Basic" | "Champion" | "Signature" | "Token";
+
+export type CardFace = "front" | "back";
 
 export const RARITY_ORDER: Record<Rarity, number> = {
   Common: 0,
@@ -20,18 +24,10 @@ export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
 
 export type SortDirection = "asc" | "desc";
 
-export interface CardPrice {
-  productId: number;
-  low: number;
-  mid: number;
-  high: number;
-  market: number;
-}
-
 export interface PricesData {
   source: string;
   fetchedAt: string;
-  cards: Record<string, CardPrice>;
+  prices: Record<string, number>;
 }
 
 export interface CardStats {
@@ -40,28 +36,28 @@ export interface CardStats {
   power: number | null;
 }
 
-export interface CardArt {
-  imageURL: string | null;
-  artist: string;
-}
-
 export interface Card {
-  // Printing identity
   id: string;
-  cardId: string;
-  sourceId: string;
-
-  // Game card fields
   name: string;
   type: CardType;
-  superTypes: string[];
-  domains: string[];
+  superTypes: SuperType[];
+  domains: Domain[];
   stats: CardStats;
   keywords: string[];
   tags: string[];
   mightBonus: number | null;
+  description: string;
+  effect: string;
+}
 
-  // Printing fields
+export interface PrintingImage {
+  face: CardFace;
+  url: string;
+}
+
+export interface Printing {
+  id: string;
+  sourceId: string;
   set: string;
   collectorNumber: number;
   rarity: Rarity;
@@ -69,15 +65,13 @@ export interface Card {
   isSigned: boolean;
   isPromo: boolean;
   finish: string;
-  art: CardArt;
-  description: string;
-  effect: string;
+  images: PrintingImage[];
+  artist: string;
+  publicCode: string;
   printedDescription?: string;
   printedEffect?: string;
-  publicCode: string;
-
-  // Runtime (merged from prices)
-  price?: CardPrice;
+  marketPrice?: number;
+  card: Card;
 }
 
 export function getOrientation(type: CardType): "portrait" | "landscape" {
@@ -88,7 +82,7 @@ export interface ContentSet {
   id: string;
   name: string;
   printedTotal: number;
-  cards: Card[];
+  printings: Printing[];
 }
 
 export interface RiftboundContent {
@@ -302,8 +296,8 @@ export interface CandidateCard {
   sourceId: string;
   name: string;
   type: CardType;
-  superTypes: string[];
-  domains: string[];
+  superTypes: SuperType[];
+  domains: Domain[];
   might: number | null;
   energy: number | null;
   power: number | null;
@@ -344,8 +338,8 @@ export interface CardFilters {
   sets: string[];
   rarities: Rarity[];
   types: CardType[];
-  superTypes: string[];
-  domains: string[];
+  superTypes: SuperType[];
+  domains: Domain[];
   energy: FilterRange;
   might: FilterRange;
   power: FilterRange;

@@ -1,4 +1,4 @@
-import type { Card as CardData, CardType, Rarity } from "@openrift/shared";
+import type { CardType, Domain, Printing, Rarity, SuperType } from "@openrift/shared";
 import {
   BanIcon,
   CheckIcon,
@@ -80,23 +80,10 @@ function groupBySet(groups: MappingGroup[]): SetGroup[] {
   return [...bySet.values()];
 }
 
-/**
- * Build a minimal Card object from admin API data for CardThumbnail.
- * @returns A Card object.
- */
-function toCard(group: MappingGroup, p: MappingPrinting): CardData {
+function toPrinting(group: MappingGroup, p: MappingPrinting): Printing {
   return {
     id: p.printingId,
-    cardId: group.cardId,
     sourceId: p.sourceId,
-    name: group.cardName,
-    type: group.cardType as CardType,
-    superTypes: group.superTypes,
-    domains: group.domains,
-    stats: { energy: group.energy, might: group.might, power: 0 },
-    keywords: [],
-    tags: [],
-    mightBonus: null,
     set: group.setName,
     collectorNumber: p.collectorNumber,
     rarity: p.rarity as Rarity,
@@ -104,10 +91,22 @@ function toCard(group: MappingGroup, p: MappingPrinting): CardData {
     isSigned: p.isSigned,
     isPromo: p.isPromo,
     finish: p.finish,
-    art: { imageURL: p.imageUrl, artist: "" },
-    description: "",
-    effect: "",
+    images: p.imageUrl ? [{ face: "front", url: p.imageUrl }] : [],
+    artist: "",
     publicCode: p.sourceId,
+    card: {
+      id: group.cardId,
+      name: group.cardName,
+      type: group.cardType as CardType,
+      superTypes: group.superTypes as SuperType[],
+      domains: group.domains as Domain[],
+      stats: { energy: group.energy, might: group.might, power: 0 },
+      keywords: [],
+      tags: [],
+      mightBonus: null,
+      description: "",
+      effect: "",
+    },
   };
 }
 
@@ -669,7 +668,7 @@ function ExpandedDetail({
                 )}
               >
                 <CardThumbnail
-                  card={toCard(group, p)}
+                  printing={toPrinting(group, p)}
                   onClick={NOOP}
                   showImages
                   cardFields={{ number: true, title: true, type: true, rarity: true, price: false }}

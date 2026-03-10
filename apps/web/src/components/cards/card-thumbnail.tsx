@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { useRef, useState } from "react";
 
@@ -21,24 +21,24 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 interface CardThumbnailProps {
-  card: Card;
-  onClick: (card: Card) => void;
-  onSiblingClick?: (card: Card) => void;
+  printing: Printing;
+  onClick: (printing: Printing) => void;
+  onSiblingClick?: (printing: Printing) => void;
   showImages?: boolean;
   isSelected?: boolean;
   isFlashing?: boolean;
-  siblings?: Card[];
+  siblings?: Printing[];
   priceRange?: { min: number; max: number };
   view?: "cards" | "printings";
   cardFields?: CardFields;
   cardWidth?: number;
   priority?: boolean;
   ownedCount?: number;
-  onAdd?: (card: Card, anchorEl: HTMLElement) => void;
+  onAdd?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 
 export function CardThumbnail({
-  card,
+  printing,
   onClick,
   onSiblingClick,
   showImages,
@@ -53,24 +53,21 @@ export function CardThumbnail({
   ownedCount,
   onAdd,
 }: CardThumbnailProps) {
+  const { card } = printing;
+  const imageUrl = printing.images[0]?.url ?? null;
   const orientation = getOrientation(card.type);
   const thumbnailUrl =
-    showImages && card.art.imageURL
-      ? getCardImageUrl(card.art.imageURL, "thumbnail", orientation)
-      : null;
-  const srcSet =
-    showImages && card.art.imageURL
-      ? getCardImageSrcSet(card.art.imageURL, orientation)
-      : undefined;
-  const rotated = card.art.imageURL ? needsCssRotation(card.art.imageURL, orientation) : false;
+    showImages && imageUrl ? getCardImageUrl(imageUrl, "thumbnail", orientation) : null;
+  const srcSet = showImages && imageUrl ? getCardImageSrcSet(imageUrl, orientation) : undefined;
+  const rotated = imageUrl ? needsCssRotation(imageUrl, orientation) : false;
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const richEffects = useDisplayStore((s) => s.richEffects);
-  const isFoilCard = card.finish === "foil";
+  const isFoilCard = printing.finish === "foil";
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
   // ⚠ 190 is mirrored as COMPACT_THRESHOLD in card-grid.tsx — update both together
   const compact = cardWidth !== undefined && cardWidth < 190;
-  const otherPrintings = siblings ? siblings.filter((s) => s.id !== card.id).toReversed() : [];
+  const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
   const fanAngle = richEffects ? 8 : 1.5;
   const [fanReady, setFanReady] = useState(false);
@@ -102,7 +99,7 @@ export function CardThumbnail({
           : undefined
       }
       style={isSelected ? getDomainGradientStyle(card.domains, "38") : undefined}
-      onClick={() => onClick(card)}
+      onClick={() => onClick(printing)}
     >
       {isFlashing && (
         <div
@@ -126,7 +123,7 @@ export function CardThumbnail({
             className="absolute left-1.5 top-1.5 z-20 flex size-7 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow transition-transform hover:scale-110"
             onClick={(e) => {
               e.stopPropagation();
-              onAdd(card, e.currentTarget);
+              onAdd(printing, e.currentTarget);
             }}
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="size-4">
@@ -136,9 +133,10 @@ export function CardThumbnail({
         )}
         {otherPrintings.map((sibling, i) => {
           const depth = otherPrintings.length - i;
+          const siblingImageUrl = sibling.images[0]?.url ?? null;
           const siblingUrl =
-            richEffects && showImages && sibling.art.imageURL
-              ? getCardImageUrl(sibling.art.imageURL, "thumbnail", orientation)
+            richEffects && showImages && siblingImageUrl
+              ? getCardImageUrl(siblingImageUrl, "thumbnail", orientation)
               : null;
           return (
             // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
@@ -252,19 +250,19 @@ export function CardThumbnail({
         // ⚠ mt-2.5 is mirrored as LABEL_WRAPPER_MT in card-grid.tsx — update both together
         <div className="relative z-10 mt-2.5">
           <CardMetaLabel
-            sourceId={card.sourceId}
+            sourceId={printing.sourceId}
             name={card.name}
             type={card.type}
             superTypes={card.superTypes}
-            rarity={card.rarity}
+            rarity={printing.rarity}
             compact={compact}
             cardFields={cardFields}
           />
           {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
-          {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when card.price is null */}
+          {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when printing.marketPrice is undefined */}
           {cardFields.price && (
             <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
-              {card.price &&
+              {printing.marketPrice !== undefined &&
                 (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
                   <>
                     <span className={priceColorClass(priceRange.min)}>
@@ -276,8 +274,8 @@ export function CardThumbnail({
                     </span>
                   </>
                 ) : (
-                  <span className={priceColorClass(card.price.market)}>
-                    {formatPriceCompact(card.price.market)}
+                  <span className={priceColorClass(printing.marketPrice)}>
+                    {formatPriceCompact(printing.marketPrice)}
                   </span>
                 ))}
             </p>

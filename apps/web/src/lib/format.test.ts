@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -11,32 +11,35 @@ import {
   priceColorClass,
 } from "./format";
 
-function stub(overrides: Partial<Card> = {}): Card {
+function stub(overrides: Partial<Printing> = {}): Printing {
   return {
     id: "OGS-001:normal:::normal",
-    cardId: "OGS-001",
     sourceId: "OGS-001",
-    name: "",
-    type: "Unit",
-    superTypes: [],
-    rarity: "Common",
-    collectorNumber: 1,
-    domains: [],
-    stats: { energy: 0, might: 0, power: 0 },
-    keywords: [],
-    description: "",
-    effect: "",
-    mightBonus: 0,
     set: "",
-    art: { imageURL: "", artist: "" },
-    tags: [],
-    publicCode: "ABCD",
+    collectorNumber: 1,
+    rarity: "Common",
     artVariant: "normal",
     isSigned: false,
     isPromo: false,
     finish: "normal",
+    images: [],
+    artist: "",
+    publicCode: "ABCD",
+    card: {
+      id: "OGS-001",
+      name: "",
+      type: "Unit",
+      superTypes: [],
+      domains: [],
+      stats: { energy: 0, might: 0, power: 0 },
+      keywords: [],
+      tags: [],
+      mightBonus: 0,
+      description: "",
+      effect: "",
+    },
     ...overrides,
-  } satisfies Card;
+  } satisfies Printing;
 }
 
 // ---------------------------------------------------------------------------

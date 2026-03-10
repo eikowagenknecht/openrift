@@ -1,4 +1,4 @@
-import type { CandidateCard, Card as CardData, CardType, Domain, Rarity } from "@openrift/shared";
+import type { CandidateCard, CardType, Domain, Printing, Rarity } from "@openrift/shared";
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, PencilIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -38,20 +38,11 @@ function toRarity(r: string): Rarity {
   return VALID_RARITIES.has(r) ? (r as Rarity) : "Common";
 }
 
-function candidatePrintingToCard(candidate: CandidateCard, printingIndex: number): CardData {
+function candidatePrintingToPrinting(candidate: CandidateCard, printingIndex: number): Printing {
   const p = candidate.printings[printingIndex];
   return {
     id: p.id,
-    cardId: candidate.sourceId,
     sourceId: p.sourceId,
-    name: candidate.name,
-    type: candidate.type as CardType,
-    superTypes: candidate.superTypes,
-    domains: candidate.domains,
-    stats: { energy: candidate.energy, might: candidate.might, power: candidate.power },
-    keywords: candidate.keywords,
-    tags: candidate.tags,
-    mightBonus: candidate.mightBonus,
     set: p.setName ?? p.setId,
     collectorNumber: p.collectorNumber,
     rarity: toRarity(p.rarity),
@@ -59,10 +50,22 @@ function candidatePrintingToCard(candidate: CandidateCard, printingIndex: number
     isSigned: p.isSigned,
     isPromo: p.isPromo,
     finish: p.finish,
-    art: { imageURL: p.imageUrl, artist: p.artist },
-    description: candidate.rulesText,
-    effect: candidate.effectText,
+    images: p.imageUrl ? [{ face: "front", url: p.imageUrl }] : [],
+    artist: p.artist,
     publicCode: p.publicCode,
+    card: {
+      id: candidate.sourceId,
+      name: candidate.name,
+      type: candidate.type as CardType,
+      superTypes: candidate.superTypes,
+      domains: candidate.domains,
+      stats: { energy: candidate.energy, might: candidate.might, power: candidate.power },
+      keywords: candidate.keywords,
+      tags: candidate.tags,
+      mightBonus: candidate.mightBonus,
+      description: candidate.rulesText,
+      effect: candidate.effectText,
+    },
   };
 }
 
@@ -297,7 +300,7 @@ export function CandidateCardRow({
               {candidate.printings.map((p, i) => (
                 <div key={p.id} className="w-[320px] rounded-lg">
                   <CardThumbnail
-                    card={candidatePrintingToCard(candidate, i)}
+                    printing={candidatePrintingToPrinting(candidate, i)}
                     onClick={NOOP}
                     showImages
                     cardFields={{

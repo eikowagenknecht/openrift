@@ -1,4 +1,4 @@
-import type { Card, PricesData, RiftboundContent } from "@openrift/shared";
+import type { Printing, PricesData, RiftboundContent } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
@@ -17,7 +17,7 @@ export class ApiError extends Error {
 }
 
 interface UseCardsResult {
-  allCards: Card[];
+  allCards: Printing[];
   setInfoList: SetInfo[];
   isLoading: boolean;
   error: Error | null;
@@ -81,9 +81,9 @@ export function useCards(): UseCardsResult {
 
   const allCards = cardsQuery.data
     ? cardsQuery.data.sets.flatMap((set) =>
-        set.cards.map((card) => {
-          const price = pricesQuery.data?.cards[card.id];
-          return price ? { ...card, price } : card;
+        set.printings.map((printing) => {
+          const marketPrice = pricesQuery.data?.prices[printing.id];
+          return marketPrice === undefined ? printing : { ...printing, marketPrice };
         }),
       )
     : [];

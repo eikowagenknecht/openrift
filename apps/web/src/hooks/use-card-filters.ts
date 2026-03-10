@@ -1,4 +1,12 @@
-import type { CardType, RangeKey, Rarity, SortDirection, SortOption } from "@openrift/shared";
+import type {
+  CardType,
+  Domain,
+  RangeKey,
+  Rarity,
+  SortDirection,
+  SortOption,
+  SuperType,
+} from "@openrift/shared";
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef } from "react";
 
@@ -74,8 +82,8 @@ export function useCardFilters() {
     sets: filterState.sets,
     rarities: filterState.rarities as Rarity[],
     types: filterState.types as CardType[],
-    superTypes: filterState.superTypes,
-    domains: filterState.domains,
+    superTypes: filterState.superTypes as SuperType[],
+    domains: filterState.domains as Domain[],
     artVariants: filterState.artVariants,
     finishes: filterState.finishes,
     isSigned: filterState.signed === "true" ? true : filterState.signed === "false" ? false : null,

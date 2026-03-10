@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -36,18 +36,18 @@ export interface SetInfo {
 
 interface CardGroup {
   set: SetInfo;
-  cards: Card[];
+  cards: Printing[];
 }
 
-function groupCardsBySet(cards: Card[], setOrder: SetInfo[]): CardGroup[] {
-  const bySet = new Map<string, Card[]>();
-  for (const card of cards) {
-    let group = bySet.get(card.set);
+function groupCardsBySet(cards: Printing[], setOrder: SetInfo[]): CardGroup[] {
+  const bySet = new Map<string, Printing[]>();
+  for (const printing of cards) {
+    let group = bySet.get(printing.set);
     if (!group) {
       group = [];
-      bySet.set(card.set, group);
+      bySet.set(printing.set, group);
     }
-    group.push(card);
+    group.push(printing);
   }
 
   const groups: CardGroup[] = [];
@@ -61,7 +61,9 @@ function groupCardsBySet(cards: Card[], setOrder: SetInfo[]): CardGroup[] {
   return groups;
 }
 
-type VRow = { kind: "header"; set: SetInfo; cardCount: number } | { kind: "cards"; items: Card[] };
+type VRow =
+  | { kind: "header"; set: SetInfo; cardCount: number }
+  | { kind: "cards"; items: Printing[] };
 
 function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boolean): VRow[] {
   const rows: VRow[] = [];
@@ -82,15 +84,15 @@ const INDICATOR_H_FALLBACK = 48;
 const INDICATOR_PAD = 4;
 
 interface CardGridProps {
-  cards: Card[];
+  cards: Printing[];
   totalCards: number;
   setOrder: SetInfo[];
-  onCardClick: (card: Card) => void;
-  onSiblingClick?: (card: Card) => void;
+  onCardClick: (printing: Printing) => void;
+  onSiblingClick?: (printing: Printing) => void;
   showImages?: boolean;
   selectedCardId?: string;
-  siblingPrintings?: Card[];
-  printingsByCardId?: Map<string, Card[]>;
+  siblingPrintings?: Printing[];
+  printingsByCardId?: Map<string, Printing[]>;
   priceRangeByCardId?: Map<string, { min: number; max: number }> | null;
   view?: "cards" | "printings";
   cardFields?: CardFields;
@@ -99,7 +101,7 @@ interface CardGridProps {
   onPhysicalMinChange?: (min: number) => void;
   onAutoColumnsChange?: (cols: number) => void;
   ownedCounts?: Map<string, number>;
-  onAddCard?: (card: Card, anchorEl: HTMLElement) => void;
+  onAddCard?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 
 export function CardGrid({
@@ -382,7 +384,7 @@ export function CardGrid({
       const threshold = globalThis.scrollY + APP_HEADER_HEIGHT + 1;
       const vItems = virtualizerRef.current.getVirtualItems();
       const rows = virtualRowsRef.current;
-      let firstCard: Card | null = null;
+      let firstCard: Printing | null = null;
       for (const vItem of vItems) {
         const row = rows[vItem.index];
         if (!row || row.kind !== "cards") {
@@ -776,7 +778,7 @@ export function CardGrid({
       }
 
       const crIdx = cardRowIndices.indexOf(current.vRowIndex);
-      let targetCard: Card | undefined;
+      let targetCard: Printing | undefined;
       let targetRowIndex: number | undefined;
 
       if (e.key === "ArrowLeft") {
@@ -1073,24 +1075,24 @@ export function CardGrid({
                         gap: `${GAP}px`,
                       }}
                     >
-                      {row.items.map((card, colIndex) => {
+                      {row.items.map((printing, colIndex) => {
                         const flatIndex = (cardStartIndex.get(vItem.index) ?? 0) + colIndex;
                         return (
                           <CardThumbnail
-                            key={card.id}
-                            card={card}
+                            key={printing.id}
+                            printing={printing}
                             onClick={onCardClick}
                             onSiblingClick={onSiblingClick}
                             showImages={showImages}
-                            isSelected={card.id === selectedCardId}
-                            isFlashing={card.id === flashCardId}
-                            siblings={printingsByCardId?.get(card.cardId)}
-                            priceRange={priceRangeByCardId?.get(card.cardId)}
+                            isSelected={printing.id === selectedCardId}
+                            isFlashing={printing.id === flashCardId}
+                            siblings={printingsByCardId?.get(printing.card.id)}
+                            priceRange={priceRangeByCardId?.get(printing.card.id)}
                             view={view}
                             cardFields={cardFields}
                             cardWidth={thumbWidth}
                             priority={flatIndex < eagerCount}
-                            ownedCount={ownedCounts?.get(card.id)}
+                            ownedCount={ownedCounts?.get(printing.id)}
                             onAdd={onAddCard}
                           />
                         );
