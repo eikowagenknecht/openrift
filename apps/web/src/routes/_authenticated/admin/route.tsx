@@ -13,6 +13,7 @@ const pageTitles: Record<string, string> = {
   "/_authenticated/admin/candidates-upload": "Upload Candidates",
   "/_authenticated/admin/candidates": "Review Candidates",
   "/_authenticated/admin/settings": "Settings",
+  "/_authenticated/admin/feature-flags": "Feature Flags",
 };
 
 export const Route = createFileRoute("/_authenticated/admin")({

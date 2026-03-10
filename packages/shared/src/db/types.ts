@@ -435,6 +435,16 @@ export interface CardNameAliasesTable {
   card_id: string;
 }
 
+// ─── Feature flags (migration 014) ───────────────────────────────────────────
+
+export interface FeatureFlagsTable {
+  key: string;
+  enabled: boolean;
+  description: string | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -484,4 +494,7 @@ export interface Database {
 
   // Image archive (migration 013)
   printing_images: PrintingImagesTable;
+
+  // Feature flags (migration 014)
+  feature_flags: FeatureFlagsTable;
 }

@@ -34,6 +34,7 @@ export const queryKeys = {
     },
     cardmarketExpansions: ["admin", "cardmarket-expansions"] as const,
     tcgplayerGroups: ["admin", "tcgplayer-groups"] as const,
+    featureFlags: ["admin", "feature-flags"] as const,
     cronStatus: ["admin", "cron-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,
     priceMappings: {

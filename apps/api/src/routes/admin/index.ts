@@ -11,6 +11,7 @@ import type { Variables } from "../../types.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { candidatesRoute } from "../candidates.js";
 import { catalogRoute } from "./catalog.js";
+import { featureFlagsRoute } from "./feature-flags.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
 import { cardmarketConfig, createMappingRoutes, tcgplayerConfig } from "./marketplace-mapping.js";
 import { operationsRoute } from "./operations.js";
@@ -56,6 +57,7 @@ createMappingRoutes(adminRoute, "/admin/cm-mappings", cardmarketConfig);
 
 // ── Mount sub-routes ────────────────────────────────────────────────────────
 
+adminRoute.route("/", featureFlagsRoute);
 adminRoute.route("/", ignoredProductsRoute);
 adminRoute.route("/", catalogRoute);
 adminRoute.route("/", operationsRoute);

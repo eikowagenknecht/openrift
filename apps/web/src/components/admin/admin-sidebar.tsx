@@ -3,6 +3,7 @@ import {
   ArrowLeftIcon,
   ClipboardCheckIcon,
   DatabaseIcon,
+  FlagIcon,
   ImageIcon,
   LayoutDashboardIcon,
   LayersIcon,
@@ -54,6 +55,10 @@ const groups = [
       { to: "/admin/cardmarket-expansions" as const, icon: LayersIcon, title: "Sets" },
       { to: "/admin/cm-mappings" as const, icon: MapIcon, title: "Products" },
     ],
+  },
+  {
+    label: "System",
+    pages: [{ to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" }],
   },
 ];
 
