@@ -4,6 +4,7 @@ import type { UseMutationOptions } from "@tanstack/react-query";
 /**
  * A thin wrapper around `useMutation` that automatically invalidates the given
  * query keys on success. Covers the most common mutation pattern in this codebase.
+ * @returns The mutation result from `useMutation`.
  */
 export function useMutationWithInvalidation<TData = unknown, TVariables = void>(
   options: Omit<UseMutationOptions<TData, Error, TVariables>, "onSuccess"> & {
