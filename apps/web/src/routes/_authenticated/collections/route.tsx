@@ -5,11 +5,11 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const pageTitles: Record<string, string> = {
-  "/_authenticated/collection/": "All Cards",
-  "/_authenticated/collection/sources": "Sources",
+  "/_authenticated/collections/": "All Cards",
+  "/_authenticated/collections/sources": "Sources",
 };
 
-export const Route = createFileRoute("/_authenticated/collection")({
+export const Route = createFileRoute("/_authenticated/collections")({
   component: CollectionLayout,
 });
 

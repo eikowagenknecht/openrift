@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { CollectionGrid } from "@/components/collection/collection-grid";
 
-export const Route = createFileRoute("/_authenticated/collection/")({
+export const Route = createFileRoute("/_authenticated/collections/")({
   component: CollectionIndex,
 });
 

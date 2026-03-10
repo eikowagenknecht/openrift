@@ -67,7 +67,7 @@ export function CollectionSidebar() {
   return (
     <Sidebar className="sticky! top-14 h-[calc(100svh-3.5rem-1px)]! border-l-0!">
       <SidebarHeader>
-        <Link to="/collection" className="px-2 py-1 text-lg font-semibold tracking-tight">
+        <Link to="/collections" className="px-2 py-1 text-lg font-semibold tracking-tight">
           Collection
         </Link>
       </SidebarHeader>
@@ -77,8 +77,8 @@ export function CollectionSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                isActive={currentPath === "/collection" && !collectionId}
-                render={<Link to="/collection" />}
+                isActive={currentPath === "/collections" && !collectionId}
+                render={<Link to="/collections" />}
               >
                 <LayersIcon />
                 <span className="flex-1">All Cards</span>
@@ -93,7 +93,9 @@ export function CollectionSidebar() {
               <SidebarMenuItem key={col.id}>
                 <SidebarMenuButton
                   isActive={collectionId === col.id}
-                  render={<Link to="/collection/$collectionId" params={{ collectionId: col.id }} />}
+                  render={
+                    <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
+                  }
                 >
                   {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
                   <span className="flex-1 truncate">{col.name}</span>
@@ -146,8 +148,8 @@ export function CollectionSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                isActive={currentPath === "/collection/sources"}
-                render={<Link to="/collection/sources" />}
+                isActive={currentPath === "/collections/sources"}
+                render={<Link to="/collections/sources" />}
               >
                 <StoreIcon />
                 <span>Sources</span>
