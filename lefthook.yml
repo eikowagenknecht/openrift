@@ -14,7 +14,7 @@ pre-commit:
       run: bun run --cwd packages/shared typecheck && bun run --cwd apps/web typecheck
     oxlint-check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}"
-      run: bunx oxlint '{staged_files}'
+      run: bunx oxlint --deny-warnings '{staged_files}'
     eslint-check:
       glob: "*.{js,ts,jsx,tsx}"
       root: "apps/web/"

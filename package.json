@@ -12,7 +12,7 @@
     "dev:web": "turbo run dev --filter=web",
     "format": "oxfmt",
     "lint": "turbo run build && bun run lint:oxlint && bun run lint:oxfmt",
-    "lint:oxlint": "oxlint",
+    "lint:oxlint": "oxlint --deny-warnings",
     "lint:oxfmt": "oxfmt ./apps ./packages --check",
     "lefthook": "lefthook",
     "db:migrate": "bun run --cwd packages/shared db:migrate",
