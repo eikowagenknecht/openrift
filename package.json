@@ -23,7 +23,7 @@
     "preview": "turbo run build && (bun run --cwd apps/api start & bun run --cwd apps/web preview & wait)",
     "test": "turbo run test",
     "knip": "knip",
-    "postinstall": "test -n \"$CI\" || test -n \"$DOCKER_CONTAINER\" || lefthook install"
+    "postinstall": "test -n \"$CI\" || test -n \"$DOCKER_CONTAINER\" || env | grep -q ^DEPENDABOT || lefthook install"
   },
   "devDependencies": {
     "@commitlint/cli": "20.4.3",
