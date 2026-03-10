@@ -110,11 +110,10 @@
   },
   "trustedDependencies": [
     "@tailwindcss/oxide",
+    "oxfmt",
     "esbuild",
     "msw",
     "oxlint",
-    "oxfmt",
-    "lefthook",
   ],
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",

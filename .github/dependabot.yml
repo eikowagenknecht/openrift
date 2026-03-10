@@ -4,30 +4,47 @@ version: 2
 # https://github.com/dependabot/dependabot-core/issues/11602
 enable-beta-ecosystems: true
 updates:
+  # Check for updates to the used NPM packages every week
   - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
-    versioning-strategy: "increase"
+    target-branch: "main"
     commit-message:
       prefix: "chore"
       include: "scope"
+    assignees:
+      - eikowagenknecht
     groups:
-      production:
-        dependency-type: "production"
-        update-types:
-          - "minor"
-          - "patch"
-      dev:
-        dependency-type: "development"
+      # Everything that is not a major update
+      npm-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
         update-types:
           - "minor"
           - "patch"
 
+  # Check for updates to GitHub Actions every week
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "main"
     commit-message:
-      prefix: "chore"
+      prefix: "ci"
       include: "scope"
+    assignees:
+      - eikowagenknecht
+
+  # Check for updates to Docker images every week
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    assignees:
+      - eikowagenknecht

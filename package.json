@@ -12,8 +12,8 @@
     "dev:web": "turbo run dev --filter=web",
     "format": "oxfmt",
     "lint": "turbo run build && bun run lint:oxlint && bun run lint:oxfmt",
-    "lint:oxlint": "oxlint --fix",
-    "lint:oxfmt": "oxfmt ./apps ./packages",
+    "lint:oxlint": "oxlint",
+    "lint:oxfmt": "oxfmt ./apps ./packages --check",
     "lefthook": "lefthook",
     "db:migrate": "bun run --cwd packages/shared db:migrate",
     "db:rollback": "bun run --cwd packages/shared db:rollback",
@@ -23,7 +23,7 @@
     "preview": "turbo run build && (bun run --cwd apps/api start & bun run --cwd apps/web preview & wait)",
     "test": "turbo run test",
     "knip": "knip",
-    "postinstall": "test -z \"$CI\" && lefthook install || true"
+    "postinstall": "test -n \"$CI\" || test -n \"$DOCKER_CONTAINER\" || lefthook install"
   },
   "devDependencies": {
     "@commitlint/cli": "20.4.3",
@@ -44,12 +44,11 @@
     "lodash": "4.17.23",
     "serialize-javascript": "7.0.4"
   },
-  "packageManager": "bun@1.3.9",
+  "packageManager": "bun@1.3.10",
   "trustedDependencies": [
     "@swc/core",
     "@tailwindcss/oxide",
     "esbuild",
-    "lefthook",
     "msw",
     "oxfmt",
     "oxlint"

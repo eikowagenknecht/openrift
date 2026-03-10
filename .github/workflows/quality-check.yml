@@ -1,8 +1,12 @@
-name: CI
+name: Quality Check
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
+  # Allow to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.head_ref }}
@@ -10,15 +14,19 @@ concurrency:
 
 jobs:
   validate:
+    # Do not run for automated release commits (otherwise we would run into a deadlock situation)
+    if: ${{ !contains(github.event.head_commit.message, 'chore(release):') }}
+
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -27,7 +35,7 @@ jobs:
         run: bun run build
 
       - name: Lint
-        run: bunx oxlint && bunx oxfmt --check ./apps ./packages
+        run: bun run lint
 
       - name: Test
         run: bun run test
