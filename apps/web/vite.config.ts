@@ -86,6 +86,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,png,webp,svg,woff,woff2}"],
         navigateFallbackDenylist: [/^\/api\//, /^\/riot\.txt$/, /^\/robots\.txt$/],
         runtimeCaching: [
