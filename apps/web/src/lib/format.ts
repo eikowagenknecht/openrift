@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 
 export const ART_VARIANT_LABELS: Record<string, string> = {
   normal: "Normal",
@@ -17,41 +17,41 @@ export const FINISH_LABELS: Record<string, string> = {
  * E.g. "Alt Art · Signed" (omitting "Foil" when every sibling is foil).
  * @returns A label like "Alt Art · Signed", or "Standard" when no distinguishing attributes.
  */
-export function formatPrintingLabel(card: Card, siblings?: Card[]): string {
-  const allSame = (fn: (c: Card) => unknown) =>
-    siblings ? siblings.every((s) => fn(s) === fn(card)) : false;
+export function formatPrintingLabel(printing: Printing, siblings?: Printing[]): string {
+  const allSame = (fn: (c: Printing) => unknown) =>
+    siblings ? siblings.every((s) => fn(s) === fn(printing)) : false;
 
   const parts: string[] = [];
-  if (card.artVariant !== "normal" && !allSame((c) => c.artVariant)) {
-    parts.push(ART_VARIANT_LABELS[card.artVariant] ?? card.artVariant);
+  if (printing.artVariant !== "normal" && !allSame((c) => c.artVariant)) {
+    parts.push(ART_VARIANT_LABELS[printing.artVariant] ?? printing.artVariant);
   }
-  if (card.finish !== "normal" && !allSame((c) => c.finish)) {
-    parts.push(FINISH_LABELS[card.finish] ?? card.finish);
+  if (printing.finish !== "normal" && !allSame((c) => c.finish)) {
+    parts.push(FINISH_LABELS[printing.finish] ?? printing.finish);
   }
-  if (card.isSigned && !allSame((c) => c.isSigned)) {
+  if (printing.isSigned && !allSame((c) => c.isSigned)) {
     parts.push("Signed");
   }
-  if (card.isPromo && !allSame((c) => c.isPromo)) {
+  if (printing.isPromo && !allSame((c) => c.isPromo)) {
     parts.push("Promo");
   }
   return parts.length > 0 ? parts.join(" · ") : "Standard";
 }
 
-export function formatCardId(card: Card): string {
-  return card.sourceId;
+export function formatCardId(printing: Printing): string {
+  return printing.sourceId;
 }
 
 /**
  * Short card ID for compact layouts: `#001` instead of `OGS-001`.
  * @returns The numeric suffix prefixed with `#`.
  */
-export function formatCardIdCompact(card: Card): string {
-  const dashIndex = card.sourceId.lastIndexOf("-");
-  return `#${dashIndex === -1 ? card.sourceId : card.sourceId.slice(dashIndex + 1)}`;
+export function formatCardIdCompact(printing: Printing): string {
+  const dashIndex = printing.sourceId.lastIndexOf("-");
+  return `#${dashIndex === -1 ? printing.sourceId : printing.sourceId.slice(dashIndex + 1)}`;
 }
 
-export function formatPublicCode(card: Card): string {
-  return card.publicCode;
+export function formatPublicCode(printing: Printing): string {
+  return printing.publicCode;
 }
 
 export function formatPrice(value?: number | null): string {

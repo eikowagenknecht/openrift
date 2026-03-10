@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
@@ -47,7 +47,7 @@ export function CardBrowser() {
   const [creatingSource, setCreatingSource] = useState(false);
   const [newSourceName, setNewSourceName] = useState("");
   const createSource = useCreateSource();
-  const [popoverCard, setPopoverCard] = useState<Card | null>(null);
+  const [popoverCard, setPopoverCard] = useState<Printing | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -65,13 +65,13 @@ export function CardBrowser() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [popoverCard]);
 
-  const handleAddClick = (card: Card, anchorEl: HTMLElement) => {
+  const handleAddClick = (printing: Printing, anchorEl: HTMLElement) => {
     const rect = anchorEl.getBoundingClientRect();
     setPopoverPos({
       top: rect.bottom + 4,
       left: Math.max(8, Math.min(rect.left, globalThis.innerWidth - 240)),
     });
-    setPopoverCard(card);
+    setPopoverCard(printing);
   };
 
   const {
@@ -97,7 +97,7 @@ export function CardBrowser() {
     toggleSearchField,
   } = useCardFilters();
 
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [selectedCard, setSelectedCard] = useState<Printing | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [physicalMaxColumns, setPhysicalMaxColumns] = useState(8);
   const [physicalMinColumns, setPhysicalMinColumns] = useState(1);
@@ -128,11 +128,11 @@ export function CardBrowser() {
   const displayCards =
     view === "cards"
       ? (() => {
-          const seen = new Map<string, Card>();
-          for (const card of filteredCards) {
-            const existing = seen.get(card.cardId);
-            if (!existing || card.sourceId.localeCompare(existing.sourceId) < 0) {
-              seen.set(card.cardId, card);
+          const seen = new Map<string, Printing>();
+          for (const printing of filteredCards) {
+            const existing = seen.get(printing.card.id);
+            if (!existing || printing.sourceId.localeCompare(existing.sourceId) < 0) {
+              seen.set(printing.card.id, printing);
             }
           }
           return [...seen.values()];
@@ -169,20 +169,20 @@ export function CardBrowser() {
     setDetailOpen(false);
   };
 
-  const handleCardClick = (card: Card) => {
-    setSelectedCard(card);
+  const handleCardClick = (printing: Printing) => {
+    setSelectedCard(printing);
     setDetailOpen(true);
   };
 
   const printingsByCardId = (() => {
-    const map = new Map<string, Card[]>();
-    for (const c of allCards) {
-      let group = map.get(c.cardId);
+    const map = new Map<string, Printing[]>();
+    for (const p of allCards) {
+      let group = map.get(p.card.id);
       if (!group) {
         group = [];
-        map.set(c.cardId, group);
+        map.set(p.card.id, group);
       }
-      group.push(c);
+      group.push(p);
     }
     for (const group of map.values()) {
       group.sort((a, b) => a.sourceId.localeCompare(b.sourceId));
@@ -190,7 +190,7 @@ export function CardBrowser() {
     return map;
   })();
 
-  const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.cardId) ?? []) : [];
+  const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.card.id) ?? []) : [];
 
   const priceRangeByCardId =
     view === "cards"
@@ -200,7 +200,7 @@ export function CardBrowser() {
             let min = Infinity;
             let max = -Infinity;
             for (const p of printings) {
-              const price = p.price?.market;
+              const price = p.marketPrice;
               if (price !== null && price !== undefined) {
                 min = Math.min(min, price);
                 max = Math.max(max, price);
@@ -222,23 +222,23 @@ export function CardBrowser() {
     }
     const map = new Map<string, number>();
     if (view === "cards") {
-      // Sum counts by cardId, then assign to the representative printing shown in the grid
+      // Sum counts by card.id, then assign to the representative printing shown in the grid
       const countByCard = new Map<string, number>();
-      for (const card of allCards) {
-        const count = ownedCountByPrinting[card.id] ?? 0;
-        countByCard.set(card.cardId, (countByCard.get(card.cardId) ?? 0) + count);
+      for (const p of allCards) {
+        const count = ownedCountByPrinting[p.id] ?? 0;
+        countByCard.set(p.card.id, (countByCard.get(p.card.id) ?? 0) + count);
       }
-      for (const card of displayCards) {
-        const count = countByCard.get(card.cardId) ?? 0;
+      for (const p of displayCards) {
+        const count = countByCard.get(p.card.id) ?? 0;
         if (count > 0) {
-          map.set(card.id, count);
+          map.set(p.id, count);
         }
       }
     } else {
-      for (const card of allCards) {
-        const count = ownedCountByPrinting[card.id] ?? 0;
+      for (const p of allCards) {
+        const count = ownedCountByPrinting[p.id] ?? 0;
         if (count > 0) {
-          map.set(card.id, count);
+          map.set(p.id, count);
         }
       }
     }
@@ -246,16 +246,16 @@ export function CardBrowser() {
   })();
 
   const totalUniqueCards =
-    view === "cards" ? new Set(allCards.map((c) => c.cardId)).size : allCards.length;
+    view === "cards" ? new Set(allCards.map((c) => c.card.id)).size : allCards.length;
 
   const gridSelectedId =
     view === "cards" && selectedCard
-      ? (deferredSortedCards.find((c) => c.cardId === selectedCard.cardId)?.id ?? selectedCard.id)
+      ? (deferredSortedCards.find((c) => c.card.id === selectedCard.card.id)?.id ?? selectedCard.id)
       : selectedCard?.id;
 
   const selectedIndex = selectedCard
     ? view === "cards"
-      ? sortedCards.findIndex((c) => c.cardId === selectedCard.cardId)
+      ? sortedCards.findIndex((c) => c.card.id === selectedCard.card.id)
       : sortedCards.findIndex((c) => c.id === selectedCard.id)
     : -1;
 
@@ -496,7 +496,7 @@ export function CardBrowser() {
         {selectedCard && detailOpen && (
           <Suspense fallback={<CardDetailSkeleton />}>
             <CardDetail
-              card={selectedCard}
+              printing={selectedCard}
               onClose={handleDetailClose}
               showImages={showImages}
               onPrevCard={handlePrevCard}
@@ -531,8 +531,8 @@ export function CardBrowser() {
             style={{ top: popoverPos.top, left: popoverPos.left }}
           >
             <AddCardPopover
-              card={popoverCard}
-              printings={printingsByCardId.get(popoverCard.cardId)}
+              printing={popoverCard}
+              printings={printingsByCardId.get(popoverCard.card.id)}
               collectionId={addingTo}
               sourceId={addingSourceId || undefined}
               onDone={() => setPopoverCard(null)}

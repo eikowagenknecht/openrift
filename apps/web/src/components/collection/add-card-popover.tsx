@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { Minus, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,22 +9,22 @@ import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface AddCardPopoverProps {
-  card: Card;
-  printings?: Card[];
+  printing: Printing;
+  printings?: Printing[];
   collectionId: string;
   sourceId?: string;
   onDone: () => void;
 }
 
 export function AddCardPopover({
-  card,
+  printing,
   printings,
   collectionId,
   sourceId,
   onDone,
 }: AddCardPopoverProps) {
-  const allPrintings = printings && printings.length > 1 ? printings : [card];
-  const [selectedPrinting, setSelectedPrinting] = useState<Card>(card);
+  const allPrintings = printings && printings.length > 1 ? printings : [printing];
+  const [selectedPrinting, setSelectedPrinting] = useState<Printing>(printing);
   const [quantity, setQuantity] = useState(1);
   const addCopies = useAddCopies();
 
@@ -39,7 +39,7 @@ export function AddCardPopover({
       { copies },
       {
         onSuccess: () => {
-          toast.success(`Added ${quantity}× ${card.name}`);
+          toast.success(`Added ${quantity}× ${printing.card.name}`);
           onDone();
         },
         onError: (err) => toast.error(err.message),
@@ -55,7 +55,7 @@ export function AddCardPopover({
       className="flex w-64 flex-col gap-3 rounded-lg border bg-background p-3 shadow-lg"
       onClick={(e) => e.stopPropagation()}
     >
-      <p className="truncate text-xs font-medium">{card.name}</p>
+      <p className="truncate text-xs font-medium">{printing.card.name}</p>
 
       {/* Printing picker (when multiple variants exist) */}
       {allPrintings.length > 1 && (

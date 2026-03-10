@@ -76,21 +76,13 @@ const dbJoinedRow = {
 
 const dbPrice = {
   printing_id: "OGS-001:normal:::normal",
-  external_id: 12_345,
   market_cents: 275,
-  low_cents: 150,
-  mid_cents: 250,
-  high_cents: 500,
   recorded_at: new Date("2026-03-01"),
 };
 
 const dbPriceFoil = {
   printing_id: "OGS-001:normal:::foil",
-  external_id: 12_345,
   market_cents: 800,
-  low_cents: 500,
-  mid_cents: 750,
-  high_cents: 1000,
   recorded_at: new Date("2026-03-01"),
 };
 
@@ -100,8 +92,6 @@ const dbPriceFoil = {
 
 describe("GET /api/cards", () => {
   beforeEach(() => {
-    // The route now uses selectFrom("printings as p").innerJoin("cards as c")
-    // Our mock chain returns whatever is in the "printings as p" key
     mockState.tables = { sets: [dbSet], "printings as p": [dbJoinedRow] };
   });
 
@@ -115,60 +105,60 @@ describe("GET /api/cards", () => {
     expect(json.sets).toHaveLength(1);
   });
 
-  it("maps joined row fields to camelCase Card shape", async () => {
+  it("maps joined row fields to Printing shape with nested card", async () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
-    const card = json.sets[0].cards[0];
+    const printing = json.sets[0].printings[0];
 
-    expect(card.id).toBe("OGS-001:normal:::normal");
-    expect(card.cardId).toBe("OGS-001");
-    expect(card.sourceId).toBe("OGS-001");
-    expect(card.superTypes).toEqual(["Elite"]);
-    expect(card.collectorNumber).toBe(1);
-    expect(card.mightBonus).toBe(1);
-    expect(card.publicCode).toBe("ABCD");
-    expect(card.artVariant).toBe("normal");
-    expect(card.isSigned).toBe(false);
-    expect(card.finish).toBe("normal");
+    expect(printing.id).toBe("OGS-001:normal:::normal");
+    expect(printing.sourceId).toBe("OGS-001");
+    expect(printing.collectorNumber).toBe(1);
+    expect(printing.publicCode).toBe("ABCD");
+    expect(printing.artVariant).toBe("normal");
+    expect(printing.isSigned).toBe(false);
+    expect(printing.finish).toBe("normal");
+    expect(printing.artist).toBe("Alice");
+
+    expect(printing.card.id).toBe("OGS-001");
+    expect(printing.card.name).toBe("Fire Dragon");
+    expect(printing.card.superTypes).toEqual(["Elite"]);
+    expect(printing.card.mightBonus).toBe(1);
   });
 
-  it("maps DB fields into nested stats object", async () => {
+  it("maps DB fields into nested stats object on card", async () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
-    const card = json.sets[0].cards[0];
+    const printing = json.sets[0].printings[0];
 
-    expect(card.stats).toEqual({ might: 4, energy: 5, power: 6 });
+    expect(printing.card.stats).toEqual({ might: 4, energy: 5, power: 6 });
   });
 
-  it("maps DB fields into nested art object", async () => {
+  it("maps image URL into images array", async () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
-    const card = json.sets[0].cards[0];
+    const printing = json.sets[0].printings[0];
 
-    expect(card.art).toEqual({
-      imageURL: "https://example.com/thumb.jpg",
-      artist: "Alice",
-    });
+    expect(printing.images).toEqual([{ face: "front", url: "https://example.com/thumb.jpg" }]);
   });
 
-  it("maps set_id to card.set", async () => {
+  it("maps set_id to printing.set", async () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
-    const card = json.sets[0].cards[0];
+    const printing = json.sets[0].printings[0];
 
-    expect(card.set).toBe("OGS");
+    expect(printing.set).toBe("OGS");
   });
 
-  it("uses printed_rules_text as description", async () => {
+  it("uses rules_text as card.description", async () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
-    const card = json.sets[0].cards[0];
+    const printing = json.sets[0].printings[0];
 
-    expect(card.description).toBe("A fiery beast");
-    expect(card.effect).toBe("Deal 3 damage");
+    expect(printing.card.description).toBe("A fiery beast");
+    expect(printing.card.effect).toBe("Deal 3 damage");
   });
 
-  it("groups cards by set", async () => {
+  it("groups printings by set", async () => {
     const secondSet = { id: "S2", name: "Set Two", printed_total: 50 };
     const secondRow = {
       ...dbJoinedRow,
@@ -186,19 +176,19 @@ describe("GET /api/cards", () => {
     const json = await res.json();
 
     expect(json.sets).toHaveLength(2);
-    expect(json.sets[0].cards).toHaveLength(1);
-    expect(json.sets[1].cards).toHaveLength(1);
-    expect(json.sets[1].cards[0].cardId).toBe("S2-001");
+    expect(json.sets[0].printings).toHaveLength(1);
+    expect(json.sets[1].printings).toHaveLength(1);
+    expect(json.sets[1].printings[0].card.id).toBe("S2-001");
   });
 
-  it("returns empty cards array for sets with no cards", async () => {
+  it("returns empty printings array for sets with no printings", async () => {
     const emptySet = { id: "EMPTY", name: "Empty Set", printed_total: 0 };
     mockState.tables = { sets: [emptySet], "printings as p": [] };
 
     const res = await app.request("/api/cards");
     const json = await res.json();
 
-    expect(json.sets[0].cards).toEqual([]);
+    expect(json.sets[0].printings).toEqual([]);
   });
 
   it("maps set fields correctly", async () => {
@@ -227,67 +217,31 @@ describe("GET /api/prices", () => {
 
     const json = await res.json();
     expect(json.source).toBe("tcgplayer");
-    expect(json.cards).toBeDefined();
+    expect(json.prices).toBeDefined();
   });
 
-  it("converts cents to dollars", async () => {
-    const res = await app.request("/api/prices");
-    const json = await res.json();
-    const price = json.cards["OGS-001:normal:::normal"];
-
-    expect(price.low).toBe(1.5);
-    expect(price.mid).toBe(2.5);
-    expect(price.high).toBe(5);
-    expect(price.market).toBe(2.75);
-  });
-
-  it("returns one entry per printing (flat, no normal/foil grouping)", async () => {
+  it("converts market_cents to dollars", async () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
 
-    // Each printing gets its own entry keyed by printing_id
-    expect(json.cards["OGS-001:normal:::normal"]).toBeDefined();
-    expect(json.cards["OGS-001:normal:::foil"]).toBeDefined();
-    expect(json.cards["OGS-001:normal:::normal"].market).toBe(2.75);
-    expect(json.cards["OGS-001:normal:::foil"].market).toBe(8);
+    expect(json.prices["OGS-001:normal:::normal"]).toBe(2.75);
   });
 
-  it("sets productId from the price row", async () => {
+  it("returns one entry per printing", async () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
-    const price = json.cards["OGS-001:normal:::normal"];
 
-    expect(price.productId).toBe(12_345);
+    expect(json.prices["OGS-001:normal:::normal"]).toBe(2.75);
+    expect(json.prices["OGS-001:normal:::foil"]).toBe(8);
   });
 
-  it("defaults null cents to 0 before conversion", async () => {
-    mockState.tables = {
-      "tcgplayer_sources as ps": [
-        {
-          ...dbPrice,
-          low_cents: null,
-          mid_cents: null,
-          high_cents: null,
-        },
-      ],
-    };
-
-    const res = await app.request("/api/prices");
-    const json = await res.json();
-    const price = json.cards["OGS-001:normal:::normal"];
-
-    expect(price.low).toBe(0);
-    expect(price.mid).toBe(0);
-    expect(price.high).toBe(0);
-  });
-
-  it("returns tcgplayer source when no rows exist", async () => {
+  it("returns empty prices when no rows exist", async () => {
     mockState.tables = { "tcgplayer_sources as ps": [] };
 
     const res = await app.request("/api/prices");
     const json = await res.json();
 
     expect(json.source).toBe("tcgplayer");
-    expect(json.cards).toEqual({});
+    expect(json.prices).toEqual({});
   });
 });

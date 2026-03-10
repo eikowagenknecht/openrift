@@ -8,13 +8,12 @@ export type {
   CandidateStatus,
   CandidateUploadResult,
   Card,
-  CardArt,
   CardFilters,
   FilterRange,
   RangeKey,
   CardmarketSnapshot,
-  CardPrice,
   CardStats,
+  CardFace,
   CardType,
   Collection,
   ContentSet,
@@ -27,12 +26,15 @@ export type {
   PriceHistoryResponse,
   PriceSource,
   PricesData,
+  Printing,
+  PrintingImage,
   Rarity,
   RiftboundContent,
   SearchField,
   SortDirection,
   SortOption,
   Source,
+  SuperType,
   TcgplayerSnapshot,
   TimeRange,
   TradeList,
@@ -49,10 +51,4 @@ export {
 } from "./types.js";
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
-export {
-  filterCards,
-  getAvailableFilters,
-  getMarketPrice,
-  parseSearchTerms,
-  sortCards,
-} from "./filters.js";
+export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";

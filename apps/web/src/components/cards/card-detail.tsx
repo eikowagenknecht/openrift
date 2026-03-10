@@ -1,4 +1,4 @@
-import type { Card, CardPrice, TimeRange } from "@openrift/shared";
+import type { Printing, TimeRange } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
 import { ArrowLeft, TrendingDown, TrendingUp, TriangleAlert, X } from "lucide-react";
@@ -29,19 +29,19 @@ import { CardPlaceholderImage } from "./card-placeholder-image";
 import { CardText } from "./card-text";
 
 interface CardDetailProps {
-  card: Card;
+  printing: Printing;
   onClose: () => void;
   showImages?: boolean;
   onPrevCard?: () => void;
   onNextCard?: () => void;
   onTagClick?: (tag: string) => void;
   onKeywordClick?: (keyword: string) => void;
-  printings?: Card[];
-  onSelectPrinting?: (card: Card) => void;
+  printings?: Printing[];
+  onSelectPrinting?: (printing: Printing) => void;
 }
 
 export function CardDetail({
-  card,
+  printing,
   onClose,
   showImages,
   onPrevCard,
@@ -51,10 +51,11 @@ export function CardDetail({
   printings,
   onSelectPrinting,
 }: CardDetailProps) {
-  const setNumber = formatPublicCode(card);
+  const { card } = printing;
+  const setNumber = formatPublicCode(printing);
   const asideRef = useRef<HTMLElement>(null);
   const orientation = getOrientation(card.type);
-  const isFoil = card.finish === "foil";
+  const isFoil = printing.finish === "foil";
 
   useDrag(
     ({ last, movement: [dx, dy], swipe: [swipeX] }) => {
@@ -111,13 +112,18 @@ export function CardDetail({
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
             <ArrowLeft className="size-4" />
           </Button>
-          <CardDetailHeading card={card} setNumber={setNumber} onTagClick={onTagClick} truncate />
+          <CardDetailHeading
+            printing={printing}
+            setNumber={setNumber}
+            onTagClick={onTagClick}
+            truncate
+          />
         </div>
       </div>
 
       {/* Desktop header */}
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
-        <CardDetailHeading card={card} setNumber={setNumber} onTagClick={onTagClick} />
+        <CardDetailHeading printing={printing} setNumber={setNumber} onTagClick={onTagClick} />
         <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={onClose}>
           <X className="size-4" />
         </Button>
@@ -128,7 +134,7 @@ export function CardDetail({
         <div ref={tilt.containerRef} style={tilt.style}>
           <CardImage
             innerRef={tilt.innerRef}
-            card={card}
+            printing={printing}
             orientation={orientation}
             showImages={showImages}
             showFoil={isFoil}
@@ -160,9 +166,9 @@ export function CardDetail({
               />
             ))}
           <img
-            src={`/images/rarities/${card.rarity.toLowerCase()}-28x28.webp`}
-            alt={card.rarity}
-            title={card.rarity}
+            src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+            alt={printing.rarity}
+            title={printing.rarity}
             width={28}
             height={28}
             className="size-5"
@@ -176,7 +182,7 @@ export function CardDetail({
               <p className="text-sm text-muted-foreground">
                 <CardText text={card.description} onKeywordClick={onKeywordClick} />
               </p>
-              {card.printedDescription && <PrintedTextWarning />}
+              {printing.printedDescription && <PrintedTextWarning />}
             </div>
           )}
 
@@ -190,7 +196,7 @@ export function CardDetail({
                   <CardText text={card.effect} onKeywordClick={onKeywordClick} />
                 </p>
               )}
-              {card.printedEffect && <PrintedTextWarning />}
+              {printing.printedEffect && <PrintedTextWarning />}
               {card.mightBonus !== null && card.mightBonus > 0 && (
                 <div className={cn(card.effect && "mt-2")}>
                   <StatChip
@@ -205,35 +211,37 @@ export function CardDetail({
         </div>
 
         {/* Footer */}
-        <CardFooter card={card} />
+        <CardFooter printing={printing} />
 
         {/* Versions */}
         {printings && printings.length > 1 && onSelectPrinting && (
-          <PrintingPicker current={card} printings={printings} onSelect={onSelectPrinting} />
+          <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
         )}
       </div>
     </aside>
   );
 }
 
-function CardFooter({ card }: { card: Card }) {
+function CardFooter({ printing }: { printing: Printing }) {
   const [priceRange, setPriceRange] = useState<TimeRange>("30d");
 
   return (
     <div className="mt-2 space-y-2">
       <p className="flex items-center gap-1 text-xs text-muted-foreground">
         <img src="/images/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
-        {card.art.artist}
+        {printing.artist}
       </p>
-      <PricingSection card={card} range={priceRange} />
-      {card.price && <PriceSparkline printingId={card.id} onRangeChange={setPriceRange} />}
+      <PricingSection printing={printing} range={priceRange} />
+      {printing.marketPrice !== undefined && (
+        <PriceSparkline printingId={printing.id} onRangeChange={setPriceRange} />
+      )}
     </div>
   );
 }
 
 function CardImage({
   innerRef,
-  card,
+  printing,
   orientation,
   showImages,
   showFoil,
@@ -241,13 +249,15 @@ function CardImage({
   showShimmer,
 }: {
   innerRef: React.RefCallback<HTMLElement>;
-  card: Card;
+  printing: Printing;
   orientation: "portrait" | "landscape";
   showImages?: boolean;
   showFoil: boolean;
   tiltActive: boolean;
   showShimmer: boolean;
 }) {
+  const { card } = printing;
+  const imageUrl = printing.images[0]?.url ?? null;
   return (
     <div
       ref={innerRef}
@@ -264,8 +274,8 @@ function CardImage({
         transformStyle: "preserve-3d",
       }}
     >
-      {showImages && card.art.imageURL ? (
-        needsCssRotation(card.art.imageURL, orientation) ? (
+      {showImages && imageUrl ? (
+        needsCssRotation(imageUrl, orientation) ? (
           <>
             {/* Spacer provides portrait height since the rotated wrapper is absolute */}
             <div className="w-full" style={{ aspectRatio: "744 / 1039" }} />
@@ -274,7 +284,7 @@ function CardImage({
               style={LANDSCAPE_ROTATION_STYLE}
             >
               <img
-                src={getCardImageUrl(card.art.imageURL, "full", orientation)}
+                src={getCardImageUrl(imageUrl, "full", orientation)}
                 alt={card.name}
                 className="size-full object-cover"
               />
@@ -282,7 +292,7 @@ function CardImage({
           </>
         ) : (
           <img
-            src={getCardImageUrl(card.art.imageURL, "full", orientation)}
+            src={getCardImageUrl(imageUrl, "full", orientation)}
             alt={card.name}
             className="block w-full"
           />
@@ -301,16 +311,17 @@ function CardImage({
 }
 
 function CardDetailHeading({
-  card,
+  printing,
   setNumber,
   onTagClick,
   truncate,
 }: {
-  card: Card;
+  printing: Printing;
   setNumber: string;
   onTagClick?: (tag: string) => void;
   truncate?: boolean;
 }) {
+  const { card } = printing;
   return (
     <div className={cn(truncate && "min-w-0")}>
       <h2 className={cn("text-lg font-semibold", truncate && "truncate")}>
@@ -365,17 +376,16 @@ function StatChip({
   );
 }
 
-function PricingSection({ card, range }: { card: Card; range: TimeRange }) {
-  const price = card.price;
-  const { data: history } = usePriceHistory(card.id, range);
+function PricingSection({ printing, range }: { printing: Printing; range: TimeRange }) {
+  const { data: history } = usePriceHistory(printing.id, range);
   const cmSnapshots = history?.cardmarket.snapshots;
   const cmLatest = cmSnapshots?.length ? cmSnapshots.at(-1) : null;
 
-  if (!price && !cmLatest) {
+  if (printing.marketPrice === undefined && !cmLatest) {
     return null;
   }
 
-  const tcgProductId = price?.productId ?? history?.tcgplayer.productId;
+  const tcgProductId = history?.tcgplayer.productId;
   const tcgUrl = tcgProductId
     ? affiliateUrl(`https://www.tcgplayer.com/product/${tcgProductId}`)
     : null;
@@ -386,14 +396,14 @@ function PricingSection({ card, range }: { card: Card; range: TimeRange }) {
 
   return (
     <div className="flex items-center justify-end gap-1.5">
-      {price && (
+      {printing.marketPrice !== undefined && (
         <>
-          <PriceTrend printingId={card.id} range={range} />
+          <PriceTrend printingId={printing.id} range={range} />
           <PriceChip
             label="TCGplayer"
             icon="/images/external/tcgplayer-38x28.webp"
             iconClassName="invert dark:invert-0"
-            value={price.market}
+            value={printing.marketPrice}
             url={tcgUrl}
           />
         </>
@@ -507,9 +517,9 @@ function PrintingPicker({
   printings,
   onSelect,
 }: {
-  current: Card;
-  printings: Card[];
-  onSelect: (card: Card) => void;
+  current: Printing;
+  printings: Printing[];
+  onSelect: (printing: Printing) => void;
 }) {
   const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
 
@@ -548,7 +558,7 @@ function PrintingPicker({
                   />
                 )}
               </span>
-              <PrintingPrices price={p.price} printingId={p.id} />
+              <PrintingPrices marketPrice={p.marketPrice} printingId={p.id} />
             </button>
           );
         })}
@@ -558,25 +568,25 @@ function PrintingPicker({
 }
 
 function PrintingPrices({
-  price,
+  marketPrice,
   printingId,
 }: {
-  price: CardPrice | undefined;
+  marketPrice: number | undefined;
   printingId: string;
 }) {
   const { data: history } = usePriceHistory(printingId, "30d");
   const cmSnapshots = history?.cardmarket.snapshots;
   const cmLatest = cmSnapshots?.length ? cmSnapshots.at(-1) : null;
 
-  if (!price && !cmLatest) {
+  if (marketPrice === undefined && !cmLatest) {
     return null;
   }
 
   return (
     <span className="flex shrink-0 items-center gap-1.5">
-      {price && (
-        <span className={cn("text-xs font-semibold", priceColorClass(price.market))}>
-          {formatPrice(price.market)}
+      {marketPrice !== undefined && (
+        <span className={cn("text-xs font-semibold", priceColorClass(marketPrice))}>
+          {formatPrice(marketPrice)}
         </span>
       )}
       {cmLatest && (
