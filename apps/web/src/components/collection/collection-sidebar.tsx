@@ -162,7 +162,7 @@ export function CollectionSidebar() {
         <SidebarSeparator />
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<Link to="/" />}>
+            <SidebarMenuButton render={<Link to="/cards" />}>
               <ArrowLeftIcon />
               <span>Browse cards</span>
             </SidebarMenuButton>

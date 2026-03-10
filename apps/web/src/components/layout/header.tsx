@@ -73,7 +73,7 @@ export function Header() {
   const { data: session, isPending } = useSession();
   const { data: isAdmin } = useIsAdmin();
   const router = useRouter();
-  const isHome = useMatch({ from: "/", shouldThrow: false });
+  const isHome = useMatch({ from: "/cards", shouldThrow: false });
   const gravatarUrl = useGravatarUrl(session?.user?.email);
 
   const matchRoute = useMatchRoute();
@@ -119,7 +119,7 @@ export function Header() {
               if (isHome) {
                 globalThis.scrollTo({ top: 0, behavior: "smooth" });
               } else {
-                void router.navigate({ to: "/" });
+                void router.navigate({ to: "/cards" });
               }
             }}
           >
@@ -215,7 +215,7 @@ export function Header() {
                     <DropdownMenuItem
                       onClick={async () => {
                         await signOut();
-                        void router.navigate({ to: "/" });
+                        void router.navigate({ to: "/cards" });
                       }}
                     >
                       <LogOut className="size-4" />

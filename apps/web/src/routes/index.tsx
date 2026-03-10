@@ -1,17 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
-
-import { CardBrowser } from "@/components/card-browser";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
-  component: IndexPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/cards" });
+  },
 });
-
-function IndexPage() {
-  useEffect(() => {
-    document.documentElement.classList.add("hide-scrollbar");
-    return () => document.documentElement.classList.remove("hide-scrollbar");
-  }, []);
-
-  return <CardBrowser />;
-}

@@ -39,7 +39,7 @@ function VerifyEmailPage() {
       }
       return;
     }
-    void navigate({ to: "/" });
+    void navigate({ to: "/cards" });
   }
 
   async function handleResend() {

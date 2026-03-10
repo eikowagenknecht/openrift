@@ -21,11 +21,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
       credentials: "include",
     });
     if (!res.ok) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/cards" });
     }
     const data = (await res.json()) as { isAdmin: boolean };
     if (!data.isAdmin) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/cards" });
     }
   },
   component: AdminLayout,

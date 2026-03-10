@@ -166,7 +166,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           <Button
             size="sm"
             nativeButton={false}
-            render={<Link to="/" search={{ adding: true, addingTo: addTarget }} />}
+            render={<Link to="/cards" search={{ adding: true, addingTo: addTarget }} />}
           >
             <Plus className="mr-1 size-3.5" />
             Add cards
@@ -196,7 +196,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             variant="ghost"
             size="sm"
             nativeButton={false}
-            render={<Link to="/" search={{ adding: true, addingTo: addTarget }} />}
+            render={<Link to="/cards" search={{ adding: true, addingTo: addTarget }} />}
             className="text-xs"
           >
             <Plus className="mr-1 size-3" />

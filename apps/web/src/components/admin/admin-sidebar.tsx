@@ -116,7 +116,7 @@ export function AdminSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<Link to="/" />}>
+            <SidebarMenuButton render={<Link to="/cards" />}>
               <ArrowLeftIcon />
               <span>Back to site</span>
             </SidebarMenuButton>
