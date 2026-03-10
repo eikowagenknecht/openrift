@@ -54,6 +54,10 @@ html.hide-scrollbar::-webkit-scrollbar {
   --sidebar-ring: oklch(0.708 0 0);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  --hero-gradient:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.1) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.07) 0%, transparent 70%);
 }
 
 .dark {
@@ -89,6 +93,10 @@ html.hide-scrollbar::-webkit-scrollbar {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --hero-gradient:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.6 0.1 185 / 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 0% 70%, oklch(0.35 0.15 280 / 0.14) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 100% 30%, oklch(0.65 0.12 80 / 0.1) 0%, transparent 70%);
 }
 
 @theme inline {
@@ -132,6 +140,10 @@ html.hide-scrollbar::-webkit-scrollbar {
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-foil-shimmer: foil-shimmer 4s ease-in-out infinite;
+  --animate-wobble: wobble 0.4s ease-in-out;
+  --animate-fly-away: fly-away 0.8s ease-in forwards;
+  --animate-fly-in: fly-in 0.8s ease-out forwards;
+  --animate-logo-spin: logo-spin 1s ease-in-out;
   --header-height: 3.5rem;
   --sticky-top: calc(var(--header-height) + 1rem);
   --breakpoint-wide: 112.5rem;
@@ -261,6 +273,63 @@ html.hide-scrollbar::-webkit-scrollbar {
     }
     100% {
       opacity: 0;
+    }
+  }
+
+  @keyframes logo-spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes fly-away {
+    0% {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+    30% {
+      transform: scale(1.15) translateY(-10px);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(0) translateY(-200px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fly-in {
+    0% {
+      transform: scale(0) translateY(-200px);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.15) translateY(-10px);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes wobble {
+    0% {
+      transform: scale(1) rotate(0deg);
+    }
+    25% {
+      transform: scale(1.1) rotate(-5deg);
+    }
+    50% {
+      transform: scale(1.05) rotate(4deg);
+    }
+    75% {
+      transform: scale(1.08) rotate(-2deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
     }
   }
 

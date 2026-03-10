@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-03-10
+
+- feat: OpenRift now has a landing page at / with sign-in and a quick link to browse cards
+- feat: There's a hidden easter egg on the landing page — see if you can find it
+
 ## 2026-03-09
 
 - feat: Legal notice and privacy policy pages are now available from the footer
