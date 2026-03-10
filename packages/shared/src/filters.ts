@@ -1,4 +1,4 @@
-import type { Card, CardFilters, Rarity, SearchField, SortOption } from "./types.js";
+import type { Card, CardFilters, FilterRange, Rarity, SearchField, SortOption } from "./types.js";
 import { RARITY_ORDER, SEARCH_PREFIX_MAP } from "./types.js";
 
 export interface ParsedSearchTerm {
@@ -57,6 +57,22 @@ export function getMarketPrice(card: Card): number | null {
   return card.price?.market ?? null;
 }
 
+function matchesRange(value: number | null, range: FilterRange): boolean {
+  if (range.min === null && range.max === null) {
+    return true;
+  }
+  if (value === null) {
+    return false;
+  }
+  if (range.min !== null && value < range.min) {
+    return false;
+  }
+  if (range.max !== null && value > range.max) {
+    return false;
+  }
+  return true;
+}
+
 export function filterCards(cards: Card[], filters: CardFilters): Card[] {
   const terms = filters.search ? parseSearchTerms(filters.search) : [];
   const hasPrefixes = terms.some((t) => t.field !== null);
@@ -95,40 +111,13 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.domains.length > 0 && !card.domains.some((d) => filters.domains.includes(d))) {
       return false;
     }
-    if (
-      filters.energyMin !== null &&
-      (card.stats.energy === null || card.stats.energy < filters.energyMin)
-    ) {
+    if (!matchesRange(card.stats.energy, filters.energy)) {
       return false;
     }
-    if (
-      filters.energyMax !== null &&
-      (card.stats.energy === null || card.stats.energy > filters.energyMax)
-    ) {
+    if (!matchesRange(card.stats.might, filters.might)) {
       return false;
     }
-    if (
-      filters.mightMin !== null &&
-      (card.stats.might === null || card.stats.might < filters.mightMin)
-    ) {
-      return false;
-    }
-    if (
-      filters.mightMax !== null &&
-      (card.stats.might === null || card.stats.might > filters.mightMax)
-    ) {
-      return false;
-    }
-    if (
-      filters.powerMin !== null &&
-      (card.stats.power === null || card.stats.power < filters.powerMin)
-    ) {
-      return false;
-    }
-    if (
-      filters.powerMax !== null &&
-      (card.stats.power === null || card.stats.power > filters.powerMax)
-    ) {
+    if (!matchesRange(card.stats.power, filters.power)) {
       return false;
     }
     if (filters.artVariants.length > 0 && !filters.artVariants.includes(card.artVariant)) {
@@ -143,17 +132,8 @@ export function filterCards(cards: Card[], filters: CardFilters): Card[] {
     if (filters.isPromo !== null && card.isPromo !== filters.isPromo) {
       return false;
     }
-    if (filters.priceMin !== null || filters.priceMax !== null) {
-      const price = getMarketPrice(card);
-      if (price === null) {
-        return false;
-      }
-      if (filters.priceMin !== null && price < filters.priceMin) {
-        return false;
-      }
-      if (filters.priceMax !== null && price > filters.priceMax) {
-        return false;
-      }
+    if (!matchesRange(getMarketPrice(card), filters.price)) {
+      return false;
     }
     return true;
   });
@@ -167,14 +147,10 @@ export interface AvailableFilters {
   domains: string[];
   artVariants: string[];
   finishes: string[];
-  energyMin: number;
-  energyMax: number;
-  mightMin: number;
-  mightMax: number;
-  powerMin: number;
-  powerMax: number;
-  priceMin: number;
-  priceMax: number;
+  energy: { min: number; max: number };
+  might: { min: number; max: number };
+  power: { min: number; max: number };
+  price: { min: number; max: number };
   hasSigned: boolean;
   hasPromo: boolean;
 }
@@ -209,6 +185,11 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
   const mights = cards.map((c) => c.stats.might).filter((v): v is number => v !== null);
   const powers = cards.map((c) => c.stats.power).filter((v): v is number => v !== null);
   const prices = cards.map((c) => getMarketPrice(c)).filter((p): p is number => p !== null);
+  const minMax = (vals: number[]) => ({
+    min: vals.length > 0 ? vals.reduce((a, b) => Math.min(a, b)) : 0,
+    max: vals.length > 0 ? vals.reduce((a, b) => Math.max(a, b)) : 0,
+  });
+
   return {
     sets,
     rarities,
@@ -217,14 +198,13 @@ export function getAvailableFilters(cards: Card[]): AvailableFilters {
     domains,
     artVariants,
     finishes,
-    energyMin: energies.length > 0 ? Math.min(...energies) : 0,
-    energyMax: energies.length > 0 ? Math.max(...energies) : 0,
-    mightMin: mights.length > 0 ? Math.min(...mights) : 0,
-    mightMax: mights.length > 0 ? Math.max(...mights) : 0,
-    powerMin: powers.length > 0 ? Math.min(...powers) : 0,
-    powerMax: powers.length > 0 ? Math.max(...powers) : 0,
-    priceMin: prices.length > 0 ? Math.floor(Math.min(...prices)) : 0,
-    priceMax: prices.length > 0 ? Math.ceil(Math.max(...prices)) : 0,
+    energy: minMax(energies),
+    might: minMax(mights),
+    power: minMax(powers),
+    price: {
+      min: prices.length > 0 ? Math.floor(prices.reduce((a, b) => Math.min(a, b))) : 0,
+      max: prices.length > 0 ? Math.ceil(prices.reduce((a, b) => Math.max(a, b))) : 0,
+    },
     hasSigned: cards.some((c) => c.isSigned),
     hasPromo: cards.some((c) => c.isPromo),
   };

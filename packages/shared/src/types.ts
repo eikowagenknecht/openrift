@@ -331,6 +331,11 @@ export interface CandidateUploadResult {
 
 // ─── Card filters ───────────────────────────────────────────────────────────
 
+export interface FilterRange {
+  min: number | null;
+  max: number | null;
+}
+
 export interface CardFilters {
   search: string;
   searchScope: SearchField[];
@@ -339,14 +344,10 @@ export interface CardFilters {
   types: CardType[];
   superTypes: string[];
   domains: string[];
-  energyMin: number | null;
-  energyMax: number | null;
-  mightMin: number | null;
-  mightMax: number | null;
-  powerMin: number | null;
-  powerMax: number | null;
-  priceMin: number | null;
-  priceMax: number | null;
+  energy: FilterRange;
+  might: FilterRange;
+  power: FilterRange;
+  price: FilterRange;
   artVariants: string[];
   finishes: string[];
   isSigned: boolean | null;

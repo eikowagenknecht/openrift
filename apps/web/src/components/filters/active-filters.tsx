@@ -155,8 +155,8 @@ export function ActiveFilters({
             label="Energy"
             min={energyRange[0]}
             max={energyRange[1]}
-            availableMin={availableFilters.energyMin}
-            availableMax={availableFilters.energyMax}
+            availableMin={availableFilters.energy.min}
+            availableMax={availableFilters.energy.max}
             onClear={onClearEnergyRange}
           />
         )}
@@ -165,8 +165,8 @@ export function ActiveFilters({
             label="Might"
             min={mightRange[0]}
             max={mightRange[1]}
-            availableMin={availableFilters.mightMin}
-            availableMax={availableFilters.mightMax}
+            availableMin={availableFilters.might.min}
+            availableMax={availableFilters.might.max}
             onClear={onClearMightRange}
           />
         )}
@@ -175,8 +175,8 @@ export function ActiveFilters({
             label="Power"
             min={powerRange[0]}
             max={powerRange[1]}
-            availableMin={availableFilters.powerMin}
-            availableMax={availableFilters.powerMax}
+            availableMin={availableFilters.power.min}
+            availableMax={availableFilters.power.max}
             onClear={onClearPowerRange}
           />
         )}
@@ -185,8 +185,8 @@ export function ActiveFilters({
             label="Price"
             min={priceRange[0]}
             max={priceRange[1]}
-            availableMin={availableFilters.priceMin}
-            availableMax={availableFilters.priceMax}
+            availableMin={availableFilters.price.min}
+            availableMax={availableFilters.price.max}
             onClear={onClearPriceRange}
             formatValue={(v) => `$${v}`}
           />

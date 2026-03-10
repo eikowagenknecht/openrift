@@ -748,44 +748,44 @@ export function FilterPanelContent({
       <div
         className={layout === "drawer" ? "flex flex-col gap-3" : "flex flex-row flex-wrap gap-4"}
       >
-        {availableFilters.energyMin !== availableFilters.energyMax && (
+        {availableFilters.energy.min !== availableFilters.energy.max && (
           <RangeFilterSection
             label="Energy"
-            availableMin={availableFilters.energyMin}
-            availableMax={availableFilters.energyMax}
+            availableMin={availableFilters.energy.min}
+            availableMax={availableFilters.energy.max}
             selectedMin={energyRange[0]}
             selectedMax={energyRange[1]}
             onChange={onEnergyRangeChange}
             layout={layout}
           />
         )}
-        {availableFilters.mightMin !== availableFilters.mightMax && (
+        {availableFilters.might.min !== availableFilters.might.max && (
           <RangeFilterSection
             label="Might"
-            availableMin={availableFilters.mightMin}
-            availableMax={availableFilters.mightMax}
+            availableMin={availableFilters.might.min}
+            availableMax={availableFilters.might.max}
             selectedMin={mightRange[0]}
             selectedMax={mightRange[1]}
             onChange={onMightRangeChange}
             layout={layout}
           />
         )}
-        {availableFilters.powerMin !== availableFilters.powerMax && (
+        {availableFilters.power.min !== availableFilters.power.max && (
           <RangeFilterSection
             label="Power"
-            availableMin={availableFilters.powerMin}
-            availableMax={availableFilters.powerMax}
+            availableMin={availableFilters.power.min}
+            availableMax={availableFilters.power.max}
             selectedMin={powerRange[0]}
             selectedMax={powerRange[1]}
             onChange={onPowerRangeChange}
             layout={layout}
           />
         )}
-        {availableFilters.priceMax > 0 && (
+        {availableFilters.price.max > 0 && (
           <RangeFilterSection
             label="Price"
-            availableMin={availableFilters.priceMin}
-            availableMax={availableFilters.priceMax}
+            availableMin={availableFilters.price.min}
+            availableMax={availableFilters.price.max}
             selectedMin={priceRange[0]}
             selectedMax={priceRange[1]}
             onChange={onPriceRangeChange}

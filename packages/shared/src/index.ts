@@ -10,6 +10,7 @@ export type {
   Card,
   CardArt,
   CardFilters,
+  FilterRange,
   CardmarketSnapshot,
   CardPrice,
   CardStats,

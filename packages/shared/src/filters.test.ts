@@ -50,14 +50,10 @@ function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
     types: [],
     superTypes: [],
     domains: [],
-    energyMin: null,
-    energyMax: null,
-    mightMin: null,
-    mightMax: null,
-    powerMin: null,
-    powerMax: null,
-    priceMin: null,
-    priceMax: null,
+    energy: { min: null, max: null },
+    might: { min: null, max: null },
+    power: { min: null, max: null },
+    price: { min: null, max: null },
     artVariants: [],
     finishes: [],
     isSigned: null,
@@ -380,42 +376,42 @@ describe("filterCards", () => {
 
   // -- Stat range filters --
 
-  it("filters by energyMin", () => {
-    const result = filterCards(cards, emptyFilters({ energyMin: 4 }));
+  it("filters by energy min", () => {
+    const result = filterCards(cards, emptyFilters({ energy: { min: 4, max: null } }));
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Fire Dragon");
   });
 
-  it("filters by energyMax", () => {
-    const result = filterCards(cards, emptyFilters({ energyMax: 2 }));
+  it("filters by energy max", () => {
+    const result = filterCards(cards, emptyFilters({ energy: { min: null, max: 2 } }));
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Mind Weaver");
   });
 
   it("filters by energy range", () => {
-    const result = filterCards(cards, emptyFilters({ energyMin: 3, energyMax: 5 }));
+    const result = filterCards(cards, emptyFilters({ energy: { min: 3, max: 5 } }));
     expect(result).toHaveLength(2); // Fire Dragon (5) and Ice Golem (3)
   });
 
-  it("filters by mightMin", () => {
-    const result = filterCards(cards, emptyFilters({ mightMin: 5 }));
+  it("filters by might min", () => {
+    const result = filterCards(cards, emptyFilters({ might: { min: 5, max: null } }));
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Ice Golem");
   });
 
-  it("filters by powerMin", () => {
-    const result = filterCards(cards, emptyFilters({ powerMin: 3 }));
+  it("filters by power min", () => {
+    const result = filterCards(cards, emptyFilters({ power: { min: 3, max: null } }));
     expect(result).toHaveLength(1); // Fire Dragon (6)
     expect(result[0].name).toBe("Fire Dragon");
   });
 
-  it("filters by powerMax", () => {
-    const result = filterCards(cards, emptyFilters({ powerMax: 3 }));
+  it("filters by power max", () => {
+    const result = filterCards(cards, emptyFilters({ power: { min: null, max: 3 } }));
     expect(result).toHaveLength(2); // Ice Golem (2), Mind Weaver (0)
   });
 
-  it("filters by mightMax", () => {
-    const result = filterCards(cards, emptyFilters({ mightMax: 3 }));
+  it("filters by might max", () => {
+    const result = filterCards(cards, emptyFilters({ might: { min: null, max: 3 } }));
     expect(result).toHaveLength(1); // Mind Weaver (0)
     expect(result[0].name).toBe("Mind Weaver");
   });
@@ -469,7 +465,7 @@ describe("filterCards", () => {
 
   it("excludes cards with null price when price filter is active", () => {
     // All our test cards have no price set
-    const result = filterCards(cards, emptyFilters({ priceMin: 0 }));
+    const result = filterCards(cards, emptyFilters({ price: { min: 0, max: null } }));
     expect(result).toHaveLength(0);
   });
 
@@ -500,7 +496,7 @@ describe("filterCards", () => {
       makeCard({ name: "No Price Card" }),
     ];
 
-    const result = filterCards(cardsWithPrices, emptyFilters({ priceMin: 5, priceMax: 30 }));
+    const result = filterCards(cardsWithPrices, emptyFilters({ price: { min: 5, max: 30 } }));
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Expensive Card");
   });
@@ -614,12 +610,9 @@ describe("getAvailableFilters", () => {
 
   it("computes correct stat ranges", () => {
     const result = getAvailableFilters(cards);
-    expect(result.energyMin).toBe(2);
-    expect(result.energyMax).toBe(5);
-    expect(result.mightMin).toBe(0);
-    expect(result.mightMax).toBe(4);
-    expect(result.powerMin).toBe(0);
-    expect(result.powerMax).toBe(6);
+    expect(result.energy).toEqual({ min: 2, max: 5 });
+    expect(result.might).toEqual({ min: 0, max: 4 });
+    expect(result.power).toEqual({ min: 0, max: 6 });
   });
 
   it("computes price range from cards with prices", () => {
@@ -646,14 +639,12 @@ describe("getAvailableFilters", () => {
       }),
     ];
     const result = getAvailableFilters(cardsWithPrices);
-    expect(result.priceMin).toBe(2); // floor(2.5)
-    expect(result.priceMax).toBe(26); // ceil(25.3)
+    expect(result.price).toEqual({ min: 2, max: 26 }); // floor(2.5), ceil(25.3)
   });
 
   it("returns 0 price range when no cards have prices", () => {
     const result = getAvailableFilters([makeCard()]);
-    expect(result.priceMin).toBe(0);
-    expect(result.priceMax).toBe(0);
+    expect(result.price).toEqual({ min: 0, max: 0 });
   });
 
   it("computes hasSigned when signed cards exist", () => {
@@ -688,10 +679,8 @@ describe("getAvailableFilters", () => {
     expect(result.domains).toEqual([]);
     expect(result.artVariants).toEqual([]);
     expect(result.finishes).toEqual([]);
-    expect(result.energyMin).toBe(0);
-    expect(result.energyMax).toBe(0);
-    expect(result.priceMin).toBe(0);
-    expect(result.priceMax).toBe(0);
+    expect(result.energy).toEqual({ min: 0, max: 0 });
+    expect(result.price).toEqual({ min: 0, max: 0 });
     expect(result.hasSigned).toBe(false);
     expect(result.hasPromo).toBe(false);
   });

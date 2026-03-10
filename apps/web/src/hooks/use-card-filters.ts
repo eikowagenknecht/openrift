@@ -80,14 +80,10 @@ export function useCardFilters() {
     finishes: filterState.finishes,
     isSigned: filterState.signed === "true" ? true : filterState.signed === "false" ? false : null,
     isPromo: filterState.promo === "true" ? true : filterState.promo === "false" ? false : null,
-    energyMin: filterState.energyMin,
-    energyMax: filterState.energyMax,
-    mightMin: filterState.mightMin,
-    mightMax: filterState.mightMax,
-    powerMin: filterState.powerMin,
-    powerMax: filterState.powerMax,
-    priceMin: filterState.priceMin,
-    priceMax: filterState.priceMax,
+    energy: { min: filterState.energyMin, max: filterState.energyMax },
+    might: { min: filterState.mightMin, max: filterState.mightMax },
+    power: { min: filterState.powerMin, max: filterState.powerMax },
+    price: { min: filterState.priceMin, max: filterState.priceMax },
   };
 
   const sortBy = filterState.sort as SortOption;
