@@ -46,21 +46,21 @@ export interface MappedSnapshotRow {
 
 // ── TCGPlayer row shapes ────────────────────────────────────────────────────
 
-export interface TcgplayerStagingRow extends StagingRow {
+interface TcgplayerStagingRow extends StagingRow {
   market_cents: number;
   low_cents: number | null;
   mid_cents: number | null;
   high_cents: number | null;
 }
 
-export interface TcgplayerSnapshotRow extends SnapshotRow {
+interface TcgplayerSnapshotRow extends SnapshotRow {
   market_cents: number;
   low_cents: number | null;
   mid_cents: number | null;
   high_cents: number | null;
 }
 
-export interface TcgplayerMappedSnapshotRow extends MappedSnapshotRow {
+interface TcgplayerMappedSnapshotRow extends MappedSnapshotRow {
   market_cents: number;
   low_cents: number | null;
   mid_cents: number | null;
@@ -69,7 +69,7 @@ export interface TcgplayerMappedSnapshotRow extends MappedSnapshotRow {
 
 // ── Cardmarket row shapes ───────────────────────────────────────────────────
 
-export interface CardmarketStagingRow extends StagingRow {
+interface CardmarketStagingRow extends StagingRow {
   market_cents: number;
   low_cents: number | null;
   trend_cents: number | null;
@@ -78,7 +78,7 @@ export interface CardmarketStagingRow extends StagingRow {
   avg30_cents: number | null;
 }
 
-export interface CardmarketSnapshotRow extends SnapshotRow {
+interface CardmarketSnapshotRow extends SnapshotRow {
   market_cents: number;
   low_cents: number | null;
   trend_cents: number | null;
@@ -87,7 +87,7 @@ export interface CardmarketSnapshotRow extends SnapshotRow {
   avg30_cents: number | null;
 }
 
-export interface CardmarketMappedSnapshotRow extends MappedSnapshotRow {
+interface CardmarketMappedSnapshotRow extends MappedSnapshotRow {
   market_cents: number;
   low_cents: number | null;
   trend_cents: number | null;
