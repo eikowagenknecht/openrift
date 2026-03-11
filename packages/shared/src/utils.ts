@@ -8,6 +8,20 @@ export function unique<T>(values: T[]): T[] {
 }
 
 /**
+ * Build composite printing ID.
+ * @returns Deterministic ID string: "{source_id}:{art_variant}:{signed|}:{promo|}:{finish}"
+ */
+export function buildPrintingId(
+  sourceId: string,
+  artVariant: string,
+  isSigned: boolean,
+  isPromo: boolean,
+  finish: string,
+): string {
+  return `${sourceId}:${artVariant}:${isSigned ? "signed" : ""}:${isPromo ? "promo" : ""}:${finish}`;
+}
+
+/**
  * Returns the min and max of a number array, snapped to whole numbers (floor min, ceil max). Defaults to 0 when empty.
  *
  * @returns An object with `min` and `max` bounds.

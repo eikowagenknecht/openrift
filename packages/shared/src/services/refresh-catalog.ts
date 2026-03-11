@@ -2,9 +2,9 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
-import { buildPrintingId } from "../db/utils.js";
 import type { Logger } from "../logger.js";
 import type { CardType, Rarity } from "../types.js";
+import { buildPrintingId } from "../utils.js";
 import { fetchCatalog } from "./fetch-catalog.js";
 
 // Finish rules:
@@ -13,7 +13,7 @@ import { fetchCatalog } from "./fetch-catalog.js";
 // - Base Rune (non-Showcase) → non-foil only
 // - Common/Uncommon → both non-foil and foil
 // - Rare/Epic/Showcase → foil only
-function getFinishes(
+export function getFinishes(
   setCode: string,
   cardType: CardType,
   superTypes: string[],

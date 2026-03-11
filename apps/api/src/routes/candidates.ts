@@ -1,5 +1,5 @@
-import { buildPrintingId } from "@openrift/shared/db/utils";
 import { candidateUploadSchema } from "@openrift/shared/schemas";
+import { buildPrintingId } from "@openrift/shared/utils";
 import { Hono } from "hono";
 import { sql } from "kysely";
 
