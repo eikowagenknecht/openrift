@@ -1,6 +1,6 @@
 import { AppError } from "./errors.js";
 
-type FieldMapping = Record<string, string | ((value: unknown) => [string, unknown])>;
+export type FieldMapping = Record<string, string | ((value: unknown) => [string, unknown])>;
 
 // Build a PATCH updates object from a parsed request body and a field mapping.
 // Each key in fieldMap is a camelCase body field. The value is either a string

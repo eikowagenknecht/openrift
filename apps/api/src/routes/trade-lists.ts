@@ -3,8 +3,9 @@ import {
   createTradeListSchema,
   updateTradeListSchema,
 } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { createCrudRoute } from "../crud-factory.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -14,56 +15,27 @@ import { AppError } from "../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { requireAuth } from "../middleware/require-auth.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { buildPatchUpdates } from "../patch.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import type { Variables } from "../types.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toTradeList, toTradeListItem } from "../utils/dto.js";
 
-export const tradeListsRoute = new Hono<{ Variables: Variables }>();
-
-tradeListsRoute.use("/trade-lists/*", requireAuth);
-tradeListsRoute.use("/trade-lists", requireAuth);
-
-// ── GET /trade-lists ──────────────────────────────────────────────────────────
-
-tradeListsRoute.get("/trade-lists", async (c) => {
-  const userId = getUserId(c);
-
-  const rows = await db
-    .selectFrom("trade_lists")
-    .selectAll()
-    .where("user_id", "=", userId)
-    .orderBy("name")
-    .execute();
-
-  return c.json(rows.map((row) => toTradeList(row)));
-});
-
-// ── POST /trade-lists ─────────────────────────────────────────────────────────
-
-tradeListsRoute.post("/trade-lists", async (c) => {
-  const userId = getUserId(c);
-  const body = createTradeListSchema.parse(await c.req.json());
-
-  const id = crypto.randomUUID();
-  const row = await db
-    .insertInto("trade_lists")
-    .values({
-      id,
-      user_id: userId,
-      name: body.name,
-      rules: body.rules ? JSON.stringify(body.rules) : null,
-    })
-    .returningAll()
-    .executeTakeFirstOrThrow();
-
-  return c.json(toTradeList(row), 201);
+export const tradeListsRoute = createCrudRoute({
+  path: "/trade-lists",
+  table: "trade_lists",
+  toDto: toTradeList,
+  createSchema: createTradeListSchema,
+  updateSchema: updateTradeListSchema,
+  toInsert: (body) => ({
+    name: body.name,
+    rules: body.rules ? JSON.stringify(body.rules) : null,
+  }),
+  patchFields: {
+    name: "name",
+    rules: (v) => ["rules", v ? JSON.stringify(v) : null],
+  },
+  skip: ["getOne"],
 });
 
 // ── GET /trade-lists/:id ──────────────────────────────────────────────────────
+// Returns trade list with enriched items (card info, images)
 
 tradeListsRoute.get("/trade-lists/:id", async (c) => {
   const userId = getUserId(c);
@@ -124,52 +96,6 @@ tradeListsRoute.get("/trade-lists/:id", async (c) => {
       cardType: row.card_type,
     })),
   });
-});
-
-// ── PATCH /trade-lists/:id ────────────────────────────────────────────────────
-
-tradeListsRoute.patch("/trade-lists/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-  const body = updateTradeListSchema.parse(await c.req.json());
-
-  const updates = buildPatchUpdates(body, {
-    name: "name",
-    rules: (v) => ["rules", v ? JSON.stringify(v) : null],
-  });
-
-  const row = await db
-    .updateTable("trade_lists")
-    .set(updates)
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .returningAll()
-    .executeTakeFirst();
-
-  if (!row) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json(toTradeList(row));
-});
-
-// ── DELETE /trade-lists/:id ───────────────────────────────────────────────────
-
-tradeListsRoute.delete("/trade-lists/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-
-  const result = await db
-    .deleteFrom("trade_lists")
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
-
-  if (result.numDeletedRows === 0n) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json({ ok: true });
 });
 
 // ── POST /trade-lists/:id/items ───────────────────────────────────────────────

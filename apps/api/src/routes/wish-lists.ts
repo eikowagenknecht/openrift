@@ -4,8 +4,9 @@ import {
   updateWishListItemSchema,
   updateWishListSchema,
 } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { createCrudRoute } from "../crud-factory.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -13,56 +14,27 @@ import { AppError } from "../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { requireAuth } from "../middleware/require-auth.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { buildPatchUpdates } from "../patch.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import type { Variables } from "../types.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toWishList, toWishListItem } from "../utils/dto.js";
 
-export const wishListsRoute = new Hono<{ Variables: Variables }>();
-
-wishListsRoute.use("/wish-lists/*", requireAuth);
-wishListsRoute.use("/wish-lists", requireAuth);
-
-// ── GET /wish-lists ───────────────────────────────────────────────────────────
-
-wishListsRoute.get("/wish-lists", async (c) => {
-  const userId = getUserId(c);
-
-  const rows = await db
-    .selectFrom("wish_lists")
-    .selectAll()
-    .where("user_id", "=", userId)
-    .orderBy("name")
-    .execute();
-
-  return c.json(rows.map((row) => toWishList(row)));
-});
-
-// ── POST /wish-lists ──────────────────────────────────────────────────────────
-
-wishListsRoute.post("/wish-lists", async (c) => {
-  const userId = getUserId(c);
-  const body = createWishListSchema.parse(await c.req.json());
-
-  const id = crypto.randomUUID();
-  const row = await db
-    .insertInto("wish_lists")
-    .values({
-      id,
-      user_id: userId,
-      name: body.name,
-      rules: body.rules ? JSON.stringify(body.rules) : null,
-    })
-    .returningAll()
-    .executeTakeFirstOrThrow();
-
-  return c.json(toWishList(row), 201);
+export const wishListsRoute = createCrudRoute({
+  path: "/wish-lists",
+  table: "wish_lists",
+  toDto: toWishList,
+  createSchema: createWishListSchema,
+  updateSchema: updateWishListSchema,
+  toInsert: (body) => ({
+    name: body.name,
+    rules: body.rules ? JSON.stringify(body.rules) : null,
+  }),
+  patchFields: {
+    name: "name",
+    rules: (v) => ["rules", v ? JSON.stringify(v) : null],
+  },
+  skip: ["getOne"],
 });
 
 // ── GET /wish-lists/:id ───────────────────────────────────────────────────────
+// Returns wish list with its items
 
 wishListsRoute.get("/wish-lists/:id", async (c) => {
   const userId = getUserId(c);
@@ -89,52 +61,6 @@ wishListsRoute.get("/wish-lists/:id", async (c) => {
     wishList: toWishList(wishList),
     items: itemRows.map((row) => toWishListItem(row)),
   });
-});
-
-// ── PATCH /wish-lists/:id ─────────────────────────────────────────────────────
-
-wishListsRoute.patch("/wish-lists/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-  const body = updateWishListSchema.parse(await c.req.json());
-
-  const updates = buildPatchUpdates(body, {
-    name: "name",
-    rules: (v) => ["rules", v ? JSON.stringify(v) : null],
-  });
-
-  const row = await db
-    .updateTable("wish_lists")
-    .set(updates)
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .returningAll()
-    .executeTakeFirst();
-
-  if (!row) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json(toWishList(row));
-});
-
-// ── DELETE /wish-lists/:id ────────────────────────────────────────────────────
-
-wishListsRoute.delete("/wish-lists/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-
-  const result = await db
-    .deleteFrom("wish_lists")
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
-
-  if (result.numDeletedRows === 0n) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json({ ok: true });
 });
 
 // ── POST /wish-lists/:id/items ────────────────────────────────────────────────
