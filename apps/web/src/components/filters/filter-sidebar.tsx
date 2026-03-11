@@ -1,10 +1,14 @@
-import type { FilterPanelContentProps } from "@/components/filters/filter-bar";
+import type { AvailableFilters } from "@openrift/shared";
+
 import { FilterPanelContent } from "@/components/filters/filter-bar";
 
-type FilterSidebarProps = FilterPanelContentProps;
+interface FilterSidebarProps {
+  availableFilters: AvailableFilters;
+  setDisplayLabel?: (code: string) => string;
+}
 
-export function FilterSidebar(props: FilterSidebarProps) {
-  const f = props.availableFilters;
+export function FilterSidebar({ availableFilters, setDisplayLabel }: FilterSidebarProps) {
+  const f = availableFilters;
   const hasContent =
     f.sets.length > 0 || f.domains.length > 0 || f.types.length > 0 || f.rarities.length > 0;
 
@@ -19,7 +23,11 @@ export function FilterSidebar(props: FilterSidebarProps) {
       </div>
 
       <div className="space-y-4 pb-4">
-        <FilterPanelContent {...props} layout="drawer" />
+        <FilterPanelContent
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          layout="drawer"
+        />
       </div>
     </aside>
   );

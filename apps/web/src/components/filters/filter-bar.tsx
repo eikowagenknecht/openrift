@@ -1,11 +1,4 @@
-import type {
-  AvailableFilters,
-  FilterRange,
-  RangeKey,
-  SearchField,
-  SortDirection,
-  SortOption,
-} from "@openrift/shared";
+import type { AvailableFilters, RangeKey, SearchField, SortOption } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
@@ -50,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { useCardFilters } from "@/hooks/use-card-filters";
 import { useDebounce } from "@/hooks/use-debounce";
 import type { CardFields } from "@/lib/card-fields";
 import { formatDomainFilterLabel } from "@/lib/domain";
@@ -67,43 +61,8 @@ const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }
 
 interface FilterBarProps {
   availableFilters: AvailableFilters;
-  filterState: {
-    search: string;
-    sets: string[];
-    rarities: string[];
-    types: string[];
-    superTypes: string[];
-    domains: string[];
-    artVariants: string[];
-    finishes: string[];
-    signed: string | null;
-    promo: string | null;
-  };
-  ranges: Record<RangeKey, FilterRange>;
-  sortBy: SortOption;
-  sortDir: SortDirection;
   totalCards: number;
   filteredCount: number;
-  view: "cards" | "printings";
-  onViewChange: (view: "cards" | "printings") => void;
-  hasActiveFilters: boolean;
-  searchScope: SearchField[];
-  onSearchChange: (search: string) => void;
-  onToggleFilter: (
-    key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "artVariants" | "finishes",
-    value: string,
-  ) => void;
-  onToggleSigned: () => void;
-  onTogglePromo: () => void;
-  onRangeChange: (key: RangeKey, min: number | null, max: number | null) => void;
-  onSortChange: (sort: SortOption) => void;
-  onSortDirChange: (dir: SortDirection) => void;
-  onSearchScopeToggle: (field: SearchField) => void;
-  maxColumns: number | null;
-  maxColumnsLimit?: number;
-  minColumnsLimit?: number;
-  autoColumns?: number;
-  onMaxColumnsChange?: (value: number | null) => void;
   setDisplayLabel?: (code: string) => string;
 }
 
@@ -140,37 +99,35 @@ const RANGE_SECTIONS: {
 
 export function FilterBar({
   availableFilters,
-  filterState,
-  ranges,
-  sortBy,
-  sortDir,
   totalCards,
   filteredCount,
-  view,
-  onViewChange,
-  hasActiveFilters,
-  searchScope,
-  onSearchChange,
-  onToggleFilter,
-  onToggleSigned,
-  onTogglePromo,
-  onRangeChange,
-  onSortChange,
-  onSortDirChange,
-  onSearchScopeToggle,
-  maxColumns,
-  maxColumnsLimit = 8,
-  minColumnsLimit = 1,
-  autoColumns = 5,
-  onMaxColumnsChange,
   setDisplayLabel,
 }: FilterBarProps) {
+  const {
+    filterState,
+    sortBy,
+    sortDir,
+    hasActiveFilters,
+    searchScope,
+    setSearch,
+    setSortBy,
+    setSortDir,
+    view,
+    setView,
+    toggleSearchField,
+  } = useCardFilters();
+
   const showImages = useDisplayStore((s) => s.showImages);
   const setShowImages = useDisplayStore((s) => s.setShowImages);
   const richEffects = useDisplayStore((s) => s.richEffects);
   const setRichEffects = useDisplayStore((s) => s.setRichEffects);
   const cardFields = useDisplayStore((s) => s.cardFields);
   const setCardFields = useDisplayStore((s) => s.setCardFields);
+  const maxColumns = useDisplayStore((s) => s.maxColumns);
+  const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
+  const maxColumnsLimit = useDisplayStore((s) => s.physicalMax);
+  const minColumnsLimit = useDisplayStore((s) => s.physicalMin);
+  const autoColumns = useDisplayStore((s) => s.autoColumns);
 
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -193,18 +150,12 @@ export function FilterBar({
     // Local change via debounce: push to URL
     if (debouncedSearch !== filterState.search) {
       prevFilterSearch.current = debouncedSearch;
-      onSearchChange(debouncedSearch);
+      setSearch(debouncedSearch);
     }
-  }, [debouncedSearch, filterState.search, onSearchChange]);
+  }, [debouncedSearch, filterState.search, setSearch]);
 
   const filterPanelProps = {
     availableFilters,
-    filterState,
-    ranges,
-    onToggleFilter,
-    onToggleSigned,
-    onTogglePromo,
-    onRangeChange,
     setDisplayLabel,
   };
 
@@ -243,7 +194,7 @@ export function FilterBar({
                   className="text-muted-foreground hover:text-foreground"
                   onClick={() => {
                     setLocalSearch("");
-                    onSearchChange("");
+                    setSearch("");
                   }}
                   aria-label="Clear search"
                 >
@@ -270,7 +221,7 @@ export function FilterBar({
                     variant={isActive ? "default" : "outline"}
                     className="cursor-pointer gap-1 text-xs"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onSearchScopeToggle(field)}
+                    onClick={() => toggleSearchField(field)}
                   >
                     <span className="text-[10px] opacity-50">{prefix}</span>
                     {label}
@@ -283,7 +234,7 @@ export function FilterBar({
         <div className="flex items-center gap-3">
           {/* Desktop: inline sort, view, columns controls */}
           <div className="hidden items-center gap-3 sm:flex">
-            <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
               <SelectTrigger className="w-[160px]" aria-label="Sort by">
                 <span className="text-muted-foreground">Sort:&nbsp;</span>
                 <SelectValue placeholder="Sort by">
@@ -301,7 +252,7 @@ export function FilterBar({
             <Button
               variant="outline"
               size="icon"
-              onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
+              onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
               title={sortDir === "asc" ? "Ascending" : "Descending"}
             >
               {sortDir === "asc" ? (
@@ -316,7 +267,7 @@ export function FilterBar({
               <Button
                 variant={view === "cards" ? "default" : "outline"}
                 size="icon"
-                onClick={() => onViewChange("cards")}
+                onClick={() => setView("cards")}
                 title="One per card"
               >
                 <Square className="size-4" />
@@ -324,7 +275,7 @@ export function FilterBar({
               <Button
                 variant={view === "printings" ? "default" : "outline"}
                 size="icon"
-                onClick={() => onViewChange("printings")}
+                onClick={() => setView("printings")}
                 title="Every printing"
               >
                 <SquareStack className="size-4" />
@@ -332,62 +283,60 @@ export function FilterBar({
             </ButtonGroup>
 
             {/* Columns stepper */}
-            {onMaxColumnsChange && (
-              <ButtonGroup aria-label="Columns">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    if (maxColumns === null) {
-                      const next = autoColumns - 1;
-                      if (next >= minColumns) {
-                        onMaxColumnsChange(next);
-                      }
-                    } else {
-                      if (maxColumns > minColumns) {
-                        onMaxColumnsChange(maxColumns - 1);
-                      }
+            <ButtonGroup aria-label="Columns">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (maxColumns === null) {
+                    const next = autoColumns - 1;
+                    if (next >= minColumns) {
+                      setMaxColumns(next);
                     }
-                  }}
-                  disabled={
-                    (maxColumns !== null && maxColumns <= minColumns) ||
-                    (maxColumns === null && autoColumns <= minColumns)
+                  } else {
+                    if (maxColumns > minColumns) {
+                      setMaxColumns(maxColumns - 1);
+                    }
                   }
-                  aria-label="Fewer columns"
-                >
-                  <Minus className="size-4" />
-                </Button>
-                <ButtonGroupText
-                  className="min-w-10 cursor-pointer justify-center tabular-nums"
-                  onClick={() => {
-                    if (maxColumns !== null) {
-                      onMaxColumnsChange(null);
-                    }
-                  }}
-                  title={maxColumns === null ? "Auto columns" : "Reset to auto"}
-                >
-                  {maxColumns === null ? "Auto" : maxColumns}
-                </ButtonGroupText>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
-                    if (next <= maxColumnsLimit) {
-                      onMaxColumnsChange(next);
-                    }
-                  }}
-                  disabled={
-                    maxColumns === null
-                      ? autoColumns >= maxColumnsLimit
-                      : maxColumns >= maxColumnsLimit
+                }}
+                disabled={
+                  (maxColumns !== null && maxColumns <= minColumns) ||
+                  (maxColumns === null && autoColumns <= minColumns)
+                }
+                aria-label="Fewer columns"
+              >
+                <Minus className="size-4" />
+              </Button>
+              <ButtonGroupText
+                className="min-w-10 cursor-pointer justify-center tabular-nums"
+                onClick={() => {
+                  if (maxColumns !== null) {
+                    setMaxColumns(null);
                   }
-                  aria-label="More columns"
-                >
-                  <Plus className="size-4" />
-                </Button>
-              </ButtonGroup>
-            )}
+                }}
+                title={maxColumns === null ? "Auto columns" : "Reset to auto"}
+              >
+                {maxColumns === null ? "Auto" : maxColumns}
+              </ButtonGroupText>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
+                  if (next <= maxColumnsLimit) {
+                    setMaxColumns(next);
+                  }
+                }}
+                disabled={
+                  maxColumns === null
+                    ? autoColumns >= maxColumnsLimit
+                    : maxColumns >= maxColumnsLimit
+                }
+                aria-label="More columns"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </ButtonGroup>
 
             {/* Display settings */}
             <DisplaySettingsDropdown
@@ -430,7 +379,7 @@ export function FilterBar({
             <div className="space-y-2.5">
               <p className="text-sm font-medium">Options</p>
               <div className="flex items-center gap-2">
-                <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
                   <SelectTrigger size="sm" className="flex-1 text-xs" aria-label="Sort by">
                     <span className="text-muted-foreground">Sort:&nbsp;</span>
                     <SelectValue placeholder="Sort by">
@@ -451,7 +400,7 @@ export function FilterBar({
                   variant="outline"
                   size="sm"
                   className="size-7 p-0"
-                  onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
+                  onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
                   title={sortDir === "asc" ? "Ascending" : "Descending"}
                 >
                   {sortDir === "asc" ? <ArrowDownNarrowWide /> : <ArrowUpNarrowWide />}
@@ -463,7 +412,7 @@ export function FilterBar({
                     variant={view === "cards" ? "default" : "outline"}
                     size="sm"
                     className="gap-1.5 text-xs"
-                    onClick={() => onViewChange("cards")}
+                    onClick={() => setView("cards")}
                   >
                     <Square />
                     Cards
@@ -472,71 +421,69 @@ export function FilterBar({
                     variant={view === "printings" ? "default" : "outline"}
                     size="sm"
                     className="gap-1.5 text-xs"
-                    onClick={() => onViewChange("printings")}
+                    onClick={() => setView("printings")}
                   >
                     <SquareStack />
                     Printings
                   </Button>
                 </ButtonGroup>
 
-                {onMaxColumnsChange && (
-                  <ButtonGroup aria-label="Columns">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="size-7 p-0"
-                      onClick={() => {
-                        if (maxColumns === null) {
-                          const next = autoColumns - 1;
-                          if (next >= minColumns) {
-                            onMaxColumnsChange(next);
-                          }
-                        } else {
-                          if (maxColumns > minColumns) {
-                            onMaxColumnsChange(maxColumns - 1);
-                          }
+                <ButtonGroup aria-label="Columns">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="size-7 p-0"
+                    onClick={() => {
+                      if (maxColumns === null) {
+                        const next = autoColumns - 1;
+                        if (next >= minColumns) {
+                          setMaxColumns(next);
                         }
-                      }}
-                      disabled={
-                        (maxColumns !== null && maxColumns <= minColumns) ||
-                        (maxColumns === null && autoColumns <= minColumns)
+                      } else {
+                        if (maxColumns > minColumns) {
+                          setMaxColumns(maxColumns - 1);
+                        }
                       }
-                      aria-label="Fewer columns"
-                    >
-                      <Minus />
-                    </Button>
-                    <ButtonGroupText
-                      className="flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
-                      onClick={() => {
-                        if (maxColumns !== null) {
-                          onMaxColumnsChange(null);
-                        }
-                      }}
-                      title={maxColumns === null ? "Auto columns" : "Reset to auto"}
-                    >
-                      {maxColumns === null ? "Auto" : maxColumns}
-                    </ButtonGroupText>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="size-7 p-0"
-                      onClick={() => {
-                        const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
-                        if (next <= maxColumnsLimit) {
-                          onMaxColumnsChange(next);
-                        }
-                      }}
-                      disabled={
-                        maxColumns === null
-                          ? autoColumns >= maxColumnsLimit
-                          : maxColumns >= maxColumnsLimit
+                    }}
+                    disabled={
+                      (maxColumns !== null && maxColumns <= minColumns) ||
+                      (maxColumns === null && autoColumns <= minColumns)
+                    }
+                    aria-label="Fewer columns"
+                  >
+                    <Minus />
+                  </Button>
+                  <ButtonGroupText
+                    className="flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
+                    onClick={() => {
+                      if (maxColumns !== null) {
+                        setMaxColumns(null);
                       }
-                      aria-label="More columns"
-                    >
-                      <Plus />
-                    </Button>
-                  </ButtonGroup>
-                )}
+                    }}
+                    title={maxColumns === null ? "Auto columns" : "Reset to auto"}
+                  >
+                    {maxColumns === null ? "Auto" : maxColumns}
+                  </ButtonGroupText>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="size-7 p-0"
+                    onClick={() => {
+                      const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
+                      if (next <= maxColumnsLimit) {
+                        setMaxColumns(next);
+                      }
+                    }}
+                    disabled={
+                      maxColumns === null
+                        ? autoColumns >= maxColumnsLimit
+                        : maxColumns >= maxColumnsLimit
+                    }
+                    aria-label="More columns"
+                  >
+                    <Plus />
+                  </Button>
+                </ButtonGroup>
               </div>
             </div>
 
@@ -617,34 +564,24 @@ export function FilterBar({
 
 export interface FilterPanelContentProps {
   availableFilters: AvailableFilters;
-  filterState: FilterBarProps["filterState"];
-  ranges: Record<RangeKey, FilterRange>;
-  onToggleFilter: FilterBarProps["onToggleFilter"];
-  onToggleSigned: FilterBarProps["onToggleSigned"];
-  onTogglePromo: FilterBarProps["onTogglePromo"];
-  onRangeChange: FilterBarProps["onRangeChange"];
   setDisplayLabel?: (code: string) => string;
   layout?: "inline" | "drawer";
 }
 
 export function FilterPanelContent({
   availableFilters,
-  filterState,
-  ranges,
-  onToggleFilter,
-  onToggleSigned,
-  onTogglePromo,
-  onRangeChange,
   setDisplayLabel,
   layout = "inline",
 }: FilterPanelContentProps) {
+  const { filterState, ranges, toggleArrayFilter, toggleSigned, togglePromo, setRange } =
+    useCardFilters();
   return (
     <>
       <FilterSection
         label="Set"
         options={availableFilters.sets}
         selected={filterState.sets}
-        onToggle={(v) => onToggleFilter("sets", v)}
+        onToggle={(v) => toggleArrayFilter("sets", v)}
         displayLabel={setDisplayLabel}
         layout={layout}
       />
@@ -652,7 +589,7 @@ export function FilterPanelContent({
         label="Domain"
         options={availableFilters.domains}
         selected={filterState.domains}
-        onToggle={(v) => onToggleFilter("domains", v)}
+        onToggle={(v) => toggleArrayFilter("domains", v)}
         iconPath={(v) => getFilterIconPath("domains", v)}
         displayLabel={formatDomainFilterLabel}
         layout={layout}
@@ -661,7 +598,7 @@ export function FilterPanelContent({
         label="Type"
         options={availableFilters.types}
         selected={filterState.types}
-        onToggle={(v) => onToggleFilter("types", v)}
+        onToggle={(v) => toggleArrayFilter("types", v)}
         iconPath={(v) => getFilterIconPath("types", v)}
         layout={layout}
       />
@@ -670,7 +607,7 @@ export function FilterPanelContent({
           label="Super Type"
           options={availableFilters.superTypes}
           selected={filterState.superTypes}
-          onToggle={(v) => onToggleFilter("superTypes", v)}
+          onToggle={(v) => toggleArrayFilter("superTypes", v)}
           iconPath={(v) => getFilterIconPath("superTypes", v)}
           layout={layout}
         />
@@ -679,7 +616,7 @@ export function FilterPanelContent({
         label="Rarity"
         options={availableFilters.rarities}
         selected={filterState.rarities}
-        onToggle={(v) => onToggleFilter("rarities", v)}
+        onToggle={(v) => toggleArrayFilter("rarities", v)}
         iconPath={(v) => getFilterIconPath("rarities", v)}
         layout={layout}
       />
@@ -688,7 +625,7 @@ export function FilterPanelContent({
           label="Art Variant"
           options={availableFilters.artVariants}
           selected={filterState.artVariants}
-          onToggle={(v) => onToggleFilter("artVariants", v)}
+          onToggle={(v) => toggleArrayFilter("artVariants", v)}
           displayLabel={(v) => ART_VARIANT_LABELS[v] ?? v}
           layout={layout}
         />
@@ -698,7 +635,7 @@ export function FilterPanelContent({
           label="Finish"
           options={availableFilters.finishes}
           selected={filterState.finishes}
-          onToggle={(v) => onToggleFilter("finishes", v)}
+          onToggle={(v) => toggleArrayFilter("finishes", v)}
           displayLabel={(v) => FINISH_LABELS[v] ?? v}
           layout={layout}
         />
@@ -717,7 +654,7 @@ export function FilterPanelContent({
               <Badge
                 variant={filterState.signed === null ? "outline" : "default"}
                 className="cursor-pointer"
-                onClick={onToggleSigned}
+                onClick={toggleSigned}
               >
                 {filterState.signed === "false" ? "Not Signed" : "Signed"}
               </Badge>
@@ -726,7 +663,7 @@ export function FilterPanelContent({
               <Badge
                 variant={filterState.promo === null ? "outline" : "default"}
                 className="cursor-pointer"
-                onClick={onTogglePromo}
+                onClick={togglePromo}
               >
                 {filterState.promo === "false" ? "Not Promo" : "Promo"}
               </Badge>
@@ -751,7 +688,7 @@ export function FilterPanelContent({
               availableMax={available.max}
               selectedMin={ranges[key].min}
               selectedMax={ranges[key].max}
-              onChange={(min, max) => onRangeChange(key, min, max)}
+              onChange={(min, max) => setRange(key, min, max)}
               layout={layout}
               {...rest}
             />

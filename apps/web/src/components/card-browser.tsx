@@ -28,9 +28,6 @@ const CardDetail = lazy(async () => {
 
 export function CardBrowser() {
   const showImages = useDisplayStore((s) => s.showImages);
-  const cardFields = useDisplayStore((s) => s.cardFields);
-  const maxColumns = useDisplayStore((s) => s.maxColumns);
-  const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
   const { allCards, setInfoList, isLoading, error } = useCards();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
@@ -74,34 +71,10 @@ export function CardBrowser() {
     setPopoverCard(printing);
   };
 
-  const {
-    filters,
-    ranges,
-    sortBy,
-    sortDir,
-    hasActiveFilters,
-    clearAllFilters,
-    setSearch,
-    toggleArrayFilter,
-    toggleSigned,
-    togglePromo,
-    clearSigned,
-    clearPromo,
-    setRange,
-    setSortBy,
-    setSortDir,
-    view,
-    setView,
-    filterState,
-    searchScope,
-    toggleSearchField,
-  } = useCardFilters();
+  const { filters, sortBy, sortDir, view, setSearch } = useCardFilters();
 
   const [selectedCard, setSelectedCard] = useState<Printing | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [physicalMaxColumns, setPhysicalMaxColumns] = useState(8);
-  const [physicalMinColumns, setPhysicalMinColumns] = useState(1);
-  const [autoColumns, setAutoColumns] = useState(5);
 
   // Lock body scroll when mobile overlay is active
   useEffect(() => {
@@ -341,56 +314,14 @@ export function CardBrowser() {
       )}
       <FilterBar
         availableFilters={availableFilters}
-        filterState={filterState}
-        ranges={ranges}
-        sortBy={sortBy}
-        sortDir={sortDir}
         totalCards={totalUniqueCards}
         filteredCount={sortedCards.length}
-        view={view}
-        onViewChange={setView}
-        hasActiveFilters={hasActiveFilters}
-        searchScope={searchScope}
-        onSearchChange={setSearch}
-        onToggleFilter={toggleArrayFilter}
-        onToggleSigned={toggleSigned}
-        onTogglePromo={togglePromo}
-        onRangeChange={setRange}
-        onSortChange={setSortBy}
-        onSortDirChange={setSortDir}
-        onSearchScopeToggle={toggleSearchField}
-        maxColumns={maxColumns ?? null}
-        maxColumnsLimit={physicalMaxColumns}
-        minColumnsLimit={physicalMinColumns}
-        autoColumns={autoColumns}
-        onMaxColumnsChange={setMaxColumns}
         setDisplayLabel={setDisplayLabel}
       />
-      <ActiveFilters
-        filterState={filterState}
-        availableFilters={availableFilters}
-        ranges={ranges}
-        hasActiveFilters={hasActiveFilters}
-        onToggleFilter={toggleArrayFilter}
-        onClearRange={(key) => setRange(key, null, null)}
-        onClearSigned={clearSigned}
-        onClearPromo={clearPromo}
-        onClearAll={clearAllFilters}
-        onClearSearch={() => setSearch("")}
-        setDisplayLabel={setDisplayLabel}
-      />
+      <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
 
       <div className="flex items-start gap-6">
-        <FilterSidebar
-          availableFilters={availableFilters}
-          filterState={filterState}
-          onToggleFilter={toggleArrayFilter}
-          onToggleSigned={toggleSigned}
-          onTogglePromo={togglePromo}
-          ranges={ranges}
-          onRangeChange={setRange}
-          setDisplayLabel={setDisplayLabel}
-        />
+        <FilterSidebar availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
         <div
           className={`min-w-0 flex-1 transition-opacity duration-150 ${isGridStale ? "opacity-60" : "opacity-100"}`}
         >
@@ -400,17 +331,11 @@ export function CardBrowser() {
             setOrder={setInfoList}
             onCardClick={handleCardClick}
             onSiblingClick={handleCardClick}
-            showImages={showImages}
             selectedCardId={gridSelectedId}
             priceRangeByCardId={priceRangeByCardId}
             view={view}
             siblingPrintings={siblingPrintings}
             printingsByCardId={printingsByCardId}
-            cardFields={cardFields}
-            maxColumns={maxColumns}
-            onPhysicalMaxChange={setPhysicalMaxColumns}
-            onPhysicalMinChange={setPhysicalMinColumns}
-            onAutoColumnsChange={setAutoColumns}
             ownedCounts={ownedCounts}
             onAddCard={adding && addingTo ? handleAddClick : undefined}
           />

@@ -1,9 +1,10 @@
-import type { AvailableFilters, FilterRange, RangeKey } from "@openrift/shared";
+import type { AvailableFilters, RangeKey } from "@openrift/shared";
 import { X } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useCardFilters } from "@/hooks/use-card-filters";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -20,46 +21,22 @@ const RANGE_BADGE_SECTIONS: {
 ];
 
 interface ActiveFiltersProps {
-  filterState: {
-    search: string;
-    sets: string[];
-    rarities: string[];
-    types: string[];
-    superTypes: string[];
-    domains: string[];
-    artVariants: string[];
-    finishes: string[];
-    signed: string | null;
-    promo: string | null;
-  };
   availableFilters: AvailableFilters;
-  ranges: Record<RangeKey, FilterRange>;
-  hasActiveFilters: boolean;
-  onToggleFilter: (
-    key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "artVariants" | "finishes",
-    value: string,
-  ) => void;
-  onClearRange: (key: RangeKey) => void;
-  onClearSigned: () => void;
-  onClearPromo: () => void;
-  onClearAll: () => void;
-  onClearSearch: () => void;
   setDisplayLabel?: (code: string) => string;
 }
 
-export function ActiveFilters({
-  filterState,
-  availableFilters,
-  ranges,
-  hasActiveFilters,
-  onToggleFilter,
-  onClearRange,
-  onClearSigned,
-  onClearPromo,
-  onClearAll,
-  onClearSearch,
-  setDisplayLabel,
-}: ActiveFiltersProps) {
+export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFiltersProps) {
+  const {
+    filterState,
+    ranges,
+    hasActiveFilters,
+    toggleArrayFilter,
+    setRange,
+    clearSigned,
+    clearPromo,
+    clearAllFilters,
+    setSearch,
+  } = useCardFilters();
   if (!hasActiveFilters) {
     return null;
   }
@@ -117,7 +94,7 @@ export function ActiveFilters({
               &ldquo;{filterState.search}&rdquo;
               <button
                 type="button"
-                onClick={onClearSearch}
+                onClick={() => setSearch("")}
                 className="ml-0.5 hover:text-foreground"
               >
                 <X className="size-3" />
@@ -139,7 +116,7 @@ export function ActiveFilters({
                   {displayFn(value)}
                   <button
                     type="button"
-                    onClick={() => onToggleFilter(key, value)}
+                    onClick={() => toggleArrayFilter(key, value)}
                     className="ml-0.5 hover:text-foreground"
                   >
                     <X className="size-3" />
@@ -162,7 +139,7 @@ export function ActiveFilters({
               max={range.max}
               availableMin={availableFilters[key].min}
               availableMax={availableFilters[key].max}
-              onClear={() => onClearRange(key)}
+              onClear={() => setRange(key, null, null)}
               formatValue={formatValue}
             />
           );
@@ -172,11 +149,7 @@ export function ActiveFilters({
             <span className="text-xs text-muted-foreground">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.signed === "false" ? "Not Signed" : "Signed"}
-              <button
-                type="button"
-                onClick={onClearSigned}
-                className="ml-0.5 hover:text-foreground"
-              >
+              <button type="button" onClick={clearSigned} className="ml-0.5 hover:text-foreground">
                 <X className="size-3" />
               </button>
             </Badge>
@@ -187,7 +160,7 @@ export function ActiveFilters({
             <span className="text-xs text-muted-foreground">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.promo === "false" ? "Not Promo" : "Promo"}
-              <button type="button" onClick={onClearPromo} className="ml-0.5 hover:text-foreground">
+              <button type="button" onClick={clearPromo} className="ml-0.5 hover:text-foreground">
                 <X className="size-3" />
               </button>
             </Badge>
@@ -198,7 +171,7 @@ export function ActiveFilters({
         variant="ghost"
         size="icon-sm"
         className="shrink-0 self-start"
-        onClick={onClearAll}
+        onClick={clearAllFilters}
         title="Clear all filters"
       >
         <X className="size-4" />

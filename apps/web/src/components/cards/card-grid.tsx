@@ -5,8 +5,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
-import type { CardFields } from "@/lib/card-fields";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
+import { useDisplayStore } from "@/stores/display-store";
 
 import {
   APP_HEADER_HEIGHT,
@@ -42,17 +42,11 @@ interface CardGridProps {
   setOrder: SetInfo[];
   onCardClick: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
-  showImages?: boolean;
   selectedCardId?: string;
   siblingPrintings?: Printing[];
   printingsByCardId?: Map<string, Printing[]>;
   priceRangeByCardId?: Map<string, { min: number; max: number }> | null;
   view?: "cards" | "printings";
-  cardFields?: CardFields;
-  maxColumns?: number | null;
-  onPhysicalMaxChange?: (max: number) => void;
-  onPhysicalMinChange?: (min: number) => void;
-  onAutoColumnsChange?: (cols: number) => void;
   ownedCounts?: Map<string, number>;
   onAddCard?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
@@ -63,20 +57,21 @@ export function CardGrid({
   setOrder,
   onCardClick,
   onSiblingClick,
-  showImages,
   selectedCardId,
   siblingPrintings,
   printingsByCardId,
   priceRangeByCardId,
   view,
-  cardFields,
-  maxColumns,
-  onPhysicalMaxChange,
-  onPhysicalMinChange,
-  onAutoColumnsChange,
   ownedCounts,
   onAddCard,
 }: CardGridProps) {
+  const showImages = useDisplayStore((s) => s.showImages);
+  const cardFields = useDisplayStore((s) => s.cardFields);
+  const maxColumns = useDisplayStore((s) => s.maxColumns);
+  const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
+  const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
+  const setAutoColumns = useDisplayStore((s) => s.setAutoColumns);
+
   const { data: isAdmin } = useIsAdmin();
   const { settings: adminSettings } = useAdminSettings();
   const debugOverlayEnabled = isAdmin === true && adminSettings.debugOverlay;
@@ -85,16 +80,16 @@ export function CardGrid({
     useResponsiveColumns(maxColumns);
 
   useLayoutEffect(() => {
-    onPhysicalMaxChange?.(physicalMax);
-  }, [physicalMax, onPhysicalMaxChange]);
+    setPhysicalMax(physicalMax);
+  }, [physicalMax, setPhysicalMax]);
 
   useLayoutEffect(() => {
-    onPhysicalMinChange?.(physicalMin);
-  }, [physicalMin, onPhysicalMinChange]);
+    setPhysicalMin(physicalMin);
+  }, [physicalMin, setPhysicalMin]);
 
   useLayoutEffect(() => {
-    onAutoColumnsChange?.(autoColumns);
-  }, [autoColumns, onAutoColumnsChange]);
+    setAutoColumns(autoColumns);
+  }, [autoColumns, setAutoColumns]);
 
   const outerWidth = containerRef.current?.offsetWidth ?? 400;
   const thumbWidth = (outerWidth - GAP * (columns - 1)) / columns;
