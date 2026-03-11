@@ -3,6 +3,30 @@ import { buildPrintingId } from "@openrift/shared/utils";
 import type { Selectable, Transaction } from "kysely";
 import { sql } from "kysely";
 
+/** Upsert a set by ID, inserting it with the next sort_order if it doesn't exist. */
+async function upsertSet(
+  trx: Transaction<Database>,
+  setId: string,
+  setName: string,
+): Promise<void> {
+  const existing = await trx
+    .selectFrom("sets")
+    .select("id")
+    .where("id", "=", setId)
+    .executeTakeFirst();
+
+  if (!existing) {
+    const { max } = await trx
+      .selectFrom("sets")
+      .select(sql<number>`coalesce(max(sort_order), 0)`.as("max"))
+      .executeTakeFirstOrThrow();
+    await trx
+      .insertInto("sets")
+      .values({ id: setId, name: setName, printed_total: 0, sort_order: max + 1 })
+      .execute();
+  }
+}
+
 /**
  * Insert an image record into printing_images for a candidate's source.
  * If no active image exists for that printing+face, marks it active.
@@ -60,23 +84,8 @@ export async function acceptNewCandidate(
   // Upsert sets
   const setIds = [...new Set(candidatePrintings.map((p) => p.set_id))];
   for (const setId of setIds) {
-    const existingSet = await trx
-      .selectFrom("sets")
-      .select("id")
-      .where("id", "=", setId)
-      .executeTakeFirst();
-
-    if (!existingSet) {
-      const setName = candidatePrintings.find((p) => p.set_id === setId)?.set_name ?? setId;
-      const { max } = await trx
-        .selectFrom("sets")
-        .select(sql<number>`coalesce(max(sort_order), 0)`.as("max"))
-        .executeTakeFirstOrThrow();
-      await trx
-        .insertInto("sets")
-        .values({ id: setId, name: setName, printed_total: 0, sort_order: max + 1 })
-        .execute();
-    }
+    const setName = candidatePrintings.find((p) => p.set_id === setId)?.set_name ?? setId;
+    await upsertSet(trx, setId, setName);
   }
 
   // Insert card
@@ -196,28 +205,7 @@ export async function acceptExistingCardCandidate(
       p.finish,
     );
 
-    // Upsert set if needed
-    const existingSet = await trx
-      .selectFrom("sets")
-      .select("id")
-      .where("id", "=", p.set_id)
-      .executeTakeFirst();
-
-    if (!existingSet) {
-      const { max } = await trx
-        .selectFrom("sets")
-        .select(sql<number>`coalesce(max(sort_order), 0)`.as("max"))
-        .executeTakeFirstOrThrow();
-      await trx
-        .insertInto("sets")
-        .values({
-          id: p.set_id,
-          name: p.set_name ?? p.set_id,
-          printed_total: 0,
-          sort_order: max + 1,
-        })
-        .execute();
-    }
+    await upsertSet(trx, p.set_id, p.set_name ?? p.set_id);
 
     await trx
       .insertInto("printings")
