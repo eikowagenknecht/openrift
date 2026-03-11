@@ -17,7 +17,7 @@
     "./logger": "./src/logger.ts"
   },
   "scripts": {
-    "test": "bash run-tests.sh",
+    "test": "bun test src",
     "test:integration": "bun --env-file=../../.env test src/**/*.integration.test.ts",
     "build": "tsc",
     "typecheck": "tsc",
