@@ -4,12 +4,9 @@ import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardm
 import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
 import { Cron } from "croner";
 
+import { config } from "./config.js";
 import { cronJobs } from "./cron-jobs.js";
 import { db } from "./db.js";
-
-const DEFAULT_PORT = 3000;
-const DEFAULT_TCG_SCHEDULE = "0 6 * * *";
-const DEFAULT_CM_SCHEDULE = "15 6 * * *";
 
 const log = createLogger("api");
 
@@ -22,12 +19,12 @@ await migrate(db, log.child({ service: "migrate" }));
 
 // ── 2. Register cron jobs (non-blocking timers) ─────────────────────────────
 
-if (process.env.CRON_ENABLED === "true") {
+if (config.cron.enabled) {
   const tcgLog = log.child({ service: "tcgplayer" });
   const cmLog = log.child({ service: "cardmarket" });
 
-  const tcgSchedule = process.env.CRON_TCGPLAYER || DEFAULT_TCG_SCHEDULE;
-  const cmSchedule = process.env.CRON_CARDMARKET || DEFAULT_CM_SCHEDULE;
+  const tcgSchedule = config.cron.tcgplayerSchedule;
+  const cmSchedule = config.cron.cardmarketSchedule;
 
   cronJobs.tcgplayer = new Cron(tcgSchedule, { protect: true }, async () => {
     try {
@@ -56,7 +53,7 @@ if (process.env.CRON_ENABLED === "true") {
 
 const { app } = await import("./app.js");
 
-const port = Number(process.env.PORT ?? DEFAULT_PORT);
+const port = config.port;
 
 Bun.serve({ fetch: app.fetch, port });
 log.info(`API server listening on http://localhost:${port}`);

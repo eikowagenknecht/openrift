@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
 
+import { config } from "./config.js";
 import { matchOrigin } from "./cors.js";
 import { db, dialect } from "./db.js";
 import { sendEmail } from "./email.js";
@@ -8,16 +9,10 @@ import { sendEmail } from "./email.js";
 export const auth = betterAuth({
   database: { dialect, type: "postgres" },
   basePath: "/api/auth",
-  secret: process.env.BETTER_AUTH_SECRET,
+  secret: config.auth.secret,
   socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-    },
-    discord: {
-      clientId: process.env.DISCORD_CLIENT_ID ?? "",
-      clientSecret: process.env.DISCORD_CLIENT_SECRET ?? "",
-    },
+    ...(config.auth.google && { google: config.auth.google }),
+    ...(config.auth.discord && { discord: config.auth.discord }),
   },
   plugins: [
     emailOTP({
@@ -116,7 +111,7 @@ export const auth = betterAuth({
     user: {
       create: {
         async after(user) {
-          const adminEmail = process.env.ADMIN_EMAIL;
+          const adminEmail = config.auth.adminEmail;
           if (adminEmail && user.email === adminEmail) {
             await db
               .insertInto("admins")
@@ -136,9 +131,9 @@ export const auth = betterAuth({
   },
   trustedOrigins: (request) => {
     const origin = request?.headers.get("origin");
-    if (origin && matchOrigin(origin, process.env.CORS_ORIGIN)) {
+    if (origin && matchOrigin(origin, config.corsOrigin)) {
       return [origin];
     }
-    return process.env.CORS_ORIGIN?.split(",").map((s) => s.trim()) ?? [];
+    return config.corsOrigin?.split(",").map((s) => s.trim()) ?? [];
   },
 });

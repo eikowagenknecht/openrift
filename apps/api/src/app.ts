@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { sql } from "kysely";
 
 import { auth } from "./auth.js";
+import { config } from "./config.js";
 import { matchOrigin } from "./cors.js";
 import { db } from "./db.js";
 import { activitiesRoute } from "./routes/activities.js";
@@ -24,7 +25,7 @@ app.use(
   "/api/*",
   cors({
     credentials: true,
-    origin: (origin) => matchOrigin(origin, process.env.CORS_ORIGIN),
+    origin: (origin) => matchOrigin(origin, config.corsOrigin),
   }),
 );
 
