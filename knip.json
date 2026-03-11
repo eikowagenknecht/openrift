@@ -6,7 +6,7 @@
       "project": []
     },
     "apps/api": {
-      "entry": ["src/**/*.test.ts", "src/test-preload.ts"],
+      "entry": ["src/**/*.test.ts"],
       "ignore": []
     },
     "apps/web": {

@@ -30,7 +30,7 @@ const RANGE_SECTIONS: {
   { key: "price", label: "Price", step: 1, formatValue: (v) => `$${v}` },
 ];
 
-export interface FilterPanelContentProps {
+interface FilterPanelContentProps {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
   layout?: "inline" | "drawer";
