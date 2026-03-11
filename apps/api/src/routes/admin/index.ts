@@ -3,9 +3,7 @@ import { Hono } from "hono";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { cronJobs } from "../../cron-jobs.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { db } from "../../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { requireAdmin } from "../../middleware/require-admin.js";
+import { isAdmin, requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -41,13 +39,7 @@ adminRoute.get("/admin/me", async (c) => {
     return c.json({ isAdmin: false });
   }
 
-  const admin = await db
-    .selectFrom("admins")
-    .select("user_id")
-    .where("user_id", "=", user.id)
-    .executeTakeFirst();
-
-  return c.json({ isAdmin: Boolean(admin) });
+  return c.json({ isAdmin: await isAdmin(user.id) });
 });
 
 // ── Register marketplace mapping routes ─────────────────────────────────────
