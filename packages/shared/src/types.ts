@@ -12,13 +12,35 @@ export type SuperType = "Basic" | "Champion" | "Signature" | "Token";
 
 export type CardFace = "front" | "back";
 
-export const RARITY_ORDER: Record<Rarity, number> = {
-  Common: 0,
-  Uncommon: 1,
-  Rare: 2,
-  Epic: 3,
-  Showcase: 4,
-} as const;
+export const DOMAIN_ORDER: readonly Domain[] = [
+  "Fury",
+  "Calm",
+  "Mind",
+  "Body",
+  "Chaos",
+  "Order",
+  "Colorless",
+] as const;
+
+export const RARITY_ORDER: readonly Rarity[] = [
+  "Common",
+  "Uncommon",
+  "Rare",
+  "Epic",
+  "Showcase",
+] as const;
+
+export type ArtVariant = "normal" | "altart" | "overnumbered";
+
+export const ART_VARIANT_ORDER: readonly ArtVariant[] = [
+  "normal",
+  "altart",
+  "overnumbered",
+] as const;
+
+export type Finish = "normal" | "foil";
+
+export const FINISH_ORDER: readonly Finish[] = ["normal", "foil"] as const;
 
 export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
 
@@ -61,10 +83,10 @@ export interface Printing {
   set: string;
   collectorNumber: number;
   rarity: Rarity;
-  artVariant: string;
+  artVariant: ArtVariant;
   isSigned: boolean;
   isPromo: boolean;
-  finish: string;
+  finish: Finish;
   images: PrintingImage[];
   artist: string;
   publicCode: string;
@@ -277,10 +299,10 @@ export interface CandidatePrinting {
   setName: string | null;
   collectorNumber: number;
   rarity: Rarity;
-  artVariant: string;
+  artVariant: ArtVariant;
   isSigned: boolean;
   isPromo: boolean;
-  finish: string;
+  finish: Finish;
   artist: string;
   publicCode: string;
   printedRulesText: string;
@@ -344,8 +366,8 @@ export interface CardFilters {
   might: FilterRange;
   power: FilterRange;
   price: FilterRange;
-  artVariants: string[];
-  finishes: string[];
+  artVariants: ArtVariant[];
+  finishes: Finish[];
   isSigned: boolean | null;
   isPromo: boolean | null;
 }

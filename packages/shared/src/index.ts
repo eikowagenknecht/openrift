@@ -23,6 +23,8 @@ export type {
   DeckFormat,
   DeckZone,
   Domain,
+  ArtVariant,
+  Finish,
   PriceHistoryResponse,
   PriceSource,
   PricesData,
@@ -44,7 +46,10 @@ export type {
 } from "./types.js";
 export {
   ALL_SEARCH_FIELDS,
+  ART_VARIANT_ORDER,
   DEFAULT_SEARCH_SCOPE,
+  DOMAIN_ORDER,
+  FINISH_ORDER,
   RARITY_ORDER,
   SEARCH_PREFIX_MAP,
   getOrientation,

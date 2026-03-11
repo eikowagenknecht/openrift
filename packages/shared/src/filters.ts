@@ -1,7 +1,9 @@
 import type {
+  ArtVariant,
   CardFilters,
   CardType,
   Domain,
+  Finish,
   FilterRange,
   Printing,
   Rarity,
@@ -9,7 +11,15 @@ import type {
   SortOption,
   SuperType,
 } from "./types.js";
-import { ALL_SEARCH_FIELDS, RARITY_ORDER, SEARCH_PREFIX_MAP } from "./types.js";
+import {
+  ALL_SEARCH_FIELDS,
+  ART_VARIANT_ORDER,
+  DOMAIN_ORDER,
+  FINISH_ORDER,
+  RARITY_ORDER,
+  SEARCH_PREFIX_MAP,
+} from "./types.js";
+import { boundsOf, unique } from "./utils.js";
 
 export interface ParsedSearchTerm {
   field: SearchField | null;
@@ -92,21 +102,6 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
 }
 
 /**
- * Normalizes market price access to a consistent number | null, since the
- * underlying field may be undefined depending on whether pricing data exists.
- *
- * @returns The market price in dollars, or `null` if no pricing data is available.
- *
- * @example
- * ```ts
- * getMarketPrice(printing) // => 2.49 or null
- * ```
- */
-function getMarketPrice(printing: Printing): number | null {
-  return printing.marketPrice ?? null;
-}
-
-/**
  * Tests whether a nullable numeric value falls within a FilterRange. An empty
  * range (both bounds null) passes everything; a null value fails any non-empty range.
  *
@@ -145,6 +140,30 @@ function overlaps<T>(allowed: T[], values: T[]): boolean {
 
 function matchesFlag(filter: boolean | null, actual: boolean): boolean {
   return filter === null || actual === filter;
+}
+
+/**
+ * Compares by a nullable numeric value, falling back to card name when values are missing or tied.
+ *
+ * @returns A negative, zero, or positive number for sort ordering.
+ */
+function compareWithFallback(
+  a: Printing,
+  b: Printing,
+  getValue: (p: Printing) => number | null | undefined,
+): number {
+  const va = getValue(a);
+  const vb = getValue(b);
+  if (va === null || va === undefined) {
+    if (vb === null || vb === undefined) {
+      return a.card.name.localeCompare(b.card.name);
+    }
+    return 1;
+  }
+  if (vb === null || vb === undefined) {
+    return -1;
+  }
+  return va - vb || a.card.name.localeCompare(b.card.name);
 }
 
 function matchesSearch(
@@ -199,7 +218,7 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
       matchesRange(card.stats.energy, filters.energy) &&
       matchesRange(card.stats.might, filters.might) &&
       matchesRange(card.stats.power, filters.power) &&
-      matchesRange(getMarketPrice(printing), filters.price)
+      matchesRange(printing.marketPrice ?? null, filters.price)
     );
   });
 }
@@ -210,8 +229,8 @@ export interface AvailableFilters {
   types: CardType[];
   superTypes: SuperType[];
   rarities: Rarity[];
-  artVariants: string[];
-  finishes: string[];
+  artVariants: ArtVariant[];
+  finishes: Finish[];
   hasSigned: boolean;
   hasPromo: boolean;
   energy: { min: number; max: number };
@@ -235,57 +254,44 @@ export interface AvailableFilters {
  * ```
  */
 export function getAvailableFilters(printings: Printing[]): AvailableFilters {
-  const sets = [...new Set(printings.map((p) => p.set))];
-  const rarities = [...new Set(printings.map((p) => p.rarity))].sort(
-    (a, b) => RARITY_ORDER[a] - RARITY_ORDER[b],
-  ) as Rarity[];
-  const types = [...new Set(printings.map((p) => p.card.type))].sort();
-  const superTypes = [...new Set(printings.flatMap((p) => p.card.superTypes))]
+  // Sets are not sorted but shown in insertion order.
+  const sets = unique(printings.map((p) => p.set));
+  const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
+    (a, b) => DOMAIN_ORDER.indexOf(a) - DOMAIN_ORDER.indexOf(b),
+  );
+  const types = unique(printings.map((p) => p.card.type)).sort();
+  const superTypes = unique(printings.flatMap((p) => p.card.superTypes))
     .filter((st) => st !== "Basic")
     .sort();
-  const domains = [...new Set(printings.flatMap((p) => p.card.domains))]
-    .sort()
-    .sort((a, b) => (a === "Colorless" ? 1 : b === "Colorless" ? -1 : 0));
-  const artVariants = [...new Set(printings.map((p) => p.artVariant))];
-  const variantOrder = ["normal", "altart", "overnumbered"];
-  artVariants.sort((a, b) => {
-    const ai = variantOrder.indexOf(a);
-    const bi = variantOrder.indexOf(b);
-    return (ai === -1 ? variantOrder.length : ai) - (bi === -1 ? variantOrder.length : bi);
-  });
-  const finishes = [...new Set(printings.map((p) => p.finish))];
-  const finishOrder = ["normal", "foil"];
-  finishes.sort((a, b) => {
-    const ai = finishOrder.indexOf(a);
-    const bi = finishOrder.indexOf(b);
-    return (ai === -1 ? finishOrder.length : ai) - (bi === -1 ? finishOrder.length : bi);
-  });
-  const energies = printings.map((p) => p.card.stats.energy).filter((v): v is number => v !== null);
-  const mights = printings.map((p) => p.card.stats.might).filter((v): v is number => v !== null);
-  const powers = printings.map((p) => p.card.stats.power).filter((v): v is number => v !== null);
-  const prices = printings.map((p) => getMarketPrice(p)).filter((v): v is number => v !== null);
-  const minMax = (vals: number[]) => ({
-    min: vals.length > 0 ? vals.reduce((a, b) => Math.min(a, b)) : 0,
-    max: vals.length > 0 ? vals.reduce((a, b) => Math.max(a, b)) : 0,
-  });
+  const rarities = unique(printings.map((p) => p.rarity)).sort(
+    (a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b),
+  ) as Rarity[];
+  const artVariants = unique(printings.map((p) => p.artVariant)).sort(
+    (a, b) => ART_VARIANT_ORDER.indexOf(a) - ART_VARIANT_ORDER.indexOf(b),
+  );
+  const finishes = unique(printings.map((p) => p.finish)).sort(
+    (a, b) => FINISH_ORDER.indexOf(a) - FINISH_ORDER.indexOf(b),
+  );
+
+  const energies = printings.flatMap((p) => p.card.stats.energy ?? []);
+  const mights = printings.flatMap((p) => p.card.stats.might ?? []);
+  const powers = printings.flatMap((p) => p.card.stats.power ?? []);
+  const prices = printings.flatMap((p) => p.marketPrice ?? []);
 
   return {
     sets,
-    rarities,
+    domains,
     types,
     superTypes,
-    domains,
+    rarities,
     artVariants,
     finishes,
-    energy: minMax(energies),
-    might: minMax(mights),
-    power: minMax(powers),
-    price: {
-      min: prices.length > 0 ? Math.floor(prices.reduce((a, b) => Math.min(a, b))) : 0,
-      max: prices.length > 0 ? Math.ceil(prices.reduce((a, b) => Math.max(a, b))) : 0,
-    },
     hasSigned: printings.some((p) => p.isSigned),
     hasPromo: printings.some((p) => p.isPromo),
+    energy: boundsOf(energies),
+    might: boundsOf(mights),
+    power: boundsOf(powers),
+    price: boundsOf(prices),
   };
 }
 
@@ -302,57 +308,25 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
  * ```
  */
 export function sortCards(printings: Printing[], sortBy: SortOption): Printing[] {
-  const sorted = [...printings];
   switch (sortBy) {
     case "name": {
-      sorted.sort((a, b) => a.card.name.localeCompare(b.card.name));
-      break;
+      return [...printings].sort((a, b) => a.card.name.localeCompare(b.card.name));
     }
     case "id": {
-      sorted.sort((a, b) => a.sourceId.localeCompare(b.sourceId));
-      break;
+      return [...printings].sort((a, b) => a.sourceId.localeCompare(b.sourceId));
     }
     case "energy": {
-      sorted.sort((a, b) => {
-        const ae = a.card.stats.energy;
-        const be = b.card.stats.energy;
-        if (ae === null && be === null) {
-          return a.card.name.localeCompare(b.card.name);
-        }
-        if (ae === null) {
-          return 1;
-        }
-        if (be === null) {
-          return -1;
-        }
-        return ae - be || a.card.name.localeCompare(b.card.name);
-      });
-      break;
+      return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.card.stats.energy));
     }
     case "rarity": {
-      sorted.sort(
+      return [...printings].sort(
         (a, b) =>
-          RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.card.name.localeCompare(b.card.name),
+          RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) ||
+          a.card.name.localeCompare(b.card.name),
       );
-      break;
     }
     case "price": {
-      sorted.sort((a, b) => {
-        const pa = getMarketPrice(a);
-        const pb = getMarketPrice(b);
-        if (pa === null && pb === null) {
-          return a.card.name.localeCompare(b.card.name);
-        }
-        if (pa === null) {
-          return 1;
-        }
-        if (pb === null) {
-          return -1;
-        }
-        return pa - pb || a.card.name.localeCompare(b.card.name);
-      });
-      break;
+      return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.marketPrice));
     }
   }
-  return sorted;
 }

@@ -1,4 +1,12 @@
-import type { CardType, Domain, Printing, Rarity, SuperType } from "@openrift/shared";
+import type {
+  ArtVariant,
+  CardType,
+  Domain,
+  Finish,
+  Printing,
+  Rarity,
+  SuperType,
+} from "@openrift/shared";
 import {
   BanIcon,
   CheckIcon,
@@ -87,10 +95,10 @@ function toPrinting(group: MappingGroup, p: MappingPrinting): Printing {
     set: group.setName,
     collectorNumber: p.collectorNumber,
     rarity: p.rarity as Rarity,
-    artVariant: p.artVariant,
+    artVariant: p.artVariant as ArtVariant,
     isSigned: p.isSigned,
     isPromo: p.isPromo,
-    finish: p.finish,
+    finish: p.finish as Finish,
     images: p.imageUrl ? [{ face: "front", url: p.imageUrl }] : [],
     artist: "",
     publicCode: p.sourceId,
