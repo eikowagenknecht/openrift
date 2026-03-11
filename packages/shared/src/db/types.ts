@@ -1,8 +1,15 @@
 import type { ColumnType, Generated } from "kysely";
 
-import type { CardType, Rarity } from "../types";
+import type { CardType, Domain, Rarity, SuperType } from "../types";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Postgres can't CHECK individual array elements, so array columns like
+ * `domains`, `super_types`, `keywords`, and `tags` are unconstrained at the DB
+ * level even though the app treats them as known sets (e.g. `Domain`).
+ */
+type Unchecked<_AppType> = string;
 
 /** Timestamp column that defaults to NOW() on insert. */
 type CreatedAt = ColumnType<Date, Date | undefined, Date>;
@@ -29,16 +36,16 @@ export interface CardsTable {
   id: string;
   name: string;
   type: CardType;
-  super_types: string[];
-  domains: string[];
+  super_types: Unchecked<SuperType>[];
+  domains: Unchecked<Domain>[];
   might: number | null;
   energy: number | null;
   power: number | null;
   might_bonus: number | null;
-  keywords: string[];
+  keywords: Unchecked<string>[];
   rules_text: string;
   effect_text: string;
-  tags: string[];
+  tags: Unchecked<string>[];
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -382,16 +389,16 @@ export interface CandidateCardsTable {
   source_id: string;
   name: string;
   type: CardType;
-  super_types: string[];
-  domains: string[];
+  super_types: Unchecked<SuperType>[];
+  domains: Unchecked<Domain>[];
   might: number | null;
   energy: number | null;
   power: number | null;
   might_bonus: number | null;
-  keywords: string[];
+  keywords: Unchecked<string>[];
   rules_text: string;
   effect_text: string;
-  tags: string[];
+  tags: Unchecked<string>[];
   created_at: CreatedAt;
   updated_at: UpdatedAt;
   reviewed_at: Date | null;
