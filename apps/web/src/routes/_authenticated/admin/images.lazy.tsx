@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
 export const Route = createLazyFileRoute("/_authenticated/admin/images")({
@@ -74,13 +75,7 @@ function formatBytes(bytes: number): string {
 function useRehostStatus() {
   return useQuery<RehostStatus>({
     queryKey: queryKeys.admin.rehostStatus,
-    queryFn: async () => {
-      const res = await fetch("/api/admin/rehost-status", { credentials: "include" });
-      if (!res.ok) {
-        throw new Error("Failed to fetch rehost status");
-      }
-      return res.json();
-    },
+    queryFn: () => api.get<RehostStatus>("/api/admin/rehost-status"),
   });
 }
 
@@ -100,15 +95,9 @@ function AdminImagesPage() {
       let offset = 0;
 
       for (;;) {
-        const res = await fetch(`/api/admin/regenerate-images?offset=${offset}`, {
-          method: "POST",
-          credentials: "include",
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => null);
-          throw new Error(body?.error ?? `Request failed (${res.status})`);
-        }
-        const json = await res.json();
+        const json = await api.post<{
+          result: RegenerateResult & { totalFiles: number; hasMore: boolean };
+        }>(`/api/admin/regenerate-images?offset=${offset}`);
         const batch = json.result;
         totals.total += batch.total;
         totals.regenerated += batch.regenerated;
@@ -136,16 +125,8 @@ function AdminImagesPage() {
 
       // Process in batches until no more external images remain
       for (;;) {
-        const res = await fetch("/api/admin/rehost-images", {
-          method: "POST",
-          credentials: "include",
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => null);
-          throw new Error(body?.error ?? `Request failed (${res.status})`);
-        }
-        const rehostJson = await res.json();
-        const batch: RehostResult = rehostJson.result;
+        const json = await api.post<{ result: RehostResult }>("/api/admin/rehost-images");
+        const batch = json.result;
         totals.total += batch.total;
         totals.rehosted += batch.rehosted;
         totals.skipped += batch.skipped;
