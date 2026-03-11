@@ -4,8 +4,9 @@ import {
   updateDeckCardsSchema,
   updateDeckSchema,
 } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { createCrudRoute } from "../crud-factory.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -13,58 +14,39 @@ import { AppError } from "../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { requireAuth } from "../middleware/require-auth.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import type { Variables } from "../types.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toDeck } from "../utils/dto.js";
 
-export const decksRoute = new Hono<{ Variables: Variables }>();
-
-decksRoute.use("/decks/*", requireAuth);
-decksRoute.use("/decks", requireAuth);
-
-// ── GET /decks ────────────────────────────────────────────────────────────────
-
-decksRoute.get("/decks", async (c) => {
-  const userId = getUserId(c);
-  const wantedOnly = c.req.query("wanted") === "true";
-
-  let query = db.selectFrom("decks").selectAll().where("user_id", "=", userId).orderBy("name");
-
-  if (wantedOnly) {
-    query = query.where("is_wanted", "=", true);
-  }
-
-  const rows = await query.execute();
-  return c.json(rows.map((row) => toDeck(row)));
-});
-
-// ── POST /decks ───────────────────────────────────────────────────────────────
-
-decksRoute.post("/decks", async (c) => {
-  const userId = getUserId(c);
-  const body = createDeckSchema.parse(await c.req.json());
-
-  const id = crypto.randomUUID();
-  const row = await db
-    .insertInto("decks")
-    .values({
-      id,
-      user_id: userId,
-      name: body.name,
-      description: body.description ?? null,
-      format: body.format,
-      is_wanted: body.isWanted ?? false,
-      is_public: body.isPublic ?? false,
-    })
-    .returningAll()
-    .executeTakeFirstOrThrow();
-
-  return c.json(toDeck(row), 201);
+export const decksRoute = createCrudRoute({
+  path: "/decks",
+  table: "decks",
+  toDto: toDeck,
+  createSchema: createDeckSchema,
+  updateSchema: updateDeckSchema,
+  toInsert: (body) => ({
+    name: body.name,
+    description: body.description ?? null,
+    format: body.format,
+    is_wanted: body.isWanted ?? false,
+    is_public: body.isPublic ?? false,
+  }),
+  patchFields: {
+    name: "name",
+    description: "description",
+    format: "format",
+    isWanted: "is_wanted",
+    isPublic: "is_public",
+  },
+  listFilter: (query, c) => {
+    if (c.req.query("wanted") === "true") {
+      return query.where("is_wanted", "=", true);
+    }
+    return query;
+  },
+  skip: ["getOne"],
 });
 
 // ── GET /decks/:id ────────────────────────────────────────────────────────────
+// Returns deck with deck_cards joined
 
 decksRoute.get("/decks/:id", async (c) => {
   const userId = getUserId(c);
@@ -118,70 +100,6 @@ decksRoute.get("/decks/:id", async (c) => {
       power: r.power,
     })),
   });
-});
-
-// ── PATCH /decks/:id ──────────────────────────────────────────────────────────
-
-decksRoute.patch("/decks/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-  const body = updateDeckSchema.parse(await c.req.json());
-
-  const updates: Record<string, unknown> = {};
-  if (body.name !== undefined) {
-    updates.name = body.name;
-  }
-  if (body.description !== undefined) {
-    updates.description = body.description;
-  }
-  if (body.format !== undefined) {
-    updates.format = body.format;
-  }
-  if (body.isWanted !== undefined) {
-    updates.is_wanted = body.isWanted;
-  }
-  if (body.isPublic !== undefined) {
-    updates.is_public = body.isPublic;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    throw new AppError(400, "BAD_REQUEST", "No fields to update");
-  }
-
-  updates.updated_at = new Date();
-
-  const row = await db
-    .updateTable("decks")
-    .set(updates)
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .returningAll()
-    .executeTakeFirst();
-
-  if (!row) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json(toDeck(row));
-});
-
-// ── DELETE /decks/:id ─────────────────────────────────────────────────────────
-
-decksRoute.delete("/decks/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-
-  const result = await db
-    .deleteFrom("decks")
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
-
-  if (result.numDeletedRows === 0n) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json({ ok: true });
 });
 
 // ── PUT /decks/:id/cards ──────────────────────────────────────────────────────

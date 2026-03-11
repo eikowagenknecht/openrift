@@ -1,6 +1,7 @@
 import { createCollectionSchema, updateCollectionSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { createCrudRoute } from "../crud-factory.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -10,117 +11,40 @@ import { AppError } from "../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { requireAuth } from "../middleware/require-auth.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { buildPatchUpdates } from "../patch.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { createActivity } from "../services/activity-logger.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { ensureInbox } from "../services/inbox.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import type { Variables } from "../types.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toCollection } from "../utils/dto.js";
 
-export const collectionsRoute = new Hono<{ Variables: Variables }>();
-
-collectionsRoute.use("/collections/*", requireAuth);
-collectionsRoute.use("/collections", requireAuth);
-
-// ── GET /collections ──────────────────────────────────────────────────────────
-
-collectionsRoute.get("/collections", async (c) => {
-  const userId = getUserId(c);
-
-  // Ensure inbox exists
-  await ensureInbox(db, userId);
-
-  const rows = await db
-    .selectFrom("collections")
-    .selectAll()
-    .where("user_id", "=", userId)
-    .orderBy("is_inbox", "desc")
-    .orderBy("sort_order")
-    .orderBy("name")
-    .execute();
-
-  return c.json(rows.map((row) => toCollection(row)));
-});
-
-// ── POST /collections ─────────────────────────────────────────────────────────
-
-collectionsRoute.post("/collections", async (c) => {
-  const userId = getUserId(c);
-  const body = createCollectionSchema.parse(await c.req.json());
-
-  const id = crypto.randomUUID();
-  const row = await db
-    .insertInto("collections")
-    .values({
-      id,
-      user_id: userId,
-      name: body.name,
-      description: body.description ?? null,
-      available_for_deckbuilding: body.availableForDeckbuilding ?? true,
-      is_inbox: false,
-      sort_order: 0,
-    })
-    .returningAll()
-    .executeTakeFirstOrThrow();
-
-  return c.json(toCollection(row), 201);
-});
-
-// ── GET /collections/:id ──────────────────────────────────────────────────────
-
-collectionsRoute.get("/collections/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-
-  const row = await db
-    .selectFrom("collections")
-    .selectAll()
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
-
-  if (!row) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json(toCollection(row));
-});
-
-// ── PATCH /collections/:id ────────────────────────────────────────────────────
-
-collectionsRoute.patch("/collections/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
-  const body = updateCollectionSchema.parse(await c.req.json());
-
-  const updates = buildPatchUpdates(body, {
+export const collectionsRoute = createCrudRoute({
+  path: "/collections",
+  table: "collections",
+  toDto: toCollection,
+  createSchema: createCollectionSchema,
+  updateSchema: updateCollectionSchema,
+  toInsert: (body) => ({
+    name: body.name,
+    description: body.description ?? null,
+    available_for_deckbuilding: body.availableForDeckbuilding ?? true,
+    is_inbox: false,
+    sort_order: 0,
+  }),
+  patchFields: {
     name: "name",
     description: "description",
     availableForDeckbuilding: "available_for_deckbuilding",
     sortOrder: "sort_order",
-  });
-
-  const row = await db
-    .updateTable("collections")
-    .set(updates)
-    .where("id", "=", id)
-    .where("user_id", "=", userId)
-    .returningAll()
-    .executeTakeFirst();
-
-  if (!row) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json(toCollection(row));
+  },
+  orderBy: [["is_inbox", "desc"], ["sort_order"], ["name"]],
+  beforeList: async (c) => {
+    await ensureInbox(db, getUserId(c));
+  },
+  skip: ["delete"],
 });
 
 // ── DELETE /collections/:id ───────────────────────────────────────────────────
+// Complex: validates inbox, relocates copies, logs activity
 
 collectionsRoute.delete("/collections/:id", async (c) => {
   const userId = getUserId(c);
