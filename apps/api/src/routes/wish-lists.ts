@@ -16,6 +16,8 @@ import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { buildPatchUpdates } from "../patch.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
 export const wishListsRoute = new Hono<{ Variables: Variables }>();
@@ -129,19 +131,10 @@ wishListsRoute.patch("/wish-lists/:id", async (c) => {
   const id = c.req.param("id");
   const body = updateWishListSchema.parse(await c.req.json());
 
-  const updates: Record<string, unknown> = {};
-  if (body.name !== undefined) {
-    updates.name = body.name;
-  }
-  if (body.rules !== undefined) {
-    updates.rules = body.rules ? JSON.stringify(body.rules) : null;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    throw new AppError(400, "BAD_REQUEST", "No fields to update");
-  }
-
-  updates.updated_at = new Date();
+  const updates = buildPatchUpdates(body, {
+    name: "name",
+    rules: (v) => ["rules", v ? JSON.stringify(v) : null],
+  });
 
   const row = await db
     .updateTable("wish_lists")

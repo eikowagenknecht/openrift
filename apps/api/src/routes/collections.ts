@@ -13,6 +13,8 @@ import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { buildPatchUpdates } from "../patch.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { createActivity } from "../services/activity-logger.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { ensureInbox } from "../services/inbox.js";
@@ -119,25 +121,12 @@ collectionsRoute.patch("/collections/:id", async (c) => {
   const id = c.req.param("id");
   const body = updateCollectionSchema.parse(await c.req.json());
 
-  const updates: Record<string, unknown> = {};
-  if (body.name !== undefined) {
-    updates.name = body.name;
-  }
-  if (body.description !== undefined) {
-    updates.description = body.description;
-  }
-  if (body.availableForDeckbuilding !== undefined) {
-    updates.available_for_deckbuilding = body.availableForDeckbuilding;
-  }
-  if (body.sortOrder !== undefined) {
-    updates.sort_order = body.sortOrder;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    throw new AppError(400, "BAD_REQUEST", "No fields to update");
-  }
-
-  updates.updated_at = new Date();
+  const updates = buildPatchUpdates(body, {
+    name: "name",
+    description: "description",
+    availableForDeckbuilding: "available_for_deckbuilding",
+    sortOrder: "sort_order",
+  });
 
   const row = await db
     .updateTable("collections")
