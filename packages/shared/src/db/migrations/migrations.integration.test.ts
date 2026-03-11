@@ -8,17 +8,16 @@ import { migrate, rollback } from "../migrate.js";
 import type { Database } from "../types.js";
 import { migrations } from "./index.js";
 
-describe("migrations up/down cycle", () => {
+const DATABASE_URL = process.env.DATABASE_URL;
+
+describe.skipIf(!DATABASE_URL)("migrations up/down cycle", () => {
   let db: Kysely<Database>;
   let log: Logger;
   let teardown: () => Promise<void>;
 
   beforeAll(async () => {
-    const url = process.env.DATABASE_URL;
-    if (!url) {
-      throw new Error("DATABASE_URL required for integration tests");
-    }
-    ({ db, log, teardown } = await setupTestDb(url));
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by describe.skipIf
+    ({ db, log, teardown } = await setupTestDb(DATABASE_URL!));
   });
 
   afterAll(async () => {
