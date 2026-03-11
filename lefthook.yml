@@ -19,6 +19,9 @@ pre-commit:
       glob: "*.{js,ts,jsx,tsx}"
       root: "apps/web/"
       run: bunx eslint --no-warn-ignored '{staged_files}'
+    syncpack-lint:
+      glob: "**/package.json"
+      run: bunx syncpack lint
     oxfmt-fix:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,md}"
       run: bunx oxfmt '{staged_files}' && git update-index --again
