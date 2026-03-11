@@ -1,4 +1,3 @@
-import type { Source } from "@openrift/shared";
 import { createSourceSchema, updateSourceSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
@@ -14,27 +13,13 @@ import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { toSource } from "../utils/dto.js";
 
 export const sourcesRoute = new Hono<{ Variables: Variables }>();
 
 sourcesRoute.use("/sources/*", requireAuth);
 sourcesRoute.use("/sources", requireAuth);
-
-function toSource(row: {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: Date;
-  updated_at: Date;
-}): Source {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  };
-}
 
 // ── GET /sources ──────────────────────────────────────────────────────────────
 

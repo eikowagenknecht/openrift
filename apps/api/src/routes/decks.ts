@@ -1,4 +1,4 @@
-import type { Deck, DeckFormat, DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared";
 import {
   createDeckSchema,
   updateDeckCardsSchema,
@@ -16,35 +16,13 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { toDeck } from "../utils/dto.js";
 
 export const decksRoute = new Hono<{ Variables: Variables }>();
 
 decksRoute.use("/decks/*", requireAuth);
 decksRoute.use("/decks", requireAuth);
-
-function toDeck(row: {
-  id: string;
-  name: string;
-  description: string | null;
-  format: string;
-  is_wanted: boolean;
-  is_public: boolean;
-  share_token: string | null;
-  created_at: Date;
-  updated_at: Date;
-}): Deck {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    format: row.format as DeckFormat,
-    isWanted: row.is_wanted,
-    isPublic: row.is_public,
-    shareToken: row.share_token,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  };
-}
 
 // ── GET /decks ────────────────────────────────────────────────────────────────
 

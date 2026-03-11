@@ -1,4 +1,3 @@
-import type { Collection } from "@openrift/shared";
 import { createCollectionSchema, updateCollectionSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
@@ -20,35 +19,13 @@ import { createActivity } from "../services/activity-logger.js";
 import { ensureInbox } from "../services/inbox.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { toCollection } from "../utils/dto.js";
 
 export const collectionsRoute = new Hono<{ Variables: Variables }>();
 
 collectionsRoute.use("/collections/*", requireAuth);
 collectionsRoute.use("/collections", requireAuth);
-
-function toCollection(row: {
-  id: string;
-  name: string;
-  description: string | null;
-  available_for_deckbuilding: boolean;
-  is_inbox: boolean;
-  sort_order: number;
-  share_token: string | null;
-  created_at: Date;
-  updated_at: Date;
-}): Collection {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    availableForDeckbuilding: row.available_for_deckbuilding,
-    isInbox: row.is_inbox,
-    sortOrder: row.sort_order,
-    shareToken: row.share_token,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  };
-}
 
 // ── GET /collections ──────────────────────────────────────────────────────────
 
