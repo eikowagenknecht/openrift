@@ -236,7 +236,10 @@ export function ExpandedDetail({
         </h4>
         <div className="flex flex-col gap-2">
           {[...group.stagedProducts, ...group.assignedProducts]
-            .toSorted((a, b) => a.productName.localeCompare(b.productName))
+            .toSorted(
+              (a, b) =>
+                a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
+            )
             .map((sp) => {
               const isAssigned = group.assignedProducts.some(
                 (ap) => ap.externalId === sp.externalId && ap.finish === sp.finish,

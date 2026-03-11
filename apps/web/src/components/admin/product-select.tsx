@@ -26,11 +26,11 @@ export function ProductSelect({
   disabled?: boolean;
   onSelect: (externalId: number) => void;
 }) {
-  const sortedStaged = stagedProducts.toSorted((a, b) =>
-    a.productName.localeCompare(b.productName),
+  const sortedStaged = stagedProducts.toSorted(
+    (a, b) => a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
   );
-  const sortedAssigned = assignedProducts.toSorted((a, b) =>
-    a.productName.localeCompare(b.productName),
+  const sortedAssigned = assignedProducts.toSorted(
+    (a, b) => a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
   );
 
   return (

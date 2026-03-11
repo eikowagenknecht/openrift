@@ -287,7 +287,10 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
             </h4>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
               {unmatchedProducts
-                .toSorted((a, b) => a.productName.localeCompare(b.productName))
+                .toSorted(
+                  (a, b) =>
+                    a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
+                )
                 .map((sp) => (
                   <StagedProductCard
                     key={`${sp.externalId}::${sp.finish}`}
@@ -330,7 +333,11 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
             {showIgnored && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
                 {ignoredProducts
-                  .toSorted((a, b) => a.productName.localeCompare(b.productName))
+                  .toSorted(
+                    (a, b) =>
+                      a.productName.localeCompare(b.productName) ||
+                      b.finish.localeCompare(a.finish),
+                  )
                   .map((sp) => (
                     <StagedProductCard
                       key={`ignored::${sp.externalId}`}
