@@ -25,6 +25,9 @@ pre-commit:
     oxfmt-fix:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,md}"
       run: bunx oxfmt '{staged_files}' && git update-index --again
+    knip-check:
+      glob: "*.{js,ts,cjs,mjs,jsx,tsx}"
+      run: bun run knip
 
 pre-push:
   commands:
