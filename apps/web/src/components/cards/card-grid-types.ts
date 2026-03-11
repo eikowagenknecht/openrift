@@ -14,6 +14,21 @@ export type VRow =
   | { kind: "header"; set: SetInfo; cardCount: number }
   | { kind: "cards"; items: Printing[] };
 
+export interface IndicatorState {
+  cardId: string;
+  indicatorTop: number;
+  visible: boolean;
+  dragging: boolean;
+}
+
+export interface SnapPoint {
+  rowIndex: number;
+  setInfo: SetInfo;
+  screenY: number;
+  cardCount: number;
+  firstCardId: string;
+}
+
 export function groupCardsBySet(cards: Printing[], setOrder: SetInfo[]): CardGroup[] {
   const bySet = new Map<string, Printing[]>();
   for (const printing of cards) {
