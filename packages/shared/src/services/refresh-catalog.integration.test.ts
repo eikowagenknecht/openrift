@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
@@ -6,11 +6,12 @@ import { sql } from "kysely";
 import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
 import { setupTestDb } from "../test/integration-setup.js";
+import * as fetchCatalogMod from "./fetch-catalog.js";
+import { refreshCatalog } from "./refresh-catalog.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
 // ── Mock fetchCatalog ────────────────────────────────────────────────────────
-// Must be called before importing refreshCatalog so the mock is in place.
 
 interface MockCatalog {
   sets: { id: string; name: string; printedTotal: number }[];
@@ -47,12 +48,6 @@ interface MockCatalog {
 
 // oxlint-disable-next-line prefer-const -- reassigned per test to control mock return value
 let mockCatalogData: MockCatalog;
-
-mock.module("./fetch-catalog.js", () => ({
-  fetchCatalog: async () => mockCatalogData,
-}));
-
-const { refreshCatalog } = await import("./refresh-catalog.js");
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -156,8 +151,18 @@ describe.skipIf(!DATABASE_URL)("refreshCatalog (integration)", () => {
     await teardown();
   });
 
+  let fetchCatalogSpy: ReturnType<typeof spyOn>;
+
   beforeEach(async () => {
+    // oxlint-disable-next-line typescript/no-explicit-any -- test mock
+    fetchCatalogSpy = spyOn(fetchCatalogMod, "fetchCatalog" as any).mockImplementation(
+      async () => mockCatalogData,
+    );
     await sql`TRUNCATE printing_images, printings, cards, sets CASCADE`.execute(db);
+  });
+
+  afterEach(() => {
+    fetchCatalogSpy.mockRestore();
   });
 
   // ── Fresh insert ───────────────────────────────────────────────────────
