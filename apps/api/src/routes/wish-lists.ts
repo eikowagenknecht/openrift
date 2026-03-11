@@ -1,4 +1,3 @@
-import type { WishList, WishListItem } from "@openrift/shared";
 import {
   createWishListItemSchema,
   createWishListSchema,
@@ -19,45 +18,13 @@ import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { toWishList, toWishListItem } from "../utils/dto.js";
 
 export const wishListsRoute = new Hono<{ Variables: Variables }>();
 
 wishListsRoute.use("/wish-lists/*", requireAuth);
 wishListsRoute.use("/wish-lists", requireAuth);
-
-function toWishList(row: {
-  id: string;
-  name: string;
-  rules: unknown;
-  share_token: string | null;
-  created_at: Date;
-  updated_at: Date;
-}): WishList {
-  return {
-    id: row.id,
-    name: row.name,
-    rules: row.rules,
-    shareToken: row.share_token,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  };
-}
-
-function toWishListItem(row: {
-  id: string;
-  wish_list_id: string;
-  card_id: string | null;
-  printing_id: string | null;
-  quantity_desired: number;
-}): WishListItem {
-  return {
-    id: row.id,
-    wishListId: row.wish_list_id,
-    cardId: row.card_id,
-    printingId: row.printing_id,
-    quantityDesired: row.quantity_desired,
-  };
-}
 
 // ── GET /wish-lists ───────────────────────────────────────────────────────────
 

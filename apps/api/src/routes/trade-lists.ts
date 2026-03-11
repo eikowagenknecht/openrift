@@ -1,4 +1,3 @@
-import type { TradeList, TradeListItem } from "@openrift/shared";
 import {
   createTradeListItemSchema,
   createTradeListSchema,
@@ -20,41 +19,13 @@ import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { toTradeList, toTradeListItem } from "../utils/dto.js";
 
 export const tradeListsRoute = new Hono<{ Variables: Variables }>();
 
 tradeListsRoute.use("/trade-lists/*", requireAuth);
 tradeListsRoute.use("/trade-lists", requireAuth);
-
-function toTradeList(row: {
-  id: string;
-  name: string;
-  rules: unknown;
-  share_token: string | null;
-  created_at: Date;
-  updated_at: Date;
-}): TradeList {
-  return {
-    id: row.id,
-    name: row.name,
-    rules: row.rules,
-    shareToken: row.share_token,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  };
-}
-
-function toTradeListItem(row: {
-  id: string;
-  trade_list_id: string;
-  copy_id: string;
-}): TradeListItem {
-  return {
-    id: row.id,
-    tradeListId: row.trade_list_id,
-    copyId: row.copy_id,
-  };
-}
 
 // ── GET /trade-lists ──────────────────────────────────────────────────────────
 
