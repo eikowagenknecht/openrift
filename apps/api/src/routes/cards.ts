@@ -1,7 +1,6 @@
 import type {
   ArtVariant,
   Card,
-  CardmarketSnapshot,
   CardStats,
   CardType,
   ContentSet,
@@ -13,15 +12,47 @@ import type {
   Rarity,
   SuperType,
   RiftboundContent,
-  TcgplayerSnapshot,
   TimeRange,
 } from "@openrift/shared";
+import type { Database } from "@openrift/shared/db";
 import { Hono } from "hono";
+import type { Selectable } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { imageUrl, selectPrintingWithCard } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
+
+// ─── Snapshot helpers ────────────────────────────────────────────────────────
+
+type SnapshotTable = "tcgplayer_snapshots" | "cardmarket_snapshots";
+
+function formatSnapshotDate(recordedAt: Date | string): string {
+  return (recordedAt as Date).toISOString().split("T")[0];
+}
+
+function centsToDollars(cents: number | null): number | null {
+  return cents === null ? null : cents / 100;
+}
+
+async function fetchSnapshots<T extends SnapshotTable, R>(
+  table: T,
+  sourceId: number,
+  cutoff: Date | null,
+  mapRow: (row: Selectable<Database[T]>) => R,
+): Promise<R[]> {
+  // Both snapshot tables share source_id + recorded_at; Kysely can't verify
+  // that on a union, so we use a targeted assertion for the query chain.
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- Kysely union limitation
+  let query = (db.selectFrom(table).selectAll() as any)
+    .where("source_id", "=", sourceId)
+    .orderBy("recorded_at", "asc");
+  if (cutoff) {
+    query = query.where("recorded_at", ">=", cutoff);
+  }
+  const rows: Selectable<Database[T]>[] = await query.execute();
+  return rows.map((row) => mapRow(row));
+}
 
 export const cardsRoute = new Hono();
 
@@ -177,57 +208,27 @@ cardsRoute.get("/prices/:printingId/history", async (c) => {
     .where("printing_id", "=", printingId)
     .executeTakeFirst();
 
-  // TCGplayer snapshots
-  let tcgSnapshots: TcgplayerSnapshot[] = [];
-  if (tcgSource) {
-    let query = db
-      .selectFrom("tcgplayer_snapshots")
-      .select(["recorded_at", "market_cents", "low_cents", "mid_cents", "high_cents"])
-      .where("source_id", "=", tcgSource.id)
-      .orderBy("recorded_at", "asc");
-    if (cutoff) {
-      query = query.where("recorded_at", ">=", cutoff);
-    }
-    const rows = await query.execute();
-    tcgSnapshots = rows.map((r) => ({
-      date: (r.recorded_at as Date).toISOString().split("T")[0],
-      market: r.market_cents / 100,
-      low: r.low_cents === null ? null : r.low_cents / 100,
-      mid: r.mid_cents === null ? null : r.mid_cents / 100,
-      high: r.high_cents === null ? null : r.high_cents / 100,
-    }));
-  }
+  const tcgSnapshots = tcgSource
+    ? await fetchSnapshots("tcgplayer_snapshots", tcgSource.id, cutoff, (r) => ({
+        date: formatSnapshotDate(r.recorded_at),
+        market: r.market_cents / 100,
+        low: centsToDollars(r.low_cents),
+        mid: centsToDollars(r.mid_cents),
+        high: centsToDollars(r.high_cents),
+      }))
+    : [];
 
-  // Cardmarket snapshots
-  let cmSnapshots: CardmarketSnapshot[] = [];
-  if (cmSource) {
-    let query = db
-      .selectFrom("cardmarket_snapshots")
-      .select([
-        "recorded_at",
-        "market_cents",
-        "low_cents",
-        "trend_cents",
-        "avg1_cents",
-        "avg7_cents",
-        "avg30_cents",
-      ])
-      .where("source_id", "=", cmSource.id)
-      .orderBy("recorded_at", "asc");
-    if (cutoff) {
-      query = query.where("recorded_at", ">=", cutoff);
-    }
-    const rows = await query.execute();
-    cmSnapshots = rows.map((r) => ({
-      date: (r.recorded_at as Date).toISOString().split("T")[0],
-      market: r.market_cents / 100,
-      low: r.low_cents === null ? null : r.low_cents / 100,
-      trend: r.trend_cents === null ? null : r.trend_cents / 100,
-      avg1: r.avg1_cents === null ? null : r.avg1_cents / 100,
-      avg7: r.avg7_cents === null ? null : r.avg7_cents / 100,
-      avg30: r.avg30_cents === null ? null : r.avg30_cents / 100,
-    }));
-  }
+  const cmSnapshots = cmSource
+    ? await fetchSnapshots("cardmarket_snapshots", cmSource.id, cutoff, (r) => ({
+        date: formatSnapshotDate(r.recorded_at),
+        market: r.market_cents / 100,
+        low: centsToDollars(r.low_cents),
+        trend: centsToDollars(r.trend_cents),
+        avg1: centsToDollars(r.avg1_cents),
+        avg7: centsToDollars(r.avg7_cents),
+        avg30: centsToDollars(r.avg30_cents),
+      }))
+    : [];
 
   const response: PriceHistoryResponse = {
     printingId,
