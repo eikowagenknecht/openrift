@@ -121,20 +121,19 @@ export function Header() {
         {/* ⚠ h-14 is mirrored as APP_HEADER_HEIGHT in card-grid.tsx — update both together */}
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)">
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="flex cursor-pointer items-center gap-2"
-              onClick={() => {
+            <Link
+              to="/cards"
+              className="flex items-center gap-2"
+              onClick={(e) => {
                 if (isHome) {
+                  e.preventDefault();
                   globalThis.scrollTo({ top: 0, behavior: "smooth" });
-                } else {
-                  void router.navigate({ to: "/cards" });
                 }
               }}
             >
               <img src="/logo-64x64.webp" alt="OpenRift" className="size-8 self-center" />
               <h1 className="text-xl font-bold tracking-tight">OpenRift</h1>
-            </button>
+            </Link>
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>

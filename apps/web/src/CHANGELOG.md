@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-11
+
+- fix: Middle-clicking or ctrl-clicking the logo now opens the home page in a new tab, like the other nav links
+
 ## 2026-03-10
 
 - fix: App updates now install automatically instead of requiring a manual reload — fixes a crash loop on some devices where stale cached code prevented the update prompt from appearing
