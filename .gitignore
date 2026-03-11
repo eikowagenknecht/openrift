@@ -37,3 +37,6 @@ routeTree.gen.ts
 
 # Self-hosted card images (generated at runtime, bind-mounted in Docker)
 /card-images/
+
+# Tooling file locks
+.locks/
