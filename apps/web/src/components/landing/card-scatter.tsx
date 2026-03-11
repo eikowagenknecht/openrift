@@ -120,6 +120,7 @@ export function CardScatter({
   const [activated, setActivated] = useState<Set<number>>(() => new Set());
   const [flyingAway, setFlyingAway] = useState<Set<number>>(() => new Set());
   const [gone, setGone] = useState<Set<number>>(() => new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [reachableCount, setReachableCount] = useState(0);
   const [flyingIn, setFlyingIn] = useState(flyIn ?? false);
@@ -129,16 +130,24 @@ export function CardScatter({
   useEffect(() => {
     function countVisible() {
       const el = canvasRef.current;
-      if (!el) {
+      const container = containerRef.current;
+      if (!el || !container) {
         return;
       }
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      // Intersect viewport with the overflow-hidden container so cards
+      // clipped behind the footer aren't counted as visible.
+      const cb = container.getBoundingClientRect();
+      const visLeft = Math.max(cb.left, 0);
+      const visTop = Math.max(cb.top, 0);
+      const visRight = Math.min(cb.right, window.innerWidth);
+      const visBottom = Math.min(cb.bottom, window.innerHeight);
       let count = 0;
       for (const child of el.children) {
-        const rect = child.getBoundingClientRect();
-        const overlapX = Math.max(0, Math.min(rect.right, vw) - Math.max(rect.left, 0));
-        const overlapY = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+        // Use the button (firstElementChild) — it has the -translate-x/y
+        // centering transform, so its rect reflects the actual visual position.
+        const rect = (child.firstElementChild ?? child).getBoundingClientRect();
+        const overlapX = Math.max(0, Math.min(rect.right, visRight) - Math.max(rect.left, visLeft));
+        const overlapY = Math.max(0, Math.min(rect.bottom, visBottom) - Math.max(rect.top, visTop));
         const visibleArea = overlapX * overlapY;
         const totalArea = rect.width * rect.height;
         if (totalArea > 0 && visibleArea / totalArea >= 0.5) {
@@ -152,7 +161,9 @@ export function CardScatter({
     countVisible();
     window.addEventListener("resize", countVisible);
     return () => window.removeEventListener("resize", countVisible);
-  }, [gone.size]);
+    // Re-count when flyingIn ends — during fly-in, cards are at scale(0)
+    // so their bounding rects are empty and countVisible would return 0.
+  }, [gone.size, flyingIn]);
 
   function toggle(index: number) {
     const wasActive = activated.has(index);
@@ -182,6 +193,7 @@ export function CardScatter({
 
   return (
     <div
+      ref={containerRef}
       className={cn("pointer-events-none absolute inset-0 select-none", className)}
       aria-hidden="true"
     >
