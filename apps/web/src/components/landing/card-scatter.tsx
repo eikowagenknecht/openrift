@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-// [x%, y%, rotation°] on an 8000×3000 canvas centered on the page.
-// Core/mid/near are remapped from the original 2800×1400 layout via
+// [x%, y%, rotation°] — desktop uses an 8000×3000 landscape canvas,
+// mobile uses a 1200×1800 portrait canvas.
+
+// Desktop: core/mid/near remapped from the original 2800×1400 layout via
 // newX = 50 + (oldX - 50) * 0.35, newY = 50 + (oldY - 50) * 0.467
 // so they land in the same physical positions. Outer cards fill the rest.
-const cards = [
+const desktopCards = [
   // ── core ──
   [45.8, 35.1, 12],
   [54.2, 34.1, -8],
@@ -52,14 +54,25 @@ const cards = [
   [95, 50, -12],
 ] as const;
 
+// Mobile: 4 cards on a 1200×1800 portrait canvas, scattered asymmetrically
+// around the hero content. Subtle enough to discover by accident.
+const mobileCards = [
+  [38, 31, -14],
+  [63, 37, 8],
+  [35, 64, 12],
+  [60, 69, -6],
+] as const;
+
 function CardShape({
   angle,
   active,
+  hinting,
   shimmerDelay,
   onToggle,
 }: {
   angle: number;
   active: boolean;
+  hinting?: boolean;
   shimmerDelay: number;
   onToggle: () => void;
 }) {
@@ -74,8 +87,9 @@ function CardShape({
     <button
       type="button"
       className={cn(
-        "aspect-[5/7] w-16 -translate-x-1/2 -translate-y-1/2 cursor-pointer pointer-events-auto rounded-lg border border-primary/10 bg-background transition-[border-color] duration-300 hover:border-primary/40 dark:border-primary/15 dark:hover:border-primary/50",
+        "aspect-[5/7] w-14 md:w-16 -translate-x-1/2 -translate-y-1/2 cursor-pointer pointer-events-auto rounded-lg border border-primary/10 bg-background transition-[border-color] duration-300 hover:border-primary/40 dark:border-primary/15 dark:hover:border-primary/50",
         wobbling && "animate-wobble",
+        hinting && "border-primary/40 dark:border-primary/50",
       )}
       style={{ rotate: `${angle}deg` }}
       onClick={handleClick}
@@ -95,10 +109,12 @@ function CardShape({
 export function CardScatter({
   className,
   flyIn,
+  hinting,
   onAllCollected,
 }: {
   className?: string;
   flyIn?: boolean;
+  hinting?: boolean;
   onAllCollected?: () => void;
 }) {
   const [activated, setActivated] = useState<Set<number>>(() => new Set());
@@ -107,6 +123,8 @@ export function CardScatter({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [reachableCount, setReachableCount] = useState(0);
   const [flyingIn, setFlyingIn] = useState(flyIn ?? false);
+  const [isMobile] = useState(() => window.innerWidth < 768);
+  const activeCards = isMobile ? mobileCards : desktopCards;
 
   useEffect(() => {
     function countVisible() {
@@ -167,12 +185,15 @@ export function CardScatter({
       className={cn("pointer-events-none absolute inset-0 select-none", className)}
       aria-hidden="true"
     >
-      {/* Large canvas centered — dense core, fades toward edges */}
+      {/* Canvas centered — landscape on desktop, portrait on mobile */}
       <div
         ref={canvasRef}
-        className="absolute left-1/2 top-1/2 h-[3000px] w-[8000px] -translate-x-1/2 -translate-y-1/2"
+        className={cn(
+          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+          isMobile ? "h-[1800px] w-[1200px]" : "h-[3000px] w-[8000px]",
+        )}
       >
-        {cards.map(([x, y, angle], i) =>
+        {activeCards.map(([x, y, angle], i) =>
           gone.has(i) ? null : (
             <div
               key={`${x}-${y}`}
@@ -189,12 +210,13 @@ export function CardScatter({
                   : undefined),
               }}
               onAnimationEnd={
-                flyingIn && i === cards.length - 1 ? () => setFlyingIn(false) : undefined
+                flyingIn && i === activeCards.length - 1 ? () => setFlyingIn(false) : undefined
               }
             >
               <CardShape
                 angle={angle}
                 active={activated.has(i)}
+                hinting={hinting}
                 shimmerDelay={((x * 7 + y * 13) % 40) / 10}
                 onToggle={() => toggle(i)}
               />
