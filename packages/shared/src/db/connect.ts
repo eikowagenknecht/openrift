@@ -5,23 +5,14 @@ import postgres from "postgres";
 import type { Database } from "./types.js";
 
 /**
- * Creates a Kysely instance from DATABASE_URL, or exits with an error.
+ * Creates a Kysely instance and its dialect from a connection string.
  *
- * @returns A Kysely<Database> instance.
+ * @returns The Kysely instance and its dialect.
  */
-export function createDb(): Kysely<Database> {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    console.error("DATABASE_URL environment variable is required.");
-    console.error(
-      "Example: DATABASE_URL=postgres://riftbound_app:dev_password@localhost:5432/riftbound",
-    );
-    process.exit(1);
-  }
-
-  return new Kysely<Database>({
-    dialect: new PostgresJSDialect({
-      postgres: postgres(connectionString),
-    }),
+export function createDb(connectionString: string) {
+  const dialect = new PostgresJSDialect({
+    postgres: postgres(connectionString),
   });
+
+  return { db: new Kysely<Database>({ dialect }), dialect };
 }
