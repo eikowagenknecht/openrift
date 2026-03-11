@@ -1,58 +1,38 @@
-import type { Printing } from "@openrift/shared";
 import type { Virtualizer } from "@tanstack/react-virtual";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef } from "react";
 
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 
 import { APP_HEADER_HEIGHT } from "./card-grid-constants";
 import type { IndicatorState, VRow } from "./card-grid-types";
-import { computeSnapPoints } from "./compute-snap-points";
 
-const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 800;
-const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
-const INDICATOR_H_FALLBACK = 48;
 const INDICATOR_PAD = 4;
+const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
 
-interface UseScrollIndicatorParams {
-  virtualRows: VRow[];
-  rowStarts: number[];
-  virtualizer: Virtualizer<Window, Element>;
-  scrollMargin: number;
-  multipleGroups: boolean;
+interface UseIndicatorDragParams {
+  virtualizerRef: React.RefObject<Virtualizer<Window, Element>>;
+  virtualRowsRef: React.RefObject<VRow[]>;
+  rowStartsRef: React.RefObject<number[]>;
+  scrollMarginRef: React.RefObject<number>;
+  indicatorHRef: React.RefObject<number>;
+  indicatorRef: React.RefObject<HTMLDivElement | null>;
+  cardIdRef: React.RefObject<HTMLElement | null>;
+  snapPointsRef: React.RefObject<{ screenY: number; rowIndex: number; firstCardId: string }[]>;
+  setIndicator: React.Dispatch<React.SetStateAction<IndicatorState>>;
 }
 
-export function useScrollIndicator({
-  virtualRows,
-  rowStarts,
-  virtualizer,
-  scrollMargin,
-  multipleGroups,
-}: UseScrollIndicatorParams) {
-  // ── Mirror refs (read current values from event handlers) ──────────
-  const virtualRowsRef = useRef(virtualRows);
-  virtualRowsRef.current = virtualRows;
-
-  const rowStartsRef = useRef(rowStarts);
-  rowStartsRef.current = rowStarts;
-
-  const virtualizerRef = useRef(virtualizer);
-  virtualizerRef.current = virtualizer;
-
-  const scrollMarginRef = useRef(scrollMargin);
-  scrollMarginRef.current = scrollMargin;
-
-  // ── Indicator state ────────────────────────────────────────────────
-  const [indicator, setIndicator] = useState<IndicatorState>({
-    cardId: "",
-    indicatorTop: APP_HEADER_HEIGHT + INDICATOR_PAD,
-    visible: false,
-    dragging: false,
-  });
-
-  const hideTimerRef = useRef(0);
-  const isDraggingRef = useRef(false);
-  const isHoveredRef = useRef(false);
-  const postDragCooldownRef = useRef(false);
+export function useIndicatorDrag({
+  virtualizerRef,
+  virtualRowsRef,
+  rowStartsRef,
+  scrollMarginRef,
+  indicatorHRef,
+  indicatorRef,
+  cardIdRef,
+  snapPointsRef,
+  setIndicator,
+}: UseIndicatorDragParams) {
   const dragStartRef = useRef({
     grabOffsetY: 0,
     trackTop: 0,
@@ -60,19 +40,12 @@ export function useScrollIndicator({
     contentStart: 0,
     contentRange: 0,
   });
-  const indicatorRef = useRef<HTMLDivElement>(null);
-  const indicatorHRef = useRef(INDICATOR_H_FALLBACK);
-  const cardIdRef = useRef<HTMLElement>(null);
-  const dragTopRef = useRef(0);
   const dragTargetRowRef = useRef(-1);
-  const snapPointsRef = useRef<{ screenY: number; rowIndex: number; firstCardId: string }[]>([]);
-
-  // ── Measure indicator height ───────────────────────────────────────
-  useLayoutEffect(() => {
-    if (indicatorRef.current) {
-      indicatorHRef.current = indicatorRef.current.offsetHeight || INDICATOR_H_FALLBACK;
-    }
-  });
+  const isDraggingRef = useRef(false);
+  const postDragCooldownRef = useRef(false);
+  const isHoveredRef = useRef(false);
+  const dragTopRef = useRef(0);
+  const hideTimerRef = useRef(0);
 
   // ── Prevent native touch scrolling during drag ─────────────────────
   useEffect(() => {
@@ -83,90 +56,6 @@ export function useScrollIndicator({
     };
     document.addEventListener("touchmove", preventScroll, { passive: false });
     return () => document.removeEventListener("touchmove", preventScroll);
-  }, []);
-
-  // ── Scroll-position tracking (updates indicator on scroll) ─────────
-  useEffect(() => {
-    let rafId = 0;
-    const update = () => {
-      const threshold = globalThis.scrollY + APP_HEADER_HEIGHT + 1;
-      const vItems = virtualizerRef.current.getVirtualItems();
-      const rows = virtualRowsRef.current;
-      let firstCard: Printing | null = null;
-      for (const vItem of vItems) {
-        const row = rows[vItem.index];
-        if (!row || row.kind !== "cards") {
-          continue;
-        }
-        if (vItem.start + vItem.size > threshold) {
-          firstCard = row.items[0] ?? null;
-          break;
-        }
-      }
-      if (!firstCard) {
-        return;
-      }
-
-      const viewportH = globalThis.innerHeight;
-      const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
-      const totalSize = virtualizerRef.current.getTotalSize();
-      const contentEnd = scrollMarginRef.current + totalSize - viewportH;
-      const contentRange = contentEnd - contentStart;
-      const contentPct =
-        contentRange > 0
-          ? Math.max(0, Math.min(1, (globalThis.scrollY - contentStart) / contentRange))
-          : 0;
-      const halfH = indicatorHRef.current / 2;
-      const trackTop = APP_HEADER_HEIGHT + halfH + INDICATOR_PAD;
-      const trackBottom = viewportH - halfH - INDICATOR_PAD;
-      const indicatorTop = trackTop + contentPct * (trackBottom - trackTop);
-
-      // During drag: only update the card ID label.
-      if (isDraggingRef.current) {
-        if (cardIdRef.current) {
-          cardIdRef.current.textContent = firstCard.sourceId;
-        }
-        return;
-      }
-
-      // When hovered, freeze the indicator so the user can grab it easily.
-      if (isHoveredRef.current) {
-        return;
-      }
-
-      // After a drag release, scrollTo triggers scroll events. Don't let
-      // those reset the shorter post-drag hide timer.
-      if (postDragCooldownRef.current) {
-        return;
-      }
-
-      globalThis.clearTimeout(hideTimerRef.current);
-      dragTopRef.current = indicatorTop;
-      setIndicator((prev) => {
-        const sameCard = prev.cardId === firstCard.sourceId;
-        const sameTop = Math.abs(prev.indicatorTop - indicatorTop) < 0.5;
-        if (prev.visible && sameCard && sameTop) {
-          return prev;
-        }
-        return { ...prev, cardId: firstCard.sourceId, indicatorTop, visible: true };
-      });
-      hideTimerRef.current = globalThis.setTimeout(() => {
-        if (!isHoveredRef.current) {
-          setIndicator((prev) => ({ ...prev, visible: false }));
-        }
-      }, HIDE_DELAY);
-    };
-
-    const onScroll = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(update);
-    };
-    globalThis.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      globalThis.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(rafId);
-      globalThis.clearTimeout(hideTimerRef.current);
-    };
   }, []);
 
   // ── Pointer down handler ───────────────────────────────────────────
@@ -313,45 +202,17 @@ export function useScrollIndicator({
 
     handleMoveRef.current = handleMove;
     handleUpRef.current = handleUp;
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- all params are stable refs/dispatchers
   }, []);
 
-  // ── Snap points ────────────────────────────────────────────────────
-  const snapPoints = computeSnapPoints({
-    virtualRows,
-    rowStarts,
-    virtualizer,
-    scrollMargin,
-    multipleGroups,
-    indicatorH: indicatorHRef.current,
-  });
-  snapPointsRef.current = snapPoints;
-
-  // ── Hover handlers (for the indicator element) ─────────────────────
-  const handleMouseEnter = () => {
-    isHoveredRef.current = true;
-    globalThis.clearTimeout(hideTimerRef.current);
-  };
-
-  const handleMouseLeave = () => {
-    isHoveredRef.current = false;
-    if (indicator.visible && !isDraggingRef.current) {
-      hideTimerRef.current = globalThis.setTimeout(() => {
-        setIndicator((prev) => ({ ...prev, visible: false }));
-      }, HIDE_DELAY);
-    }
-  };
-
   return {
-    indicator,
-    indicatorRef,
-    cardIdRef,
-    dragTopRef,
     isDraggingRef,
+    postDragCooldownRef,
+    isHoveredRef,
+    dragTopRef,
+    hideTimerRef,
     handleIndicatorPointerDown,
     handleMoveRef,
     handleUpRef,
-    handleMouseEnter,
-    handleMouseLeave,
-    snapPoints,
   };
 }
