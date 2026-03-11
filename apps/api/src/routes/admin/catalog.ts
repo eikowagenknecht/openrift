@@ -146,7 +146,7 @@ catalogRoute.put("/admin/tcgplayer-groups", async (c) => {
 catalogRoute.use("/admin/sets", requireAdmin);
 
 catalogRoute.get("/admin/sets", async (c) => {
-  const sets = await db.selectFrom("sets").selectAll().orderBy("name").execute();
+  const sets = await db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
 
   const cardCounts = await db
     .selectFrom("printings")
@@ -168,6 +168,7 @@ catalogRoute.get("/admin/sets", async (c) => {
       id: s.id,
       name: s.name,
       printedTotal: s.printed_total,
+      sortOrder: s.sort_order,
       cardCount: cardCountMap.get(s.id) ?? 0,
       printingCount: printingCountMap.get(s.id) ?? 0,
     })),
@@ -207,7 +208,39 @@ catalogRoute.post("/admin/sets", async (c) => {
     throw new AppError(409, "CONFLICT", `Set with ID "${id}" already exists`);
   }
 
-  await db.insertInto("sets").values({ id, name, printed_total: printedTotal }).execute();
+  const maxOrder = await db
+    .selectFrom("sets")
+    .select(sql<number>`coalesce(max(sort_order), 0)`.as("max"))
+    .executeTakeFirstOrThrow();
+
+  await db
+    .insertInto("sets")
+    .values({ id, name, printed_total: printedTotal, sort_order: maxOrder.max + 1 })
+    .execute();
+
+  return c.json({ ok: true });
+});
+
+// ── Set reorder ───────────────────────────────────────────────────────────────
+
+catalogRoute.use("/admin/sets/reorder", requireAdmin);
+
+const reorderSetsSchema = z.object({
+  ids: z.array(z.string()).min(1),
+});
+
+catalogRoute.put("/admin/sets/reorder", async (c) => {
+  const { ids } = reorderSetsSchema.parse(await c.req.json());
+
+  await db.transaction().execute(async (tx) => {
+    for (let i = 0; i < ids.length; i++) {
+      await tx
+        .updateTable("sets")
+        .set({ sort_order: i + 1, updated_at: new Date() })
+        .where("id", "=", ids[i])
+        .execute();
+    }
+  });
 
   return c.json({ ok: true });
 });

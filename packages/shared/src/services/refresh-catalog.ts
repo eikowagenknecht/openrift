@@ -64,8 +64,12 @@ export async function refreshCatalog(
   log.info("Seeding database");
 
   // ── Snapshot existing data for change detection ─────────────────────────────
-  const setRows = await db.selectFrom("sets").select(["id", "name", "printed_total"]).execute();
+  const setRows = await db
+    .selectFrom("sets")
+    .select(["id", "name", "printed_total", "sort_order"])
+    .execute();
   const existingSets = new Map(setRows.map((r) => [r.id, r]));
+  let maxSortOrder = setRows.reduce((max, r) => Math.max(max, r.sort_order), 0);
 
   const cardRows = await db
     .selectFrom("cards")
@@ -119,6 +123,7 @@ export async function refreshCatalog(
         });
       }
     } else {
+      maxSortOrder += 1;
       changes.push({ kind: "added", entity: "set", id: set.id, name: set.name });
     }
 
@@ -129,6 +134,7 @@ export async function refreshCatalog(
           id: set.id,
           name: set.name,
           printed_total: set.printedTotal,
+          sort_order: maxSortOrder,
         })
         .onConflict((oc) =>
           oc.column("id").doUpdateSet({

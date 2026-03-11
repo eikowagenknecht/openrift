@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
 
 import type { Logger } from "../logger";
 import {
@@ -68,6 +68,18 @@ describe("stripHtml", () => {
 
   it("handles combined entities and tags", () => {
     expect(stripHtml("<p>A &amp; B &lt;3</p>")).toBe("A & B <3");
+  });
+
+  it("does not double-decode &amp;lt; into <", () => {
+    expect(stripHtml("&amp;lt;tag&amp;gt;")).toBe("&lt;tag&gt;");
+  });
+
+  it("does not double-decode &amp;amp;", () => {
+    expect(stripHtml("&amp;amp;")).toBe("&amp;");
+  });
+
+  it("handles case-insensitive named entities", () => {
+    expect(stripHtml("&AMP; &LT; &GT;")).toBe("& < >");
   });
 });
 
@@ -200,6 +212,10 @@ describe("toBaseSourceId", () => {
   it("strips altart suffix after uppercase segment", () => {
     expect(toBaseSourceId("SFD-R01b")).toBe("SFD-R01");
   });
+
+  it("preserves lowercase in non-suffix positions", () => {
+    expect(toBaseSourceId("abc-001")).toBe("abc-001");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -232,8 +248,10 @@ function makeGalleryCard(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const EXPECTED_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/";
+
 const MOCK_CARDS = [
-  // SFD card listed first so we can verify set sorting (Origins should come before Spiritforged)
+  // SFD card listed first so we can verify set ordering (encounter order, not hardcoded)
   makeGalleryCard({
     collectorNumber: 10,
     id: "sfd-010-80",
@@ -320,8 +338,13 @@ function buildGalleryHtml(items: unknown[]) {
   return `<html><head><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(nextData)}</script></head><body></body></html>`;
 }
 
-function mockFetchWith(html: string) {
-  globalThis.fetch = (async () => new Response(html, { status: 200 })) as unknown as typeof fetch;
+function mockFetchWith(
+  fetchSpy: ReturnType<typeof spyOn>,
+  html: string,
+  status = 200,
+  statusText = "OK",
+) {
+  fetchSpy.mockResolvedValue(new Response(html, { status, statusText }));
 }
 
 // oxlint-disable-next-line no-empty-function -- noop logger for tests
@@ -332,26 +355,25 @@ function makeMockLogger(): Logger {
 }
 
 describe("fetchCatalog", () => {
-  const originalFetch = globalThis.fetch;
+  let fetchSpy: ReturnType<typeof spyOn>;
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
+    fetchSpy.mockRestore();
   });
 
   // -- Error cases --
 
   it("throws on non-OK HTTP response", async () => {
-    globalThis.fetch = (async () =>
-      new Response("Service Unavailable", {
-        status: 503,
-        statusText: "Service Unavailable",
-      })) as unknown as typeof fetch;
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, "Service Unavailable", 503, "Service Unavailable");
 
     await expect(fetchCatalog(makeMockLogger())).rejects.toThrow("HTTP 503");
+    expect(fetchSpy).toHaveBeenCalledWith(EXPECTED_URL, expect.any(Object));
   });
 
   it("throws when __NEXT_DATA__ script tag is missing", async () => {
-    mockFetchWith("<html><body>No data here</body></html>");
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, "<html><body>No data here</body></html>");
 
     await expect(fetchCatalog(makeMockLogger())).rejects.toThrow(
       "Could not find __NEXT_DATA__ script tag",
@@ -359,7 +381,11 @@ describe("fetchCatalog", () => {
   });
 
   it("throws when __NEXT_DATA__ contains malformed JSON", async () => {
-    mockFetchWith('<script id="__NEXT_DATA__" type="application/json">{invalid json</script>');
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(
+      fetchSpy,
+      '<script id="__NEXT_DATA__" type="application/json">{invalid json</script>',
+    );
 
     await expect(fetchCatalog(makeMockLogger())).rejects.toThrow(
       "Malformed JSON in __NEXT_DATA__ script tag",
@@ -367,9 +393,10 @@ describe("fetchCatalog", () => {
   });
 
   it("throws when riftboundCardGallery blade is missing", async () => {
+    fetchSpy = spyOn(globalThis, "fetch");
     const nextData = { props: { pageProps: { page: { blades: [{ type: "other" }] } } } };
     const html = `<script id="__NEXT_DATA__" type="application/json">${JSON.stringify(nextData)}</script>`;
-    mockFetchWith(html);
+    mockFetchWith(fetchSpy, html);
 
     await expect(fetchCatalog(makeMockLogger())).rejects.toThrow(
       "Could not find riftboundCardGallery blade",
@@ -378,15 +405,29 @@ describe("fetchCatalog", () => {
 
   // -- Success case --
 
+  it("fetches from the correct gallery URL", async () => {
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
+
+    await fetchCatalog(makeMockLogger());
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      EXPECTED_URL,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
   it("parses gallery HTML into sets, game cards, and printings", async () => {
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
 
     const result = await fetchCatalog(makeMockLogger());
 
-    // Sets are sorted: Origins before Spiritforged (canonical order)
+    // Sets returned in encounter order (SFD first since it appears first in MOCK_CARDS)
     expect(result.sets).toEqual([
-      { id: "OGN", name: "Origins", printedTotal: 100 },
       { id: "SFD", name: "Spiritforged", printedTotal: 80 },
+      { id: "OGN", name: "Origins", printedTotal: 100 },
     ]);
 
     // 3 unique game cards (Fire Knight normal + alt + signed → 1 game card)
@@ -401,7 +442,8 @@ describe("fetchCatalog", () => {
   });
 
   it("converts a unit card with stats and keywords from HTML", async () => {
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
     const result = await fetchCatalog(makeMockLogger());
 
     const fireKnight = result.cards["OGN-001"];
@@ -418,7 +460,8 @@ describe("fetchCatalog", () => {
   });
 
   it("converts a champion unit with superType, tags, and mightBonus", async () => {
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
     const result = await fetchCatalog(makeMockLogger());
 
     const warden = result.cards["SFD-010"];
@@ -433,7 +476,8 @@ describe("fetchCatalog", () => {
   });
 
   it("converts a spell with null stats and an effect field", async () => {
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
     const result = await fetchCatalog(makeMockLogger());
 
     const blast = result.cards["OGN-050"];
@@ -446,7 +490,8 @@ describe("fetchCatalog", () => {
   });
 
   it("assigns correct art variants to printings", async () => {
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
     const result = await fetchCatalog(makeMockLogger());
 
     const bySourceId = new Map(result.printings.map((p) => [p.sourceId, p]));
@@ -467,7 +512,8 @@ describe("fetchCatalog", () => {
   });
 
   it("marks signed printings with isSigned and high scoring so normal is preferred", async () => {
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
     const result = await fetchCatalog(makeMockLogger());
 
     const signed = result.printings.find((p) => p.sourceId === "OGN-105*");
@@ -481,8 +527,8 @@ describe("fetchCatalog", () => {
   });
 
   it("picks the normal printing as the base game card over alt art", async () => {
-    // If we only had the alt art, the game card key would be "OGN-001" (toBaseSourceId strips "a")
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
     const result = await fetchCatalog(makeMockLogger());
 
     // The game card for Fire Knight uses the normal printing's data (Alice, not Bob)
@@ -491,9 +537,10 @@ describe("fetchCatalog", () => {
   });
 
   it("continues with valid cards when some fail schema validation", async () => {
+    fetchSpy = spyOn(globalThis, "fetch");
     const invalidCard = { name: "Bad Card", collectorNumber: "not-a-number" };
     const items = [...MOCK_CARDS, invalidCard];
-    mockFetchWith(buildGalleryHtml(items));
+    mockFetchWith(fetchSpy, buildGalleryHtml(items));
 
     const warnings: string[] = [];
     const log = {
@@ -510,12 +557,13 @@ describe("fetchCatalog", () => {
   });
 
   it("truncates validation warnings when more than 5 cards fail", async () => {
+    fetchSpy = spyOn(globalThis, "fetch");
     const invalidCards = Array.from({ length: 7 }, (_, i) => ({
       name: `Bad ${i}`,
       collectorNumber: "nope",
     }));
     const items = [...MOCK_CARDS, ...invalidCards];
-    mockFetchWith(buildGalleryHtml(items));
+    mockFetchWith(fetchSpy, buildGalleryHtml(items));
 
     const warnings: string[] = [];
     const log = {
@@ -530,7 +578,8 @@ describe("fetchCatalog", () => {
   });
 
   it("populates printing metadata correctly", async () => {
-    mockFetchWith(buildGalleryHtml(MOCK_CARDS));
+    fetchSpy = spyOn(globalThis, "fetch");
+    mockFetchWith(fetchSpy, buildGalleryHtml(MOCK_CARDS));
     const result = await fetchCatalog(makeMockLogger());
 
     const blast = result.printings.find((p) => p.sourceId === "OGN-050");
@@ -542,5 +591,17 @@ describe("fetchCatalog", () => {
     expect(blast?.publicCode).toBe("OGN-050/100");
     expect(blast?.printedRulesText).toBe("Deal 3 damage to target unit.");
     expect(blast?.printedEffectText).toBe("If [Burn] was triggered, deal 1 more.");
+  });
+
+  it("throws when a card has no card type", async () => {
+    fetchSpy = spyOn(globalThis, "fetch");
+    const noTypeCard = makeGalleryCard({
+      cardType: { label: "Card Type", type: [] },
+    });
+    mockFetchWith(fetchSpy, buildGalleryHtml([noTypeCard]));
+
+    await expect(fetchCatalog(makeMockLogger())).rejects.toThrow(
+      'Card "Fire Knight" (OGN-001/100) has no card type',
+    );
   });
 });

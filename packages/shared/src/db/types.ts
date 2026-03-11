@@ -23,6 +23,7 @@ export interface SetsTable {
   id: string;
   name: string;
   printed_total: number;
+  sort_order: number;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }

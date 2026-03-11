@@ -49,22 +49,28 @@ interface CardsJson {
 
 const GALLERY_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/";
 const FETCH_TIMEOUT_MS = 10_000;
-const SET_ORDER = ["Proving Grounds", "Origins", "Spiritforged"];
 
 /** @internal Exported for testing only.
  * @returns Plain text with HTML tags and entities decoded.
  */
 export function stripHtml(html: string) {
+  const NAMED_ENTITIES: Record<string, string> = {
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": '"',
+    "&nbsp;": " ",
+  };
+
   return html
     .replaceAll(/<br\s*\/?>/gi, "\n")
     .replaceAll(/<[^>]+>/g, "")
     .replaceAll(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
     .replaceAll(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&nbsp;", " ")
+    .replaceAll(
+      /&(?:amp|lt|gt|quot|nbsp);/gi,
+      (entity) => NAMED_ENTITIES[entity.toLowerCase()] ?? entity,
+    )
     .trim();
 }
 
@@ -114,7 +120,7 @@ export function deriveArtVariant(
  * @returns Base source ID without variant suffixes.
  */
 export function toBaseSourceId(sourceId: string): string {
-  return sourceId.replace(/[a-z*]+$/, "");
+  return sourceId.replace(/(?<=\d)[a-z*]+$/, "");
 }
 
 // ── Card conversion ─────────────────────────────────────────────────────────
@@ -142,7 +148,11 @@ interface ConvertedCard {
 
 function convertCard(src: GalleryCard, printedTotal: number): ConvertedCard {
   const sourceId = src.publicCode.split("/")[0];
-  const type = (src.cardType.type[0]?.label ?? "Unit") as CardType;
+  const typeLabel = src.cardType.type[0]?.label;
+  if (!typeLabel) {
+    throw new Error(`Card "${src.name}" (${src.publicCode}) has no card type`);
+  }
+  const type = typeLabel as CardType;
   const superTypes = (src.cardType.superType ?? []).map((s) => s.label);
   const rarity = src.rarity.value.label as Rarity;
   const domains = src.domain.values.map((d) => d.label);
@@ -247,8 +257,10 @@ function validateCards(rawCards: unknown[], log: Logger): GalleryCard[] {
   return validated;
 }
 
-function groupBySet(validated: GalleryCard[]): {
-  setOrder: string[];
+function groupBySet(
+  validated: GalleryCard[],
+  log: Logger,
+): {
   setMap: Map<string, SetData>;
   allConverted: ConvertedCard[];
 } {
@@ -258,13 +270,18 @@ function groupBySet(validated: GalleryCard[]): {
 
   for (const raw of validated) {
     const setId = raw.set.value.id;
-    if (!setMap.has(setId)) {
+    const denominator = Number.parseInt(raw.publicCode.split("/")[1], 10) || 0;
+    if (setMap.has(setId)) {
+      const existing = setMap.get(setId);
+      if (existing && denominator !== existing.printedTotal) {
+        log.warn(
+          `Card ${raw.publicCode} has denominator ${denominator} but set ${setId} expected ${existing.printedTotal}`,
+        );
+      }
+    } else {
       setOrder.push(setId);
-      // Derived from publicCode denominator (e.g. "OGN-001/100" → 100).
-      // Can't use max(collectorNumber) because overnumbered cards exceed the total.
-      const printedTotal = Number.parseInt(raw.publicCode.split("/")[1], 10) || 0;
       const code = raw.publicCode.split("/")[0].split("-")[0];
-      setMap.set(setId, { id: code, name: raw.set.value.label, printedTotal });
+      setMap.set(setId, { id: code, name: raw.set.value.label, printedTotal: denominator });
       convertedBySet.set(setId, []);
     }
     const set = setMap.get(setId);
@@ -276,7 +293,7 @@ function groupBySet(validated: GalleryCard[]): {
   }
 
   const allConverted = setOrder.flatMap((id) => convertedBySet.get(id) ?? []);
-  return { setOrder, setMap, allConverted };
+  return { setMap, allConverted };
 }
 
 function deduceGameCards(allConverted: ConvertedCard[]): {
@@ -293,20 +310,17 @@ function deduceGameCards(allConverted: ConvertedCard[]): {
   const gameCards: Record<string, GameCard> = {};
   const baseIdByName = new Map<string, string>();
 
+  const VARIANT_PENALTY: Record<ArtVariant, number> = {
+    normal: 0,
+    altart: 50,
+    overnumbered: 30,
+  };
+
   for (const [name, group] of byName) {
-    const scored = group.map((card) => {
-      let score = 0;
-      if (card.isSigned) {
-        score += 100;
-      }
-      if (card.artVariant === "altart") {
-        score += 50;
-      }
-      if (card.artVariant === "overnumbered") {
-        score += 30;
-      }
-      return { card, score };
-    });
+    const scored = group.map((card) => ({
+      card,
+      score: (card.isSigned ? 100 : 0) + VARIANT_PENALTY[card.artVariant],
+    }));
     scored.sort((a, b) => a.score - b.score || a.card.collectorNumber - b.card.collectorNumber);
     const base = scored[0].card;
     const baseId = toBaseSourceId(base.sourceId);
@@ -349,17 +363,6 @@ function buildPrintings(
   }));
 }
 
-function sortSets(setOrder: string[], setMap: Map<string, SetData>): SetData[] {
-  return setOrder
-    .map((code) => setMap.get(code))
-    .filter((s): s is SetData => s !== undefined)
-    .sort((a, b) => {
-      const ai = SET_ORDER.indexOf(a.name);
-      const bi = SET_ORDER.indexOf(b.name);
-      return (ai === -1 ? SET_ORDER.length : ai) - (bi === -1 ? SET_ORDER.length : bi);
-    });
-}
-
 // ── Main export ─────────────────────────────────────────────────────────────
 
 /**
@@ -380,10 +383,10 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
   const validated = validateCards(rawCards, log);
   log.info(`Validated ${validated.length}/${rawCards.length} cards`);
 
-  const { setOrder, setMap, allConverted } = groupBySet(validated);
+  const { setMap, allConverted } = groupBySet(validated, log);
   const { gameCards, baseIdByName } = deduceGameCards(allConverted);
   const printings = buildPrintings(allConverted, baseIdByName);
-  const sets = sortSets(setOrder, setMap);
+  const sets = [...setMap.values()];
 
   log.info(
     `Catalog: ${Object.keys(gameCards).length} game cards, ${printings.length} printings across ${sets.length} sets`,

@@ -26,7 +26,7 @@ import { db } from "../db.js";
 export const cardsRoute = new Hono();
 
 cardsRoute.get("/cards", async (c) => {
-  const sets = await db.selectFrom("sets").selectAll().execute();
+  const sets = await db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
 
   const rows = await selectPrintingWithCard(db)
     .select([
