@@ -7,21 +7,21 @@
     ".": "./src/index.ts",
     "./schemas": "./src/schemas.ts",
     "./db": "./src/db/index.ts",
-    "./db/refresh-prices-shared": "./src/db/refresh-prices-shared.ts",
     "./db/migrate": "./src/db/migrate.ts",
-    "./db/refresh-tcgplayer-prices": "./src/db/refresh-tcgplayer-prices.ts",
-    "./db/refresh-cardmarket-prices": "./src/db/refresh-cardmarket-prices.ts",
     "./db/utils": "./src/db/utils.ts",
-    "./db/refresh-catalog": "./src/db/refresh-catalog.ts"
+    "./services/refresh-prices-shared": "./src/services/refresh-prices-shared.ts",
+    "./services/refresh-tcgplayer-prices": "./src/services/refresh-tcgplayer-prices.ts",
+    "./services/refresh-cardmarket-prices": "./src/services/refresh-cardmarket-prices.ts",
+    "./services/refresh-catalog": "./src/services/refresh-catalog.ts"
   },
   "scripts": {
     "test": "bun test",
     "build": "tsc",
     "typecheck": "tsc",
     "dev": "tsc --watch",
-    "db:migrate": "bun --env-file=../../.env src/db/migrate.ts",
-    "db:rollback": "bun --env-file=../../.env src/db/migrate.ts down",
-    "make-admin": "bun --env-file=../../.env src/db/make-admin.ts"
+    "db:migrate": "bun --env-file=../../.env ../../scripts/run-migrations.ts",
+    "db:rollback": "bun --env-file=../../.env ../../scripts/run-migrations.ts down",
+    "make-admin": "bun --env-file=../../.env ../../scripts/make-admin.ts"
   },
   "dependencies": {
     "kysely": "0.28.11",

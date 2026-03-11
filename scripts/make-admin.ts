@@ -1,16 +1,8 @@
-/* oxlint-disable no-console -- CLI script */
-
-/**
- * Grants admin privileges to a user by email.
- *
- * Usage: bun run --cwd packages/shared src/db/make-admin.ts user@example.com
- */
-
-import { createDb } from "./connect.js";
+import { createDb } from "../packages/shared/src/db/connect.js";
 
 const email = process.argv[2];
 if (!email) {
-  console.error("Usage: bun run src/db/make-admin.ts <email>");
+  console.error("Usage: bun run scripts/make-admin.ts <email>");
   process.exit(1);
 }
 

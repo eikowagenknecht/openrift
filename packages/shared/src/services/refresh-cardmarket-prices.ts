@@ -1,5 +1,3 @@
-/* oxlint-disable no-console -- CLI script */
-
 /**
  * Refreshes Cardmarket price data from the Cardmarket product catalog API.
  *
@@ -7,12 +5,13 @@
  * writes cardmarket_sources + cardmarket_snapshots. Unmatched products are
  * staged for manual admin mapping.
  *
- * Usage: bun packages/shared/src/db/refresh-cardmarket-prices.ts
+ * Usage: bun scripts/refresh-cardmarket-prices.ts
  */
 
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../db/types.js";
 import {
   fetchJson,
   logUpsertCounts,
@@ -24,7 +23,6 @@ import type {
   CardmarketStagingRow,
   PriceRefreshResult,
 } from "./refresh-prices-shared.js";
-import type { Database } from "./types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -227,14 +225,4 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
     },
     upserted: counts,
   };
-}
-
-if (import.meta.main) {
-  const { createDb } = await import("./connect.js");
-  const db = createDb();
-  try {
-    await refreshCardmarketPrices(db);
-  } finally {
-    await db.destroy();
-  }
 }

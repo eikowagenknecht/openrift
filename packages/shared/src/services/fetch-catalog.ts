@@ -1,4 +1,3 @@
-/* oxlint-disable no-console -- CLI script */
 import { galleryCardSchema } from "../schemas.js";
 import type { CardStats, CardType, Rarity } from "../types.js";
 

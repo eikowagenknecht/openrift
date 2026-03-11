@@ -1,5 +1,3 @@
-/* oxlint-disable no-console -- CLI helper */
-
 /**
  * Shared helpers for the TCGPlayer and Cardmarket price refresh scripts.
  *
@@ -11,7 +9,7 @@
 import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "./types.js";
+import type { Database } from "../db/types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
-import { refreshCardmarketPrices } from "@openrift/shared/db/refresh-cardmarket-prices";
-import { refreshCatalog } from "@openrift/shared/db/refresh-catalog";
-import { refreshTcgplayerPrices } from "@openrift/shared/db/refresh-tcgplayer-prices";
+import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardmarket-prices";
+import { refreshCatalog } from "@openrift/shared/services/refresh-catalog";
+import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 

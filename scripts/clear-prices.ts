@@ -1,5 +1,3 @@
-/* oxlint-disable no-console -- CLI script */
-
 import { createDb } from "../packages/shared/src/db/connect.js";
 
 const db = createDb();

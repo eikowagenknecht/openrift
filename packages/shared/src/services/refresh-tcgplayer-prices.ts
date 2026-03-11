@@ -1,16 +1,15 @@
-/* oxlint-disable no-console -- CLI script */
-
 /**
  * Refreshes TCGPlayer price data from the TCGCSV API.
  *
  * Fetches groups and products, stages all products for manual admin mapping.
  *
- * Usage: bun packages/shared/src/db/refresh-tcgplayer-prices.ts
+ * Usage: bun scripts/refresh-tcgplayer-prices.ts
  */
 
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../db/types.js";
 import {
   fetchJson,
   logUpsertCounts,
@@ -22,7 +21,6 @@ import type {
   TcgplayerSnapshotData,
   TcgplayerStagingRow,
 } from "./refresh-prices-shared.js";
-import type { Database } from "./types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -248,14 +246,4 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
     },
     upserted: counts,
   };
-}
-
-if (import.meta.main) {
-  const { createDb } = await import("./connect.js");
-  const db = createDb();
-  try {
-    await refreshTcgplayerPrices(db);
-  } finally {
-    await db.destroy();
-  }
 }

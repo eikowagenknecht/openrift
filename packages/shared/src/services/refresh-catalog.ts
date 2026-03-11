@@ -1,11 +1,10 @@
-/* oxlint-disable no-console -- CLI script */
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../db/types.js";
+import { buildPrintingId } from "../db/utils.js";
 import type { CardType, Rarity } from "../types.js";
 import { fetchCatalog } from "./fetch-catalog.js";
-import type { Database } from "./types.js";
-import { buildPrintingId } from "./utils.js";
 
 // Finish rules:
 // - OGS → non-foil only
@@ -398,14 +397,4 @@ export async function refreshCatalog(
     images: { total: totalImages, added: imagesAdded, updated: imagesUpdated },
     changes,
   };
-}
-
-if (import.meta.main) {
-  const { createDb } = await import("./connect.js");
-  const db = createDb();
-  try {
-    await refreshCatalog(db);
-  } finally {
-    await db.destroy();
-  }
 }

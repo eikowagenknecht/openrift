@@ -1,8 +1,6 @@
-/* oxlint-disable no-console -- server startup logging */
-
 import { migrate } from "@openrift/shared/db/migrate";
-import { refreshCardmarketPrices } from "@openrift/shared/db/refresh-cardmarket-prices";
-import { refreshTcgplayerPrices } from "@openrift/shared/db/refresh-tcgplayer-prices";
+import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardmarket-prices";
+import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
 import { Cron } from "croner";
 
 import { cronJobs } from "./cron-jobs.js";
