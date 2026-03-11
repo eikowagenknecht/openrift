@@ -19,7 +19,7 @@ import type {
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { imageUrl } from "../db-helpers.js";
+import { imageUrl, selectPrintingWithCard } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 
@@ -28,15 +28,7 @@ export const cardsRoute = new Hono();
 cardsRoute.get("/cards", async (c) => {
   const sets = await db.selectFrom("sets").selectAll().execute();
 
-  const rows = await db
-    .selectFrom("printings as p")
-    .innerJoin("cards as c", "c.id", "p.card_id")
-    .leftJoin("printing_images as pi", (join) =>
-      join
-        .onRef("pi.printing_id", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.is_active", "=", true),
-    )
+  const rows = await selectPrintingWithCard(db)
     .select([
       "p.id as printing_id",
       "p.card_id",

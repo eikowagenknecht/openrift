@@ -2,7 +2,7 @@ import { addCopiesSchema, disposeCopiesSchema, moveCopiesSchema } from "@openrif
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { imageUrl } from "../db-helpers.js";
+import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -29,16 +29,7 @@ copiesRoute.use("/copies", requireAuth);
 copiesRoute.get("/copies", async (c) => {
   const userId = getUserId(c);
 
-  const copies = await db
-    .selectFrom("copies as cp")
-    .innerJoin("printings as p", "p.id", "cp.printing_id")
-    .innerJoin("cards as card", "card.id", "p.card_id")
-    .leftJoin("printing_images as pi", (join) =>
-      join
-        .onRef("pi.printing_id", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.is_active", "=", true),
-    )
+  const copies = await selectCopyWithCard(db)
     .select([
       "cp.id",
       "cp.printing_id",
@@ -56,11 +47,11 @@ copiesRoute.get("/copies", async (c) => {
       "p.finish",
       imageUrl("pi").as("image_url"),
       "p.artist",
-      "card.name as card_name",
-      "card.type as card_type",
+      "c.name as card_name",
+      "c.type as card_type",
     ])
     .where("cp.user_id", "=", userId)
-    .orderBy("card.name")
+    .orderBy("c.name")
     .orderBy("p.collector_number")
     .execute();
 
@@ -275,16 +266,7 @@ copiesRoute.get("/copies/:id", async (c) => {
   const userId = getUserId(c);
   const id = c.req.param("id");
 
-  const copy = await db
-    .selectFrom("copies as cp")
-    .innerJoin("printings as p", "p.id", "cp.printing_id")
-    .innerJoin("cards as card", "card.id", "p.card_id")
-    .leftJoin("printing_images as pi", (join) =>
-      join
-        .onRef("pi.printing_id", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.is_active", "=", true),
-    )
+  const copy = await selectCopyWithCard(db)
     .select([
       "cp.id",
       "cp.printing_id",
@@ -297,8 +279,8 @@ copiesRoute.get("/copies/:id", async (c) => {
       "p.collector_number",
       "p.rarity",
       imageUrl("pi").as("image_url"),
-      "card.name as card_name",
-      "card.type as card_type",
+      "c.name as card_name",
+      "c.type as card_type",
     ])
     .where("cp.id", "=", id)
     .where("cp.user_id", "=", userId)
