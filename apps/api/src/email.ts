@@ -1,17 +1,28 @@
+import { createLogger } from "@openrift/shared/logger";
 import { createTransport } from "nodemailer";
 
-const transporter = createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || "465"),
-  secure: process.env.SMTP_SECURE !== "false",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 30_000,
-});
+import { config } from "./config.js";
+
+const log = createLogger("email");
+
+const transporter = config.smtp.configured
+  ? createTransport({
+      host: config.smtp.host,
+      port: config.smtp.port,
+      secure: config.smtp.secure,
+      auth: {
+        user: config.smtp.user,
+        pass: config.smtp.pass,
+      },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 30_000,
+    })
+  : null;
+
+if (!transporter) {
+  log.warn("SMTP not configured — emails will be logged to console");
+}
 
 export async function sendEmail({
   to,
@@ -22,15 +33,20 @@ export async function sendEmail({
   subject: string;
   html: string;
 }) {
+  if (!transporter) {
+    log.info({ to, subject }, "Email (not sent):\n%s", html);
+    return;
+  }
+
   try {
     return await transporter.sendMail({
-      from: process.env.SMTP_FROM,
+      from: config.smtp.from,
       to,
       subject,
       html,
     });
   } catch (error) {
-    console.error("[email] Failed to send to", to, error);
+    log.error({ to, err: error }, "Failed to send email");
     throw error;
   }
 }

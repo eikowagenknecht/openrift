@@ -1,7 +1,5 @@
 import { createDb } from "@openrift/shared/db/connect";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
-}
+import { config } from "./config.js";
 
-export const { db, dialect } = createDb(process.env.DATABASE_URL);
+export const { db, dialect } = createDb(config.databaseUrl);
