@@ -1,5 +1,5 @@
-// Static migration barrel — required for `bun build --compile` (no filesystem at runtime).
-// When adding a new migration, also add it here.
+// Static migration barrel — explicit imports so Kysely's MigrationProvider
+// doesn't need filesystem scanning. When adding a new migration, also add it here.
 
 import type { Migration } from "kysely";
 
