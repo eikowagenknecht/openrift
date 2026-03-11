@@ -6,6 +6,10 @@ const STORAGE_KEY = "openrift:feature-flags";
 
 let flags: FeatureFlags = {};
 
+export function featureEnabled(key: string): boolean {
+  return flags[key] === true;
+}
+
 export async function loadFeatureFlags(): Promise<void> {
   try {
     const res = await fetch("/api/feature-flags");

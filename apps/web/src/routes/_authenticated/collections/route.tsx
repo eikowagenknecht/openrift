@@ -1,8 +1,9 @@
-import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-router";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { featureEnabled } from "@/lib/feature-flags";
 
 const pageTitles: Record<string, string> = {
   "/_authenticated/collections/": "All Cards",
@@ -10,6 +11,11 @@ const pageTitles: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/_authenticated/collections")({
+  beforeLoad: () => {
+    if (!featureEnabled("collection")) {
+      throw redirect({ to: "/cards" });
+    }
+  },
   component: CollectionLayout,
 });
 

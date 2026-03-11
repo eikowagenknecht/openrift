@@ -35,6 +35,7 @@ import { useIsAdmin } from "@/hooks/use-admin";
 import { useSWUpdate } from "@/hooks/use-sw-update";
 import { signOut, useSession } from "@/lib/auth-client";
 import { parseChangelog } from "@/lib/changelog";
+import { featureEnabled } from "@/lib/feature-flags";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { useThemeStore } from "@/stores/theme-store";
 
@@ -132,7 +133,7 @@ export function Header() {
             </span>
           </button>
           <div className="flex items-center gap-1">
-            {session?.user && (
+            {session?.user && featureEnabled("collection") && (
               <Button
                 variant={isCollectionRoute ? "secondary" : "ghost"}
                 size="sm"
