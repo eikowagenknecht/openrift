@@ -13,17 +13,53 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
-import {
-  fetchJson,
-  logUpsertCounts,
-  toCents,
-  upsertCardmarketPriceData,
-} from "./refresh-prices-shared.js";
-import type {
-  CardmarketSnapshotData,
-  CardmarketStagingRow,
-  PriceRefreshResult,
-} from "./refresh-prices-shared.js";
+import { fetchJson, logUpsertCounts, toCents, upsertPriceData } from "./refresh-prices-shared.js";
+import type { PriceRefreshResult, PriceUpsertConfig } from "./refresh-prices-shared.js";
+
+// ── Local row types (exported for tests) ──────────────────────────────────
+
+export interface CardmarketSnapshotData {
+  printing_id: string;
+  recorded_at: Date;
+  market_cents: number;
+  low_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+}
+
+export interface CardmarketStagingRow {
+  external_id: number;
+  group_id: number;
+  product_name: string;
+  finish: string;
+  recorded_at: Date;
+  market_cents: number;
+  low_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+}
+
+// ── Upsert config ─────────────────────────────────────────────────────────
+
+const UPSERT_CONFIG: PriceUpsertConfig = {
+  tables: {
+    sources: "cardmarket_sources",
+    snapshots: "cardmarket_snapshots",
+    staging: "cardmarket_staging",
+  },
+  priceColumns: [
+    "market_cents",
+    "low_cents",
+    "trend_cents",
+    "avg1_cents",
+    "avg7_cents",
+    "avg30_cents",
+  ],
+};
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -213,7 +249,7 @@ export async function refreshCardmarketPrices(
 
   // ── Upsert ──────────────────────────────────────────────────────────────────
 
-  const counts = await upsertCardmarketPriceData(db, [], allSnapshots, allStaging);
+  const counts = await upsertPriceData(db, UPSERT_CONFIG, [], allSnapshots, allStaging);
 
   logUpsertCounts(log, counts);
 

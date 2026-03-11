@@ -11,17 +11,42 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
-import {
-  fetchJson,
-  logUpsertCounts,
-  toCents,
-  upsertTcgplayerPriceData,
-} from "./refresh-prices-shared.js";
-import type {
-  PriceRefreshResult,
-  TcgplayerSnapshotData,
-  TcgplayerStagingRow,
-} from "./refresh-prices-shared.js";
+import { fetchJson, logUpsertCounts, toCents, upsertPriceData } from "./refresh-prices-shared.js";
+import type { PriceRefreshResult, PriceUpsertConfig } from "./refresh-prices-shared.js";
+
+// ── Local row types ───────────────────────────────────────────────────────
+
+interface TcgplayerSnapshotData {
+  printing_id: string;
+  recorded_at: Date;
+  market_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+}
+
+interface TcgplayerStagingRow {
+  external_id: number;
+  group_id: number;
+  product_name: string;
+  finish: string;
+  recorded_at: Date;
+  market_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+}
+
+// ── Upsert config ─────────────────────────────────────────────────────────
+
+const UPSERT_CONFIG: PriceUpsertConfig = {
+  tables: {
+    sources: "tcgplayer_sources",
+    snapshots: "tcgplayer_snapshots",
+    staging: "tcgplayer_staging",
+  },
+  priceColumns: ["market_cents", "low_cents", "mid_cents", "high_cents"],
+};
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -234,7 +259,7 @@ export async function refreshTcgplayerPrices(
     log.info(`${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`);
   }
 
-  const counts = await upsertTcgplayerPriceData(db, [], allSnapshots, allStaging);
+  const counts = await upsertPriceData(db, UPSERT_CONFIG, [], allSnapshots, allStaging);
 
   logUpsertCounts(log, counts);
 
