@@ -1,3 +1,4 @@
+import type { Logger } from "../logger.js";
 import { galleryCardSchema } from "../schemas.js";
 import type { CardStats, CardType, Rarity } from "../types.js";
 
@@ -178,9 +179,9 @@ function toBaseSourceId(sourceId: string): string {
  * validates, and transforms into the CardsJson format for DB upsert.
  * @returns Catalog data with sets, game cards, and printings.
  */
-export async function fetchCatalog(): Promise<CardsJson> {
+export async function fetchCatalog(log: Logger): Promise<CardsJson> {
   // ── Fetch ─────────────────────────────────────────────────────────────
-  console.log(`Fetching ${GALLERY_URL} ...`);
+  log.info(`Fetching ${GALLERY_URL}`);
   const res = await fetch(GALLERY_URL);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -202,7 +203,7 @@ export async function fetchCatalog(): Promise<CardsJson> {
     throw new Error("Could not find riftboundCardGallery blade in __NEXT_DATA__");
   }
 
-  console.log(`Fetched ${rawCards.length} raw cards from gallery`);
+  log.info(`Fetched ${rawCards.length} raw cards from gallery`);
 
   // ── Validate ──────────────────────────────────────────────────────────
   const validated = [];
@@ -217,17 +218,17 @@ export async function fetchCatalog(): Promise<CardsJson> {
     }
   }
   if (errors.length > 0) {
-    console.warn(`${errors.length} cards failed validation:`);
+    log.warn(`${errors.length} cards failed validation`);
     for (const e of errors.slice(0, 5)) {
-      console.warn(
+      log.warn(
         `  ${e.id}: ${e.issues.map((i) => `${String(i.path.join("."))} - ${i.message}`).join(", ")}`,
       );
     }
     if (errors.length > 5) {
-      console.warn(`  ...and ${errors.length - 5} more`);
+      log.warn(`  ...and ${errors.length - 5} more`);
     }
   }
-  console.log(`Validated ${validated.length}/${rawCards.length} cards`);
+  log.info(`Validated ${validated.length}/${rawCards.length} cards`);
 
   // ── Group by set ──────────────────────────────────────────────────────
   const setOrder: string[] = [];
@@ -355,7 +356,7 @@ export async function fetchCatalog(): Promise<CardsJson> {
     printedTotal: s.printedTotal,
   }));
 
-  console.log(
+  log.info(
     `Catalog: ${Object.keys(gameCards).length} game cards, ${printings.length} printings across ${sets.length} sets`,
   );
 

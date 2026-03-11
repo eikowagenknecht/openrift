@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { Migrator } from "kysely";
 
+import type { Logger } from "../logger.js";
 import { migrations } from "./migrations/index.js";
 import type { Database } from "./types.js";
 
@@ -12,42 +13,42 @@ function createMigrator(db: Kysely<Database>) {
   });
 }
 
-export async function migrate(db: Kysely<Database>): Promise<void> {
+export async function migrate(db: Kysely<Database>, log: Logger): Promise<void> {
   const migrator = createMigrator(db);
   const { error, results } = await migrator.migrateToLatest();
   results?.forEach((it) => {
     if (it.status === "Success") {
-      console.log(`  ✓ ${it.migrationName}`);
+      log.info(`✓ ${it.migrationName}`);
     } else if (it.status === "Error") {
-      console.error(`  ✗ ${it.migrationName}`);
+      log.error(`✗ ${it.migrationName}`);
     }
   });
   if (error) {
     throw error instanceof Error ? error : new Error(String(error));
   }
   if (results?.length) {
-    console.log("Migrations applied successfully.");
+    log.info("Migrations applied successfully");
   } else {
-    console.log("Already up to date.");
+    log.info("Already up to date");
   }
 }
 
-export async function rollback(db: Kysely<Database>): Promise<void> {
+export async function rollback(db: Kysely<Database>, log: Logger): Promise<void> {
   const migrator = createMigrator(db);
   const { error, results } = await migrator.migrateDown();
   results?.forEach((it) => {
     if (it.status === "Success") {
-      console.log(`  ↓ ${it.migrationName}`);
+      log.info(`↓ ${it.migrationName}`);
     } else if (it.status === "Error") {
-      console.error(`  ✗ ${it.migrationName}`);
+      log.error(`✗ ${it.migrationName}`);
     }
   });
   if (error) {
     throw error instanceof Error ? error : new Error(String(error));
   }
   if (results?.length) {
-    console.log("Rolled back successfully.");
+    log.info("Rolled back successfully");
   } else {
-    console.log("Nothing to roll back.");
+    log.info("Nothing to roll back");
   }
 }
