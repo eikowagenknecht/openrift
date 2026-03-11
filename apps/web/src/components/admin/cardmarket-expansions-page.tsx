@@ -1,3 +1,4 @@
+import { CountBadge } from "@/components/admin/count-badge";
 import {
   ActionCard,
   ClearPriceCard,
@@ -5,7 +6,6 @@ import {
   refreshActions,
   useCronStatus,
 } from "@/components/admin/refresh-actions";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -101,18 +101,10 @@ export function CardmarketExpansionsPage() {
                       </Select>
                     </TableCell>
                     <TableCell className="text-right">
-                      {expansion.assignedCount > 0 ? (
-                        <Badge variant="secondary">{expansion.assignedCount}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">0</span>
-                      )}
+                      <CountBadge count={expansion.assignedCount} />
                     </TableCell>
                     <TableCell className="text-right">
-                      {expansion.stagedCount > 0 ? (
-                        <Badge variant="secondary">{expansion.stagedCount}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">0</span>
-                      )}
+                      <CountBadge count={expansion.stagedCount} />
                     </TableCell>
                   </TableRow>
                 ))}

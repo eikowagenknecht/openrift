@@ -20,6 +20,7 @@ import type {
 } from "./price-mappings-types";
 import { formatCents, NOOP, ProductLink } from "./price-mappings-utils";
 import { ProductSelect } from "./product-select";
+import { SectionHeading } from "./section-heading";
 import { StagedProductCard } from "./staged-product-card";
 import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 import type { Suggestion } from "./suggest-mapping";
@@ -231,9 +232,7 @@ export function ExpandedDetail({
 
       {/* Products — sidebar */}
       <div className="w-full shrink-0 sm:w-80">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {config.shortName} Products
-        </h4>
+        <SectionHeading>{config.shortName} Products</SectionHeading>
         <div className="flex flex-col gap-2">
           {[...group.stagedProducts, ...group.assignedProducts]
             .toSorted(

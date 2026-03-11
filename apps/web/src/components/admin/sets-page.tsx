@@ -1,8 +1,8 @@
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useState } from "react";
 
+import { CountBadge } from "@/components/admin/count-badge";
 import { ActionCard, refreshActions, useCronStatus } from "@/components/admin/refresh-actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -219,10 +219,10 @@ export function SetsPage() {
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant="secondary">{set.cardCount}</Badge>
+                    <CountBadge count={set.cardCount} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant="secondary">{set.printingCount}</Badge>
+                    <CountBadge count={set.printingCount} />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -268,18 +268,10 @@ export function SetsPage() {
                   <TableCell>{set.name}</TableCell>
                   <TableCell className="text-right">{set.printedTotal}</TableCell>
                   <TableCell className="text-right">
-                    {set.cardCount > 0 ? (
-                      <Badge variant="secondary">{set.cardCount}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">0</span>
-                    )}
+                    <CountBadge count={set.cardCount} />
                   </TableCell>
                   <TableCell className="text-right">
-                    {set.printingCount > 0 ? (
-                      <Badge variant="secondary">{set.printingCount}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">0</span>
-                    )}
+                    <CountBadge count={set.printingCount} />
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => startEditing(set)}>

@@ -1,3 +1,4 @@
+import { CountBadge } from "@/components/admin/count-badge";
 import {
   ActionCard,
   ClearPriceCard,
@@ -5,7 +6,6 @@ import {
   refreshActions,
   useCronStatus,
 } from "@/components/admin/refresh-actions";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -93,18 +93,10 @@ export function TcgplayerGroupsPage() {
                       </Select>
                     </TableCell>
                     <TableCell className="text-right">
-                      {group.assignedCount > 0 ? (
-                        <Badge variant="secondary">{group.assignedCount}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">0</span>
-                      )}
+                      <CountBadge count={group.assignedCount} />
                     </TableCell>
                     <TableCell className="text-right">
-                      {group.stagedCount > 0 ? (
-                        <Badge variant="secondary">{group.stagedCount}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">0</span>
-                      )}
+                      <CountBadge count={group.stagedCount} />
                     </TableCell>
                   </TableRow>
                 ))}

@@ -17,6 +17,7 @@ import {
 
 import { CardGroupRow } from "./card-group-row";
 import type { MappingGroup, SetGroup, SourceMappingConfig } from "./price-mappings-types";
+import { SectionHeading } from "./section-heading";
 import { StagedProductCard } from "./staged-product-card";
 import { computeSuggestions } from "./suggest-mapping";
 
@@ -282,9 +283,9 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
 
         {unmatchedProducts.length > 0 && (
           <div className="mt-6">
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <SectionHeading>
               Unmatched {config.shortName} Products ({unmatchedProducts.length})
-            </h4>
+            </SectionHeading>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
               {unmatchedProducts
                 .toSorted(
