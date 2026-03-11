@@ -9,6 +9,12 @@ import { HeroBackground } from "./hero-background";
 export function LandingPage() {
   const [spinning, setSpinning] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [hinting, setHinting] = useState(false);
+
+  function handleLogoTap() {
+    setHinting(true);
+    setTimeout(() => setHinting(false), 400);
+  }
 
   function handleAllCollected() {
     setSpinning(true);
@@ -19,13 +25,19 @@ export function LandingPage() {
   }
 
   return (
-    <HeroBackground cardResetKey={resetKey} onAllCollected={handleAllCollected}>
+    <HeroBackground
+      cardResetKey={resetKey}
+      cardHinting={hinting}
+      onAllCollected={handleAllCollected}
+    >
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
-        <img
-          src="/logo.webp"
-          alt=""
-          className={cn("size-28 drop-shadow-lg md:size-36", spinning && "animate-logo-spin")}
-        />
+        <button type="button" className="cursor-pointer" onClick={handleLogoTap}>
+          <img
+            src="/logo.webp"
+            alt=""
+            className={cn("size-28 drop-shadow-lg md:size-36", spinning && "animate-logo-spin")}
+          />
+        </button>
 
         <h1 className="mt-6 text-4xl font-bold tracking-tight md:text-5xl">OpenRift</h1>
         <p className="mt-3 text-center text-lg text-muted-foreground">
