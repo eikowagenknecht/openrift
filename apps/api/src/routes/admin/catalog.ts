@@ -5,6 +5,8 @@ import { z } from "zod/v4";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
@@ -63,13 +65,7 @@ const updateExpansionSchema = z.object({
 });
 
 catalogRoute.put("/admin/cardmarket-expansions", async (c) => {
-  const body = await c.req.json();
-  const parsed = updateExpansionSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { expansionId, setId } = parsed.data;
+  const { expansionId, setId } = updateExpansionSchema.parse(await c.req.json());
 
   await db
     .updateTable("cardmarket_expansions")
@@ -134,13 +130,7 @@ const updateGroupSchema = z.object({
 });
 
 catalogRoute.put("/admin/tcgplayer-groups", async (c) => {
-  const body = await c.req.json();
-  const parsed = updateGroupSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { groupId, setId } = parsed.data;
+  const { groupId, setId } = updateGroupSchema.parse(await c.req.json());
 
   await db
     .updateTable("tcgplayer_groups")
@@ -191,13 +181,7 @@ const updateSetSchema = z.object({
 });
 
 catalogRoute.put("/admin/sets", async (c) => {
-  const body = await c.req.json();
-  const parsed = updateSetSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { id, name, printedTotal } = parsed.data;
+  const { id, name, printedTotal } = updateSetSchema.parse(await c.req.json());
 
   await db
     .updateTable("sets")
@@ -215,18 +199,12 @@ const createSetSchema = z.object({
 });
 
 catalogRoute.post("/admin/sets", async (c) => {
-  const body = await c.req.json();
-  const parsed = createSetSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { id, name, printedTotal } = parsed.data;
+  const { id, name, printedTotal } = createSetSchema.parse(await c.req.json());
 
   const existing = await db.selectFrom("sets").select("id").where("id", "=", id).executeTakeFirst();
 
   if (existing) {
-    return c.json({ error: `Set with ID "${id}" already exists` }, 409);
+    throw new AppError(409, "CONFLICT", `Set with ID "${id}" already exists`);
   }
 
   await db.insertInto("sets").values({ id, name, printed_total: printedTotal }).execute();

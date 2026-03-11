@@ -9,6 +9,8 @@ import { Hono } from "hono";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
@@ -98,7 +100,7 @@ decksRoute.get("/decks/:id", async (c) => {
     .executeTakeFirst();
 
   if (!deck) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   const cardRows = await db
@@ -165,7 +167,7 @@ decksRoute.patch("/decks/:id", async (c) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return c.json({ error: "No fields to update" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "No fields to update");
   }
 
   updates.updated_at = new Date();
@@ -179,7 +181,7 @@ decksRoute.patch("/decks/:id", async (c) => {
     .executeTakeFirst();
 
   if (!row) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(toDeck(row));
@@ -198,7 +200,7 @@ decksRoute.delete("/decks/:id", async (c) => {
     .executeTakeFirst();
 
   if (result.numDeletedRows === 0n) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json({ ok: true });
@@ -221,7 +223,7 @@ decksRoute.put("/decks/:id/cards", async (c) => {
     .executeTakeFirst();
 
   if (!deck) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   // Validate format rules
@@ -234,10 +236,14 @@ decksRoute.put("/decks/:id/cards", async (c) => {
       .reduce((sum, entry) => sum + entry.quantity, 0);
 
     if (mainCount < 40) {
-      return c.json({ error: "Standard format requires at least 40 main deck cards" }, 400);
+      throw new AppError(
+        400,
+        "BAD_REQUEST",
+        "Standard format requires at least 40 main deck cards",
+      );
     }
     if (sideboardCount > 8) {
-      return c.json({ error: "Standard format allows at most 8 sideboard cards" }, 400);
+      throw new AppError(400, "BAD_REQUEST", "Standard format allows at most 8 sideboard cards");
     }
   }
 
@@ -283,7 +289,7 @@ decksRoute.get("/decks/:id/availability", async (c) => {
     .executeTakeFirst();
 
   if (!deck) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   // Get deck card requirements

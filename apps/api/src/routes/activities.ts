@@ -6,6 +6,8 @@ import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
@@ -71,7 +73,7 @@ activitiesRoute.get("/activities/:id", async (c) => {
     .executeTakeFirst();
 
   if (!activity) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   const itemRows = await db

@@ -5,6 +5,8 @@ import { Hono } from "hono";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
@@ -82,7 +84,7 @@ sourcesRoute.get("/sources/:id", async (c) => {
     .executeTakeFirst();
 
   if (!row) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(toSource(row));
@@ -104,7 +106,7 @@ sourcesRoute.patch("/sources/:id", async (c) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return c.json({ error: "No fields to update" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "No fields to update");
   }
 
   updates.updated_at = new Date();
@@ -118,7 +120,7 @@ sourcesRoute.patch("/sources/:id", async (c) => {
     .executeTakeFirst();
 
   if (!row) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(toSource(row));
@@ -137,7 +139,7 @@ sourcesRoute.delete("/sources/:id", async (c) => {
     .executeTakeFirst();
 
   if (result.numDeletedRows === 0n) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json({ ok: true });

@@ -10,6 +10,8 @@ import { Hono } from "hono";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
@@ -105,7 +107,7 @@ wishListsRoute.get("/wish-lists/:id", async (c) => {
     .executeTakeFirst();
 
   if (!wishList) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   const itemRows = await db
@@ -136,7 +138,7 @@ wishListsRoute.patch("/wish-lists/:id", async (c) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return c.json({ error: "No fields to update" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "No fields to update");
   }
 
   updates.updated_at = new Date();
@@ -150,7 +152,7 @@ wishListsRoute.patch("/wish-lists/:id", async (c) => {
     .executeTakeFirst();
 
   if (!row) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(toWishList(row));
@@ -169,7 +171,7 @@ wishListsRoute.delete("/wish-lists/:id", async (c) => {
     .executeTakeFirst();
 
   if (result.numDeletedRows === 0n) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json({ ok: true });
@@ -184,7 +186,7 @@ wishListsRoute.post("/wish-lists/:id/items", async (c) => {
 
   // Validate XOR constraint
   if ((!body.cardId && !body.printingId) || (body.cardId && body.printingId)) {
-    return c.json({ error: "Exactly one of cardId or printingId must be provided" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "Exactly one of cardId or printingId must be provided");
   }
 
   // Verify wish list belongs to user
@@ -196,7 +198,7 @@ wishListsRoute.post("/wish-lists/:id/items", async (c) => {
     .executeTakeFirst();
 
   if (!wishList) {
-    return c.json({ error: "Wish list not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Wish list not found");
   }
 
   const id = crypto.randomUUID();
@@ -234,7 +236,7 @@ wishListsRoute.patch("/wish-lists/:id/items/:itemId", async (c) => {
     .executeTakeFirst();
 
   if (!row) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(toWishListItem(row));
@@ -255,7 +257,7 @@ wishListsRoute.delete("/wish-lists/:id/items/:itemId", async (c) => {
     .executeTakeFirst();
 
   if (result.numDeletedRows === 0n) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json({ ok: true });

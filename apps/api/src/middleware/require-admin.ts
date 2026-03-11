@@ -3,6 +3,8 @@ import type { MiddlewareHandler } from "hono";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
 const ADMIN_CACHE_TTL = 30_000; // 30 seconds
@@ -32,11 +34,11 @@ export async function isAdmin(userId: string): Promise<boolean> {
 export const requireAdmin: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
   const user = c.get("user");
   if (!user) {
-    return c.json({ error: "Unauthorized" }, 401);
+    throw new AppError(401, "UNAUTHORIZED", "Unauthorized");
   }
 
   if (!(await isAdmin(user.id))) {
-    return c.json({ error: "Forbidden" }, 403);
+    throw new AppError(403, "FORBIDDEN", "Forbidden");
   }
 
   await next();

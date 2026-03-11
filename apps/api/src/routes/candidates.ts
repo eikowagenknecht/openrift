@@ -8,6 +8,8 @@ import { sql } from "kysely";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
 export const candidatesRoute = new Hono<{ Variables: Variables }>();
@@ -15,13 +17,7 @@ export const candidatesRoute = new Hono<{ Variables: Variables }>();
 // ── POST /candidates/upload ─────────────────────────────────────────────────
 
 candidatesRoute.post("/candidates/upload", async (c) => {
-  const body = await c.req.json();
-  const parsed = candidateUploadSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid payload", details: parsed.error.issues }, 400);
-  }
-
-  const { source, candidates } = parsed.data;
+  const { source, candidates } = candidateUploadSchema.parse(await c.req.json());
 
   // Load alias table for matching
   const aliasRows = await db.selectFrom("card_name_aliases").select(["alias", "card_id"]).execute();
@@ -225,7 +221,7 @@ candidatesRoute.patch("/candidates/:id", async (c) => {
     .executeTakeFirst();
 
   if (!existing) {
-    return c.json({ error: "Candidate not found or not pending" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Candidate not found or not pending");
   }
 
   // Only allow updating card fields
@@ -253,7 +249,7 @@ candidatesRoute.patch("/candidates/:id", async (c) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return c.json({ error: "No valid fields to update" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "No valid fields to update");
   }
 
   await db
@@ -415,7 +411,7 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
     .executeTakeFirst();
 
   if (!candidate) {
-    return c.json({ error: "Candidate not found or not pending" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Candidate not found or not pending");
   }
 
   const candidatePrintings = await db
@@ -429,7 +425,7 @@ candidatesRoute.post("/candidates/:id/accept", async (c) => {
     const matchCardId = candidate.match_card_id;
     const acceptedFields: string[] = body.acceptedFields ?? [];
     if (acceptedFields.length === 0) {
-      return c.json({ error: "No fields selected for update" }, 400);
+      throw new AppError(400, "BAD_REQUEST", "No fields selected for update");
     }
 
     await db.transaction().execute(async (trx) => {
@@ -560,7 +556,7 @@ candidatesRoute.post("/candidates/:id/reject", async (c) => {
     .executeTakeFirst();
 
   if (!result || result.numUpdatedRows === 0n) {
-    return c.json({ error: "Candidate not found or not pending" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Candidate not found or not pending");
   }
 
   return c.json({ ok: true });
@@ -573,7 +569,7 @@ candidatesRoute.post("/candidates/batch-accept", async (c) => {
   const ids: string[] = body.ids;
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return c.json({ error: "ids array required" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "ids array required");
   }
 
   const results: { id: string; ok: boolean; error?: string }[] = [];
@@ -626,7 +622,7 @@ candidatesRoute.post("/candidates/:id/alias", async (c) => {
   const cardId: string | undefined = body.cardId;
 
   if (!cardId) {
-    return c.json({ error: "cardId required" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "cardId required");
   }
 
   // Verify the target card exists
@@ -637,7 +633,7 @@ candidatesRoute.post("/candidates/:id/alias", async (c) => {
     .executeTakeFirst();
 
   if (!targetCard) {
-    return c.json({ error: "Target card not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Target card not found");
   }
 
   const candidate = await db
@@ -648,7 +644,7 @@ candidatesRoute.post("/candidates/:id/alias", async (c) => {
     .executeTakeFirst();
 
   if (!candidate) {
-    return c.json({ error: "Candidate not found or not pending" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Candidate not found or not pending");
   }
 
   await db.transaction().execute(async (trx) => {

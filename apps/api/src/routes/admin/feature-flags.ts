@@ -4,6 +4,8 @@ import { z } from "zod/v4";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
@@ -46,13 +48,9 @@ const createFlagSchema = z.object({
 });
 
 featureFlagsRoute.post("/admin/feature-flags", async (c) => {
-  const body = await c.req.json();
-  const parsed = createFlagSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
+  const body = createFlagSchema.parse(await c.req.json());
 
-  const { key, description, enabled } = parsed.data;
+  const { key, description, enabled } = body;
 
   const existing = await db
     .selectFrom("feature_flags")
@@ -61,7 +59,7 @@ featureFlagsRoute.post("/admin/feature-flags", async (c) => {
     .executeTakeFirst();
 
   if (existing) {
-    return c.json({ error: `Flag "${key}" already exists` }, 409);
+    throw new AppError(409, "CONFLICT", `Flag "${key}" already exists`);
   }
 
   await db
@@ -85,11 +83,7 @@ const updateFlagSchema = z.object({
 
 featureFlagsRoute.patch("/admin/feature-flags/:key", async (c) => {
   const key = c.req.param("key");
-  const body = await c.req.json();
-  const parsed = updateFlagSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
+  const body = updateFlagSchema.parse(await c.req.json());
 
   const existing = await db
     .selectFrom("feature_flags")
@@ -98,15 +92,15 @@ featureFlagsRoute.patch("/admin/feature-flags/:key", async (c) => {
     .executeTakeFirst();
 
   if (!existing) {
-    return c.json({ error: `Flag "${key}" not found` }, 404);
+    throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
   }
 
   const updates: Record<string, unknown> = { updated_at: new Date() };
-  if (parsed.data.enabled !== undefined) {
-    updates.enabled = parsed.data.enabled;
+  if (body.enabled !== undefined) {
+    updates.enabled = body.enabled;
   }
-  if (parsed.data.description !== undefined) {
-    updates.description = parsed.data.description;
+  if (body.description !== undefined) {
+    updates.description = body.description;
   }
 
   await db.updateTable("feature_flags").set(updates).where("key", "=", key).execute();
@@ -122,7 +116,7 @@ featureFlagsRoute.delete("/admin/feature-flags/:key", async (c) => {
   const result = await db.deleteFrom("feature_flags").where("key", "=", key).executeTakeFirst();
 
   if (result.numDeletedRows === 0n) {
-    return c.json({ error: `Flag "${key}" not found` }, 404);
+    throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
   }
 
   return c.json({ ok: true });

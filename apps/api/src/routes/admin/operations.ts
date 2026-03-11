@@ -8,6 +8,8 @@ import { z } from "zod/v4";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getRehostStatus, regenerateImages, rehostImages } from "../../services/image-rehost.js";
@@ -25,11 +27,7 @@ const clearPriceSourceSchema = z.enum(["tcgplayer", "cardmarket"]);
 operationsRoute.use("/admin/clear-prices", requireAdmin);
 operationsRoute.post("/admin/clear-prices", async (c) => {
   const body = await c.req.json();
-  const parsed = clearPriceSourceSchema.safeParse(body.source);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid source — must be 'tcgplayer' or 'cardmarket'" }, 400);
-  }
-  const source = parsed.data;
+  const source = clearPriceSourceSchema.parse(body.source);
 
   try {
     if (source === "tcgplayer") {
@@ -64,7 +62,7 @@ operationsRoute.post("/admin/clear-prices", async (c) => {
     });
   } catch (error) {
     log.error(error, `clear-prices (${source}) failed`);
-    return c.json({ error: `Failed to clear ${source} price data` }, 500);
+    throw new AppError(500, "INTERNAL_ERROR", `Failed to clear ${source} price data`);
   }
 });
 
@@ -78,7 +76,7 @@ operationsRoute.post("/admin/refresh-catalog", async (c) => {
     return c.json({ status: "ok", dryRun, result });
   } catch (error) {
     log.error(error, "refresh-catalog failed");
-    return c.json({ error: "Catalog refresh failed" }, 500);
+    throw new AppError(500, "INTERNAL_ERROR", "Catalog refresh failed");
   }
 });
 
@@ -89,7 +87,7 @@ operationsRoute.post("/admin/refresh-tcgplayer-prices", async (c) => {
     return c.json({ status: "ok", result });
   } catch (error) {
     log.error(error, "refresh-tcgplayer-prices failed");
-    return c.json({ error: "TCGPlayer price refresh failed" }, 500);
+    throw new AppError(500, "INTERNAL_ERROR", "TCGPlayer price refresh failed");
   }
 });
 
@@ -100,7 +98,7 @@ operationsRoute.post("/admin/refresh-cardmarket-prices", async (c) => {
     return c.json({ status: "ok", result });
   } catch (error) {
     log.error(error, "refresh-cardmarket-prices failed");
-    return c.json({ error: "Cardmarket price refresh failed" }, 500);
+    throw new AppError(500, "INTERNAL_ERROR", "Cardmarket price refresh failed");
   }
 });
 
@@ -113,7 +111,7 @@ operationsRoute.post("/admin/rehost-images", async (c) => {
     return c.json({ status: "ok", result });
   } catch (error) {
     log.error(error, "rehost-images failed");
-    return c.json({ error: "Image rehosting failed" }, 500);
+    throw new AppError(500, "INTERNAL_ERROR", "Image rehosting failed");
   }
 });
 
@@ -125,7 +123,7 @@ operationsRoute.post("/admin/regenerate-images", async (c) => {
     return c.json({ status: "ok", result });
   } catch (error) {
     log.error(error, "regenerate-images failed");
-    return c.json({ error: "Image regeneration failed" }, 500);
+    throw new AppError(500, "INTERNAL_ERROR", "Image regeneration failed");
   }
 });
 
@@ -136,6 +134,6 @@ operationsRoute.get("/admin/rehost-status", async (c) => {
     return c.json(result);
   } catch (error) {
     log.error(error, "rehost-status failed");
-    return c.json({ error: "Failed to get rehost status" }, 500);
+    throw new AppError(500, "INTERNAL_ERROR", "Failed to get rehost status");
   }
 });

@@ -465,13 +465,7 @@ export function createMappingRoutes(
   });
 
   app.post(path, async (c) => {
-    const body = await c.req.json();
-    const parsed = saveMappingsSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-    }
-
-    const { mappings } = parsed.data;
+    const { mappings } = saveMappingsSchema.parse(await c.req.json());
     if (mappings.length === 0) {
       return c.json({ saved: 0 });
     }
@@ -541,13 +535,7 @@ export function createMappingRoutes(
   });
 
   app.delete(path, async (c) => {
-    const body = await c.req.json();
-    const parsed = unmapSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-    }
-
-    const { printingId } = parsed.data;
+    const { printingId } = unmapSchema.parse(await c.req.json());
 
     await db.transaction().execute(async (tx) => {
       const ps = await tx

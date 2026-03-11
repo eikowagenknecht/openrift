@@ -1,12 +1,15 @@
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { sql } from "kysely";
+import { z } from "zod/v4";
 
 import { auth } from "./auth.js";
 import { config } from "./config.js";
 import { matchOrigin } from "./cors.js";
 import { db } from "./db.js";
+import { AppError } from "./errors.js";
 import { activitiesRoute } from "./routes/activities.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { cardsRoute } from "./routes/cards.js";
@@ -20,6 +23,31 @@ import { wishListsRoute } from "./routes/wish-lists.js";
 import type { Variables } from "./types.js";
 
 const app = new Hono<{ Variables: Variables }>();
+
+// oxlint-disable-next-line promise/prefer-await-to-callbacks -- Hono's onError API takes a callback
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    const body: Record<string, unknown> = { error: err.message, code: err.code };
+    if (err.details !== undefined) {
+      body.details = err.details;
+    }
+    return c.json(body, err.status as ContentfulStatusCode);
+  }
+
+  if (err instanceof z.ZodError) {
+    return c.json(
+      { error: "Invalid request body", code: "VALIDATION_ERROR", details: err.issues },
+      400,
+    );
+  }
+
+  if (err instanceof SyntaxError) {
+    return c.json({ error: "Invalid JSON in request body", code: "BAD_REQUEST" }, 400);
+  }
+
+  console.error(err);
+  return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
+});
 
 app.use(
   "/api/*",

@@ -6,6 +6,8 @@ import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
@@ -137,7 +139,7 @@ copiesRoute.post("/copies/move", async (c) => {
     .executeTakeFirst();
 
   if (!target) {
-    return c.json({ error: "Target collection not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Target collection not found");
   }
 
   await db.transaction().execute(async (trx) => {
@@ -303,7 +305,7 @@ copiesRoute.get("/copies/:id", async (c) => {
     .executeTakeFirst();
 
   if (!copy) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(copy);

@@ -7,6 +7,8 @@ import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
@@ -104,7 +106,7 @@ collectionsRoute.get("/collections/:id", async (c) => {
     .executeTakeFirst();
 
   if (!row) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(toCollection(row));
@@ -132,7 +134,7 @@ collectionsRoute.patch("/collections/:id", async (c) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return c.json({ error: "No fields to update" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "No fields to update");
   }
 
   updates.updated_at = new Date();
@@ -146,7 +148,7 @@ collectionsRoute.patch("/collections/:id", async (c) => {
     .executeTakeFirst();
 
   if (!row) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   return c.json(toCollection(row));
@@ -167,19 +169,19 @@ collectionsRoute.delete("/collections/:id", async (c) => {
     .executeTakeFirst();
 
   if (!collection) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   if (collection.is_inbox) {
-    return c.json({ error: "Cannot delete inbox collection" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "Cannot delete inbox collection");
   }
 
   if (!moveCopiesTo) {
-    return c.json({ error: "move_copies_to query parameter is required" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "move_copies_to query parameter is required");
   }
 
   if (moveCopiesTo === id) {
-    return c.json({ error: "Cannot move copies to the same collection" }, 400);
+    throw new AppError(400, "BAD_REQUEST", "Cannot move copies to the same collection");
   }
 
   // Verify target collection exists and belongs to user
@@ -191,7 +193,7 @@ collectionsRoute.delete("/collections/:id", async (c) => {
     .executeTakeFirst();
 
   if (!target) {
-    return c.json({ error: "Target collection not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Target collection not found");
   }
 
   await db.transaction().execute(async (trx) => {
@@ -254,7 +256,7 @@ collectionsRoute.get("/collections/:id/copies", async (c) => {
     .executeTakeFirst();
 
   if (!collection) {
-    return c.json({ error: "Not found" }, 404);
+    throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
   const copies = await db

@@ -1,6 +1,8 @@
 import type { Context } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
 /**
@@ -11,7 +13,7 @@ import type { Variables } from "../types.js";
 export function getUserId(c: Context<{ Variables: Variables }>): string {
   const user = c.get("user");
   if (!user) {
-    throw new Error("getUserId called without authentication");
+    throw new AppError(401, "UNAUTHORIZED", "Unauthorized");
   }
   return user.id;
 }

@@ -27,13 +27,7 @@ const ignoreProductsSchema = z.object({
 // ── POST /admin/ignored-products ────────────────────────────────────────────
 
 ignoredProductsRoute.post("/admin/ignored-products", async (c) => {
-  const body = await c.req.json();
-  const parsed = ignoreProductsSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { source, products } = parsed.data;
+  const { source, products } = ignoreProductsSchema.parse(await c.req.json());
   const stagingTable =
     source === "tcgplayer" ? ("tcgplayer_staging" as const) : ("cardmarket_staging" as const);
   const ignoreTable =
@@ -79,13 +73,7 @@ ignoredProductsRoute.post("/admin/ignored-products", async (c) => {
 // ── DELETE /admin/ignored-products ──────────────────────────────────────────
 
 ignoredProductsRoute.delete("/admin/ignored-products", async (c) => {
-  const body = await c.req.json();
-  const parsed = ignoreProductsSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { source, products } = parsed.data;
+  const { source, products } = ignoreProductsSchema.parse(await c.req.json());
   const ignoreTable =
     source === "tcgplayer"
       ? ("tcgplayer_ignored_products" as const)
@@ -115,13 +103,9 @@ const stagingCardOverrideSchema = z.object({
 });
 
 ignoredProductsRoute.post("/admin/staging-card-overrides", async (c) => {
-  const body = await c.req.json();
-  const parsed = stagingCardOverrideSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { source, externalId, finish, cardId, setId } = parsed.data;
+  const { source, externalId, finish, cardId, setId } = stagingCardOverrideSchema.parse(
+    await c.req.json(),
+  );
   const table =
     source === "tcgplayer"
       ? ("tcgplayer_staging_card_overrides" as const)
@@ -150,13 +134,7 @@ const deleteOverrideSchema = z.object({
 });
 
 ignoredProductsRoute.delete("/admin/staging-card-overrides", async (c) => {
-  const body = await c.req.json();
-  const parsed = deleteOverrideSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: "Invalid request body", details: parsed.error.issues }, 400);
-  }
-
-  const { source, externalId, finish } = parsed.data;
+  const { source, externalId, finish } = deleteOverrideSchema.parse(await c.req.json());
   const table =
     source === "tcgplayer"
       ? ("tcgplayer_staging_card_overrides" as const)
