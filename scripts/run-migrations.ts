@@ -1,9 +1,10 @@
 import { createDb } from "../packages/shared/src/db/connect.js";
 import { migrate, rollback } from "../packages/shared/src/db/migrate.js";
 import { createLogger } from "../packages/shared/src/logger.js";
+import { requireEnv } from "./env.js";
 
 const log = createLogger("migrate");
-const db = createDb();
+const { db } = createDb(requireEnv("DATABASE_URL"));
 const command = process.argv[2] ?? "latest";
 
 try {

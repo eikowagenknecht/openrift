@@ -1,15 +1,7 @@
-import type { Database } from "@openrift/shared/db";
-import { Kysely } from "kysely";
-import { PostgresJSDialect } from "kysely-postgres-js";
-import postgres from "postgres";
+import { createDb } from "@openrift/shared/db/connect";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
+if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-export const dialect = new PostgresJSDialect({
-  postgres: postgres(connectionString),
-});
-
-export const db = new Kysely<Database>({ dialect });
+export const { db, dialect } = createDb(process.env.DATABASE_URL);

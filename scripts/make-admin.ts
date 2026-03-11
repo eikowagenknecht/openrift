@@ -1,4 +1,5 @@
 import { createDb } from "../packages/shared/src/db/connect.js";
+import { requireEnv } from "./env.js";
 
 const email = process.argv[2];
 if (!email) {
@@ -6,7 +7,7 @@ if (!email) {
   process.exit(1);
 }
 
-const db = createDb();
+const { db } = createDb(requireEnv("DATABASE_URL"));
 
 const user = await db
   .selectFrom("users")

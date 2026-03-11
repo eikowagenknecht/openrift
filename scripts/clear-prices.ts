@@ -1,6 +1,7 @@
 import { createDb } from "../packages/shared/src/db/connect.js";
+import { requireEnv } from "./env.js";
 
-const db = createDb();
+const { db } = createDb(requireEnv("DATABASE_URL"));
 
 const tcgSnapshots = await db.deleteFrom("tcgplayer_snapshots").execute();
 console.log(`Deleted ${tcgSnapshots[0].numDeletedRows} tcgplayer_snapshots`);
