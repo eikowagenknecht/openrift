@@ -1,5 +1,4 @@
 import type { Printing } from "@openrift/shared";
-import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { Suspense, lazy, useDeferredValue, useEffect, useRef, useState } from "react";
@@ -12,6 +11,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCardData } from "@/hooks/use-card-data";
 import { useCardFilters } from "@/hooks/use-card-filters";
 import { ApiError, useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
@@ -118,29 +118,23 @@ export function CardBrowser() {
     };
   }, [detailOpen]);
 
-  const setCodeToName = new Map(setInfoList.map((s) => [s.code, s.name]));
-  const setDisplayLabel = (code: string) => setCodeToName.get(code) ?? code;
-
-  const availableFilters = getAvailableFilters(allCards);
-  const filteredCards = filterCards(allCards, filters);
-
-  // In "cards" mode, deduplicate by cardId — keep the printing with the lowest sourceId.
-  const displayCards =
-    view === "cards"
-      ? (() => {
-          const seen = new Map<string, Printing>();
-          for (const printing of filteredCards) {
-            const existing = seen.get(printing.card.id);
-            if (!existing || printing.sourceId.localeCompare(existing.sourceId) < 0) {
-              seen.set(printing.card.id, printing);
-            }
-          }
-          return [...seen.values()];
-        })()
-      : filteredCards;
-
-  const sorted = sortCards(displayCards, sortBy);
-  const sortedCards = sortDir === "desc" ? sorted.toReversed() : sorted;
+  const {
+    availableFilters,
+    sortedCards,
+    printingsByCardId,
+    priceRangeByCardId,
+    ownedCounts,
+    totalUniqueCards,
+    setDisplayLabel,
+  } = useCardData({
+    allCards,
+    setInfoList,
+    filters,
+    sortBy,
+    sortDir,
+    view,
+    ownedCountByPrinting: ownedCountByPrinting ?? undefined,
+  });
 
   // Defer the expensive card grid re-render so the filter UI (badge highlight,
   // sheet close animation) responds immediately. The grid updates once React
@@ -174,79 +168,7 @@ export function CardBrowser() {
     setDetailOpen(true);
   };
 
-  const printingsByCardId = (() => {
-    const map = new Map<string, Printing[]>();
-    for (const p of allCards) {
-      let group = map.get(p.card.id);
-      if (!group) {
-        group = [];
-        map.set(p.card.id, group);
-      }
-      group.push(p);
-    }
-    for (const group of map.values()) {
-      group.sort((a, b) => a.sourceId.localeCompare(b.sourceId));
-    }
-    return map;
-  })();
-
   const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.card.id) ?? []) : [];
-
-  const priceRangeByCardId =
-    view === "cards"
-      ? (() => {
-          const map = new Map<string, { min: number; max: number }>();
-          for (const [cardId, printings] of printingsByCardId) {
-            let min = Infinity;
-            let max = -Infinity;
-            for (const p of printings) {
-              const price = p.marketPrice;
-              if (price !== null && price !== undefined) {
-                min = Math.min(min, price);
-                max = Math.max(max, price);
-              }
-            }
-            if (min !== Infinity) {
-              map.set(cardId, { min, max });
-            }
-          }
-          return map;
-        })()
-      : null;
-
-  // Build owned count map keyed by printing ID (card.id in frontend Card type).
-  // In "cards" view, the representative printing gets the total across all printings.
-  const ownedCounts = (() => {
-    if (!ownedCountByPrinting) {
-      return;
-    }
-    const map = new Map<string, number>();
-    if (view === "cards") {
-      // Sum counts by card.id, then assign to the representative printing shown in the grid
-      const countByCard = new Map<string, number>();
-      for (const p of allCards) {
-        const count = ownedCountByPrinting[p.id] ?? 0;
-        countByCard.set(p.card.id, (countByCard.get(p.card.id) ?? 0) + count);
-      }
-      for (const p of displayCards) {
-        const count = countByCard.get(p.card.id) ?? 0;
-        if (count > 0) {
-          map.set(p.id, count);
-        }
-      }
-    } else {
-      for (const p of allCards) {
-        const count = ownedCountByPrinting[p.id] ?? 0;
-        if (count > 0) {
-          map.set(p.id, count);
-        }
-      }
-    }
-    return map;
-  })();
-
-  const totalUniqueCards =
-    view === "cards" ? new Set(allCards.map((c) => c.card.id)).size : allCards.length;
 
   const gridSelectedId =
     view === "cards" && selectedCard
