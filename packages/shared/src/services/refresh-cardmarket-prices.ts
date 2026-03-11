@@ -13,7 +13,14 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
-import { fetchJson, logUpsertCounts, toCents, upsertPriceData } from "./refresh-prices-shared.js";
+import {
+  BATCH_SIZE,
+  buildSnapshotsFromStaging,
+  fetchJson,
+  logUpsertCounts,
+  toCents,
+  upsertPriceData,
+} from "./refresh-prices-shared.js";
 import type { PriceRefreshResult, PriceUpsertConfig } from "./refresh-prices-shared.js";
 
 // ── Local row types (exported for tests) ──────────────────────────────────
@@ -106,7 +113,6 @@ export async function refreshCardmarketPrices(
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
-  const allSnapshots: CardmarketSnapshotData[] = [];
   const allStaging: CardmarketStagingRow[] = [];
 
   // ── Fetch Cardmarket data ──────────────────────────────────────────────────
@@ -121,8 +127,7 @@ export async function refreshCardmarketPrices(
   ]);
 
   const cmPriceGuides = cmPriceGuideRes.data.priceGuides || [];
-  const cmSinglesAll = cmSinglesRes.data.products || [];
-  const cmSingles = cmSinglesAll;
+  const cmSingles = cmSinglesRes.data.products || [];
 
   // Use createdAt from response body if available, otherwise Last-Modified header, otherwise now
   const cmRecordedAt = cmPriceGuideRes.data.createdAt
@@ -140,25 +145,25 @@ export async function refreshCardmarketPrices(
   for (const product of cmSingles) {
     expansionIds.add(product.idExpansion);
   }
-  if (expansionIds.size > 0) {
-    await db
+  const expansionValues = [...expansionIds].map((expId) => ({ expansion_id: expId }));
+  const dbExpansions: { expansion_id: number; set_id: string | null }[] = [];
+  for (let i = 0; i < expansionValues.length; i += BATCH_SIZE) {
+    const batch = expansionValues.slice(i, i + BATCH_SIZE);
+    const rows = await db
       .insertInto("cardmarket_expansions")
-      .values([...expansionIds].map((expId) => ({ expansion_id: expId })))
+      .values(batch)
       .onConflict((oc) =>
         oc.column("expansion_id").doUpdateSet({
           updated_at: sql<Date>`now()`,
         }),
       )
+      .returning(["expansion_id", "set_id"])
       .execute();
+    dbExpansions.push(...rows);
   }
 
-  const dbExpansions = await db
-    .selectFrom("cardmarket_expansions")
-    .select(["expansion_id", "set_id"])
-    .execute();
-
   const cmMappedCount = dbExpansions.filter((e) => e.set_id).length;
-  const cmUnmappedCount = dbExpansions.filter((e) => !e.set_id).length;
+  const cmUnmappedCount = dbExpansions.length - cmMappedCount;
 
   // Stage ALL products, regardless of mapping status
   for (const product of cmSingles) {
@@ -207,36 +212,11 @@ export async function refreshCardmarketPrices(
     .select(["cs.printing_id", "cs.external_id", "p.finish"])
     .execute();
 
-  const printingByExtIdFinish = new Map<string, string[]>();
-  for (const src of existingSources) {
-    const key = `${src.external_id}::${src.finish}`;
-    let arr = printingByExtIdFinish.get(key);
-    if (!arr) {
-      arr = [];
-      printingByExtIdFinish.set(key, arr);
-    }
-    arr.push(src.printing_id);
-  }
-
-  for (const staging of allStaging) {
-    const key = `${staging.external_id}::${staging.finish}`;
-    const printingIds = printingByExtIdFinish.get(key);
-    if (!printingIds) {
-      continue;
-    }
-    for (const printingId of printingIds) {
-      allSnapshots.push({
-        printing_id: printingId,
-        recorded_at: staging.recorded_at,
-        market_cents: staging.market_cents,
-        low_cents: staging.low_cents,
-        trend_cents: staging.trend_cents,
-        avg1_cents: staging.avg1_cents,
-        avg7_cents: staging.avg7_cents,
-        avg30_cents: staging.avg30_cents,
-      });
-    }
-  }
+  const allSnapshots = buildSnapshotsFromStaging(
+    existingSources,
+    allStaging,
+    UPSERT_CONFIG.priceColumns,
+  );
 
   if (allSnapshots.length > 0) {
     log.info(`${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`);

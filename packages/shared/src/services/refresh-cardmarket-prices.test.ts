@@ -136,14 +136,14 @@ function createMockDb(config: MockDbConfig = {}) {
                 insertedExpansionIds.push(v.expansion_id);
               }
             }
-            return makeChain(null);
+            return makeChain(config.expansions ?? []);
           };
         }
         if (prop === "then" || prop === "catch" || prop === "finally") {
           // oxlint-disable-next-line no-useless-undefined -- must explicitly return undefined so the proxy isn't treated as a thenable
           return undefined;
         }
-        return makeChain(null);
+        return makeChain(config.expansions ?? []);
       },
       apply() {
         return makeChain(null);
@@ -155,9 +155,6 @@ function createMockDb(config: MockDbConfig = {}) {
     selectFrom(table: string) {
       if (table === "cardmarket_ignored_products") {
         return makeChain(config.ignoredProducts ?? []);
-      }
-      if (table === "cardmarket_expansions") {
-        return makeChain(config.expansions ?? []);
       }
       if (table.startsWith("cardmarket_sources")) {
         return makeChain(config.existingSources ?? []);

@@ -8,6 +8,25 @@ export function unique<T>(values: T[]): T[] {
 }
 
 /**
+ * Group items into a Map by a key derived from each item.
+ *
+ * @returns A Map from keys to arrays of items sharing that key.
+ */
+export function groupIntoMap<K, T>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
+  const map = new Map<K, T[]>();
+  for (const item of items) {
+    const key = keyFn(item);
+    let arr = map.get(key);
+    if (!arr) {
+      arr = [];
+      map.set(key, arr);
+    }
+    arr.push(item);
+  }
+  return map;
+}
+
+/**
  * Build composite printing ID.
  * @returns Deterministic ID string: "{source_id}:{art_variant}:{signed|}:{promo|}:{finish}"
  */

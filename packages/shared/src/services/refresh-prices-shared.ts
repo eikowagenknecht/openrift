@@ -11,6 +11,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
+import { groupIntoMap } from "../utils.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -100,6 +101,43 @@ export interface StagingRow {
   product_name: string;
   finish: string;
   recorded_at: Date;
+}
+
+/**
+ * Build snapshot rows from staging data and existing source mappings.
+ * Matches staging rows to printing IDs via (external_id, finish) and copies price columns.
+ *
+ * @returns Snapshot rows ready for upsert, one per (printing, recorded_at).
+ */
+export function buildSnapshotsFromStaging(
+  existingSources: { printing_id: string; external_id: number; finish: string }[],
+  allStaging: StagingRow[],
+  priceColumns: string[],
+): SnapshotData[] {
+  const printingByExtIdFinish = groupIntoMap(
+    existingSources,
+    (src) => `${src.external_id}::${src.finish}`,
+  );
+  const snapshots: SnapshotData[] = [];
+  for (const staging of allStaging) {
+    const key = `${staging.external_id}::${staging.finish}`;
+    const sources = printingByExtIdFinish.get(key);
+    if (!sources) {
+      continue;
+    }
+    for (const src of sources) {
+      const row: Record<string, unknown> = {
+        printing_id: src.printing_id,
+        recorded_at: staging.recorded_at,
+      };
+      const stagingRecord = staging as unknown as Record<string, unknown>;
+      for (const col of priceColumns) {
+        row[col] = stagingRecord[col];
+      }
+      snapshots.push(row as unknown as SnapshotData);
+    }
+  }
+  return snapshots;
 }
 
 // ── Price upsert config ─────────────────────────────────────────────────

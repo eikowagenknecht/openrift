@@ -11,19 +11,17 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
-import { fetchJson, logUpsertCounts, toCents, upsertPriceData } from "./refresh-prices-shared.js";
+import { groupIntoMap } from "../utils.js";
+import {
+  buildSnapshotsFromStaging,
+  fetchJson,
+  logUpsertCounts,
+  toCents,
+  upsertPriceData,
+} from "./refresh-prices-shared.js";
 import type { PriceRefreshResult, PriceUpsertConfig } from "./refresh-prices-shared.js";
 
 // ── Local row types ───────────────────────────────────────────────────────
-
-interface TcgplayerSnapshotData {
-  printing_id: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-}
 
 interface TcgplayerStagingRow {
   external_id: number;
@@ -169,15 +167,7 @@ export async function refreshTcgplayerPrices(
     if (!tcgcsvRecordedAt) {
       tcgcsvRecordedAt = lastModified ?? new Date();
     }
-    const pricesByProductId = new Map<number, TcgcsvPrice[]>();
-    for (const price of pricesData.results || []) {
-      let arr = pricesByProductId.get(price.productId);
-      if (!arr) {
-        arr = [];
-        pricesByProductId.set(price.productId, arr);
-      }
-      arr.push(price);
-    }
+    const pricesByProductId = groupIntoMap(pricesData.results || [], (p) => p.productId);
 
     // Stage all products — mapping is done via the admin UI
     for (const product of products) {
@@ -224,36 +214,11 @@ export async function refreshTcgplayerPrices(
     .select(["ts.printing_id", "ts.external_id", "p.finish"])
     .execute();
 
-  // Map (external_id, finish) -> printing_ids
-  const printingByExtIdFinish = new Map<string, string[]>();
-  for (const src of existingSources) {
-    const key = `${src.external_id}::${src.finish}`;
-    let arr = printingByExtIdFinish.get(key);
-    if (!arr) {
-      arr = [];
-      printingByExtIdFinish.set(key, arr);
-    }
-    arr.push(src.printing_id);
-  }
-
-  const allSnapshots: TcgplayerSnapshotData[] = [];
-  for (const staging of allStaging) {
-    const key = `${staging.external_id}::${staging.finish}`;
-    const printingIds = printingByExtIdFinish.get(key);
-    if (!printingIds) {
-      continue;
-    }
-    for (const printingId of printingIds) {
-      allSnapshots.push({
-        printing_id: printingId,
-        recorded_at: staging.recorded_at,
-        market_cents: staging.market_cents,
-        low_cents: staging.low_cents,
-        mid_cents: staging.mid_cents,
-        high_cents: staging.high_cents,
-      });
-    }
-  }
+  const allSnapshots = buildSnapshotsFromStaging(
+    existingSources,
+    allStaging,
+    UPSERT_CONFIG.priceColumns,
+  );
 
   if (allSnapshots.length > 0) {
     log.info(`${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`);
