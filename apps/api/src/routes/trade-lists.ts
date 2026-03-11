@@ -5,8 +5,9 @@ import {
   updateTradeListSchema,
 } from "@openrift/shared/schemas";
 import { Hono } from "hono";
-import { sql } from "kysely";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -121,7 +122,7 @@ tradeListsRoute.get("/trade-lists/:id", async (c) => {
       "tli.copy_id",
       "cp.printing_id",
       "cp.collection_id",
-      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
+      imageUrl("pi").as("image_url"),
       "p.set_id",
       "p.collector_number",
       "p.rarity",

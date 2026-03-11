@@ -5,6 +5,8 @@ import { sql } from "kysely";
 import { z } from "zod/v4";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { imageUrl } from "../../db-helpers.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
@@ -169,7 +171,7 @@ export function createMappingRoutes(
         "p.is_promo",
         "p.finish",
         "p.collector_number",
-        sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
+        imageUrl("pi").as("image_url"),
         "ps.external_id",
       ])
       .orderBy("p.set_id")

@@ -17,8 +17,9 @@ import type {
   TimeRange,
 } from "@openrift/shared";
 import { Hono } from "hono";
-import { sql } from "kysely";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 
@@ -47,7 +48,7 @@ cardsRoute.get("/cards", async (c) => {
       "p.is_signed",
       "p.is_promo",
       "p.finish",
-      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
+      imageUrl("pi").as("image_url"),
       "p.artist",
       "p.public_code",
       "p.printed_rules_text",
