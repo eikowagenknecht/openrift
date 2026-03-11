@@ -125,5 +125,13 @@
     "react/jsx-max-depth": "off", // Impractical for real component trees
     "react/jsx-props-no-spreading": "off" // Idiomatic React, essential for shadcn/ui
   },
-  "ignorePatterns": []
+  "ignorePatterns": [],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "require-await": "off"
+      }
+    }
+  ]
 }
