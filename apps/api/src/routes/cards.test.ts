@@ -10,6 +10,17 @@ const mockState = {
   tables: {} as Record<string, unknown[]>,
 };
 
+mock.module("../config.js", () => ({
+  config: {
+    port: 3000,
+    databaseUrl: "postgres://mock",
+    corsOrigin: undefined,
+    auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
+    smtp: { configured: false },
+    cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
+  },
+}));
+
 mock.module("../db.js", () => ({
   db: {
     selectFrom: (table: string) => {
