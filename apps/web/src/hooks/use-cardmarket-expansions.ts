@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -21,44 +22,17 @@ interface CardmarketExpansionsResponse {
   sets: SetOption[];
 }
 
-async function fetchCardmarketExpansions(): Promise<CardmarketExpansionsResponse> {
-  const res = await fetch(`/api/admin/cardmarket-expansions`, {
-    credentials: "include",
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Cardmarket expansions: ${res.status}`);
-  }
-  return res.json() as Promise<CardmarketExpansionsResponse>;
-}
-
 export function useCardmarketExpansions() {
   return useQuery({
     queryKey: queryKeys.admin.cardmarketExpansions,
-    queryFn: fetchCardmarketExpansions,
+    queryFn: () => api.get<CardmarketExpansionsResponse>("/api/admin/cardmarket-expansions"),
   });
-}
-
-interface UpdateExpansionBody {
-  expansionId: number;
-  setId: string | null;
-}
-
-async function updateCardmarketExpansion(body: UpdateExpansionBody): Promise<{ ok: boolean }> {
-  const res = await fetch(`/api/admin/cardmarket-expansions`, {
-    method: "PUT",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to update Cardmarket expansion: ${res.status}`);
-  }
-  return res.json() as Promise<{ ok: boolean }>;
 }
 
 export function useUpdateCardmarketExpansion() {
   return useMutationWithInvalidation({
-    mutationFn: updateCardmarketExpansion,
+    mutationFn: (body: { expansionId: number; setId: string | null }) =>
+      api.put<{ ok: boolean }>("/api/admin/cardmarket-expansions", body),
     invalidates: [queryKeys.admin.cardmarketExpansions],
   });
 }

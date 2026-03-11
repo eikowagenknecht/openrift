@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -23,42 +24,17 @@ interface TcgplayerGroupsResponse {
   sets: SetOption[];
 }
 
-async function fetchTcgplayerGroups(): Promise<TcgplayerGroupsResponse> {
-  const res = await fetch(`/api/admin/tcgplayer-groups`, { credentials: "include" });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch TCGPlayer groups: ${res.status}`);
-  }
-  return res.json() as Promise<TcgplayerGroupsResponse>;
-}
-
 export function useTcgplayerGroups() {
   return useQuery({
     queryKey: queryKeys.admin.tcgplayerGroups,
-    queryFn: fetchTcgplayerGroups,
+    queryFn: () => api.get<TcgplayerGroupsResponse>("/api/admin/tcgplayer-groups"),
   });
-}
-
-interface UpdateGroupBody {
-  groupId: number;
-  setId: string | null;
-}
-
-async function updateTcgplayerGroup(body: UpdateGroupBody): Promise<{ ok: boolean }> {
-  const res = await fetch(`/api/admin/tcgplayer-groups`, {
-    method: "PUT",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to update TCGPlayer group: ${res.status}`);
-  }
-  return res.json() as Promise<{ ok: boolean }>;
 }
 
 export function useUpdateTcgplayerGroup() {
   return useMutationWithInvalidation({
-    mutationFn: updateTcgplayerGroup,
+    mutationFn: (body: { groupId: number; setId: string | null }) =>
+      api.put<{ ok: boolean }>("/api/admin/tcgplayer-groups", body),
     invalidates: [queryKeys.admin.tcgplayerGroups],
   });
 }

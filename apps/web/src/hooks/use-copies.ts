@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -24,90 +25,40 @@ interface CopyRow {
   card_type: string;
 }
 
-async function fetchAllCopies(): Promise<CopyRow[]> {
-  const res = await fetch("/api/copies", { credentials: "include" });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch copies: ${res.status}`);
-  }
-  return res.json() as Promise<CopyRow[]>;
-}
-
-async function fetchCollectionCopies(collectionId: string): Promise<CopyRow[]> {
-  const res = await fetch(`/api/collections/${collectionId}/copies`, { credentials: "include" });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch copies: ${res.status}`);
-  }
-  return res.json() as Promise<CopyRow[]>;
-}
-
-async function addCopies(body: {
-  copies: { printingId: string; collectionId?: string; sourceId?: string }[];
-}): Promise<{ id: string; printingId: string; collectionId: string; sourceId: string | null }[]> {
-  const res = await fetch("/api/copies", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error ?? `Failed: ${res.status}`);
-  }
-  return res.json() as Promise<
-    { id: string; printingId: string; collectionId: string; sourceId: string | null }[]
-  >;
-}
-
-async function moveCopies(body: { copyIds: string[]; toCollectionId: string }): Promise<void> {
-  const res = await fetch("/api/copies/move", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error ?? `Failed: ${res.status}`);
-  }
-}
-
-async function disposeCopies(body: { copyIds: string[] }): Promise<void> {
-  const res = await fetch("/api/copies/dispose", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error ?? `Failed: ${res.status}`);
-  }
-}
-
 export function useCopies(collectionId?: string) {
   return useQuery({
     queryKey: collectionId ? queryKeys.copies.byCollection(collectionId) : queryKeys.copies.all,
-    queryFn: () => (collectionId ? fetchCollectionCopies(collectionId) : fetchAllCopies()),
+    queryFn: () =>
+      collectionId
+        ? api.get<CopyRow[]>(`/api/collections/${collectionId}/copies`)
+        : api.get<CopyRow[]>("/api/copies"),
   });
 }
 
 export function useAddCopies() {
   return useMutationWithInvalidation({
-    mutationFn: addCopies,
+    mutationFn: (body: {
+      copies: { printingId: string; collectionId?: string; sourceId?: string }[];
+    }) =>
+      api.post<{ id: string; printingId: string; collectionId: string; sourceId: string | null }[]>(
+        "/api/copies",
+        body,
+      ),
     invalidates: [queryKeys.copies.all, queryKeys.ownedCount.all, queryKeys.collections.all],
   });
 }
 
 export function useMoveCopies() {
   return useMutationWithInvalidation({
-    mutationFn: moveCopies,
+    mutationFn: (body: { copyIds: string[]; toCollectionId: string }) =>
+      api.post<void>("/api/copies/move", body),
     invalidates: [queryKeys.copies.all, queryKeys.collections.all],
   });
 }
 
 export function useDisposeCopies() {
   return useMutationWithInvalidation({
-    mutationFn: disposeCopies,
+    mutationFn: (body: { copyIds: string[] }) => api.post<void>("/api/copies/dispose", body),
     invalidates: [queryKeys.copies.all, queryKeys.ownedCount.all, queryKeys.collections.all],
   });
 }

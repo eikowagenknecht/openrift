@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -130,13 +131,7 @@ type ClearAction = (typeof clearActions)[ClearActionKey];
 export function useCronStatus() {
   return useQuery<CronStatus>({
     queryKey: queryKeys.admin.cronStatus,
-    queryFn: async () => {
-      const res = await fetch("/api/admin/cron-status", { credentials: "include" });
-      if (!res.ok) {
-        throw new Error("Failed to fetch cron status");
-      }
-      return res.json();
-    },
+    queryFn: () => api.get<CronStatus>("/api/admin/cron-status"),
     refetchInterval: 60_000,
   });
 }
@@ -263,12 +258,7 @@ async function callRefreshEndpoint(
   dryRun?: boolean,
 ): Promise<RefreshResult | null> {
   const url = dryRun ? `${endpoint}?dry_run=true` : endpoint;
-  const res = await fetch(url, { method: "POST", credentials: "include" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `Request failed (${res.status})`);
-  }
-  const body = await res.json();
+  const body = await api.post<{ result?: RefreshResult }>(url);
   return body.result ?? null;
 }
 
@@ -432,17 +422,9 @@ export function ActionCard({
 export function ClearPriceCard({ action }: { action: ClearAction }) {
   const mutation = useMutation({
     mutationFn: async (): Promise<ClearPriceResult> => {
-      const res = await fetch("/api/admin/clear-prices", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: action.source }),
+      const body = await api.post<{ result: ClearPriceResult }>("/api/admin/clear-prices", {
+        source: action.source,
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? `Request failed (${res.status})`);
-      }
-      const body = await res.json();
       return body.result;
     },
   });
