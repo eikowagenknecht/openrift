@@ -27,61 +27,14 @@ import {
   SM_BREAKPOINT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
+import type { SetInfo } from "./card-grid-types";
+import { buildVirtualRows, groupCardsBySet } from "./card-grid-types";
 import { CardThumbnail } from "./card-thumbnail";
+import { useGridKeyboardNav } from "./use-grid-keyboard-nav";
+import { useScrollIndicator } from "./use-scroll-indicator";
+import { useStickyHeader } from "./use-sticky-header";
 
-export interface SetInfo {
-  name: string;
-  code: string;
-}
-
-interface CardGroup {
-  set: SetInfo;
-  cards: Printing[];
-}
-
-function groupCardsBySet(cards: Printing[], setOrder: SetInfo[]): CardGroup[] {
-  const bySet = new Map<string, Printing[]>();
-  for (const printing of cards) {
-    let group = bySet.get(printing.set);
-    if (!group) {
-      group = [];
-      bySet.set(printing.set, group);
-    }
-    group.push(printing);
-  }
-
-  const groups: CardGroup[] = [];
-  for (const setInfo of setOrder) {
-    const setCards = bySet.get(setInfo.code);
-    if (setCards) {
-      groups.push({ set: setInfo, cards: setCards });
-    }
-  }
-
-  return groups;
-}
-
-type VRow =
-  | { kind: "header"; set: SetInfo; cardCount: number }
-  | { kind: "cards"; items: Printing[] };
-
-function buildVirtualRows(groups: CardGroup[], columns: number, showHeaders: boolean): VRow[] {
-  const rows: VRow[] = [];
-  for (const group of groups) {
-    if (showHeaders) {
-      rows.push({ kind: "header", set: group.set, cardCount: group.cards.length });
-    }
-    for (let i = 0; i < group.cards.length; i += columns) {
-      rows.push({ kind: "cards", items: group.cards.slice(i, i + columns) });
-    }
-  }
-  return rows;
-}
-
-const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 800;
-const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
-const INDICATOR_H_FALLBACK = 48;
-const INDICATOR_PAD = 4;
+export type { SetInfo } from "./card-grid-types";
 
 interface CardGridProps {
   cards: Printing[];
@@ -142,6 +95,7 @@ export function CardGrid({
   useLayoutEffect(() => {
     onAutoColumnsChange?.(autoColumns);
   }, [autoColumns, onAutoColumnsChange]);
+
   const outerWidth = containerRef.current?.offsetWidth ?? 400;
   const thumbWidth = (outerWidth - GAP * (columns - 1)) / columns;
 
@@ -150,10 +104,7 @@ export function CardGrid({
 
   const virtualRows = buildVirtualRows(groups, columns, multipleGroups);
 
-  // Compute the label area height that CardThumbnail actually renders.
-  // The wrapper (<div class="mt-2.5">) appears when ANY field is enabled.
-  // Inside it, CardMetaLabel renders when number/title/type/rarity are on,
-  // and the price <p> renders when cardFields.price is on.
+  // ── Label height estimation ────────────────────────────────────────
   const labelHeight = (() => {
     const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
     const hasMetaFields = f.number || f.title || f.type || f.rarity;
@@ -167,9 +118,6 @@ export function CardGrid({
       h += META_LABEL_PY;
       const hasLine1 = f.number || f.title;
       const hasLine2 = f.type || f.rarity;
-      // Line 1 in non-compact mode uses sm:text-sm (20px line-height)
-      // on viewports ≥ 640px, otherwise text-xs (16px). Compact mode
-      // (cardWidth < 190) always uses text-xs for both lines.
       const compact = thumbWidth < COMPACT_THRESHOLD;
       const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
       const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
@@ -201,14 +149,11 @@ export function CardGrid({
     }
     const containerWidth = containerRef.current?.offsetWidth ?? 400;
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
-    // Image sits inside the button's p-1.5, so its width is cardWidth - 12.
     const imgHeight = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2);
   };
 
-  // Precompute cumulative start offsets (within the virtual list) for each row.
-  // Used by the sticky-header scroll listener to find which header is active
-  // without touching the DOM on every scroll event.
+  // Precompute cumulative start offsets for each row.
   const rowStarts = (() => {
     const starts: number[] = [];
     let acc = 0;
@@ -219,31 +164,10 @@ export function CardGrid({
     return starts;
   })();
 
-  // Ref mirrors so scroll handlers always read current data without listing
-  // the arrays as effect dependencies (they change every render).
-  const virtualRowsRef = useRef(virtualRows);
-  virtualRowsRef.current = virtualRows;
-
-  const rowStartsRef = useRef(rowStarts);
-  rowStartsRef.current = rowStarts;
-
-  const siblingPrintingsRef = useRef(siblingPrintings);
-  siblingPrintingsRef.current = siblingPrintings;
-
-  // scrollMarginRef holds the same value as scrollMargin state but is readable
-  // synchronously inside the scroll listener without a stale closure — this is
-  // what breaks the update cycle that previously caused infinite re-renders.
+  // ── Scroll margin (container's document offset) ────────────────────
   const scrollMarginRef = useRef(0);
   const [scrollMargin, setScrollMargin] = useState(0);
 
-  // Which header row has fully scrolled past the sticky point.
-  // "Fully" means its END is above the threshold so the virtual row itself
-  // is no longer visible — this prevents the sticky overlay and the virtual
-  // header row from being visible at the same time.
-  const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
-
-  // Re-measure the container's document offset when the card list changes.
-  // useLayoutEffect runs before paint so corrections are invisible to the user.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) {
@@ -256,69 +180,7 @@ export function CardGrid({
     }
   }, [cards, containerRef]);
 
-  // multipleGroupsRef lets the scroll handler check the flag without
-  // re-subscribing every time the card list changes.
-  const multipleGroupsRef = useRef(multipleGroups);
-  multipleGroupsRef.current = multipleGroups;
-
-  useEffect(() => {
-    if (!multipleGroups) {
-      setActiveHeaderRow(null);
-      return;
-    }
-
-    const update = () => {
-      if (!multipleGroupsRef.current) {
-        return;
-      }
-
-      // Read from refs (not the closed-over render values) so the handler is
-      // always current without re-subscribing on every render. virtualRows and
-      // rowStarts are new arrays each render — listing them as deps caused the
-      // infinite update loop.
-      const rows = virtualRowsRef.current;
-      const starts = rowStartsRef.current;
-      const threshold = globalThis.scrollY - scrollMarginRef.current + APP_HEADER_HEIGHT;
-
-      // Build a map of measured start positions for currently-rendered items.
-      // rowStarts uses estimated sizes and can still drift with many rows
-      // (Math.ceil rounding accumulates). The virtualizer's own positions are
-      // accurate for rendered items, so we prefer those at boundaries.
-      const measuredStarts = new Map(
-        virtualizerRef.current
-          .getVirtualItems()
-          .map((item) => [item.index, item.start - scrollMarginRef.current]),
-      );
-
-      // Walk header rows; the active one is the last header whose top has
-      // reached or crossed the sticky threshold (≤ so the exact boundary
-      // position — which scrollToIndex targets — activates the correct set).
-      let active: (VRow & { kind: "header" }) | null = null;
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (row.kind !== "header") {
-          continue;
-        }
-        const start = measuredStarts.get(i) ?? starts[i];
-        if (start <= threshold + 1) {
-          active = row;
-        }
-      }
-      // Compare by set code to avoid re-renders from new object references.
-      // virtualRows is rebuilt each render, so `active` is always a new object
-      // even when the same header is active — Object.is would always differ.
-      setActiveHeaderRow((prev) => {
-        const prevCode = prev?.set.code ?? null;
-        const nextCode = active?.set.code ?? null;
-        return prevCode === nextCode ? prev : active;
-      });
-    };
-
-    update();
-    globalThis.addEventListener("scroll", update, { passive: true });
-    return () => globalThis.removeEventListener("scroll", update);
-  }, [multipleGroups]);
-
+  // ── Virtualizer ────────────────────────────────────────────────────
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
     estimateSize,
@@ -328,503 +190,53 @@ export function CardGrid({
     overscan: 3,
   });
 
-  // Keep a ref so the scroll handler always reads the virtualizer's current
-  // measured item positions rather than estimated ones (which drift at scale).
+  // ── Extracted hooks ────────────────────────────────────────────────
+  const activeHeaderRow = useStickyHeader({
+    multipleGroups,
+    virtualRows,
+    rowStarts,
+    virtualizer,
+    scrollMargin,
+  });
+
+  const {
+    indicator,
+    indicatorRef,
+    cardIdRef,
+    dragTopRef,
+    isDraggingRef,
+    handleIndicatorPointerDown,
+    handleMoveRef,
+    handleUpRef,
+    handleMouseEnter,
+    handleMouseLeave,
+    snapPoints,
+  } = useScrollIndicator({
+    virtualRows,
+    rowStarts,
+    virtualizer,
+    scrollMargin,
+    multipleGroups,
+  });
+
+  useGridKeyboardNav({
+    selectedCardId,
+    virtualRows,
+    columns,
+    onCardClick,
+    virtualizer,
+    siblingPrintings,
+  });
+
+  // ── Selected-card scroll + flash ───────────────────────────────────
+  const virtualRowsRef = useRef(virtualRows);
+  virtualRowsRef.current = virtualRows;
+
   const virtualizerRef = useRef(virtualizer);
   virtualizerRef.current = virtualizer;
 
-  const [indicator, setIndicator] = useState({
-    cardId: "",
-    indicatorTop: APP_HEADER_HEIGHT + INDICATOR_PAD,
-    visible: false,
-    dragging: false,
-  });
-  const hideTimerRef = useRef(0);
-  const isDraggingRef = useRef(false);
-  const isHoveredRef = useRef(false);
-  const postDragCooldownRef = useRef(false);
-  const dragStartRef = useRef({
-    grabOffsetY: 0,
-    trackTop: 0,
-    trackBottom: 0,
-    contentStart: 0,
-    contentRange: 0,
-  });
-  const indicatorRef = useRef<HTMLDivElement>(null);
-  const indicatorHRef = useRef(INDICATOR_H_FALLBACK);
-  const cardIdRef = useRef<HTMLElement>(null);
-  const dragTopRef = useRef(0);
-  const dragTargetRowRef = useRef(-1);
-  const snapPointsRef = useRef<{ screenY: number; rowIndex: number; firstCardId: string }[]>([]);
-
-  // Measure the indicator's rendered height so track bounds are always accurate.
-  useLayoutEffect(() => {
-    if (indicatorRef.current) {
-      indicatorHRef.current = indicatorRef.current.offsetHeight || INDICATOR_H_FALLBACK;
-    }
-  });
-
-  // Prevent native touch scrolling while the indicator is being dragged.
-  // touch-action: none on the element alone is unreliable on mobile — the
-  // browser can still initiate a scroll gesture. A non-passive touchmove
-  // handler on the document lets us call preventDefault() to suppress it.
-  useEffect(() => {
-    const preventScroll = (e: TouchEvent) => {
-      if (isDraggingRef.current) {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener("touchmove", preventScroll, { passive: false });
-    return () => document.removeEventListener("touchmove", preventScroll);
-  }, []);
-
-  useEffect(() => {
-    let rafId = 0;
-    const update = () => {
-      const threshold = globalThis.scrollY + APP_HEADER_HEIGHT + 1;
-      const vItems = virtualizerRef.current.getVirtualItems();
-      const rows = virtualRowsRef.current;
-      let firstCard: Printing | null = null;
-      for (const vItem of vItems) {
-        const row = rows[vItem.index];
-        if (!row || row.kind !== "cards") {
-          continue;
-        }
-        if (vItem.start + vItem.size > threshold) {
-          firstCard = row.items[0] ?? null;
-          break;
-        }
-      }
-      if (!firstCard) {
-        return;
-      }
-
-      const viewportH = globalThis.innerHeight;
-      const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
-      const totalSize = virtualizerRef.current.getTotalSize();
-      const contentEnd = scrollMarginRef.current + totalSize - viewportH;
-      const contentRange = contentEnd - contentStart;
-      const contentPct =
-        contentRange > 0
-          ? Math.max(0, Math.min(1, (globalThis.scrollY - contentStart) / contentRange))
-          : 0;
-      const halfH = indicatorHRef.current / 2;
-      const trackTop = APP_HEADER_HEIGHT + halfH + INDICATOR_PAD;
-      const trackBottom = viewportH - halfH - INDICATOR_PAD;
-      const indicatorTop = trackTop + contentPct * (trackBottom - trackTop);
-
-      // During drag: only update the card ID label. The pointer handler drives
-      // the indicator position directly, so we must not reposition it here —
-      // that would fight the pointer and cause jumps when scrollHeight shifts.
-      if (isDraggingRef.current) {
-        if (cardIdRef.current) {
-          cardIdRef.current.textContent = firstCard.sourceId;
-        }
-        return;
-      }
-
-      // When hovered, freeze the indicator so the user can grab it easily.
-      // Without this, it repositions on every scroll event making it a
-      // moving target that's nearly impossible to click.
-      if (isHoveredRef.current) {
-        return;
-      }
-
-      // After a drag release, scrollTo triggers scroll events. Don't let
-      // those reset the shorter post-drag hide timer.
-      if (postDragCooldownRef.current) {
-        return;
-      }
-
-      globalThis.clearTimeout(hideTimerRef.current);
-      dragTopRef.current = indicatorTop;
-      // Skip the state update when nothing meaningful changed — avoids
-      // re-rendering the entire grid on every scroll frame.
-      setIndicator((prev) => {
-        const sameCard = prev.cardId === firstCard.sourceId;
-        const sameTop = Math.abs(prev.indicatorTop - indicatorTop) < 0.5;
-        if (prev.visible && sameCard && sameTop) {
-          return prev;
-        }
-        return { ...prev, cardId: firstCard.sourceId, indicatorTop, visible: true };
-      });
-      hideTimerRef.current = globalThis.setTimeout(() => {
-        if (!isHoveredRef.current) {
-          setIndicator((prev) => ({ ...prev, visible: false }));
-        }
-      }, HIDE_DELAY);
-    };
-    // Throttle to once per animation frame so scroll events don't trigger
-    // multiple React re-renders within the same frame.
-    const onScroll = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(update);
-    };
-    globalThis.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      globalThis.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(rafId);
-      globalThis.clearTimeout(hideTimerRef.current);
-    };
-  }, []);
-
-  const handleIndicatorPointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    isDraggingRef.current = true;
-    // Capture pointer so all subsequent move/up events route directly to
-    // this element — no document-level listeners needed.
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    // Freeze dimensions so mobile browser chrome changes don't shift the mapping.
-    // dragTopRef is kept in sync by the scroll handler, so it always has the
-    // current indicator Y — no need to parse style.top.
-    const viewportH = globalThis.innerHeight;
-    const totalSize = virtualizerRef.current.getTotalSize();
-    const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
-    const contentEnd = scrollMarginRef.current + totalSize - viewportH;
-    dragStartRef.current = {
-      grabOffsetY: e.clientY - dragTopRef.current,
-      trackTop: APP_HEADER_HEIGHT + indicatorHRef.current / 2 + INDICATOR_PAD,
-      trackBottom: viewportH - indicatorHRef.current / 2 - INDICATOR_PAD,
-      contentStart,
-      contentRange: contentEnd - contentStart,
-    };
-    // Lock the badge width so it doesn't jump as card IDs change length.
-    const badge = cardIdRef.current?.parentElement as HTMLElement | null;
-    if (badge) {
-      badge.style.width = `${badge.offsetWidth}px`;
-    }
-    globalThis.clearTimeout(hideTimerRef.current);
-    setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
-  };
-
-  // Drag move/up handlers. On desktop these fire on the indicator element
-  // itself (via setPointerCapture). On touch they use document-level
-  // TouchEvent listeners because mobile WebKit's PointerEvent is unreliable.
-  // oxlint-disable-next-line no-empty-function
-  const handleMoveRef = useRef((_clientY: number) => {});
-  // oxlint-disable-next-line no-empty-function
-  const handleUpRef = useRef(() => {});
-  useEffect(() => {
-    const handleMove = (clientY: number) => {
-      const { trackTop, trackBottom, contentStart, contentRange } = dragStartRef.current;
-
-      // Only move the indicator handle — the actual scroll happens on release
-      // (handleUp). This avoids expensive virtualizer re-renders during drag.
-      // Runs synchronously (no rAF) because the work is cheap (clamp, snap
-      // check, two DOM writes) and deferring adds a full frame of latency.
-      let indicatorTop = Math.max(
-        trackTop,
-        Math.min(trackBottom, clientY - dragStartRef.current.grabOffsetY),
-      );
-
-      // Snap to nearby ghost badges (set headers).
-      const SNAP_DISTANCE = 20;
-      let snapped = false;
-      for (const sp of snapPointsRef.current) {
-        if (Math.abs(indicatorTop - sp.screenY) <= SNAP_DISTANCE) {
-          indicatorTop = sp.screenY;
-          dragTopRef.current = indicatorTop;
-          dragTargetRowRef.current = sp.rowIndex;
-          if (indicatorRef.current) {
-            indicatorRef.current.style.transform = `translateY(calc(${indicatorTop}px - 50%))`;
-          }
-          if (cardIdRef.current && sp.firstCardId) {
-            cardIdRef.current.textContent = sp.firstCardId;
-          }
-          snapped = true;
-          break;
-        }
-      }
-
-      if (!snapped) {
-        dragTopRef.current = indicatorTop;
-        if (indicatorRef.current) {
-          indicatorRef.current.style.transform = `translateY(calc(${indicatorTop}px - 50%))`;
-        }
-
-        // Project which card would be visible at this indicator position and
-        // update the label so the user sees where they'll land on release.
-        if (contentRange > 0 && cardIdRef.current) {
-          const trackRange = trackBottom - trackTop;
-          const contentPct = trackRange > 0 ? (indicatorTop - trackTop) / trackRange : 0;
-          const targetScrollY = contentStart + contentPct * contentRange;
-          const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
-
-          const rows = virtualRowsRef.current;
-          const starts = rowStartsRef.current;
-          let cardId = "";
-          let matchedRow = -1;
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            if (row.kind !== "cards") {
-              continue;
-            }
-            const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
-            if (rowEnd > threshold) {
-              cardId = row.items[0]?.sourceId ?? "";
-              matchedRow = i;
-              break;
-            }
-          }
-          dragTargetRowRef.current = matchedRow;
-          if (cardId) {
-            cardIdRef.current.textContent = cardId;
-          }
-        }
-      }
-    };
-
-    const handleUp = () => {
-      isDraggingRef.current = false;
-      // Unlock the badge width that was frozen on drag start.
-      const badge = cardIdRef.current?.parentElement as HTMLElement | null;
-      if (badge) {
-        badge.style.width = "";
-      }
-      // Scroll to the exact row that the label is showing, so the card
-      // aligns precisely below the header instead of a percentage estimate.
-      if (dragTargetRowRef.current >= 0) {
-        virtualizerRef.current.scrollToIndex(dragTargetRowRef.current, {
-          align: "start",
-          behavior: "auto",
-        });
-        dragTargetRowRef.current = -1;
-      }
-
-      const currentCardId = cardIdRef.current?.textContent || "";
-
-      // Read back actual position for React state sync.
-      const liveViewportH = globalThis.innerHeight;
-      const liveTotalSize = virtualizerRef.current.getTotalSize();
-      const liveContentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
-      const liveContentEnd = scrollMarginRef.current + liveTotalSize - liveViewportH;
-      const liveContentRange = liveContentEnd - liveContentStart;
-      const liveContentPct =
-        liveContentRange > 0
-          ? Math.max(0, Math.min(1, (globalThis.scrollY - liveContentStart) / liveContentRange))
-          : 0;
-      const liveHalfH = indicatorHRef.current / 2;
-      const liveTrackTop = APP_HEADER_HEIGHT + liveHalfH + INDICATOR_PAD;
-      const liveTrackBottom = liveViewportH - liveHalfH - INDICATOR_PAD;
-      const liveIndicatorTop = liveTrackTop + liveContentPct * (liveTrackBottom - liveTrackTop);
-
-      postDragCooldownRef.current = true;
-      dragTopRef.current = liveIndicatorTop;
-      setIndicator((prev) => ({
-        ...prev,
-        dragging: false,
-        indicatorTop: liveIndicatorTop,
-        cardId: currentCardId,
-      }));
-
-      hideTimerRef.current = globalThis.setTimeout(() => {
-        postDragCooldownRef.current = false;
-        if (!isHoveredRef.current) {
-          setIndicator((prev) => ({ ...prev, visible: false }));
-        }
-      }, POST_DRAG_HIDE_DELAY);
-    };
-
-    // Expose to element-level handlers via refs (the element uses
-    // setPointerCapture, so onPointerMove/onPointerUp fire on it directly).
-    handleMoveRef.current = handleMove;
-    handleUpRef.current = handleUp;
-  }, []);
-
-  // Screen-space positions of each set header on the scrollbar track.
-  // Recomputed on every render (indicator.thumbTop changes on scroll).
-  const snapPoints = (() => {
-    if (!multipleGroups) {
-      return [];
-    }
-    const viewportH = globalThis.innerHeight;
-    const totalSize = virtualizerRef.current.getTotalSize();
-    const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
-    const contentEnd = scrollMarginRef.current + totalSize - viewportH;
-    const contentRange = contentEnd - contentStart;
-    if (contentRange <= 0) {
-      return [];
-    }
-    const halfH = indicatorHRef.current / 2;
-    const trackTop = APP_HEADER_HEIGHT + halfH + INDICATOR_PAD;
-    const trackBottom = viewportH - halfH - INDICATOR_PAD;
-
-    // Prefer the virtualizer's measured positions over rowStarts (estimated).
-    // rowStarts can still drift from rounding across many rows, so ghost badges
-    // computed from it may drift from the indicator (which uses real scrollY).
-    const measuredStarts = new Map(
-      virtualizerRef.current
-        .getVirtualItems()
-        .map((item) => [item.index, item.start - scrollMarginRef.current]),
-    );
-
-    const points: {
-      rowIndex: number;
-      setInfo: SetInfo;
-      screenY: number;
-      cardCount: number;
-      firstCardId: string;
-    }[] = [];
-
-    for (let i = 0; i < virtualRows.length; i++) {
-      const row = virtualRows[i];
-      if (row.kind !== "header") {
-        continue;
-      }
-      const rowStart = measuredStarts.get(i) ?? rowStarts[i];
-      const headerScrollY = rowStart + scrollMarginRef.current - APP_HEADER_HEIGHT;
-      const contentPct = Math.max(0, Math.min(1, (headerScrollY - contentStart) / contentRange));
-      const screenY = Math.round(trackTop + contentPct * (trackBottom - trackTop));
-      // First card ID in this set (for ghost badges)
-      let firstCardId = "";
-      for (let j = i + 1; j < virtualRows.length; j++) {
-        const next = virtualRows[j];
-        if (next.kind === "cards" && next.items.length > 0) {
-          firstCardId = next.items[0].sourceId;
-          break;
-        }
-        if (next.kind === "header") {
-          break;
-        }
-      }
-      points.push({
-        rowIndex: i,
-        setInfo: row.set,
-        screenY,
-        cardCount: row.cardCount,
-        firstCardId,
-      });
-    }
-
-    // Collision avoidance: push badges apart when they overlap vertically.
-    // Each badge is roughly 24px tall (text + padding); use a minimum gap.
-    const MIN_GAP = IS_COARSE_POINTER ? 32 : 26;
-    for (let p = 1; p < points.length; p++) {
-      const gap = points[p].screenY - points[p - 1].screenY;
-      if (gap < MIN_GAP) {
-        points[p].screenY = points[p - 1].screenY + MIN_GAP;
-      }
-    }
-
-    return points;
-  })();
-  snapPointsRef.current = snapPoints;
-
-  // Click a ghost badge to jump directly to that set header.
-  // Arrow-key navigation: when a card is selected, Left/Right/Up/Down moves
-  // to adjacent cards in the grid while skipping set headers.
-  useEffect(() => {
-    if (!selectedCardId) {
-      return;
-    }
-
-    const handler = (e: KeyboardEvent) => {
-      const tag = (document.activeElement?.tagName ?? "").toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") {
-        return;
-      }
-      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
-        return;
-      }
-
-      // Up/Down: cycle sibling printings (versions)
-      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-        const siblings = siblingPrintingsRef.current;
-        if (!siblings || siblings.length < 2) {
-          return;
-        }
-        e.preventDefault();
-        const idx = siblings.findIndex((p) => p.id === selectedCardId);
-        const next =
-          e.key === "ArrowUp"
-            ? idx > 0
-              ? idx - 1
-              : siblings.length - 1
-            : idx < siblings.length - 1
-              ? idx + 1
-              : 0;
-        const targetPrinting = siblings[next];
-        onCardClick(targetPrinting);
-
-        // Scroll grid to the target printing if it's in the current view
-        for (let i = 0; i < virtualRows.length; i++) {
-          const row = virtualRows[i];
-          if (row.kind === "cards" && row.items.some((c) => c.id === targetPrinting.id)) {
-            virtualizer.scrollToIndex(i, { align: "auto" });
-            break;
-          }
-        }
-        return;
-      }
-
-      // Left/Right: grid navigation
-      // Build nav index: cardId → { vRowIndex, colIndex }
-      const cardPos = new Map<string, { vRowIndex: number; colIndex: number }>();
-      const cardRowIndices: number[] = [];
-      for (let i = 0; i < virtualRows.length; i++) {
-        const row = virtualRows[i];
-        if (row.kind !== "cards") {
-          continue;
-        }
-        cardRowIndices.push(i);
-        for (let c = 0; c < row.items.length; c++) {
-          cardPos.set(row.items[c].id, { vRowIndex: i, colIndex: c });
-        }
-      }
-
-      const current = cardPos.get(selectedCardId);
-      if (!current) {
-        return;
-      }
-
-      const crIdx = cardRowIndices.indexOf(current.vRowIndex);
-      let targetCard: Printing | undefined;
-      let targetRowIndex: number | undefined;
-
-      if (e.key === "ArrowLeft") {
-        if (current.colIndex > 0) {
-          const row = virtualRows[current.vRowIndex];
-          if (row.kind === "cards") {
-            targetCard = row.items[current.colIndex - 1];
-            targetRowIndex = current.vRowIndex;
-          }
-        } else if (crIdx > 0) {
-          const prevRow = virtualRows[cardRowIndices[crIdx - 1]];
-          if (prevRow.kind === "cards") {
-            targetCard = prevRow.items.at(-1);
-            targetRowIndex = cardRowIndices[crIdx - 1];
-          }
-        }
-      } else if (e.key === "ArrowRight") {
-        const row = virtualRows[current.vRowIndex];
-        if (row.kind === "cards" && current.colIndex < row.items.length - 1) {
-          targetCard = row.items[current.colIndex + 1];
-          targetRowIndex = current.vRowIndex;
-        } else if (crIdx < cardRowIndices.length - 1) {
-          const nextRow = virtualRows[cardRowIndices[crIdx + 1]];
-          if (nextRow.kind === "cards") {
-            targetCard = nextRow.items[0];
-            targetRowIndex = cardRowIndices[crIdx + 1];
-          }
-        }
-      }
-
-      if (targetCard && targetRowIndex !== undefined) {
-        e.preventDefault();
-        onCardClick(targetCard);
-        virtualizer.scrollToIndex(targetRowIndex, { align: "auto" });
-      }
-    };
-
-    globalThis.addEventListener("keydown", handler);
-    return () => globalThis.removeEventListener("keydown", handler);
-  }, [selectedCardId, virtualRows, columns, onCardClick, virtualizer]);
-
-  // Scroll the selected card into view when it changes (e.g. switching
-  // printings via the version picker or clicking a fanned sibling layer).
-  // align: "auto" is a no-op when the card is already visible.
-  // Also triggers a brief flash highlight so the user can spot the card.
   const [flashCardId, setFlashCardId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!selectedCardId) {
       return;
@@ -842,8 +254,7 @@ export function CardGrid({
     return () => clearTimeout(timer);
   }, [selectedCardId]);
 
-  // Re-scroll the selected card into view when columns change (e.g. detail
-  // pane opening/closing resizes the grid, shifting the card out of view).
+  // Re-scroll the selected card into view when columns change.
   useEffect(() => {
     if (!selectedCardId) {
       return;
@@ -858,22 +269,17 @@ export function CardGrid({
     }
   }, [columns, selectedCardId]);
 
+  // ── Helpers ────────────────────────────────────────────────────────
   const scrollToGroup = (setName: string) => {
     const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
     if (rowIndex !== -1) {
-      // behavior: "instant" avoids the smooth-scroll retry jitter: the
-      // virtualizer internally retries up to 10 times to nail the exact
-      // position as dynamic item sizes are measured. With "smooth" those
-      // retries produce visible animation stutter; with "instant" they
-      // complete invisibly in successive animation frames.
       virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
     }
   };
 
   const items = virtualizer.getVirtualItems();
 
-  // Cumulative card count per virtual row, so we can compute a flat card index
-  // for each thumbnail and eager-load the first screenful of images.
+  // Cumulative card count per virtual row for eager-loading.
   const cardStartIndex = new Map<number, number>();
   let cardsBefore = 0;
   for (let i = 0; i < virtualRows.length; i++) {
@@ -885,6 +291,7 @@ export function CardGrid({
   }
   const eagerCount = columns * 2;
 
+  // ── Render ─────────────────────────────────────────────────────────
   return (
     <div ref={containerRef}>
       <CardGridDebug
@@ -955,18 +362,8 @@ export function CardGrid({
                 handleUpRef.current();
               }
             }}
-            onMouseEnter={() => {
-              isHoveredRef.current = true;
-              globalThis.clearTimeout(hideTimerRef.current);
-            }}
-            onMouseLeave={() => {
-              isHoveredRef.current = false;
-              if (indicator.visible && !isDraggingRef.current) {
-                hideTimerRef.current = globalThis.setTimeout(() => {
-                  setIndicator((prev) => ({ ...prev, visible: false }));
-                }, HIDE_DELAY);
-              }
-            }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
             <div
               className={`flex origin-right items-center gap-1.5 transition-transform duration-200 ease-out ${indicator.dragging ? "scale-110" : "scale-100"}`}
@@ -1005,10 +402,7 @@ export function CardGrid({
               </div>
             ))}
 
-          {/* Sticky set header overlay — lives inside the grid container so it
-              naturally inherits the container's width and centers via CSS.
-              height:0 + overflow:visible keeps it out of the flow so toggling
-              activeHeaderRow never shifts the virtualizer content. */}
+          {/* Sticky set header overlay */}
           <div className="sticky z-10 h-0" style={{ top: APP_HEADER_HEIGHT }}>
             {multipleGroups && activeHeaderRow && (
               <div className="flex justify-center pt-2">
