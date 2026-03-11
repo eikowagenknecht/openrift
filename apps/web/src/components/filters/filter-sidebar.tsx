@@ -1,6 +1,6 @@
 import type { AvailableFilters } from "@openrift/shared";
 
-import { FilterPanelContent } from "@/components/filters/filter-bar";
+import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 
 interface FilterSidebarProps {
   availableFilters: AvailableFilters;
