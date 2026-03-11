@@ -4,9 +4,11 @@ import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardm
 import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
 import { Cron } from "croner";
 
-import { config } from "./config.js";
+import { config, validateConfig } from "./config.js";
 import { cronJobs } from "./cron-jobs.js";
 import { db } from "./db.js";
+
+validateConfig();
 
 const log = createLogger("api");
 

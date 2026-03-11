@@ -1,19 +1,11 @@
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
 export const config = {
   port: Number(process.env.PORT ?? 3000),
-  databaseUrl: requireEnv("DATABASE_URL"),
+  databaseUrl: process.env.DATABASE_URL ?? "",
 
   corsOrigin: process.env.CORS_ORIGIN,
 
   auth: {
-    secret: requireEnv("BETTER_AUTH_SECRET"),
+    secret: process.env.BETTER_AUTH_SECRET ?? "",
     adminEmail: process.env.ADMIN_EMAIL,
     google:
       process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -44,3 +36,11 @@ export const config = {
     cardmarketSchedule: process.env.CRON_CARDMARKET || "15 6 * * *",
   },
 } as const;
+
+export function validateConfig(): void {
+  const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"] as const;
+  const missing = required.filter((name) => !process.env[name]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+}
