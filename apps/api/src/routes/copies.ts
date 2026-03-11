@@ -12,9 +12,7 @@ import { getUserId } from "../middleware/get-user-id.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { createActivity } from "../services/activity-logger.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { ensureInbox } from "../services/inbox.js";
+import { addCopies, disposeCopies, moveCopies } from "../services/copies.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
@@ -64,54 +62,8 @@ copiesRoute.get("/copies", async (c) => {
 copiesRoute.post("/copies", async (c) => {
   const userId = getUserId(c);
   const body = addCopiesSchema.parse(await c.req.json());
-
-  const inboxId = await ensureInbox(db, userId);
-
-  const created = await db.transaction().execute(async (trx) => {
-    const copyRows = body.copies.map((item) => ({
-      id: crypto.randomUUID(),
-      user_id: userId,
-      printing_id: item.printingId,
-      collection_id: item.collectionId ?? inboxId,
-      source_id: item.sourceId ?? null,
-    }));
-
-    await trx.insertInto("copies").values(copyRows).execute();
-
-    // Look up collection names for activity items
-    const collectionIds = [...new Set(copyRows.map((r) => r.collection_id))];
-    const collections = await trx
-      .selectFrom("collections")
-      .select(["id", "name"])
-      .where("id", "in", collectionIds)
-      .execute();
-    const collectionNames = new Map(collections.map((col) => [col.id, col.name]));
-
-    await createActivity(trx, {
-      userId,
-      type: "acquisition",
-      isAuto: true,
-      items: copyRows.map((row) => ({
-        copyId: row.id,
-        printingId: row.printing_id,
-        action: "added" as const,
-        toCollectionId: row.collection_id,
-        toCollectionName: collectionNames.get(row.collection_id) ?? null,
-      })),
-    });
-
-    return copyRows;
-  });
-
-  return c.json(
-    created.map((r) => ({
-      id: r.id,
-      printingId: r.printing_id,
-      collectionId: r.collection_id,
-      sourceId: r.source_id,
-    })),
-    201,
-  );
+  const result = await addCopies(db, userId, body.copies);
+  return c.json(result, 201);
 });
 
 // ── POST /copies/move ─────────────────────────────────────────────────────────
@@ -120,62 +72,7 @@ copiesRoute.post("/copies", async (c) => {
 copiesRoute.post("/copies/move", async (c) => {
   const userId = getUserId(c);
   const body = moveCopiesSchema.parse(await c.req.json());
-
-  // Verify target collection belongs to user
-  const target = await db
-    .selectFrom("collections")
-    .select(["id", "name"])
-    .where("id", "=", body.toCollectionId)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
-
-  if (!target) {
-    throw new AppError(404, "NOT_FOUND", "Target collection not found");
-  }
-
-  await db.transaction().execute(async (trx) => {
-    // Fetch copies with their current collection info
-    const copies = await trx
-      .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collection_id")
-      .select(["cp.id", "cp.printing_id", "cp.collection_id", "col.name as collection_name"])
-      .where("cp.id", "in", body.copyIds)
-      .where("cp.user_id", "=", userId)
-      .execute();
-
-    if (copies.length === 0) {
-      return;
-    }
-
-    // Update copies
-    await trx
-      .updateTable("copies")
-      .set({ collection_id: body.toCollectionId, updated_at: new Date() })
-      .where(
-        "id",
-        "in",
-        copies.map((row) => row.id),
-      )
-      .where("user_id", "=", userId)
-      .execute();
-
-    // Log reorganization activity
-    await createActivity(trx, {
-      userId,
-      type: "reorganization",
-      isAuto: true,
-      items: copies.map((copy) => ({
-        copyId: copy.id,
-        printingId: copy.printing_id,
-        action: "moved" as const,
-        fromCollectionId: copy.collection_id,
-        fromCollectionName: copy.collection_name,
-        toCollectionId: target.id,
-        toCollectionName: target.name,
-      })),
-    });
-  });
-
+  await moveCopies(db, userId, body.copyIds, body.toCollectionId);
   return c.json({ ok: true });
 });
 
@@ -185,57 +82,7 @@ copiesRoute.post("/copies/move", async (c) => {
 copiesRoute.post("/copies/dispose", async (c) => {
   const userId = getUserId(c);
   const body = disposeCopiesSchema.parse(await c.req.json());
-
-  await db.transaction().execute(async (trx) => {
-    // Fetch copies with collection info for snapshots
-    const copies = await trx
-      .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collection_id")
-      .select([
-        "cp.id",
-        "cp.printing_id",
-        "cp.collection_id",
-        "cp.source_id",
-        "col.name as collection_name",
-      ])
-      .where("cp.id", "in", body.copyIds)
-      .where("cp.user_id", "=", userId)
-      .execute();
-
-    if (copies.length === 0) {
-      return;
-    }
-
-    // Log disposal activity before deleting (so copy FK is still valid)
-    await createActivity(trx, {
-      userId,
-      type: "disposal",
-      isAuto: true,
-      items: copies.map((copy) => ({
-        copyId: copy.id,
-        printingId: copy.printing_id,
-        action: "removed" as const,
-        fromCollectionId: copy.collection_id,
-        fromCollectionName: copy.collection_name,
-        metadataSnapshot: {
-          copyId: copy.id,
-          sourceId: copy.source_id,
-        },
-      })),
-    });
-
-    // Hard-delete copies (activity_items.copy_id → SET NULL via FK)
-    await trx
-      .deleteFrom("copies")
-      .where(
-        "id",
-        "in",
-        copies.map((row) => row.id),
-      )
-      .where("user_id", "=", userId)
-      .execute();
-  });
-
+  await disposeCopies(db, userId, body.copyIds);
   return c.json({ ok: true });
 });
 
