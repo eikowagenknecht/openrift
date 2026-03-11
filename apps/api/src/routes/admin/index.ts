@@ -11,7 +11,8 @@ import { candidatesRoute } from "../candidates.js";
 import { catalogRoute } from "./catalog.js";
 import { featureFlagsRoute } from "./feature-flags.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
-import { cardmarketConfig, createMappingRoutes, tcgplayerConfig } from "./marketplace-mapping.js";
+import { cardmarketConfig, tcgplayerConfig } from "./marketplace-configs.js";
+import { createMappingRoutes } from "./marketplace-mapping.js";
 import { operationsRoute } from "./operations.js";
 
 export const adminRoute = new Hono<{ Variables: Variables }>();
