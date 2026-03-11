@@ -19,16 +19,42 @@ shoppingListRoute.use("/shopping-list", requireAuth);
 shoppingListRoute.get("/shopping-list", async (c) => {
   const userId = getUserId(c);
 
-  // 1. Get available copies per card (from deckbuilding-available collections)
-  const ownedRows = await db
-    .selectFrom("copies as cp")
-    .innerJoin("collections as col", "col.id", "cp.collection_id")
-    .innerJoin("printings as p", "p.id", "cp.printing_id")
-    .select(["p.card_id", "cp.printing_id", db.fn.countAll<number>().as("count")])
-    .where("cp.user_id", "=", userId)
-    .where("col.available_for_deckbuilding", "=", true)
-    .groupBy(["p.card_id", "cp.printing_id"])
-    .execute();
+  // Run all three independent queries in parallel
+  const [ownedRows, deckCardRows, wishItemRows] = await Promise.all([
+    // 1. Available copies per card (from deckbuilding-available collections)
+    db
+      .selectFrom("copies as cp")
+      .innerJoin("collections as col", "col.id", "cp.collection_id")
+      .innerJoin("printings as p", "p.id", "cp.printing_id")
+      .select(["p.card_id", "cp.printing_id", db.fn.countAll<number>().as("count")])
+      .where("cp.user_id", "=", userId)
+      .where("col.available_for_deckbuilding", "=", true)
+      .groupBy(["p.card_id", "cp.printing_id"])
+      .execute(),
+
+    // 2. Deck requirements (wanted decks joined with their cards)
+    db
+      .selectFrom("deck_cards as dc")
+      .innerJoin("decks as d", "d.id", "dc.deck_id")
+      .select(["d.id as deck_id", "d.name as deck_name", "dc.card_id", "dc.quantity"])
+      .where("d.user_id", "=", userId)
+      .where("d.is_wanted", "=", true)
+      .execute(),
+
+    // 3. Wish list items (wish lists joined with their items)
+    db
+      .selectFrom("wish_list_items as wi")
+      .innerJoin("wish_lists as wl", "wl.id", "wi.wish_list_id")
+      .select([
+        "wl.id as wish_list_id",
+        "wl.name as wish_list_name",
+        "wi.card_id",
+        "wi.printing_id",
+        "wi.quantity_desired",
+      ])
+      .where("wl.user_id", "=", userId)
+      .execute(),
+  ]);
 
   const ownedByCard = new Map<string, number>();
   const ownedByPrinting = new Map<string, number>();
@@ -37,86 +63,22 @@ shoppingListRoute.get("/shopping-list", async (c) => {
     ownedByPrinting.set(row.printing_id, Number(row.count));
   }
 
-  // 2. Deck requirements (wanted decks)
-  const deckDemands: {
-    source: string;
-    sourceId: string;
-    sourceName: string;
-    cardId: string;
-    needed: number;
-  }[] = [];
+  const deckDemands = deckCardRows.map((dc) => ({
+    source: "deck" as const,
+    sourceId: dc.deck_id,
+    sourceName: dc.deck_name,
+    cardId: dc.card_id,
+    needed: dc.quantity,
+  }));
 
-  const wantedDecks = await db
-    .selectFrom("decks")
-    .select(["id", "name"])
-    .where("user_id", "=", userId)
-    .where("is_wanted", "=", true)
-    .execute();
-
-  if (wantedDecks.length > 0) {
-    const deckCards = await db
-      .selectFrom("deck_cards")
-      .select(["deck_id", "card_id", "quantity"])
-      .where(
-        "deck_id",
-        "in",
-        wantedDecks.map((d) => d.id),
-      )
-      .execute();
-
-    const deckNames = new Map(wantedDecks.map((d) => [d.id, d.name]));
-
-    for (const dc of deckCards) {
-      deckDemands.push({
-        source: "deck",
-        sourceId: dc.deck_id,
-        sourceName: deckNames.get(dc.deck_id) ?? "",
-        cardId: dc.card_id,
-        needed: dc.quantity,
-      });
-    }
-  }
-
-  // 3. Wish list manual items
-  const wishDemands: {
-    source: string;
-    sourceId: string;
-    sourceName: string;
-    cardId: string | null;
-    printingId: string | null;
-    needed: number;
-  }[] = [];
-
-  const wishLists = await db
-    .selectFrom("wish_lists")
-    .select(["id", "name"])
-    .where("user_id", "=", userId)
-    .execute();
-
-  if (wishLists.length > 0) {
-    const wishItems = await db
-      .selectFrom("wish_list_items")
-      .select(["wish_list_id", "card_id", "printing_id", "quantity_desired"])
-      .where(
-        "wish_list_id",
-        "in",
-        wishLists.map((w) => w.id),
-      )
-      .execute();
-
-    const wishNames = new Map(wishLists.map((w) => [w.id, w.name]));
-
-    for (const item of wishItems) {
-      wishDemands.push({
-        source: "wish_list",
-        sourceId: item.wish_list_id,
-        sourceName: wishNames.get(item.wish_list_id) ?? "",
-        cardId: item.card_id,
-        printingId: item.printing_id,
-        needed: item.quantity_desired,
-      });
-    }
-  }
+  const wishDemands = wishItemRows.map((item) => ({
+    source: "wish_list" as const,
+    sourceId: item.wish_list_id,
+    sourceName: item.wish_list_name,
+    cardId: item.card_id,
+    printingId: item.printing_id,
+    needed: item.quantity_desired,
+  }));
 
   // 4. Aggregate total demand per card
   const demandByCard = new Map<string, number>();
