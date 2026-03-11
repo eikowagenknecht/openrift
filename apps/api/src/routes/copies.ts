@@ -1,7 +1,8 @@
 import { addCopiesSchema, disposeCopiesSchema, moveCopiesSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
-import { sql } from "kysely";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -51,7 +52,7 @@ copiesRoute.get("/copies", async (c) => {
       "p.is_signed",
       "p.is_promo",
       "p.finish",
-      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
+      imageUrl("pi").as("image_url"),
       "p.artist",
       "card.name as card_name",
       "card.type as card_type",
@@ -293,7 +294,7 @@ copiesRoute.get("/copies/:id", async (c) => {
       "p.set_id",
       "p.collector_number",
       "p.rarity",
-      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
+      imageUrl("pi").as("image_url"),
       "card.name as card_name",
       "card.type as card_type",
     ])

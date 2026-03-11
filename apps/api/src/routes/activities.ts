@@ -1,7 +1,8 @@
 import type { Activity, ActivityType } from "@openrift/shared";
 import { Hono } from "hono";
-import { sql } from "kysely";
 
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { imageUrl } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -96,7 +97,7 @@ activitiesRoute.get("/activities/:id", async (c) => {
       "ai.to_collection_name",
       "ai.metadata_snapshot",
       "ai.created_at",
-      sql<string | null>`COALESCE(pi.rehosted_url, pi.original_url)`.as("image_url"),
+      imageUrl("pi").as("image_url"),
       "p.set_id",
       "p.collector_number",
       "p.rarity",
