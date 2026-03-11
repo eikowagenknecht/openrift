@@ -1,5 +1,6 @@
 import { Eye } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +11,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { CardFields } from "@/lib/card-fields";
 
+interface DisplaySettingsProps {
+  showImages: boolean;
+  onShowImagesChange: (v: boolean) => void;
+  richEffects: boolean;
+  onRichEffectsChange: (v: boolean) => void;
+  cardFields: CardFields;
+  onCardFieldsChange: (update: Partial<CardFields>) => void;
+}
+
 export function DisplaySettingsDropdown({
   showImages,
   onShowImagesChange,
@@ -17,14 +27,7 @@ export function DisplaySettingsDropdown({
   onRichEffectsChange,
   cardFields: fields,
   onCardFieldsChange,
-}: {
-  showImages: boolean;
-  onShowImagesChange: (v: boolean) => void;
-  richEffects: boolean;
-  onRichEffectsChange: (v: boolean) => void;
-  cardFields: CardFields;
-  onCardFieldsChange: (update: Partial<CardFields>) => void;
-}) {
+}: DisplaySettingsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -72,5 +75,68 @@ export function DisplaySettingsDropdown({
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+export function DisplaySettingsInline({
+  showImages,
+  onShowImagesChange,
+  richEffects,
+  onRichEffectsChange,
+  cardFields: fields,
+  onCardFieldsChange,
+}: DisplaySettingsProps) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Badge
+        variant={showImages ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => onShowImagesChange(!showImages)}
+      >
+        Card images
+      </Badge>
+      <Badge
+        variant={richEffects ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => onRichEffectsChange(!richEffects)}
+      >
+        Rich effects
+      </Badge>
+      <Badge
+        variant={fields.number ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => onCardFieldsChange({ number: !fields.number })}
+      >
+        ID
+      </Badge>
+      <Badge
+        variant={fields.title ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => onCardFieldsChange({ title: !fields.title })}
+      >
+        Title
+      </Badge>
+      <Badge
+        variant={fields.type ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => onCardFieldsChange({ type: !fields.type })}
+      >
+        Type
+      </Badge>
+      <Badge
+        variant={fields.rarity ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => onCardFieldsChange({ rarity: !fields.rarity })}
+      >
+        Rarity
+      </Badge>
+      <Badge
+        variant={fields.price ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => onCardFieldsChange({ price: !fields.price })}
+      >
+        Price
+      </Badge>
+    </div>
   );
 }

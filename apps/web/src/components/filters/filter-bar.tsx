@@ -37,7 +37,7 @@ import { useCardFilters } from "@/hooks/use-card-filters";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useDisplayStore } from "@/stores/display-store";
 
-import { DisplaySettingsDropdown } from "./display-settings";
+import { DisplaySettingsDropdown, DisplaySettingsInline } from "./display-settings";
 import { FilterPanelContent } from "./filter-panel-content";
 
 const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
@@ -63,6 +63,177 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "rarity", label: "Rarity" },
   { value: "price", label: "Price" },
 ];
+
+/* ------------------------------------------------------------------ */
+/*  Shared sub-components (desktop / mobile via `compact` prop)       */
+/* ------------------------------------------------------------------ */
+
+function SortControls({
+  compact,
+  sortBy,
+  sortDir,
+  onSortByChange,
+  onSortDirChange,
+}: {
+  compact?: boolean;
+  sortBy: SortOption;
+  sortDir: "asc" | "desc";
+  onSortByChange: (v: SortOption) => void;
+  onSortDirChange: (v: "asc" | "desc") => void;
+}) {
+  return (
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>
+      <Select value={sortBy} onValueChange={(v) => onSortByChange(v as SortOption)}>
+        <SelectTrigger
+          size={compact ? "sm" : undefined}
+          className={compact ? "flex-1 text-xs" : "w-[160px]"}
+          aria-label="Sort by"
+        >
+          <span className="text-muted-foreground">Sort:&nbsp;</span>
+          <SelectValue placeholder="Sort by">
+            {(value: string) => sortOptions.find((o) => o.value === value)?.label ?? value}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {sortOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        variant="outline"
+        size={compact ? "sm" : "icon"}
+        className={compact ? "size-7 p-0" : undefined}
+        onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
+        title={sortDir === "asc" ? "Ascending" : "Descending"}
+      >
+        {sortDir === "asc" ? (
+          <ArrowDownNarrowWide className={compact ? undefined : "size-4"} />
+        ) : (
+          <ArrowUpNarrowWide className={compact ? undefined : "size-4"} />
+        )}
+      </Button>
+    </div>
+  );
+}
+
+function ViewModeToggle({
+  compact,
+  view,
+  onViewChange,
+  className,
+}: {
+  compact?: boolean;
+  view: "cards" | "printings";
+  onViewChange: (v: "cards" | "printings") => void;
+  className?: string;
+}) {
+  return (
+    <ButtonGroup aria-label="View mode" className={className}>
+      <Button
+        variant={view === "cards" ? "default" : "outline"}
+        size={compact ? "sm" : "icon"}
+        className={compact ? "gap-1.5 text-xs" : undefined}
+        onClick={() => onViewChange("cards")}
+        title={compact ? undefined : "One per card"}
+      >
+        <Square className={compact ? undefined : "size-4"} />
+        {compact && "Cards"}
+      </Button>
+      <Button
+        variant={view === "printings" ? "default" : "outline"}
+        size={compact ? "sm" : "icon"}
+        className={compact ? "gap-1.5 text-xs" : undefined}
+        onClick={() => onViewChange("printings")}
+        title={compact ? undefined : "Every printing"}
+      >
+        <SquareStack className={compact ? undefined : "size-4"} />
+        {compact && "Printings"}
+      </Button>
+    </ButtonGroup>
+  );
+}
+
+function ColumnControls({
+  compact,
+  maxColumns,
+  autoColumns,
+  minColumns,
+  maxColumnsLimit,
+  onMaxColumnsChange,
+}: {
+  compact?: boolean;
+  maxColumns: number | null;
+  autoColumns: number;
+  minColumns: number;
+  maxColumnsLimit: number;
+  onMaxColumnsChange: (v: number | null) => void;
+}) {
+  return (
+    <ButtonGroup aria-label="Columns">
+      <Button
+        variant="outline"
+        size={compact ? "sm" : "icon"}
+        className={compact ? "size-7 p-0" : undefined}
+        onClick={() => {
+          if (maxColumns === null) {
+            const next = autoColumns - 1;
+            if (next >= minColumns) {
+              onMaxColumnsChange(next);
+            }
+          } else if (maxColumns > minColumns) {
+            onMaxColumnsChange(maxColumns - 1);
+          }
+        }}
+        disabled={
+          (maxColumns !== null && maxColumns <= minColumns) ||
+          (maxColumns === null && autoColumns <= minColumns)
+        }
+        aria-label="Fewer columns"
+      >
+        <Minus className={compact ? undefined : "size-4"} />
+      </Button>
+      <ButtonGroupText
+        className={
+          compact
+            ? "flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
+            : "min-w-10 cursor-pointer justify-center tabular-nums"
+        }
+        onClick={() => {
+          if (maxColumns !== null) {
+            onMaxColumnsChange(null);
+          }
+        }}
+        title={maxColumns === null ? "Auto columns" : "Reset to auto"}
+      >
+        {maxColumns === null ? "Auto" : maxColumns}
+      </ButtonGroupText>
+      <Button
+        variant="outline"
+        size={compact ? "sm" : "icon"}
+        className={compact ? "size-7 p-0" : undefined}
+        onClick={() => {
+          const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
+          if (next <= maxColumnsLimit) {
+            onMaxColumnsChange(next);
+          }
+        }}
+        disabled={
+          maxColumns === null ? autoColumns >= maxColumnsLimit : maxColumns >= maxColumnsLimit
+        }
+        aria-label="More columns"
+      >
+        <Plus className={compact ? undefined : "size-4"} />
+      </Button>
+    </ButtonGroup>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main FilterBar                                                     */
+/* ------------------------------------------------------------------ */
 
 export function FilterBar({
   availableFilters,
@@ -131,6 +302,24 @@ export function FilterBar({
   const unitLabel = view === "cards" ? "cards" : "printings";
   const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
   const minColumns = minColumnsLimit;
+
+  const columnProps = {
+    maxColumns,
+    autoColumns,
+    minColumns,
+    maxColumnsLimit,
+    onMaxColumnsChange: setMaxColumns,
+  };
+
+  const displayProps = {
+    showImages,
+    onShowImagesChange: setShowImages,
+    richEffects,
+    onRichEffectsChange: setRichEffects,
+    cardFields,
+    onCardFieldsChange: (update: Partial<typeof cardFields>) =>
+      setCardFields((prev) => ({ ...prev, ...update })),
+  };
 
   return (
     <div className="space-y-4">
@@ -201,119 +390,15 @@ export function FilterBar({
         <div className="flex items-center gap-3">
           {/* Desktop: inline sort, view, columns controls */}
           <div className="hidden items-center gap-3 sm:flex">
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-[160px]" aria-label="Sort by">
-                <span className="text-muted-foreground">Sort:&nbsp;</span>
-                <SelectValue placeholder="Sort by">
-                  {(value: string) => sortOptions.find((o) => o.value === value)?.label ?? value}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {sortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
-              title={sortDir === "asc" ? "Ascending" : "Descending"}
-            >
-              {sortDir === "asc" ? (
-                <ArrowDownNarrowWide className="size-4" />
-              ) : (
-                <ArrowUpNarrowWide className="size-4" />
-              )}
-            </Button>
-
-            {/* View mode toggle */}
-            <ButtonGroup aria-label="View mode">
-              <Button
-                variant={view === "cards" ? "default" : "outline"}
-                size="icon"
-                onClick={() => setView("cards")}
-                title="One per card"
-              >
-                <Square className="size-4" />
-              </Button>
-              <Button
-                variant={view === "printings" ? "default" : "outline"}
-                size="icon"
-                onClick={() => setView("printings")}
-                title="Every printing"
-              >
-                <SquareStack className="size-4" />
-              </Button>
-            </ButtonGroup>
-
-            {/* Columns stepper */}
-            <ButtonGroup aria-label="Columns">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  if (maxColumns === null) {
-                    const next = autoColumns - 1;
-                    if (next >= minColumns) {
-                      setMaxColumns(next);
-                    }
-                  } else {
-                    if (maxColumns > minColumns) {
-                      setMaxColumns(maxColumns - 1);
-                    }
-                  }
-                }}
-                disabled={
-                  (maxColumns !== null && maxColumns <= minColumns) ||
-                  (maxColumns === null && autoColumns <= minColumns)
-                }
-                aria-label="Fewer columns"
-              >
-                <Minus className="size-4" />
-              </Button>
-              <ButtonGroupText
-                className="min-w-10 cursor-pointer justify-center tabular-nums"
-                onClick={() => {
-                  if (maxColumns !== null) {
-                    setMaxColumns(null);
-                  }
-                }}
-                title={maxColumns === null ? "Auto columns" : "Reset to auto"}
-              >
-                {maxColumns === null ? "Auto" : maxColumns}
-              </ButtonGroupText>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
-                  if (next <= maxColumnsLimit) {
-                    setMaxColumns(next);
-                  }
-                }}
-                disabled={
-                  maxColumns === null
-                    ? autoColumns >= maxColumnsLimit
-                    : maxColumns >= maxColumnsLimit
-                }
-                aria-label="More columns"
-              >
-                <Plus className="size-4" />
-              </Button>
-            </ButtonGroup>
-
-            {/* Display settings */}
-            <DisplaySettingsDropdown
-              showImages={showImages}
-              onShowImagesChange={setShowImages}
-              richEffects={richEffects}
-              onRichEffectsChange={setRichEffects}
-              cardFields={cardFields}
-              onCardFieldsChange={(update) => setCardFields((prev) => ({ ...prev, ...update }))}
+            <SortControls
+              sortBy={sortBy}
+              sortDir={sortDir}
+              onSortByChange={setSortBy}
+              onSortDirChange={setSortDir}
             />
+            <ViewModeToggle view={view} onViewChange={setView} />
+            <ColumnControls {...columnProps} />
+            <DisplaySettingsDropdown {...displayProps} />
           </div>
 
           {/* Mobile: icon-only button that opens options drawer */}
@@ -342,175 +427,26 @@ export function FilterBar({
             <DrawerDescription>Sort, display, and filter options</DrawerDescription>
           </DrawerHeader>
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4">
-            {/* Options: sort + display */}
             <div className="space-y-2.5">
               <p className="text-sm font-medium">Options</p>
+              <SortControls
+                compact
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortByChange={setSortBy}
+                onSortDirChange={setSortDir}
+              />
               <div className="flex items-center gap-2">
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                  <SelectTrigger size="sm" className="flex-1 text-xs" aria-label="Sort by">
-                    <span className="text-muted-foreground">Sort:&nbsp;</span>
-                    <SelectValue placeholder="Sort by">
-                      {(value: string) =>
-                        sortOptions.find((o) => o.value === value)?.label ?? value
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="size-7 p-0"
-                  onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
-                  title={sortDir === "asc" ? "Ascending" : "Descending"}
-                >
-                  {sortDir === "asc" ? <ArrowDownNarrowWide /> : <ArrowUpNarrowWide />}
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <ButtonGroup aria-label="View mode" className="mr-auto">
-                  <Button
-                    variant={view === "cards" ? "default" : "outline"}
-                    size="sm"
-                    className="gap-1.5 text-xs"
-                    onClick={() => setView("cards")}
-                  >
-                    <Square />
-                    Cards
-                  </Button>
-                  <Button
-                    variant={view === "printings" ? "default" : "outline"}
-                    size="sm"
-                    className="gap-1.5 text-xs"
-                    onClick={() => setView("printings")}
-                  >
-                    <SquareStack />
-                    Printings
-                  </Button>
-                </ButtonGroup>
-
-                <ButtonGroup aria-label="Columns">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="size-7 p-0"
-                    onClick={() => {
-                      if (maxColumns === null) {
-                        const next = autoColumns - 1;
-                        if (next >= minColumns) {
-                          setMaxColumns(next);
-                        }
-                      } else {
-                        if (maxColumns > minColumns) {
-                          setMaxColumns(maxColumns - 1);
-                        }
-                      }
-                    }}
-                    disabled={
-                      (maxColumns !== null && maxColumns <= minColumns) ||
-                      (maxColumns === null && autoColumns <= minColumns)
-                    }
-                    aria-label="Fewer columns"
-                  >
-                    <Minus />
-                  </Button>
-                  <ButtonGroupText
-                    className="flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
-                    onClick={() => {
-                      if (maxColumns !== null) {
-                        setMaxColumns(null);
-                      }
-                    }}
-                    title={maxColumns === null ? "Auto columns" : "Reset to auto"}
-                  >
-                    {maxColumns === null ? "Auto" : maxColumns}
-                  </ButtonGroupText>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="size-7 p-0"
-                    onClick={() => {
-                      const next = maxColumns === null ? autoColumns + 1 : maxColumns + 1;
-                      if (next <= maxColumnsLimit) {
-                        setMaxColumns(next);
-                      }
-                    }}
-                    disabled={
-                      maxColumns === null
-                        ? autoColumns >= maxColumnsLimit
-                        : maxColumns >= maxColumnsLimit
-                    }
-                    aria-label="More columns"
-                  >
-                    <Plus />
-                  </Button>
-                </ButtonGroup>
+                <ViewModeToggle compact view={view} onViewChange={setView} className="mr-auto" />
+                <ColumnControls compact {...columnProps} />
               </div>
             </div>
 
-            {/* Display */}
             <div className="space-y-2.5">
               <p className="text-sm font-medium">Display</p>
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant={showImages ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setShowImages(!showImages)}
-                >
-                  Card images
-                </Badge>
-                <Badge
-                  variant={richEffects ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setRichEffects(!richEffects)}
-                >
-                  Rich effects
-                </Badge>
-                <Badge
-                  variant={cardFields.number ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setCardFields((prev) => ({ ...prev, number: !prev.number }))}
-                >
-                  ID
-                </Badge>
-                <Badge
-                  variant={cardFields.title ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setCardFields((prev) => ({ ...prev, title: !prev.title }))}
-                >
-                  Title
-                </Badge>
-                <Badge
-                  variant={cardFields.type ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setCardFields((prev) => ({ ...prev, type: !prev.type }))}
-                >
-                  Type
-                </Badge>
-                <Badge
-                  variant={cardFields.rarity ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setCardFields((prev) => ({ ...prev, rarity: !prev.rarity }))}
-                >
-                  Rarity
-                </Badge>
-                <Badge
-                  variant={cardFields.price ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setCardFields((prev) => ({ ...prev, price: !prev.price }))}
-                >
-                  Price
-                </Badge>
-              </div>
+              <DisplaySettingsInline {...displayProps} />
             </div>
 
-            {/* Filters */}
             <div className="border-t pt-4">
               <p className="mb-2.5 text-sm font-medium">Filters</p>
               <div className="flex flex-col gap-4">{filterSections}</div>
