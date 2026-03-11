@@ -2,7 +2,7 @@ import type { Logger } from "../logger.js";
 import { galleryCardSchema } from "../schemas.js";
 import type { CardStats, CardType, Rarity } from "../types.js";
 
-// ── Public types ────────────────────────────────────────────────────────────
+// ── Output types ────────────────────────────────────────────────────────────
 
 interface GameCard {
   name: string;
@@ -48,6 +48,9 @@ interface CardsJson {
 
 const GALLERY_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/";
 
+/** @internal Exported for testing only.
+ * @returns Plain text with HTML tags and entities decoded.
+ */
 export function stripHtml(html: string) {
   return html
     .replaceAll(/<br\s*\/?>/gi, "\n")
@@ -61,6 +64,9 @@ export function stripHtml(html: string) {
     .trim();
 }
 
+/** @internal Exported for testing only.
+ * @returns Deduplicated list of bracketed keywords found in the text.
+ */
 export function parseKeywords(text: string) {
   const matches = text.match(/\[([A-Z][a-zA-Z\- ]+(?:\s+\d+)?)\]/g);
   if (!matches) {
@@ -146,6 +152,7 @@ function convertCard(src: any): ConvertedCard {
 }
 
 /** Derive art variant from the source ID suffix.
+ * @internal Exported for testing only.
  * @returns Art variant label and signed flag.
  */
 export function deriveArtVariant(
@@ -166,6 +173,7 @@ export function deriveArtVariant(
 }
 
 /** Strip variant suffixes to get the base card ID (e.g. "OGN-027a" → "OGN-027").
+ * @internal Exported for testing only.
  * @returns Base source ID without variant suffixes.
  */
 export function toBaseSourceId(sourceId: string): string {
