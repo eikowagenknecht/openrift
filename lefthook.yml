@@ -28,5 +28,8 @@ pre-commit:
 
 pre-push:
   commands:
+    lockfile-check:
+      glob: "**/package.json"
+      run: bun install --frozen-lockfile
     test:
       run: bun run test
