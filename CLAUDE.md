@@ -55,6 +55,40 @@ For dev setup, see `docs/development.md`. For deployment, see `docs/deployment.m
 
 See `docs/contributing.md` for full conventions.
 
+## File Locking (Multi-Agent Coordination)
+
+Multiple Claude Code sessions may run in parallel in this repo. To avoid conflicts, use file-based locks before editing any file.
+
+**Lock directory:** `.claude-locks/`
+
+**Protocol:**
+
+1. **Before editing a file**, check if `.claude-locks/<encoded-path>.lock` exists (encode by replacing `/` with `__`, e.g., `apps/web/src/foo.tsx` → `apps__web__src__foo.tsx.lock`).
+2. **If locked**, DO NOT edit that file. Tell the user it's locked and what task holds it. Wait for the user to decide.
+3. **If unlocked**, create the lock file before editing. The lock file content should be a short description of your task.
+4. **When done** with your task (or when the user says to), remove all your lock files.
+
+```bash
+# Check for a lock
+cat .claude-locks/apps__web__src__foo.tsx.lock 2>/dev/null
+
+# Acquire a lock
+echo "Refactoring profile page" > .claude-locks/apps__web__src__foo.tsx.lock
+
+# Release a lock
+rm .claude-locks/apps__web__src__foo.tsx.lock
+
+# Release all your locks when done
+rm .claude-locks/*.lock 2>/dev/null
+```
+
+**Rules:**
+
+- Always check before editing. Never skip this.
+- If you need a file that's locked, don't ask the user — just recheck the lock every 60 seconds until it clears, then proceed. Mention once that you're waiting.
+- Lock files older than 5 minutes can be assumed stale and overwritten. If your task takes longer, re-touch the lock file periodically to keep it fresh.
+- Never `git stash` or discard changes in files you don't own.
+
 ## Changelog
 
 `apps/web/src/CHANGELOG.md` is shown to users in the "What's new" panel. After completing `feat:` or `fix:` work, you MUST add an entry there (unless it's a chore/refactor that users won't notice or already has an entry). This helps us communicate improvements to users and track changes over time.

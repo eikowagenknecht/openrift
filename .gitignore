@@ -37,3 +37,6 @@ routeTree.gen.ts
 
 # Self-hosted card images (generated at runtime, bind-mounted in Docker)
 /card-images/
+
+# Claude Code file locks (multi-agent coordination)
+.claude-locks/
