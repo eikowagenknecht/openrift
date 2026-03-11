@@ -21,9 +21,88 @@ export interface ProductInfo {
   avg30Cents: number | null;
 }
 
+// ── Row shapes used by config callbacks ─────────────────────────────────────
+
+/** Common fields on staging rows (shared by both marketplaces). */
+export interface StagingRow {
+  external_id: number;
+  group_id: number;
+  product_name: string;
+  finish: string;
+  recorded_at: Date;
+}
+
+/** Common fields on snapshot rows (shared by both marketplaces). */
+export interface SnapshotRow {
+  recorded_at: Date;
+}
+
+/** Common fields on mapped snapshot query results (sources JOIN snapshots). */
+export interface MappedSnapshotRow {
+  printing_id: string;
+  product_name: string;
+  recorded_at: Date;
+}
+
+// ── TCGPlayer row shapes ────────────────────────────────────────────────────
+
+export interface TcgplayerStagingRow extends StagingRow {
+  market_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+}
+
+export interface TcgplayerSnapshotRow extends SnapshotRow {
+  market_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+}
+
+export interface TcgplayerMappedSnapshotRow extends MappedSnapshotRow {
+  market_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+}
+
+// ── Cardmarket row shapes ───────────────────────────────────────────────────
+
+export interface CardmarketStagingRow extends StagingRow {
+  market_cents: number;
+  low_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+}
+
+export interface CardmarketSnapshotRow extends SnapshotRow {
+  market_cents: number;
+  low_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+}
+
+export interface CardmarketMappedSnapshotRow extends MappedSnapshotRow {
+  market_cents: number;
+  low_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+}
+
 // ── Marketplace-specific config ─────────────────────────────────────────────
 
-export interface MarketplaceConfig {
+export interface MarketplaceConfig<
+  S extends StagingRow = StagingRow,
+  N extends SnapshotRow = SnapshotRow,
+  M extends MappedSnapshotRow = MappedSnapshotRow,
+> {
   currency: string;
   tables: {
     staging: "tcgplayer_staging" | "cardmarket_staging";
@@ -36,35 +115,31 @@ export interface MarketplaceConfig {
   /** Column name that holds the group/expansion ID in the groups table */
   groupIdColumn: "group_id" | "expansion_id";
   /** Map a staging row → the unified product-info price fields */
-  mapStagingPrices: (row: StagingRow) => Omit<ProductInfo, "productName" | "recordedAt">;
+  mapStagingPrices(row: S): Omit<ProductInfo, "productName" | "recordedAt">;
   /** Select + map snapshot prices for mapped products */
-  snapshotQuery: (printingIds: string[]) => Promise<MappedSnapshotRow[]>;
+  snapshotQuery(printingIds: string[]): Promise<M[]>;
   /** Map a snapshot query result → unified product-info */
-  mapSnapshotPrices: (row: MappedSnapshotRow) => ProductInfo;
+  mapSnapshotPrices(row: M): ProductInfo;
   /** Insert a snapshot row from staging during the POST (map) operation */
-  insertSnapshot: (tx: Transaction<Database>, sourceId: number, row: StagingRow) => Promise<void>;
+  insertSnapshot(tx: Transaction<Database>, sourceId: number, row: S): Promise<void>;
   /** Insert a staging row from a snapshot during the DELETE (unmap) operation */
-  insertStagingFromSnapshot: (
+  insertStagingFromSnapshot(
     tx: Transaction<Database>,
     ps: { external_id: number; group_id: number; product_name: string },
     finish: string,
-    snap: SnapshotRow,
-  ) => Promise<void>;
+    snap: N,
+  ): Promise<void>;
   /** Raw SQL to bulk-copy all snapshots back to staging (DELETE /all) */
-  bulkUnmapSql: (tx: Transaction<Database>) => Promise<void>;
+  bulkUnmapSql(tx: Transaction<Database>): Promise<void>;
 }
-
-// Row shapes used by the config callbacks (kept loose so both marketplaces fit)
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- generic row from selectAll()
-export type StagingRow = Record<string, any>;
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- generic row from selectAll()
-export type SnapshotRow = Record<string, any>;
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- generic row from snapshot query
-export type MappedSnapshotRow = Record<string, any>;
 
 // ── TCGPlayer config ────────────────────────────────────────────────────────
 
-export const tcgplayerConfig: MarketplaceConfig = {
+export const tcgplayerConfig: MarketplaceConfig<
+  TcgplayerStagingRow,
+  TcgplayerSnapshotRow,
+  TcgplayerMappedSnapshotRow
+> = {
   currency: "USD",
   tables: {
     staging: "tcgplayer_staging",
@@ -174,7 +249,11 @@ export const tcgplayerConfig: MarketplaceConfig = {
 
 // ── Cardmarket config ───────────────────────────────────────────────────────
 
-export const cardmarketConfig: MarketplaceConfig = {
+export const cardmarketConfig: MarketplaceConfig<
+  CardmarketStagingRow,
+  CardmarketSnapshotRow,
+  CardmarketMappedSnapshotRow
+> = {
   currency: "EUR",
   tables: {
     staging: "cardmarket_staging",
