@@ -1,22 +1,18 @@
 import type { Printing } from "@openrift/shared";
-import { useNavigate } from "@tanstack/react-router";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { Suspense, lazy, useDeferredValue, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
 import { CardGrid } from "@/components/cards/card-grid";
-import { AddCardPopover } from "@/components/collection/add-card-popover";
+import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
+import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardData } from "@/hooks/use-card-data";
 import { useCardFilters } from "@/hooks/use-card-filters";
 import { ApiError, useCards } from "@/hooks/use-cards";
-import { useCollections } from "@/hooks/use-collections";
 import { useOwnedCount } from "@/hooks/use-owned-count";
-import { useCreateSource, useSources } from "@/hooks/use-sources";
 import { useSession } from "@/lib/auth-client";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -35,41 +31,7 @@ export function CardBrowser() {
   // Adding mode state
   const [adding] = useQueryState("adding", parseAsBoolean.withDefault(false));
   const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
-  const { data: collections } = useCollections();
-  const addingCollection = collections?.find((c) => c.id === addingTo);
-  const { data: sources } = useSources();
-  const navigate = useNavigate();
-
-  const [addingSourceId, setAddingSourceId] = useState<string>("");
-  const [creatingSource, setCreatingSource] = useState(false);
-  const [newSourceName, setNewSourceName] = useState("");
-  const createSource = useCreateSource();
-  const [popoverCard, setPopoverCard] = useState<Printing | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Close popover on outside click
-  useEffect(() => {
-    if (!popoverCard) {
-      return;
-    }
-    const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setPopoverCard(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [popoverCard]);
-
-  const handleAddClick = (printing: Printing, anchorEl: HTMLElement) => {
-    const rect = anchorEl.getBoundingClientRect();
-    setPopoverPos({
-      top: rect.bottom + 4,
-      left: Math.max(8, Math.min(rect.left, globalThis.innerWidth - 240)),
-    });
-    setPopoverCard(printing);
-  };
+  const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
 
   const { filters, sortBy, sortDir, view, setSearch } = useCardFilters();
 
@@ -226,91 +188,11 @@ export function CardBrowser() {
   return (
     <div className="min-h-[calc(100svh-3.5rem)] space-y-4">
       {adding && addingTo && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2">
-          <span className="text-sm font-medium">
-            Adding to: {addingCollection?.name ?? "Collection"}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Source:</span>
-            {creatingSource ? (
-              <form
-                className="flex items-center gap-1"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const trimmed = newSourceName.trim();
-                  if (!trimmed) {
-                    return;
-                  }
-                  createSource.mutate(
-                    { name: trimmed },
-                    {
-                      onSuccess: (source) => {
-                        setAddingSourceId(source.id);
-                        setCreatingSource(false);
-                        setNewSourceName("");
-                      },
-                    },
-                  );
-                }}
-              >
-                <input
-                  type="text"
-                  value={newSourceName}
-                  onChange={(e) => setNewSourceName(e.target.value)}
-                  placeholder="e.g. Local Game Store"
-                  className="h-7 w-40 rounded border bg-background px-2 text-xs"
-                  autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
-                  onBlur={() => {
-                    if (!newSourceName.trim()) {
-                      setCreatingSource(false);
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="secondary"
-                  disabled={createSource.isPending}
-                >
-                  Add
-                </Button>
-              </form>
-            ) : (
-              <select
-                value={addingSourceId}
-                onChange={(e) => {
-                  if (e.target.value === "__new__") {
-                    setCreatingSource(true);
-                    setAddingSourceId("");
-                  } else {
-                    setAddingSourceId(e.target.value);
-                  }
-                }}
-                className="h-7 rounded border bg-background px-2 text-xs"
-              >
-                <option value="">None</option>
-                {sources?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-                <option value="__new__">+ Create new…</option>
-              </select>
-            )}
-          </div>
-          <div className="flex-1" />
-          <Button
-            size="sm"
-            onClick={() =>
-              void navigate({
-                to: "/collections/$collectionId",
-                params: { collectionId: addingTo },
-              })
-            }
-          >
-            Done
-          </Button>
-        </div>
+        <AddToCollectionFlow
+          ref={addFlowRef}
+          collectionId={addingTo}
+          printingsByCardId={printingsByCardId}
+        />
       )}
       <FilterBar
         availableFilters={availableFilters}
@@ -337,7 +219,9 @@ export function CardBrowser() {
             siblingPrintings={siblingPrintings}
             printingsByCardId={printingsByCardId}
             ownedCounts={ownedCounts}
-            onAddCard={adding && addingTo ? handleAddClick : undefined}
+            onAddCard={
+              adding && addingTo ? (p, el) => addFlowRef.current?.handleAddClick(p, el) : undefined
+            }
           />
         </div>
         {selectedCard && detailOpen && (
@@ -366,27 +250,6 @@ export function CardBrowser() {
           </Suspense>
         )}
       </div>
-
-      {/* Add card popover (portal) */}
-      {popoverCard &&
-        popoverPos &&
-        addingTo &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            className="fixed z-[100]"
-            style={{ top: popoverPos.top, left: popoverPos.left }}
-          >
-            <AddCardPopover
-              printing={popoverCard}
-              printings={printingsByCardId.get(popoverCard.card.id)}
-              collectionId={addingTo}
-              sourceId={addingSourceId || undefined}
-              onDone={() => setPopoverCard(null)}
-            />
-          </div>,
-          document.body,
-        )}
     </div>
   );
 }
