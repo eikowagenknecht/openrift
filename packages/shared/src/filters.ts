@@ -77,28 +77,24 @@ export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
 function printingMatchesField(printing: Printing, field: SearchField, text: string): boolean {
   const { card } = printing;
   const lower = text.toLowerCase();
-  switch (field) {
-    case "name": {
-      return card.name.toLowerCase().includes(lower);
-    }
-    case "cardText": {
-      return (
-        card.description.toLowerCase().includes(lower) || card.effect.toLowerCase().includes(lower)
-      );
-    }
-    case "keywords": {
-      return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
-    }
-    case "tags": {
-      return card.tags.some((tag) => tag.toLowerCase().includes(lower));
-    }
-    case "artist": {
-      return printing.artist.toLowerCase().includes(lower);
-    }
-    case "id": {
-      return printing.sourceId.toLowerCase().includes(lower);
-    }
+  if (field === "name") {
+    return card.name.toLowerCase().includes(lower);
   }
+  if (field === "cardText") {
+    return (
+      card.description.toLowerCase().includes(lower) || card.effect.toLowerCase().includes(lower)
+    );
+  }
+  if (field === "keywords") {
+    return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
+  }
+  if (field === "tags") {
+    return card.tags.some((tag) => tag.toLowerCase().includes(lower));
+  }
+  if (field === "artist") {
+    return printing.artist.toLowerCase().includes(lower);
+  }
+  return printing.sourceId.toLowerCase().includes(lower);
 }
 
 /**
@@ -308,25 +304,21 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
  * ```
  */
 export function sortCards(printings: Printing[], sortBy: SortOption): Printing[] {
-  switch (sortBy) {
-    case "name": {
-      return [...printings].sort((a, b) => a.card.name.localeCompare(b.card.name));
-    }
-    case "id": {
-      return [...printings].sort((a, b) => a.sourceId.localeCompare(b.sourceId));
-    }
-    case "energy": {
-      return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.card.stats.energy));
-    }
-    case "rarity": {
-      return [...printings].sort(
-        (a, b) =>
-          RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) ||
-          a.card.name.localeCompare(b.card.name),
-      );
-    }
-    case "price": {
-      return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.marketPrice));
-    }
+  if (sortBy === "name") {
+    return [...printings].sort((a, b) => a.card.name.localeCompare(b.card.name));
   }
+  if (sortBy === "id") {
+    return [...printings].sort((a, b) => a.sourceId.localeCompare(b.sourceId));
+  }
+  if (sortBy === "energy") {
+    return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.card.stats.energy));
+  }
+  if (sortBy === "rarity") {
+    return [...printings].sort(
+      (a, b) =>
+        RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) ||
+        a.card.name.localeCompare(b.card.name),
+    );
+  }
+  return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.marketPrice));
 }
