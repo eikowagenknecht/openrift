@@ -3,7 +3,7 @@ import { createCollectionSchema, updateCollectionSchema } from "@openrift/shared
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { imageUrl } from "../db-helpers.js";
+import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -248,16 +248,7 @@ collectionsRoute.get("/collections/:id/copies", async (c) => {
     throw new AppError(404, "NOT_FOUND", "Not found");
   }
 
-  const copies = await db
-    .selectFrom("copies as cp")
-    .innerJoin("printings as p", "p.id", "cp.printing_id")
-    .innerJoin("cards as c", "c.id", "p.card_id")
-    .leftJoin("printing_images as pi", (join) =>
-      join
-        .onRef("pi.printing_id", "=", "p.id")
-        .on("pi.face", "=", "front")
-        .on("pi.is_active", "=", true),
-    )
+  const copies = await selectCopyWithCard(db)
     .select([
       "cp.id",
       "cp.printing_id",
