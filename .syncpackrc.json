@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/syncpack/schema.json",
+  "semverGroups": [
+    {
+      "range": "",
+      "label": "All dependencies must use exact versions (no ^ or ~)"
+    }
+  ],
+  "sortAz": ["dependencies", "devDependencies", "peerDependencies", "overrides"]
+}
