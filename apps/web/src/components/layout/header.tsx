@@ -2,6 +2,7 @@ import { Link, useMatch, useMatchRoute, useRouter } from "@tanstack/react-router
 import {
   EllipsisVertical,
   LogOut,
+  Map,
   Moon,
   RefreshCw,
   Shield,
@@ -247,6 +248,14 @@ export function Header() {
                 </button>
               </DrawerDescription>
             </DrawerHeader>
+            <Link
+              to="/roadmap"
+              onClick={() => setChangelogOpen(false)}
+              className="mb-4 flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Map className="size-4" />
+              View the roadmap
+            </Link>
             {changelogGroups.map((group) => (
               <div key={group.date} className="mb-4">
                 <div className="sticky top-0 z-10 -mx-4 flex items-baseline gap-3 border-b border-border bg-background px-4 pb-2 pt-3 shadow-[0_2px_4px_-2px_var(--color-border)]">

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { siGithub } from "simple-icons";
 
 export function Footer() {
   return (
@@ -11,6 +12,22 @@ export function Footer() {
         <Link to="/privacy-policy" className="hover:text-muted-foreground">
           Privacy Policy
         </Link>
+        <span aria-hidden="true"> · </span>
+        <a
+          href="https://github.com/eikowagenknecht/openrift/commits/main/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-muted-foreground"
+        >
+          <svg
+            role="img"
+            viewBox="0 0 24 24"
+            className="mb-px mr-0.5 inline size-2.5 fill-current align-middle"
+          >
+            <path d={siGithub.path} />
+          </svg>
+          {__COMMIT_HASH__}
+        </a>
       </p>
       <p className="mt-1">
         OpenRift isn&apos;t endorsed by Riot Games and doesn&apos;t reflect the views or opinions of
