@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { useRef, useState } from "react";
 
+import { COMPACT_THRESHOLD } from "@/components/cards/card-grid-constants";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
@@ -65,8 +66,7 @@ export function CardThumbnail({
   const richEffects = useDisplayStore((s) => s.richEffects);
   const isFoilCard = printing.finish === "foil";
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
-  // ⚠ 190 is mirrored as COMPACT_THRESHOLD in card-grid.tsx — update both together
-  const compact = cardWidth !== undefined && cardWidth < 190;
+  const compact = cardWidth !== undefined && cardWidth < COMPACT_THRESHOLD;
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
   const fanAngle = richEffects ? 8 : 1.5;

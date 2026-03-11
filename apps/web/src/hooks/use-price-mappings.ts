@@ -26,44 +26,42 @@ export function usePriceMappings(config: SourceMappingConfig, showAll = false) {
   });
 }
 
+// Shared helper — every mutation invalidates the same query key on success.
+function useMappingMutation<TInput, TResult>(
+  config: SourceMappingConfig,
+  mutationFn: (input: TInput) => Promise<TResult>,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.priceMappings.bySource(config),
+      });
+    },
+  });
+}
+
 interface SaveMappingsBody {
   mappings: { printingId: string; externalId: number }[];
 }
 
 export function useSavePriceMappings(config: SourceMappingConfig) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: SaveMappingsBody) => api.post<{ saved: number }>(config.apiPath, body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
-      });
-    },
-  });
+  return useMappingMutation(config, (body: SaveMappingsBody) =>
+    api.post<{ saved: number }>(config.apiPath, body),
+  );
 }
 
 export function useUnmapAllMappings(config: SourceMappingConfig) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.del<{ ok: boolean; unmapped: number }>(`${config.apiPath}/all`),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
-      });
-    },
-  });
+  return useMappingMutation(config, () =>
+    api.del<{ ok: boolean; unmapped: number }>(`${config.apiPath}/all`),
+  );
 }
 
 export function useUnmapPrinting(config: SourceMappingConfig) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (printingId: string) => api.del<{ ok: boolean }>(config.apiPath, { printingId }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
-      });
-    },
-  });
+  return useMappingMutation(config, (printingId: string) =>
+    api.del<{ ok: boolean }>(config.apiPath, { printingId }),
+  );
 }
 
 interface StagingCardOverride {
@@ -74,19 +72,12 @@ interface StagingCardOverride {
 }
 
 export function useAssignToCard(config: SourceMappingConfig) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (override: StagingCardOverride) =>
-      api.post<{ ok: boolean }>("/api/admin/staging-card-overrides", {
-        source: config.source,
-        ...override,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
-      });
-    },
-  });
+  return useMappingMutation(config, (override: StagingCardOverride) =>
+    api.post<{ ok: boolean }>("/api/admin/staging-card-overrides", {
+      source: config.source,
+      ...override,
+    }),
+  );
 }
 
 interface UnassignFromCard {
@@ -95,19 +86,12 @@ interface UnassignFromCard {
 }
 
 export function useUnassignFromCard(config: SourceMappingConfig) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (params: UnassignFromCard) =>
-      api.del<{ ok: boolean }>("/api/admin/staging-card-overrides", {
-        source: config.source,
-        ...params,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
-      });
-    },
-  });
+  return useMappingMutation(config, (params: UnassignFromCard) =>
+    api.del<{ ok: boolean }>("/api/admin/staging-card-overrides", {
+      source: config.source,
+      ...params,
+    }),
+  );
 }
 
 interface IgnoreProduct {
@@ -116,33 +100,19 @@ interface IgnoreProduct {
 }
 
 export function useIgnoreProducts(config: SourceMappingConfig) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (products: IgnoreProduct[]) =>
-      api.post<{ ok: boolean; ignored: number }>("/api/admin/ignored-products", {
-        source: config.source,
-        products,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
-      });
-    },
-  });
+  return useMappingMutation(config, (products: IgnoreProduct[]) =>
+    api.post<{ ok: boolean; ignored: number }>("/api/admin/ignored-products", {
+      source: config.source,
+      products,
+    }),
+  );
 }
 
 export function useUnignoreProducts(config: SourceMappingConfig) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (products: IgnoreProduct[]) =>
-      api.del<{ ok: boolean; unignored: number }>("/api/admin/ignored-products", {
-        source: config.source,
-        products,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
-      });
-    },
-  });
+  return useMappingMutation(config, (products: IgnoreProduct[]) =>
+    api.del<{ ok: boolean; unignored: number }>("/api/admin/ignored-products", {
+      source: config.source,
+      products,
+    }),
+  );
 }
