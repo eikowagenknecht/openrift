@@ -8,6 +8,7 @@ interface AdminSet {
   id: string;
   name: string;
   printedTotal: number;
+  sortOrder: number;
   cardCount: number;
   printingCount: number;
 }
@@ -31,6 +32,13 @@ export function useCreateSet() {
   return useMutationWithInvalidation({
     mutationFn: (body: { id: string; name: string; printedTotal: number }) =>
       api.post<{ ok: boolean }>("/api/admin/sets", body),
+    invalidates: [queryKeys.admin.sets],
+  });
+}
+
+export function useReorderSets() {
+  return useMutationWithInvalidation({
+    mutationFn: (ids: string[]) => api.put<{ ok: boolean }>("/api/admin/sets/reorder", { ids }),
     invalidates: [queryKeys.admin.sets],
   });
 }

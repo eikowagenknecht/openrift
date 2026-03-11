@@ -1,3 +1,4 @@
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useState } from "react";
 
 import { ActionCard, refreshActions, useCronStatus } from "@/components/admin/refresh-actions";
@@ -13,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCreateSet, useSets, useUpdateSet } from "@/hooks/use-sets";
+import { useCreateSet, useReorderSets, useSets, useUpdateSet } from "@/hooks/use-sets";
 
 interface EditingRow {
   id: string;
@@ -26,6 +27,7 @@ export function SetsPage() {
   const { data: cronStatus } = useCronStatus();
   const updateMutation = useUpdateSet();
   const createMutation = useCreateSet();
+  const reorderMutation = useReorderSets();
   const [editing, setEditing] = useState<EditingRow | null>(null);
   const [adding, setAdding] = useState(false);
   const [newSet, setNewSet] = useState({ id: "", name: "", printedTotal: "" });
@@ -95,6 +97,16 @@ export function SetsPage() {
     );
   }
 
+  function moveSet(index: number, direction: -1 | 1) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= sets.length) {
+      return;
+    }
+    const reordered = sets.map((s) => s.id);
+    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+    reorderMutation.mutate(reordered);
+  }
+
   return (
     <div className="space-y-4">
       <ActionCard action={refreshActions.catalog} cronStatus={cronStatus} />
@@ -109,6 +121,7 @@ export function SetsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">Order</TableHead>
               <TableHead className="w-28">ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="w-32 text-right">Printed Total</TableHead>
@@ -124,6 +137,7 @@ export function SetsPage() {
           <TableBody>
             {adding && (
               <TableRow>
+                <TableCell />
                 <TableCell>
                   <Input
                     value={newSet.id}
@@ -179,14 +193,15 @@ export function SetsPage() {
             )}
             {sets.length === 0 && !adding && (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
+                <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
                   No sets yet.
                 </TableCell>
               </TableRow>
             )}
-            {sets.map((set) =>
+            {sets.map((set, index) =>
               editing?.id === set.id ? (
                 <TableRow key={set.id}>
+                  <TableCell className="text-muted-foreground text-center">{index + 1}</TableCell>
                   <TableCell className="font-mono">{set.id}</TableCell>
                   <TableCell>
                     <Input
@@ -227,6 +242,28 @@ export function SetsPage() {
                 </TableRow>
               ) : (
                 <TableRow key={set.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={index === 0 || reorderMutation.isPending}
+                        onClick={() => moveSet(index, -1)}
+                      >
+                        <ArrowUpIcon className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={index === sets.length - 1 || reorderMutation.isPending}
+                        onClick={() => moveSet(index, 1)}
+                      >
+                        <ArrowDownIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell className="font-mono">{set.id}</TableCell>
                   <TableCell>{set.name}</TableCell>
                   <TableCell className="text-right">{set.printedTotal}</TableCell>
