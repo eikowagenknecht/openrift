@@ -5,18 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useCardFilters } from "@/hooks/use-card-filters";
 import { formatDomainFilterLabel } from "@/lib/domain";
+import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
-
-const ART_VARIANT_LABELS: Record<string, string> = {
-  normal: "Normal",
-  altart: "Alt Art",
-  overnumbered: "Overnumbered",
-};
-
-const FINISH_LABELS: Record<string, string> = {
-  normal: "Normal",
-  foil: "Foil",
-};
 
 const RANGE_SECTIONS: {
   key: RangeKey;
