@@ -82,8 +82,17 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
 
   const queueAutoExpand = (cardId: string) => {
     const idx = orderedCardIds.indexOf(cardId);
-    const nextCardId =
-      idx !== -1 && idx < orderedCardIds.length - 1 ? orderedCardIds[idx + 1] : null;
+    let nextCardId: string | null = null;
+    if (idx !== -1) {
+      const groupsByCardId = new Map(groups.map((g) => [g.cardId, g]));
+      for (let i = idx + 1; i < orderedCardIds.length; i++) {
+        const candidate = groupsByCardId.get(orderedCardIds[i]);
+        if (candidate && candidate.printings.some((p) => p.externalId === null)) {
+          nextCardId = orderedCardIds[i];
+          break;
+        }
+      }
+    }
     autoExpandRef.current = { cardId, nextCardId };
   };
 
