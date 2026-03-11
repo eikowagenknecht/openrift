@@ -3,9 +3,9 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { CardType, Rarity } from "../types.js";
-import { buildPrintingId } from "./build-printing-id.js";
 import { fetchCatalog } from "./fetch-catalog.js";
 import type { Database } from "./types.js";
+import { buildPrintingId } from "./utils.js";
 
 // Finish rules:
 // - OGS → non-foil only

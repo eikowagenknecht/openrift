@@ -1,5 +1,5 @@
 import type { Database } from "@openrift/shared/db";
-import { buildPrintingId } from "@openrift/shared/db/build-printing-id";
+import { buildPrintingId } from "@openrift/shared/db/utils";
 import { candidateUploadSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import type { Transaction } from "kysely";
