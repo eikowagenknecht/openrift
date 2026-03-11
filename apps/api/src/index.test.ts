@@ -37,6 +37,7 @@ mock.module("kysely", () => {
     };
     return obj;
   };
+  makeSql.ref = (ref: string) => ref;
   return {
     sql: makeSql,
     // oxlint-disable-next-line typescript/no-extraneous-class -- mock placeholder for Kysely class
