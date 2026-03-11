@@ -1,4 +1,4 @@
-import { Link, useMatch, useMatchRoute, useRouter } from "@tanstack/react-router";
+import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
   EllipsisVertical,
   LogOut,
@@ -31,12 +31,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useSWUpdate } from "@/hooks/use-sw-update";
 import { signOut, useSession } from "@/lib/auth-client";
 import { parseChangelog } from "@/lib/changelog";
 import { featureEnabled } from "@/lib/feature-flags";
 import { useGravatarUrl } from "@/lib/gravatar";
+import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme-store";
 
 const changelogGroups = parseChangelog(changelogMd);
@@ -78,8 +86,6 @@ export function Header() {
   const isHome = useMatch({ from: "/cards", shouldThrow: false });
   const gravatarUrl = useGravatarUrl(session?.user?.email);
 
-  const matchRoute = useMatchRoute();
-  const isCollectionRoute = matchRoute({ to: "/collections", fuzzy: true });
   const { checkForUpdate } = useSWUpdate();
   const [checking, setChecking] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -114,35 +120,45 @@ export function Header() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
         {/* ⚠ h-14 is mirrored as APP_HEADER_HEIGHT in card-grid.tsx — update both together */}
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)">
-          <button
-            type="button"
-            className="flex cursor-pointer items-baseline gap-2"
-            onClick={() => {
-              if (isHome) {
-                globalThis.scrollTo({ top: 0, behavior: "smooth" });
-              } else {
-                void router.navigate({ to: "/cards" });
-              }
-            }}
-          >
-            <img src="/logo-64x64.webp" alt="OpenRift" className="size-8 self-center" />
-            <h1 className="text-xl font-bold tracking-tight">OpenRift</h1>
-            <span className="text-sm text-muted-foreground sm:hidden">A Riftbound companion.</span>
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              Fast. Open. Ad-free. A Riftbound companion.
-            </span>
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="flex cursor-pointer items-center gap-2"
+              onClick={() => {
+                if (isHome) {
+                  globalThis.scrollTo({ top: 0, behavior: "smooth" });
+                } else {
+                  void router.navigate({ to: "/cards" });
+                }
+              }}
+            >
+              <img src="/logo-64x64.webp" alt="OpenRift" className="size-8 self-center" />
+              <h1 className="text-xl font-bold tracking-tight">OpenRift</h1>
+            </button>
+            <NavigationMenu>
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <NavigationMenuLink
+                    render={<Link to="/cards" />}
+                    className={cn(navigationMenuTriggerStyle(), "h-7")}
+                  >
+                    Cards
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+                {session?.user && featureEnabled("collection") && (
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      render={<Link to="/collections" />}
+                      className={cn(navigationMenuTriggerStyle(), "h-7")}
+                    >
+                      Collection
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                )}
+              </NavigationMenuList>
+            </NavigationMenu>
+          </div>
           <div className="flex items-center gap-1">
-            {session?.user && featureEnabled("collection") && (
-              <Button
-                variant={isCollectionRoute ? "secondary" : "ghost"}
-                size="sm"
-                nativeButton={false}
-                render={<Link to="/collections" />}
-              >
-                Collection
-              </Button>
-            )}
             <InstallButton />
             {!isPending && !session?.user && (
               <Button
