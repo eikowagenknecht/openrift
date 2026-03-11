@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "./db.js";
@@ -16,6 +17,8 @@ import type { FieldMapping } from "./patch.js";
 import type { Variables } from "./types.js";
 
 type CrudOperation = "list" | "create" | "getOne" | "update" | "delete";
+type OrderByClause = [field: string, direction?: "asc" | "desc"];
+type AppContext = Context<{ Variables: Variables }>;
 
 interface CrudRouteConfig {
   path: string;
@@ -25,8 +28,11 @@ interface CrudRouteConfig {
   updateSchema: { parse(data: unknown): Record<string, unknown> };
   toInsert: (body: Record<string, unknown>) => Record<string, unknown>;
   patchFields: FieldMapping;
-  orderBy?: string;
+  orderBy?: string | OrderByClause[];
   skip?: CrudOperation[];
+  beforeList?: (c: AppContext) => Promise<void>;
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- Kysely query builder loses type info with dynamic tables
+  listFilter?: (query: any, c: AppContext) => any;
 }
 
 // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic table names lose Kysely's static types
@@ -43,6 +49,8 @@ export function createCrudRoute(config: CrudRouteConfig): Hono<{ Variables: Vari
     patchFields,
     orderBy = "name",
     skip = [],
+    beforeList,
+    listFilter,
   } = config;
 
   const skipped = new Set(skip);
@@ -53,13 +61,25 @@ export function createCrudRoute(config: CrudRouteConfig): Hono<{ Variables: Vari
 
   if (!skipped.has("list")) {
     route.get(path, async (c) => {
+      if (beforeList) {
+        await beforeList(c);
+      }
       const userId = getUserId(c);
-      const rows = await dynDb
-        .selectFrom(table)
-        .selectAll()
-        .where("user_id", "=", userId)
-        .orderBy(orderBy)
-        .execute();
+      let query = dynDb.selectFrom(table).selectAll().where("user_id", "=", userId);
+
+      if (Array.isArray(orderBy)) {
+        for (const [field, dir] of orderBy) {
+          query = query.orderBy(field, dir);
+        }
+      } else {
+        query = query.orderBy(orderBy);
+      }
+
+      if (listFilter) {
+        query = listFilter(query, c);
+      }
+
+      const rows = await query.execute();
       return c.json(rows.map((row: object) => toDto(row)));
     });
   }
