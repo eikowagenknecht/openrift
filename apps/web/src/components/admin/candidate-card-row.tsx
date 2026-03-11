@@ -6,7 +6,6 @@ import { CardIcon } from "@/components/card-icon";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -15,6 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { EditField } from "./edit-field";
+import { Field } from "./field";
+import { MultiSelect } from "./multi-select";
+import { SectionHeading } from "./section-heading";
 
 // oxlint-disable-next-line no-empty-function -- noop handler for read-only CardThumbnail
 const NOOP = () => {};
@@ -295,9 +299,7 @@ export function CandidateCardRow({
         <div className="flex flex-col gap-6 border-t bg-muted/30 px-4 py-4 sm:flex-row sm:px-6">
           {/* Printings grid */}
           <div className="min-w-0">
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Printings
-            </h4>
+            <SectionHeading>Printings</SectionHeading>
             <div className="flex flex-wrap gap-4">
               {candidate.printings.map((p, i) => (
                 <div key={p.id} className="w-[320px] rounded-lg">
@@ -332,9 +334,7 @@ export function CandidateCardRow({
 
           {/* Card fields sidebar */}
           <div className="w-full shrink-0 sm:w-80">
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Card Fields
-            </h4>
+            <SectionHeading>Card Fields</SectionHeading>
             {edit ? (
               <div className="space-y-3">
                 <EditField label="Name" value={edit.name} onChange={(v) => updateEdit("name", v)} />
@@ -438,86 +438,6 @@ export function CandidateCardRow({
               </div>
             )}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2">
-      <span className="shrink-0 text-muted-foreground">{label}:</span>
-      <span className="break-words">{value}</span>
-    </div>
-  );
-}
-
-function EditField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-8 w-full text-sm"
-      />
-    </div>
-  );
-}
-
-function MultiSelect({
-  label,
-  options,
-  selected,
-  onToggle,
-  iconPath,
-}: {
-  label: string;
-  options: string[];
-  selected: Set<string>;
-  onToggle: (value: string) => void;
-  iconPath?: (value: string) => string;
-}) {
-  const [open, setOpen] = useState(false);
-  const summary = selected.size === 0 ? "None" : [...selected].join(", ");
-
-  return (
-    <div className="relative space-y-1">
-      <Label className="text-xs">{label}</Label>
-      <button
-        type="button"
-        className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm shadow-xs"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="truncate text-left">{summary}</span>
-        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
-      </button>
-      {open && (
-        <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover p-1 shadow-md">
-          {options.map((opt) => (
-            <label
-              key={opt}
-              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(opt)}
-                onChange={() => onToggle(opt)}
-                className="size-3.5 rounded border-border"
-              />
-              {iconPath && <CardIcon src={iconPath(opt)} />}
-              {opt}
-            </label>
-          ))}
         </div>
       )}
     </div>
