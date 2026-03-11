@@ -17,6 +17,7 @@ import * as m011 from "./011-staging-card-overrides.js";
 import * as m012 from "./012-candidate-cards.js";
 import * as m013 from "./013-printing-images.js";
 import * as m014 from "./014-feature-flags.js";
+import * as m015 from "./015-drop-candidate-checks.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -33,4 +34,5 @@ export const migrations: Record<string, Migration> = {
   "012-candidate-cards": m012,
   "013-printing-images": m013,
   "014-feature-flags": m014,
+  "015-drop-candidate-checks": m015,
 };

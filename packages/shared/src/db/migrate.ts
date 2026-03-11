@@ -6,13 +6,11 @@ import { Migrator } from "kysely";
 import { migrations } from "./migrations/index.js";
 import type { Database } from "./types.js";
 
-// oxlint-disable-next-line prefer-await-to-then -- wrapping a sync value in a Promise to satisfy Kysely's MigrationProvider interface
-const migrationsPromise = Promise.resolve(migrations);
-
 function createMigrator(db: Kysely<Database>) {
   return new Migrator({
     db,
-    provider: { getMigrations: () => migrationsPromise },
+    // oxlint-disable-next-line prefer-await-to-then -- wrapping a sync value in a Promise to satisfy Kysely's MigrationProvider interface
+    provider: { getMigrations: () => Promise.resolve(migrations) },
   });
 }
 

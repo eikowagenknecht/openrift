@@ -30,13 +30,16 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .unique()
     .execute();
 
-  // At most one active image per printing + face
-  await sql`CREATE UNIQUE INDEX idx_printing_images_active ON printing_images (printing_id, face) WHERE is_active = true`.execute(
-    db,
-  );
+  await db.schema
+    .createIndex("idx_printing_images_active")
+    .on("printing_images")
+    .columns(["printing_id", "face"])
+    .unique()
+    .where(sql.ref("is_active"), "=", true)
+    .execute();
 
   // ── Migrate existing image_url data ───────────────────────────────────────
-  // Self-hosted URLs (/card-images/...) → rehosted_url, original_url stays NULL
+  // DML (INSERT...SELECT) is not expressible in the schema builder
   await sql`
     INSERT INTO printing_images (printing_id, face, source, original_url, rehosted_url, is_active)
     SELECT id, 'front', 'gallery', NULL, image_url, true
@@ -44,7 +47,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     WHERE image_url IS NOT NULL AND image_url LIKE '/card-images/%'
   `.execute(db);
 
-  // External URLs → original_url, rehosted_url stays NULL
+  // DML (INSERT...SELECT) is not expressible in the schema builder
   await sql`
     INSERT INTO printing_images (printing_id, face, source, original_url, rehosted_url, is_active)
     SELECT id, 'front', 'gallery', image_url, NULL, true
@@ -60,7 +63,7 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   // Restore image_url column
   await db.schema.alterTable("printings").addColumn("image_url", "text").execute();
 
-  // Move data back: prefer rehosted_url, fall back to original_url
+  // DML (UPDATE...FROM) is not expressible in the schema builder
   await sql`
     UPDATE printings SET image_url = COALESCE(pi.rehosted_url, pi.original_url)
     FROM printing_images pi

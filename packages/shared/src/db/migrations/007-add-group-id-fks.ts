@@ -3,6 +3,7 @@ import { sql } from "kysely";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
   // ── Clean up rows with NULL group_id (caused by unmap bug) ─────────────────
+  // DML (DELETE) is not expressible in the schema builder
   await sql`
     DELETE FROM tcgplayer_snapshots
     WHERE source_id IN (SELECT id FROM tcgplayer_sources WHERE group_id IS NULL)
@@ -18,6 +19,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`DELETE FROM cardmarket_staging WHERE group_id IS NULL`.execute(db);
 
   // ── Clean up rows with NULL product_name (same unmap bug) ──────────────────
+  // DML (DELETE) is not expressible in the schema builder
   await sql`
     DELETE FROM tcgplayer_snapshots
     WHERE source_id IN (SELECT id FROM tcgplayer_sources WHERE product_name IS NULL)
@@ -31,68 +33,143 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`DELETE FROM cardmarket_sources WHERE product_name IS NULL`.execute(db);
 
   // ── Drop unused url column (URLs are derived from external_id) ─────────────
-  await sql`ALTER TABLE tcgplayer_sources DROP COLUMN url`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources DROP COLUMN url`.execute(db);
+  await db.schema.alterTable("tcgplayer_sources").dropColumn("url").execute();
+  await db.schema.alterTable("cardmarket_sources").dropColumn("url").execute();
 
   // ── Add NOT NULL constraints ───────────────────────────────────────────────
-  await sql`ALTER TABLE tcgplayer_sources ALTER COLUMN group_id SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_sources ALTER COLUMN external_id SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_sources ALTER COLUMN product_name SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_staging ALTER COLUMN group_id SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_staging ALTER COLUMN external_id SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources ALTER COLUMN group_id SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources ALTER COLUMN external_id SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources ALTER COLUMN product_name SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_staging ALTER COLUMN group_id SET NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_staging ALTER COLUMN external_id SET NOT NULL`.execute(db);
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .alterColumn("group_id", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .alterColumn("external_id", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .alterColumn("product_name", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .alterColumn("group_id", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .alterColumn("external_id", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .alterColumn("group_id", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .alterColumn("external_id", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .alterColumn("product_name", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .alterColumn("group_id", (col) => col.setNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .alterColumn("external_id", (col) => col.setNotNull())
+    .execute();
 
   // ── Add foreign keys ──────────────────────────────────────────────────────
-  await sql`
-    ALTER TABLE tcgplayer_sources
-    ADD CONSTRAINT fk_tcgplayer_sources_group
-    FOREIGN KEY (group_id) REFERENCES tcgplayer_groups(group_id)
-  `.execute(db);
-
-  await sql`
-    ALTER TABLE tcgplayer_staging
-    ADD CONSTRAINT fk_tcgplayer_staging_group
-    FOREIGN KEY (group_id) REFERENCES tcgplayer_groups(group_id)
-  `.execute(db);
-
-  await sql`
-    ALTER TABLE cardmarket_sources
-    ADD CONSTRAINT fk_cardmarket_sources_expansion
-    FOREIGN KEY (group_id) REFERENCES cardmarket_expansions(expansion_id)
-  `.execute(db);
-
-  await sql`
-    ALTER TABLE cardmarket_staging
-    ADD CONSTRAINT fk_cardmarket_staging_expansion
-    FOREIGN KEY (group_id) REFERENCES cardmarket_expansions(expansion_id)
-  `.execute(db);
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .addForeignKeyConstraint("fk_tcgplayer_sources_group", ["group_id"], "tcgplayer_groups", [
+      "group_id",
+    ])
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .addForeignKeyConstraint("fk_tcgplayer_staging_group", ["group_id"], "tcgplayer_groups", [
+      "group_id",
+    ])
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .addForeignKeyConstraint(
+      "fk_cardmarket_sources_expansion",
+      ["group_id"],
+      "cardmarket_expansions",
+      ["expansion_id"],
+    )
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .addForeignKeyConstraint(
+      "fk_cardmarket_staging_expansion",
+      ["group_id"],
+      "cardmarket_expansions",
+      ["expansion_id"],
+    )
+    .execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await sql`ALTER TABLE cardmarket_staging DROP CONSTRAINT fk_cardmarket_staging_expansion`.execute(
-    db,
-  );
-  await sql`ALTER TABLE cardmarket_sources DROP CONSTRAINT fk_cardmarket_sources_expansion`.execute(
-    db,
-  );
-  await sql`ALTER TABLE tcgplayer_staging DROP CONSTRAINT fk_tcgplayer_staging_group`.execute(db);
-  await sql`ALTER TABLE tcgplayer_sources DROP CONSTRAINT fk_tcgplayer_sources_group`.execute(db);
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .dropConstraint("fk_cardmarket_staging_expansion")
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .dropConstraint("fk_cardmarket_sources_expansion")
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .dropConstraint("fk_tcgplayer_staging_group")
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .dropConstraint("fk_tcgplayer_sources_group")
+    .execute();
 
-  await sql`ALTER TABLE tcgplayer_sources ADD COLUMN url text`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources ADD COLUMN url text`.execute(db);
+  await db.schema.alterTable("tcgplayer_sources").addColumn("url", "text").execute();
+  await db.schema.alterTable("cardmarket_sources").addColumn("url", "text").execute();
 
-  await sql`ALTER TABLE cardmarket_staging ALTER COLUMN external_id DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_staging ALTER COLUMN group_id DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources ALTER COLUMN product_name DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources ALTER COLUMN external_id DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE cardmarket_sources ALTER COLUMN group_id DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_staging ALTER COLUMN external_id DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_staging ALTER COLUMN group_id DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_sources ALTER COLUMN product_name DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_sources ALTER COLUMN external_id DROP NOT NULL`.execute(db);
-  await sql`ALTER TABLE tcgplayer_sources ALTER COLUMN group_id DROP NOT NULL`.execute(db);
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .alterColumn("external_id", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .alterColumn("group_id", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .alterColumn("product_name", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .alterColumn("external_id", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_sources")
+    .alterColumn("group_id", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .alterColumn("external_id", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .alterColumn("group_id", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .alterColumn("product_name", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .alterColumn("external_id", (col) => col.dropNotNull())
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_sources")
+    .alterColumn("group_id", (col) => col.dropNotNull())
+    .execute();
 }

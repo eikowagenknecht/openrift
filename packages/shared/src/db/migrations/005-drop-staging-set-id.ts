@@ -1,18 +1,31 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
-  await sql`DROP INDEX idx_tcgplayer_staging_set_id`.execute(db);
-  await sql`ALTER TABLE tcgplayer_staging DROP COLUMN set_id`.execute(db);
+  await db.schema.dropIndex("idx_tcgplayer_staging_set_id").execute();
+  await db.schema.alterTable("tcgplayer_staging").dropColumn("set_id").execute();
 
-  await sql`DROP INDEX idx_cardmarket_staging_set_id`.execute(db);
-  await sql`ALTER TABLE cardmarket_staging DROP COLUMN set_id`.execute(db);
+  await db.schema.dropIndex("idx_cardmarket_staging_set_id").execute();
+  await db.schema.alterTable("cardmarket_staging").dropColumn("set_id").execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await sql`ALTER TABLE tcgplayer_staging ADD COLUMN set_id text REFERENCES sets(id)`.execute(db);
-  await sql`CREATE INDEX idx_tcgplayer_staging_set_id ON tcgplayer_staging(set_id)`.execute(db);
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .addColumn("set_id", "text", (col) => col.references("sets.id"))
+    .execute();
+  await db.schema
+    .createIndex("idx_tcgplayer_staging_set_id")
+    .on("tcgplayer_staging")
+    .column("set_id")
+    .execute();
 
-  await sql`ALTER TABLE cardmarket_staging ADD COLUMN set_id text REFERENCES sets(id)`.execute(db);
-  await sql`CREATE INDEX idx_cardmarket_staging_set_id ON cardmarket_staging(set_id)`.execute(db);
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .addColumn("set_id", "text", (col) => col.references("sets.id"))
+    .execute();
+  await db.schema
+    .createIndex("idx_cardmarket_staging_set_id")
+    .on("cardmarket_staging")
+    .column("set_id")
+    .execute();
 }

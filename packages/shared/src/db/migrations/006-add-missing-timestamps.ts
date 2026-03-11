@@ -3,39 +3,46 @@ import { sql } from "kysely";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
   // Staging tables: add updated_at (rows are upserted on re-import)
-  await sql`ALTER TABLE tcgplayer_staging ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now()`.execute(
-    db,
-  );
-  await sql`ALTER TABLE cardmarket_staging ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now()`.execute(
-    db,
-  );
+  await db.schema
+    .alterTable("tcgplayer_staging")
+    .addColumn("updated_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_staging")
+    .addColumn("updated_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
 
   // Admins: add updated_at for consistency
-  await sql`ALTER TABLE admins ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now()`.execute(
-    db,
-  );
+  await db.schema
+    .alterTable("admins")
+    .addColumn("updated_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
 
   // Snapshot tables: add created_at + updated_at for debugging/consistency
-  await sql`ALTER TABLE tcgplayer_snapshots ADD COLUMN created_at timestamptz NOT NULL DEFAULT now()`.execute(
-    db,
-  );
-  await sql`ALTER TABLE tcgplayer_snapshots ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now()`.execute(
-    db,
-  );
-  await sql`ALTER TABLE cardmarket_snapshots ADD COLUMN created_at timestamptz NOT NULL DEFAULT now()`.execute(
-    db,
-  );
-  await sql`ALTER TABLE cardmarket_snapshots ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now()`.execute(
-    db,
-  );
+  await db.schema
+    .alterTable("tcgplayer_snapshots")
+    .addColumn("created_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
+  await db.schema
+    .alterTable("tcgplayer_snapshots")
+    .addColumn("updated_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_snapshots")
+    .addColumn("created_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
+  await db.schema
+    .alterTable("cardmarket_snapshots")
+    .addColumn("updated_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await sql`ALTER TABLE cardmarket_snapshots DROP COLUMN updated_at`.execute(db);
-  await sql`ALTER TABLE cardmarket_snapshots DROP COLUMN created_at`.execute(db);
-  await sql`ALTER TABLE tcgplayer_snapshots DROP COLUMN updated_at`.execute(db);
-  await sql`ALTER TABLE tcgplayer_snapshots DROP COLUMN created_at`.execute(db);
-  await sql`ALTER TABLE admins DROP COLUMN updated_at`.execute(db);
-  await sql`ALTER TABLE cardmarket_staging DROP COLUMN updated_at`.execute(db);
-  await sql`ALTER TABLE tcgplayer_staging DROP COLUMN updated_at`.execute(db);
+  await db.schema.alterTable("cardmarket_snapshots").dropColumn("updated_at").execute();
+  await db.schema.alterTable("cardmarket_snapshots").dropColumn("created_at").execute();
+  await db.schema.alterTable("tcgplayer_snapshots").dropColumn("updated_at").execute();
+  await db.schema.alterTable("tcgplayer_snapshots").dropColumn("created_at").execute();
+  await db.schema.alterTable("admins").dropColumn("updated_at").execute();
+  await db.schema.alterTable("cardmarket_staging").dropColumn("updated_at").execute();
+  await db.schema.alterTable("tcgplayer_staging").dropColumn("updated_at").execute();
 }

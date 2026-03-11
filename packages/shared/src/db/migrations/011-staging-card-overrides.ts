@@ -1,31 +1,29 @@
-import { sql } from "kysely";
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
-  await sql`
-    CREATE TABLE tcgplayer_staging_card_overrides (
-      external_id integer NOT NULL,
-      finish      text NOT NULL,
-      card_id     text NOT NULL REFERENCES cards(id),
-      set_id      text NOT NULL REFERENCES sets(id),
-      created_at  timestamptz NOT NULL DEFAULT now(),
-      PRIMARY KEY (external_id, finish)
-    )
-  `.execute(db);
+  await db.schema
+    .createTable("tcgplayer_staging_card_overrides")
+    .addColumn("external_id", "integer", (col) => col.notNull())
+    .addColumn("finish", "text", (col) => col.notNull())
+    .addColumn("card_id", "text", (col) => col.notNull().references("cards.id"))
+    .addColumn("set_id", "text", (col) => col.notNull().references("sets.id"))
+    .addColumn("created_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .addPrimaryKeyConstraint("tcgplayer_staging_card_overrides_pkey", ["external_id", "finish"])
+    .execute();
 
-  await sql`
-    CREATE TABLE cardmarket_staging_card_overrides (
-      external_id integer NOT NULL,
-      finish      text NOT NULL,
-      card_id     text NOT NULL REFERENCES cards(id),
-      set_id      text NOT NULL REFERENCES sets(id),
-      created_at  timestamptz NOT NULL DEFAULT now(),
-      PRIMARY KEY (external_id, finish)
-    )
-  `.execute(db);
+  await db.schema
+    .createTable("cardmarket_staging_card_overrides")
+    .addColumn("external_id", "integer", (col) => col.notNull())
+    .addColumn("finish", "text", (col) => col.notNull())
+    .addColumn("card_id", "text", (col) => col.notNull().references("cards.id"))
+    .addColumn("set_id", "text", (col) => col.notNull().references("sets.id"))
+    .addColumn("created_at", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
+    .addPrimaryKeyConstraint("cardmarket_staging_card_overrides_pkey", ["external_id", "finish"])
+    .execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await sql`DROP TABLE IF EXISTS cardmarket_staging_card_overrides`.execute(db);
-  await sql`DROP TABLE IF EXISTS tcgplayer_staging_card_overrides`.execute(db);
+  await db.schema.dropTable("cardmarket_staging_card_overrides").ifExists().execute();
+  await db.schema.dropTable("tcgplayer_staging_card_overrides").ifExists().execute();
 }
