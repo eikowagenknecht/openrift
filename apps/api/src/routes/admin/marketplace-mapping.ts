@@ -189,15 +189,6 @@ function buildResponseGroups(
   showAll: boolean,
 ) {
   return [...cardGroups.values()]
-    .filter((group) => {
-      const key = `${group.setId}::${group.cardId}`;
-      const hasStaged = stagedByCard.has(key);
-      const hasUnmapped = group.printings.some((p) => p.externalId === null);
-      if (showAll) {
-        return true;
-      }
-      return hasStaged || hasUnmapped;
-    })
     .map((group) => {
       const key = `${group.setId}::${group.cardId}`;
       const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
@@ -243,6 +234,14 @@ function buildResponseGroups(
         stagedProducts: filteredStaged,
         assignedProducts,
       };
+    })
+    .filter((group) => {
+      if (showAll) {
+        return true;
+      }
+      const hasStaged = group.stagedProducts.length > 0;
+      const hasUnmapped = group.printings.some((p) => p.externalId === null);
+      return hasStaged || hasUnmapped;
     });
 }
 
