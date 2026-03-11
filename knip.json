@@ -10,7 +10,11 @@
       "ignore": []
     },
     "apps/web": {
-      "entry": ["src/worker.ts", "src/routes/**/*.tsx", "src/components/cards/card-detail.tsx"],
+      "entry": [
+        "src/worker.ts",
+        "src/routes/**/*.tsx",
+        "src/components/cards/card-detail/index.tsx"
+      ],
       "ignore": ["src/env.d.ts", "src/components/ui/**"]
     },
     "packages/shared": {}
