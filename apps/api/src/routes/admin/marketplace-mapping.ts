@@ -21,6 +21,231 @@ const normalizeName = (name: string) =>
     .replaceAll(/\s+/g, " ")
     .trim();
 
+// ── Types for GET helper functions ──────────────────────────────────────────
+
+interface PrintingRow {
+  printingId: string;
+  sourceId: string;
+  rarity: string;
+  artVariant: string;
+  isSigned: boolean;
+  isPromo: boolean;
+  finish: string;
+  collectorNumber: number;
+  imageUrl: string | null;
+  externalId: number | null;
+}
+
+interface CardGroup {
+  cardId: string;
+  cardName: string;
+  cardType: string;
+  superTypes: string[];
+  domains: string[];
+  energy: number | null;
+  might: number | null;
+  setId: string;
+  setName: string;
+  printings: PrintingRow[];
+}
+
+interface CardIndex {
+  cardGroups: Map<string, CardGroup>;
+  cardNamesBySet: Map<string, { normName: string; groupKey: string }[]>;
+}
+
+// ── GET helper: build card index ───────────────────────────────────────────
+
+function buildCardIndex(
+  matchedCards: {
+    card_id: string;
+    card_name: string;
+    card_type: string;
+    super_types: unknown;
+    domains: unknown;
+    energy: number | null;
+    might: number | null;
+    printing_id: string;
+    set_id: string;
+    source_id: string;
+    rarity: string;
+    set_name: string;
+    art_variant: string;
+    is_signed: boolean;
+    is_promo: boolean;
+    finish: string;
+    collector_number: number;
+    image_url: string | null;
+    external_id: number | null;
+  }[],
+): CardIndex {
+  const cardGroups = new Map<string, CardGroup>();
+
+  for (const row of matchedCards) {
+    const key = `${row.set_id}::${row.card_id}`;
+    let group = cardGroups.get(key);
+    if (!group) {
+      group = {
+        cardId: row.card_id,
+        cardName: row.card_name,
+        cardType: row.card_type,
+        superTypes: row.super_types as string[],
+        domains: row.domains as string[],
+        energy: row.energy,
+        might: row.might,
+        setId: row.set_id,
+        setName: row.set_name,
+        printings: [],
+      };
+      cardGroups.set(key, group);
+    }
+    group.printings.push({
+      printingId: row.printing_id,
+      sourceId: row.source_id,
+      rarity: row.rarity,
+      artVariant: row.art_variant,
+      isSigned: row.is_signed,
+      isPromo: row.is_promo,
+      finish: row.finish,
+      collectorNumber: row.collector_number,
+      imageUrl: row.image_url,
+      externalId: row.external_id,
+    });
+  }
+
+  const cardNamesBySet = new Map<string, { normName: string; groupKey: string }[]>();
+  for (const [key, group] of cardGroups) {
+    const list = cardNamesBySet.get(group.setId) ?? [];
+    list.push({ normName: normalizeName(group.cardName), groupKey: key });
+    cardNamesBySet.set(group.setId, list);
+  }
+  for (const list of cardNamesBySet.values()) {
+    list.sort((a, b) => b.normName.length - a.normName.length);
+  }
+
+  return { cardGroups, cardNamesBySet };
+}
+
+// ── GET helper: match staged products to card groups ───────────────────────
+
+function matchStagedProducts(
+  uniqueStaged: StagingRow[],
+  cardGroups: Map<string, CardGroup>,
+  cardNamesBySet: Map<string, { normName: string; groupKey: string }[]>,
+  overrideMap: Map<string, { cardId: string; setId: string }>,
+  groupSetMap: Map<number, string>,
+) {
+  const stagedByCard = new Map<string, StagingRow[]>();
+  const matchedStagingKeys = new Set<string>();
+
+  for (const row of uniqueStaged) {
+    const stagingKey = `${row.external_id}::${row.finish}`;
+
+    // Check manual override first
+    const override = overrideMap.get(stagingKey);
+    if (override) {
+      const groupKey = `${override.setId}::${override.cardId}`;
+      if (cardGroups.has(groupKey)) {
+        const list = stagedByCard.get(groupKey) ?? [];
+        list.push(row);
+        stagedByCard.set(groupKey, list);
+        matchedStagingKeys.add(stagingKey);
+        continue;
+      }
+    }
+
+    // Fall back to prefix matching
+    const setId = row.group_id === null ? undefined : groupSetMap.get(row.group_id);
+    if (!setId) {
+      continue;
+    }
+    const normProduct = normalizeName(row.product_name);
+    const candidates = cardNamesBySet.get(setId) ?? [];
+    for (const { normName, groupKey } of candidates) {
+      if (
+        normProduct === normName ||
+        (normProduct.startsWith(normName) && normProduct[normName.length] === " ")
+      ) {
+        const list = stagedByCard.get(groupKey) ?? [];
+        list.push(row);
+        stagedByCard.set(groupKey, list);
+        matchedStagingKeys.add(stagingKey);
+        break;
+      }
+    }
+  }
+
+  return { stagedByCard, matchedStagingKeys };
+}
+
+// ── GET helper: build response groups ──────────────────────────────────────
+
+function buildResponseGroups(
+  cardGroups: Map<string, CardGroup>,
+  stagedByCard: Map<string, StagingRow[]>,
+  overrideMap: Map<string, { cardId: string; setId: string }>,
+  mappedProductInfo: Map<string, ProductInfo>,
+  mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => Record<string, unknown>,
+  showAll: boolean,
+) {
+  return [...cardGroups.values()]
+    .filter((group) => {
+      const key = `${group.setId}::${group.cardId}`;
+      const hasStaged = stagedByCard.has(key);
+      const hasUnmapped = group.printings.some((p) => p.externalId === null);
+      if (showAll) {
+        return true;
+      }
+      return hasStaged || hasUnmapped;
+    })
+    .map((group) => {
+      const key = `${group.setId}::${group.cardId}`;
+      const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
+        mapStagedRow(row, { isOverride: overrideMap.has(`${row.external_id}::${row.finish}`) }),
+      );
+
+      const seenAssigned = new Set<string>();
+      const assignedProducts: typeof stagedProducts = [];
+      for (const p of group.printings) {
+        const dedupKey = `${p.externalId}::${p.finish}`;
+        if (p.externalId !== null && !seenAssigned.has(dedupKey)) {
+          seenAssigned.add(dedupKey);
+          const info = mappedProductInfo.get(p.printingId);
+          if (info) {
+            assignedProducts.push({
+              externalId: p.externalId,
+              productName: info.productName ?? group.cardName,
+              finish: p.finish,
+              marketCents: info.marketCents,
+              lowCents: info.lowCents,
+              currency: info.currency,
+              recordedAt: info.recordedAt,
+              midCents: info.midCents,
+              highCents: info.highCents,
+              trendCents: info.trendCents,
+              avg1Cents: info.avg1Cents,
+              avg7Cents: info.avg7Cents,
+              avg30Cents: info.avg30Cents,
+              isOverride: false,
+            });
+          }
+        }
+      }
+
+      // Exclude staged products that are already assigned
+      const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
+      const filteredStaged = stagedProducts.filter(
+        (p) => !assignedKeys.has(`${p.externalId}::${p.finish}`),
+      );
+
+      return {
+        ...group,
+        stagedProducts: filteredStaged,
+        assignedProducts,
+      };
+    });
+}
+
 // ── Route factory ───────────────────────────────────────────────────────────
 
 export function createMappingRoutes(
@@ -138,76 +363,8 @@ export function createMappingRoutes(
 
     const matchedCards = await query.execute();
 
-    // 5. Group by card
-    const cardGroups = new Map<
-      string,
-      {
-        cardId: string;
-        cardName: string;
-        cardType: string;
-        superTypes: string[];
-        domains: string[];
-        energy: number | null;
-        might: number | null;
-        setId: string;
-        setName: string;
-        printings: {
-          printingId: string;
-          sourceId: string;
-          rarity: string;
-          artVariant: string;
-          isSigned: boolean;
-          isPromo: boolean;
-          finish: string;
-          collectorNumber: number;
-          imageUrl: string | null;
-          externalId: number | null;
-        }[];
-      }
-    >();
-
-    for (const row of matchedCards) {
-      const key = `${row.set_id}::${row.card_id}`;
-      let group = cardGroups.get(key);
-      if (!group) {
-        group = {
-          cardId: row.card_id,
-          cardName: row.card_name,
-          cardType: row.card_type,
-          superTypes: row.super_types as string[],
-          domains: row.domains as string[],
-          energy: row.energy,
-          might: row.might,
-          setId: row.set_id,
-          setName: row.set_name,
-          printings: [],
-        };
-        cardGroups.set(key, group);
-      }
-      group.printings.push({
-        printingId: row.printing_id,
-        sourceId: row.source_id,
-        rarity: row.rarity,
-        artVariant: row.art_variant,
-        isSigned: row.is_signed,
-        isPromo: row.is_promo,
-        finish: row.finish,
-        collectorNumber: row.collector_number,
-        imageUrl: row.image_url,
-        externalId: row.external_id,
-      });
-    }
-
-    // 5b. Prefix-match staged products to card groups
-    const cardNamesBySet = new Map<string, { normName: string; groupKey: string }[]>();
-    for (const [key, group] of cardGroups) {
-      const list = cardNamesBySet.get(group.setId) ?? [];
-      list.push({ normName: normalizeName(group.cardName), groupKey: key });
-      cardNamesBySet.set(group.setId, list);
-    }
-    for (const list of cardNamesBySet.values()) {
-      list.sort((a, b) => b.normName.length - a.normName.length);
-    }
+    // 5. Build card index (groups + prefix-match lookup)
+    const { cardGroups, cardNamesBySet } = buildCardIndex(matchedCards);
 
     // 5c. Load manual card overrides
     const overrideRows = await db
@@ -222,44 +379,14 @@ export function createMappingRoutes(
       });
     }
 
-    const stagedByCard = new Map<string, typeof uniqueStaged>();
-    const matchedStagingKeys = new Set<string>();
-    for (const row of uniqueStaged) {
-      const stagingKey = `${row.external_id}::${row.finish}`;
-
-      // Check manual override first
-      const override = overrideMap.get(stagingKey);
-      if (override) {
-        const groupKey = `${override.setId}::${override.cardId}`;
-        if (cardGroups.has(groupKey)) {
-          const list = stagedByCard.get(groupKey) ?? [];
-          list.push(row);
-          stagedByCard.set(groupKey, list);
-          matchedStagingKeys.add(stagingKey);
-          continue;
-        }
-      }
-
-      // Fall back to prefix matching
-      const setId = row.group_id === null ? undefined : groupSetMap.get(row.group_id);
-      if (!setId) {
-        continue;
-      }
-      const normProduct = normalizeName(row.product_name);
-      const candidates = cardNamesBySet.get(setId) ?? [];
-      for (const { normName, groupKey } of candidates) {
-        if (
-          normProduct === normName ||
-          (normProduct.startsWith(normName) && normProduct[normName.length] === " ")
-        ) {
-          const list = stagedByCard.get(groupKey) ?? [];
-          list.push(row);
-          stagedByCard.set(groupKey, list);
-          matchedStagingKeys.add(stagingKey);
-          break;
-        }
-      }
-    }
+    // 5d. Match staged products to card groups
+    const { stagedByCard, matchedStagingKeys } = matchStagedProducts(
+      uniqueStaged,
+      cardGroups,
+      cardNamesBySet,
+      overrideMap,
+      groupSetMap,
+    );
 
     // 6. Fetch latest prices for already-mapped printings
     const mappedPrintingIds = new Set<string>();
@@ -318,62 +445,14 @@ export function createMappingRoutes(
     }));
 
     // 8. Build response groups
-    const groups = [...cardGroups.values()]
-      .filter((group) => {
-        const key = `${group.setId}::${group.cardId}`;
-        const hasStaged = stagedByCard.has(key);
-        const hasUnmapped = group.printings.some((p) => p.externalId === null);
-        if (showAll) {
-          return true;
-        }
-        return hasStaged || hasUnmapped;
-      })
-      .map((group) => {
-        const key = `${group.setId}::${group.cardId}`;
-        const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
-          mapStagedRow(row, { isOverride: overrideMap.has(`${row.external_id}::${row.finish}`) }),
-        );
-
-        const seenAssigned = new Set<string>();
-        const assignedProducts: typeof stagedProducts = [];
-        for (const p of group.printings) {
-          const dedupKey = `${p.externalId}::${p.finish}`;
-          if (p.externalId !== null && !seenAssigned.has(dedupKey)) {
-            seenAssigned.add(dedupKey);
-            const info = mappedProductInfo.get(p.printingId);
-            if (info) {
-              assignedProducts.push({
-                externalId: p.externalId,
-                productName: info.productName ?? group.cardName,
-                finish: p.finish,
-                marketCents: info.marketCents,
-                lowCents: info.lowCents,
-                currency: info.currency,
-                recordedAt: info.recordedAt,
-                midCents: info.midCents,
-                highCents: info.highCents,
-                trendCents: info.trendCents,
-                avg1Cents: info.avg1Cents,
-                avg7Cents: info.avg7Cents,
-                avg30Cents: info.avg30Cents,
-                isOverride: false,
-              });
-            }
-          }
-        }
-
-        // Exclude staged products that are already assigned
-        const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
-        const filteredStaged = stagedProducts.filter(
-          (p) => !assignedKeys.has(`${p.externalId}::${p.finish}`),
-        );
-
-        return {
-          ...group,
-          stagedProducts: filteredStaged,
-          assignedProducts,
-        };
-      });
+    const groups = buildResponseGroups(
+      cardGroups,
+      stagedByCard,
+      overrideMap,
+      mappedProductInfo,
+      mapStagedRow,
+      showAll,
+    );
 
     // Lightweight card list for manual assignment
     const allCards = [...cardGroups.values()].map((g) => ({
