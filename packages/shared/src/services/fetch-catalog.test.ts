@@ -50,6 +50,14 @@ describe("stripHtml", () => {
     expect(stripHtml("hello&nbsp;world")).toBe("hello world");
   });
 
+  it("decodes decimal numeric entities", () => {
+    expect(stripHtml("hello&#8212;world")).toBe("hello\u2014world");
+  });
+
+  it("decodes hex numeric entities", () => {
+    expect(stripHtml("it&#x2019;s fine")).toBe("it\u2019s fine");
+  });
+
   it("trims whitespace", () => {
     expect(stripHtml("  hello  ")).toBe("hello");
   });
@@ -347,6 +355,14 @@ describe("fetchCatalog", () => {
 
     await expect(fetchCatalog(makeMockLogger())).rejects.toThrow(
       "Could not find __NEXT_DATA__ script tag",
+    );
+  });
+
+  it("throws when __NEXT_DATA__ contains malformed JSON", async () => {
+    mockFetchWith('<script id="__NEXT_DATA__" type="application/json">{invalid json</script>');
+
+    await expect(fetchCatalog(makeMockLogger())).rejects.toThrow(
+      "Malformed JSON in __NEXT_DATA__ script tag",
     );
   });
 

@@ -1,6 +1,7 @@
 import type { Logger } from "../logger.js";
+import type { GalleryCard } from "../schemas.js";
 import { galleryCardSchema } from "../schemas.js";
-import type { CardStats, CardType, Rarity } from "../types.js";
+import type { ArtVariant, CardStats, CardType, Rarity } from "../types.js";
 
 // ── Output types ────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ interface PrintingData {
   set: string;
   collectorNumber: number;
   rarity: Rarity;
-  artVariant: string;
+  artVariant: ArtVariant;
   isSigned: boolean;
   isPromo: boolean;
   art: { imageURL: string; artist: string };
@@ -47,6 +48,8 @@ interface CardsJson {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 const GALLERY_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/";
+const FETCH_TIMEOUT_MS = 10_000;
+const SET_ORDER = ["Proving Grounds", "Origins", "Spiritforged"];
 
 /** @internal Exported for testing only.
  * @returns Plain text with HTML tags and entities decoded.
@@ -55,11 +58,12 @@ export function stripHtml(html: string) {
   return html
     .replaceAll(/<br\s*\/?>/gi, "\n")
     .replaceAll(/<[^>]+>/g, "")
+    .replaceAll(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replaceAll(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
     .replaceAll("&amp;", "&")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
     .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
     .replaceAll("&nbsp;", " ")
     .trim();
 }
@@ -84,73 +88,6 @@ export function parseKeywords(text: string) {
   return keywords;
 }
 
-interface ConvertedCard {
-  sourceId: string;
-  name: string;
-  type: string;
-  superTypes: string[];
-  rarity: string;
-  collectorNumber: number;
-  domains: string[];
-  stats: { might: number | null; energy: number | null; power: number | null };
-  keywords: string[];
-  description: string;
-  effect: string;
-  mightBonus: number | null;
-  set: string;
-  art: { imageURL: string; artist: string };
-  tags: string[];
-  publicCode: string;
-}
-
-// oxlint-disable-next-line typescript/no-explicit-any -- raw gallery data before validation
-function convertCard(src: any): ConvertedCard {
-  const sourceId = src.publicCode.split("/")[0];
-  const type = src.cardType.type[0]?.label ?? "Unit";
-  const superTypes = (src.cardType.superType ?? []).map((s: { label: string }) => s.label);
-  const rarity = src.rarity.value.label;
-  const domains = src.domain.values.map((d: { label: string }) => d.label);
-
-  const stats = {
-    might: src.might?.value.id ?? null,
-    energy: src.energy?.value.id ?? null,
-    power: src.power?.value.id ?? null,
-  };
-
-  const description = stripHtml(src.text.richText.body);
-  const effect = src.effect ? stripHtml(src.effect.richText.body) : "";
-  const mightBonus = src.mightBonus?.value.id ?? null;
-
-  const keywords = [...new Set([...parseKeywords(description), ...parseKeywords(effect)])];
-
-  const art = {
-    imageURL: src.cardImage.url,
-    artist: src.illustrator.values.map((a: { label: string }) => a.label).join(", "),
-  };
-
-  const setCode = sourceId.split("-")[0];
-  const tags = src.tags?.tags ?? [];
-
-  return {
-    sourceId,
-    name: src.name,
-    type,
-    superTypes,
-    rarity,
-    collectorNumber: src.collectorNumber,
-    domains,
-    stats,
-    keywords,
-    description,
-    effect,
-    mightBonus,
-    set: setCode,
-    art,
-    tags,
-    publicCode: src.publicCode,
-  };
-}
-
 /** Derive art variant from the source ID suffix.
  * @internal Exported for testing only.
  * @returns Art variant label and signed flag.
@@ -159,7 +96,7 @@ export function deriveArtVariant(
   sourceId: string,
   collectorNumber: number,
   printedTotal: number,
-): { artVariant: string; isSigned: boolean } {
+): { artVariant: ArtVariant; isSigned: boolean } {
   const isSigned = sourceId.endsWith("*");
   const bare = isSigned ? sourceId.slice(0, -1) : sourceId;
 
@@ -180,22 +117,82 @@ export function toBaseSourceId(sourceId: string): string {
   return sourceId.replace(/[a-z*]+$/, "");
 }
 
-// ── Main export ─────────────────────────────────────────────────────────────
+// ── Card conversion ─────────────────────────────────────────────────────────
 
-/**
- * Fetches the card catalog directly from the Riftbound gallery page,
- * validates, and transforms into the CardsJson format for DB upsert.
- * @returns Catalog data with sets, game cards, and printings.
- */
-export async function fetchCatalog(log: Logger): Promise<CardsJson> {
-  // ── Fetch ─────────────────────────────────────────────────────────────
-  log.info(`Fetching ${GALLERY_URL}`);
-  const res = await fetch(GALLERY_URL);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-  }
-  const html = await res.text();
+interface ConvertedCard {
+  sourceId: string;
+  name: string;
+  type: CardType;
+  superTypes: string[];
+  rarity: Rarity;
+  collectorNumber: number;
+  domains: string[];
+  stats: CardStats;
+  keywords: string[];
+  description: string;
+  effect: string;
+  mightBonus: number | null;
+  set: string;
+  art: { imageURL: string; artist: string };
+  tags: string[];
+  publicCode: string;
+  artVariant: ArtVariant;
+  isSigned: boolean;
+}
 
+function convertCard(src: GalleryCard, printedTotal: number): ConvertedCard {
+  const sourceId = src.publicCode.split("/")[0];
+  const type = (src.cardType.type[0]?.label ?? "Unit") as CardType;
+  const superTypes = (src.cardType.superType ?? []).map((s) => s.label);
+  const rarity = src.rarity.value.label as Rarity;
+  const domains = src.domain.values.map((d) => d.label);
+
+  const stats: CardStats = {
+    might: src.might?.value.id ?? null,
+    energy: src.energy?.value.id ?? null,
+    power: src.power?.value.id ?? null,
+  };
+
+  const description = stripHtml(src.text.richText.body);
+  const effect = src.effect ? stripHtml(src.effect.richText.body) : "";
+  const mightBonus = src.mightBonus?.value.id ?? null;
+
+  const keywords = [...new Set([...parseKeywords(description), ...parseKeywords(effect)])];
+
+  const art = {
+    imageURL: src.cardImage.url,
+    artist: src.illustrator.values.map((a) => a.label).join(", "),
+  };
+
+  const setCode = sourceId.split("-")[0];
+  const tags = src.tags?.tags ?? [];
+  const { artVariant, isSigned } = deriveArtVariant(sourceId, src.collectorNumber, printedTotal);
+
+  return {
+    sourceId,
+    name: src.name,
+    type,
+    superTypes,
+    rarity,
+    collectorNumber: src.collectorNumber,
+    domains,
+    stats,
+    keywords,
+    description,
+    effect,
+    mightBonus,
+    set: setCode,
+    art,
+    tags,
+    publicCode: src.publicCode,
+    artVariant,
+    isSigned,
+  };
+}
+
+// ── Pipeline steps ──────────────────────────────────────────────────────────
+
+function parseGalleryPage(html: string): unknown[] {
   const match = html.match(
     /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/,
   );
@@ -203,7 +200,13 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
     throw new Error("Could not find __NEXT_DATA__ script tag in the page");
   }
 
-  const nextData = JSON.parse(match[1]);
+  let nextData;
+  try {
+    nextData = JSON.parse(match[1]);
+  } catch {
+    throw new Error("Malformed JSON in __NEXT_DATA__ script tag");
+  }
+
   const blades = nextData.props?.pageProps?.page?.blades ?? [];
   const galleryBlade = blades.find((b: { type: string }) => b.type === "riftboundCardGallery");
   const rawCards = galleryBlade?.cards?.items;
@@ -211,20 +214,24 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
     throw new Error("Could not find riftboundCardGallery blade in __NEXT_DATA__");
   }
 
-  log.info(`Fetched ${rawCards.length} raw cards from gallery`);
+  return rawCards;
+}
 
-  // ── Validate ──────────────────────────────────────────────────────────
-  const validated = [];
+function validateCards(rawCards: unknown[], log: Logger): GalleryCard[] {
+  const validated: GalleryCard[] = [];
   const errors: { id: string; issues: { path: PropertyKey[]; message: string }[] }[] = [];
+
   for (const raw of rawCards) {
     const result = galleryCardSchema.safeParse(raw);
     if (result.success) {
       validated.push(result.data);
     } else {
-      const id = raw.publicCode?.split("/")[0] ?? raw.name ?? "unknown";
+      const r = raw as { publicCode?: string; name?: string };
+      const id = r.publicCode?.split("/")[0] ?? r.name ?? "unknown";
       errors.push({ id, issues: result.error.issues });
     }
   }
+
   if (errors.length > 0) {
     log.warn(`${errors.length} cards failed validation`);
     for (const e of errors.slice(0, 5)) {
@@ -236,40 +243,46 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
       log.warn(`  ...and ${errors.length - 5} more`);
     }
   }
-  log.info(`Validated ${validated.length}/${rawCards.length} cards`);
 
-  // ── Group by set ──────────────────────────────────────────────────────
+  return validated;
+}
+
+function groupBySet(validated: GalleryCard[]): {
+  setOrder: string[];
+  setMap: Map<string, SetData>;
+  allConverted: ConvertedCard[];
+} {
   const setOrder: string[] = [];
-  const setMap = new Map<string, { id: string; name: string; printedTotal: number }>();
+  const setMap = new Map<string, SetData>();
   const convertedBySet = new Map<string, ConvertedCard[]>();
 
   for (const raw of validated) {
     const setId = raw.set.value.id;
     if (!setMap.has(setId)) {
       setOrder.push(setId);
+      // Derived from publicCode denominator (e.g. "OGN-001/100" → 100).
+      // Can't use max(collectorNumber) because overnumbered cards exceed the total.
       const printedTotal = Number.parseInt(raw.publicCode.split("/")[1], 10) || 0;
       const code = raw.publicCode.split("/")[0].split("-")[0];
       setMap.set(setId, { id: code, name: raw.set.value.label, printedTotal });
       convertedBySet.set(setId, []);
     }
-    convertedBySet.get(setId)?.push(convertCard(raw));
-  }
-
-  const printedTotalByCode = new Map<string, number>();
-  for (const set of setMap.values()) {
-    printedTotalByCode.set(set.id, set.printedTotal);
+    const set = setMap.get(setId);
+    convertedBySet.get(setId)?.push(convertCard(raw, set?.printedTotal ?? 0));
   }
 
   for (const cards of convertedBySet.values()) {
     cards.sort((a, b) => a.collectorNumber - b.collectorNumber);
   }
 
-  // ── Deduce game cards ─────────────────────────────────────────────────
-  const allConverted: ConvertedCard[] = [];
-  for (const setId of setOrder) {
-    allConverted.push(...(convertedBySet.get(setId) ?? []));
-  }
+  const allConverted = setOrder.flatMap((id) => convertedBySet.get(id) ?? []);
+  return { setOrder, setMap, allConverted };
+}
 
+function deduceGameCards(allConverted: ConvertedCard[]): {
+  gameCards: Record<string, GameCard>;
+  baseIdByName: Map<string, string>;
+} {
   const byName = new Map<string, ConvertedCard[]>();
   for (const card of allConverted) {
     const group = byName.get(card.name) ?? [];
@@ -282,20 +295,14 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
 
   for (const [name, group] of byName) {
     const scored = group.map((card) => {
-      const printedTotal = printedTotalByCode.get(card.set) ?? 999;
-      const { artVariant, isSigned } = deriveArtVariant(
-        card.sourceId,
-        card.collectorNumber,
-        printedTotal,
-      );
       let score = 0;
-      if (isSigned) {
+      if (card.isSigned) {
         score += 100;
       }
-      if (artVariant === "altart") {
+      if (card.artVariant === "altart") {
         score += 50;
       }
-      if (artVariant === "overnumbered") {
+      if (card.artVariant === "overnumbered") {
         score += 30;
       }
       return { card, score };
@@ -307,7 +314,7 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
     baseIdByName.set(name, baseId);
     gameCards[baseId] = {
       name: base.name,
-      type: base.type as CardType,
+      type: base.type,
       superTypes: base.superTypes,
       domains: base.domains,
       stats: base.stats,
@@ -319,50 +326,64 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
     };
   }
 
-  // ── Build printings ───────────────────────────────────────────────────
-  const printings: PrintingData[] = [];
+  return { gameCards, baseIdByName };
+}
 
-  for (const card of allConverted) {
-    const printedTotal = printedTotalByCode.get(card.set) ?? 999;
-    const { artVariant, isSigned } = deriveArtVariant(
-      card.sourceId,
-      card.collectorNumber,
-      printedTotal,
-    );
-    const cardId = baseIdByName.get(card.name) ?? card.sourceId;
+function buildPrintings(
+  allConverted: ConvertedCard[],
+  baseIdByName: Map<string, string>,
+): PrintingData[] {
+  return allConverted.map((card) => ({
+    sourceId: card.sourceId,
+    cardId: baseIdByName.get(card.name) ?? card.sourceId,
+    set: card.set,
+    collectorNumber: card.collectorNumber,
+    rarity: card.rarity,
+    artVariant: card.artVariant,
+    isSigned: card.isSigned,
+    isPromo: false, // gallery never has promos; set via candidate import
+    art: card.art,
+    publicCode: card.publicCode,
+    printedRulesText: card.description,
+    printedEffectText: card.effect,
+  }));
+}
 
-    printings.push({
-      sourceId: card.sourceId,
-      cardId,
-      set: card.set,
-      collectorNumber: card.collectorNumber,
-      rarity: card.rarity as Rarity,
-      artVariant,
-      isSigned,
-      isPromo: false,
-      art: card.art,
-      publicCode: card.publicCode,
-      printedRulesText: card.description,
-      printedEffectText: card.effect,
+function sortSets(setOrder: string[], setMap: Map<string, SetData>): SetData[] {
+  return setOrder
+    .map((code) => setMap.get(code))
+    .filter((s): s is SetData => s !== undefined)
+    .sort((a, b) => {
+      const ai = SET_ORDER.indexOf(a.name);
+      const bi = SET_ORDER.indexOf(b.name);
+      return (ai === -1 ? SET_ORDER.length : ai) - (bi === -1 ? SET_ORDER.length : bi);
     });
+}
+
+// ── Main export ─────────────────────────────────────────────────────────────
+
+/**
+ * Fetches the card catalog directly from the Riftbound gallery page,
+ * validates, and transforms into the CardsJson format for DB upsert.
+ * @returns Catalog data with sets, game cards, and printings.
+ */
+export async function fetchCatalog(log: Logger): Promise<CardsJson> {
+  log.info(`Fetching ${GALLERY_URL}`);
+  const res = await fetch(GALLERY_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   }
 
-  // ── Build sets ────────────────────────────────────────────────────────
-  const orderedSets = setOrder
-    .map((code) => setMap.get(code))
-    .filter((s): s is { id: string; name: string; printedTotal: number } => s !== undefined)
-    .sort((a, b) => {
-      const order = ["Proving Grounds", "Origins", "Spiritforged"];
-      const ai = order.indexOf(a.name);
-      const bi = order.indexOf(b.name);
-      return (ai === -1 ? order.length : ai) - (bi === -1 ? order.length : bi);
-    });
+  const rawCards = parseGalleryPage(await res.text());
+  log.info(`Fetched ${rawCards.length} raw cards from gallery`);
 
-  const sets: SetData[] = orderedSets.map((s) => ({
-    id: s.id,
-    name: s.name,
-    printedTotal: s.printedTotal,
-  }));
+  const validated = validateCards(rawCards, log);
+  log.info(`Validated ${validated.length}/${rawCards.length} cards`);
+
+  const { setOrder, setMap, allConverted } = groupBySet(validated);
+  const { gameCards, baseIdByName } = deduceGameCards(allConverted);
+  const printings = buildPrintings(allConverted, baseIdByName);
+  const sets = sortSets(setOrder, setMap);
 
   log.info(
     `Catalog: ${Object.keys(gameCards).length} game cards, ${printings.length} printings across ${sets.length} sets`,
