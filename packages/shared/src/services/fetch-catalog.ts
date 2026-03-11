@@ -48,7 +48,7 @@ interface CardsJson {
 
 const GALLERY_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/";
 
-function stripHtml(html: string) {
+export function stripHtml(html: string) {
   return html
     .replaceAll(/<br\s*\/?>/gi, "\n")
     .replaceAll(/<[^>]+>/g, "")
@@ -61,7 +61,7 @@ function stripHtml(html: string) {
     .trim();
 }
 
-function parseKeywords(text: string) {
+export function parseKeywords(text: string) {
   const matches = text.match(/\[([A-Z][a-zA-Z\- ]+(?:\s+\d+)?)\]/g);
   if (!matches) {
     return [];
@@ -148,7 +148,7 @@ function convertCard(src: any): ConvertedCard {
 /** Derive art variant from the source ID suffix.
  * @returns Art variant label and signed flag.
  */
-function deriveArtVariant(
+export function deriveArtVariant(
   sourceId: string,
   collectorNumber: number,
   printedTotal: number,
@@ -168,7 +168,7 @@ function deriveArtVariant(
 /** Strip variant suffixes to get the base card ID (e.g. "OGN-027a" → "OGN-027").
  * @returns Base source ID without variant suffixes.
  */
-function toBaseSourceId(sourceId: string): string {
+export function toBaseSourceId(sourceId: string): string {
   return sourceId.replace(/[a-z*]+$/, "");
 }
 

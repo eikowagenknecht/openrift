@@ -1,5 +1,5 @@
 import type { Database } from "@openrift/shared/db";
-import { buildPrintingId } from "@openrift/shared/db/utils";
+import { buildPrintingId } from "@openrift/shared/utils";
 import type { Selectable, Transaction } from "kysely";
 
 /**
