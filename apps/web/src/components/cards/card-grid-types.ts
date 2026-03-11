@@ -5,7 +5,7 @@ export interface SetInfo {
   code: string;
 }
 
-export interface CardGroup {
+interface CardGroup {
   set: SetInfo;
   cards: Printing[];
 }

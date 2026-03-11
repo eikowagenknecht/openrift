@@ -20,14 +20,14 @@ interface UseScrollIndicatorParams {
   multipleGroups: boolean;
 }
 
-export interface IndicatorState {
+interface IndicatorState {
   cardId: string;
   indicatorTop: number;
   visible: boolean;
   dragging: boolean;
 }
 
-export interface SnapPoint {
+interface SnapPoint {
   rowIndex: number;
   setInfo: SetInfo;
   screenY: number;
