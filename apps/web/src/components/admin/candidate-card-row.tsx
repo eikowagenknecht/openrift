@@ -32,6 +32,21 @@ function typeIconPath(t: string): string {
   return `/images/types/${t.toLowerCase()}.svg`;
 }
 
+interface EditState {
+  name: string;
+  type: string;
+  superTypes: Set<string>;
+  domains: Set<string>;
+  energy: string;
+  might: string;
+  power: string;
+  mightBonus: string;
+  keywords: string;
+  tags: string;
+  rulesText: string;
+  effectText: string;
+}
+
 const VALID_RARITIES = new Set(["Common", "Uncommon", "Rare", "Epic", "Showcase"]);
 
 function toRarity(r: string): Rarity {
@@ -89,120 +104,107 @@ export function CandidateCardRow({
   rejectPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editType, setEditType] = useState("");
-  const [editSuperTypes, setEditSuperTypes] = useState<Set<string>>(new Set());
-  const [editDomains, setEditDomains] = useState<Set<string>>(new Set());
-  const [editEnergy, setEditEnergy] = useState("");
-  const [editMight, setEditMight] = useState("");
-  const [editPower, setEditPower] = useState("");
-  const [editMightBonus, setEditMightBonus] = useState("");
-  const [editKeywords, setEditKeywords] = useState("");
-  const [editTags, setEditTags] = useState("");
-  const [editRulesText, setEditRulesText] = useState("");
-  const [editEffectText, setEditEffectText] = useState("");
+  const [edit, setEdit] = useState<EditState | null>(null);
+
+  function updateEdit<K extends keyof EditState>(key: K, value: EditState[K]) {
+    setEdit((prev) => (prev ? { ...prev, [key]: value } : prev));
+  }
+
+  function toggleSetField(key: "superTypes" | "domains", value: string) {
+    setEdit((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const next = new Set(prev[key]);
+      if (next.has(value)) {
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+      return { ...prev, [key]: next };
+    });
+  }
 
   function startEditing() {
-    setEditName(candidate.name);
-    setEditType(candidate.type);
-    setEditSuperTypes(new Set(candidate.superTypes));
-    setEditDomains(new Set(candidate.domains));
-    setEditEnergy(candidate.energy?.toString() ?? "");
-    setEditMight(candidate.might?.toString() ?? "");
-    setEditPower(candidate.power?.toString() ?? "");
-    setEditMightBonus(candidate.mightBonus?.toString() ?? "");
-    setEditKeywords(candidate.keywords.join(", "));
-    setEditTags(candidate.tags.join(", "));
-    setEditRulesText(candidate.rulesText);
-    setEditEffectText(candidate.effectText);
-    setEditing(true);
+    setEdit({
+      name: candidate.name,
+      type: candidate.type,
+      superTypes: new Set(candidate.superTypes),
+      domains: new Set(candidate.domains),
+      energy: candidate.energy?.toString() ?? "",
+      might: candidate.might?.toString() ?? "",
+      power: candidate.power?.toString() ?? "",
+      mightBonus: candidate.mightBonus?.toString() ?? "",
+      keywords: candidate.keywords.join(", "),
+      tags: candidate.tags.join(", "),
+      rulesText: candidate.rulesText,
+      effectText: candidate.effectText,
+    });
     if (!expanded) {
       setExpanded(true);
     }
   }
 
-  function toggleSuperType(st: string) {
-    setEditSuperTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(st)) {
-        next.delete(st);
-      } else {
-        next.add(st);
-      }
-      return next;
-    });
-  }
-
-  function toggleDomain(domain: string) {
-    setEditDomains((prev) => {
-      const next = new Set(prev);
-      if (next.has(domain)) {
-        next.delete(domain);
-      } else {
-        next.add(domain);
-      }
-      return next;
-    });
-  }
-
   function saveEdits() {
+    if (!edit) {
+      return;
+    }
     const fields: Record<string, unknown> = {};
-    if (editName !== candidate.name) {
-      fields.name = editName;
+    if (edit.name !== candidate.name) {
+      fields.name = edit.name;
     }
-    if (editType !== candidate.type) {
-      fields.type = editType;
+    if (edit.type !== candidate.type) {
+      fields.type = edit.type;
     }
-    const newDomains = [...editDomains];
+    const newDomains = [...edit.domains];
     if (JSON.stringify(newDomains.sort()) !== JSON.stringify([...candidate.domains].sort())) {
       fields.domains = newDomains;
     }
-    const energy = editEnergy ? Number(editEnergy) : null;
+    const energy = edit.energy ? Number(edit.energy) : null;
     if (energy !== candidate.energy) {
       fields.energy = energy;
     }
-    const might = editMight ? Number(editMight) : null;
+    const might = edit.might ? Number(edit.might) : null;
     if (might !== candidate.might) {
       fields.might = might;
     }
-    const newSuperTypes = [...editSuperTypes];
+    const newSuperTypes = [...edit.superTypes];
     if (JSON.stringify(newSuperTypes.sort()) !== JSON.stringify([...candidate.superTypes].sort())) {
       fields.super_types = newSuperTypes;
     }
-    const power = editPower ? Number(editPower) : null;
+    const power = edit.power ? Number(edit.power) : null;
     if (power !== candidate.power) {
       fields.power = power;
     }
-    const mightBonus = editMightBonus ? Number(editMightBonus) : null;
+    const mightBonus = edit.mightBonus ? Number(edit.mightBonus) : null;
     if (mightBonus !== candidate.mightBonus) {
       fields.might_bonus = mightBonus;
     }
-    const newKeywords = editKeywords
+    const newKeywords = edit.keywords
       .split(",")
       .map((k) => k.trim())
       .filter(Boolean);
     if (JSON.stringify(newKeywords) !== JSON.stringify(candidate.keywords)) {
       fields.keywords = newKeywords;
     }
-    const newTags = editTags
+    const newTags = edit.tags
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
     if (JSON.stringify(newTags) !== JSON.stringify(candidate.tags)) {
       fields.tags = newTags;
     }
-    if (editRulesText !== candidate.rulesText) {
-      fields.rules_text = editRulesText;
+    if (edit.rulesText !== candidate.rulesText) {
+      fields.rules_text = edit.rulesText;
     }
-    if (editEffectText !== candidate.effectText) {
-      fields.effect_text = editEffectText;
+    if (edit.effectText !== candidate.effectText) {
+      fields.effect_text = edit.effectText;
     }
 
     if (Object.keys(fields).length > 0) {
       onEdit(fields);
     }
-    setEditing(false);
+    setEdit(null);
   }
 
   return (
@@ -333,16 +335,16 @@ export function CandidateCardRow({
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Card Fields
             </h4>
-            {editing ? (
+            {edit ? (
               <div className="space-y-3">
-                <EditField label="Name" value={editName} onChange={setEditName} />
+                <EditField label="Name" value={edit.name} onChange={(v) => updateEdit("name", v)} />
                 <div className="space-y-1">
                   <Label className="text-xs">Type</Label>
                   <Select
-                    value={editType}
+                    value={edit.type}
                     onValueChange={(v) => {
                       if (v) {
-                        setEditType(v);
+                        updateEdit("type", v);
                       }
                     }}
                   >
@@ -364,37 +366,57 @@ export function CandidateCardRow({
                 <MultiSelect
                   label="Super Types"
                   options={ALL_SUPER_TYPES}
-                  selected={editSuperTypes}
-                  onToggle={toggleSuperType}
+                  selected={edit.superTypes}
+                  onToggle={(st) => toggleSetField("superTypes", st)}
                 />
                 <MultiSelect
                   label="Domains"
                   options={ALL_DOMAINS}
-                  selected={editDomains}
-                  onToggle={toggleDomain}
+                  selected={edit.domains}
+                  onToggle={(d) => toggleSetField("domains", d)}
                   iconPath={domainIconPath}
                 />
-                <EditField label="Energy" value={editEnergy} onChange={setEditEnergy} />
-                <EditField label="Might" value={editMight} onChange={setEditMight} />
-                <EditField label="Power" value={editPower} onChange={setEditPower} />
+                <EditField
+                  label="Energy"
+                  value={edit.energy}
+                  onChange={(v) => updateEdit("energy", v)}
+                />
+                <EditField
+                  label="Might"
+                  value={edit.might}
+                  onChange={(v) => updateEdit("might", v)}
+                />
+                <EditField
+                  label="Power"
+                  value={edit.power}
+                  onChange={(v) => updateEdit("power", v)}
+                />
                 <EditField
                   label="Might Bonus"
-                  value={editMightBonus}
-                  onChange={setEditMightBonus}
+                  value={edit.mightBonus}
+                  onChange={(v) => updateEdit("mightBonus", v)}
                 />
-                <EditField label="Keywords" value={editKeywords} onChange={setEditKeywords} />
-                <EditField label="Tags" value={editTags} onChange={setEditTags} />
-                <EditField label="Rules Text" value={editRulesText} onChange={setEditRulesText} />
+                <EditField
+                  label="Keywords"
+                  value={edit.keywords}
+                  onChange={(v) => updateEdit("keywords", v)}
+                />
+                <EditField label="Tags" value={edit.tags} onChange={(v) => updateEdit("tags", v)} />
+                <EditField
+                  label="Rules Text"
+                  value={edit.rulesText}
+                  onChange={(v) => updateEdit("rulesText", v)}
+                />
                 <EditField
                   label="Effect Text"
-                  value={editEffectText}
-                  onChange={setEditEffectText}
+                  value={edit.effectText}
+                  onChange={(v) => updateEdit("effectText", v)}
                 />
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" onClick={saveEdits}>
                     Save
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+                  <Button size="sm" variant="outline" onClick={() => setEdit(null)}>
                     Cancel
                   </Button>
                 </div>
