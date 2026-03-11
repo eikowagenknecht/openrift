@@ -17,7 +17,9 @@
       ],
       "ignore": ["src/env.d.ts", "src/components/ui/**"]
     },
-    "packages/shared": {}
+    "packages/shared": {
+      "entry": ["src/**/*.test.ts", "src/**/*.integration.test.ts"]
+    }
   },
   "ignoreBinaries": ["wait"]
 }
