@@ -144,7 +144,7 @@ export function Header() {
             <InstallButton />
             {!isPending && !session?.user && (
               <Button
-                variant="ghost"
+                variant="default"
                 size="sm"
                 nativeButton={false} // custom: render as <Link>, not <button>
                 render={<Link to="/login" search={{ redirect: undefined, email: undefined }} />}

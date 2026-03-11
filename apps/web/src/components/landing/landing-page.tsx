@@ -45,19 +45,30 @@ export function LandingPage() {
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3">
-          <Button
-            size="lg"
-            className="h-11 px-8 text-base"
-            nativeButton={false}
-            render={<Link to="/login" search={{ redirect: "/cards", email: undefined }} />}
-          >
-            Sign in
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              className="h-11 px-8 text-base"
+              nativeButton={false}
+              render={<Link to="/cards" />}
+            >
+              Browse cards
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-11 px-8 text-base"
+              nativeButton={false}
+              render={<Link to="/login" search={{ redirect: "/cards", email: undefined }} />}
+            >
+              Sign in
+            </Button>
+          </div>
           <Link
-            to="/cards"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            to="/roadmap"
+            className="text-sm text-muted-foreground/60 transition-colors hover:text-foreground"
           >
-            Browse without signing in
+            See what we&apos;re working on next &rarr;
           </Link>
         </div>
       </div>
