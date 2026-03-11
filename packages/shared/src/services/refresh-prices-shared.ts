@@ -10,6 +10,7 @@ import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
+import type { Logger } from "../logger.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ export interface PriceRefreshResult {
   upserted: UpsertCounts;
 }
 
-export function logUpsertCounts(counts: UpsertCounts): void {
+export function logUpsertCounts(log: Logger, counts: UpsertCounts): void {
   const inserted = [
     counts.sources.new > 0 ? `${counts.sources.new} sources` : null,
     counts.snapshots.new > 0 ? `${counts.snapshots.new} snapshots` : null,
@@ -58,9 +59,9 @@ export function logUpsertCounts(counts: UpsertCounts): void {
     counts.staging.unchanged > 0 ? `${counts.staging.unchanged} staged` : null,
   ].filter(Boolean);
 
-  console.log(`  Inserted:  ${inserted.length > 0 ? inserted.join(", ") : "—"}`);
-  console.log(`  Updated:   ${updated.length > 0 ? updated.join(", ") : "—"}`);
-  console.log(`  Unchanged: ${unchanged.length > 0 ? unchanged.join(", ") : "—"}`);
+  log.info(`Inserted: ${inserted.length > 0 ? inserted.join(", ") : "—"}`);
+  log.info(`Updated: ${updated.length > 0 ? updated.join(", ") : "—"}`);
+  log.info(`Unchanged: ${unchanged.length > 0 ? unchanged.join(", ") : "—"}`);
 }
 
 async function countRows(db: Kysely<Database>, table: keyof Database): Promise<number> {

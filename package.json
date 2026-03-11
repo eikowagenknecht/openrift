@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "bun run dev:web & bun run dev:api & wait",
     "dev:web": "turbo run dev --filter=web",
     "format": "oxfmt",
     "lint": "turbo run build && bun run lint:oxlint && bun run lint:oxfmt",
@@ -18,7 +18,7 @@
     "db:migrate": "bun run --cwd packages/shared db:migrate",
     "db:rollback": "bun run --cwd packages/shared db:rollback",
     "make-admin": "bun run --cwd packages/shared make-admin --",
-    "dev:api": "turbo run dev --filter=api",
+    "dev:api": "bun --env-file=.env --watch apps/api/src/index.ts | bunx pino-pretty",
     "routes:generate": "bun run --cwd apps/web routes:generate",
     "preview": "turbo run build && (bun run --cwd apps/api start & bun run --cwd apps/web preview & wait)",
     "test": "turbo run test",

@@ -12,6 +12,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
+import type { Logger } from "../logger.js";
 import {
   fetchJson,
   logUpsertCounts,
@@ -55,7 +56,10 @@ interface CmPriceGuide {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
-export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<PriceRefreshResult> {
+export async function refreshCardmarketPrices(
+  db: Kysely<Database>,
+  log: Logger,
+): Promise<PriceRefreshResult> {
   // ── Load ignored products ────────────────────────────────────────────────
 
   const ignoredRows = await db
@@ -199,21 +203,19 @@ export async function refreshCardmarketPrices(db: Kysely<Database>): Promise<Pri
   }
 
   if (allSnapshots.length > 0) {
-    console.log(
-      `Cardmarket: ${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`,
-    );
+    log.info(`${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`);
   }
 
   const ignoredSuffix = ignoredKeys.size > 0 ? `, ${ignoredKeys.size} ignored` : "";
-  console.log(
-    `Cardmarket fetched: ${dbExpansions.length} expansions (${cmMappedCount} mapped, ${cmUnmappedCount} unmapped), ${cmSingles.length} products, ${cmPriceGuides.length} prices${ignoredSuffix}`,
+  log.info(
+    `Fetched: ${dbExpansions.length} expansions (${cmMappedCount} mapped, ${cmUnmappedCount} unmapped), ${cmSingles.length} products, ${cmPriceGuides.length} prices${ignoredSuffix}`,
   );
 
   // ── Upsert ──────────────────────────────────────────────────────────────────
 
   const counts = await upsertCardmarketPriceData(db, [], allSnapshots, allStaging);
 
-  logUpsertCounts(counts);
+  logUpsertCounts(log, counts);
 
   return {
     fetched: {

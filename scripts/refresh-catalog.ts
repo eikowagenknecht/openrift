@@ -1,9 +1,11 @@
 import { createDb } from "../packages/shared/src/db/connect.js";
+import { createLogger } from "../packages/shared/src/logger.js";
 import { refreshCatalog } from "../packages/shared/src/services/refresh-catalog.js";
 
+const log = createLogger("catalog");
 const db = createDb();
 try {
-  await refreshCatalog(db);
+  await refreshCatalog(db, log);
 } finally {
   await db.destroy();
 }

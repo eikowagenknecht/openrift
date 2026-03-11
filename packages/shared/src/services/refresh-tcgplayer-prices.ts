@@ -10,6 +10,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
+import type { Logger } from "../logger.js";
 import {
   fetchJson,
   logUpsertCounts,
@@ -56,7 +57,10 @@ interface TcgcsvPrice {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
-export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<PriceRefreshResult> {
+export async function refreshTcgplayerPrices(
+  db: Kysely<Database>,
+  log: Logger,
+): Promise<PriceRefreshResult> {
   // ── Load ignored products ────────────────────────────────────────────────
 
   const ignoredRows = await db
@@ -184,8 +188,8 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
   // ── Upsert ──────────────────────────────────────────────────────────────────
 
   const ignoredSuffix = ignoredKeys.size > 0 ? `, ${ignoredKeys.size} ignored` : "";
-  console.log(
-    `TCGPlayer fetched: ${groups.length} groups (${mappedCount} mapped, ${unmappedCount} unmapped), ${totalProducts} products, ${allStaging.length} prices${ignoredSuffix}`,
+  log.info(
+    `Fetched: ${groups.length} groups (${mappedCount} mapped, ${unmappedCount} unmapped), ${totalProducts} products, ${allStaging.length} prices${ignoredSuffix}`,
   );
 
   // Build snapshots for already-mapped products so prices stay current
@@ -227,14 +231,12 @@ export async function refreshTcgplayerPrices(db: Kysely<Database>): Promise<Pric
   }
 
   if (allSnapshots.length > 0) {
-    console.log(
-      `TCGPlayer: ${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`,
-    );
+    log.info(`${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`);
   }
 
   const counts = await upsertTcgplayerPriceData(db, [], allSnapshots, allStaging);
 
-  logUpsertCounts(counts);
+  logUpsertCounts(log, counts);
 
   return {
     fetched: {

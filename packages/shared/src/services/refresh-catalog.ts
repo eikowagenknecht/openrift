@@ -3,6 +3,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
 import { buildPrintingId } from "../db/utils.js";
+import type { Logger } from "../logger.js";
 import type { CardType, Rarity } from "../types.js";
 import { fetchCatalog } from "./fetch-catalog.js";
 
@@ -53,13 +54,14 @@ export interface CatalogRefreshResult {
 
 export async function refreshCatalog(
   db: Kysely<Database>,
+  log: Logger,
   options?: { dryRun?: boolean },
 ): Promise<CatalogRefreshResult> {
   const dryRun = options?.dryRun ?? false;
-  const data = await fetchCatalog();
+  const data = await fetchCatalog(log);
   const changes: CatalogChange[] = [];
 
-  console.log("Seeding database...");
+  log.info("Seeding database");
 
   // ── Snapshot existing data for change detection ─────────────────────────────
   const setRows = await db.selectFrom("sets").select(["id", "name", "printed_total"]).execute();
@@ -137,7 +139,7 @@ export async function refreshCatalog(
         .execute();
     }
 
-    console.log(`  ${dryRun ? "(dry run)" : "✓"} Set: ${set.name}`);
+    log.info(`${dryRun ? "(dry run)" : "✓"} Set: ${set.name}`);
   }
 
   // ── Game cards ─────────────────────────────────────────────────────────────
@@ -226,9 +228,7 @@ export async function refreshCatalog(
     }
   }
 
-  console.log(
-    `  ${dryRun ? "(dry run)" : "✓"} Cards: ${Object.keys(data.cards).length} game cards`,
-  );
+  log.info(`${dryRun ? "(dry run)" : "✓"} Cards: ${Object.keys(data.cards).length} game cards`);
 
   // ── Printings ──────────────────────────────────────────────────────────────
   const printingRows: {
@@ -348,11 +348,9 @@ export async function refreshCatalog(
     }
   }
 
-  console.log(`  ${dryRun ? "(dry run)" : "✓"} Printings: ${printingRows.length} rows`);
+  log.info(`${dryRun ? "(dry run)" : "✓"} Printings: ${printingRows.length} rows`);
   if (imagesAdded > 0 || imagesUpdated > 0) {
-    console.log(
-      `  ${dryRun ? "(dry run)" : "✓"} Images: ${imagesAdded} new, ${imagesUpdated} updated`,
-    );
+    log.info(`${dryRun ? "(dry run)" : "✓"} Images: ${imagesAdded} new, ${imagesUpdated} updated`);
   }
 
   // ── Stale row detection ───────────────────────────────────────────────────
@@ -375,19 +373,19 @@ export async function refreshCatalog(
   }
 
   if (staleSets.length > 0 || staleCards.length > 0 || stalePrintings.length > 0) {
-    console.log("\n⚠ Stale rows (in DB but not in seed data):");
+    log.warn("Stale rows (in DB but not in seed data):");
     if (staleSets.length > 0) {
-      console.log(`  Sets (${staleSets.length}): ${staleSets.join(", ")}`);
+      log.warn(`Sets (${staleSets.length}): ${staleSets.join(", ")}`);
     }
     if (staleCards.length > 0) {
-      console.log(`  Cards (${staleCards.length}): ${staleCards.join(", ")}`);
+      log.warn(`Cards (${staleCards.length}): ${staleCards.join(", ")}`);
     }
     if (stalePrintings.length > 0) {
-      console.log(`  Printings (${stalePrintings.length}): ${stalePrintings.join(", ")}`);
+      log.warn(`Printings (${stalePrintings.length}): ${stalePrintings.join(", ")}`);
     }
   }
 
-  console.log(`\n${dryRun ? "Dry run" : "Refresh"} complete.`);
+  log.info(`${dryRun ? "Dry run" : "Refresh"} complete`);
 
   const totalImages = printingRows.filter((r) => r._image_url).length;
   return {

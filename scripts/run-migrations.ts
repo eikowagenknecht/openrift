@@ -1,21 +1,23 @@
 import { createDb } from "../packages/shared/src/db/connect.js";
 import { migrate, rollback } from "../packages/shared/src/db/migrate.js";
+import { createLogger } from "../packages/shared/src/logger.js";
 
+const log = createLogger("migrate");
 const db = createDb();
 const command = process.argv[2] ?? "latest";
 
 try {
   if (command === "latest") {
-    await migrate(db);
+    await migrate(db, log);
   } else if (command === "down") {
-    await rollback(db);
+    await rollback(db, log);
   } else {
-    console.error(`Unknown command: ${command}`);
-    console.error("Usage: db:migrate [latest|down]");
+    log.error(`Unknown command: ${command}`);
+    log.error("Usage: db:migrate [latest|down]");
     process.exit(1);
   }
 } catch (error) {
-  console.error(command === "latest" ? "Migration failed:" : "Rollback failed:", error);
+  log.error(error, command === "latest" ? "Migration failed" : "Rollback failed");
   process.exit(1);
 } finally {
   await db.destroy();
