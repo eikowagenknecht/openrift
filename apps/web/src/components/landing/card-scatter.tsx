@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -63,6 +63,19 @@ const mobileCards = [
   [60, 69, -6],
 ] as const;
 
+const mobileQuery =
+  typeof globalThis.matchMedia === "function" ? globalThis.matchMedia("(max-width: 767px)") : null;
+
+function useIsMobile() {
+  return useSyncExternalStore(
+    (subscribe) => {
+      mobileQuery?.addEventListener("change", subscribe);
+      return () => mobileQuery?.removeEventListener("change", subscribe);
+    },
+    () => mobileQuery?.matches ?? false,
+  );
+}
+
 function CardShape({
   angle,
   active,
@@ -124,10 +137,21 @@ export function CardScatter({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [reachableCount, setReachableCount] = useState(0);
   const [flyingIn, setFlyingIn] = useState(flyIn ?? false);
-  const [isMobile] = useState(() => window.innerWidth < 768);
+  const [visibleCards, setVisibleCards] = useState<Set<number>>(() => new Set());
+  const isMobile = useIsMobile();
   const activeCards = isMobile ? mobileCards : desktopCards;
 
-  useEffect(() => {
+  // Reset collection state when switching between mobile/desktop card sets
+  const prevMobileRef = useRef(isMobile);
+  if (prevMobileRef.current !== isMobile) {
+    prevMobileRef.current = isMobile;
+    setActivated(new Set());
+    setFlyingAway(new Set());
+    setGone(new Set());
+    // visibleCards and reachableCount are recomputed by the layout effect
+  }
+
+  useLayoutEffect(() => {
     function countVisible() {
       const el = canvasRef.current;
       const container = containerRef.current;
@@ -141,29 +165,52 @@ export function CardScatter({
       const visTop = Math.max(cb.top, 0);
       const visRight = Math.min(cb.right, window.innerWidth);
       const visBottom = Math.min(cb.bottom, window.innerHeight);
-      let count = 0;
+      const nextVisible = new Set<number>();
       for (const child of el.children) {
+        const idx = Number((child as HTMLElement).dataset.cardIndex);
+        if (Number.isNaN(idx) || gone.has(idx)) {
+          continue;
+        }
         // Use the button (firstElementChild) — it has the -translate-x/y
         // centering transform, so its rect reflects the actual visual position.
         const rect = (child.firstElementChild ?? child).getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          continue;
+        }
+        // Show cards that are at least 50% within the visible area
         const overlapX = Math.max(0, Math.min(rect.right, visRight) - Math.max(rect.left, visLeft));
         const overlapY = Math.max(0, Math.min(rect.bottom, visBottom) - Math.max(rect.top, visTop));
         const visibleArea = overlapX * overlapY;
         const totalArea = rect.width * rect.height;
         if (totalArea > 0 && visibleArea / totalArea >= 0.5) {
-          count++;
+          nextVisible.add(idx);
         }
       }
-      // Add back collected cards — they're gone from the DOM but were reachable
-      count += gone.size;
-      setReachableCount(count);
+      setVisibleCards(nextVisible);
+      setReachableCount(nextVisible.size + gone.size);
     }
     countVisible();
+    // Re-check periodically so drifting cards fade in/out at edges.
+    const interval = setInterval(countVisible, 2000);
     window.addEventListener("resize", countVisible);
-    return () => window.removeEventListener("resize", countVisible);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", countVisible);
+    };
     // Re-count when flyingIn ends — during fly-in, cards are at scale(0)
     // so their bounding rects are empty and countVisible would return 0.
-  }, [gone.size, flyingIn]);
+    // Also re-count on mobile/desktop switch for the new card set.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- gone.size is intentional; we only re-run when the count changes, not on every Set reference
+  }, [gone.size, flyingIn, isMobile]);
+
+  // Trigger completion when collected count reaches reachable count,
+  // whether from collecting a card or from reachable count decreasing (drift/resize).
+  useEffect(() => {
+    if (reachableCount > 0 && gone.size >= reachableCount) {
+      const timeout = setTimeout(() => onAllCollected?.(), 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [reachableCount, gone.size, onAllCollected]);
 
   function toggle(index: number) {
     const wasActive = activated.has(index);
@@ -174,13 +221,12 @@ export function CardScatter({
         return next;
       });
       setFlyingAway((p) => new Set(p).add(index));
+      setGone((p) => new Set(p).add(index));
+      // Remove from flyingAway after animation ends so card is removed from DOM
       setTimeout(() => {
-        setGone((p) => {
-          const next = new Set(p).add(index);
-          // Check if all reachable cards are now collected
-          if (reachableCount > 0 && next.size >= reachableCount) {
-            setTimeout(() => onAllCollected?.(), 500);
-          }
+        setFlyingAway((p) => {
+          const next = new Set(p);
+          next.delete(index);
           return next;
         });
       }, 800);
@@ -206,21 +252,35 @@ export function CardScatter({
         )}
       >
         {activeCards.map(([x, y, angle], i) =>
-          gone.has(i) ? null : (
+          gone.has(i) && !flyingAway.has(i) ? null : (
             <div
               key={`${x}-${y}`}
+              data-card-index={i}
               className={cn(
                 "absolute",
                 flyingAway.has(i) && "animate-fly-away",
                 flyingIn && "animate-fly-in",
+                !flyingIn &&
+                  !flyingAway.has(i) &&
+                  !gone.has(i) &&
+                  "animate-drift transition-opacity duration-300",
+                !flyingIn &&
+                  !flyingAway.has(i) &&
+                  !gone.has(i) &&
+                  !visibleCards.has(i) &&
+                  "opacity-0 pointer-events-none",
               )}
-              style={{
-                left: `${x}%`,
-                top: `${y}%`,
-                ...(flyingIn
-                  ? { animationDelay: `${i * 30}ms`, opacity: 0, transform: "scale(0)" }
-                  : undefined),
-              }}
+              style={
+                {
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  "--drift-duration": `${10 + ((x * 7 + y * 3) % 10)}s`,
+                  "--drift-delay": `-${(x * 3 + y * 11) % 14}s`,
+                  ...(flyingIn
+                    ? { animationDelay: `${i * 30}ms`, opacity: 0, transform: "scale(0)" }
+                    : undefined),
+                } as React.CSSProperties
+              }
               onAnimationEnd={
                 flyingIn && i === activeCards.length - 1 ? () => setFlyingIn(false) : undefined
               }

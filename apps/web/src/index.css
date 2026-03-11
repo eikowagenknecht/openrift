@@ -141,6 +141,7 @@ html.hide-scrollbar::-webkit-scrollbar {
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-foil-shimmer: foil-shimmer 4s ease-in-out infinite;
   --animate-wobble: wobble 0.4s ease-in-out;
+  --animate-drift: drift var(--drift-duration, 14s) ease-in-out var(--drift-delay, 0s) infinite;
   --animate-fly-away: fly-away 0.8s ease-in forwards;
   --animate-fly-in: fly-in 0.8s ease-out forwards;
   --animate-logo-spin: logo-spin 1s ease-in-out;
@@ -312,6 +313,25 @@ html.hide-scrollbar::-webkit-scrollbar {
     100% {
       transform: scale(1) translateY(0);
       opacity: 1;
+    }
+  }
+
+  @keyframes drift {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    20% {
+      translate: 12px -8px;
+    }
+    40% {
+      translate: -6px 10px;
+    }
+    60% {
+      translate: -10px -5px;
+    }
+    80% {
+      translate: 7px -11px;
     }
   }
 
