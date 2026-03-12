@@ -411,22 +411,36 @@ export async function getMappingOverview(
     )
     .map((row) => mapStagedRow(row));
 
-  // Ignored products
-  const ignoredProducts = ignoredRows.map((r) => ({
-    externalId: r.external_id,
-    productName: r.product_name,
-    finish: r.finish,
-    marketCents: 0,
-    lowCents: null as number | null,
-    currency: config.currency,
-    recordedAt: r.created_at.toISOString(),
-    midCents: null as number | null,
-    highCents: null as number | null,
-    trendCents: null as number | null,
-    avg1Cents: null as number | null,
-    avg7Cents: null as number | null,
-    avg30Cents: null as number | null,
-  }));
+  // Ignored products — look up group from staging data
+  const groupByExternal = new Map<string, number>();
+  for (const row of staged) {
+    if (row.external_id !== null) {
+      const key = `${row.external_id}::${row.finish}`;
+      if (!groupByExternal.has(key)) {
+        groupByExternal.set(key, row.group_id);
+      }
+    }
+  }
+  const ignoredProducts = ignoredRows.map((r) => {
+    const gid = groupByExternal.get(`${r.external_id}::${r.finish}`);
+    return {
+      externalId: r.external_id,
+      productName: r.product_name,
+      finish: r.finish,
+      marketCents: 0,
+      lowCents: null as number | null,
+      currency: config.currency,
+      recordedAt: r.created_at.toISOString(),
+      midCents: null as number | null,
+      highCents: null as number | null,
+      trendCents: null as number | null,
+      avg1Cents: null as number | null,
+      avg7Cents: null as number | null,
+      avg30Cents: null as number | null,
+      groupId: gid,
+      groupName: gid === undefined ? undefined : (groupNameMap.get(gid) ?? `Group #${gid}`),
+    };
+  });
 
   // 8. Build response groups
   const groups = buildResponseGroups(
@@ -540,6 +554,7 @@ export async function saveMappings(
     const sourceIdByPrinting = new Map(sourceResults.map((r) => [r.printing_id, r.id]));
 
     // 5. Batch-insert snapshots (1 query instead of N×M)
+    // raw sql: dynamic column list determined at runtime by marketplace config
     const priceColNames = sql.raw(config.priceColumns.join(", "));
     const updateClause = sql.raw(config.priceColumns.map((c) => `${c} = excluded.${c}`).join(", "));
 
@@ -562,6 +577,7 @@ export async function saveMappings(
       }
     }
 
+    // raw sql: INSERT with runtime-dynamic column list + ON CONFLICT not expressible in Kysely
     if (snapTuples.length > 0) {
       await sql`
         INSERT INTO ${sql.table(config.tables.snapshots)}
@@ -580,6 +596,7 @@ export async function saveMappings(
       }
     }
 
+    // raw sql: multi-column tuple IN (VALUES ...) not supported by Kysely
     await sql`
       DELETE FROM ${sql.table(config.tables.staging)}
       WHERE (external_id, finish) IN (VALUES ${sql.join(deletePairs)})
@@ -645,6 +662,7 @@ export async function unmapAll(
       .where("external_id", "is not", null)
       .executeTakeFirstOrThrow();
 
+    // raw sql: dynamic table name from config requires sql.table()
     await sql`
       DELETE FROM ${sql.table(config.tables.snapshots)}
       WHERE source_id IN (SELECT id FROM ${sql.table(config.tables.sources)} WHERE external_id IS NOT NULL)

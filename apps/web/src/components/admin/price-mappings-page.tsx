@@ -23,7 +23,7 @@ import {
 } from "@/hooks/use-price-mappings";
 
 import { CardGroupRow } from "./card-group-row";
-import type { MappingGroup, SourceMappingConfig } from "./price-mappings-types";
+import type { MappingGroup, SourceMappingConfig, StagedProduct } from "./price-mappings-types";
 import { SectionHeading } from "./section-heading";
 import { StagedProductCard } from "./staged-product-card";
 import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
@@ -32,6 +32,48 @@ function primarySourceId(group: MappingGroup): string {
   return group.printings.reduce((best, p) =>
     p.sourceId.localeCompare(best.sourceId) < 0 ? p : best,
   ).sourceId;
+}
+
+function GroupedProductGrid({
+  products,
+  renderCard,
+}: {
+  products: StagedProduct[];
+  renderCard: (sp: StagedProduct) => React.ReactNode;
+}) {
+  const byGroup = new Map<number | undefined, StagedProduct[]>();
+  for (const sp of products) {
+    const list = byGroup.get(sp.groupId) ?? [];
+    list.push(sp);
+    byGroup.set(sp.groupId, list);
+  }
+  const sortedGroups = [...byGroup.entries()].toSorted((a, b) => {
+    const nameA = a[1][0]?.groupName ?? "";
+    const nameB = b[1][0]?.groupName ?? "";
+    return nameA.localeCompare(nameB);
+  });
+  return sortedGroups.map(([groupId, items]) => (
+    <div key={groupId ?? "unknown"} className="mt-4">
+      <div className="flex items-center gap-3 pb-2">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-sm font-semibold text-muted-foreground">
+          {items[0]?.groupName ?? "Unknown group"}
+        </span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          {items.length}
+        </span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
+        {items
+          .toSorted(
+            (a, b) =>
+              a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
+          )
+          .map((sp) => renderCard(sp))}
+      </div>
+    </div>
+  ));
 }
 
 export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
@@ -348,63 +390,29 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
             <SectionHeading>
               Unmatched {config.shortName} Products ({unmatchedProducts.length})
             </SectionHeading>
-            {(() => {
-              const byGroup = new Map<number | undefined, typeof unmatchedProducts>();
-              for (const sp of unmatchedProducts) {
-                const list = byGroup.get(sp.groupId) ?? [];
-                list.push(sp);
-                byGroup.set(sp.groupId, list);
-              }
-              const sortedGroups = [...byGroup.entries()].toSorted((a, b) => {
-                const nameA = a[1][0]?.groupName ?? "";
-                const nameB = b[1][0]?.groupName ?? "";
-                return nameA.localeCompare(nameB);
-              });
-              return sortedGroups.map(([groupId, products]) => (
-                <div key={groupId ?? "unknown"} className="mt-4">
-                  <div className="flex items-center gap-3 pb-2">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-sm font-semibold text-muted-foreground">
-                      {products[0]?.groupName ?? "Unknown group"}
-                    </span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                      {products.length}
-                    </span>
-                    <div className="h-px flex-1 bg-border" />
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-                    {products
-                      .toSorted(
-                        (a, b) =>
-                          a.productName.localeCompare(b.productName) ||
-                          b.finish.localeCompare(a.finish),
-                      )
-                      .map((sp) => (
-                        <StagedProductCard
-                          key={`${sp.externalId}::${sp.finish}`}
-                          config={config}
-                          product={sp}
-                          onIgnore={() =>
-                            ignoreMutation.mutate([
-                              { externalId: sp.externalId, finish: sp.finish },
-                            ])
-                          }
-                          isIgnoring={ignoreMutation.isPending}
-                          allCards={allCards}
-                          onAssignToCard={(cardId) =>
-                            assignToCardMutation.mutate({
-                              externalId: sp.externalId,
-                              finish: sp.finish,
-                              cardId,
-                            })
-                          }
-                          isAssigning={assignToCardMutation.isPending}
-                        />
-                      ))}
-                  </div>
-                </div>
-              ));
-            })()}
+            <GroupedProductGrid
+              products={unmatchedProducts}
+              renderCard={(sp) => (
+                <StagedProductCard
+                  key={`${sp.externalId}::${sp.finish}`}
+                  config={config}
+                  product={sp}
+                  onIgnore={() =>
+                    ignoreMutation.mutate([{ externalId: sp.externalId, finish: sp.finish }])
+                  }
+                  isIgnoring={ignoreMutation.isPending}
+                  allCards={allCards}
+                  onAssignToCard={(cardId) =>
+                    assignToCardMutation.mutate({
+                      externalId: sp.externalId,
+                      finish: sp.finish,
+                      cardId,
+                    })
+                  }
+                  isAssigning={assignToCardMutation.isPending}
+                />
+              )}
+            />
           </div>
         )}
 
@@ -423,25 +431,20 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
               Ignored Products ({ignoredProducts.length})
             </button>
             {showIgnored && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-                {ignoredProducts
-                  .toSorted(
-                    (a, b) =>
-                      a.productName.localeCompare(b.productName) ||
-                      b.finish.localeCompare(a.finish),
-                  )
-                  .map((sp) => (
-                    <StagedProductCard
-                      key={`ignored::${sp.externalId}`}
-                      config={config}
-                      product={sp}
-                      onUnignore={() =>
-                        unignoreMutation.mutate([{ externalId: sp.externalId, finish: sp.finish }])
-                      }
-                      isUnignoring={unignoreMutation.isPending}
-                    />
-                  ))}
-              </div>
+              <GroupedProductGrid
+                products={ignoredProducts}
+                renderCard={(sp) => (
+                  <StagedProductCard
+                    key={`ignored::${sp.externalId}::${sp.finish}`}
+                    config={config}
+                    product={sp}
+                    onUnignore={() =>
+                      unignoreMutation.mutate([{ externalId: sp.externalId, finish: sp.finish }])
+                    }
+                    isUnignoring={unignoreMutation.isPending}
+                  />
+                )}
+              />
             )}
           </div>
         )}
