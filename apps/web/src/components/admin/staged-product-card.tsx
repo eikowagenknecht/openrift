@@ -30,7 +30,7 @@ export function StagedProductCard({
   onUnignore?: () => void;
   isUnignoring?: boolean;
   allCards?: AssignableCard[];
-  onAssignToCard?: (cardId: string, setId: string) => void;
+  onAssignToCard?: (cardId: string) => void;
   isAssigning?: boolean;
   onUnassign?: () => void;
   isUnassigning?: boolean;
@@ -122,11 +122,6 @@ export function StagedProductCard({
             {sp.finish}
           </Badge>
         )}
-        {sp.groupSetId && (
-          <Badge variant="outline" className="shrink-0">
-            {sp.groupSetId}
-          </Badge>
-        )}
         <Badge variant="outline" className="shrink-0">
           <ProductLink config={config} externalId={sp.externalId}>
             #{sp.externalId}
@@ -167,7 +162,7 @@ export function StagedProductCard({
                     className="w-full rounded bg-muted/50 px-2 py-1.5 text-left hover:bg-muted disabled:opacity-50"
                     disabled={isAssigning}
                     onClick={() => {
-                      onAssignToCard(g.cardId, g.setId);
+                      onAssignToCard(g.cardId);
                       setShowAssign(false);
                       setSearch("");
                     }}

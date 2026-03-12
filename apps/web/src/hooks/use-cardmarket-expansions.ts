@@ -6,20 +6,13 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 interface CardmarketExpansion {
   expansionId: number;
-  setId: string | null;
-  setName: string | null;
+  name: string | null;
   stagedCount: number;
   assignedCount: number;
 }
 
-interface SetOption {
-  id: string;
-  name: string;
-}
-
 interface CardmarketExpansionsResponse {
   expansions: CardmarketExpansion[];
-  sets: SetOption[];
 }
 
 export function useCardmarketExpansions() {
@@ -31,7 +24,7 @@ export function useCardmarketExpansions() {
 
 export function useUpdateCardmarketExpansion() {
   return useMutationWithInvalidation({
-    mutationFn: (body: { expansionId: number; setId: string | null }) =>
+    mutationFn: (body: { expansionId: number; name: string | null }) =>
       api.put<{ ok: boolean }>("/api/admin/cardmarket-expansions", body),
     invalidates: [queryKeys.admin.cardmarketExpansions],
   });

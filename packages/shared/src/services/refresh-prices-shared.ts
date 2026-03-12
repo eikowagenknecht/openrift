@@ -33,8 +33,6 @@ export interface UpsertCounts {
 export interface PriceRefreshResult {
   fetched: {
     groups: number;
-    mapped: number;
-    unmapped: number;
     products: number;
     prices: number;
   };
@@ -200,7 +198,7 @@ export function logFetchSummary(
 ): void {
   const ignoredSuffix = ignoredCount > 0 ? `, ${ignoredCount} ignored` : "";
   log.info(
-    `Fetched: ${counts.groups} ${groupLabel} (${counts.mapped} mapped, ${counts.unmapped} unmapped), ${counts.products} products, ${counts.prices} prices${ignoredSuffix}`,
+    `Fetched: ${counts.groups} ${groupLabel}, ${counts.products} products, ${counts.prices} prices${ignoredSuffix}`,
   );
 }
 

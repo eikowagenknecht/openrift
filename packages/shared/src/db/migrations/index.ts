@@ -19,6 +19,7 @@ import * as m013 from "./013-printing-images.js";
 import * as m014 from "./014-feature-flags.js";
 import * as m015 from "./015-drop-candidate-checks.js";
 import * as m016 from "./016-set-sort-order.js";
+import * as m017 from "./017-drop-group-set-ids.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -37,4 +38,5 @@ export const migrations: Record<string, Migration> = {
   "014-feature-flags": m014,
   "015-drop-candidate-checks": m015,
   "016-set-sort-order": m016,
+  "017-drop-group-set-ids": m017,
 };

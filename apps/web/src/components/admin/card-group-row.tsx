@@ -47,7 +47,7 @@ export function CardGroupRow({
   onUnassign: (externalId: number, finish: string) => void;
   isUnassigning: boolean;
   allCards: AssignableCard[];
-  onAssignToCard: (externalId: number, finish: string, cardId: string, setId: string) => void;
+  onAssignToCard: (externalId: number, finish: string, cardId: string) => void;
   isAssigning: boolean;
 }) {
   const unmappedCount = group.printings.filter((p) => p.externalId === null).length;

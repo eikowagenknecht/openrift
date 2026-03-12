@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { CountBadge } from "@/components/admin/count-badge";
 import {
   ActionCard,
@@ -6,13 +8,7 @@ import {
   refreshActions,
   useCronStatus,
 } from "@/components/admin/refresh-actions";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -28,18 +24,47 @@ import {
 
 import { AdminQueryShell } from "./admin-query-shell";
 
-export function CardmarketExpansionsPage() {
-  const query = useCardmarketExpansions();
-  const { data: cronStatus } = useCronStatus();
+function EditableName({
+  expansionId,
+  initialName,
+}: {
+  expansionId: number;
+  initialName: string | null;
+}) {
   const mutation = useUpdateCardmarketExpansion();
+  const [value, setValue] = useState(initialName ?? "");
 
-  function handleSetChange(expansionId: number, value: string | null) {
-    mutation.mutate({ expansionId, setId: value });
+  function commit() {
+    const trimmed = value.trim();
+    const newName = trimmed === "" ? null : trimmed;
+    if (newName !== initialName) {
+      mutation.mutate({ expansionId, name: newName });
+    }
   }
 
   return (
+    <Input
+      className="h-8"
+      placeholder="Unnamed"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
+export function CardmarketExpansionsPage() {
+  const query = useCardmarketExpansions();
+  const { data: cronStatus } = useCronStatus();
+
+  return (
     <AdminQueryShell query={query}>
-      {({ expansions, sets }) => (
+      {({ expansions }) => (
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
             <ActionCard action={refreshActions.cardmarket} cronStatus={cronStatus} />
@@ -50,7 +75,7 @@ export function CardmarketExpansionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-24">Expansion ID</TableHead>
-                  <TableHead className="w-64">OpenRift Set</TableHead>
+                  <TableHead className="w-64">Name</TableHead>
                   <TableHead className="w-24 text-right" title="Products mapped to printings">
                     Assigned
                   </TableHead>
@@ -83,22 +108,10 @@ export function CardmarketExpansionsPage() {
                       </a>
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={expansion.setId}
-                        onValueChange={(v) => handleSetChange(expansion.expansionId, v)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Unmapped" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={null}>Unmapped</SelectItem>
-                          {sets.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name} ({s.id})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <EditableName
+                        expansionId={expansion.expansionId}
+                        initialName={expansion.name}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <CountBadge count={expansion.assignedCount} />

@@ -68,7 +68,6 @@ interface StagingCardOverride {
   externalId: number;
   finish: string;
   cardId: string;
-  setId: string;
 }
 
 export function useAssignToCard(config: SourceMappingConfig) {

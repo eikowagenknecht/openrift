@@ -142,7 +142,7 @@ export async function refreshCardmarketPrices(
     expansionIds.add(product.idExpansion);
   }
   const expansionValues = [...expansionIds].map((expId) => ({ expansion_id: expId }));
-  const dbExpansions: { expansion_id: number; set_id: string | null }[] = [];
+  const dbExpansions: { expansion_id: number }[] = [];
   for (let i = 0; i < expansionValues.length; i += BATCH_SIZE) {
     const batch = expansionValues.slice(i, i + BATCH_SIZE);
     const rows = await db
@@ -153,13 +153,10 @@ export async function refreshCardmarketPrices(
           updated_at: sql<Date>`now()`,
         }),
       )
-      .returning(["expansion_id", "set_id"])
+      .returning(["expansion_id"])
       .execute();
     dbExpansions.push(...rows);
   }
-
-  const cmMappedCount = dbExpansions.filter((e) => e.set_id).length;
-  const cmUnmappedCount = dbExpansions.length - cmMappedCount;
 
   // Stage ALL products, regardless of mapping status
   for (const product of cmSingles) {
@@ -205,8 +202,6 @@ export async function refreshCardmarketPrices(
 
   const fetchedCounts = {
     groups: dbExpansions.length,
-    mapped: cmMappedCount,
-    unmapped: cmUnmappedCount,
     products: cmSingles.length,
     prices: cmPriceGuides.length,
   };

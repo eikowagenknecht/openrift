@@ -104,8 +104,6 @@ export interface MarketplaceConfig<
   };
   /** Column name that holds the group/expansion ID in the groups table */
   groupIdColumn: "group_id" | "expansion_id";
-  /** Column name for a human-readable group name (if the table has one) */
-  groupNameColumn?: "name";
   /** Map a staging row → the unified product-info price fields */
   mapStagingPrices(row: S): Omit<ProductInfo, "productName" | "recordedAt">;
   /** Select + map snapshot prices for mapped products */
@@ -148,22 +146,13 @@ function createMarketplaceConfig<
   prefix: "tcgplayer" | "cardmarket";
   groupsTable: "tcgplayer_groups" | "cardmarket_expansions";
   groupIdColumn: "group_id" | "expansion_id";
-  groupNameColumn?: "name";
   priceColumns: readonly (keyof PF & string)[];
   /** Map a row's price fields → unified ProductInfo (excluding productName/recordedAt) */
   mapPrices(row: PF): Omit<ProductInfo, "productName" | "recordedAt">;
   /** Typed Kysely snapshot query (kept per-marketplace for type safety) */
   snapshotQuery(printingIds: string[]): Promise<(MappedSnapshotRow & PF)[]>;
 }): MarketplaceConfig<StagingRow & PF, SnapshotRow & PF, MappedSnapshotRow & PF> {
-  const {
-    prefix,
-    groupsTable,
-    groupIdColumn,
-    groupNameColumn,
-    priceColumns,
-    mapPrices,
-    snapshotQuery,
-  } = opts;
+  const { prefix, groupsTable, groupIdColumn, priceColumns, mapPrices, snapshotQuery } = opts;
 
   type Tables = MarketplaceConfig["tables"];
   const staging = `${prefix}_staging` as Tables["staging"];
@@ -179,7 +168,6 @@ function createMarketplaceConfig<
     currency: opts.currency,
     tables: { staging, sources, snapshots, groups: groupsTable, ignored, overrides },
     groupIdColumn,
-    groupNameColumn,
 
     mapStagingPrices: mapPrices as (
       row: StagingRow & PF,
@@ -247,7 +235,6 @@ export const tcgplayerConfig: MarketplaceConfig<
   prefix: "tcgplayer",
   groupsTable: "tcgplayer_groups",
   groupIdColumn: "group_id",
-  groupNameColumn: "name",
   priceColumns: TCGPLAYER_PRICE_COLS,
   mapPrices: (row) => ({
     marketCents: row.market_cents,

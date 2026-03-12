@@ -117,7 +117,7 @@ function makeChain(value: unknown): any {
 
 interface MockDbConfig {
   ignoredProducts?: { external_id: number; finish: string }[];
-  expansions?: { expansion_id: number; set_id: string | null }[];
+  expansions?: { expansion_id: number }[];
   existingSources?: { printing_id: string; external_id: number; finish: string }[];
 }
 
@@ -607,10 +607,7 @@ describe("refreshCardmarketPrices", () => {
   describe("return value", () => {
     it("returns correct fetched counts", async () => {
       const { db } = createMockDb({
-        expansions: [
-          { expansion_id: 6286, set_id: "set-001" },
-          { expansion_id: 6289, set_id: null },
-        ],
+        expansions: [{ expansion_id: 6286 }, { expansion_id: 6289 }],
       });
       const { log } = makeMockLogger();
       setupFetchJson(
@@ -623,8 +620,6 @@ describe("refreshCardmarketPrices", () => {
 
       expect(result.fetched).toEqual({
         groups: 2,
-        mapped: 1,
-        unmapped: 1,
         products: 3,
         prices: 3,
       });
@@ -678,10 +673,7 @@ describe("refreshCardmarketPrices", () => {
 
     it("logs fetched summary with expansion and product counts", async () => {
       const { db } = createMockDb({
-        expansions: [
-          { expansion_id: 6286, set_id: "set-001" },
-          { expansion_id: 6289, set_id: null },
-        ],
+        expansions: [{ expansion_id: 6286 }, { expansion_id: 6289 }],
       });
       const { log, messages } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING, PRODUCT_ANNIE], [PRICE_BLAZING, PRICE_ANNIE]);
@@ -691,8 +683,6 @@ describe("refreshCardmarketPrices", () => {
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).toBeDefined();
       expect(summary).toContain("2 expansions");
-      expect(summary).toContain("1 mapped");
-      expect(summary).toContain("1 unmapped");
       expect(summary).toContain("2 products");
       expect(summary).toContain("2 prices");
     });

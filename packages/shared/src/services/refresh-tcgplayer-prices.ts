@@ -120,19 +120,6 @@ export async function refreshTcgplayerPrices(
       .execute();
   }
 
-  // Build group -> set mapping from DB (refresh for any newly-upserted groups)
-  const groupSetMap = new Map<number, string | null>();
-  const allDbGroups = await db
-    .selectFrom("tcgplayer_groups")
-    .select(["group_id", "name", "set_id"])
-    .execute();
-  for (const row of allDbGroups) {
-    groupSetMap.set(row.group_id, row.set_id);
-  }
-
-  const mappedCount = allDbGroups.filter((g) => g.set_id).length;
-  const unmappedCount = allDbGroups.filter((g) => !g.set_id).length;
-
   // Fetch all products per group
   const groupProducts = new Map<number, TcgcsvProduct[]>();
   let totalProducts = 0;
@@ -150,7 +137,8 @@ export async function refreshTcgplayerPrices(
   // TCGCSV updates daily at ~20:00 UTC; this makes same-day re-runs idempotent.
   let tcgcsvRecordedAt: Date | null = null;
 
-  for (const [groupId] of groupSetMap) {
+  for (const group of groups) {
+    const groupId = group.groupId;
     const products = groupProducts.get(groupId);
     if (!products) {
       continue;
@@ -200,8 +188,6 @@ export async function refreshTcgplayerPrices(
 
   const fetchedCounts = {
     groups: groups.length,
-    mapped: mappedCount,
-    unmapped: unmappedCount,
     products: totalProducts,
     prices: allStaging.length,
   };

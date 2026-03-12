@@ -34,7 +34,6 @@ export interface StagedProduct {
   avg7Cents: number | null;
   avg30Cents: number | null;
   isOverride?: boolean;
-  groupSetId?: string | null;
   groupId?: number;
   groupName?: string;
 }

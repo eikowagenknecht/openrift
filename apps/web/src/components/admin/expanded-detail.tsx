@@ -129,7 +129,7 @@ export function ExpandedDetail({
   onUnassign: (externalId: number, finish: string) => void;
   isUnassigning: boolean;
   allCards: AssignableCard[];
-  onAssignToCard: (externalId: number, finish: string, cardId: string, setId: string) => void;
+  onAssignToCard: (externalId: number, finish: string, cardId: string) => void;
   isAssigning: boolean;
 }) {
   const suggestions = computeSuggestions(group);
@@ -266,7 +266,7 @@ export function ExpandedDetail({
                   onAssignToCard={
                     sp.isOverride || isAssigned
                       ? undefined
-                      : (cardId, setId) => onAssignToCard(sp.externalId, sp.finish, cardId, setId)
+                      : (cardId) => onAssignToCard(sp.externalId, sp.finish, cardId)
                   }
                   isAssigning={isAssigning}
                   assignLabel="Reassign"

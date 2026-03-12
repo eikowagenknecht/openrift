@@ -275,8 +275,8 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                   }
                   isUnassigning={unassignMutation.isPending}
                   allCards={allCards}
-                  onAssignToCard={(externalId, finish, cardId, setId) =>
-                    assignToCardMutation.mutate({ externalId, finish, cardId, setId })
+                  onAssignToCard={(externalId, finish, cardId) =>
+                    assignToCardMutation.mutate({ externalId, finish, cardId })
                   }
                   isAssigning={assignToCardMutation.isPending}
                 />
@@ -333,12 +333,11 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                           }
                           isIgnoring={ignoreMutation.isPending}
                           allCards={allCards}
-                          onAssignToCard={(cardId, setId) =>
+                          onAssignToCard={(cardId) =>
                             assignToCardMutation.mutate({
                               externalId: sp.externalId,
                               finish: sp.finish,
                               cardId,
-                              setId,
                             })
                           }
                           isAssigning={assignToCardMutation.isPending}

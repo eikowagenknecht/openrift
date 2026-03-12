@@ -20,8 +20,7 @@ catalogRoute.use("/admin/cardmarket-expansions", requireAdmin);
 catalogRoute.get("/admin/cardmarket-expansions", async (c) => {
   const expansions = await db
     .selectFrom("cardmarket_expansions as ce")
-    .leftJoin("sets as s", "s.id", "ce.set_id")
-    .select(["ce.expansion_id", "ce.set_id", "s.name as set_name"])
+    .select(["ce.expansion_id", "ce.name"])
     .orderBy("ce.expansion_id")
     .execute();
 
@@ -45,31 +44,27 @@ catalogRoute.get("/admin/cardmarket-expansions", async (c) => {
 
   const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, r.count]));
 
-  const sets = await db.selectFrom("sets").select(["id", "name"]).orderBy("name").execute();
-
   return c.json({
     expansions: expansions.map((e) => ({
       expansionId: e.expansion_id,
-      setId: e.set_id,
-      setName: e.set_name,
+      name: e.name,
       stagedCount: countMap.get(e.expansion_id) ?? 0,
       assignedCount: assignedMap.get(e.expansion_id) ?? 0,
     })),
-    sets: sets.map((s) => ({ id: s.id, name: s.name })),
   });
 });
 
 const updateExpansionSchema = z.object({
   expansionId: z.number(),
-  setId: z.string().nullable(),
+  name: z.string().nullable(),
 });
 
 catalogRoute.put("/admin/cardmarket-expansions", async (c) => {
-  const { expansionId, setId } = updateExpansionSchema.parse(await c.req.json());
+  const { expansionId, name } = updateExpansionSchema.parse(await c.req.json());
 
   await db
     .updateTable("cardmarket_expansions")
-    .set({ set_id: setId, updated_at: new Date() })
+    .set({ name, updated_at: new Date() })
     .where("expansion_id", "=", expansionId)
     .execute();
 
@@ -83,8 +78,7 @@ catalogRoute.use("/admin/tcgplayer-groups", requireAdmin);
 catalogRoute.get("/admin/tcgplayer-groups", async (c) => {
   const groups = await db
     .selectFrom("tcgplayer_groups as tg")
-    .leftJoin("sets as s", "s.id", "tg.set_id")
-    .select(["tg.group_id", "tg.name", "tg.abbreviation", "tg.set_id", "s.name as set_name"])
+    .select(["tg.group_id", "tg.name", "tg.abbreviation"])
     .orderBy("tg.name")
     .execute();
 
@@ -108,37 +102,15 @@ catalogRoute.get("/admin/tcgplayer-groups", async (c) => {
 
   const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, r.count]));
 
-  const sets = await db.selectFrom("sets").select(["id", "name"]).orderBy("name").execute();
-
   return c.json({
     groups: groups.map((g) => ({
       groupId: g.group_id,
       name: g.name,
       abbreviation: g.abbreviation,
-      setId: g.set_id,
-      setName: g.set_name,
       stagedCount: countMap.get(g.group_id) ?? 0,
       assignedCount: assignedMap.get(g.group_id) ?? 0,
     })),
-    sets: sets.map((s) => ({ id: s.id, name: s.name })),
   });
-});
-
-const updateGroupSchema = z.object({
-  groupId: z.number(),
-  setId: z.string().nullable(),
-});
-
-catalogRoute.put("/admin/tcgplayer-groups", async (c) => {
-  const { groupId, setId } = updateGroupSchema.parse(await c.req.json());
-
-  await db
-    .updateTable("tcgplayer_groups")
-    .set({ set_id: setId, updated_at: new Date() })
-    .where("group_id", "=", groupId)
-    .execute();
-
-  return c.json({ ok: true });
 });
 
 // ── Sets CRUD ─────────────────────────────────────────────────────────────────

@@ -42,7 +42,7 @@ interface CardGroup {
 
 interface CardIndex {
   cardGroups: Map<string, CardGroup>;
-  cardNamesBySet: Map<string, { normName: string; baseName: string | null; groupKey: string }[]>;
+  cardNames: { normName: string; baseName: string | null; groupKey: string }[];
 }
 
 // ── buildCardIndex ──────────────────────────────────────────────────────────
@@ -106,31 +106,23 @@ function buildCardIndex(
     });
   }
 
-  // Index card names by every set they appear in (for set-scoped matching)
-  const cardNamesBySet = new Map<
-    string,
-    { normName: string; baseName: string | null; groupKey: string }[]
-  >();
-  const seenSetCard = new Set<string>();
+  // Global name index (deduplicated by card_id)
+  const seenCards = new Set<string>();
+  const cardNames: CardIndex["cardNames"] = [];
   for (const row of matchedCards) {
-    const pairKey = `${row.set_id}::${row.card_id}`;
-    if (seenSetCard.has(pairKey)) {
+    if (seenCards.has(row.card_id)) {
       continue;
     }
-    seenSetCard.add(pairKey);
+    seenCards.add(row.card_id);
     const normName = normalizeNameForMatching(row.card_name);
     const dashIdx = row.card_name.indexOf(" - ");
     const baseName =
       dashIdx === -1 ? null : normalizeNameForMatching(row.card_name.slice(0, dashIdx));
-    const list = cardNamesBySet.get(row.set_id) ?? [];
-    list.push({ normName, baseName, groupKey: row.card_id });
-    cardNamesBySet.set(row.set_id, list);
+    cardNames.push({ normName, baseName, groupKey: row.card_id });
   }
-  for (const list of cardNamesBySet.values()) {
-    list.sort((a, b) => b.normName.length - a.normName.length);
-  }
+  cardNames.sort((a, b) => b.normName.length - a.normName.length);
 
-  return { cardGroups, cardNamesBySet };
+  return { cardGroups, cardNames };
 }
 
 // ── matchStagedProducts ─────────────────────────────────────────────────────
@@ -138,9 +130,8 @@ function buildCardIndex(
 function matchStagedProducts(
   uniqueStaged: StagingRow[],
   cardGroups: Map<string, CardGroup>,
-  cardNamesBySet: Map<string, { normName: string; baseName: string | null; groupKey: string }[]>,
-  overrideMap: Map<string, { cardId: string; setId: string }>,
-  groupSetMap: Map<number, string>,
+  cardNames: CardIndex["cardNames"],
+  overrideMap: Map<string, { cardId: string }>,
 ) {
   const stagedByCard = new Map<string, StagingRow[]>();
   const matchedStagingKeys = new Set<string>();
@@ -161,14 +152,9 @@ function matchStagedProducts(
       }
     }
 
-    // Fall back to prefix matching
-    const setId = row.group_id === null ? undefined : groupSetMap.get(row.group_id);
-    if (!setId) {
-      continue;
-    }
+    // Fall back to prefix matching against all card names
     const normProduct = normalizeNameForMatching(row.product_name);
-    const candidates = cardNamesBySet.get(setId) ?? [];
-    for (const { normName, groupKey } of candidates) {
+    for (const { normName, groupKey } of cardNames) {
       if (normProduct.startsWith(normName)) {
         const list = stagedByCard.get(groupKey) ?? [];
         list.push(row);
@@ -188,13 +174,8 @@ function matchStagedProducts(
     if (matchedStagingKeys.has(stagingKey)) {
       continue;
     }
-    const setId = row.group_id === null ? undefined : groupSetMap.get(row.group_id);
-    if (!setId) {
-      continue;
-    }
     const normProduct = normalizeNameForMatching(row.product_name);
-    const candidates = cardNamesBySet.get(setId) ?? [];
-    for (const { normName, baseName, groupKey } of candidates) {
+    for (const { normName, baseName, groupKey } of cardNames) {
       const nameToMatch = baseName ?? normName;
       if (nameToMatch.length >= 5 && normProduct.includes(nameToMatch)) {
         const list = stagedByCard.get(groupKey) ?? [];
@@ -214,10 +195,9 @@ function matchStagedProducts(
 function buildResponseGroups(
   cardGroups: Map<string, CardGroup>,
   stagedByCard: Map<string, StagingRow[]>,
-  overrideMap: Map<string, { cardId: string; setId: string }>,
+  overrideMap: Map<string, { cardId: string }>,
   mappedProductInfo: Map<string, ProductInfo>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => Record<string, unknown>,
-  groupSetMap: Map<number, string>,
   showAll: boolean,
 ) {
   return [...cardGroups.values()]
@@ -249,7 +229,6 @@ function buildResponseGroups(
               avg1Cents: info.avg1Cents,
               avg7Cents: info.avg7Cents,
               avg30Cents: info.avg30Cents,
-              groupSetId: p.sourceGroupId ? (groupSetMap.get(p.sourceGroupId) ?? null) : null,
               isOverride: false,
             });
           }
@@ -312,46 +291,18 @@ export async function getMappingOverview(
     return true;
   });
 
-  // 3. Resolve group/expansion → set mapping + group display names
+  // 3. Build group display name lookup (both tables now have a name column)
   const groupRows = await db
     .selectFrom(config.tables.groups)
-    .select([`${config.groupIdColumn} as gid`, "set_id"])
+    .select([`${config.groupIdColumn} as gid`, "name"])
     .execute();
-  const groupSetMap = new Map<number, string>();
-  for (const row of groupRows) {
-    if (row.set_id) {
-      groupSetMap.set(row.gid as number, row.set_id);
-    }
-  }
-
-  // Build group display names: prefer marketplace-specific name, fall back to set name
-  const setNameRows = await db.selectFrom("sets").select(["id", "name"]).execute();
-  const setNameMap = new Map(setNameRows.map((r) => [r.id, r.name]));
-
-  let nativeGroupNames: Map<number, string> | undefined;
-  if (config.groupNameColumn === "name") {
-    const nameRows = await db.selectFrom("tcgplayer_groups").select(["group_id", "name"]).execute();
-    nativeGroupNames = new Map(nameRows.map((r) => [r.group_id, r.name]));
-  }
-
   const groupNameMap = new Map<number, string>();
   for (const row of groupRows) {
-    const gid = row.gid as number;
-    const nativeName = nativeGroupNames?.get(gid);
-    const setName = row.set_id ? setNameMap.get(row.set_id) : undefined;
-    groupNameMap.set(gid, nativeName ?? setName ?? `Group #${gid}`);
+    groupNameMap.set(row.gid as number, (row.name as string) ?? `Group #${row.gid}`);
   }
 
-  const stagedSetIds = [
-    ...new Set(
-      uniqueStaged
-        .map((r) => (r.group_id === null ? undefined : groupSetMap.get(r.group_id)))
-        .filter((id): id is string => id !== undefined),
-    ),
-  ];
-
-  // 4. Build card query — all cards in staged sets
-  let query = db
+  // 4. Build card query — fetch all cards
+  const query = db
     .selectFrom("cards as c")
     .innerJoin("printings as p", "p.card_id", "c.id")
     .innerJoin("sets as s", "s.id", "p.set_id")
@@ -389,52 +340,20 @@ export async function getMappingOverview(
     .orderBy("p.source_id")
     .orderBy("p.finish", "desc");
 
-  // Fetch all printings of any card that has at least one printing in a
-  // staged set (or is already mapped when showAll). This ensures cross-set
-  // reprints (e.g. overnumbered in a different set) are grouped together.
-  if (showAll) {
-    query = query.where((eb) => {
-      const conditions = [eb("ps.external_id", "is not", null)];
-      if (stagedSetIds.length > 0) {
-        conditions.push(
-          eb(
-            "c.id",
-            "in",
-            db
-              .selectFrom("printings as p2")
-              .select("p2.card_id")
-              .where("p2.set_id", "in", stagedSetIds),
-          ),
-        );
-      }
-      return eb.or(conditions);
-    });
-  } else {
-    if (stagedSetIds.length === 0) {
-      return { groups: [], unmatchedProducts: [], ignoredProducts: [], allCards: [] };
-    }
-    query = query.where(
-      "c.id",
-      "in",
-      db.selectFrom("printings as p2").select("p2.card_id").where("p2.set_id", "in", stagedSetIds),
-    );
-  }
-
   const matchedCards = await query.execute();
 
   // 5. Build card index (groups + prefix-match lookup)
-  const { cardGroups, cardNamesBySet } = buildCardIndex(matchedCards);
+  const { cardGroups, cardNames } = buildCardIndex(matchedCards);
 
   // 5c. Load manual card overrides
   const overrideRows = await db
     .selectFrom(config.tables.overrides)
-    .select(["external_id", "finish", "card_id", "set_id"])
+    .select(["external_id", "finish", "card_id"])
     .execute();
-  const overrideMap = new Map<string, { cardId: string; setId: string }>();
+  const overrideMap = new Map<string, { cardId: string }>();
   for (const row of overrideRows) {
     overrideMap.set(`${row.external_id}::${row.finish}`, {
       cardId: row.card_id,
-      setId: row.set_id,
     });
   }
 
@@ -442,9 +361,8 @@ export async function getMappingOverview(
   const { stagedByCard, matchedStagingKeys } = matchStagedProducts(
     uniqueStaged,
     cardGroups,
-    cardNamesBySet,
+    cardNames,
     overrideMap,
-    groupSetMap,
   );
 
   // 6. Fetch latest prices for already-mapped printings
@@ -477,7 +395,6 @@ export async function getMappingOverview(
     finish: row.finish,
     ...config.mapStagingPrices(row),
     recordedAt: row.recorded_at.toISOString(),
-    groupSetId: groupSetMap.get(row.group_id) ?? null,
     ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
     ...(extra?.includeGroup
       ? {
@@ -520,7 +437,6 @@ export async function getMappingOverview(
     overrideMap,
     mappedProductInfo,
     mapStagedRow,
-    groupSetMap,
     showAll,
   );
 

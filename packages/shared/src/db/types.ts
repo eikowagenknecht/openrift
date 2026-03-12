@@ -164,7 +164,6 @@ export interface TcgplayerGroupsTable {
   group_id: number;
   name: string;
   abbreviation: string;
-  set_id: string | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -174,7 +173,7 @@ export interface TcgplayerGroupsTable {
 export interface CardmarketExpansionsTable {
   id: Generated<number>;
   expansion_id: number;
-  set_id: string | null;
+  name: string | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -241,7 +240,6 @@ export interface StagingCardOverridesTable {
   external_id: number;
   finish: string;
   card_id: string;
-  set_id: string;
   created_at: CreatedAt;
 }
 

@@ -99,11 +99,10 @@ const stagingCardOverrideSchema = z.object({
   externalId: z.number(),
   finish: z.string(),
   cardId: z.string(),
-  setId: z.string(),
 });
 
 ignoredProductsRoute.post("/admin/staging-card-overrides", async (c) => {
-  const { source, externalId, finish, cardId, setId } = stagingCardOverrideSchema.parse(
+  const { source, externalId, finish, cardId } = stagingCardOverrideSchema.parse(
     await c.req.json(),
   );
   const table =
@@ -117,11 +116,8 @@ ignoredProductsRoute.post("/admin/staging-card-overrides", async (c) => {
       external_id: externalId,
       finish,
       card_id: cardId,
-      set_id: setId,
     })
-    .onConflict((oc) =>
-      oc.columns(["external_id", "finish"]).doUpdateSet({ card_id: cardId, set_id: setId }),
-    )
+    .onConflict((oc) => oc.columns(["external_id", "finish"]).doUpdateSet({ card_id: cardId }))
     .execute();
 
   return c.json({ ok: true });

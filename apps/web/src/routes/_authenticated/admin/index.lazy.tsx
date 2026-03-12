@@ -70,12 +70,10 @@ function AdminOverviewPage() {
   const totalPrintings = sets.reduce((sum, s) => sum + s.printingCount, 0);
 
   const tcgGroups = tcgData?.groups ?? [];
-  const tcgMapped = tcgGroups.filter((g) => g.setId !== null).length;
   const tcgAssigned = tcgGroups.reduce((sum, g) => sum + g.assignedCount, 0);
   const tcgStaged = tcgGroups.reduce((sum, g) => sum + g.stagedCount, 0);
 
   const cmExpansions = cmData?.expansions ?? [];
-  const cmMapped = cmExpansions.filter((e) => e.setId !== null).length;
   const cmAssigned = cmExpansions.reduce((sum, e) => sum + e.assignedCount, 0);
   const cmStaged = cmExpansions.reduce((sum, e) => sum + e.stagedCount, 0);
 
@@ -107,11 +105,7 @@ function AdminOverviewPage() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">TCGplayer</h2>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-          <StatCard
-            title="Sets"
-            value={`${tcgMapped} / ${tcgGroups.length}`}
-            description="mapped to OpenRift sets"
-          />
+          <StatCard title="Groups" value={tcgGroups.length} />
           <StatCard title="Products mapped" value={tcgAssigned} />
           <StatCard title="Products staged" value={tcgStaged} />
         </div>
@@ -120,11 +114,7 @@ function AdminOverviewPage() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Cardmarket</h2>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-          <StatCard
-            title="Sets"
-            value={`${cmMapped} / ${cmExpansions.length}`}
-            description="mapped to OpenRift sets"
-          />
+          <StatCard title="Expansions" value={cmExpansions.length} />
           <StatCard title="Products mapped" value={cmAssigned} />
           <StatCard title="Products staged" value={cmStaged} />
         </div>
