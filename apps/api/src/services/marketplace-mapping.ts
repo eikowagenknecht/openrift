@@ -41,7 +41,7 @@ interface CardGroup {
 
 interface CardIndex {
   cardGroups: Map<string, CardGroup>;
-  cardNamesBySet: Map<string, { normName: string; groupKey: string }[]>;
+  cardNamesBySet: Map<string, { normName: string; baseName: string | null; groupKey: string }[]>;
 }
 
 // ── buildCardIndex ──────────────────────────────────────────────────────────
@@ -103,10 +103,16 @@ function buildCardIndex(
     });
   }
 
-  const cardNamesBySet = new Map<string, { normName: string; groupKey: string }[]>();
+  const cardNamesBySet = new Map<
+    string,
+    { normName: string; baseName: string | null; groupKey: string }[]
+  >();
   for (const [key, group] of cardGroups) {
     const list = cardNamesBySet.get(group.setId) ?? [];
-    list.push({ normName: normalizeNameForMatching(group.cardName), groupKey: key });
+    const dashIdx = group.cardName.indexOf(" - ");
+    const baseName =
+      dashIdx === -1 ? null : normalizeNameForMatching(group.cardName.slice(0, dashIdx));
+    list.push({ normName: normalizeNameForMatching(group.cardName), baseName, groupKey: key });
     cardNamesBySet.set(group.setId, list);
   }
   for (const list of cardNamesBySet.values()) {
@@ -121,7 +127,7 @@ function buildCardIndex(
 function matchStagedProducts(
   uniqueStaged: StagingRow[],
   cardGroups: Map<string, CardGroup>,
-  cardNamesBySet: Map<string, { normName: string; groupKey: string }[]>,
+  cardNamesBySet: Map<string, { normName: string; baseName: string | null; groupKey: string }[]>,
   overrideMap: Map<string, { cardId: string; setId: string }>,
   groupSetMap: Map<number, string>,
 ) {
@@ -153,6 +159,31 @@ function matchStagedProducts(
     const candidates = cardNamesBySet.get(setId) ?? [];
     for (const { normName, groupKey } of candidates) {
       if (normProduct.startsWith(normName)) {
+        const list = stagedByCard.get(groupKey) ?? [];
+        list.push(row);
+        stagedByCard.set(groupKey, list);
+        matchedStagingKeys.add(stagingKey);
+        break;
+      }
+    }
+  }
+
+  // Second pass: containment matching for cards with " - " in the name.
+  // e.g. our "Wuju Bladesman - Starter" matches their "Master Yi Wuju Bladesman"
+  // because the base name "wujubladesman" is contained in the product name.
+  for (const row of uniqueStaged) {
+    const stagingKey = `${row.external_id}::${row.finish}`;
+    if (matchedStagingKeys.has(stagingKey)) {
+      continue;
+    }
+    const setId = row.group_id === null ? undefined : groupSetMap.get(row.group_id);
+    if (!setId) {
+      continue;
+    }
+    const normProduct = normalizeNameForMatching(row.product_name);
+    const candidates = cardNamesBySet.get(setId) ?? [];
+    for (const { baseName, groupKey } of candidates) {
+      if (baseName && baseName.length >= 5 && normProduct.includes(baseName)) {
         const list = stagedByCard.get(groupKey) ?? [];
         list.push(row);
         stagedByCard.set(groupKey, list);
