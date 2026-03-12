@@ -333,57 +333,61 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>Card</TableHead>
-                <TableHead
-                  className="text-center"
-                  title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
-                >
-                  Printings
-                </TableHead>
-                <TableHead
-                  className="text-center"
-                  title={`${config.displayName} products awaiting manual assignment to a printing`}
-                >
-                  Unassigned
-                </TableHead>
-                <TableHead className="text-center">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groups.map((group) => (
-                <CardGroupRow
-                  key={group.cardId}
-                  config={config}
-                  group={group}
-                  isExpanded={expandedCards.has(group.cardId)}
-                  isHotkeyTarget={expandedGroup?.cardId === group.cardId}
-                  onToggle={() => toggleExpanded(group.cardId)}
-                  onMap={handleMap}
-                  isSaving={saveMutation.isPending}
-                  onUnmap={(printingId) => unmapMutation.mutate(printingId)}
-                  isUnmapping={unmapMutation.isPending}
-                  onBatchAccept={() => handleBatchAccept(group)}
-                  onIgnore={(externalId, finish) => ignoreMutation.mutate([{ externalId, finish }])}
-                  isIgnoring={ignoreMutation.isPending}
-                  onUnassign={(externalId, finish) =>
-                    unassignMutation.mutate({ externalId, finish })
-                  }
-                  isUnassigning={unassignMutation.isPending}
-                  allCards={allCards}
-                  onAssignToCard={(externalId, finish, cardId) =>
-                    assignToCardMutation.mutate({ externalId, finish, cardId })
-                  }
-                  isAssigning={assignToCardMutation.isPending}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        {groups.length > 0 && (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead>Card</TableHead>
+                  <TableHead
+                    className="text-center"
+                    title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
+                  >
+                    Printings
+                  </TableHead>
+                  <TableHead
+                    className="text-center"
+                    title={`${config.displayName} products awaiting manual assignment to a printing`}
+                  >
+                    Unassigned
+                  </TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groups.map((group) => (
+                  <CardGroupRow
+                    key={group.cardId}
+                    config={config}
+                    group={group}
+                    isExpanded={expandedCards.has(group.cardId)}
+                    isHotkeyTarget={expandedGroup?.cardId === group.cardId}
+                    onToggle={() => toggleExpanded(group.cardId)}
+                    onMap={handleMap}
+                    isSaving={saveMutation.isPending}
+                    onUnmap={(printingId) => unmapMutation.mutate(printingId)}
+                    isUnmapping={unmapMutation.isPending}
+                    onBatchAccept={() => handleBatchAccept(group)}
+                    onIgnore={(externalId, finish) =>
+                      ignoreMutation.mutate([{ externalId, finish }])
+                    }
+                    isIgnoring={ignoreMutation.isPending}
+                    onUnassign={(externalId, finish) =>
+                      unassignMutation.mutate({ externalId, finish })
+                    }
+                    isUnassigning={unassignMutation.isPending}
+                    allCards={allCards}
+                    onAssignToCard={(externalId, finish, cardId) =>
+                      assignToCardMutation.mutate({ externalId, finish, cardId })
+                    }
+                    isAssigning={assignToCardMutation.isPending}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
 
         {unmatchedProducts.length > 0 && (
           <div className="mt-6">
