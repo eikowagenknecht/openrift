@@ -52,7 +52,7 @@ export function ProductSelect({
       <SelectContent className="w-auto min-w-[var(--anchor-width)]">
         {sortedStaged.length > 0 && (
           <SelectGroup>
-            <SelectLabel>Staged</SelectLabel>
+            <SelectLabel>Unassigned</SelectLabel>
             {sortedStaged.map((p, i) => (
               <SelectItem key={`s::${p.externalId}::${i}`} value={`${p.externalId}::s${i}`}>
                 {p.productName.length > 30 ? `${p.productName.slice(0, 30)}…` : p.productName} ·{" "}
