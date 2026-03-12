@@ -203,7 +203,7 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
       energy: s.energy,
       power: s.power,
       mightBonus: s.might_bonus,
-      keywords: [...extractKeywords(s.rules_text), ...extractKeywords(s.effect_text)].filter(
+      keywords: [...extractKeywords(s.rules_text ?? ""), ...extractKeywords(s.effect_text)].filter(
         (v, i, a) => a.indexOf(v) === i,
       ),
       rulesText: s.rules_text,
@@ -298,7 +298,7 @@ cardSourcesRoute.get("/card-sources/new/:name", async (c) => {
       energy: s.energy,
       power: s.power,
       mightBonus: s.might_bonus,
-      keywords: [...extractKeywords(s.rules_text), ...extractKeywords(s.effect_text)].filter(
+      keywords: [...extractKeywords(s.rules_text ?? ""), ...extractKeywords(s.effect_text)].filter(
         (v, i, a) => a.indexOf(v) === i,
       ),
       rulesText: s.rules_text,
@@ -749,7 +749,7 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/accept-new", async (c)
 
   const printingId = buildPrintingId(
     ps.source_id,
-    ps.art_variant,
+    ps.art_variant ?? "",
     ps.is_signed,
     ps.is_promo,
     ps.finish,
@@ -769,13 +769,13 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/accept-new", async (c)
         source_id: ps.source_id,
         collector_number: ps.collector_number,
         rarity: ps.rarity as Rarity,
-        art_variant: ps.art_variant,
+        art_variant: ps.art_variant ?? "",
         is_signed: ps.is_signed,
         is_promo: ps.is_promo,
         finish: ps.finish,
-        artist: ps.artist,
+        artist: ps.artist ?? "",
         public_code: ps.public_code,
-        printed_rules_text: ps.printed_rules_text,
+        printed_rules_text: ps.printed_rules_text ?? "",
         printed_effect_text: ps.printed_effect_text,
         flavor_text: ps.flavor_text,
       })

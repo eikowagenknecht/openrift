@@ -214,8 +214,8 @@ export function CardSourceUploadPage() {
               </p>
               {upload.data.errors.length > 0 && (
                 <ul className="ml-5 list-disc text-xs text-red-600 dark:text-red-400">
-                  {upload.data.errors.slice(0, 10).map((err) => (
-                    <li key={err}>{err}</li>
+                  {upload.data.errors.slice(0, 10).map((err, i) => (
+                    <li key={i}>{err}</li>
                   ))}
                   {upload.data.errors.length > 10 && (
                     <li>...and {upload.data.errors.length - 10} more</li>
