@@ -73,14 +73,14 @@ export function CardGroupRow({
           )}
         </TableCell>
         <TableCell className="font-medium">
-          <span className="text-muted-foreground font-normal mr-2">
-            {
-              group.printings.reduce((best, p) =>
-                p.collectorNumber < best.collectorNumber ? p : best,
-              ).sourceId
-            }
-          </span>
           {group.cardName}
+          <span className="text-muted-foreground font-normal ml-2">
+            (
+            {[...new Set(group.printings.map((p) => p.sourceId))]
+              .toSorted((a, b) => a.localeCompare(b))
+              .join(", ")}
+            )
+          </span>
         </TableCell>
         <TableCell className="text-center">{group.printings.length}</TableCell>
         <TableCell className="text-center">{group.stagedProducts.length}</TableCell>

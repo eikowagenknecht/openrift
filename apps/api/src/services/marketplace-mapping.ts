@@ -24,6 +24,7 @@ interface PrintingRow {
   collectorNumber: number;
   imageUrl: string | null;
   externalId: number | null;
+  sourceGroupId: number | null;
 }
 
 interface CardGroup {
@@ -67,12 +68,13 @@ function buildCardIndex(
     collector_number: number;
     image_url: string | null;
     external_id: number | null;
+    source_group_id: number | null;
   }[],
 ): CardIndex {
   const cardGroups = new Map<string, CardGroup>();
 
   for (const row of matchedCards) {
-    const key = `${row.set_id}::${row.card_id}`;
+    const key = row.card_id;
     let group = cardGroups.get(key);
     if (!group) {
       group = {
@@ -100,20 +102,29 @@ function buildCardIndex(
       collectorNumber: row.collector_number,
       imageUrl: row.image_url,
       externalId: row.external_id,
+      sourceGroupId: row.source_group_id,
     });
   }
 
+  // Index card names by every set they appear in (for set-scoped matching)
   const cardNamesBySet = new Map<
     string,
     { normName: string; baseName: string | null; groupKey: string }[]
   >();
-  for (const [key, group] of cardGroups) {
-    const list = cardNamesBySet.get(group.setId) ?? [];
-    const dashIdx = group.cardName.indexOf(" - ");
+  const seenSetCard = new Set<string>();
+  for (const row of matchedCards) {
+    const pairKey = `${row.set_id}::${row.card_id}`;
+    if (seenSetCard.has(pairKey)) {
+      continue;
+    }
+    seenSetCard.add(pairKey);
+    const normName = normalizeNameForMatching(row.card_name);
+    const dashIdx = row.card_name.indexOf(" - ");
     const baseName =
-      dashIdx === -1 ? null : normalizeNameForMatching(group.cardName.slice(0, dashIdx));
-    list.push({ normName: normalizeNameForMatching(group.cardName), baseName, groupKey: key });
-    cardNamesBySet.set(group.setId, list);
+      dashIdx === -1 ? null : normalizeNameForMatching(row.card_name.slice(0, dashIdx));
+    const list = cardNamesBySet.get(row.set_id) ?? [];
+    list.push({ normName, baseName, groupKey: row.card_id });
+    cardNamesBySet.set(row.set_id, list);
   }
   for (const list of cardNamesBySet.values()) {
     list.sort((a, b) => b.normName.length - a.normName.length);
@@ -140,7 +151,7 @@ function matchStagedProducts(
     // Check manual override first
     const override = overrideMap.get(stagingKey);
     if (override) {
-      const groupKey = `${override.setId}::${override.cardId}`;
+      const groupKey = override.cardId;
       if (cardGroups.has(groupKey)) {
         const list = stagedByCard.get(groupKey) ?? [];
         list.push(row);
@@ -206,11 +217,12 @@ function buildResponseGroups(
   overrideMap: Map<string, { cardId: string; setId: string }>,
   mappedProductInfo: Map<string, ProductInfo>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => Record<string, unknown>,
+  groupSetMap: Map<number, string>,
   showAll: boolean,
 ) {
   return [...cardGroups.values()]
     .map((group) => {
-      const key = `${group.setId}::${group.cardId}`;
+      const key = group.cardId;
       const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
         mapStagedRow(row, { isOverride: overrideMap.has(`${row.external_id}::${row.finish}`) }),
       );
@@ -237,6 +249,7 @@ function buildResponseGroups(
               avg1Cents: info.avg1Cents,
               avg7Cents: info.avg7Cents,
               avg30Cents: info.avg30Cents,
+              groupSetId: p.sourceGroupId ? (groupSetMap.get(p.sourceGroupId) ?? null) : null,
               isOverride: false,
             });
           }
@@ -369,17 +382,30 @@ export async function getMappingOverview(
       "p.collector_number",
       imageUrl("pi").as("image_url"),
       "ps.external_id",
+      "ps.group_id as source_group_id",
     ])
     .orderBy("p.set_id")
     .orderBy("c.name")
     .orderBy("p.source_id")
     .orderBy("p.finish", "desc");
 
+  // Fetch all printings of any card that has at least one printing in a
+  // staged set (or is already mapped when showAll). This ensures cross-set
+  // reprints (e.g. overnumbered in a different set) are grouped together.
   if (showAll) {
     query = query.where((eb) => {
       const conditions = [eb("ps.external_id", "is not", null)];
       if (stagedSetIds.length > 0) {
-        conditions.push(eb("p.set_id", "in", stagedSetIds));
+        conditions.push(
+          eb(
+            "c.id",
+            "in",
+            db
+              .selectFrom("printings as p2")
+              .select("p2.card_id")
+              .where("p2.set_id", "in", stagedSetIds),
+          ),
+        );
       }
       return eb.or(conditions);
     });
@@ -387,7 +413,11 @@ export async function getMappingOverview(
     if (stagedSetIds.length === 0) {
       return { groups: [], unmatchedProducts: [], ignoredProducts: [], allCards: [] };
     }
-    query = query.where("p.set_id", "in", stagedSetIds);
+    query = query.where(
+      "c.id",
+      "in",
+      db.selectFrom("printings as p2").select("p2.card_id").where("p2.set_id", "in", stagedSetIds),
+    );
   }
 
   const matchedCards = await query.execute();
@@ -447,6 +477,7 @@ export async function getMappingOverview(
     finish: row.finish,
     ...config.mapStagingPrices(row),
     recordedAt: row.recorded_at.toISOString(),
+    groupSetId: groupSetMap.get(row.group_id) ?? null,
     ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
     ...(extra?.includeGroup
       ? {
@@ -489,6 +520,7 @@ export async function getMappingOverview(
     overrideMap,
     mappedProductInfo,
     mapStagedRow,
+    groupSetMap,
     showAll,
   );
 

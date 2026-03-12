@@ -17,30 +17,15 @@ import {
 } from "@/hooks/use-price-mappings";
 
 import { CardGroupRow } from "./card-group-row";
-import type { MappingGroup, SetGroup, SourceMappingConfig } from "./price-mappings-types";
+import type { MappingGroup, SourceMappingConfig } from "./price-mappings-types";
 import { SectionHeading } from "./section-heading";
 import { StagedProductCard } from "./staged-product-card";
 import { computeSuggestions } from "./suggest-mapping";
 
-function groupBySet(groups: MappingGroup[]): SetGroup[] {
-  const bySet = new Map<string, SetGroup>();
-  for (const group of groups) {
-    let setGroup = bySet.get(group.setId);
-    if (!setGroup) {
-      setGroup = { setId: group.setId, setName: group.setName, cards: [] };
-      bySet.set(group.setId, setGroup);
-    }
-    setGroup.cards.push(group);
-  }
-  // Sort cards within each set by lowest collector number (matches card grid default)
-  for (const setGroup of bySet.values()) {
-    setGroup.cards.sort((a, b) => {
-      const aNum = Math.min(...a.printings.map((p) => p.collectorNumber));
-      const bNum = Math.min(...b.printings.map((p) => p.collectorNumber));
-      return aNum - bNum;
-    });
-  }
-  return [...bySet.values()];
+function primarySourceId(group: MappingGroup): string {
+  return group.printings.reduce((best, p) =>
+    p.sourceId.localeCompare(best.sourceId) < 0 ? p : best,
+  ).sourceId;
 }
 
 export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
@@ -60,12 +45,15 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   // Auto-expand: when a card leaves the list after mapping, expand the next one
   const autoExpandRef = useRef<{ cardId: string; nextCardId: string | null } | null>(null);
 
-  const groups = data?.groups ?? [];
   const allCards = data?.allCards ?? [];
-  const setGroups = groupBySet(groups);
+
+  // Sort cards by primary sourceId (like the card browser's grouped view)
+  const groups = (data?.groups ?? []).toSorted((a, b) =>
+    primarySourceId(a).localeCompare(primarySourceId(b)),
+  );
 
   // Flat ordered list of card IDs matching the rendered order
-  const orderedCardIds = setGroups.flatMap((sg) => sg.cards.map((c) => c.cardId));
+  const orderedCardIds = groups.map((g) => g.cardId);
 
   useEffect(() => {
     if (!autoExpandRef.current) {
@@ -181,8 +169,8 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <p className="text-sm text-muted-foreground">
           {groups.length === 0
-            ? `No staged ${config.displayName} products need mapping.`
-            : `${groups.length} card${groups.length === 1 ? "" : "s"} across ${setGroups.length} set${setGroups.length === 1 ? "" : "s"} with ${showAll ? `${config.shortName} mappings or` : ""} staged ${config.shortName} products`}
+            ? `No ${config.displayName} products need mapping.`
+            : `${groups.length} card${groups.length === 1 ? "" : "s"} with ${showAll ? `${config.shortName} mappings or` : ""} unassigned ${config.shortName} products`}
         </p>
         <div className="flex items-center gap-2">
           {showAll && !confirmUnmapAll && (
@@ -245,73 +233,57 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
           </div>
         )}
 
-        {setGroups.map((setGroup) => (
-          <div key={setGroup.setId}>
-            {/* Set header — mirrors the card grid's set divider style */}
-            <div className="flex items-center gap-3 pt-4 pb-2">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-sm font-medium text-muted-foreground">{setGroup.setId}</span>
-              <span className="text-sm font-semibold">{setGroup.setName}</span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                {setGroup.cards.length}
-              </span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8" />
-                    <TableHead>Card</TableHead>
-                    <TableHead
-                      className="text-center"
-                      title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
-                    >
-                      Printings
-                    </TableHead>
-                    <TableHead
-                      className="text-center"
-                      title={`${config.displayName} products awaiting manual assignment to a printing`}
-                    >
-                      Staged {config.shortName}
-                    </TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {setGroup.cards.map((group) => (
-                    <CardGroupRow
-                      key={`${group.setId}::${group.cardId}`}
-                      config={config}
-                      group={group}
-                      isExpanded={expandedCards.has(group.cardId)}
-                      isHotkeyTarget={expandedGroup?.cardId === group.cardId}
-                      onToggle={() => toggleExpanded(group.cardId)}
-                      onMap={handleMap}
-                      isSaving={saveMutation.isPending}
-                      onUnmap={(printingId) => unmapMutation.mutate(printingId)}
-                      isUnmapping={unmapMutation.isPending}
-                      onBatchAccept={() => handleBatchAccept(group)}
-                      onIgnore={(externalId, finish) =>
-                        ignoreMutation.mutate([{ externalId, finish }])
-                      }
-                      isIgnoring={ignoreMutation.isPending}
-                      onUnassign={(externalId, finish) =>
-                        unassignMutation.mutate({ externalId, finish })
-                      }
-                      isUnassigning={unassignMutation.isPending}
-                      allCards={allCards}
-                      onAssignToCard={(externalId, finish, cardId, setId) =>
-                        assignToCardMutation.mutate({ externalId, finish, cardId, setId })
-                      }
-                      isAssigning={assignToCardMutation.isPending}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        ))}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8" />
+                <TableHead>Card</TableHead>
+                <TableHead
+                  className="text-center"
+                  title={`Physical card variants (art, finish, signed) that need ${config.shortName} product mappings`}
+                >
+                  Printings
+                </TableHead>
+                <TableHead
+                  className="text-center"
+                  title={`${config.displayName} products awaiting manual assignment to a printing`}
+                >
+                  Unassigned
+                </TableHead>
+                <TableHead className="text-center">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {groups.map((group) => (
+                <CardGroupRow
+                  key={group.cardId}
+                  config={config}
+                  group={group}
+                  isExpanded={expandedCards.has(group.cardId)}
+                  isHotkeyTarget={expandedGroup?.cardId === group.cardId}
+                  onToggle={() => toggleExpanded(group.cardId)}
+                  onMap={handleMap}
+                  isSaving={saveMutation.isPending}
+                  onUnmap={(printingId) => unmapMutation.mutate(printingId)}
+                  isUnmapping={unmapMutation.isPending}
+                  onBatchAccept={() => handleBatchAccept(group)}
+                  onIgnore={(externalId, finish) => ignoreMutation.mutate([{ externalId, finish }])}
+                  isIgnoring={ignoreMutation.isPending}
+                  onUnassign={(externalId, finish) =>
+                    unassignMutation.mutate({ externalId, finish })
+                  }
+                  isUnassigning={unassignMutation.isPending}
+                  allCards={allCards}
+                  onAssignToCard={(externalId, finish, cardId, setId) =>
+                    assignToCardMutation.mutate({ externalId, finish, cardId, setId })
+                  }
+                  isAssigning={assignToCardMutation.isPending}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
         {unmatchedProducts.length > 0 && (
           <div className="mt-6">

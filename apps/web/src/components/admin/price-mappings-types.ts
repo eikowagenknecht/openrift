@@ -34,6 +34,7 @@ export interface StagedProduct {
   avg7Cents: number | null;
   avg30Cents: number | null;
   isOverride?: boolean;
+  groupSetId?: string | null;
   groupId?: number;
   groupName?: string;
 }
@@ -51,12 +52,6 @@ export interface MappingGroup {
   printings: MappingPrinting[];
   stagedProducts: StagedProduct[];
   assignedProducts: StagedProduct[];
-}
-
-export interface SetGroup {
-  setId: string;
-  setName: string;
-  cards: MappingGroup[];
 }
 
 export interface AssignableCard {
