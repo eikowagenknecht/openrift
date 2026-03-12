@@ -470,59 +470,122 @@ export async function saveMappings(
     return { saved: 0 };
   }
 
-  let saved = 0;
+  const saved = await db.transaction().execute(async (tx) => {
+    // 1. Batch-fetch printing finishes (1 query instead of N)
+    const printingIds = mappings.map((m) => m.printingId);
+    const printingRows = await tx
+      .selectFrom("printings")
+      .select(["id", "finish"])
+      .where("id", "in", printingIds)
+      .execute();
+    const finishByPrinting = new Map(printingRows.map((p) => [p.id, p.finish]));
 
-  await db.transaction().execute(async (tx) => {
-    for (const { printingId, externalId } of mappings) {
-      const printing = await tx
-        .selectFrom("printings")
-        .select("finish")
-        .where("id", "=", printingId)
-        .executeTakeFirstOrThrow();
+    // 2. Batch-fetch staging rows (1 query instead of N)
+    const externalIds = [...new Set(mappings.map((m) => m.externalId))];
+    const allStagingRows = await tx
+      .selectFrom(config.tables.staging)
+      .selectAll()
+      .where("external_id", "in", externalIds)
+      .execute();
+    const stagingByKey = new Map<string, typeof allStagingRows>();
+    for (const row of allStagingRows) {
+      const key = `${row.external_id}::${row.finish}`;
+      const list = stagingByKey.get(key) ?? [];
+      list.push(row);
+      stagingByKey.set(key, list);
+    }
 
-      const stagingRows = await tx
-        .selectFrom(config.tables.staging)
-        .selectAll()
-        .where("external_id", "=", externalId)
-        .where("finish", "=", printing.finish)
-        .execute();
-
-      const first = stagingRows[0];
+    // 3. Build source upsert values, filtering out mappings with no staging data
+    const sourceValues: {
+      printing_id: string;
+      external_id: number;
+      group_id: number;
+      product_name: string;
+    }[] = [];
+    for (const m of mappings) {
+      const finish = finishByPrinting.get(m.printingId);
+      if (!finish) {
+        continue;
+      }
+      const first = stagingByKey.get(`${m.externalId}::${finish}`)?.[0];
       if (!first) {
         continue;
       }
-
-      const ps = await tx
-        .insertInto(config.tables.sources)
-        .values({
-          printing_id: printingId,
-          external_id: externalId,
-          group_id: first.group_id,
-          product_name: first.product_name,
-        })
-        .onConflict((oc) =>
-          oc.column("printing_id").doUpdateSet({
-            external_id: externalId,
-            group_id: first.group_id,
-            product_name: first.product_name,
-            updated_at: new Date(),
-          }),
-        )
-        .returning("id")
-        .executeTakeFirstOrThrow();
-
-      for (const row of stagingRows) {
-        await config.insertSnapshot(tx, ps.id, row);
-      }
-
-      await tx
-        .deleteFrom(config.tables.staging)
-        .where("external_id", "=", externalId)
-        .where("finish", "=", printing.finish)
-        .execute();
-
-      saved++;
+      sourceValues.push({
+        printing_id: m.printingId,
+        external_id: m.externalId,
+        group_id: first.group_id,
+        product_name: first.product_name,
+      });
     }
+
+    if (sourceValues.length === 0) {
+      return 0;
+    }
+
+    // 4. Batch-upsert sources (1 query instead of N)
+    const sourceResults = await tx
+      .insertInto(config.tables.sources)
+      .values(sourceValues as never[])
+      .onConflict((oc) =>
+        oc.column("printing_id").doUpdateSet({
+          external_id: sql`excluded.external_id`,
+          group_id: sql`excluded.group_id`,
+          product_name: sql`excluded.product_name`,
+          updated_at: new Date(),
+        } as never),
+      )
+      .returning(["id", "printing_id"])
+      .execute();
+    const sourceIdByPrinting = new Map(sourceResults.map((r) => [r.printing_id, r.id]));
+
+    // 5. Batch-insert snapshots (1 query instead of N×M)
+    const priceColNames = sql.raw(config.priceColumns.join(", "));
+    const updateClause = sql.raw(config.priceColumns.map((c) => `${c} = excluded.${c}`).join(", "));
+
+    const snapTuples: ReturnType<typeof sql>[] = [];
+    for (const sv of sourceValues) {
+      const sourceId = sourceIdByPrinting.get(sv.printing_id);
+      if (sourceId === undefined) {
+        continue;
+      }
+      const finish = finishByPrinting.get(sv.printing_id);
+      if (!finish) {
+        continue;
+      }
+      const rows = stagingByKey.get(`${sv.external_id}::${finish}`) ?? [];
+      for (const row of rows) {
+        const priceVals = config.priceColumns.map(
+          (c) => sql`${(row as Record<string, unknown>)[c]}`,
+        );
+        snapTuples.push(sql`(${sourceId}, ${row.recorded_at}, ${sql.join(priceVals)})`);
+      }
+    }
+
+    if (snapTuples.length > 0) {
+      await sql`
+        INSERT INTO ${sql.table(config.tables.snapshots)}
+          (source_id, recorded_at, ${priceColNames})
+        VALUES ${sql.join(snapTuples)}
+        ON CONFLICT (source_id, recorded_at) DO UPDATE SET ${updateClause}
+      `.execute(tx);
+    }
+
+    // 6. Batch-delete staging rows (1 query instead of N)
+    const deletePairs: ReturnType<typeof sql>[] = [];
+    for (const sv of sourceValues) {
+      const finish = finishByPrinting.get(sv.printing_id);
+      if (finish) {
+        deletePairs.push(sql`(${sv.external_id}::integer, ${finish})`);
+      }
+    }
+
+    await sql`
+      DELETE FROM ${sql.table(config.tables.staging)}
+      WHERE (external_id, finish) IN (VALUES ${sql.join(deletePairs)})
+    `.execute(tx);
+
+    return sourceValues.length;
   });
 
   return { saved };

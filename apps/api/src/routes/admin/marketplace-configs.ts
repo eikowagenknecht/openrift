@@ -104,6 +104,8 @@ export interface MarketplaceConfig<
   };
   /** Column name that holds the group/expansion ID in the groups table */
   groupIdColumn: "group_id" | "expansion_id";
+  /** Marketplace-specific price column names (for bulk snapshot inserts) */
+  priceColumns: readonly string[];
   /** Map a staging row → the unified product-info price fields */
   mapStagingPrices(row: S): Omit<ProductInfo, "productName" | "recordedAt">;
   /** Select + map snapshot prices for mapped products */
@@ -168,6 +170,7 @@ function createMarketplaceConfig<
     currency: opts.currency,
     tables: { staging, sources, snapshots, groups: groupsTable, ignored, overrides },
     groupIdColumn,
+    priceColumns: priceColumns as readonly string[],
 
     mapStagingPrices: mapPrices as (
       row: StagingRow & PF,
