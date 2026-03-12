@@ -57,7 +57,7 @@ function inferPromo(suffix: string): boolean | null {
 }
 
 function inferSigned(suffix: string): boolean | null {
-  if (suffix.includes("signed")) {
+  if (suffix.includes("signed") || suffix.includes("signature")) {
     return true;
   }
   return null;
@@ -96,18 +96,18 @@ function scorePrintingProduct(
   const promo = inferPromo(suffix);
   if (promo !== null) {
     if (promo === printing.isPromo) {
-      score += 20;
+      score += 50;
     } else {
-      score -= 40;
+      score -= 80;
     }
   }
 
   const signed = inferSigned(suffix);
   if (signed !== null) {
     if (signed === printing.isSigned) {
-      score += 20;
+      score += 50;
     } else {
-      score -= 40;
+      score -= 80;
     }
   }
 
