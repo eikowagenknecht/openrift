@@ -1,5 +1,11 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { ChevronDownIcon, ChevronRightIcon, EyeIcon, Undo2Icon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  EyeIcon,
+  Undo2Icon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +26,7 @@ import { CardGroupRow } from "./card-group-row";
 import type { MappingGroup, SourceMappingConfig } from "./price-mappings-types";
 import { SectionHeading } from "./section-heading";
 import { StagedProductCard } from "./staged-product-card";
-import { computeSuggestions } from "./suggest-mapping";
+import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 
 function primarySourceId(group: MappingGroup): string {
   return group.printings.reduce((best, p) =>
@@ -132,6 +138,46 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
     }
   };
 
+  // Count groups that are fully "Auto mappable" (all suggestions are strong)
+  let safeGroupCount = 0;
+  for (const group of groups) {
+    const unmappedCount = group.printings.filter((p) => p.externalId === null).length;
+    if (unmappedCount === 0) {
+      continue;
+    }
+    const sug = computeSuggestions(group);
+    if (
+      sug.size >= unmappedCount &&
+      [...sug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD)
+    ) {
+      safeGroupCount++;
+    }
+  }
+
+  const handleAcceptAllSafe = () => {
+    const mappings: { printingId: string; externalId: number }[] = [];
+    for (const group of groups) {
+      const unmappedCount = group.printings.filter((p) => p.externalId === null).length;
+      if (unmappedCount === 0) {
+        continue;
+      }
+      const suggestions = computeSuggestions(group);
+      if (suggestions.size < unmappedCount) {
+        continue;
+      }
+      const allStrong = [...suggestions.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD);
+      if (!allStrong) {
+        continue;
+      }
+      for (const [printingId, suggestion] of suggestions) {
+        mappings.push({ printingId, externalId: suggestion.product.externalId });
+      }
+    }
+    if (mappings.length > 0) {
+      saveMutation.mutate({ mappings });
+    }
+  };
+
   // Accept suggestions for the currently expanded card via Enter hotkey
   const expandedGroup = groups.find((g) => expandedCards.has(g.cardId));
   useHotkey(
@@ -210,6 +256,18 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                 Cancel
               </Button>
             </div>
+          )}
+          {safeGroupCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
+              onClick={handleAcceptAllSafe}
+              disabled={saveMutation.isPending}
+            >
+              <CheckCircle2Icon />
+              Accept {safeGroupCount} safe
+            </Button>
           )}
           <Button
             variant={showAll ? "default" : "outline"}
