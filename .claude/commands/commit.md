@@ -17,6 +17,7 @@ Based on `$ARGUMENTS`:
    - How many commits, in what order
    - Which files (or partial hunks within files) go in each commit
    - Any files being excluded (default mode) and why
+   - DO NOT include work from other agents
 6. **Changelog check:** If any planned commit is `feat:` or `fix:`, check whether `apps/web/src/CHANGELOG.md` already has a corresponding entry. If not, add one (following the rules in CLAUDE.md and MEMORY.md) and include the changelog file in the relevant commit.
 7. **Run `bun lint`** on the files being committed. If it fails, fix the issues and re-check. Never skip linting.
 8. **Wait for approval of the plan.** Do not proceed until I confirm which files go in which commits. Commit messages do NOT need approval — write good Conventional Commit messages and just use them. When asking me write "READY TO COMMIT - CONFIRM (+123 lines / -234 lines)" to confirm the plan, including the number of lines being added/removed in total across all commits. Also show me the changelog entry to approve if applicable.
