@@ -34,6 +34,8 @@ export interface StagedProduct {
   avg7Cents: number | null;
   avg30Cents: number | null;
   isOverride?: boolean;
+  groupId?: number;
+  groupName?: string;
 }
 
 export interface MappingGroup {
