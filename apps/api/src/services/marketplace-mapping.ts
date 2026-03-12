@@ -292,7 +292,7 @@ export async function getMappingOverview(
       return false;
     }
     const key = `${row.external_id}::${row.finish}`;
-    if (seenStagingKeys.has(key)) {
+    if (ignoredKeys.has(key) || seenStagingKeys.has(key)) {
       return false;
     }
     seenStagingKeys.add(key);
