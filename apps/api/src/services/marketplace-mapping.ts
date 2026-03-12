@@ -197,6 +197,7 @@ function buildResponseGroups(
   stagedByCard: Map<string, StagingRow[]>,
   overrideMap: Map<string, { cardId: string }>,
   mappedProductInfo: Map<string, ProductInfo>,
+  groupNameMap: Map<number, string>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => Record<string, unknown>,
   showAll: boolean,
 ) {
@@ -230,6 +231,10 @@ function buildResponseGroups(
               avg7Cents: info.avg7Cents,
               avg30Cents: info.avg30Cents,
               isOverride: false,
+              groupId: p.sourceGroupId,
+              groupName: p.sourceGroupId
+                ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
+                : undefined,
             });
           }
         }
@@ -386,22 +391,15 @@ export async function getMappingOverview(
   }
 
   // 7. Map staged rows to product format
-  const mapStagedRow = (
-    row: StagingRow,
-    extra?: { isOverride?: boolean; includeGroup?: boolean },
-  ) => ({
+  const mapStagedRow = (row: StagingRow, extra?: { isOverride?: boolean }) => ({
     externalId: row.external_id ?? "",
     productName: row.product_name,
     finish: row.finish,
     ...config.mapStagingPrices(row),
     recordedAt: row.recorded_at.toISOString(),
     ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
-    ...(extra?.includeGroup
-      ? {
-          groupId: row.group_id,
-          groupName: groupNameMap.get(row.group_id) ?? `Group #${row.group_id}`,
-        }
-      : {}),
+    groupId: row.group_id,
+    groupName: groupNameMap.get(row.group_id) ?? `Group #${row.group_id}`,
   });
 
   // Unmatched products (excluding ignored)
@@ -411,7 +409,7 @@ export async function getMappingOverview(
         !matchedStagingKeys.has(`${row.external_id}::${row.finish}`) &&
         !ignoredKeys.has(`${row.external_id}::${row.finish}`),
     )
-    .map((row) => mapStagedRow(row, { includeGroup: true }));
+    .map((row) => mapStagedRow(row));
 
   // Ignored products
   const ignoredProducts = ignoredRows.map((r) => ({
@@ -436,6 +434,7 @@ export async function getMappingOverview(
     stagedByCard,
     overrideMap,
     mappedProductInfo,
+    groupNameMap,
     mapStagedRow,
     showAll,
   );
