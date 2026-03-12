@@ -2,6 +2,7 @@
 
 ## 2026-03-12
 
+- feat: Price mapping cards now show cross-set reprints together, with variant badges (Alt Art, Overnumbered) on each printing and a cleaner product card layout
 - feat: Unmatched products in the price mapping admin are now grouped by their marketplace group instead of a flat list
 
 ## 2026-03-11

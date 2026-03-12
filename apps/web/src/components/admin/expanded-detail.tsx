@@ -188,17 +188,17 @@ export function ExpandedDetail({
                   cardFields={{ number: true, title: true, type: true, rarity: true, price: false }}
                 />
                 <div className="space-y-1.5 px-2.5 pb-2">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                     <span>
                       {p.finish}
+                      {p.artVariant === "altart" ? " · Alt Art" : ""}
+                      {p.artVariant === "overnumbered" ? " · Overnumbered" : ""}
                       {p.isSigned ? " · Signed" : ""}
                       {p.isPromo ? " · Promo" : ""}
                     </span>
-                    <span>·</span>
-                    {p.externalId === null ? (
-                      <span>unmapped</span>
-                    ) : (
+                    {p.externalId !== null && (
                       <>
+                        <span>·</span>
                         <ProductLink config={config} externalId={p.externalId}>
                           #{p.externalId}
                         </ProductLink>
