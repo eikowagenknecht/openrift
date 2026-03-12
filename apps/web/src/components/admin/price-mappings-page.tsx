@@ -92,15 +92,24 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
     let nextCardId: string | null = null;
     if (idx !== -1) {
       const groupsByCardId = new Map(groups.map((g) => [g.cardId, g]));
+      let firstManual: string | null = null;
       for (let i = idx + 1; i < orderedCardIds.length; i++) {
         const candidate = groupsByCardId.get(orderedCardIds[i]);
         if (candidate) {
           const unmappedCount = candidate.printings.filter((p) => p.externalId === null).length;
-          if (unmappedCount > 0 && computeSuggestions(candidate).size >= unmappedCount) {
-            nextCardId = orderedCardIds[i];
-            break;
+          if (unmappedCount > 0) {
+            if (computeSuggestions(candidate).size >= unmappedCount) {
+              nextCardId = orderedCardIds[i];
+              break;
+            }
+            if (firstManual === null) {
+              firstManual = orderedCardIds[i];
+            }
           }
         }
+      }
+      if (nextCardId === null) {
+        nextCardId = firstManual;
       }
     }
     autoExpandRef.current = { cardId, nextCardId };
