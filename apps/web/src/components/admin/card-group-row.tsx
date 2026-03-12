@@ -17,6 +17,7 @@ export function CardGroupRow({
   config,
   group,
   isExpanded,
+  isHotkeyTarget,
   onToggle,
   onMap,
   isSaving,
@@ -34,6 +35,7 @@ export function CardGroupRow({
   config: SourceMappingConfig;
   group: MappingGroup;
   isExpanded: boolean;
+  isHotkeyTarget: boolean;
   onToggle: () => void;
   onMap: (printingId: string, externalId: number, cardId: string) => void;
   isSaving: boolean;
@@ -58,7 +60,11 @@ export function CardGroupRow({
 
   return (
     <>
-      <TableRow className="cursor-pointer" onClick={onToggle}>
+      <TableRow
+        className="cursor-pointer scroll-mt-14"
+        data-card-id={group.cardId}
+        onClick={onToggle}
+      >
         <TableCell>
           {isExpanded ? (
             <ChevronDownIcon className="size-4" />
@@ -125,6 +131,7 @@ export function CardGroupRow({
               onUnmap={onUnmap}
               isUnmapping={isUnmapping}
               onBatchAccept={onBatchAccept}
+              showHotkeyHint={isHotkeyTarget}
               onIgnore={onIgnore}
               isIgnoring={isIgnoring}
               onUnassign={onUnassign}
