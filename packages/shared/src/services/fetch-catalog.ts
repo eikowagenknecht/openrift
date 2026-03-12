@@ -1,11 +1,13 @@
 import type { Logger } from "../logger.js";
 import type { GalleryCard } from "../schemas.js";
 import { galleryCardSchema } from "../schemas.js";
+import { ART_VARIANT_ORDER } from "../types.js";
 import type { ArtVariant, CardStats, CardType, Rarity } from "../types.js";
 
 // ── Output types ────────────────────────────────────────────────────────────
 
 interface GameCard {
+  rawId: string;
   name: string;
   type: CardType;
   superTypes: string[];
@@ -19,6 +21,7 @@ interface GameCard {
 }
 
 interface PrintingData {
+  rawId: string;
   sourceId: string;
   cardId: string;
   set: string;
@@ -126,6 +129,7 @@ export function toBaseSourceId(sourceId: string): string {
 // ── Card conversion ─────────────────────────────────────────────────────────
 
 interface ConvertedCard {
+  rawId: string;
   sourceId: string;
   name: string;
   type: CardType;
@@ -179,6 +183,7 @@ function convertCard(src: GalleryCard, printedTotal: number): ConvertedCard {
   const { artVariant, isSigned } = deriveArtVariant(sourceId, src.collectorNumber, printedTotal);
 
   return {
+    rawId: src.id,
     sourceId,
     name: src.name,
     type,
@@ -296,7 +301,10 @@ function groupBySet(
   return { setMap, allConverted };
 }
 
-function deduceGameCards(allConverted: ConvertedCard[]): {
+function deduceGameCards(
+  allConverted: ConvertedCard[],
+  setPriority: Map<string, number>,
+): {
   gameCards: Record<string, GameCard>;
   baseIdByName: Map<string, string>;
 } {
@@ -310,23 +318,20 @@ function deduceGameCards(allConverted: ConvertedCard[]): {
   const gameCards: Record<string, GameCard> = {};
   const baseIdByName = new Map<string, string>();
 
-  const VARIANT_PENALTY: Record<ArtVariant, number> = {
-    normal: 0,
-    altart: 50,
-    overnumbered: 30,
-  };
-
   for (const [name, group] of byName) {
-    const scored = group.map((card) => ({
-      card,
-      score: (card.isSigned ? 100 : 0) + VARIANT_PENALTY[card.artVariant],
-    }));
-    scored.sort((a, b) => a.score - b.score || a.card.collectorNumber - b.card.collectorNumber);
-    const base = scored[0].card;
+    // Pick canonical printing: earliest set, lowest collector number, then normal art first
+    group.sort(
+      (a, b) =>
+        (setPriority.get(a.set) ?? Infinity) - (setPriority.get(b.set) ?? Infinity) ||
+        a.collectorNumber - b.collectorNumber ||
+        ART_VARIANT_ORDER.indexOf(a.artVariant) - ART_VARIANT_ORDER.indexOf(b.artVariant),
+    );
+    const base = group[0];
     const baseId = toBaseSourceId(base.sourceId);
 
     baseIdByName.set(name, baseId);
     gameCards[baseId] = {
+      rawId: base.rawId,
       name: base.name,
       type: base.type,
       superTypes: base.superTypes,
@@ -348,6 +353,7 @@ function buildPrintings(
   baseIdByName: Map<string, string>,
 ): PrintingData[] {
   return allConverted.map((card) => ({
+    rawId: card.rawId,
     sourceId: card.sourceId,
     cardId: baseIdByName.get(card.name) ?? card.sourceId,
     set: card.set,
@@ -368,9 +374,16 @@ function buildPrintings(
 /**
  * Fetches the card catalog directly from the Riftbound gallery page,
  * validates, and transforms into the CardsJson format for DB upsert.
+ *
+ * @param setPriority - Map of set code → sort order (lower = earlier release).
+ *   Used to pick the canonical printing for each card.
+ *   If omitted, sets are ordered by first appearance in the gallery.
  * @returns Catalog data with sets, game cards, and printings.
  */
-export async function fetchCatalog(log: Logger): Promise<CardsJson> {
+export async function fetchCatalog(
+  log: Logger,
+  setPriority?: Map<string, number>,
+): Promise<CardsJson> {
   log.info(`Fetching ${GALLERY_URL}`);
   const res = await fetch(GALLERY_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!res.ok) {
@@ -384,7 +397,11 @@ export async function fetchCatalog(log: Logger): Promise<CardsJson> {
   log.info(`Validated ${validated.length}/${rawCards.length} cards`);
 
   const { setMap, allConverted } = groupBySet(validated, log);
-  const { gameCards, baseIdByName } = deduceGameCards(allConverted);
+
+  // Build set priority from gallery order if not provided
+  const priority = setPriority ?? new Map([...setMap.values()].map((s, i) => [s.id, i]));
+
+  const { gameCards, baseIdByName } = deduceGameCards(allConverted, priority);
   const printings = buildPrintings(allConverted, baseIdByName);
   const sets = [...setMap.values()];
 

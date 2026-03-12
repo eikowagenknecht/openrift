@@ -20,6 +20,9 @@ import * as m014 from "./014-feature-flags.js";
 import * as m015 from "./015-drop-candidate-checks.js";
 import * as m016 from "./016-set-sort-order.js";
 import * as m017 from "./017-drop-group-set-ids.js";
+import * as m018 from "./018-card-sources.js";
+import * as m019 from "./019-schema-tweaks.js";
+import * as m020 from "./020-cascade-fks.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -39,4 +42,7 @@ export const migrations: Record<string, Migration> = {
   "015-drop-candidate-checks": m015,
   "016-set-sort-order": m016,
   "017-drop-group-set-ids": m017,
+  "018-card-sources": m018,
+  "019-schema-tweaks": m019,
+  "020-cascade-fks": m020,
 };

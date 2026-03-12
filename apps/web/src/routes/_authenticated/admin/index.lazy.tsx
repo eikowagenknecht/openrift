@@ -4,7 +4,7 @@ import { formatRelativeTime, useCronStatus } from "@/components/admin/refresh-ac
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCardmarketExpansions } from "@/hooks/use-cardmarket-expansions";
+import { useCardmarketGroups } from "@/hooks/use-cardmarket-groups";
 import { useSets } from "@/hooks/use-sets";
 import { useTcgplayerGroups } from "@/hooks/use-tcgplayer-groups";
 
@@ -63,7 +63,7 @@ function AdminOverviewPage() {
   const { data: cronStatus } = useCronStatus();
   const { data: setsData, isLoading: setsLoading } = useSets();
   const { data: tcgData, isLoading: tcgLoading } = useTcgplayerGroups();
-  const { data: cmData, isLoading: cmLoading } = useCardmarketExpansions();
+  const { data: cmData, isLoading: cmLoading } = useCardmarketGroups();
 
   const sets = setsData?.sets ?? [];
   const totalCards = sets.reduce((sum, s) => sum + s.cardCount, 0);
@@ -73,9 +73,9 @@ function AdminOverviewPage() {
   const tcgAssigned = tcgGroups.reduce((sum, g) => sum + g.assignedCount, 0);
   const tcgStaged = tcgGroups.reduce((sum, g) => sum + g.stagedCount, 0);
 
-  const cmExpansions = cmData?.expansions ?? [];
-  const cmAssigned = cmExpansions.reduce((sum, e) => sum + e.assignedCount, 0);
-  const cmStaged = cmExpansions.reduce((sum, e) => sum + e.stagedCount, 0);
+  const cmGroups = cmData?.expansions ?? [];
+  const cmAssigned = cmGroups.reduce((sum, e) => sum + e.assignedCount, 0);
+  const cmStaged = cmGroups.reduce((sum, e) => sum + e.stagedCount, 0);
 
   const isLoading = setsLoading || tcgLoading || cmLoading;
 
@@ -114,7 +114,7 @@ function AdminOverviewPage() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Cardmarket</h2>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-          <StatCard title="Expansions" value={cmExpansions.length} />
+          <StatCard title="Groups" value={cmGroups.length} />
           <StatCard title="Products mapped" value={cmAssigned} />
           <StatCard title="Products staged" value={cmStaged} />
         </div>

@@ -7,7 +7,7 @@ import { isAdmin, requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { candidatesRoute } from "../candidates.js";
+import { cardSourcesRoute } from "../card-sources.js";
 import { catalogRoute } from "./catalog.js";
 import { featureFlagsRoute } from "./feature-flags.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
@@ -28,7 +28,6 @@ adminRoute.get("/admin/cron-status", (c) =>
     cardmarket: cronJobs.cardmarket
       ? { nextRun: cronJobs.cardmarket.nextRun()?.toISOString() ?? null }
       : null,
-    catalog: null,
   }),
 );
 
@@ -46,7 +45,7 @@ adminRoute.get("/admin/me", async (c) => {
 // ── Register marketplace mapping routes ─────────────────────────────────────
 
 createMappingRoutes(adminRoute, "/admin/tcgplayer-mappings", tcgplayerConfig);
-createMappingRoutes(adminRoute, "/admin/cm-mappings", cardmarketConfig);
+createMappingRoutes(adminRoute, "/admin/cardmarket-mappings", cardmarketConfig);
 
 // ── Mount sub-routes ────────────────────────────────────────────────────────
 
@@ -55,8 +54,8 @@ adminRoute.route("/", ignoredProductsRoute);
 adminRoute.route("/", catalogRoute);
 adminRoute.route("/", operationsRoute);
 
-// ── Candidate import routes ─────────────────────────────────────────────────
+// ── Card source routes ──────────────────────────────────────────────────────
 
-adminRoute.use("/admin/candidates/*", requireAdmin);
-adminRoute.use("/admin/candidates", requireAdmin);
-adminRoute.route("/admin", candidatesRoute);
+adminRoute.use("/admin/card-sources/*", requireAdmin);
+adminRoute.use("/admin/card-sources", requireAdmin);
+adminRoute.route("/admin", cardSourcesRoute);

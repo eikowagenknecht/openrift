@@ -15,11 +15,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  // Restore set_id on staging card override tables
-  await sql`ALTER TABLE cardmarket_staging_card_overrides ADD COLUMN set_id text NOT NULL DEFAULT '' REFERENCES sets(id)`.execute(
+  // Restore set_id on staging card override tables (nullable — original data is lost)
+  await sql`ALTER TABLE cardmarket_staging_card_overrides ADD COLUMN set_id text REFERENCES sets(id)`.execute(
     db,
   );
-  await sql`ALTER TABLE tcgplayer_staging_card_overrides ADD COLUMN set_id text NOT NULL DEFAULT '' REFERENCES sets(id)`.execute(
+  await sql`ALTER TABLE tcgplayer_staging_card_overrides ADD COLUMN set_id text REFERENCES sets(id)`.execute(
     db,
   );
 

@@ -327,6 +327,7 @@ export function cmProductUrl(externalId: number): string {
 
 /**
  * Build a `doUpdateSet` record that maps each column to its `excluded.*` value.
+ * raw sql: columns are dynamic at runtime — eb.ref('excluded.col') only works for static columns.
  * @returns A record mapping column names to `excluded.<col>` SQL expressions.
  */
 function buildExcludedSet(columns: string[]) {
@@ -341,6 +342,8 @@ function buildExcludedSet(columns: string[]) {
 /**
  * Build a WHERE clause that checks if any of the given columns changed
  * (using IS DISTINCT FROM to handle NULLs correctly).
+ * raw sql: columns are dynamic at runtime — Kysely supports 'is distinct from' operator
+ * but only for static column refs; here columns come from a runtime array.
  * @returns A raw SQL boolean expression for the conflict WHERE clause.
  */
 function buildDistinctWhere(table: string, columns: string[]) {

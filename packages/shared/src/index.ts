@@ -3,10 +3,6 @@ export type {
   ActivityAction,
   ActivityItem,
   ActivityType,
-  CandidateCard,
-  CandidatePrinting,
-  CandidateStatus,
-  CandidateUploadResult,
   Card,
   CardFilters,
   FilterRange,
@@ -14,6 +10,10 @@ export type {
   CardmarketSnapshot,
   CardStats,
   CardFace,
+  CardSource,
+  CardSourceSummary,
+  CardSourceUploadResult,
+  SourceStats,
   CardType,
   Collection,
   ContentSet,
@@ -30,6 +30,7 @@ export type {
   PricesData,
   Printing,
   PrintingImage,
+  PrintingSource,
   Rarity,
   RiftboundContent,
   SearchField,
@@ -59,3 +60,5 @@ export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
 
 export { normalizeNameForMatching } from "./utils.js";
+
+export { extractKeywords, KEYWORD_LOOKUP } from "./services/extract-keywords.js";

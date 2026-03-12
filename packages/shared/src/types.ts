@@ -92,6 +92,7 @@ export interface Printing {
   publicCode: string;
   printedDescription?: string;
   printedEffect?: string;
+  flavorText?: string;
   marketPrice?: number;
   card: Card;
 }
@@ -288,14 +289,37 @@ export interface TradeListItem {
   copyId: string;
 }
 
-// ─── Candidate import ────────────────────────────────────────────────────────
+// ─── Card sources ────────────────────────────────────────────────────────────
 
-export type CandidateStatus = "pending" | "accepted" | "rejected";
-
-export interface CandidatePrinting {
+export interface CardSource {
   id: string;
+  cardId: string | null;
+  source: string;
+  name: string;
+  type: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+  mightBonus: number | null;
+  rulesText: string;
+  effectText: string;
+  tags: string[];
+  sourceId: string | null;
+  sourceEntityId: string | null;
+  extraData: unknown | null;
+  checkedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrintingSource {
+  id: string;
+  cardSourceId: string;
+  printingId: string | null;
   sourceId: string;
-  setId: string;
+  setId: string | null;
   setName: string | null;
   collectorNumber: number;
   rarity: Rarity;
@@ -308,41 +332,41 @@ export interface CandidatePrinting {
   printedRulesText: string;
   printedEffectText: string;
   imageUrl: string | null;
-}
-
-export interface CandidateCard {
-  id: string;
-  status: CandidateStatus;
-  source: string;
-  matchCardId: string | null;
-  sourceId: string;
-  name: string;
-  type: CardType;
-  superTypes: SuperType[];
-  domains: Domain[];
-  might: number | null;
-  energy: number | null;
-  power: number | null;
-  mightBonus: number | null;
-  keywords: string[];
-  rulesText: string;
-  effectText: string;
-  tags: string[];
+  flavorText: string;
+  extraData: unknown | null;
+  checkedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  reviewedAt: string | null;
-  reviewedBy: string | null;
-  printings: CandidatePrinting[];
-  matchedCard?: {
-    id: string;
-    name: string;
-  };
 }
 
-export interface CandidateUploadResult {
+export interface CardSourceSummary {
+  cardId: string | null;
+  name: string;
+  sourceCount: number;
+  uncheckedCardCount: number;
+  uncheckedPrintingCount: number;
+  hasGallery: boolean;
+}
+
+export interface SourceStats {
+  source: string;
+  cardCount: number;
+  printingCount: number;
+  lastUpdated: string;
+}
+
+export interface CardSourceUploadUpdatedCard {
+  name: string;
+  sourceId: string | null;
+  fields: { field: string; from: unknown; to: unknown }[];
+}
+
+export interface CardSourceUploadResult {
   newCards: number;
   updates: number;
+  unchanged: number;
   errors: string[];
+  updatedCards: CardSourceUploadUpdatedCard[];
 }
 
 // ─── Card filters ───────────────────────────────────────────────────────────

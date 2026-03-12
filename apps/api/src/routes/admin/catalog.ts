@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { sql } from "kysely";
 import { z } from "zod/v4";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -15,9 +14,9 @@ export const catalogRoute = new Hono<{ Variables: Variables }>();
 
 // ── Cardmarket Expansions ────────────────────────────────────────────────────
 
-catalogRoute.use("/admin/cardmarket-expansions", requireAdmin);
+catalogRoute.use("/admin/cardmarket-groups", requireAdmin);
 
-catalogRoute.get("/admin/cardmarket-expansions", async (c) => {
+catalogRoute.get("/admin/cardmarket-groups", async (c) => {
   const expansions = await db
     .selectFrom("cardmarket_expansions as ce")
     .select(["ce.expansion_id", "ce.name"])
@@ -27,22 +26,25 @@ catalogRoute.get("/admin/cardmarket-expansions", async (c) => {
   // Count staging rows per expansion (group_id stores idExpansion for cardmarket)
   const stagingCounts = await db
     .selectFrom("cardmarket_staging")
-    .select(["group_id", sql<number>`count(DISTINCT external_id)::int`.as("count")])
+    .select((eb) => [
+      "group_id" as const,
+      eb.fn.count<number>("external_id").distinct().as("count"),
+    ])
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();
 
-  const countMap = new Map(stagingCounts.map((r) => [r.group_id, r.count]));
+  const countMap = new Map(stagingCounts.map((r) => [r.group_id, Number(r.count)]));
 
   // Count assigned (mapped) products per expansion
   const assignedCounts = await db
     .selectFrom("cardmarket_sources")
-    .select(["group_id", sql<number>`count(*)::int`.as("count")])
+    .select((eb) => ["group_id" as const, eb.fn.countAll<number>().as("count")])
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();
 
-  const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, r.count]));
+  const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, Number(r.count)]));
 
   return c.json({
     expansions: expansions.map((e) => ({
@@ -59,7 +61,7 @@ const updateExpansionSchema = z.object({
   name: z.string().nullable(),
 });
 
-catalogRoute.put("/admin/cardmarket-expansions", async (c) => {
+catalogRoute.put("/admin/cardmarket-groups", async (c) => {
   const { expansionId, name } = updateExpansionSchema.parse(await c.req.json());
 
   await db
@@ -85,22 +87,25 @@ catalogRoute.get("/admin/tcgplayer-groups", async (c) => {
   // Count staging rows per group_id
   const stagingCounts = await db
     .selectFrom("tcgplayer_staging")
-    .select(["group_id", sql<number>`count(DISTINCT external_id)::int`.as("count")])
+    .select((eb) => [
+      "group_id" as const,
+      eb.fn.count<number>("external_id").distinct().as("count"),
+    ])
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();
 
-  const countMap = new Map(stagingCounts.map((r) => [r.group_id, r.count]));
+  const countMap = new Map(stagingCounts.map((r) => [r.group_id, Number(r.count)]));
 
   // Count assigned (mapped) products per group_id
   const assignedCounts = await db
     .selectFrom("tcgplayer_sources")
-    .select(["group_id", sql<number>`count(*)::int`.as("count")])
+    .select((eb) => ["group_id" as const, eb.fn.countAll<number>().as("count")])
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();
 
-  const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, r.count]));
+  const assignedMap = new Map(assignedCounts.map((r) => [r.group_id, Number(r.count)]));
 
   return c.json({
     groups: groups.map((g) => ({
@@ -122,18 +127,18 @@ catalogRoute.get("/admin/sets", async (c) => {
 
   const cardCounts = await db
     .selectFrom("printings")
-    .select(["set_id", sql<number>`count(DISTINCT card_id)::int`.as("card_count")])
+    .select((eb) => ["set_id" as const, eb.fn.count<number>("card_id").distinct().as("card_count")])
     .groupBy("set_id")
     .execute();
 
   const printingCounts = await db
     .selectFrom("printings")
-    .select(["set_id", sql<number>`count(*)::int`.as("printing_count")])
+    .select((eb) => ["set_id" as const, eb.fn.countAll<number>().as("printing_count")])
     .groupBy("set_id")
     .execute();
 
-  const cardCountMap = new Map(cardCounts.map((r) => [r.set_id, r.card_count]));
-  const printingCountMap = new Map(printingCounts.map((r) => [r.set_id, r.printing_count]));
+  const cardCountMap = new Map(cardCounts.map((r) => [r.set_id, Number(r.card_count)]));
+  const printingCountMap = new Map(printingCounts.map((r) => [r.set_id, Number(r.printing_count)]));
 
   return c.json({
     sets: sets.map((s) => ({
@@ -141,6 +146,7 @@ catalogRoute.get("/admin/sets", async (c) => {
       name: s.name,
       printedTotal: s.printed_total,
       sortOrder: s.sort_order,
+      releasedAt: s.released_at ?? null,
       cardCount: cardCountMap.get(s.id) ?? 0,
       printingCount: printingCountMap.get(s.id) ?? 0,
     })),
@@ -151,14 +157,15 @@ const updateSetSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
   printedTotal: z.number().int().min(0),
+  releasedAt: z.string().nullable(),
 });
 
 catalogRoute.put("/admin/sets", async (c) => {
-  const { id, name, printedTotal } = updateSetSchema.parse(await c.req.json());
+  const { id, name, printedTotal, releasedAt } = updateSetSchema.parse(await c.req.json());
 
   await db
     .updateTable("sets")
-    .set({ name, printed_total: printedTotal, updated_at: new Date() })
+    .set({ name, printed_total: printedTotal, released_at: releasedAt, updated_at: new Date() })
     .where("id", "=", id)
     .execute();
 
@@ -169,10 +176,11 @@ const createSetSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   printedTotal: z.number().int().min(0),
+  releasedAt: z.string().nullable().optional(),
 });
 
 catalogRoute.post("/admin/sets", async (c) => {
-  const { id, name, printedTotal } = createSetSchema.parse(await c.req.json());
+  const { id, name, printedTotal, releasedAt } = createSetSchema.parse(await c.req.json());
 
   const existing = await db.selectFrom("sets").select("id").where("id", "=", id).executeTakeFirst();
 
@@ -182,12 +190,18 @@ catalogRoute.post("/admin/sets", async (c) => {
 
   const maxOrder = await db
     .selectFrom("sets")
-    .select(sql<number>`coalesce(max(sort_order), 0)`.as("max"))
+    .select((eb) => eb.fn.coalesce(eb.fn.max("sort_order"), eb.lit(0)).as("max"))
     .executeTakeFirstOrThrow();
 
   await db
     .insertInto("sets")
-    .values({ id, name, printed_total: printedTotal, sort_order: maxOrder.max + 1 })
+    .values({
+      id,
+      name,
+      printed_total: printedTotal,
+      released_at: releasedAt ?? null,
+      sort_order: maxOrder.max + 1,
+    })
     .execute();
 
   return c.json({ ok: true });

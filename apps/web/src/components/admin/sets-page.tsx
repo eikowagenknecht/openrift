@@ -2,8 +2,8 @@ import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CountBadge } from "@/components/admin/count-badge";
-import { ActionCard, refreshActions, useCronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,17 +20,17 @@ interface EditingRow {
   id: string;
   name: string;
   printedTotal: string;
+  releasedAt: string;
 }
 
 export function SetsPage() {
   const { data, isLoading, error } = useSets();
-  const { data: cronStatus } = useCronStatus();
   const updateMutation = useUpdateSet();
   const createMutation = useCreateSet();
   const reorderMutation = useReorderSets();
   const [editing, setEditing] = useState<EditingRow | null>(null);
   const [adding, setAdding] = useState(false);
-  const [newSet, setNewSet] = useState({ id: "", name: "", printedTotal: "" });
+  const [newSet, setNewSet] = useState({ id: "", name: "", printedTotal: "", releasedAt: "" });
   const [createError, setCreateError] = useState("");
 
   if (isLoading) {
@@ -52,8 +52,18 @@ export function SetsPage() {
 
   const { sets } = data;
 
-  function startEditing(set: { id: string; name: string; printedTotal: number }) {
-    setEditing({ id: set.id, name: set.name, printedTotal: String(set.printedTotal) });
+  function startEditing(set: {
+    id: string;
+    name: string;
+    printedTotal: number;
+    releasedAt: string | null;
+  }) {
+    setEditing({
+      id: set.id,
+      name: set.name,
+      printedTotal: String(set.printedTotal),
+      releasedAt: set.releasedAt ?? "",
+    });
   }
 
   function cancelEditing() {
@@ -69,14 +79,14 @@ export function SetsPage() {
       return;
     }
     updateMutation.mutate(
-      { id: editing.id, name: editing.name, printedTotal },
+      { id: editing.id, name: editing.name, printedTotal, releasedAt: editing.releasedAt || null },
       { onSuccess: () => setEditing(null) },
     );
   }
 
   function handleCreate() {
     setCreateError("");
-    const printedTotal = parseInt(newSet.printedTotal, 10);
+    const printedTotal = newSet.printedTotal ? parseInt(newSet.printedTotal, 10) : 0;
     if (!newSet.id.trim() || !newSet.name.trim()) {
       setCreateError("ID and name are required");
       return;
@@ -86,11 +96,16 @@ export function SetsPage() {
       return;
     }
     createMutation.mutate(
-      { id: newSet.id.trim(), name: newSet.name.trim(), printedTotal },
+      {
+        id: newSet.id.trim(),
+        name: newSet.name.trim(),
+        printedTotal,
+        releasedAt: newSet.releasedAt || null,
+      },
       {
         onSuccess: () => {
           setAdding(false);
-          setNewSet({ id: "", name: "", printedTotal: "" });
+          setNewSet({ id: "", name: "", printedTotal: "", releasedAt: "" });
         },
         onError: (err) => setCreateError(err.message),
       },
@@ -109,7 +124,6 @@ export function SetsPage() {
 
   return (
     <div className="space-y-4">
-      <ActionCard action={refreshActions.catalog} cronStatus={cronStatus} />
       <div className="flex items-center justify-end">
         {!adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -125,6 +139,7 @@ export function SetsPage() {
               <TableHead className="w-28">ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="w-32 text-right">Printed Total</TableHead>
+              <TableHead className="w-36">Release Date</TableHead>
               <TableHead className="w-24 text-right" title="Cards in this set">
                 Cards
               </TableHead>
@@ -163,6 +178,13 @@ export function SetsPage() {
                     className="ml-auto h-8 w-24 text-right"
                   />
                 </TableCell>
+                <TableCell>
+                  <DatePicker
+                    value={newSet.releasedAt || null}
+                    onChange={(iso) => setNewSet({ ...newSet, releasedAt: iso })}
+                    onClear={() => setNewSet({ ...newSet, releasedAt: "" })}
+                  />
+                </TableCell>
                 <TableCell />
                 <TableCell />
                 <TableCell className="text-right">
@@ -180,7 +202,7 @@ export function SetsPage() {
                       size="sm"
                       onClick={() => {
                         setAdding(false);
-                        setNewSet({ id: "", name: "", printedTotal: "" });
+                        setNewSet({ id: "", name: "", printedTotal: "", releasedAt: "" });
                         setCreateError("");
                       }}
                     >
@@ -193,7 +215,7 @@ export function SetsPage() {
             )}
             {sets.length === 0 && !adding && (
               <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
+                <TableCell colSpan={8} className="text-muted-foreground h-24 text-center">
                   No sets yet.
                 </TableCell>
               </TableRow>
@@ -216,6 +238,13 @@ export function SetsPage() {
                       value={editing.printedTotal}
                       onChange={(e) => setEditing({ ...editing, printedTotal: e.target.value })}
                       className="ml-auto h-8 w-24 text-right"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <DatePicker
+                      value={editing.releasedAt || null}
+                      onChange={(iso) => setEditing({ ...editing, releasedAt: iso })}
+                      onClear={() => setEditing({ ...editing, releasedAt: "" })}
                     />
                   </TableCell>
                   <TableCell className="text-right">
@@ -267,6 +296,7 @@ export function SetsPage() {
                   <TableCell className="font-mono">{set.id}</TableCell>
                   <TableCell>{set.name}</TableCell>
                   <TableCell className="text-right">{set.printedTotal}</TableCell>
+                  <TableCell className="text-muted-foreground">{set.releasedAt ?? "—"}</TableCell>
                   <TableCell className="text-right">
                     <CountBadge count={set.cardCount} />
                   </TableCell>

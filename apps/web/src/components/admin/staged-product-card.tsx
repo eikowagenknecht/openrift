@@ -1,6 +1,8 @@
 import { BanIcon, CheckIcon, LinkIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -38,11 +40,19 @@ export function StagedProductCard({
   isAssigned?: boolean;
 }) {
   const [showAssign, setShowAssign] = useState(false);
-  const [search, setSearch] = useState("");
+  const [cardSearchQuery, setCardSearchQuery] = useState("");
 
-  const filteredCards =
-    allCards && search.length >= 2
-      ? allCards.filter((g) => g.cardName.toLowerCase().includes(search.toLowerCase())).slice(0, 10)
+  const filteredResults: CardSearchResult[] =
+    allCards && cardSearchQuery.length >= 2
+      ? allCards
+          .filter((g) => g.cardName.toLowerCase().includes(cardSearchQuery.toLowerCase()))
+          .slice(0, 10)
+          .map((g) => {
+            const firstId = g.printings.reduce((best, p) =>
+              p.collectorNumber < best.collectorNumber ? p : best,
+            ).sourceId;
+            return { id: g.cardId, label: g.cardName, sublabel: firstId, detail: g.setName };
+          })
       : [];
 
   return (
@@ -148,47 +158,19 @@ export function StagedProductCard({
         </div>
       </div>
       {showAssign && onAssignToCard && (
-        <div className="mt-2 space-y-2 border-t pt-2">
-          <input
-            type="text"
-            className="w-full rounded border bg-muted px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Search card name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+        <div className="mt-2 border-t pt-2">
+          <CardSearchDropdown
+            results={filteredResults}
+            onSearch={setCardSearchQuery}
+            onSelect={(cardId) => {
+              onAssignToCard(cardId);
+              setShowAssign(false);
+              setCardSearchQuery("");
+            }}
+            disabled={isAssigning}
             // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional
             autoFocus
           />
-          {filteredCards.length > 0 && (
-            <div className="max-h-48 space-y-1 overflow-y-auto">
-              {filteredCards.map((g) => {
-                const firstId = g.printings.reduce((best, p) =>
-                  p.collectorNumber < best.collectorNumber ? p : best,
-                ).sourceId;
-                return (
-                  <button
-                    key={g.cardId}
-                    type="button"
-                    className="w-full rounded bg-muted/50 px-2 py-1.5 text-left hover:bg-muted disabled:opacity-50"
-                    disabled={isAssigning}
-                    onClick={() => {
-                      onAssignToCard(g.cardId);
-                      setShowAssign(false);
-                      setSearch("");
-                    }}
-                  >
-                    <p className="text-xs font-medium">
-                      <span className="mr-1.5 font-normal text-muted-foreground">{firstId}</span>
-                      {g.cardName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{g.setName}</p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {search.length >= 2 && filteredCards.length === 0 && (
-            <p className="text-xs text-muted-foreground">No matching cards</p>
-          )}
         </div>
       )}
     </div>

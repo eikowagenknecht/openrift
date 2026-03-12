@@ -24,6 +24,7 @@ export interface SetsTable {
   name: string;
   printed_total: number;
   sort_order: number;
+  released_at: string | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -44,8 +45,8 @@ export interface CardsTable {
   power: number | null;
   might_bonus: number | null;
   keywords: Unchecked<string>[];
-  rules_text: string;
-  effect_text: string;
+  rules_text: string | null;
+  effect_text: string | null;
   tags: Unchecked<string>[];
   created_at: CreatedAt;
   updated_at: UpdatedAt;
@@ -71,6 +72,7 @@ export interface PrintingsTable {
   public_code: string;
   printed_rules_text: string;
   printed_effect_text: string;
+  flavor_text: string;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -378,40 +380,40 @@ export interface TradeListItemsTable {
   copy_id: string;
 }
 
-// ─── Candidate import (migration 012) ────────────────────────────────────────
+// ─── Card sources (migration 018) ────────────────────────────────────────────
 
-export interface CandidateCardsTable {
+export interface CardSourcesTable {
   id: Generated<string>;
-  status: string;
+  card_id: string | null;
   source: string;
-  match_card_id: string | null;
-  source_id: string;
   name: string;
-  type: CardType;
+  type: string;
   super_types: Unchecked<SuperType>[];
   domains: Unchecked<Domain>[];
   might: number | null;
   energy: number | null;
   power: number | null;
   might_bonus: number | null;
-  keywords: Unchecked<string>[];
   rules_text: string;
   effect_text: string;
   tags: Unchecked<string>[];
+  source_id: string | null;
+  source_entity_id: string | null;
+  extra_data: unknown | null;
+  checked_at: Date | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
-  reviewed_at: Date | null;
-  reviewed_by: string | null;
 }
 
-export interface CandidatePrintingsTable {
+export interface PrintingSourcesTable {
   id: Generated<string>;
-  candidate_card_id: string;
+  card_source_id: string;
+  printing_id: string | null;
   source_id: string;
-  set_id: string;
+  set_id: string | null;
   set_name: string | null;
   collector_number: number;
-  rarity: Rarity;
+  rarity: string;
   art_variant: string;
   is_signed: boolean;
   is_promo: boolean;
@@ -421,7 +423,11 @@ export interface CandidatePrintingsTable {
   printed_rules_text: string;
   printed_effect_text: string;
   image_url: string | null;
+  flavor_text: string;
+  extra_data: unknown | null;
+  checked_at: Date | null;
   created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 export interface PrintingImagesTable {
@@ -493,9 +499,9 @@ export interface Database {
   trade_lists: TradeListsTable;
   trade_list_items: TradeListItemsTable;
 
-  // Candidate import (migration 012)
-  candidate_cards: CandidateCardsTable;
-  candidate_printings: CandidatePrintingsTable;
+  // Card sources (migration 018)
+  card_sources: CardSourcesTable;
+  printing_sources: PrintingSourcesTable;
   card_name_aliases: CardNameAliasesTable;
 
   // Image archive (migration 013)

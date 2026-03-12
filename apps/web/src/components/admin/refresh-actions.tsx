@@ -1,6 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckIcon, EyeIcon, LoaderIcon, RefreshCwIcon, Trash2Icon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon, LoaderIcon, RefreshCwIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,23 +10,6 @@ import { queryKeys } from "@/lib/query-keys";
 export interface CronStatus {
   tcgplayer: { nextRun: string | null } | null;
   cardmarket: { nextRun: string | null } | null;
-  catalog: null;
-}
-
-interface CatalogChange {
-  kind: "added" | "updated" | "stale";
-  entity: "set" | "card" | "printing" | "image";
-  id: string;
-  name?: string;
-  fields?: string[];
-}
-
-interface CatalogResult {
-  sets: { total: number; names: string[] };
-  cards: { total: number };
-  printings: { total: number };
-  images: { total: number; added: number; updated: number };
-  changes: CatalogChange[];
 }
 
 interface UpsertRowCounts {
@@ -52,7 +34,7 @@ interface PriceResult {
   };
 }
 
-type RefreshResult = CatalogResult | PriceResult;
+type RefreshResult = PriceResult;
 
 interface ClearPriceResult {
   source: string;
@@ -74,21 +56,9 @@ export function formatRelativeTime(iso: string): string {
   return `in ${minutes}m`;
 }
 
-function isCatalogResult(result: RefreshResult): result is CatalogResult {
-  return "changes" in result;
-}
-
 // ── Action configs ──────────────────────────────────────────────────────────
 
 export const refreshActions = {
-  catalog: {
-    key: "catalog",
-    title: "Refresh Catalog",
-    description: "Re-import sets, cards, and printings from JSON data",
-    endpoint: "/api/admin/refresh-catalog",
-    cronKey: "catalog" as const,
-    dryRunSupported: true,
-  },
   tcgplayer: {
     key: "tcgplayer",
     title: "Refresh TCGPlayer Prices",
@@ -138,85 +108,6 @@ export function useCronStatus() {
 
 // ── Result display components ─────────────────────────────────────────────────
 
-function CatalogResultDisplay({ result }: { result: CatalogResult }) {
-  const images = result.images ?? { total: 0, added: 0, updated: 0 };
-  // Separate image changes (can be very numerous) from entity changes
-  const nonImageChanges = result.changes.filter((c) => c.entity !== "image");
-  const added = nonImageChanges.filter((c) => c.kind === "added");
-  const updated = nonImageChanges.filter((c) => c.kind === "updated");
-  const stale = nonImageChanges.filter((c) => c.kind === "stale");
-  const hasImageChanges = images.added > 0 || images.updated > 0;
-
-  return (
-    <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-      <p>
-        {result.sets.total} sets, {result.cards.total} cards, {result.printings.total} printings,{" "}
-        {images.total} images
-      </p>
-      {nonImageChanges.length === 0 && !hasImageChanges ? (
-        <p className="text-green-600 dark:text-green-400">No changes detected</p>
-      ) : (
-        <div className="space-y-1">
-          {hasImageChanges && (
-            <p className="font-medium text-blue-600 dark:text-blue-400">
-              Images:{" "}
-              {[
-                images.added > 0 ? `${images.added} new` : null,
-                images.updated > 0 ? `${images.updated} updated` : null,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            </p>
-          )}
-          {added.length > 0 && (
-            <div>
-              <p className="font-medium text-blue-600 dark:text-blue-400">+ {added.length} added</p>
-              <ul className="ml-3 list-disc">
-                {added.map((c) => (
-                  <li key={`${c.entity}-${c.id}`}>
-                    {c.entity}: {c.name ?? c.id}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {updated.length > 0 && (
-            <div>
-              <p className="font-medium text-yellow-600 dark:text-yellow-400">
-                ~ {updated.length} updated
-              </p>
-              <ul className="ml-3 list-disc">
-                {updated.map((c) => (
-                  <li key={`${c.entity}-${c.id}`}>
-                    {c.entity}: {c.name ?? c.id}
-                    {c.fields && (
-                      <span className="text-muted-foreground/70"> ({c.fields.join(", ")})</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {stale.length > 0 && (
-            <div>
-              <p className="font-medium text-red-600 dark:text-red-400">
-                ! {stale.length} stale (in DB but not in seed)
-              </p>
-              <ul className="ml-3 list-disc">
-                {stale.map((c) => (
-                  <li key={`${c.entity}-${c.id}`}>
-                    {c.entity}: {c.name ?? c.id}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PriceResultDisplay({ result }: { result: PriceResult }) {
   const { fetched, upserted } = result;
 
@@ -253,12 +144,8 @@ function PriceResultDisplay({ result }: { result: PriceResult }) {
 
 // ── Components ──────────────────────────────────────────────────────────────
 
-async function callRefreshEndpoint(
-  endpoint: string,
-  dryRun?: boolean,
-): Promise<RefreshResult | null> {
-  const url = dryRun ? `${endpoint}?dry_run=true` : endpoint;
-  const body = await api.post<{ result?: RefreshResult }>(url);
+async function callRefreshEndpoint(endpoint: string): Promise<RefreshResult | null> {
+  const body = await api.post<{ result?: RefreshResult }>(endpoint);
   return body.result ?? null;
 }
 
@@ -269,30 +156,12 @@ export function ActionCard({
   action: RefreshAction;
   cronStatus?: CronStatus;
 }) {
-  const hasDryRun = "dryRunSupported" in action && action.dryRunSupported;
-  const [preview, setPreview] = useState<CatalogResult | null>(null);
-
-  const previewMutation = useMutation({
-    mutationFn: () => callRefreshEndpoint(action.endpoint, true),
-    onSuccess: (data) => {
-      if (data && isCatalogResult(data)) {
-        setPreview(data);
-      }
-    },
-  });
-
-  const applyMutation = useMutation({
-    mutationFn: () => callRefreshEndpoint(action.endpoint),
-    onSuccess: () => setPreview(null),
-  });
-
   const mutation = useMutation({
     mutationFn: () => callRefreshEndpoint(action.endpoint),
   });
 
   const cronEntry = cronStatus?.[action.cronKey];
   const nextRun = cronEntry?.nextRun;
-  const isPending = previewMutation.isPending || applyMutation.isPending || mutation.isPending;
 
   return (
     <Card className="h-full">
@@ -310,108 +179,20 @@ export function ActionCard({
               </p>
             )}
           </div>
-          {hasDryRun ? (
-            <div className="flex shrink-0 gap-1.5">
-              {preview ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isPending}
-                    onClick={() => {
-                      setPreview(null);
-                      previewMutation.reset();
-                      applyMutation.reset();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={
-                      isPending ||
-                      (preview.changes.length === 0 &&
-                        (preview.images?.added ?? 0) === 0 &&
-                        (preview.images?.updated ?? 0) === 0)
-                    }
-                    onClick={() => applyMutation.mutate()}
-                  >
-                    {applyMutation.isPending ? (
-                      <LoaderIcon className="size-4 animate-spin" />
-                    ) : (
-                      "Apply"
-                    )}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isPending}
-                  onClick={() => previewMutation.mutate()}
-                >
-                  {previewMutation.isPending ? (
-                    <LoaderIcon className="size-4 animate-spin" />
-                  ) : (
-                    <>
-                      <EyeIcon className="size-4" />
-                      Preview
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              disabled={isPending}
-              onClick={() => mutation.mutate()}
-              className="shrink-0"
-            >
-              {mutation.isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Run"}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+            className="shrink-0"
+          >
+            {mutation.isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Run"}
+          </Button>
         </div>
-        {preview && (
-          <div>
-            <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-              <EyeIcon className="size-4" />
-              Preview — no changes applied yet
-            </p>
-            <CatalogResultDisplay result={preview} />
-          </div>
-        )}
-        {applyMutation.isSuccess && (
-          <div>
-            <p className="mt-2 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-              <CheckIcon className="size-4" />
-              Applied successfully
-            </p>
-            {applyMutation.data && isCatalogResult(applyMutation.data) && (
-              <CatalogResultDisplay result={applyMutation.data} />
-            )}
-          </div>
-        )}
-        {mutation.isSuccess && (
-          <div>
-            <p className="mt-2 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-              <CheckIcon className="size-4" />
-              Completed successfully
-            </p>
-            {mutation.data &&
-              (isCatalogResult(mutation.data) ? (
-                <CatalogResultDisplay result={mutation.data} />
-              ) : (
-                <PriceResultDisplay result={mutation.data} />
-              ))}
-          </div>
-        )}
-        {(previewMutation.isError || applyMutation.isError || mutation.isError) && (
+        {mutation.isSuccess && mutation.data && <PriceResultDisplay result={mutation.data} />}
+        {mutation.isError && (
           <p className="mt-2 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
             <XIcon className="size-4" />
-            {previewMutation.error?.message ??
-              applyMutation.error?.message ??
-              mutation.error?.message}
+            {mutation.error.message}
           </p>
         )}
       </CardHeader>

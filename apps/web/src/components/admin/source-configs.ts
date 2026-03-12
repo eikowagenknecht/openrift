@@ -5,7 +5,7 @@ export const CM_CONFIG: SourceMappingConfig = {
   displayName: "Cardmarket",
   shortName: "CM",
   productUrl: (id) => `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${id}`,
-  apiPath: "/api/admin/cm-mappings",
+  apiPath: "/api/admin/cardmarket-mappings",
 };
 
 export const TCG_CONFIG: SourceMappingConfig = {

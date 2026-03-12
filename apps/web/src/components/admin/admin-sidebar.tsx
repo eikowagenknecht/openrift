@@ -1,7 +1,8 @@
 import { Link, useMatches } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
-  ClipboardCheckIcon,
+  ChevronRightIcon,
+  GalleryVerticalIcon,
   DatabaseIcon,
   FlagIcon,
   ImageIcon,
@@ -9,9 +10,9 @@ import {
   LayersIcon,
   MapIcon,
   SettingsIcon,
-  UploadIcon,
 } from "lucide-react";
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -22,44 +23,41 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
 const topPages = [{ to: "/admin" as const, icon: LayoutDashboardIcon, title: "Overview" }];
 
-const groups = [
-  {
-    label: "Catalog",
-    pages: [
-      { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
-      { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
-    ],
-  },
-  {
-    label: "Import",
-    pages: [
-      { to: "/admin/candidates-upload" as const, icon: UploadIcon, title: "Upload" },
-      { to: "/admin/candidates" as const, icon: ClipboardCheckIcon, title: "Review" },
-    ],
-  },
+const catalogPages = [
+  { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
+  { to: "/admin/cards" as const, icon: GalleryVerticalIcon, title: "Cards" },
+  { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
+];
+
+const marketplaces = [
   {
     label: "TCGplayer",
+    prefixes: ["/admin/tcgplayer-"],
     pages: [
-      { to: "/admin/tcgplayer-groups" as const, icon: LayersIcon, title: "Sets" },
-      { to: "/admin/tcgplayer-mappings" as const, icon: MapIcon, title: "Products" },
+      { to: "/admin/tcgplayer-groups" as const, icon: LayersIcon, title: "Groups" },
+      { to: "/admin/tcgplayer-mappings" as const, icon: MapIcon, title: "Mappings" },
     ],
   },
   {
     label: "Cardmarket",
+    prefixes: ["/admin/cardmarket-"],
     pages: [
-      { to: "/admin/cardmarket-expansions" as const, icon: LayersIcon, title: "Sets" },
-      { to: "/admin/cm-mappings" as const, icon: MapIcon, title: "Products" },
+      { to: "/admin/cardmarket-groups" as const, icon: LayersIcon, title: "Groups" },
+      { to: "/admin/cardmarket-mappings" as const, icon: MapIcon, title: "Mappings" },
     ],
   },
-  {
-    label: "System",
-    pages: [{ to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" }],
-  },
+];
+
+const systemPages = [
+  { to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" },
 ];
 
 export function AdminSidebar() {
@@ -89,24 +87,78 @@ export function AdminSidebar() {
             ))}
           </SidebarMenu>
         </SidebarGroup>
-        {groups.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarMenu>
-              {group.pages.map((page) => (
-                <SidebarMenuItem key={page.to}>
-                  <SidebarMenuButton
-                    isActive={currentPath === page.to}
-                    render={<Link to={page.to} />}
-                  >
-                    <page.icon />
-                    <span>{page.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        ))}
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Catalog</SidebarGroupLabel>
+          <SidebarMenu>
+            {catalogPages.map((page) => (
+              <SidebarMenuItem key={page.to}>
+                <SidebarMenuButton
+                  isActive={currentPath === page.to}
+                  render={<Link to={page.to} />}
+                >
+                  <page.icon />
+                  <span>{page.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Marketplaces</SidebarGroupLabel>
+          <SidebarMenu>
+            {marketplaces.map((marketplace) => {
+              const isActive = marketplace.prefixes.some((p) => currentPath?.startsWith(p));
+              return (
+                <Collapsible key={marketplace.label} defaultOpen={isActive}>
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger
+                      render={
+                        <SidebarMenuButton>
+                          <span>{marketplace.label}</span>
+                          <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[panel-open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      }
+                    />
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {marketplace.pages.map((page) => (
+                          <SidebarMenuSubItem key={page.to}>
+                            <SidebarMenuSubButton
+                              isActive={currentPath === page.to}
+                              render={<Link to={page.to} />}
+                            >
+                              <page.icon />
+                              <span>{page.title}</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>System</SidebarGroupLabel>
+          <SidebarMenu>
+            {systemPages.map((page) => (
+              <SidebarMenuItem key={page.to}>
+                <SidebarMenuButton
+                  isActive={currentPath === page.to}
+                  render={<Link to={page.to} />}
+                >
+                  <page.icon />
+                  <span>{page.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <SidebarSeparator />
