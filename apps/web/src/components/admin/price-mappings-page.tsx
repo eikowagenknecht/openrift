@@ -1,3 +1,4 @@
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { ChevronDownIcon, ChevronRightIcon, EyeIcon, Undo2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -78,6 +79,11 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
     autoExpandRef.current = null;
     if (nextCardId && orderedCardIds.includes(nextCardId)) {
       setExpandedCards(new Set([nextCardId]));
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-card-id="${nextCardId}"]`)
+          ?.scrollIntoView({ block: "start" });
+      });
     }
   }, [orderedCardIds]);
 
@@ -128,6 +134,18 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
       saveMutation.mutate({ mappings });
     }
   };
+
+  // Accept suggestions for the currently expanded card via Enter hotkey
+  const expandedGroup = groups.find((g) => expandedCards.has(g.cardId));
+  useHotkey(
+    "Enter",
+    () => {
+      if (expandedGroup) {
+        handleBatchAccept(expandedGroup);
+      }
+    },
+    { enabled: Boolean(expandedGroup) && !saveMutation.isPending },
+  );
 
   if (isLoading) {
     return (
@@ -258,6 +276,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                       config={config}
                       group={group}
                       isExpanded={expandedCards.has(group.cardId)}
+                      isHotkeyTarget={expandedGroup?.cardId === group.cardId}
                       onToggle={() => toggleExpanded(group.cardId)}
                       onMap={handleMap}
                       isSaving={saveMutation.isPending}
