@@ -168,9 +168,10 @@ function matchStagedProducts(
     }
   }
 
-  // Second pass: containment matching for cards with " - " in the name.
-  // e.g. our "Wuju Bladesman - Starter" matches their "Master Yi Wuju Bladesman"
-  // because the base name "wujubladesman" is contained in the product name.
+  // Second pass: containment matching for products where a champion name is
+  // prepended, e.g. "KaiSa Daughter of the Void" contains our card name
+  // "Daughter of the Void", or "Master Yi Wuju Bladesman" contains the base
+  // of "Wuju Bladesman - Starter" (baseName strips the " - Starter" suffix).
   for (const row of uniqueStaged) {
     const stagingKey = `${row.external_id}::${row.finish}`;
     if (matchedStagingKeys.has(stagingKey)) {
@@ -182,8 +183,9 @@ function matchStagedProducts(
     }
     const normProduct = normalizeNameForMatching(row.product_name);
     const candidates = cardNamesBySet.get(setId) ?? [];
-    for (const { baseName, groupKey } of candidates) {
-      if (baseName && baseName.length >= 5 && normProduct.includes(baseName)) {
+    for (const { normName, baseName, groupKey } of candidates) {
+      const nameToMatch = baseName ?? normName;
+      if (nameToMatch.length >= 5 && normProduct.includes(nameToMatch)) {
         const list = stagedByCard.get(groupKey) ?? [];
         list.push(row);
         stagedByCard.set(groupKey, list);
