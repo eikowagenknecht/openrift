@@ -15,8 +15,10 @@ import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
 import {
   BATCH_SIZE,
-  buildSnapshotsFromStaging,
+  buildMappedSnapshots,
   fetchJson,
+  loadIgnoredKeys,
+  logFetchSummary,
   logUpsertCounts,
   toCents,
   upsertPriceData,
@@ -103,13 +105,7 @@ export async function refreshCardmarketPrices(
   db: Kysely<Database>,
   log: Logger,
 ): Promise<PriceRefreshResult> {
-  // ── Load ignored products ────────────────────────────────────────────────
-
-  const ignoredRows = await db
-    .selectFrom("cardmarket_ignored_products")
-    .select(["external_id", "finish"])
-    .execute();
-  const ignoredKeys = new Set(ignoredRows.map((r) => `${r.external_id}::${r.finish}`));
+  const ignoredKeys = await loadIgnoredKeys(db, "cardmarket_ignored_products");
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
@@ -205,42 +201,21 @@ export async function refreshCardmarketPrices(
     }
   }
 
-  // Build snapshots for already-mapped products from staging data
-  const existingSources = await db
-    .selectFrom("cardmarket_sources as cs")
-    .innerJoin("printings as p", "p.id", "cs.printing_id")
-    .select(["cs.printing_id", "cs.external_id", "p.finish"])
-    .execute();
-
-  const allSnapshots = buildSnapshotsFromStaging(
-    existingSources,
-    allStaging,
-    UPSERT_CONFIG.priceColumns,
-  );
-
-  if (allSnapshots.length > 0) {
-    log.info(`${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`);
-  }
-
-  const ignoredSuffix = ignoredKeys.size > 0 ? `, ${ignoredKeys.size} ignored` : "";
-  log.info(
-    `Fetched: ${dbExpansions.length} expansions (${cmMappedCount} mapped, ${cmUnmappedCount} unmapped), ${cmSingles.length} products, ${cmPriceGuides.length} prices${ignoredSuffix}`,
-  );
-
   // ── Upsert ──────────────────────────────────────────────────────────────────
 
-  const counts = await upsertPriceData(db, UPSERT_CONFIG, [], allSnapshots, allStaging);
+  const fetchedCounts = {
+    groups: dbExpansions.length,
+    mapped: cmMappedCount,
+    unmapped: cmUnmappedCount,
+    products: cmSingles.length,
+    prices: cmPriceGuides.length,
+  };
 
+  const allSnapshots = await buildMappedSnapshots(db, log, UPSERT_CONFIG, allStaging);
+  logFetchSummary(log, "expansions", fetchedCounts, ignoredKeys.size);
+
+  const counts = await upsertPriceData(db, UPSERT_CONFIG, [], allSnapshots, allStaging);
   logUpsertCounts(log, counts);
 
-  return {
-    fetched: {
-      groups: dbExpansions.length,
-      mapped: cmMappedCount,
-      unmapped: cmUnmappedCount,
-      products: cmSingles.length,
-      prices: cmPriceGuides.length,
-    },
-    upserted: counts,
-  };
+  return { fetched: fetchedCounts, upserted: counts };
 }
