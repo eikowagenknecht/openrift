@@ -1,6 +1,5 @@
 import { createLogger } from "@openrift/shared/logger";
 import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardmarket-prices";
-import { refreshCatalog } from "@openrift/shared/services/refresh-catalog";
 import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
 import { Hono } from "hono";
 import { z } from "zod/v4";
@@ -67,18 +66,6 @@ operationsRoute.post("/admin/clear-prices", async (c) => {
 });
 
 // ── Manual refresh endpoints ────────────────────────────────────────────────
-
-operationsRoute.use("/admin/refresh-catalog", requireAdmin);
-operationsRoute.post("/admin/refresh-catalog", async (c) => {
-  const dryRun = c.req.query("dry_run") === "true";
-  try {
-    const result = await refreshCatalog(db, log.child({ service: "catalog" }), { dryRun });
-    return c.json({ status: "ok", dryRun, result });
-  } catch (error) {
-    log.error(error, "refresh-catalog failed");
-    throw new AppError(500, "INTERNAL_ERROR", "Catalog refresh failed");
-  }
-});
 
 operationsRoute.use("/admin/refresh-tcgplayer-prices", requireAdmin);
 operationsRoute.post("/admin/refresh-tcgplayer-prices", async (c) => {

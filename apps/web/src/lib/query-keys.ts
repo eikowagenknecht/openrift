@@ -1,4 +1,4 @@
-import type { CandidateStatus, TimeRange } from "@openrift/shared";
+import type { TimeRange } from "@openrift/shared";
 
 import type { SourceMappingConfig } from "@/components/admin/price-mappings-types";
 
@@ -27,12 +27,17 @@ export const queryKeys = {
   admin: {
     me: ["admin", "me"] as const,
     sets: ["admin", "sets"] as const,
-    candidates: {
-      all: ["admin", "candidates"] as const,
-      byFilter: (tab: "new" | "updates", status: CandidateStatus) =>
-        ["admin", "candidates", tab, status] as const,
+    cardSources: {
+      all: ["admin", "card-sources"] as const,
+      list: (filter: string, source?: string) =>
+        ["admin", "card-sources", "list", filter, source ?? "all"] as const,
+      detail: (cardId: string) => ["admin", "card-sources", "detail", cardId] as const,
+      unmatched: (name: string) => ["admin", "card-sources", "unmatched", name] as const,
+      allCards: ["admin", "card-sources", "all-cards"] as const,
+      sourceNames: ["admin", "card-sources", "source-names"] as const,
+      sourceStats: ["admin", "card-sources", "source-stats"] as const,
     },
-    cardmarketExpansions: ["admin", "cardmarket-expansions"] as const,
+    cardmarketGroups: ["admin", "cardmarket-groups"] as const,
     tcgplayerGroups: ["admin", "tcgplayer-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
     cronStatus: ["admin", "cron-status"] as const,

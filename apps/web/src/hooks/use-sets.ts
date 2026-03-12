@@ -9,6 +9,7 @@ interface AdminSet {
   name: string;
   printedTotal: number;
   sortOrder: number;
+  releasedAt: string | null;
   cardCount: number;
   printingCount: number;
 }
@@ -22,16 +23,24 @@ export function useSets() {
 
 export function useUpdateSet() {
   return useMutationWithInvalidation({
-    mutationFn: (body: { id: string; name: string; printedTotal: number }) =>
-      api.put<{ ok: boolean }>("/api/admin/sets", body),
+    mutationFn: (body: {
+      id: string;
+      name: string;
+      printedTotal: number;
+      releasedAt: string | null;
+    }) => api.put<{ ok: boolean }>("/api/admin/sets", body),
     invalidates: [queryKeys.admin.sets],
   });
 }
 
 export function useCreateSet() {
   return useMutationWithInvalidation({
-    mutationFn: (body: { id: string; name: string; printedTotal: number }) =>
-      api.post<{ ok: boolean }>("/api/admin/sets", body),
+    mutationFn: (body: {
+      id: string;
+      name: string;
+      printedTotal: number;
+      releasedAt?: string | null;
+    }) => api.post<{ ok: boolean }>("/api/admin/sets", body),
     invalidates: [queryKeys.admin.sets],
   });
 }

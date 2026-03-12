@@ -213,6 +213,7 @@ function createMarketplaceConfig<
         .execute();
     },
 
+    // raw sql: INSERT...SELECT with dynamic table names, runtime column list, and ON CONFLICT
     bulkUnmapSql: async (tx) => {
       await sql`
         INSERT INTO ${sql.table(staging)} (external_id, group_id, product_name, finish, recorded_at, ${sql.raw(priceCols)})

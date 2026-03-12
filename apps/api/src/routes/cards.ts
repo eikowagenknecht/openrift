@@ -76,6 +76,7 @@ cardsRoute.get("/cards", async (c) => {
       "p.public_code",
       "p.printed_rules_text",
       "p.printed_effect_text",
+      "p.flavor_text",
       "c.name",
       "c.type",
       "c.super_types",
@@ -111,8 +112,8 @@ cardsRoute.get("/cards", async (c) => {
       keywords: row.keywords as string[],
       tags: row.tags as string[],
       mightBonus: row.might_bonus,
-      description: row.rules_text,
-      effect: row.effect_text,
+      description: row.rules_text ?? "",
+      effect: row.effect_text ?? "",
     };
     const printing: Printing = {
       id: row.printing_id,
@@ -133,6 +134,7 @@ cardsRoute.get("/cards", async (c) => {
       ...(row.printed_effect_text !== row.effect_text && {
         printedEffect: row.printed_effect_text,
       }),
+      ...(row.flavor_text && { flavorText: row.flavor_text }),
       card,
     };
     const list = printingsBySet.get(row.set_id) ?? [];
