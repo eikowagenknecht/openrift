@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-12
+
+- feat: Unmatched products in the price mapping admin are now grouped by their marketplace group instead of a flat list
+
 ## 2026-03-11
 
 - fix: Middle-clicking or ctrl-clicking the logo now opens the home page in a new tab, like the other nav links

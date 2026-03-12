@@ -299,7 +299,7 @@ export async function getMappingOverview(
     return true;
   });
 
-  // 3. Resolve group/expansion → set mapping
+  // 3. Resolve group/expansion → set mapping + group display names
   const groupRows = await db
     .selectFrom(config.tables.groups)
     .select([`${config.groupIdColumn} as gid`, "set_id"])
@@ -309,6 +309,24 @@ export async function getMappingOverview(
     if (row.set_id) {
       groupSetMap.set(row.gid as number, row.set_id);
     }
+  }
+
+  // Build group display names: prefer marketplace-specific name, fall back to set name
+  const setNameRows = await db.selectFrom("sets").select(["id", "name"]).execute();
+  const setNameMap = new Map(setNameRows.map((r) => [r.id, r.name]));
+
+  let nativeGroupNames: Map<number, string> | undefined;
+  if (config.groupNameColumn === "name") {
+    const nameRows = await db.selectFrom("tcgplayer_groups").select(["group_id", "name"]).execute();
+    nativeGroupNames = new Map(nameRows.map((r) => [r.group_id, r.name]));
+  }
+
+  const groupNameMap = new Map<number, string>();
+  for (const row of groupRows) {
+    const gid = row.gid as number;
+    const nativeName = nativeGroupNames?.get(gid);
+    const setName = row.set_id ? setNameMap.get(row.set_id) : undefined;
+    groupNameMap.set(gid, nativeName ?? setName ?? `Group #${gid}`);
   }
 
   const stagedSetIds = [
@@ -420,13 +438,22 @@ export async function getMappingOverview(
   }
 
   // 7. Map staged rows to product format
-  const mapStagedRow = (row: StagingRow, extra?: { isOverride?: boolean }) => ({
+  const mapStagedRow = (
+    row: StagingRow,
+    extra?: { isOverride?: boolean; includeGroup?: boolean },
+  ) => ({
     externalId: row.external_id ?? "",
     productName: row.product_name,
     finish: row.finish,
     ...config.mapStagingPrices(row),
     recordedAt: row.recorded_at.toISOString(),
     ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
+    ...(extra?.includeGroup
+      ? {
+          groupId: row.group_id,
+          groupName: groupNameMap.get(row.group_id) ?? `Group #${row.group_id}`,
+        }
+      : {}),
   });
 
   // Unmatched products (excluding ignored)
@@ -436,7 +463,7 @@ export async function getMappingOverview(
         !matchedStagingKeys.has(`${row.external_id}::${row.finish}`) &&
         !ignoredKeys.has(`${row.external_id}::${row.finish}`),
     )
-    .map((row) => mapStagedRow(row));
+    .map((row) => mapStagedRow(row, { includeGroup: true }));
 
   // Ignored products
   const ignoredProducts = ignoredRows.map((r) => ({

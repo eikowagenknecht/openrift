@@ -309,34 +309,64 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
             <SectionHeading>
               Unmatched {config.shortName} Products ({unmatchedProducts.length})
             </SectionHeading>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-              {unmatchedProducts
-                .toSorted(
-                  (a, b) =>
-                    a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
-                )
-                .map((sp) => (
-                  <StagedProductCard
-                    key={`${sp.externalId}::${sp.finish}`}
-                    config={config}
-                    product={sp}
-                    onIgnore={() =>
-                      ignoreMutation.mutate([{ externalId: sp.externalId, finish: sp.finish }])
-                    }
-                    isIgnoring={ignoreMutation.isPending}
-                    allCards={allCards}
-                    onAssignToCard={(cardId, setId) =>
-                      assignToCardMutation.mutate({
-                        externalId: sp.externalId,
-                        finish: sp.finish,
-                        cardId,
-                        setId,
-                      })
-                    }
-                    isAssigning={assignToCardMutation.isPending}
-                  />
-                ))}
-            </div>
+            {(() => {
+              const byGroup = new Map<number | undefined, typeof unmatchedProducts>();
+              for (const sp of unmatchedProducts) {
+                const list = byGroup.get(sp.groupId) ?? [];
+                list.push(sp);
+                byGroup.set(sp.groupId, list);
+              }
+              const sortedGroups = [...byGroup.entries()].toSorted((a, b) => {
+                const nameA = a[1][0]?.groupName ?? "";
+                const nameB = b[1][0]?.groupName ?? "";
+                return nameA.localeCompare(nameB);
+              });
+              return sortedGroups.map(([groupId, products]) => (
+                <div key={groupId ?? "unknown"} className="mt-4">
+                  <div className="flex items-center gap-3 pb-2">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      {products[0]?.groupName ?? "Unknown group"}
+                    </span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {products.length}
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
+                    {products
+                      .toSorted(
+                        (a, b) =>
+                          a.productName.localeCompare(b.productName) ||
+                          b.finish.localeCompare(a.finish),
+                      )
+                      .map((sp) => (
+                        <StagedProductCard
+                          key={`${sp.externalId}::${sp.finish}`}
+                          config={config}
+                          product={sp}
+                          onIgnore={() =>
+                            ignoreMutation.mutate([
+                              { externalId: sp.externalId, finish: sp.finish },
+                            ])
+                          }
+                          isIgnoring={ignoreMutation.isPending}
+                          allCards={allCards}
+                          onAssignToCard={(cardId, setId) =>
+                            assignToCardMutation.mutate({
+                              externalId: sp.externalId,
+                              finish: sp.finish,
+                              cardId,
+                              setId,
+                            })
+                          }
+                          isAssigning={assignToCardMutation.isPending}
+                        />
+                      ))}
+                  </div>
+                </div>
+              ));
+            })()}
           </div>
         )}
 
