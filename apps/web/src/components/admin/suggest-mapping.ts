@@ -1,3 +1,5 @@
+import { normalizeNameForMatching } from "@openrift/shared";
+
 import type { MappingGroup, MappingPrinting, StagedProduct } from "./price-mappings-types";
 
 /** Minimum score for a product to be suggested as a mapping candidate. */
@@ -11,37 +13,30 @@ export interface Suggestion {
   score: number;
 }
 
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9\s]/g, "")
-    .replaceAll(/\s+/g, " ")
-    .trim();
-}
-
 /**
  * Extract the suffix of the product name after the card name.
- * e.g. product "Ahri Alluring Alternate Art", card "Ahri, Alluring" → "alternate art"
- * @returns The normalized suffix, or null if the card name isn't a prefix.
+ * Both names are reduced to spaceless slugs, so e.g.
+ * product "Ahri Alluring Alternate Art", card "Ahri, Alluring" → "alternateart"
+ * @returns The slug suffix, or null if the card name isn't a prefix.
  */
 function extractSuffix(productName: string, cardName: string): string | null {
-  const normProduct = normalizeName(productName);
-  const normCard = normalizeName(cardName);
+  const normProduct = normalizeNameForMatching(productName);
+  const normCard = normalizeNameForMatching(cardName);
   if (!normProduct.startsWith(normCard)) {
     return null;
   }
-  return normProduct.slice(normCard.length).trim();
+  return normProduct.slice(normCard.length);
 }
 
 /**
- * Infer the art variant from a product name suffix.
+ * Infer the art variant from a product name suffix (spaceless slug).
  * @returns The inferred artVariant value, or null if ambiguous.
  */
 function inferVariant(suffix: string): string | null {
   if (suffix === "") {
     return "normal";
   }
-  if (suffix.includes("alternate art")) {
+  if (suffix.includes("alternateart")) {
     return "altart";
   }
   if (suffix.includes("overnumbered")) {
@@ -52,7 +47,7 @@ function inferVariant(suffix: string): string | null {
 
 function inferPromo(suffix: string): boolean | null {
   if (
-    suffix.includes("launch exclusive") ||
+    suffix.includes("launchexclusive") ||
     suffix.includes("exclusive") ||
     suffix.includes("promo")
   ) {
