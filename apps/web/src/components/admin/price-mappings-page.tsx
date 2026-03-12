@@ -245,6 +245,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
                     >
                       Staged {config.shortName}
                     </TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

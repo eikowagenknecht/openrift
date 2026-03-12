@@ -1,4 +1,10 @@
-import { ChevronDownIcon, ChevronRightIcon, WandSparklesIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  WandSparklesIcon,
+  WrenchIcon,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -70,20 +76,23 @@ export function CardGroupRow({
           </span>
           {group.cardName}
         </TableCell>
+        <TableCell className="text-center">{group.printings.length}</TableCell>
+        <TableCell className="text-center">{group.stagedProducts.length}</TableCell>
         <TableCell className="text-center">
-          {group.printings.length}
-          {unmappedCount > 0 && (
-            <Badge variant="destructive" className="ml-2">
-              {unmappedCount} unmapped
+          {unmappedCount === 0 ? (
+            <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2Icon className="size-3" />
+              Completely mapped
             </Badge>
-          )}
-        </TableCell>
-        <TableCell className="text-center">
-          {group.stagedProducts.length}
-          {suggestionCount > 0 && (
-            <Badge className="ml-2 border-primary/30 bg-primary/10 text-primary">
+          ) : suggestionCount >= unmappedCount ? (
+            <Badge className="border-primary/30 bg-primary/10 text-primary">
               <WandSparklesIcon className="size-3" />
-              {suggestionCount} suggested
+              Probably auto mappable
+            </Badge>
+          ) : (
+            <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <WrenchIcon className="size-3" />
+              Needs manual work
             </Badge>
           )}
         </TableCell>
@@ -91,7 +100,7 @@ export function CardGroupRow({
 
       {isExpanded && (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={4} className="p-0">
+          <TableCell colSpan={5} className="p-0">
             <ExpandedDetail
               config={config}
               group={group}
