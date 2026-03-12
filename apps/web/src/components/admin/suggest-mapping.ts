@@ -17,15 +17,36 @@ export interface Suggestion {
  * Extract the suffix of the product name after the card name.
  * Both names are reduced to spaceless slugs, so e.g.
  * product "Ahri Alluring Alternate Art", card "Ahri, Alluring" → "alternateart"
- * @returns The slug suffix, or null if the card name isn't a prefix.
+ * product "Jinx Loose Cannon Signature", card "Loose Cannon" → "signature"
+ * product "Master Yi Wuju Bladesman", card "Wuju Bladesman - Starter" → ""
+ * @returns The slug suffix, or null if the card name can't be found.
  */
 function extractSuffix(productName: string, cardName: string): string | null {
   const normProduct = normalizeNameForMatching(productName);
   const normCard = normalizeNameForMatching(cardName);
-  if (!normProduct.startsWith(normCard)) {
-    return null;
+
+  // Prefix match (strongest)
+  if (normProduct.startsWith(normCard)) {
+    return normProduct.slice(normCard.length);
   }
-  return normProduct.slice(normCard.length);
+
+  // Containment match: card name appears inside product (champion prefix)
+  const idx = normProduct.indexOf(normCard);
+  if (idx !== -1) {
+    return normProduct.slice(idx + normCard.length);
+  }
+
+  // For cards with " - " suffix, try the base name before the dash
+  const dashIdx = cardName.indexOf(" - ");
+  if (dashIdx !== -1) {
+    const normBase = normalizeNameForMatching(cardName.slice(0, dashIdx));
+    const baseIdx = normProduct.indexOf(normBase);
+    if (baseIdx !== -1) {
+      return normProduct.slice(baseIdx + normBase.length);
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -105,7 +126,7 @@ function scorePrintingProduct(
   const signed = inferSigned(suffix);
   if (signed !== null) {
     if (signed === printing.isSigned) {
-      score += 50;
+      score += 60;
     } else {
       score -= 80;
     }
@@ -138,23 +159,44 @@ export function computeSuggestions(group: MappingGroup): Map<string, Suggestion>
     }
   }
 
-  // Sort descending by score
-  pairs.sort((a, b) => b.score - a.score);
+  // Group pairs by printing, sorted by score descending within each group
+  const pairsByPrinting = new Map<string, typeof pairs>();
+  for (const pair of pairs) {
+    const list = pairsByPrinting.get(pair.printing.printingId) ?? [];
+    list.push(pair);
+    pairsByPrinting.set(pair.printing.printingId, list);
+  }
+  for (const list of pairsByPrinting.values()) {
+    list.sort((a, b) => b.score - a.score);
+  }
 
-  // Greedy assignment — key products by externalId+finish since the same
-  // externalId can appear as separate staged rows for normal and foil.
-  const usedPrintings = new Set<string>();
+  // Process printings in order of their best score (highest first)
+  const printingOrder = [...pairsByPrinting.entries()].sort(
+    ([, a], [, b]) => b[0].score - a[0].score,
+  );
+
+  // Greedy assignment with dynamic tie detection: for each printing, check if
+  // its best score among *remaining* products is tied. If so, the match is
+  // ambiguous — skip it. Otherwise assign the single best product.
   const usedProducts = new Set<string>();
   const suggestions = new Map<string, Suggestion>();
 
-  for (const { printing, product, score } of pairs) {
-    const productKey = `${product.externalId}|${product.finish}`;
-    if (usedPrintings.has(printing.printingId) || usedProducts.has(productKey)) {
+  for (const [, printingPairs] of printingOrder) {
+    const remaining = printingPairs.filter(
+      (p) => !usedProducts.has(`${p.product.externalId}|${p.product.finish}`),
+    );
+    if (remaining.length === 0) {
       continue;
     }
-    usedPrintings.add(printing.printingId);
+    const topScore = remaining[0].score;
+    const tiedAtTop = remaining.filter((p) => p.score === topScore);
+    if (tiedAtTop.length > 1) {
+      continue;
+    }
+    const best = tiedAtTop[0];
+    const productKey = `${best.product.externalId}|${best.product.finish}`;
     usedProducts.add(productKey);
-    suggestions.set(printing.printingId, { product, score });
+    suggestions.set(best.printing.printingId, { product: best.product, score: best.score });
   }
 
   return suggestions;
