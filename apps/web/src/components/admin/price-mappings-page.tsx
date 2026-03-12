@@ -147,7 +147,7 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">Loading staged products…</p>
+        <p className="text-sm text-muted-foreground">Loading products…</p>
         <div className="space-y-3">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
