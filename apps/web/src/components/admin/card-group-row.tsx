@@ -11,7 +11,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 
 import { ExpandedDetail } from "./expanded-detail";
 import type { AssignableCard, MappingGroup, SourceMappingConfig } from "./price-mappings-types";
-import { computeSuggestions } from "./suggest-mapping";
+import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 
 export function CardGroupRow({
   config,
@@ -79,22 +79,38 @@ export function CardGroupRow({
         <TableCell className="text-center">{group.printings.length}</TableCell>
         <TableCell className="text-center">{group.stagedProducts.length}</TableCell>
         <TableCell className="text-center">
-          {unmappedCount === 0 ? (
-            <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2Icon className="size-3" />
-              Completely mapped
-            </Badge>
-          ) : suggestionCount >= unmappedCount ? (
-            <Badge className="border-primary/30 bg-primary/10 text-primary">
-              <WandSparklesIcon className="size-3" />
-              Probably auto mappable
-            </Badge>
-          ) : (
-            <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <WrenchIcon className="size-3" />
-              Needs manual work
-            </Badge>
-          )}
+          {(() => {
+            if (unmappedCount === 0) {
+              return (
+                <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2Icon className="size-3" />
+                  Completely mapped
+                </Badge>
+              );
+            }
+            if (suggestionCount >= unmappedCount) {
+              const allStrong = [...suggestions.values()].every(
+                (s) => s.score >= STRONG_MATCH_THRESHOLD,
+              );
+              return allStrong ? (
+                <Badge className="border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400">
+                  <WandSparklesIcon className="size-3" />
+                  Auto mappable
+                </Badge>
+              ) : (
+                <Badge className="border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                  <WandSparklesIcon className="size-3" />
+                  Review suggestions
+                </Badge>
+              );
+            }
+            return (
+              <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <WrenchIcon className="size-3" />
+                Needs manual work
+              </Badge>
+            );
+          })()}
         </TableCell>
       </TableRow>
 

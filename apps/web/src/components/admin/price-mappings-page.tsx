@@ -88,9 +88,12 @@ export function PriceMappingsPage({ config }: { config: SourceMappingConfig }) {
       const groupsByCardId = new Map(groups.map((g) => [g.cardId, g]));
       for (let i = idx + 1; i < orderedCardIds.length; i++) {
         const candidate = groupsByCardId.get(orderedCardIds[i]);
-        if (candidate && candidate.printings.some((p) => p.externalId === null)) {
-          nextCardId = orderedCardIds[i];
-          break;
+        if (candidate) {
+          const unmappedCount = candidate.printings.filter((p) => p.externalId === null).length;
+          if (unmappedCount > 0 && computeSuggestions(candidate).size >= unmappedCount) {
+            nextCardId = orderedCardIds[i];
+            break;
+          }
         }
       }
     }
