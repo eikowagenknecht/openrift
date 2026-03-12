@@ -8,16 +8,6 @@ import { cn } from "@/lib/utils";
 import type { AssignableCard, SourceMappingConfig, StagedProduct } from "./price-mappings-types";
 import { formatCents, ProductLink } from "./price-mappings-utils";
 
-const EXTRA_FIELDS = [
-  { key: "lowCents" as const, label: "low" },
-  { key: "midCents" as const, label: "mid" },
-  { key: "highCents" as const, label: "high" },
-  { key: "trendCents" as const, label: "trend" },
-  { key: "avg1Cents" as const, label: "avg1" },
-  { key: "avg7Cents" as const, label: "avg7" },
-  { key: "avg30Cents" as const, label: "avg30" },
-];
-
 export function StagedProductCard({
   config,
   product: sp,
@@ -121,47 +111,28 @@ export function StagedProductCard({
           )}
         </div>
       </div>
-      {sp.marketCents > 0 && (
-        <div className="mt-1.5 flex items-baseline gap-2">
+      <div className="mt-1.5 flex items-baseline gap-2">
+        {sp.marketCents > 0 && (
           <span className="text-lg font-semibold tabular-nums">
             {formatCents(sp.marketCents, sp.currency)}
           </span>
-          {sp.finish && (
-            <Badge variant="outline" className="shrink-0">
-              {sp.finish}
-            </Badge>
-          )}
+        )}
+        {sp.finish && (
           <Badge variant="outline" className="shrink-0">
-            <ProductLink config={config} externalId={sp.externalId}>
-              #{sp.externalId}
-            </ProductLink>
+            {sp.finish}
           </Badge>
-        </div>
-      )}
-      {sp.marketCents === 0 && (
-        <div className="mt-1.5 flex items-baseline gap-2">
-          {sp.finish && (
-            <Badge variant="outline" className="shrink-0">
-              {sp.finish}
-            </Badge>
-          )}
+        )}
+        {sp.groupSetId && (
           <Badge variant="outline" className="shrink-0">
-            <ProductLink config={config} externalId={sp.externalId}>
-              #{sp.externalId}
-            </ProductLink>
+            {sp.groupSetId}
           </Badge>
-        </div>
-      )}
-      {EXTRA_FIELDS.some((f) => sp[f.key] !== null) && (
-        <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-          {EXTRA_FIELDS.filter((f) => sp[f.key] !== null).map((f) => (
-            <span key={f.key}>
-              {f.label}{" "}
-              <span className="tabular-nums">{formatCents(sp[f.key] ?? 0, sp.currency)}</span>
-            </span>
-          ))}
-        </div>
-      )}
+        )}
+        <Badge variant="outline" className="shrink-0">
+          <ProductLink config={config} externalId={sp.externalId}>
+            #{sp.externalId}
+          </ProductLink>
+        </Badge>
+      </div>
       <p
         className={cn(
           "mt-1.5 w-fit rounded px-1.5 py-0.5 text-xs",
