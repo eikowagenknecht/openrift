@@ -55,7 +55,8 @@ export function ProductSelect({
             <SelectLabel>Unassigned</SelectLabel>
             {sortedStaged.map((p, i) => (
               <SelectItem key={`s::${p.externalId}::${i}`} value={`${p.externalId}::s${i}`}>
-                {p.productName.length > 30 ? `${p.productName.slice(0, 30)}…` : p.productName} ·{" "}
+                {p.productName.length > 30 ? `${p.productName.slice(0, 30)}…` : p.productName} · #
+                {p.externalId} · {p.groupName ? `${p.groupName} · ` : ""}
                 {p.finish} · {formatCents(p.marketCents, p.currency)}
               </SelectItem>
             ))}
@@ -66,7 +67,8 @@ export function ProductSelect({
             <SelectLabel>Assigned</SelectLabel>
             {sortedAssigned.map((p, i) => (
               <SelectItem key={`a::${p.externalId}::${i}`} value={`${p.externalId}::a${i}`}>
-                {p.productName.length > 30 ? `${p.productName.slice(0, 30)}…` : p.productName} ·{" "}
+                {p.productName.length > 30 ? `${p.productName.slice(0, 30)}…` : p.productName} · #
+                {p.externalId} · {p.groupName ? `${p.groupName} · ` : ""}
                 {p.finish} · {formatCents(p.marketCents, p.currency)}
               </SelectItem>
             ))}
