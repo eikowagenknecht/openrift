@@ -1,3 +1,4 @@
+import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Hono } from "hono";
 import { sql } from "kysely";
 import { z } from "zod/v4";
@@ -11,15 +12,6 @@ import { requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 import type { MarketplaceConfig, ProductInfo, StagingRow } from "./marketplace-configs.js";
-
-// ── Shared helpers ──────────────────────────────────────────────────────────
-
-const normalizeName = (name: string) =>
-  name
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9\s]/g, " ")
-    .replaceAll(/\s+/g, " ")
-    .trim();
 
 // ── Types for GET helper functions ──────────────────────────────────────────
 
@@ -116,7 +108,7 @@ function buildCardIndex(
   const cardNamesBySet = new Map<string, { normName: string; groupKey: string }[]>();
   for (const [key, group] of cardGroups) {
     const list = cardNamesBySet.get(group.setId) ?? [];
-    list.push({ normName: normalizeName(group.cardName), groupKey: key });
+    list.push({ normName: normalizeNameForMatching(group.cardName), groupKey: key });
     cardNamesBySet.set(group.setId, list);
   }
   for (const list of cardNamesBySet.values()) {
@@ -159,13 +151,10 @@ function matchStagedProducts(
     if (!setId) {
       continue;
     }
-    const normProduct = normalizeName(row.product_name);
+    const normProduct = normalizeNameForMatching(row.product_name);
     const candidates = cardNamesBySet.get(setId) ?? [];
     for (const { normName, groupKey } of candidates) {
-      if (
-        normProduct === normName ||
-        (normProduct.startsWith(normName) && normProduct[normName.length] === " ")
-      ) {
+      if (normProduct.startsWith(normName)) {
         const list = stagedByCard.get(groupKey) ?? [];
         list.push(row);
         stagedByCard.set(groupKey, list);

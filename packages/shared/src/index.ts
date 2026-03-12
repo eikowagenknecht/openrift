@@ -57,3 +57,5 @@ export {
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
+
+export { normalizeNameForMatching } from "./utils.js";

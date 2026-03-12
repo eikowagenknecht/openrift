@@ -41,6 +41,18 @@ export function buildPrintingId(
 }
 
 /**
+ * Normalize a card/product name for matching.
+ * Strips all non-alphanumeric characters **and spaces**, producing a
+ * spaceless lowercase slug so that names like "Kai'Sa, Survivor" / "KaiSa
+ * Survivor" and "Mega-Mech" / "Mega Mech" all compare equal.
+ *
+ * @returns A lowercased alphanumeric-only slug (e.g. "kaisasurvivor").
+ */
+export function normalizeNameForMatching(name: string): string {
+  return name.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
+}
+
+/**
  * Returns the min and max of a number array, snapped to whole numbers (floor min, ceil max). Defaults to 0 when empty.
  *
  * @returns An object with `min` and `max` bounds.

@@ -11,7 +11,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
-import { groupIntoMap } from "../utils.js";
+import { groupIntoMap, normalizeNameForMatching } from "../utils.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -71,14 +71,6 @@ async function countRows(db: Kysely<Database>, table: keyof Database): Promise<n
     .select(db.fn.countAll<number>().as("count"))
     .executeTakeFirstOrThrow();
   return Number(result.count);
-}
-
-/**
- * Normalize a card/product name for matching (lowercased, separator-agnostic).
- * @returns The normalized name string.
- */
-function normalizeName(name: string): string {
-  return name.toLowerCase().replaceAll(" - ", ", ");
 }
 
 // ── Generic row types ────────────────────────────────────────────────────
@@ -206,7 +198,7 @@ export async function loadReferenceData(db: Kysely<Database>): Promise<Reference
     }
     const name = cardNameById.get(p.card_id);
     if (name) {
-      const key = normalizeName(name);
+      const key = normalizeNameForMatching(name);
       if (!setMap.has(key)) {
         setMap.set(key, p.card_id);
       }
