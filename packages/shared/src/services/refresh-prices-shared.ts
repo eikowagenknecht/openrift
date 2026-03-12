@@ -144,6 +144,66 @@ export interface PriceUpsertConfig {
   priceColumns: string[];
 }
 
+// ── Price refresh helpers ──────────────────────────────────────────────────
+
+/**
+ * Load the set of ignored (external_id, finish) keys from a marketplace's ignored-products table.
+ * @returns A set of "external_id::finish" strings for filtering.
+ */
+export async function loadIgnoredKeys(
+  db: Kysely<Database>,
+  table: keyof Database,
+): Promise<Set<string>> {
+  // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
+  const rows: { external_id: number; finish: string }[] = await (db.selectFrom(table as any) as any)
+    .select(["external_id", "finish"])
+    .execute();
+  return new Set(rows.map((r) => `${r.external_id}::${r.finish}`));
+}
+
+/**
+ * Load existing source→printing mappings and build snapshot rows from staging data.
+ * Logs snapshot count when snapshots are produced.
+ * @returns Snapshot rows ready for upsert.
+ */
+export async function buildMappedSnapshots(
+  db: Kysely<Database>,
+  log: Logger,
+  config: PriceUpsertConfig,
+  allStaging: StagingRow[],
+): Promise<SnapshotData[]> {
+  // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
+  const existingSources: { printing_id: string; external_id: number; finish: string }[] = await (
+    db.selectFrom(`${config.tables.sources} as src`) as any
+  )
+    .innerJoin("printings as p", "p.id", "src.printing_id")
+    .select(["src.printing_id", "src.external_id", "p.finish"])
+    .execute();
+
+  const snapshots = buildSnapshotsFromStaging(existingSources, allStaging, config.priceColumns);
+
+  if (snapshots.length > 0) {
+    log.info(`${snapshots.length} snapshots for ${existingSources.length} mapped sources`);
+  }
+
+  return snapshots;
+}
+
+/**
+ * Log a standardized fetch summary line for a price refresh.
+ */
+export function logFetchSummary(
+  log: Logger,
+  groupLabel: string,
+  counts: PriceRefreshResult["fetched"],
+  ignoredCount: number,
+): void {
+  const ignoredSuffix = ignoredCount > 0 ? `, ${ignoredCount} ignored` : "";
+  log.info(
+    `Fetched: ${counts.groups} ${groupLabel} (${counts.mapped} mapped, ${counts.unmapped} unmapped), ${counts.products} products, ${counts.prices} prices${ignoredSuffix}`,
+  );
+}
+
 // ── Reference data ─────────────────────────────────────────────────────────
 
 export interface ReferenceData {

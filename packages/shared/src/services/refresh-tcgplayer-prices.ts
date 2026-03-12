@@ -13,8 +13,10 @@ import type { Database } from "../db/types.js";
 import type { Logger } from "../logger.js";
 import { groupIntoMap } from "../utils.js";
 import {
-  buildSnapshotsFromStaging,
+  buildMappedSnapshots,
   fetchJson,
+  loadIgnoredKeys,
+  logFetchSummary,
   logUpsertCounts,
   toCents,
   upsertPriceData,
@@ -84,13 +86,7 @@ export async function refreshTcgplayerPrices(
   db: Kysely<Database>,
   log: Logger,
 ): Promise<PriceRefreshResult> {
-  // ── Load ignored products ────────────────────────────────────────────────
-
-  const ignoredRows = await db
-    .selectFrom("tcgplayer_ignored_products")
-    .select(["external_id", "finish"])
-    .execute();
-  const ignoredKeys = new Set(ignoredRows.map((r) => `${r.external_id}::${r.finish}`));
+  const ignoredKeys = await loadIgnoredKeys(db, "tcgplayer_ignored_products");
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
@@ -202,40 +198,19 @@ export async function refreshTcgplayerPrices(
 
   // ── Upsert ──────────────────────────────────────────────────────────────────
 
-  const ignoredSuffix = ignoredKeys.size > 0 ? `, ${ignoredKeys.size} ignored` : "";
-  log.info(
-    `Fetched: ${groups.length} groups (${mappedCount} mapped, ${unmappedCount} unmapped), ${totalProducts} products, ${allStaging.length} prices${ignoredSuffix}`,
-  );
+  const fetchedCounts = {
+    groups: groups.length,
+    mapped: mappedCount,
+    unmapped: unmappedCount,
+    products: totalProducts,
+    prices: allStaging.length,
+  };
 
-  // Build snapshots for already-mapped products so prices stay current
-  const existingSources = await db
-    .selectFrom("tcgplayer_sources as ts")
-    .innerJoin("printings as p", "p.id", "ts.printing_id")
-    .select(["ts.printing_id", "ts.external_id", "p.finish"])
-    .execute();
+  logFetchSummary(log, "groups", fetchedCounts, ignoredKeys.size);
 
-  const allSnapshots = buildSnapshotsFromStaging(
-    existingSources,
-    allStaging,
-    UPSERT_CONFIG.priceColumns,
-  );
-
-  if (allSnapshots.length > 0) {
-    log.info(`${allSnapshots.length} snapshots for ${existingSources.length} mapped sources`);
-  }
-
+  const allSnapshots = await buildMappedSnapshots(db, log, UPSERT_CONFIG, allStaging);
   const counts = await upsertPriceData(db, UPSERT_CONFIG, [], allSnapshots, allStaging);
-
   logUpsertCounts(log, counts);
 
-  return {
-    fetched: {
-      groups: groups.length,
-      mapped: mappedCount,
-      unmapped: unmappedCount,
-      products: totalProducts,
-      prices: allStaging.length,
-    },
-    upserted: counts,
-  };
+  return { fetched: fetchedCounts, upserted: counts };
 }
