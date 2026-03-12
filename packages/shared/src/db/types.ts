@@ -394,7 +394,7 @@ export interface CardSourcesTable {
   energy: number | null;
   power: number | null;
   might_bonus: number | null;
-  rules_text: string;
+  rules_text: string | null;
   effect_text: string;
   tags: Unchecked<string>[];
   source_id: string | null;
@@ -414,13 +414,13 @@ export interface PrintingSourcesTable {
   set_name: string | null;
   collector_number: number;
   rarity: string;
-  art_variant: string;
+  art_variant: string | null;
   is_signed: boolean;
   is_promo: boolean;
   finish: string;
-  artist: string;
+  artist: string | null;
   public_code: string;
-  printed_rules_text: string;
+  printed_rules_text: string | null;
   printed_effect_text: string;
   image_url: string | null;
   flavor_text: string;

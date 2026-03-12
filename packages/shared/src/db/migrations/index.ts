@@ -23,6 +23,7 @@ import * as m017 from "./017-drop-group-set-ids.js";
 import * as m018 from "./018-card-sources.js";
 import * as m019 from "./019-schema-tweaks.js";
 import * as m020 from "./020-cascade-fks.js";
+import * as m021 from "./021-nullable-art-variant.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -45,4 +46,5 @@ export const migrations: Record<string, Migration> = {
   "018-card-sources": m018,
   "019-schema-tweaks": m019,
   "020-cascade-fks": m020,
+  "021-nullable-art-variant": m021,
 };
