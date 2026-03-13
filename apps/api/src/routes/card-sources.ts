@@ -1362,6 +1362,7 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/activate", async (
       "printing_images.printing_id",
       "printing_images.face",
       "printing_images.rehosted_url",
+      "printings.slug as printing_slug",
       "sets.slug as set_slug",
     ])
     .where("printing_images.id", "=", imageId)
@@ -1371,7 +1372,7 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/activate", async (
     throw new AppError(404, "NOT_FOUND", "Printing image not found");
   }
 
-  const baseFileBase = printingIdToFileBase(image.printing_id);
+  const baseFileBase = printingIdToFileBase(image.printing_slug);
   const mainPath = `/card-images/${image.set_slug}/${baseFileBase}`;
 
   // Find the currently active image (if any) for file rename purposes
@@ -1477,6 +1478,7 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/rehost", async (c)
       "printing_images.printing_id",
       "printing_images.original_url",
       "printing_images.is_active",
+      "printings.slug as printing_slug",
       "sets.slug as set_slug",
     ])
     .where("printing_images.id", "=", imageId)
@@ -1491,7 +1493,7 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/rehost", async (c)
   }
 
   const { buffer, ext } = await downloadImage(image.original_url);
-  const baseFileBase = printingIdToFileBase(image.printing_id);
+  const baseFileBase = printingIdToFileBase(image.printing_slug);
   const fileBase = image.is_active ? baseFileBase : `${baseFileBase}-${image.id}`;
   const outputDir = join(CARD_IMAGES_DIR, image.set_slug);
 

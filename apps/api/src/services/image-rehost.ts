@@ -164,7 +164,12 @@ export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress
     .selectFrom("printing_images as pi")
     .innerJoin("printings as p", "p.id", "pi.printing_id")
     .innerJoin("sets as s", "s.id", "p.set_id")
-    .select(["pi.id as image_id", "pi.printing_id", "pi.original_url", "s.slug as set_slug"])
+    .select([
+      "pi.id as image_id",
+      "p.slug as printing_slug",
+      "pi.original_url",
+      "s.slug as set_slug",
+    ])
     .where("pi.is_active", "=", true)
     .where("pi.face", "=", "front")
     .where("pi.rehosted_url", "is", null)
@@ -188,7 +193,7 @@ export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress
 
     try {
       const { buffer, ext } = await downloadImage(img.original_url);
-      const fileBase = printingIdToFileBase(img.printing_id);
+      const fileBase = printingIdToFileBase(img.printing_slug);
       const outputDir = join(CARD_IMAGES_DIR, img.set_slug);
 
       await processAndSave(buffer, ext, outputDir, fileBase);
@@ -205,8 +210,8 @@ export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress
     } catch (error) {
       progress.failed++;
       const message = error instanceof Error ? error.message : String(error);
-      progress.errors.push(`${img.printing_id}: ${message}`);
-      console.error(`[rehost] Failed for ${img.printing_id}:`, message);
+      progress.errors.push(`${img.printing_slug}: ${message}`);
+      console.error(`[rehost] Failed for ${img.printing_slug}:`, message);
     }
   }
 
