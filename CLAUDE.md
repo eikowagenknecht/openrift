@@ -87,7 +87,7 @@ rm .claude-locks/*.lock 2>/dev/null
 - Always check before editing. Never skip this.
 - If you need a file that's locked, don't ask the user — just recheck the lock every 60 seconds until it clears, then proceed. Mention once that you're waiting.
 - Lock files older than 5 minutes can be assumed stale and overwritten. If your task takes longer, re-touch the lock file periodically to keep it fresh.
-- Never `git stash` or discard changes in files you don't own.
+- Never `git stash` or discard changes in files you don't own or where another agent is working on. This can cause data loss!
 - **Scoped lint/test:** When other agents may be working in parallel, do NOT run `bun lint` or `bun run test` globally — it will pick up other agents' incomplete work and fail. Instead, lint and test only the files you touched:
 
 ```bash
