@@ -2,6 +2,7 @@ import type { SourceStats } from "@openrift/shared";
 import {
   CheckIcon,
   ChevronsUpDownIcon,
+  DownloadIcon,
   LoaderIcon,
   Trash2Icon,
   UploadIcon,
@@ -276,10 +277,75 @@ export function CardSourceUploadPage() {
           )}
         </CardContent>
       </Card>
+      <ExportCardsCard />
       {sourceNames && sourceNames.length > 0 && (
         <ManageSourcesCard sourceNames={sourceNames} sourceStats={sourceStats} />
       )}
     </div>
+  );
+}
+
+function ExportCardsCard() {
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleExport() {
+    setExporting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/card-sources/export", { credentials: "include" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          (body as { error?: string } | null)?.error ?? `Export failed: ${res.status}`,
+        );
+      }
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cards-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DownloadIcon className="size-5 shrink-0" />
+          Export Cards
+        </CardTitle>
+        <CardDescription>
+          Download all active cards and printings as a JSON file in the same format used for
+          uploads.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button disabled={exporting} onClick={handleExport}>
+          {exporting ? (
+            <>
+              <LoaderIcon className="size-4 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            "Export All Cards"
+          )}
+        </Button>
+        {error && (
+          <p className="mt-2 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {error}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
