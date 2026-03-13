@@ -1630,7 +1630,7 @@ cardSourcesRoute.post("/card-sources/upload", async (c) => {
       name: candidate.card.name as string,
       type: candidate.card.type as string,
       super_types: (candidate.card.super_types as string[]) ?? [],
-      domains: candidate.card.domains as string[],
+      domains: (candidate.card.domains as string[]) ?? [],
       might: candidate.card.might as number | null,
       energy: candidate.card.energy as number | null,
       power: candidate.card.power as number | null,
