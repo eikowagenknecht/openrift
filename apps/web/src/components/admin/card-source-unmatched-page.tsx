@@ -1,7 +1,7 @@
 import type { CardSource, PrintingSource } from "@openrift/shared";
 import { comparePrintings } from "@openrift/shared";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowRightIcon, LinkIcon, PlusIcon } from "lucide-react";
+import { ArrowRightIcon, LinkIcon, PlusIcon, RocketIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
@@ -203,6 +203,43 @@ export function CardSourceUnmatchedPage() {
             );
           }}
           onCheck={(sourceId) => checkCardSource.mutate(sourceId)}
+          columnActions={(row) => (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 hover:text-primary [&>svg]:transition-transform [&>svg]:hover:scale-125"
+              title="Accept all fields, create card, and mark checked"
+              disabled={!cardId.trim() || acceptNewCard.isPending}
+              onClick={() => {
+                const record = row as unknown as Record<string, unknown>;
+                const values: Record<string, unknown> = {};
+                for (const field of CARD_SOURCE_FIELDS) {
+                  if (field.readOnly) {
+                    continue;
+                  }
+                  const val = record[field.key];
+                  if (val !== null && val !== undefined && val !== "") {
+                    values[field.key] = val;
+                  }
+                }
+                if (!values.name || !values.type || !values.domains) {
+                  return;
+                }
+                const id = cardId.trim();
+                acceptNewCard.mutate(
+                  { name: decodedName, cardFields: { id, ...values } },
+                  {
+                    onSuccess: () => {
+                      checkCardSource.mutate(row.id);
+                      void navigate({ to: "/admin/cards/$cardId", params: { cardId: id } });
+                    },
+                  },
+                );
+              }}
+            >
+              <RocketIcon className="size-3.5" />
+            </Button>
+          )}
         />
       </section>
 

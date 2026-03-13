@@ -20,7 +20,8 @@ type UpdatedAt = ColumnType<Date, Date | undefined, Date>;
 // ─── Card data ───────────────────────────────────────────────────────────────
 
 export interface SetsTable {
-  id: string;
+  id: Generated<string>;
+  slug: string;
   name: string;
   printed_total: number;
   sort_order: number;
@@ -32,10 +33,11 @@ export interface SetsTable {
 /**
  * Game card — unique by game identity (name + rules).
  *
- * The `id` is the base printing's source ID (e.g. "OGN-027").
+ * The `slug` is the base printing's source ID (e.g. "OGN-027").
  */
 export interface CardsTable {
-  id: string;
+  id: Generated<string>;
+  slug: string;
   name: string;
   type: CardType;
   super_types: Unchecked<SuperType>[];
@@ -55,10 +57,11 @@ export interface CardsTable {
 /**
  * Physical printing of a game card.
  *
- * The `id` is a composite key: "{source_id}:{art_variant}:{signed|}:{promo|}:{finish}".
+ * The `slug` is a composite key: "{source_id}:{art_variant}:{signed|}:{promo|}:{finish}".
  */
 export interface PrintingsTable {
-  id: string;
+  id: Generated<string>;
+  slug: string;
   card_id: string;
   set_id: string;
   source_id: string;

@@ -37,26 +37,34 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
   let db: Kysely<Database>;
   let teardown: () => Promise<void>;
 
-  // Seed IDs
-  const setId = "INT";
-  const cardId = "INT-001";
-  const printingId = "INT-001:normal:::normal";
-  const printingId2 = "INT-001:normal:::foil";
+  // Seed slugs (human-readable) — UUIDs are auto-generated
+  const setSlug = "INT";
+  const cardSlug = "INT-001";
+  const printingSlug = "INT-001:normal:::normal";
+  const printingSlug2 = "INT-001:normal:::foil";
+
+  // UUIDs populated by beforeAll after INSERT ... RETURNING
+  let setId: string;
+  let cardId: string;
+  let printingId: string;
+  let printingId2: string;
 
   beforeAll(async () => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by describe.skipIf
     ({ db, teardown } = await setupTestDb(DATABASE_URL!));
 
     // Seed reference data: set → card → printings
-    await db
+    const insertedSet = await db
       .insertInto("sets")
-      .values({ id: setId, name: "Integration Set", printed_total: 100, sort_order: 1 })
-      .execute();
+      .values({ slug: setSlug, name: "Integration Set", printed_total: 100, sort_order: 1 })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    setId = insertedSet.id;
 
-    await db
+    const insertedCard = await db
       .insertInto("cards")
       .values({
-        id: cardId,
+        slug: cardSlug,
         name: "Test Card",
         type: "Unit",
         super_types: [],
@@ -70,7 +78,9 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         effect_text: "",
         tags: [],
       })
-      .execute();
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    cardId = insertedCard.id;
 
     // Seed group for cardmarket marketplace
     await db
@@ -78,11 +88,11 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
       .values({ marketplace: "cardmarket", group_id: 1, name: "Test Expansion" })
       .execute();
 
-    await db
+    const insertedPrintings = await db
       .insertInto("printings")
       .values([
         {
-          id: printingId,
+          slug: printingSlug,
           card_id: cardId,
           set_id: setId,
           source_id: "INT-001",
@@ -99,7 +109,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           flavor_text: "",
         },
         {
-          id: printingId2,
+          slug: printingSlug2,
           card_id: cardId,
           set_id: setId,
           source_id: "INT-001",
@@ -116,7 +126,10 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           flavor_text: "",
         },
       ])
+      .returning("id")
       .execute();
+    printingId = insertedPrintings[0].id;
+    printingId2 = insertedPrintings[1].id;
   });
 
   afterAll(async () => {

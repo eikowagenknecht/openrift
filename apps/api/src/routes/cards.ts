@@ -56,9 +56,9 @@ cardsRoute.get("/cards", async (c) => {
   const sets = await db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
 
   const rows = await selectPrintingWithCard(db)
+    .innerJoin("sets as s", "s.id", "p.set_id")
     .select([
-      "p.id as printing_id",
-      "p.card_id",
+      "p.slug as printing_slug",
       "p.set_id",
       "p.source_id",
       "p.collector_number",
@@ -73,6 +73,7 @@ cardsRoute.get("/cards", async (c) => {
       "p.printed_rules_text",
       "p.printed_effect_text",
       "p.flavor_text",
+      "c.slug as card_slug",
       "c.name",
       "c.type",
       "c.super_types",
@@ -85,6 +86,7 @@ cardsRoute.get("/cards", async (c) => {
       "c.rules_text",
       "c.effect_text",
       "c.tags",
+      "s.slug as set_slug",
     ])
     .orderBy("p.set_id")
     .orderBy("p.collector_number")
@@ -95,7 +97,7 @@ cardsRoute.get("/cards", async (c) => {
   for (const row of rows) {
     const images: PrintingImage[] = row.image_url ? [{ face: "front", url: row.image_url }] : [];
     const card: Card = {
-      id: row.card_id,
+      id: row.card_slug,
       name: row.name,
       type: row.type as CardType,
       superTypes: row.super_types as SuperType[],
@@ -112,9 +114,9 @@ cardsRoute.get("/cards", async (c) => {
       effect: row.effect_text ?? "",
     };
     const printing: Printing = {
-      id: row.printing_id,
+      id: row.printing_slug,
       sourceId: row.source_id,
-      set: row.set_id,
+      set: row.set_slug,
       collectorNumber: row.collector_number,
       rarity: row.rarity as Rarity,
       artVariant: row.art_variant as ArtVariant,
@@ -133,16 +135,16 @@ cardsRoute.get("/cards", async (c) => {
       ...(row.flavor_text && { flavorText: row.flavor_text }),
       card,
     };
-    const list = printingsBySet.get(row.set_id) ?? [];
+    const list = printingsBySet.get(row.set_slug) ?? [];
     list.push(printing);
-    printingsBySet.set(row.set_id, list);
+    printingsBySet.set(row.set_slug, list);
   }
 
   const contentSets: ContentSet[] = sets.map((s) => ({
-    id: s.id,
+    id: s.slug,
     name: s.name,
     printedTotal: s.printed_total,
-    printings: printingsBySet.get(s.id) ?? [],
+    printings: printingsBySet.get(s.slug) ?? [],
   }));
 
   const content: RiftboundContent = {
@@ -161,9 +163,10 @@ cardsRoute.get("/prices", async (c) => {
   const rows = await db
     .selectFrom("marketplace_sources as ps")
     .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
+    .innerJoin("printings as p", "p.id", "ps.printing_id")
     .where("ps.marketplace", "=", "tcgplayer")
     .distinctOn("ps.id")
-    .select(["ps.printing_id", "snap.market_cents"])
+    .select(["p.slug as printing_slug", "snap.market_cents"])
     .orderBy("ps.id")
     .orderBy("snap.recorded_at", "desc")
     .execute();
@@ -171,7 +174,7 @@ cardsRoute.get("/prices", async (c) => {
   const prices: Record<string, number> = {};
 
   for (const row of rows) {
-    prices[row.printing_id] = row.market_cents / 100;
+    prices[row.printing_slug] = row.market_cents / 100;
   }
 
   return c.json({
@@ -189,16 +192,31 @@ const RANGE_DAYS: Record<TimeRange, number | null> = {
 };
 
 cardsRoute.get("/prices/:printingId/history", async (c) => {
-  const printingId = c.req.param("printingId");
+  const printingSlug = c.req.param("printingId");
   const rangeParam = c.req.query("range") ?? "30d";
   const days = rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam as TimeRange] : RANGE_DAYS["30d"];
   const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
+
+  // Resolve slug → uuid for FK lookup
+  const printing = await db
+    .selectFrom("printings")
+    .select("id")
+    .where("slug", "=", printingSlug)
+    .executeTakeFirst();
+
+  if (!printing) {
+    return c.json({
+      printingId: printingSlug,
+      tcgplayer: { available: false, currency: "USD", productId: null, snapshots: [] },
+      cardmarket: { available: false, currency: "EUR", productId: null, snapshots: [] },
+    });
+  }
 
   // Look up sources from unified table
   const sources = await db
     .selectFrom("marketplace_sources")
     .select(["id", "external_id", "marketplace"])
-    .where("printing_id", "=", printingId)
+    .where("printing_id", "=", printing.id)
     .execute();
 
   const tcgSource = sources.find((s) => s.marketplace === "tcgplayer");
@@ -227,7 +245,7 @@ cardsRoute.get("/prices/:printingId/history", async (c) => {
     : [];
 
   const response: PriceHistoryResponse = {
-    printingId,
+    printingId: printingSlug,
     tcgplayer: {
       available: Boolean(tcgSource),
       currency: "USD",

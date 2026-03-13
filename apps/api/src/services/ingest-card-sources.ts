@@ -267,9 +267,9 @@ export async function ingestCardSources(
             const exists = await trx
               .selectFrom("printings")
               .select("id")
-              .where("id", "=", printingId)
+              .where("slug", "=", printingId)
               .executeTakeFirst();
-            resolvedPrintingId = exists ? printingId : null;
+            resolvedPrintingId = exists ? exists.id : null;
           }
 
           // Find existing printing_source

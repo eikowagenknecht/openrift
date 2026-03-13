@@ -38,11 +38,11 @@ const sqlNormName = (col: string) =>
 cardSourcesRoute.get("/card-sources/all-cards", async (c) => {
   const rows = await db
     .selectFrom("cards")
-    .select(["id", "name", "type"])
+    .select(["slug", "name", "type"])
     .orderBy("name")
     .execute();
 
-  return c.json(rows.map((r) => ({ id: r.id, name: r.name, type: r.type })));
+  return c.json(rows.map((r) => ({ id: r.slug, name: r.name, type: r.type })));
 });
 
 // ── GET /card-sources/source-names ────────────────────────────────────────────
@@ -96,13 +96,15 @@ cardSourcesRoute.get("/card-sources", async (c) => {
   let query = db
     .selectFrom("card_sources as cs")
     .leftJoin("printing_sources as ps", "ps.card_source_id", "cs.id")
+    .leftJoin("sets as s", "s.slug", "ps.set_id")
     .leftJoin("cards as c", "c.id", "cs.card_id")
     // raw sql: could use fn.count(eb.case()...).distinct() but the sql`` form is
     // much more readable for these multi-condition conditional aggregates
     .select([
-      sql<string | null>`max(cs.card_id)`.as("card_id"),
+      sql<string | null>`max(cs.card_id::text)`.as("card_id"),
+      sql<string | null>`max(c.slug)`.as("card_slug"),
       sql<string>`COALESCE(max(c.name), min(cs.name))`.as("name"),
-      sql<string>`COALESCE(cs.card_id, ${sqlNormName("cs.name")})`.as("groupKey"),
+      sql<string>`COALESCE(cs.card_id::text, ${sqlNormName("cs.name")})`.as("groupKey"),
       sql<number>`count(DISTINCT cs.id)`.as("sourceCount"),
       sql<number>`count(DISTINCT CASE WHEN cs.checked_at IS NULL THEN cs.id END)`.as(
         "uncheckedCardCount",
@@ -111,8 +113,22 @@ cardSourcesRoute.get("/card-sources", async (c) => {
         "uncheckedPrintingCount",
       ),
       sql<boolean>`bool_or(cs.source = 'gallery')`.as("hasGallery"),
+      // Sort key: pick source_id from the "primary" printing (earliest-released set).
+      // Priority: sets with release date (by date) → sets without date (by slug) → unknown sets (by slug)
+      sql<string | null>`min(ps.source_id) FILTER (WHERE s.released_at IS NOT NULL)`.as(
+        "releasedSourceId",
+      ),
+      sql<string | null>`min(s.released_at::text) FILTER (WHERE s.released_at IS NOT NULL)`.as(
+        "minReleasedAt",
+      ),
+      sql<
+        string | null
+      >`min(ps.source_id) FILTER (WHERE s.id IS NOT NULL AND s.released_at IS NULL)`.as(
+        "knownSetSourceId",
+      ),
+      sql<string | null>`min(ps.source_id) FILTER (WHERE s.id IS NULL)`.as("unknownSetSourceId"),
     ])
-    .groupBy(sql`COALESCE(cs.card_id, ${sqlNormName("cs.name")})`);
+    .groupBy(sql`COALESCE(cs.card_id::text, ${sqlNormName("cs.name")})`);
 
   if (source) {
     // Only include cards that have at least one card_source from this source.
@@ -125,7 +141,7 @@ cardSourcesRoute.get("/card-sources", async (c) => {
           .select(sql.lit(1).as("x"))
           .where("cs2.source", "=", source)
           .where(
-            sql<SqlBool>`COALESCE(cs2.card_id, ${sqlNormName("cs2.name")}) = COALESCE(cs.card_id, ${sqlNormName("cs.name")})`,
+            sql<SqlBool>`COALESCE(cs2.card_id::text, ${sqlNormName("cs2.name")}) = COALESCE(cs.card_id::text, ${sqlNormName("cs.name")})`,
           ),
       ),
     );
@@ -143,12 +159,7 @@ cardSourcesRoute.get("/card-sources", async (c) => {
     query = query.where("cs.card_id", "is", null);
   }
 
-  // Sort matched cards by card_id (like marketplace), unmatched by name at the end
-  const rows = await query
-    .orderBy(sql`max(cs.card_id) IS NULL`)
-    .orderBy(sql`max(cs.card_id)`)
-    .orderBy(sql`min(cs.name)`)
-    .execute();
+  const rows = await query.execute();
 
   // Include cards that have no card_sources (unless filtering for unmatched/source)
   type ResultRow = (typeof rows)[number] & { _fromCard?: boolean };
@@ -158,7 +169,7 @@ cardSourcesRoute.get("/card-sources", async (c) => {
     const cardIdsWithSources = new Set(
       rows.filter((r) => r.card_id).map((r) => r.card_id as string),
     );
-    let orphanQuery = db.selectFrom("cards as c").select(["c.id", "c.name"]).orderBy("c.id");
+    let orphanQuery = db.selectFrom("cards as c").select(["c.id", "c.slug", "c.name"]);
     if (cardIdsWithSources.size > 0) {
       orphanQuery = orphanQuery.where("c.id", "not in", [...cardIdsWithSources]);
     }
@@ -167,29 +178,74 @@ cardSourcesRoute.get("/card-sources", async (c) => {
     for (const oc of orphanCards) {
       allRows.push({
         card_id: oc.id,
+        card_slug: oc.slug,
         name: oc.name,
         groupKey: oc.id,
         sourceCount: 0 as unknown as number,
         uncheckedCardCount: 0 as unknown as number,
         uncheckedPrintingCount: 0 as unknown as number,
         hasGallery: false as unknown as boolean,
+        releasedSourceId: null as unknown as string | null,
+        minReleasedAt: null as unknown as string | null,
+        knownSetSourceId: null as unknown as string | null,
+        unknownSetSourceId: null as unknown as string | null,
         _fromCard: true,
       });
     }
 
-    // Re-sort: matched cards by card_id, unmatched by name at the end
-    allRows.sort((a, b) => {
-      const aMatched = a.card_id === null ? 1 : 0;
-      const bMatched = b.card_id === null ? 1 : 0;
-      if (aMatched !== bMatched) {
-        return aMatched - bMatched;
+    // Fetch set release info for orphan cards via their printings
+    const orphanIds = orphanCards.map((oc) => oc.id);
+    if (orphanIds.length > 0) {
+      const orphanPrintings = await db
+        .selectFrom("printings as p")
+        .innerJoin("sets as s", "s.id", "p.set_id")
+        .select(["p.card_id", "p.slug as source_id", "s.released_at"])
+        .where("p.card_id", "in", orphanIds)
+        .execute();
+      for (const op of orphanPrintings) {
+        const row = allRows.find((r) => r.card_id === op.card_id && r._fromCard);
+        if (!row) {
+          continue;
+        }
+        const relDate = op.released_at ? String(op.released_at) : null;
+        if (relDate) {
+          if (!row.releasedSourceId || op.source_id < row.releasedSourceId) {
+            row.releasedSourceId = op.source_id as string | null;
+          }
+          if (!row.minReleasedAt || relDate < row.minReleasedAt) {
+            row.minReleasedAt = relDate as string | null;
+          }
+        } else {
+          if (!row.knownSetSourceId || op.source_id < (row.knownSetSourceId as string)) {
+            row.knownSetSourceId = op.source_id as string | null;
+          }
+        }
       }
-      if (a.card_id && b.card_id) {
-        return a.card_id.localeCompare(b.card_id);
-      }
-      return String(a.name).localeCompare(String(b.name));
-    });
+    }
   }
+
+  // Sort by primary printing: released sets (by date, then source ID) → known sets → unknown sets → name
+  allRows.sort((a, b) => {
+    function sortKey(r: (typeof allRows)[number]): [number, string, string] {
+      // Tier 0: has a released set — sort by release date then source ID
+      if (r.releasedSourceId) {
+        return [0, r.minReleasedAt ?? "", r.releasedSourceId];
+      }
+      // Tier 1: set exists but no release date — sort by source ID
+      if (r.knownSetSourceId) {
+        return [1, "", r.knownSetSourceId];
+      }
+      // Tier 2: unknown set — sort by source ID
+      if (r.unknownSetSourceId) {
+        return [2, "", r.unknownSetSourceId];
+      }
+      // Tier 3: no printing sources at all — sort by slug or name
+      return [3, "", r.card_slug ?? String(r.name)];
+    }
+    const aKey = sortKey(a);
+    const bKey = sortKey(b);
+    return aKey[0] - bKey[0] || aKey[1].localeCompare(bKey[1]) || aKey[2].localeCompare(bKey[2]);
+  });
 
   // Compute dynamic match suggestions for unmatched groups
   const unmatchedNormNames = allRows.filter((r) => !r.card_id).map((r) => r.groupKey as string);
@@ -198,11 +254,11 @@ cardSourcesRoute.get("/card-sources", async (c) => {
   if (unmatchedNormNames.length > 0) {
     const suggestions = await db
       .selectFrom("cards as c")
-      .select(["c.id", "c.name", sqlNormName("c.name").as("norm")])
+      .select(["c.slug", "c.name", sqlNormName("c.name").as("norm")])
       .where(sqlNormName("c.name"), "in", unmatchedNormNames)
       .execute();
     for (const s of suggestions) {
-      suggestionMap.set(s.norm as string, { id: s.id, name: s.name });
+      suggestionMap.set(s.norm as string, { id: s.slug, name: s.name });
     }
 
     // Also check aliases for matches not covered by direct card name
@@ -211,12 +267,12 @@ cardSourcesRoute.get("/card-sources", async (c) => {
       const aliasSuggestions = await db
         .selectFrom("card_name_aliases as cna")
         .innerJoin("cards as c", "c.id", "cna.card_id")
-        .select(["c.id", "c.name", sqlNormName("cna.alias").as("norm")])
+        .select(["c.slug", "c.name", sqlNormName("cna.alias").as("norm")])
         .where(sqlNormName("cna.alias"), "in", missingNorms)
         .execute();
       for (const s of aliasSuggestions) {
         if (!suggestionMap.has(s.norm as string)) {
-          suggestionMap.set(s.norm as string, { id: s.id, name: s.name });
+          suggestionMap.set(s.norm as string, { id: s.slug, name: s.name });
         }
       }
     }
@@ -244,12 +300,38 @@ cardSourcesRoute.get("/card-sources", async (c) => {
     }
   }
 
+  // Load printing source IDs for unmatched cards (from printing_sources via card_sources)
+  const unmatchedGroupKeys = allRows.filter((r) => !r.card_id).map((r) => r.groupKey as string);
+  const pendingSourceIdsMap = new Map<string, string[]>();
+  if (unmatchedGroupKeys.length > 0) {
+    const pendingRows = await db
+      .selectFrom("printing_sources as ps")
+      .innerJoin("card_sources as cs", "cs.id", "ps.card_source_id")
+      .select([sqlNormName("cs.name").as("norm"), "ps.source_id"])
+      .where("cs.card_id", "is", null)
+      .where(sqlNormName("cs.name"), "in", unmatchedGroupKeys)
+      .orderBy("ps.source_id")
+      .execute();
+    for (const pr of pendingRows) {
+      const norm = pr.norm as string;
+      const existing = pendingSourceIdsMap.get(norm);
+      if (existing) {
+        if (!existing.includes(pr.source_id)) {
+          existing.push(pr.source_id);
+        }
+      } else {
+        pendingSourceIdsMap.set(norm, [pr.source_id]);
+      }
+    }
+  }
+
   return c.json(
     allRows.map((r) => ({
-      cardId: r.card_id,
+      cardId: r.card_slug ?? null,
       name: r.name,
       normalizedName: r.card_id ? normalizeNameForMatching(String(r.name)) : r.groupKey,
       sourceIds: r.card_id ? (printingSourceIdsMap.get(r.card_id as string) ?? []) : [],
+      pendingSourceIds: r.card_id ? [] : (pendingSourceIdsMap.get(r.groupKey as string) ?? []),
       sourceCount: Number(r.sourceCount),
       uncheckedCardCount: Number(r.uncheckedCardCount),
       uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
@@ -275,6 +357,7 @@ cardSourcesRoute.get("/card-sources/export", async (c) => {
     )
     .selectAll("printings")
     .select([
+      "sets.slug as set_slug",
       "sets.name as set_name",
       "printing_images.rehosted_url",
       "printing_images.original_url",
@@ -305,13 +388,13 @@ cardSourcesRoute.get("/card-sources/export", async (c) => {
       rules_text: card.rules_text ?? "",
       effect_text: card.effect_text ?? "",
       tags: card.tags,
-      source_id: card.id,
+      source_id: card.slug,
       source_entity_id: null,
       extra_data: null,
     },
     printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
       source_id: p.source_id,
-      set_id: p.set_id,
+      set_id: p.set_slug,
       set_name: p.set_name,
       collector_number: p.collector_number,
       rarity: p.rarity,
@@ -335,9 +418,13 @@ cardSourcesRoute.get("/card-sources/export", async (c) => {
 // ── GET /card-sources/:cardId ────────────────────────────────────────────────
 // Detail: active card + all card_sources + printings + printing_sources
 cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
-  const { cardId } = c.req.param();
+  const cardSlug = c.req.param("cardId");
 
-  const card = await db.selectFrom("cards").selectAll().where("id", "=", cardId).executeTakeFirst();
+  const card = await db
+    .selectFrom("cards")
+    .selectAll()
+    .where("slug", "=", cardSlug)
+    .executeTakeFirst();
 
   if (!card) {
     throw new AppError(404, "NOT_FOUND", "Card not found");
@@ -346,14 +433,14 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
   const sources = await db
     .selectFrom("card_sources")
     .selectAll()
-    .where("card_id", "=", cardId)
+    .where("card_id", "=", card.id)
     .orderBy("source")
     .execute();
 
   const printings = await db
     .selectFrom("printings")
     .selectAll()
-    .where("card_id", "=", cardId)
+    .where("card_id", "=", card.id)
     .execute();
 
   const sourceIds = sources.map((s) => s.id);
@@ -377,9 +464,23 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
           .execute()
       : [];
 
+  // Build set UUID → slug map for printings response
+  const setIds = [...new Set(printings.map((p) => p.set_id))];
+  const setSlugMap = new Map<string, string>();
+  if (setIds.length > 0) {
+    const setRows = await db
+      .selectFrom("sets")
+      .select(["id", "slug"])
+      .where("id", "in", setIds)
+      .execute();
+    for (const s of setRows) {
+      setSlugMap.set(s.id, s.slug);
+    }
+  }
+
   return c.json({
     card: {
-      id: card.id,
+      id: card.slug,
       name: card.name,
       type: card.type,
       superTypes: card.super_types,
@@ -419,9 +520,9 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
       updatedAt: s.updated_at.toISOString(),
     })),
     printings: printings.map((p) => ({
-      id: p.id,
-      cardId: p.card_id,
-      setId: p.set_id,
+      id: p.slug,
+      cardId: card.slug,
+      setId: setSlugMap.get(p.set_id) ?? p.set_id,
       sourceId: p.source_id,
       collectorNumber: p.collector_number,
       rarity: p.rarity,
@@ -612,12 +713,22 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/check", async (c) => {
 // ── POST /card-sources/:cardId/check-all ────────────────────────────────────
 // Mark all card_sources for a given card as checked
 cardSourcesRoute.post("/card-sources/:cardId/check-all", async (c) => {
-  const { cardId } = c.req.param();
+  const cardSlug = c.req.param("cardId");
+
+  // Resolve slug → uuid for FK column lookup
+  const card = await db
+    .selectFrom("cards")
+    .select("id")
+    .where("slug", "=", cardSlug)
+    .executeTakeFirst();
+  if (!card) {
+    throw new AppError(404, "NOT_FOUND", "Card not found");
+  }
 
   const results = await db
     .updateTable("card_sources")
     .set({ checked_at: new Date(), updated_at: new Date() })
-    .where("card_id", "=", cardId)
+    .where("card_id", "=", card.id)
     .where("checked_at", "is", null)
     .execute();
 
@@ -702,8 +813,8 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/copy", async (c) => {
 
   const target = await db
     .selectFrom("printings")
-    .select(["finish", "art_variant", "is_signed", "is_promo"])
-    .where("id", "=", printingId)
+    .select(["id", "finish", "art_variant", "is_signed", "is_promo"])
+    .where("slug", "=", printingId)
     .executeTakeFirst();
 
   if (!target) {
@@ -714,7 +825,7 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/copy", async (c) => {
     .insertInto("printing_sources")
     .values({
       card_source_id: ps.card_source_id,
-      printing_id: printingId,
+      printing_id: target.id,
       source_id: ps.source_id,
       set_id: ps.set_id,
       set_name: ps.set_name,
@@ -750,9 +861,23 @@ cardSourcesRoute.post("/card-sources/printing-sources/link", async (c) => {
     throw new AppError(400, "BAD_REQUEST", "printingSourceIds[] required");
   }
 
+  // Resolve slug → uuid if linking (printingId is null when unlinking)
+  let printingUuid: string | null = null;
+  if (printingId) {
+    const p = await db
+      .selectFrom("printings")
+      .select("id")
+      .where("slug", "=", printingId)
+      .executeTakeFirst();
+    if (!p) {
+      throw new AppError(404, "NOT_FOUND", "Target printing not found");
+    }
+    printingUuid = p.id;
+  }
+
   await db
     .updateTable("printing_sources")
-    .set({ printing_id: printingId, updated_at: new Date() })
+    .set({ printing_id: printingUuid, updated_at: new Date() })
     .where("id", "in", printingSourceIds)
     .execute();
 
@@ -761,7 +886,7 @@ cardSourcesRoute.post("/card-sources/printing-sources/link", async (c) => {
 
 // ── POST /card-sources/:cardId/rename ────────────────────────────────────────
 cardSourcesRoute.post("/card-sources/:cardId/rename", async (c) => {
-  const { cardId } = c.req.param();
+  const cardSlug = c.req.param("cardId");
   const body = await c.req.json();
   const { newId } = body as { newId: string };
 
@@ -769,15 +894,15 @@ cardSourcesRoute.post("/card-sources/:cardId/rename", async (c) => {
     throw new AppError(400, "BAD_REQUEST", "newId is required");
   }
 
-  if (newId === cardId) {
+  if (newId === cardSlug) {
     return c.json({ ok: true });
   }
 
-  // ON UPDATE CASCADE handles all FK references
+  // UUID PK is immutable — only the slug changes
   await db
     .updateTable("cards")
-    .set({ id: newId.trim(), updated_at: new Date() })
-    .where("id", "=", cardId)
+    .set({ slug: newId.trim(), updated_at: new Date() })
+    .where("slug", "=", cardSlug)
     .execute();
 
   return c.json({ ok: true });
@@ -785,7 +910,7 @@ cardSourcesRoute.post("/card-sources/:cardId/rename", async (c) => {
 
 // ── POST /card-sources/:cardId/accept-field ─────────────────────────────────
 cardSourcesRoute.post("/card-sources/:cardId/accept-field", async (c) => {
-  const { cardId } = c.req.param();
+  const cardSlug = c.req.param("cardId");
   const body = await c.req.json();
   const { field, value } = body;
 
@@ -819,7 +944,7 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-field", async (c) => {
     const card = await db
       .selectFrom("cards")
       .select(["rules_text", "effect_text"])
-      .where("id", "=", cardId)
+      .where("slug", "=", cardSlug)
       .executeTakeFirstOrThrow();
     const rulesText = dbField === "rules_text" ? (value as string) : card.rules_text;
     const effectText = dbField === "effect_text" ? (value as string) : card.effect_text;
@@ -829,14 +954,14 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-field", async (c) => {
     ].filter((v, i, a) => a.indexOf(v) === i);
   }
 
-  await db.updateTable("cards").set(updates).where("id", "=", cardId).execute();
+  await db.updateTable("cards").set(updates).where("slug", "=", cardSlug).execute();
 
   return c.json({ ok: true });
 });
 
 // ── POST /card-sources/printing/:printingId/accept-field ────────────────────
 cardSourcesRoute.post("/card-sources/printing/:printingId/accept-field", async (c) => {
-  const { printingId } = c.req.param();
+  const printingSlug = c.req.param("printingId");
   const body = await c.req.json();
   const { field, value } = body;
 
@@ -868,7 +993,7 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/accept-field", async (
   await db
     .updateTable("printings")
     .set({ [dbField]: value, updated_at: new Date() })
-    .where("id", "=", printingId)
+    .where("slug", "=", printingSlug)
     .execute();
 
   return c.json({ ok: true });
@@ -876,7 +1001,7 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/accept-field", async (
 
 // ── POST /card-sources/printing/:printingId/rename ──────────────────────────
 cardSourcesRoute.post("/card-sources/printing/:printingId/rename", async (c) => {
-  const { printingId } = c.req.param();
+  const printingSlug = c.req.param("printingId");
   const body = await c.req.json();
   const { newId } = body as { newId: string };
 
@@ -884,15 +1009,15 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/rename", async (c) => 
     throw new AppError(400, "BAD_REQUEST", "newId is required");
   }
 
-  if (newId === printingId) {
+  if (newId === printingSlug) {
     return c.json({ ok: true });
   }
 
-  // ON UPDATE CASCADE handles all FK references
+  // UUID PK is immutable — only the slug changes
   await db
     .updateTable("printings")
-    .set({ id: newId.trim(), updated_at: new Date() })
-    .where("id", "=", printingId)
+    .set({ slug: newId.trim(), updated_at: new Date() })
+    .where("slug", "=", printingSlug)
     .execute();
 
   return c.json({ ok: true });
@@ -921,17 +1046,17 @@ cardSourcesRoute.post("/card-sources/new/:name/accept", async (c) => {
 cardSourcesRoute.post("/card-sources/new/:name/link", async (c) => {
   const normalizedName = decodeURIComponent(c.req.param("name"));
   const body = await c.req.json();
-  const { cardId } = body;
+  const { cardId: cardSlug } = body;
 
-  if (!cardId) {
+  if (!cardSlug) {
     throw new AppError(400, "BAD_REQUEST", "cardId required");
   }
 
-  // Verify card exists
+  // Verify card exists (resolve slug → uuid)
   const card = await db
     .selectFrom("cards")
     .select("id")
-    .where("id", "=", cardId)
+    .where("slug", "=", cardSlug)
     .executeTakeFirst();
 
   if (!card) {
@@ -939,7 +1064,7 @@ cardSourcesRoute.post("/card-sources/new/:name/link", async (c) => {
   }
 
   await db.transaction().execute(async (trx) => {
-    await linkUnmatchedSources(trx, normalizedName, cardId);
+    await linkUnmatchedSources(trx, normalizedName, card.id);
   });
 
   return c.json({ ok: true });
@@ -948,7 +1073,7 @@ cardSourcesRoute.post("/card-sources/new/:name/link", async (c) => {
 // ── POST /card-sources/:cardId/accept-printing ──────────────────────────────
 // Create a new printing from admin-selected fields, link all sources in the group
 cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
-  const { cardId } = c.req.param();
+  const cardSlug = c.req.param("cardId");
   const body = await c.req.json();
   const { printingFields, printingSourceIds } = body;
 
@@ -956,11 +1081,11 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
     throw new AppError(400, "BAD_REQUEST", "printingFields and printingSourceIds[] required");
   }
 
-  // Verify card exists
+  // Verify card exists (resolve slug → uuid)
   const card = await db
     .selectFrom("cards")
     .select("id")
-    .where("id", "=", cardId)
+    .where("slug", "=", cardSlug)
     .executeTakeFirst();
 
   if (!card) {
@@ -990,12 +1115,22 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
       await upsertSet(trx, printingFields.setId, printingFields.setName ?? printingFields.setId);
     }
 
-    await trx
+    let setUuid = "";
+    if (printingFields.setId) {
+      const setRow = await trx
+        .selectFrom("sets")
+        .select("id")
+        .where("slug", "=", printingFields.setId)
+        .executeTakeFirst();
+      setUuid = setRow?.id ?? "";
+    }
+
+    const inserted = await trx
       .insertInto("printings")
       .values({
-        id: printingId,
-        card_id: cardId,
-        set_id: printingFields.setId ?? "",
+        slug: printingId,
+        card_id: card.id,
+        set_id: setUuid,
         source_id: printingFields.sourceId,
         collector_number: printingFields.collectorNumber ?? 0,
         rarity: printingFields.rarity || "Common",
@@ -1010,7 +1145,7 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
         flavor_text: printingFields.flavorText ?? "",
       })
       .onConflict((oc) =>
-        oc.column("id").doUpdateSet((eb) => ({
+        oc.column("slug").doUpdateSet((eb) => ({
           artist: eb.ref("excluded.artist"),
           public_code: eb.ref("excluded.public_code"),
           printed_rules_text: eb.ref("excluded.printed_rules_text"),
@@ -1018,13 +1153,14 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
           flavor_text: eb.ref("excluded.flavor_text"),
         })),
       )
-      .execute();
+      .returning("id")
+      .executeTakeFirstOrThrow();
 
     // Insert image from the first source
     if (printingFields.imageUrl) {
       await insertPrintingImage(
         trx,
-        printingId,
+        inserted.id,
         printingFields.imageUrl,
         firstPs?.source ?? "import",
       );
@@ -1033,7 +1169,7 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
     // Link all printing_sources in the group
     await trx
       .updateTable("printing_sources")
-      .set({ printing_id: printingId, checked_at: new Date(), updated_at: new Date() })
+      .set({ printing_id: inserted.id, checked_at: new Date(), updated_at: new Date() })
       .where("id", "in", printingSourceIds)
       .execute();
   });
@@ -1084,12 +1220,22 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/accept-new", async (c)
       await upsertSet(trx, ps.set_id, ps.set_name ?? ps.set_id);
     }
 
-    await trx
+    let setUuid = "";
+    if (ps.set_id) {
+      const setRow = await trx
+        .selectFrom("sets")
+        .select("id")
+        .where("slug", "=", ps.set_id)
+        .executeTakeFirst();
+      setUuid = setRow?.id ?? "";
+    }
+
+    const inserted = await trx
       .insertInto("printings")
       .values({
-        id: printingId,
+        slug: printingId,
         card_id: cs.card_id as string,
-        set_id: ps.set_id ?? "",
+        set_id: setUuid,
         source_id: ps.source_id,
         collector_number: ps.collector_number,
         rarity: ps.rarity as Rarity,
@@ -1104,7 +1250,7 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/accept-new", async (c)
         flavor_text: ps.flavor_text,
       })
       .onConflict((oc) =>
-        oc.column("id").doUpdateSet((eb) => ({
+        oc.column("slug").doUpdateSet((eb) => ({
           artist: eb.ref("excluded.artist"),
           public_code: eb.ref("excluded.public_code"),
           printed_rules_text: eb.ref("excluded.printed_rules_text"),
@@ -1112,13 +1258,14 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/accept-new", async (c)
           flavor_text: eb.ref("excluded.flavor_text"),
         })),
       )
-      .execute();
+      .returning("id")
+      .executeTakeFirstOrThrow();
 
-    await insertPrintingImage(trx, printingId, ps.image_url, cs.source);
+    await insertPrintingImage(trx, inserted.id, ps.image_url, cs.source);
 
     await trx
       .updateTable("printing_sources")
-      .set({ printing_id: printingId, checked_at: new Date(), updated_at: new Date() })
+      .set({ printing_id: inserted.id, checked_at: new Date(), updated_at: new Date() })
       .where("id", "=", id)
       .execute();
   });
@@ -1204,12 +1351,13 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/activate", async (
   const image = await db
     .selectFrom("printing_images")
     .innerJoin("printings", "printings.id", "printing_images.printing_id")
+    .innerJoin("sets", "sets.id", "printings.set_id")
     .select([
       "printing_images.id",
       "printing_images.printing_id",
       "printing_images.face",
       "printing_images.rehosted_url",
-      "printings.set_id",
+      "sets.slug as set_slug",
     ])
     .where("printing_images.id", "=", imageId)
     .executeTakeFirst();
@@ -1219,7 +1367,7 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/activate", async (
   }
 
   const baseFileBase = printingIdToFileBase(image.printing_id);
-  const mainPath = `/card-images/${image.set_id}/${baseFileBase}`;
+  const mainPath = `/card-images/${image.set_slug}/${baseFileBase}`;
 
   // Find the currently active image (if any) for file rename purposes
   const currentActive = active
@@ -1318,12 +1466,13 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/rehost", async (c)
   const image = await db
     .selectFrom("printing_images")
     .innerJoin("printings", "printings.id", "printing_images.printing_id")
+    .innerJoin("sets", "sets.id", "printings.set_id")
     .select([
       "printing_images.id",
       "printing_images.printing_id",
       "printing_images.original_url",
       "printing_images.is_active",
-      "printings.set_id",
+      "sets.slug as set_slug",
     ])
     .where("printing_images.id", "=", imageId)
     .executeTakeFirst();
@@ -1339,11 +1488,11 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/rehost", async (c)
   const { buffer, ext } = await downloadImage(image.original_url);
   const baseFileBase = printingIdToFileBase(image.printing_id);
   const fileBase = image.is_active ? baseFileBase : `${baseFileBase}-${image.id}`;
-  const outputDir = join(CARD_IMAGES_DIR, image.set_id);
+  const outputDir = join(CARD_IMAGES_DIR, image.set_slug);
 
   await processAndSave(buffer, ext, outputDir, fileBase);
 
-  const rehostedUrl = `/card-images/${image.set_id}/${fileBase}`;
+  const rehostedUrl = `/card-images/${image.set_slug}/${fileBase}`;
 
   await db
     .updateTable("printing_images")
@@ -1356,18 +1505,27 @@ cardSourcesRoute.post("/card-sources/printing-images/:imageId/rehost", async (c)
 
 // ── POST /card-sources/printing/:printingId/add-image-url ───────────────────
 cardSourcesRoute.post("/card-sources/printing/:printingId/add-image-url", async (c) => {
-  const { printingId } = c.req.param();
+  const printingSlug = c.req.param("printingId");
   const body = await c.req.json<{ url: string; source?: string; mode?: "main" | "additional" }>();
 
   if (!body.url?.trim()) {
     throw new AppError(400, "BAD_REQUEST", "url is required");
   }
 
+  const printing = await db
+    .selectFrom("printings")
+    .select("id")
+    .where("slug", "=", printingSlug)
+    .executeTakeFirst();
+  if (!printing) {
+    throw new AppError(404, "NOT_FOUND", "Printing not found");
+  }
+
   const mode = body.mode ?? "main";
   const source = body.source?.trim() || "manual";
 
   await db.transaction().execute(async (trx) => {
-    await insertPrintingImage(trx, printingId, body.url.trim(), source, mode);
+    await insertPrintingImage(trx, printing.id, body.url.trim(), source, mode);
   });
 
   return c.json({ ok: true });
@@ -1375,12 +1533,13 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/add-image-url", async 
 
 // ── POST /card-sources/printing/:printingId/upload-image ────────────────────
 cardSourcesRoute.post("/card-sources/printing/:printingId/upload-image", async (c) => {
-  const { printingId } = c.req.param();
+  const printingSlug = c.req.param("printingId");
 
   const printing = await db
     .selectFrom("printings")
-    .select("set_id")
-    .where("id", "=", printingId)
+    .innerJoin("sets", "sets.id", "printings.set_id")
+    .select(["printings.id", "sets.slug as set_slug"])
+    .where("printings.slug", "=", printingSlug)
     .executeTakeFirst();
 
   if (!printing) {
@@ -1399,8 +1558,8 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/upload-image", async (
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
-  const baseFileBase = printingIdToFileBase(printingId);
-  const outputDir = join(CARD_IMAGES_DIR, printing.set_id);
+  const baseFileBase = printingIdToFileBase(printingSlug);
+  const outputDir = join(CARD_IMAGES_DIR, printing.set_slug);
 
   // Insert the DB row first so we have the ID for non-main file paths
   const imageRow = await db.transaction().execute(async (trx) => {
@@ -1408,7 +1567,7 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/upload-image", async (
       await trx
         .updateTable("printing_images")
         .set({ is_active: false, updated_at: new Date() })
-        .where("printing_id", "=", printingId)
+        .where("printing_id", "=", printing.id)
         .where("face", "=", "front")
         .where("is_active", "=", true)
         .execute();
@@ -1417,7 +1576,7 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/upload-image", async (
     return trx
       .insertInto("printing_images")
       .values({
-        printing_id: printingId,
+        printing_id: printing.id,
         face: "front",
         source,
         is_active: mode === "main",
@@ -1435,7 +1594,7 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/upload-image", async (
   const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageRow.id}`;
   await processAndSave(buffer, ext, outputDir, fileBase);
 
-  const rehostedUrl = `/card-images/${printing.set_id}/${fileBase}`;
+  const rehostedUrl = `/card-images/${printing.set_slug}/${fileBase}`;
 
   await db
     .updateTable("printing_images")
@@ -1527,13 +1686,13 @@ cardSourcesRoute.delete("/card-sources/by-source/:source", async (c) => {
 /** Upsert a set by ID, inserting it with the next sort_order if it doesn't exist. */
 async function upsertSet(
   trx: Transaction<Database>,
-  setId: string,
+  setSlug: string,
   setName: string,
 ): Promise<void> {
   const existing = await trx
     .selectFrom("sets")
     .select("id")
-    .where("id", "=", setId)
+    .where("slug", "=", setSlug)
     .executeTakeFirst();
 
   if (!existing) {
@@ -1543,7 +1702,7 @@ async function upsertSet(
       .executeTakeFirstOrThrow();
     await trx
       .insertInto("sets")
-      .values({ id: setId, name: setName, printed_total: 0, sort_order: max + 1 })
+      .values({ slug: setSlug, name: setName, printed_total: 0, sort_order: max + 1 })
       .execute();
   }
 }
@@ -1642,10 +1801,10 @@ async function acceptNewCardFromSources(
     ...extractKeywords(cardFields.effectText ?? ""),
   ].filter((v, i, a) => a.indexOf(v) === i);
 
-  await trx
+  const { id: cardUuid } = await trx
     .insertInto("cards")
     .values({
-      id: cardFields.id,
+      slug: cardFields.id,
       name: cardFields.name,
       type: cardFields.type,
       super_types: cardFields.superTypes,
@@ -1659,10 +1818,11 @@ async function acceptNewCardFromSources(
       effect_text: cardFields.effectText,
       tags: cardFields.tags,
     })
-    .execute();
+    .returning("id")
+    .executeTakeFirstOrThrow();
 
   // Link all card_sources with matching normalized name to the new card
-  await linkUnmatchedSources(trx, normalizedName, cardFields.id);
+  await linkUnmatchedSources(trx, normalizedName, cardUuid);
 }
 
 /**

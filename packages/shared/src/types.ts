@@ -359,6 +359,7 @@ export interface CardSourceSummary {
   name: string;
   normalizedName: string;
   sourceIds: string[];
+  pendingSourceIds: string[];
   sourceCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
