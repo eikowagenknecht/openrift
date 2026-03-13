@@ -1,3 +1,4 @@
+import { getOrientation } from "@openrift/shared";
 import type { Printing } from "@openrift/shared";
 import { useRef, useState } from "react";
 
@@ -7,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCards } from "@/hooks/use-cards";
+import { getCardImageUrl } from "@/lib/images";
 import type { OcrResult } from "@/lib/ocr-scanner";
 import { ocrScan, terminateOcr } from "@/lib/ocr-scanner";
 import type { PhashIndex, PhashResult } from "@/lib/phash-scanner";
@@ -343,7 +345,11 @@ function MatchResults({
           >
             {match.printing.images[0] && (
               <img
-                src={match.printing.images[0].url}
+                src={getCardImageUrl(
+                  match.printing.images[0].url,
+                  "thumbnail",
+                  getOrientation(match.printing.card.type),
+                )}
                 alt={match.printing.card.name}
                 className="h-16 w-auto rounded"
               />

@@ -1,4 +1,7 @@
+import { getOrientation } from "@openrift/shared";
 import type { Printing } from "@openrift/shared";
+
+import { getCardImageUrl } from "@/lib/images";
 
 export interface PhashMatch {
   printing: Printing;
@@ -120,7 +123,9 @@ export async function buildPhashIndex(
           return null;
         }
 
-        const hash = await hashImageUrl(frontImage.url);
+        const orientation = getOrientation(printing.card.type);
+        const resolvedUrl = getCardImageUrl(frontImage.url, "thumbnail", orientation);
+        const hash = await hashImageUrl(resolvedUrl);
         if (!hash) {
           return null;
         }
