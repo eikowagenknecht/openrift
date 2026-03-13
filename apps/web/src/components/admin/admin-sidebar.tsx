@@ -1,7 +1,7 @@
 import { Link, useMatches } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
-  ChevronRightIcon,
+  BanIcon,
   GalleryVerticalIcon,
   DatabaseIcon,
   FlagIcon,
@@ -11,7 +11,6 @@ import {
   SettingsIcon,
 } from "lucide-react";
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -22,9 +21,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
@@ -35,23 +31,11 @@ const catalogPages = [
   { to: "/admin/cards" as const, icon: GalleryVerticalIcon, title: "Cards" },
 ];
 
-const marketplaces = [
-  {
-    label: "TCGplayer",
-    prefixes: ["/admin/tcgplayer-"],
-    pages: [
-      { to: "/admin/tcgplayer-groups" as const, icon: LayersIcon, title: "Groups" },
-      { to: "/admin/tcgplayer-mappings" as const, icon: MapIcon, title: "Mappings" },
-    ],
-  },
-  {
-    label: "Cardmarket",
-    prefixes: ["/admin/cardmarket-"],
-    pages: [
-      { to: "/admin/cardmarket-groups" as const, icon: LayersIcon, title: "Groups" },
-      { to: "/admin/cardmarket-mappings" as const, icon: MapIcon, title: "Mappings" },
-    ],
-  },
+const marketplacePages = [
+  { to: "/admin/marketplace-overview" as const, icon: LayoutDashboardIcon, title: "Overview" },
+  { to: "/admin/marketplace-groups" as const, icon: LayersIcon, title: "Groups" },
+  { to: "/admin/marketplace-mappings" as const, icon: MapIcon, title: "Mappings" },
+  { to: "/admin/ignored-products" as const, icon: BanIcon, title: "Ignored Products" },
 ];
 
 const systemPages = [
@@ -106,38 +90,17 @@ export function AdminSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Marketplaces</SidebarGroupLabel>
           <SidebarMenu>
-            {marketplaces.map((marketplace) => {
-              const isActive = marketplace.prefixes.some((p) => currentPath?.startsWith(p));
-              return (
-                <Collapsible key={marketplace.label} defaultOpen={isActive}>
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger
-                      render={
-                        <SidebarMenuButton>
-                          <span>{marketplace.label}</span>
-                          <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[panel-open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                      }
-                    />
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {marketplace.pages.map((page) => (
-                          <SidebarMenuSubItem key={page.to}>
-                            <SidebarMenuSubButton
-                              isActive={currentPath === page.to}
-                              render={<Link to={page.to} />}
-                            >
-                              <page.icon />
-                              <span>{page.title}</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              );
-            })}
+            {marketplacePages.map((page) => (
+              <SidebarMenuItem key={page.to}>
+                <SidebarMenuButton
+                  isActive={currentPath === page.to}
+                  render={<Link to={page.to} />}
+                >
+                  <page.icon />
+                  <span>{page.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
 

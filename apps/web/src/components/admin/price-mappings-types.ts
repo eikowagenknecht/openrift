@@ -53,6 +53,26 @@ export interface MappingGroup {
   assignedProducts: StagedProduct[];
 }
 
+export interface UnifiedMappingPrinting extends MappingPrinting {
+  tcgExternalId: number | null;
+  cmExternalId: number | null;
+}
+
+export interface UnifiedMappingGroup {
+  cardId: string;
+  cardName: string;
+  cardType: string;
+  superTypes: string[];
+  domains: string[];
+  energy: number | null;
+  might: number | null;
+  setId: string;
+  setName: string;
+  printings: UnifiedMappingPrinting[];
+  tcgplayer: { stagedProducts: StagedProduct[]; assignedProducts: StagedProduct[] };
+  cardmarket: { stagedProducts: StagedProduct[]; assignedProducts: StagedProduct[] };
+}
+
 export interface AssignableCard {
   cardId: string;
   cardName: string;

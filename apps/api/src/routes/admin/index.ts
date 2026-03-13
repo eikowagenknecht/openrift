@@ -12,8 +12,10 @@ import { catalogRoute } from "./catalog.js";
 import { featureFlagsRoute } from "./feature-flags.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
 import { cardmarketConfig, tcgplayerConfig } from "./marketplace-configs.js";
+import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { createMappingRoutes } from "./marketplace-mapping.js";
 import { operationsRoute } from "./operations.js";
+import { unifiedMappingsRoute } from "./unified-mappings.js";
 
 export const adminRoute = new Hono<{ Variables: Variables }>();
 
@@ -53,6 +55,8 @@ adminRoute.route("/", featureFlagsRoute);
 adminRoute.route("/", ignoredProductsRoute);
 adminRoute.route("/", catalogRoute);
 adminRoute.route("/", operationsRoute);
+adminRoute.route("/", marketplaceGroupsRoute);
+adminRoute.route("/", unifiedMappingsRoute);
 
 // ── Card source routes ──────────────────────────────────────────────────────
 

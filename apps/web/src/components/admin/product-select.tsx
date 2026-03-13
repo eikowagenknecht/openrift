@@ -47,7 +47,7 @@ export function ProductSelect({
         className="w-full"
         aria-label={`Assign ${config.shortName} product to printing ${currentPrintingId}`}
       >
-        <SelectValue placeholder="Assign product…" />
+        <SelectValue placeholder={`Assign ${config.shortName} product…`} />
       </SelectTrigger>
       <SelectContent className="w-auto min-w-[var(--anchor-width)]">
         {sortedStaged.length > 0 && (

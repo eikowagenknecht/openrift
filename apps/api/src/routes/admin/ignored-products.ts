@@ -24,6 +24,26 @@ const ignoreProductsSchema = z.object({
   products: z.array(ignoreProductItemSchema).min(1),
 });
 
+// ── GET /admin/ignored-products ─────────────────────────────────────────────
+
+ignoredProductsRoute.get("/admin/ignored-products", async (c) => {
+  const rows = await db
+    .selectFrom("marketplace_ignored_products as ip")
+    .select(["ip.marketplace", "ip.external_id", "ip.finish", "ip.product_name", "ip.created_at"])
+    .orderBy("ip.created_at", "desc")
+    .execute();
+
+  return c.json({
+    products: rows.map((r) => ({
+      marketplace: r.marketplace,
+      externalId: r.external_id,
+      finish: r.finish,
+      productName: r.product_name,
+      createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+    })),
+  });
+});
+
 // ── POST /admin/ignored-products ────────────────────────────────────────────
 
 ignoredProductsRoute.post("/admin/ignored-products", async (c) => {
