@@ -16,7 +16,7 @@ PR preview builds are also deployed to **Cloudflare Workers** (`*.openrift-web.w
 | `db`      | `postgres:16-alpine`                   | Database (unchanged across deploys)                                   |
 | `api`     | `ghcr.io/eikowagenknecht/openrift-api` | API + migrations on startup + cron jobs (distroless, compiled binary) |
 | `web`     | `ghcr.io/eikowagenknecht/openrift-web` | SPA + API proxy (nginx)                                               |
-| `backup`  | `eeshugerman/postgres-backup-s3:16`    | Scheduled pg_dump to Cloudflare R2                                    |
+| `backup`  | `siemens/postgres-backup-s3:16`        | Scheduled pg_dump to Cloudflare R2                                    |
 
 The `api` container:
 
@@ -108,7 +108,7 @@ docker compose down -v           # Destroys database volume too (!)
 
 ## Database Backups
 
-The `backup` sidecar container runs `pg_dump` on a schedule and uploads GPG-encrypted backups to Cloudflare R2. It uses the [eeshugerman/postgres-backup-s3](https://github.com/eeshugerman/postgres-backup-s3) image (`:16` tag matches our PostgreSQL version). Old backups are automatically pruned after `BACKUP_KEEP_DAYS`.
+The `backup` sidecar container runs `pg_dump` on a schedule and uploads GPG-encrypted backups to Cloudflare R2. It uses the [siemens/postgres-backup-s3](https://github.com/siemens/postgres-backup-s3) image (`:16` tag matches our PostgreSQL version). Old backups are automatically pruned after `BACKUP_KEEP_DAYS`.
 
 ### Configuration
 
