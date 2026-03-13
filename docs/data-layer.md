@@ -217,13 +217,13 @@ Email verification tokens. Rows are deleted by better-auth after use, and expire
 
 ## Catalog Refresh
 
-Card data is fetched directly from the [Riftbound gallery page](https://riftbound.leagueoflegends.com/en-us/card-gallery/), validated against `galleryCardSchema`, and transformed in-memory. Refreshed via the admin API (`POST /api/admin/refresh-catalog`):
+Card data is ingested via JSON upload through the admin API (`POST /api/admin/card-sources/upload`). External scripts produce JSON files conforming to `candidateUploadSchema`, which are uploaded through the admin UI or API directly. See `docs/adr/008-supplemental-card-import.md` for design rationale.
 
-- Fetches the gallery HTML and extracts the `__NEXT_DATA__` JSON payload
-- Validates each card against the Zod schema, then converts to game cards + printings
-- Sets, cards, and printings are upserted (insert or update on conflict)
-- Printings are generated from cards based on finish rules (see `docs/finish-rules.md`)
-- Insertions are batched in groups of 200
+- JSON payload contains a `source` label and an array of `candidates`, each with card metadata and printings
+- Validated against `candidateUploadSchema` / `candidateCardSchema` (defined in `packages/shared/src/schemas.ts`)
+- Ingested by `ingestCardSources()` which matches by `(source, source_id)` or `(source, name)`, inserting new records or updating changed ones
+- New card sources are staged with `card_id = null` until linked in the admin UI
+- All operations are transactional per-card
 
 ## Price Refresh
 

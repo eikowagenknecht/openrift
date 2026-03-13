@@ -19,7 +19,6 @@ import {
   createWishListItemSchema,
   createWishListSchema,
   disposeCopiesSchema,
-  galleryCardSchema,
   moveCopiesSchema,
   updateCollectionSchema,
   updateDeckCardsSchema,
@@ -29,96 +28,6 @@ import {
   updateWishListItemSchema,
   updateWishListSchema,
 } from "./schemas";
-
-// ---------------------------------------------------------------------------
-// Gallery schemas
-// ---------------------------------------------------------------------------
-
-describe("galleryCardSchema", () => {
-  const minimal = {
-    collectorNumber: 1,
-    id: "abc",
-    name: "Test Card",
-    set: { label: "Set", value: { id: "SET1", label: "Set Alpha" } },
-    domain: { label: "Domain", values: [{ id: "fury", label: "Fury" }] },
-    rarity: { label: "Rarity", value: { id: "common", label: "Common" } },
-    cardType: { label: "Type", type: [{ id: "unit", label: "Unit" }] },
-    cardImage: { url: "https://example.com/img.jpg" },
-    illustrator: { label: "Artist", values: [{ id: "a1", label: "Jane" }] },
-    text: { label: "Text", richText: { type: "html", body: "<p>hello</p>" } },
-    orientation: "portrait" as const,
-    publicCode: "SET1-001/100",
-  };
-
-  it("accepts a valid minimal gallery card", () => {
-    const result = galleryCardSchema.safeParse(minimal);
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts gallery card with optional fields", () => {
-    const result = galleryCardSchema.safeParse({
-      ...minimal,
-      energy: { label: "Energy", value: { id: 3, label: "3" } },
-      might: { label: "Might", value: { id: 2, label: "2" } },
-      power: { label: "Power", value: { id: 4, label: "4" } },
-      mightBonus: { label: "Might Bonus", value: { id: 1, label: "1" } },
-      effect: { label: "Effect", richText: { type: "html", body: "dmg" } },
-      tags: { label: "Tags", tags: ["Warrior"] },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts gallery card with image dimensions", () => {
-    const result = galleryCardSchema.safeParse({
-      ...minimal,
-      cardImage: {
-        url: "https://example.com/img.jpg",
-        accessibilityText: "A card",
-        mimeType: "image/jpeg",
-        dimensions: { height: 100, width: 70, aspectRatio: 0.7 },
-      },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts gallery card with icon on domain values", () => {
-    const result = galleryCardSchema.safeParse({
-      ...minimal,
-      domain: {
-        label: "Domain",
-        values: [{ id: "fury", label: "Fury", icon: { url: "https://example.com/icon.png" } }],
-      },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts landscape orientation", () => {
-    const result = galleryCardSchema.safeParse({ ...minimal, orientation: "landscape" });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts gallery card with superType", () => {
-    const result = galleryCardSchema.safeParse({
-      ...minimal,
-      cardType: {
-        label: "Type",
-        type: [{ id: "unit", label: "Unit" }],
-        superType: [{ id: "champ", label: "Champion" }],
-      },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects missing required fields", () => {
-    const result = galleryCardSchema.safeParse({});
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects invalid orientation", () => {
-    const result = galleryCardSchema.safeParse({ ...minimal, orientation: "diagonal" });
-    expect(result.success).toBe(false);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // App content schemas
