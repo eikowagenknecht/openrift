@@ -25,6 +25,7 @@ import {
   useReassignPrintingSource,
   useUnmatchedCardDetail,
 } from "@/hooks/use-card-sources";
+import { useFavoriteSources } from "@/hooks/use-favorite-sources";
 
 interface UnmatchedData {
   name: string;
@@ -43,6 +44,7 @@ export function CardSourceUnmatchedPage() {
 
   const checkCardSource = useCheckCardSource();
   const checkPrintingSource = useCheckPrintingSource();
+  const { favorites } = useFavoriteSources();
   const acceptNewCard = useAcceptNewCard();
   const linkCard = useLinkCard();
   const reassignPrinting = useReassignPrintingSource();
@@ -194,6 +196,7 @@ export function CardSourceUnmatchedPage() {
           requiredKeys={["name", "type", "domains"]}
           activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
           sourceRows={data.sources}
+          favoriteSources={favorites}
           onCellClick={(field, value) => {
             setActiveCard((prev) => ({ ...prev, [field]: value }));
           }}
@@ -211,6 +214,7 @@ export function CardSourceUnmatchedPage() {
       <PrintingsSection
         printingSources={data.printingSources}
         cardSources={data.sources}
+        favoriteSources={favorites}
         onCheck={(id) => checkPrintingSource.mutate(id)}
         onReassign={(ids, target) => {
           for (const id of ids) {
@@ -226,12 +230,14 @@ export function CardSourceUnmatchedPage() {
 function PrintingsSection({
   printingSources,
   cardSources,
+  favoriteSources,
   onCheck,
   onReassign,
   isReassigning,
 }: {
   printingSources: PrintingSource[];
   cardSources: CardSource[];
+  favoriteSources: Set<string>;
   onCheck: (id: string) => void;
   onReassign: (
     printingSourceIds: string[],
@@ -283,6 +289,7 @@ function PrintingsSection({
               activeRow={null}
               sourceRows={group.sources}
               sourceLabels={sourceLabels}
+              favoriteSources={favoriteSources}
               onCheck={onCheck}
             />
           </div>
