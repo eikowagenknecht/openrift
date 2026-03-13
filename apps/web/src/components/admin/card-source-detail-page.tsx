@@ -209,15 +209,51 @@ export function CardSourceDetailPage() {
           )}
         </div>
         <SourceSpreadsheet
-          fields={CARD_SOURCE_FIELDS}
+          fields={CARD_SOURCE_FIELDS.map((f) =>
+            f.key === "sourceId" ? { ...f, readOnly: false } : f,
+          )}
           activeRow={{ ...data.card, sourceId: data.card.slug }}
           sourceRows={data.sources}
           favoriteSources={favorites}
           onCellClick={(field, value) => {
+            if (field === "sourceId") {
+              const newId = String(value).trim();
+              if (newId && newId !== cardId) {
+                renameCard.mutate(
+                  { cardId, newId },
+                  {
+                    onSuccess: () => {
+                      void navigate({
+                        to: "/admin/cards/$cardId",
+                        params: { cardId: newId },
+                      });
+                    },
+                  },
+                );
+              }
+              return;
+            }
             acceptCardField.mutate({ cardId, field, value });
           }}
           onActiveChange={(field, value) => {
             if (value === null || value === undefined) {
+              return;
+            }
+            if (field === "sourceId") {
+              const newId = String(value).trim();
+              if (newId && newId !== cardId) {
+                renameCard.mutate(
+                  { cardId, newId },
+                  {
+                    onSuccess: () => {
+                      void navigate({
+                        to: "/admin/cards/$cardId",
+                        params: { cardId: newId },
+                      });
+                    },
+                  },
+                );
+              }
               return;
             }
             acceptCardField.mutate({ cardId, field, value });

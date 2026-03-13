@@ -6,6 +6,8 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
+import type { DiffSegment } from "@/lib/word-diff";
+import { wordDiff } from "@/lib/word-diff";
 
 interface FieldDef {
   key: string;
@@ -126,6 +128,35 @@ interface SourceSpreadsheetProps {
   columnActions?: (row: CardSource | PrintingSource) => React.ReactNode;
 }
 
+/** Field keys where word-level diff highlighting is applied. */
+const DIFF_FIELDS = new Set([
+  "rulesText",
+  "effectText",
+  "printedRulesText",
+  "printedEffectText",
+  "flavorText",
+]);
+
+function DiffText({ segments }: { segments: DiffSegment[] }) {
+  return (
+    <>
+      {segments.map((seg, i) => {
+        if (seg.type === "removed") {
+          return null;
+        }
+        if (seg.type === "added") {
+          return (
+            <mark key={i} className="bg-yellow-200 text-inherit dark:bg-yellow-700/60">
+              {seg.text}
+            </mark>
+          );
+        }
+        return seg.text;
+      })}
+    </>
+  );
+}
+
 function hasValue(value: unknown): boolean {
   if (value === null || value === undefined || value === "") {
     return false;
@@ -211,7 +242,7 @@ export function SourceSpreadsheet({
   return (
     <div className="overflow-x-auto rounded-md border">
       <table
-        className="break-all text-sm"
+        className="break-words text-sm"
         style={{
           tableLayout: "fixed",
           width: `${150 + 200 * (1 + sortedRows.length)}px`,
@@ -404,6 +435,11 @@ export function SourceSpreadsheet({
                             />
                           </HoverCardContent>
                         </HoverCard>
+                      ) : isDifferent &&
+                        DIFF_FIELDS.has(field.key) &&
+                        typeof sourceValue === "string" &&
+                        typeof activeValue === "string" ? (
+                        <DiffText segments={wordDiff(activeValue, String(sourceValue))} />
                       ) : (
                         formatValue(sourceValue)
                       )}

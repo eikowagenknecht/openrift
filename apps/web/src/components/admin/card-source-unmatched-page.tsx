@@ -51,7 +51,7 @@ export function CardSourceUnmatchedPage() {
 
   // Local state for building up the "active" row by clicking source cells
   const [activeCard, setActiveCard] = useState<Record<string, unknown>>({});
-  const [newCardId, setNewCardId] = useState("");
+  const [newCardId, setNewCardId] = useState<string | null>(null);
   const [linkCardId, setLinkCardId] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
   const { data: allCards } = useAllCards();
@@ -84,7 +84,7 @@ export function CardSourceUnmatchedPage() {
     return canonical.sourceId.replace(/(?<=\d)[a-z*]+$/, "");
   })();
 
-  const cardId = newCardId || defaultCardId;
+  const cardId = newCardId ?? defaultCardId;
 
   function handleAcceptAsNew() {
     if (!hasRequiredFields || !cardId.trim() || !data) {
