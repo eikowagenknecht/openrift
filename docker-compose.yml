@@ -3,11 +3,12 @@
 services:
   # PostgreSQL database.
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql
     env_file:
       - .env
     healthcheck:
@@ -25,12 +26,10 @@ services:
   # Hono API server (runs migrations on startup, schedules cron jobs).
   api:
     image: ghcr.io/eikowagenknecht/openrift-api:${IMAGE_TAG:-latest}
+    user: "${UID:-1000}:${GID:-1000}"
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      APP_UID: "${UID:-1000}"
-      APP_GID: "${GID:-1000}"
     env_file:
       - .env
     volumes:
@@ -68,7 +67,7 @@ services:
   # Scheduled PostgreSQL backups to Cloudflare R2.
   # Runs pg_dump on BACKUP_SCHEDULE, uploads encrypted backup to R2, prunes old backups.
   backup:
-    image: siemens/postgres-backup-s3:16
+    image: siemens/postgres-backup-s3:18
     depends_on:
       db:
         condition: service_healthy
@@ -92,6 +91,3 @@ services:
         max-size: "10m"
         max-file: "5"
     restart: unless-stopped
-
-volumes:
-  pg_data:

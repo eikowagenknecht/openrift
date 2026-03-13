@@ -22,8 +22,6 @@ RUN bun run build
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
 FROM oven/bun:1-alpine AS api
 
-RUN apk add --no-cache su-exec
-
 WORKDIR /app
 
 # Install dependencies natively on alpine so native addons (sharp) get musl binaries
@@ -35,10 +33,7 @@ RUN bun install --frozen-lockfile --production --ignore-scripts
 
 COPY --from=build /app/packages/shared ./packages/shared
 COPY --from=build /app/apps/api ./apps/api
-COPY apps/api/docker-entrypoint.sh /usr/local/bin/
-
 EXPOSE 3000
-ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["bun", "run", "apps/api/src/index.ts"]
 
 # ─── Stage 3: Web (nginx serves the SPA + proxies /api to the api container) ─

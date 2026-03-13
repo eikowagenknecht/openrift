@@ -13,10 +13,10 @@ PR preview builds are also deployed to **Cloudflare Workers** (`*.openrift-web.w
 
 | Container | Image                                  | Role                                                                  |
 | --------- | -------------------------------------- | --------------------------------------------------------------------- |
-| `db`      | `postgres:16-alpine`                   | Database (unchanged across deploys)                                   |
+| `db`      | `postgres:18-alpine`                   | Database (unchanged across deploys)                                   |
 | `api`     | `ghcr.io/eikowagenknecht/openrift-api` | API + migrations on startup + cron jobs (distroless, compiled binary) |
 | `web`     | `ghcr.io/eikowagenknecht/openrift-web` | SPA + API proxy (nginx)                                               |
-| `backup`  | `siemens/postgres-backup-s3:16`        | Scheduled pg_dump to Cloudflare R2                                    |
+| `backup`  | `siemens/postgres-backup-s3:18`        | Scheduled pg_dump to Cloudflare R2                                    |
 
 The `api` container:
 
@@ -102,13 +102,13 @@ curl -X POST -H "Cookie: ..." https://openrift.app/api/admin/refresh-cardmarket-
 curl -X POST -H "Cookie: ..." https://openrift.app/api/admin/refresh-catalog
 
 # Stop everything
-docker compose down              # Keeps data
-docker compose down -v           # Destroys database volume too (!)
+docker compose down              # Keeps data (bind-mounted in ./data/)
+docker compose down -v           # Same as above — bind mounts are NOT deleted by -v
 ```
 
 ## Database Backups
 
-The `backup` sidecar container runs `pg_dump` on a schedule and uploads GPG-encrypted backups to Cloudflare R2. It uses the [siemens/postgres-backup-s3](https://github.com/siemens/postgres-backup-s3) image (`:16` tag matches our PostgreSQL version). Old backups are automatically pruned after `BACKUP_KEEP_DAYS`.
+The `backup` sidecar container runs `pg_dump` on a schedule and uploads GPG-encrypted backups to Cloudflare R2. It uses the [siemens/postgres-backup-s3](https://github.com/siemens/postgres-backup-s3) image (`:18` tag matches our PostgreSQL version). Old backups are automatically pruned after `BACKUP_KEEP_DAYS`.
 
 ### Configuration
 
@@ -395,18 +395,16 @@ curl -s localhost:3002/api/health | jq .
 /home/openrift/
 ├── openrift/                        # Stable (openrift.app)
 │   ├── certs/                       # Cloudflare Origin Certificate
+│   ├── data/postgres/               # PostgreSQL data (bind mount)
 │   ├── .env                         # Production secrets
 │   ├── deploy.sh                    # Deploy script
 │   ├── docker-compose.yml           # Ports: 5432, 3001, 8080
 │   └── openrift.conf                # nginx config for host nginx
 └── openrift-preview/                # Preview (preview.openrift.app)
     ├── certs/                       # Cloudflare Origin Certificate
+    ├── data/postgres/               # PostgreSQL data (bind mount)
     ├── .env                         # Production secrets
     ├── deploy.sh                    # Deploy script
     ├── docker-compose.yml           # Ports: 5433, 3002, 8081
     └── preview.openrift.conf        # nginx config for host nginx
-
-Docker-managed:
-  /var/lib/docker/volumes/openrift_pg_data/          # Stable PostgreSQL data
-  /var/lib/docker/volumes/openrift-preview_pg_data/  # Preview PostgreSQL data
 ```

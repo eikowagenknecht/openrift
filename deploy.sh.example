@@ -18,6 +18,9 @@ trap 'rm -f "$LOCKFILE"' EXIT
 # On signal (SSH disconnect, Ctrl-C, kill), kill all child processes first
 trap 'trap - INT TERM HUP; kill -- -$$ 2>/dev/null' INT TERM HUP
 
+echo "==> Ensuring data directories exist..."
+mkdir -p data/postgres card-images
+
 echo "==> Pulling images..."
 pull_retries=3
 for i in $(seq 1 "$pull_retries"); do

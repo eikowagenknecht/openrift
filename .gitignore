@@ -38,5 +38,12 @@ routeTree.gen.ts
 # Self-hosted card images (generated at runtime, bind-mounted in Docker)
 /card-images/
 
+# Docker bind-mounted data (PostgreSQL, etc.)
+/data/
+
+# Docker Compose local overrides and local deploy script
+docker-compose.override.yml
+deploy.sh
+
 # Tooling file locks
 .locks/
