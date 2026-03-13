@@ -207,7 +207,10 @@ cardSourcesRoute.get("/card-sources", async (c) => {
         if (!row) {
           continue;
         }
-        const relDate = op.released_at ? String(op.released_at) : null;
+        const relDate =
+          op.released_at instanceof Date
+            ? op.released_at.toISOString().slice(0, 10)
+            : (op.released_at ?? null);
         if (relDate) {
           if (!row.releasedSourceId || op.source_id < row.releasedSourceId) {
             row.releasedSourceId = op.source_id as string | null;

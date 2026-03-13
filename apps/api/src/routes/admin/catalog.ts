@@ -153,7 +153,10 @@ catalogRoute.get("/admin/sets", async (c) => {
       name: s.name,
       printedTotal: s.printed_total,
       sortOrder: s.sort_order,
-      releasedAt: s.released_at ?? null,
+      releasedAt:
+        s.released_at instanceof Date
+          ? s.released_at.toISOString().slice(0, 10)
+          : (s.released_at ?? null),
       cardCount: cardCountMap.get(s.id) ?? 0,
       printingCount: printingCountMap.get(s.id) ?? 0,
     })),
