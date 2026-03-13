@@ -101,6 +101,12 @@ interface CmPriceGuide {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
+/**
+ * Fetch the latest Cardmarket price guides and singles for Riftbound, upsert
+ * expansion metadata, and write snapshots for already-mapped sources. Unmatched
+ * products are staged for manual admin mapping.
+ * @returns Fetch totals and per-table upsert counts.
+ */
 export async function refreshCardmarketPrices(
   db: Kysely<Database>,
   log: Logger,

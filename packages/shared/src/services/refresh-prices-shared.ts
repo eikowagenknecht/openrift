@@ -39,6 +39,10 @@ export interface PriceRefreshResult {
   upserted: UpsertCounts;
 }
 
+/**
+ * Log a human-readable breakdown of an upsert result (inserted / updated / unchanged)
+ * across sources, snapshots, and staging tables.
+ */
 export function logUpsertCounts(log: Logger, counts: UpsertCounts): void {
   const inserted = [
     counts.sources.new > 0 ? `${counts.sources.new} sources` : null,
@@ -63,6 +67,10 @@ export function logUpsertCounts(log: Logger, counts: UpsertCounts): void {
   log.info(`Unchanged: ${unchanged.length > 0 ? unchanged.join(", ") : "—"}`);
 }
 
+/**
+ * Return the total row count of a table (used to compute new-row counts around upserts).
+ * @returns The row count.
+ */
 async function countRows(db: Kysely<Database>, table: keyof Database): Promise<number> {
   const result = await db
     .selectFrom(table)
@@ -224,6 +232,17 @@ export interface ReferenceData {
   printingByFullKey: Map<string, string>;
 }
 
+/**
+ * Load sets, cards, and printings from the DB and build lookup maps used by
+ * price refresh scripts to match external products to internal printings.
+ *
+ * Returned maps:
+ * - `setNameById` / `cardNameById` — display-name lookups.
+ * - `namesBySet` — per-set map of normalized card name → card_id (for fuzzy matching).
+ * - `printingsByCardSetFinish` — `"card_id|set_id|finish"` → printing_id[] (coarse match).
+ * - `printingByFullKey` — `"card_id|set_id|finish|art_variant|is_signed"` → single printing_id.
+ * @returns Raw rows and pre-built lookup maps.
+ */
 export async function loadReferenceData(db: Kysely<Database>): Promise<ReferenceData> {
   const [sets, cards, printings] = await Promise.all([
     db.selectFrom("sets").select(["id", "name"]).execute(),
@@ -294,6 +313,11 @@ export async function loadReferenceData(db: Kysely<Database>): Promise<Reference
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+/**
+ * Fetch JSON from a URL and return the parsed body along with the `Last-Modified`
+ * header (used as `recorded_at` for price snapshots). Throws on non-2xx responses.
+ * @returns The parsed JSON body and the `Last-Modified` date (if present).
+ */
 export async function fetchJson<T>(url: string): Promise<{ data: T; lastModified: Date | null }> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -352,6 +376,13 @@ function buildDistinctWhere(table: string, columns: string[]) {
   );
 }
 
+/**
+ * Batch-upsert sources, snapshots, and staging rows for a single marketplace
+ * (TCGPlayer or Cardmarket). Deduplicates inputs, handles conflict resolution
+ * with `IS DISTINCT FROM` to skip no-op updates, and returns per-table counts
+ * of new / updated / unchanged rows.
+ * @returns Per-table breakdown of new, updated, and unchanged rows.
+ */
 export async function upsertPriceData(
   db: Kysely<Database>,
   config: PriceUpsertConfig,

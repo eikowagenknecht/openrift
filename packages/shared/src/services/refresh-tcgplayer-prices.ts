@@ -82,6 +82,12 @@ interface TcgcsvPrice {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
+/**
+ * Fetch the latest TCGPlayer groups, products, and prices from the TCGCSV API,
+ * upsert group metadata, and write snapshots for already-mapped sources. All
+ * products are staged for manual admin mapping.
+ * @returns Fetch totals and per-table upsert counts.
+ */
 export async function refreshTcgplayerPrices(
   db: Kysely<Database>,
   log: Logger,
