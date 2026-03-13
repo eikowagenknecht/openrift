@@ -1,13 +1,6 @@
 import { useState } from "react";
 
 import { CountBadge } from "@/components/admin/count-badge";
-import {
-  ActionCard,
-  ClearPriceCard,
-  clearActions,
-  refreshActions,
-  useCronStatus,
-} from "@/components/admin/refresh-actions";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -57,16 +50,11 @@ function EditableName({
 
 export function CardmarketGroupsPage() {
   const query = useCardmarketGroups();
-  const { data: cronStatus } = useCronStatus();
 
   return (
     <AdminQueryShell query={query}>
       {({ expansions }) => (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-            <ActionCard action={refreshActions.cardmarket} cronStatus={cronStatus} />
-            <ClearPriceCard action={clearActions.cardmarket} />
-          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

@@ -1,12 +1,5 @@
 import { CountBadge } from "@/components/admin/count-badge";
 import {
-  ActionCard,
-  ClearPriceCard,
-  clearActions,
-  refreshActions,
-  useCronStatus,
-} from "@/components/admin/refresh-actions";
-import {
   Table,
   TableBody,
   TableCell,
@@ -20,16 +13,11 @@ import { AdminQueryShell } from "./admin-query-shell";
 
 export function TcgplayerGroupsPage() {
   const query = useTcgplayerGroups();
-  const { data: cronStatus } = useCronStatus();
 
   return (
     <AdminQueryShell query={query}>
       {({ groups }) => (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-            <ActionCard action={refreshActions.tcgplayer} cronStatus={cronStatus} />
-            <ClearPriceCard action={clearActions.tcgplayer} />
-          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
