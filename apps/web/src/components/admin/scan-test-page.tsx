@@ -66,6 +66,30 @@ export function ScanTestPage() {
     setCameraActive(false);
   }
 
+  /**
+   * Compute the crop rectangle (in video pixels) that matches the guide overlay.
+   * The guide is a 63×88 (standard card ratio) rectangle centered in the feed,
+   * sized to fill 80% of the container without exceeding 80% on either axis.
+   * @returns The crop region as {x, y, w, h} in video pixels.
+   */
+  function getGuideRect(videoW: number, videoH: number) {
+    const cardAspect = 63 / 88; // width / height
+
+    // Start with 80% of height, derive width
+    let guideH = videoH * 0.8;
+    let guideW = guideH * cardAspect;
+
+    // If width exceeds 80% of container, constrain by width instead
+    if (guideW > videoW * 0.8) {
+      guideW = videoW * 0.8;
+      guideH = guideW / cardAspect;
+    }
+
+    const x = (videoW - guideW) / 2;
+    const y = (videoH - guideH) / 2;
+    return { x, y, w: guideW, h: guideH };
+  }
+
   function captureFrame() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -73,14 +97,17 @@ export function ScanTestPage() {
       return;
     }
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const { x, y, w, h } = getGuideRect(video.videoWidth, video.videoHeight);
+
+    // Crop to the guide region only
+    canvas.width = Math.round(w);
+    canvas.height = Math.round(h);
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       return;
     }
 
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, x, y, w, h, 0, 0, canvas.width, canvas.height);
     setCapturedImage(canvas.toDataURL("image/png"));
     setOcrResult(null);
     setPhashResult(null);
@@ -156,7 +183,7 @@ export function ScanTestPage() {
         <CardHeader>
           <CardTitle>Camera</CardTitle>
           <CardDescription>
-            Point your camera at a card, then capture a frame to test scanning.
+            Align a card within the guide overlay, then capture a frame to test scanning.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -178,13 +205,16 @@ export function ScanTestPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <p className="mb-2 text-xs font-medium text-muted-foreground">Live Feed</p>
-              <video
-                ref={videoRef}
-                className="w-full rounded-md border bg-muted"
-                playsInline
-                muted
-                style={{ display: cameraActive ? "block" : "none" }}
-              />
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  className="w-full rounded-md border bg-muted"
+                  playsInline
+                  muted
+                  style={{ display: cameraActive ? "block" : "none" }}
+                />
+                {cameraActive && <CardGuideOverlay />}
+              </div>
               {!cameraActive && (
                 <div className="flex h-48 items-center justify-center rounded-md border bg-muted text-sm text-muted-foreground">
                   Camera off
@@ -319,6 +349,28 @@ export function ScanTestPage() {
           </TabsContent>
         </Tabs>
       )}
+    </div>
+  );
+}
+
+/**
+ * CSS-based overlay that darkens everything outside a card-shaped cutout.
+ * Uses box-shadow to create the dark surround and aspect-ratio to maintain
+ * the standard card proportions (63:88). The cutout is centered and sized
+ * to 80% of the container, matching the crop logic in getGuideRect().
+ * @returns The overlay JSX element.
+ */
+function CardGuideOverlay() {
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md">
+      <div
+        className="rounded-lg border-2 border-dashed border-white"
+        style={{
+          height: "80%",
+          aspectRatio: "63 / 88",
+          boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
+        }}
+      />
     </div>
   );
 }
