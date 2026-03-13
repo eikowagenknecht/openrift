@@ -205,7 +205,7 @@ export function ScanTestPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <p className="mb-2 text-xs font-medium text-muted-foreground">Live Feed</p>
-              <div className="relative">
+              <div className="relative overflow-hidden rounded-md">
                 <video
                   ref={videoRef}
                   className="w-full rounded-md border bg-muted"
