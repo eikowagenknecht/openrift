@@ -7,8 +7,8 @@
 
 ## Table of Contents
 
-1. [Official Rules Documents](#1-official-rules-documents)
-2. [Rules Version History](#2-rules-version-history)
+1. [Official Rules & Related Documents](#1-official-rules--related-documents)
+2. [Core Rules — What Changed Between Versions](#2-core-rules--what-changed-between-versions)
 3. [Core Rules Structure](#3-core-rules-structure)
 4. [Existing Community Implementations](#4-existing-community-implementations)
 5. [GitHub & Structured Data Sources](#5-github--structured-data-sources)
@@ -19,46 +19,72 @@
 
 ---
 
-## 1. Official Rules Documents
+## 1. Official Rules & Related Documents
 
-All official rules are published under [Rules and Releases](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/) on the Riftbound site. The **Official Rules Documents (ORD)** consist of two major components:
+All official documents are published under [Rules and Releases](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/) on the Riftbound site. The **Official Rules Documents (ORD)** consist of exactly two rules documents:
 
 | Document | Description |
 |----------|-------------|
 | **Core Rules (CR)** | The precise logical underpinnings of gameplay — deckbuilding, timing, resolution, layering, etc. ~65 pages. |
 | **Tournament Rules (TR)** | Event-specific modifications, organized play procedures, penalties, and policies. |
 
-### Complete List of Published Documents (chronological)
+Everything else (FAQs, errata, patch notes, guides) are **supplementary documents** — they clarify or amend the rules but are not rules documents themselves.
 
-| # | Date | Title | Type |
-|---|------|-------|------|
-| 1 | 2025-06-06 | [How to Play: Get Started Now](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/how-to-play-get-started/) | Quick Start Guide |
-| 2 | 2025-06-06 | [How to Play Riftbound: Core Rules and Gameplay Guide](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/gameplay-guide-core-rules/) | Core Rules (v1.0) |
-| 3 | 2025-07-28 | [Deckbuilding Primer](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/deckbuilding-primer/) | Guide |
-| 4 | 2025-10-16 | [Riftbound Origins FAQ](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-origins-faq/) | FAQ (**RETIRED** Nov 4, 2025) |
-| 5 | 2025-10-16 | [Riftbound Tournament Rules](https://riftbound.leagueoflegends.com/en-us/news/organizedplay/riftbound-tournament-rules/) | Tournament Rules |
-| 6 | 2025-10-24 | [Riftbound Core Rules: Patch Notes](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-core-rules-patch-notes/) | CR Patch Notes (v1.1) |
-| 7 | 2025-10-28 | [Riftbound: Origins Card Errata](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-origins-card-errata/) | Errata |
-| 8 | 2025-12-05 | [Riftbound Core Rules: Spiritforged Patch Notes](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-core-rules-spiritforged-patch-notes/) | CR Patch Notes (v1.2) |
-| 9 | 2026-01-14 | [Riftbound Spiritforged Errata](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-spiritforged-errata/) | Errata |
-| 10 | 2026-01-14 | [Riftbound Spiritforged FAQ](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-spiritforged-faq/) | FAQ |
-| 11 | 2026-01-30 | [Tournament Rules, January Update](https://riftbound.leagueoflegends.com/en-us/news/announcements/tournament-rules-january-update/) | Tournament Rules Update |
+### Core Rules — Version History
 
-### PDF Availability
+| Version | Date | PDF |
+|---------|------|-----|
+| **v1.0** | 2025-06-06 | [Official](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/gameplay-guide-core-rules/) / [Scribd](https://www.scribd.com/document/883173099/Riftbound-Core-Rules-2025-06-02) |
+| **v1.1** | 2025-10-24 | [Scribd](https://www.scribd.com/document/938535952/Riftbound-Core-Rules-v1-1-100125) |
+| **v1.2** | 2025-12-05 (effective Dec 12) | Official site (latest) |
 
-- The Core Rules PDF is downloadable from the official site
-- Mirrored on Scribd: [v1.0 (2025-06-02)](https://www.scribd.com/document/883173099/Riftbound-Core-Rules-2025-06-02), [v1.1 (2025-10-25)](https://www.scribd.com/document/938535952/Riftbound-Core-Rules-v1-1-100125)
-- A [Diffchecker comparison](https://www.diffchecker.com/c1wW577p/) exists between the October and June versions
+A [Diffchecker comparison](https://www.diffchecker.com/c1wW577p/) exists between v1.0 and v1.1.
+
+### Tournament Rules — Version History
+
+| Version | Date |
+|---------|------|
+| **v1.0** | 2025-10-16 |
+| **January Update** | 2026-01-30 |
+
+### Supplementary Documents (not rules, but related)
+
+These clarify, amend, or explain the rules but are separate from the ORD:
+
+| Date | Title | Type |
+|------|-------|------|
+| 2025-06-06 | [How to Play: Get Started Now](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/how-to-play-get-started/) | Quick Start Guide |
+| 2025-07-28 | [Deckbuilding Primer](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/deckbuilding-primer/) | Guide |
+| 2025-10-16 | [Riftbound Origins FAQ](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-origins-faq/) | FAQ (**RETIRED** Nov 4, 2025) |
+| 2025-10-24 | [Riftbound Core Rules: Patch Notes](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-core-rules-patch-notes/) | CR Patch Notes (v1.0→v1.1) |
+| 2025-10-28 | [Riftbound: Origins Card Errata](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-origins-card-errata/) | Card Errata (33 cards) |
+| 2025-12-05 | [Riftbound Core Rules: Spiritforged Patch Notes](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-core-rules-spiritforged-patch-notes/) | CR Patch Notes (v1.1→v1.2) |
+| 2026-01-14 | [Riftbound Spiritforged Errata](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-spiritforged-errata/) | Card Errata (14 cards) |
+| 2026-01-14 | [Riftbound Spiritforged FAQ](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-spiritforged-faq/) | FAQ |
 
 ---
 
-## 2. Rules Version History
+## 2. Core Rules — What Changed Between Versions
 
-| Version | Date | Set | Key Changes |
-|---------|------|-----|-------------|
-| **v1.0** | 2025-06-06 | Origins (launch) | Initial release, 65 pages |
-| **v1.1** | 2025-10-24 | Origins (first patch) | Layers now loop until stable; "Relevant Players" concept removed; move destinations must be chosen at chain time; null values, dependencies, triggered abilities, Hidden mechanic, combat terminology, cleanups system updates |
-| **v1.2** | 2025-12-05 (effective Dec 12) | Spiritforged | Attachment mechanics; Equipment keywords (Equip, Quick-Draw, Weaponmaster); Repeat mechanic; Inactive Text system; "Double"/"Swap" game actions; Deathknell overhaul; reflexive triggers; Priority vs Focus distinction |
+### v1.0 → v1.1 (Origins first patch, 2025-10-24)
+
+- Layers now loop until stable (apply repeatedly until no objects change)
+- "Relevant Players" concept removed from Core Rules
+- Move destinations must be chosen at time of putting spell/ability on chain
+- Null values, dependencies, triggered abilities updates
+- Hidden mechanic, combat terminology, cleanups system revisions
+
+### v1.1 → v1.2 (Spiritforged, 2025-12-05, effective Dec 12)
+
+- Attachment mechanics added
+- Equipment keywords: Equip, Quick-Draw, Weaponmaster
+- Repeat mechanic
+- Inactive Text system
+- "Double" and "Swap" added as game actions
+- Deathknell overhaul
+- Reflexive triggers
+- Priority vs Focus distinction
+- New rules for unit placement (base or controlled battlefield)
 
 ### Update Philosophy
 
@@ -518,7 +544,7 @@ Taking inspiration from the best implementations above and thinking about what w
 **Pros:** Already web-formatted, includes section structure
 **Cons:** May violate terms of service, dependency on third-party sites
 
-### Option D: Manual Transcription + Community Maintenance
+### Option E: Manual Transcription + Community Maintenance
 
 - Manually transcribe the rules into a structured markdown/JSON format in the OpenRift repo
 - Accept community PRs for updates
