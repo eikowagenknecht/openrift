@@ -271,15 +271,17 @@ export async function getMappingOverview(
 
   // 1. Load ignored products
   const ignoredRows = await db
-    .selectFrom(config.tables.ignored)
+    .selectFrom("marketplace_ignored_products")
     .select(["external_id", "finish", "product_name", "created_at"])
+    .where("marketplace", "=", config.marketplace)
     .execute();
   const ignoredKeys = new Set(ignoredRows.map((r) => `${r.external_id}::${r.finish}`));
 
   // 2. Fetch & deduplicate staged products
   const staged = await db
-    .selectFrom(config.tables.staging)
+    .selectFrom("marketplace_staging")
     .selectAll()
+    .where("marketplace", "=", config.marketplace)
     .orderBy("recorded_at", "desc")
     .execute();
 
@@ -296,10 +298,11 @@ export async function getMappingOverview(
     return true;
   });
 
-  // 3. Build group display name lookup (both tables now have a name column)
+  // 3. Build group display name lookup
   const groupRows = await db
-    .selectFrom(config.tables.groups)
-    .select([`${config.groupIdColumn} as gid`, "name"])
+    .selectFrom("marketplace_groups")
+    .select(["group_id as gid", "name"])
+    .where("marketplace", "=", config.marketplace)
     .execute();
   const groupNameMap = new Map<number, string>();
   for (const row of groupRows) {
@@ -311,7 +314,9 @@ export async function getMappingOverview(
     .selectFrom("cards as c")
     .innerJoin("printings as p", "p.card_id", "c.id")
     .innerJoin("sets as s", "s.id", "p.set_id")
-    .leftJoin(`${config.tables.sources} as ps`, "ps.printing_id", "p.id")
+    .leftJoin("marketplace_sources as ps", (join) =>
+      join.onRef("ps.printing_id", "=", "p.id").on("ps.marketplace", "=", config.marketplace),
+    )
     .leftJoin("printing_images as pi", (join) =>
       join
         .onRef("pi.printing_id", "=", "p.id")
@@ -352,8 +357,9 @@ export async function getMappingOverview(
 
   // 5c. Load manual card overrides
   const overrideRows = await db
-    .selectFrom(config.tables.overrides)
+    .selectFrom("marketplace_staging_card_overrides")
     .select(["external_id", "finish", "card_id"])
+    .where("marketplace", "=", config.marketplace)
     .execute();
   const overrideMap = new Map<string, { cardId: string }>();
   for (const row of overrideRows) {
@@ -497,8 +503,9 @@ export async function saveMappings(
     // 2. Batch-fetch staging rows (1 query instead of N)
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const allStagingRows = await tx
-      .selectFrom(config.tables.staging)
+      .selectFrom("marketplace_staging")
       .selectAll()
+      .where("marketplace", "=", config.marketplace)
       .where("external_id", "in", externalIds)
       .execute();
     const stagingByKey = new Map<string, typeof allStagingRows>();
@@ -511,6 +518,7 @@ export async function saveMappings(
 
     // 3. Build source upsert values, filtering out mappings with no staging data
     const sourceValues: {
+      marketplace: string;
       printing_id: string;
       external_id: number;
       group_id: number;
@@ -526,6 +534,7 @@ export async function saveMappings(
         continue;
       }
       sourceValues.push({
+        marketplace: config.marketplace,
         printing_id: m.printingId,
         external_id: m.externalId,
         group_id: first.group_id,
@@ -539,10 +548,10 @@ export async function saveMappings(
 
     // 4. Batch-upsert sources (1 query instead of N)
     const sourceResults = await tx
-      .insertInto(config.tables.sources)
+      .insertInto("marketplace_sources")
       .values(sourceValues as never[])
       .onConflict((oc) =>
-        oc.column("printing_id").doUpdateSet({
+        oc.columns(["marketplace", "printing_id"]).doUpdateSet({
           external_id: sql`excluded.external_id`,
           group_id: sql`excluded.group_id`,
           product_name: sql`excluded.product_name`,
@@ -580,7 +589,7 @@ export async function saveMappings(
     // raw sql: INSERT with runtime-dynamic column list + ON CONFLICT not expressible in Kysely
     if (snapTuples.length > 0) {
       await sql`
-        INSERT INTO ${sql.table(config.tables.snapshots)}
+        INSERT INTO marketplace_snapshots
           (source_id, recorded_at, ${priceColNames})
         VALUES ${sql.join(snapTuples)}
         ON CONFLICT (source_id, recorded_at) DO UPDATE SET ${updateClause}
@@ -598,8 +607,9 @@ export async function saveMappings(
 
     // raw sql: multi-column tuple IN (VALUES ...) not supported by Kysely
     await sql`
-      DELETE FROM ${sql.table(config.tables.staging)}
-      WHERE (external_id, finish) IN (VALUES ${sql.join(deletePairs)})
+      DELETE FROM marketplace_staging
+      WHERE marketplace = ${config.marketplace}
+        AND (external_id, finish) IN (VALUES ${sql.join(deletePairs)})
     `.execute(tx);
 
     return sourceValues.length;
@@ -617,8 +627,9 @@ export async function unmapPrinting(
 ): Promise<void> {
   await db.transaction().execute(async (tx) => {
     const ps = await tx
-      .selectFrom(config.tables.sources)
+      .selectFrom("marketplace_sources")
       .selectAll()
+      .where("marketplace", "=", config.marketplace)
       .where("printing_id", "=", printingId)
       .executeTakeFirst();
 
@@ -633,7 +644,7 @@ export async function unmapPrinting(
       .executeTakeFirstOrThrow();
 
     const snapshots = await tx
-      .selectFrom(config.tables.snapshots)
+      .selectFrom("marketplace_snapshots")
       .selectAll()
       .where("source_id", "=", ps.id)
       .execute();
@@ -642,8 +653,8 @@ export async function unmapPrinting(
       await config.insertStagingFromSnapshot(tx, ps, printing.finish, snap);
     }
 
-    await tx.deleteFrom(config.tables.snapshots).where("source_id", "=", ps.id).execute();
-    await tx.deleteFrom(config.tables.sources).where("id", "=", ps.id).execute();
+    await tx.deleteFrom("marketplace_snapshots").where("source_id", "=", ps.id).execute();
+    await tx.deleteFrom("marketplace_sources").where("id", "=", ps.id).execute();
   });
 }
 
@@ -657,18 +668,25 @@ export async function unmapAll(
     await config.bulkUnmapSql(tx);
 
     const countResult = await tx
-      .selectFrom(config.tables.sources)
+      .selectFrom("marketplace_sources")
       .select(sql<number>`count(*)`.as("count"))
+      .where("marketplace", "=", config.marketplace)
       .where("external_id", "is not", null)
       .executeTakeFirstOrThrow();
 
-    // raw sql: dynamic table name from config requires sql.table()
     await sql`
-      DELETE FROM ${sql.table(config.tables.snapshots)}
-      WHERE source_id IN (SELECT id FROM ${sql.table(config.tables.sources)} WHERE external_id IS NOT NULL)
+      DELETE FROM marketplace_snapshots
+      WHERE source_id IN (
+        SELECT id FROM marketplace_sources
+        WHERE marketplace = ${config.marketplace} AND external_id IS NOT NULL
+      )
     `.execute(tx);
 
-    await tx.deleteFrom(config.tables.sources).where("external_id", "is not", null).execute();
+    await tx
+      .deleteFrom("marketplace_sources")
+      .where("marketplace", "=", config.marketplace)
+      .where("external_id", "is not", null)
+      .execute();
 
     return Number(countResult.count);
   });

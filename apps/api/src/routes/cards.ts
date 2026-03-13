@@ -25,8 +25,6 @@ import { db } from "../db.js";
 
 // ─── Snapshot helpers ────────────────────────────────────────────────────────
 
-type SnapshotTable = "tcgplayer_snapshots" | "cardmarket_snapshots";
-
 function formatSnapshotDate(recordedAt: Date | string): string {
   return (recordedAt as Date).toISOString().split("T")[0];
 }
@@ -35,22 +33,20 @@ function centsToDollars(cents: number | null): number | null {
   return cents === null ? null : cents / 100;
 }
 
-async function fetchSnapshots<T extends SnapshotTable, R>(
-  table: T,
+async function fetchSnapshots<R>(
   sourceId: number,
   cutoff: Date | null,
-  mapRow: (row: Selectable<Database[T]>) => R,
+  mapRow: (row: Selectable<Database["marketplace_snapshots"]>) => R,
 ): Promise<R[]> {
-  // Both snapshot tables share source_id + recorded_at; Kysely can't verify
-  // that on a union, so we use a targeted assertion for the query chain.
-  // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- Kysely union limitation
-  let query = (db.selectFrom(table).selectAll() as any)
+  let query = db
+    .selectFrom("marketplace_snapshots")
+    .selectAll()
     .where("source_id", "=", sourceId)
     .orderBy("recorded_at", "asc");
   if (cutoff) {
     query = query.where("recorded_at", ">=", cutoff);
   }
-  const rows: Selectable<Database[T]>[] = await query.execute();
+  const rows = await query.execute();
   return rows.map((row) => mapRow(row));
 }
 
@@ -161,10 +157,11 @@ cardsRoute.get("/cards", async (c) => {
 
 cardsRoute.get("/prices", async (c) => {
   // Use DISTINCT ON to fetch only the most recent snapshot per source,
-  // avoiding a full table scan of tcgplayer_snapshots.
+  // avoiding a full table scan of marketplace_snapshots.
   const rows = await db
-    .selectFrom("tcgplayer_sources as ps")
-    .innerJoin("tcgplayer_snapshots as snap", "snap.source_id", "ps.id")
+    .selectFrom("marketplace_sources as ps")
+    .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
+    .where("ps.marketplace", "=", "tcgplayer")
     .distinctOn("ps.id")
     .select(["ps.printing_id", "snap.market_cents"])
     .orderBy("ps.id")
@@ -197,21 +194,18 @@ cardsRoute.get("/prices/:printingId/history", async (c) => {
   const days = rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam as TimeRange] : RANGE_DAYS["30d"];
   const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
-  // Look up sources
-  const tcgSource = await db
-    .selectFrom("tcgplayer_sources")
-    .select(["id", "external_id"])
+  // Look up sources from unified table
+  const sources = await db
+    .selectFrom("marketplace_sources")
+    .select(["id", "external_id", "marketplace"])
     .where("printing_id", "=", printingId)
-    .executeTakeFirst();
+    .execute();
 
-  const cmSource = await db
-    .selectFrom("cardmarket_sources")
-    .select(["id", "external_id"])
-    .where("printing_id", "=", printingId)
-    .executeTakeFirst();
+  const tcgSource = sources.find((s) => s.marketplace === "tcgplayer");
+  const cmSource = sources.find((s) => s.marketplace === "cardmarket");
 
   const tcgSnapshots = tcgSource
-    ? await fetchSnapshots("tcgplayer_snapshots", tcgSource.id, cutoff, (r) => ({
+    ? await fetchSnapshots(tcgSource.id, cutoff, (r) => ({
         date: formatSnapshotDate(r.recorded_at),
         market: r.market_cents / 100,
         low: centsToDollars(r.low_cents),
@@ -221,7 +215,7 @@ cardsRoute.get("/prices/:printingId/history", async (c) => {
     : [];
 
   const cmSnapshots = cmSource
-    ? await fetchSnapshots("cardmarket_snapshots", cmSource.id, cutoff, (r) => ({
+    ? await fetchSnapshots(cmSource.id, cutoff, (r) => ({
         date: formatSnapshotDate(r.recorded_at),
         market: r.market_cents / 100,
         low: centsToDollars(r.low_cents),

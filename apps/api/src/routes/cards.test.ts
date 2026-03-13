@@ -219,7 +219,7 @@ describe("GET /api/cards", () => {
 
 describe("GET /api/prices", () => {
   beforeEach(() => {
-    mockState.tables = { "tcgplayer_sources as ps": [dbPrice, dbPriceFoil] };
+    mockState.tables = { "marketplace_sources as ps": [dbPrice, dbPriceFoil] };
   });
 
   it("returns 200 with PricesData structure", async () => {
@@ -247,7 +247,7 @@ describe("GET /api/prices", () => {
   });
 
   it("returns empty prices when no rows exist", async () => {
-    mockState.tables = { "tcgplayer_sources as ps": [] };
+    mockState.tables = { "marketplace_sources as ps": [] };
 
     const res = await app.request("/api/prices");
     const json = await res.json();

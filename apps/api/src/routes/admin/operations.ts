@@ -2,6 +2,7 @@ import { createLogger } from "@openrift/shared/logger";
 import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardmarket-prices";
 import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
 import { Hono } from "hono";
+import { sql } from "kysely";
 import { z } from "zod/v4";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -29,31 +30,30 @@ operationsRoute.post("/admin/clear-prices", async (c) => {
   const source = clearPriceSourceSchema.parse(body.source);
 
   try {
-    if (source === "tcgplayer") {
-      const snapshots = await db.deleteFrom("tcgplayer_snapshots").execute();
-      const sources = await db.deleteFrom("tcgplayer_sources").execute();
-      const staging = await db.deleteFrom("tcgplayer_staging").execute();
-      return c.json({
-        status: "ok",
-        result: {
-          source,
-          deleted: {
-            snapshots: Number(snapshots[0].numDeletedRows),
-            sources: Number(sources[0].numDeletedRows),
-            staging: Number(staging[0].numDeletedRows),
-          },
-        },
-      });
-    }
-    const snapshots = await db.deleteFrom("cardmarket_snapshots").execute();
-    const sources = await db.deleteFrom("cardmarket_sources").execute();
-    const staging = await db.deleteFrom("cardmarket_staging").execute();
+    // Delete snapshots for this marketplace (via source_id join)
+    const snapshots = await sql`
+      DELETE FROM marketplace_snapshots
+      WHERE source_id IN (
+        SELECT id FROM marketplace_sources WHERE marketplace = ${source}
+      )
+    `.execute(db);
+
+    const sources = await db
+      .deleteFrom("marketplace_sources")
+      .where("marketplace", "=", source)
+      .execute();
+
+    const staging = await db
+      .deleteFrom("marketplace_staging")
+      .where("marketplace", "=", source)
+      .execute();
+
     return c.json({
       status: "ok",
       result: {
         source,
         deleted: {
-          snapshots: Number(snapshots[0].numDeletedRows),
+          snapshots: Number(snapshots.numAffectedRows ?? 0),
           sources: Number(sources[0].numDeletedRows),
           staging: Number(staging[0].numDeletedRows),
         },

@@ -28,18 +28,13 @@ const ignoreProductsSchema = z.object({
 
 ignoredProductsRoute.post("/admin/ignored-products", async (c) => {
   const { source, products } = ignoreProductsSchema.parse(await c.req.json());
-  const stagingTable =
-    source === "tcgplayer" ? ("tcgplayer_staging" as const) : ("cardmarket_staging" as const);
-  const ignoreTable =
-    source === "tcgplayer"
-      ? ("tcgplayer_ignored_products" as const)
-      : ("cardmarket_ignored_products" as const);
 
   // Look up product names from staging
   const externalIds = products.map((p) => p.externalId);
   const stagingRows = await db
-    .selectFrom(stagingTable)
+    .selectFrom("marketplace_staging")
     .select(["external_id", "product_name"])
+    .where("marketplace", "=", source)
     .where("external_id", "in", externalIds)
     .execute();
 
@@ -54,6 +49,7 @@ ignoredProductsRoute.post("/admin/ignored-products", async (c) => {
   const values = products
     .filter((p) => nameMap.has(p.externalId))
     .map((p) => ({
+      marketplace: source,
       external_id: p.externalId,
       finish: p.finish,
       product_name: nameMap.get(p.externalId) ?? "",
@@ -61,9 +57,9 @@ ignoredProductsRoute.post("/admin/ignored-products", async (c) => {
 
   if (values.length > 0) {
     await db
-      .insertInto(ignoreTable)
+      .insertInto("marketplace_ignored_products")
       .values(values)
-      .onConflict((oc) => oc.columns(["external_id", "finish"]).doNothing())
+      .onConflict((oc) => oc.columns(["marketplace", "external_id", "finish"]).doNothing())
       .execute();
   }
 
@@ -74,14 +70,11 @@ ignoredProductsRoute.post("/admin/ignored-products", async (c) => {
 
 ignoredProductsRoute.delete("/admin/ignored-products", async (c) => {
   const { source, products } = ignoreProductsSchema.parse(await c.req.json());
-  const ignoreTable =
-    source === "tcgplayer"
-      ? ("tcgplayer_ignored_products" as const)
-      : ("cardmarket_ignored_products" as const);
 
   for (const p of products) {
     await db
-      .deleteFrom(ignoreTable)
+      .deleteFrom("marketplace_ignored_products")
+      .where("marketplace", "=", source)
       .where("external_id", "=", p.externalId)
       .where("finish", "=", p.finish)
       .execute();
@@ -105,19 +98,18 @@ ignoredProductsRoute.post("/admin/staging-card-overrides", async (c) => {
   const { source, externalId, finish, cardId } = stagingCardOverrideSchema.parse(
     await c.req.json(),
   );
-  const table =
-    source === "tcgplayer"
-      ? ("tcgplayer_staging_card_overrides" as const)
-      : ("cardmarket_staging_card_overrides" as const);
 
   await db
-    .insertInto(table)
+    .insertInto("marketplace_staging_card_overrides")
     .values({
+      marketplace: source,
       external_id: externalId,
       finish,
       card_id: cardId,
     })
-    .onConflict((oc) => oc.columns(["external_id", "finish"]).doUpdateSet({ card_id: cardId }))
+    .onConflict((oc) =>
+      oc.columns(["marketplace", "external_id", "finish"]).doUpdateSet({ card_id: cardId }),
+    )
     .execute();
 
   return c.json({ ok: true });
@@ -131,13 +123,10 @@ const deleteOverrideSchema = z.object({
 
 ignoredProductsRoute.delete("/admin/staging-card-overrides", async (c) => {
   const { source, externalId, finish } = deleteOverrideSchema.parse(await c.req.json());
-  const table =
-    source === "tcgplayer"
-      ? ("tcgplayer_staging_card_overrides" as const)
-      : ("cardmarket_staging_card_overrides" as const);
 
   await db
-    .deleteFrom(table)
+    .deleteFrom("marketplace_staging_card_overrides")
+    .where("marketplace", "=", source)
     .where("external_id", "=", externalId)
     .where("finish", "=", finish)
     .execute();

@@ -18,18 +18,20 @@ catalogRoute.use("/admin/cardmarket-groups", requireAdmin);
 
 catalogRoute.get("/admin/cardmarket-groups", async (c) => {
   const expansions = await db
-    .selectFrom("cardmarket_expansions as ce")
-    .select(["ce.expansion_id", "ce.name"])
-    .orderBy("ce.expansion_id")
+    .selectFrom("marketplace_groups")
+    .select(["group_id", "name"])
+    .where("marketplace", "=", "cardmarket")
+    .orderBy("group_id")
     .execute();
 
-  // Count staging rows per expansion (group_id stores idExpansion for cardmarket)
+  // Count staging rows per expansion
   const stagingCounts = await db
-    .selectFrom("cardmarket_staging")
+    .selectFrom("marketplace_staging")
     .select((eb) => [
       "group_id" as const,
       eb.fn.count<number>("external_id").distinct().as("count"),
     ])
+    .where("marketplace", "=", "cardmarket")
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();
@@ -38,8 +40,9 @@ catalogRoute.get("/admin/cardmarket-groups", async (c) => {
 
   // Count assigned (mapped) products per expansion
   const assignedCounts = await db
-    .selectFrom("cardmarket_sources")
+    .selectFrom("marketplace_sources")
     .select((eb) => ["group_id" as const, eb.fn.countAll<number>().as("count")])
+    .where("marketplace", "=", "cardmarket")
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();
@@ -48,10 +51,10 @@ catalogRoute.get("/admin/cardmarket-groups", async (c) => {
 
   return c.json({
     expansions: expansions.map((e) => ({
-      expansionId: e.expansion_id,
+      expansionId: e.group_id,
       name: e.name,
-      stagedCount: countMap.get(e.expansion_id) ?? 0,
-      assignedCount: assignedMap.get(e.expansion_id) ?? 0,
+      stagedCount: countMap.get(e.group_id) ?? 0,
+      assignedCount: assignedMap.get(e.group_id) ?? 0,
     })),
   });
 });
@@ -65,9 +68,10 @@ catalogRoute.put("/admin/cardmarket-groups", async (c) => {
   const { expansionId, name } = updateExpansionSchema.parse(await c.req.json());
 
   await db
-    .updateTable("cardmarket_expansions")
+    .updateTable("marketplace_groups")
     .set({ name, updated_at: new Date() })
-    .where("expansion_id", "=", expansionId)
+    .where("marketplace", "=", "cardmarket")
+    .where("group_id", "=", expansionId)
     .execute();
 
   return c.json({ ok: true });
@@ -79,18 +83,20 @@ catalogRoute.use("/admin/tcgplayer-groups", requireAdmin);
 
 catalogRoute.get("/admin/tcgplayer-groups", async (c) => {
   const groups = await db
-    .selectFrom("tcgplayer_groups as tg")
-    .select(["tg.group_id", "tg.name", "tg.abbreviation"])
-    .orderBy("tg.name")
+    .selectFrom("marketplace_groups")
+    .select(["group_id", "name", "abbreviation"])
+    .where("marketplace", "=", "tcgplayer")
+    .orderBy("name")
     .execute();
 
   // Count staging rows per group_id
   const stagingCounts = await db
-    .selectFrom("tcgplayer_staging")
+    .selectFrom("marketplace_staging")
     .select((eb) => [
       "group_id" as const,
       eb.fn.count<number>("external_id").distinct().as("count"),
     ])
+    .where("marketplace", "=", "tcgplayer")
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();
@@ -99,8 +105,9 @@ catalogRoute.get("/admin/tcgplayer-groups", async (c) => {
 
   // Count assigned (mapped) products per group_id
   const assignedCounts = await db
-    .selectFrom("tcgplayer_sources")
+    .selectFrom("marketplace_sources")
     .select((eb) => ["group_id" as const, eb.fn.countAll<number>().as("count")])
+    .where("marketplace", "=", "tcgplayer")
     .where("group_id", "is not", null)
     .groupBy("group_id")
     .execute();

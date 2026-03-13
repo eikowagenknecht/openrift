@@ -93,17 +93,8 @@ export interface MarketplaceConfig<
   N extends SnapshotRow = SnapshotRow,
   M extends MappedSnapshotRow = MappedSnapshotRow,
 > {
+  marketplace: string;
   currency: string;
-  tables: {
-    staging: "tcgplayer_staging" | "cardmarket_staging";
-    sources: "tcgplayer_sources" | "cardmarket_sources";
-    snapshots: "tcgplayer_snapshots" | "cardmarket_snapshots";
-    groups: "tcgplayer_groups" | "cardmarket_expansions";
-    ignored: "tcgplayer_ignored_products" | "cardmarket_ignored_products";
-    overrides: "tcgplayer_staging_card_overrides" | "cardmarket_staging_card_overrides";
-  };
-  /** Column name that holds the group/expansion ID in the groups table */
-  groupIdColumn: "group_id" | "expansion_id";
   /** Marketplace-specific price column names (for bulk snapshot inserts) */
   priceColumns: readonly string[];
   /** Map a staging row → the unified product-info price fields */
@@ -137,39 +128,28 @@ function pick<T, K extends keyof T>(obj: T, keys: readonly K[]): Pick<T, K> {
 
 /**
  * Creates a MarketplaceConfig from marketplace-specific parameters.
- * Handles table name derivation, price field mapping, insert/upsert logic,
- * and bulk SQL generation — only the price mapping and snapshot query differ.
+ * All configs use the same unified tables, differentiated by the marketplace column.
  * @returns A fully wired MarketplaceConfig
  */
 function createMarketplaceConfig<
   PF extends { market_cents: number; low_cents: number | null },
 >(opts: {
+  marketplace: string;
   currency: string;
-  prefix: "tcgplayer" | "cardmarket";
-  groupsTable: "tcgplayer_groups" | "cardmarket_expansions";
-  groupIdColumn: "group_id" | "expansion_id";
   priceColumns: readonly (keyof PF & string)[];
   /** Map a row's price fields → unified ProductInfo (excluding productName/recordedAt) */
   mapPrices(row: PF): Omit<ProductInfo, "productName" | "recordedAt">;
   /** Typed Kysely snapshot query (kept per-marketplace for type safety) */
   snapshotQuery(printingIds: string[]): Promise<(MappedSnapshotRow & PF)[]>;
 }): MarketplaceConfig<StagingRow & PF, SnapshotRow & PF, MappedSnapshotRow & PF> {
-  const { prefix, groupsTable, groupIdColumn, priceColumns, mapPrices, snapshotQuery } = opts;
-
-  type Tables = MarketplaceConfig["tables"];
-  const staging = `${prefix}_staging` as Tables["staging"];
-  const sources = `${prefix}_sources` as Tables["sources"];
-  const snapshots = `${prefix}_snapshots` as Tables["snapshots"];
-  const ignored = `${prefix}_ignored_products` as Tables["ignored"];
-  const overrides = `${prefix}_staging_card_overrides` as Tables["overrides"];
+  const { marketplace, priceColumns, mapPrices, snapshotQuery } = opts;
 
   const priceCols = priceColumns.join(", ");
   const snapPriceCols = priceColumns.map((c) => `snap.${c}`).join(", ");
 
   return {
+    marketplace,
     currency: opts.currency,
-    tables: { staging, sources, snapshots, groups: groupsTable, ignored, overrides },
-    groupIdColumn,
     priceColumns: priceColumns as readonly string[],
 
     mapStagingPrices: mapPrices as (
@@ -187,7 +167,7 @@ function createMarketplaceConfig<
     insertSnapshot: async (tx, sourceId, row) => {
       const prices = pick(row, priceColumns);
       await tx
-        .insertInto(snapshots)
+        .insertInto("marketplace_snapshots")
         .values({
           source_id: sourceId,
           recorded_at: row.recorded_at,
@@ -200,8 +180,9 @@ function createMarketplaceConfig<
     insertStagingFromSnapshot: async (tx, ps, finish, snap) => {
       const prices = pick(snap, priceColumns);
       await tx
-        .insertInto(staging)
+        .insertInto("marketplace_staging")
         .values({
+          marketplace,
           external_id: ps.external_id,
           group_id: ps.group_id,
           product_name: ps.product_name,
@@ -209,20 +190,23 @@ function createMarketplaceConfig<
           recorded_at: snap.recorded_at,
           ...prices,
         } as never)
-        .onConflict((oc) => oc.columns(["external_id", "finish", "recorded_at"]).doNothing())
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "external_id", "finish", "recorded_at"]).doNothing(),
+        )
         .execute();
     },
 
-    // raw sql: INSERT...SELECT with dynamic table names, runtime column list, and ON CONFLICT
+    // raw sql: INSERT...SELECT with dynamic column list and ON CONFLICT
     bulkUnmapSql: async (tx) => {
       await sql`
-        INSERT INTO ${sql.table(staging)} (external_id, group_id, product_name, finish, recorded_at, ${sql.raw(priceCols)})
-        SELECT s.external_id, s.group_id, s.product_name, p.finish, snap.recorded_at, ${sql.raw(snapPriceCols)}
-        FROM ${sql.table(sources)} s
+        INSERT INTO marketplace_staging (marketplace, external_id, group_id, product_name, finish, recorded_at, ${sql.raw(priceCols)})
+        SELECT s.marketplace, s.external_id, s.group_id, s.product_name, p.finish, snap.recorded_at, ${sql.raw(snapPriceCols)}
+        FROM marketplace_sources s
         JOIN printings p ON p.id = s.printing_id
-        JOIN ${sql.table(snapshots)} snap ON snap.source_id = s.id
-        WHERE s.external_id IS NOT NULL
-        ON CONFLICT (external_id, finish, recorded_at) DO NOTHING
+        JOIN marketplace_snapshots snap ON snap.source_id = s.id
+        WHERE s.marketplace = ${marketplace}
+          AND s.external_id IS NOT NULL
+        ON CONFLICT (marketplace, external_id, finish, recorded_at) DO NOTHING
       `.execute(tx);
     },
   };
@@ -235,10 +219,8 @@ export const tcgplayerConfig: MarketplaceConfig<
   TcgplayerSnapshotRow,
   TcgplayerMappedSnapshotRow
 > = createMarketplaceConfig<TcgplayerPriceFields>({
+  marketplace: "tcgplayer",
   currency: "USD",
-  prefix: "tcgplayer",
-  groupsTable: "tcgplayer_groups",
-  groupIdColumn: "group_id",
   priceColumns: TCGPLAYER_PRICE_COLS,
   mapPrices: (row) => ({
     marketCents: row.market_cents,
@@ -253,8 +235,8 @@ export const tcgplayerConfig: MarketplaceConfig<
   }),
   snapshotQuery: (printingIds) =>
     db
-      .selectFrom("tcgplayer_sources as ps")
-      .innerJoin("tcgplayer_snapshots as snap", "snap.source_id", "ps.id")
+      .selectFrom("marketplace_sources as ps")
+      .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
       .select([
         "ps.printing_id",
         "ps.product_name",
@@ -264,6 +246,7 @@ export const tcgplayerConfig: MarketplaceConfig<
         "snap.high_cents",
         "snap.recorded_at",
       ])
+      .where("ps.marketplace", "=", "tcgplayer")
       .where("ps.printing_id", "in", printingIds)
       .orderBy("snap.recorded_at", "desc")
       .execute(),
@@ -276,10 +259,8 @@ export const cardmarketConfig: MarketplaceConfig<
   CardmarketSnapshotRow,
   CardmarketMappedSnapshotRow
 > = createMarketplaceConfig<CardmarketPriceFields>({
+  marketplace: "cardmarket",
   currency: "EUR",
-  prefix: "cardmarket",
-  groupsTable: "cardmarket_expansions",
-  groupIdColumn: "expansion_id",
   priceColumns: CARDMARKET_PRICE_COLS,
   mapPrices: (row) => ({
     marketCents: row.market_cents,
@@ -294,8 +275,8 @@ export const cardmarketConfig: MarketplaceConfig<
   }),
   snapshotQuery: (printingIds) =>
     db
-      .selectFrom("cardmarket_sources as ps")
-      .innerJoin("cardmarket_snapshots as snap", "snap.source_id", "ps.id")
+      .selectFrom("marketplace_sources as ps")
+      .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
       .select([
         "ps.printing_id",
         "ps.product_name",
@@ -307,6 +288,7 @@ export const cardmarketConfig: MarketplaceConfig<
         "snap.avg30_cents",
         "snap.recorded_at",
       ])
+      .where("ps.marketplace", "=", "cardmarket")
       .where("ps.printing_id", "in", printingIds)
       .orderBy("snap.recorded_at", "desc")
       .execute(),

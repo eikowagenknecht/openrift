@@ -1,25 +1,21 @@
+import { sql } from "kysely";
+
 import { createDb } from "../packages/shared/src/db/connect.js";
 import { requireEnv } from "./env.js";
 
 const { db } = createDb(requireEnv("DATABASE_URL"));
 
-const tcgSnapshots = await db.deleteFrom("tcgplayer_snapshots").execute();
-console.log(`Deleted ${tcgSnapshots[0].numDeletedRows} tcgplayer_snapshots`);
+// Delete all snapshots (must go before sources due to FK)
+const snapshots = await sql`
+  DELETE FROM marketplace_snapshots
+`.execute(db);
+console.log(`Deleted ${snapshots.numAffectedRows ?? 0} marketplace_snapshots`);
 
-const tcgSources = await db.deleteFrom("tcgplayer_sources").execute();
-console.log(`Deleted ${tcgSources[0].numDeletedRows} tcgplayer_sources`);
+const sources = await db.deleteFrom("marketplace_sources").execute();
+console.log(`Deleted ${sources[0].numDeletedRows} marketplace_sources`);
 
-const tcgStaging = await db.deleteFrom("tcgplayer_staging").execute();
-console.log(`Deleted ${tcgStaging[0].numDeletedRows} tcgplayer_staging`);
-
-const cmSnapshots = await db.deleteFrom("cardmarket_snapshots").execute();
-console.log(`Deleted ${cmSnapshots[0].numDeletedRows} cardmarket_snapshots`);
-
-const cmSources = await db.deleteFrom("cardmarket_sources").execute();
-console.log(`Deleted ${cmSources[0].numDeletedRows} cardmarket_sources`);
-
-const cmStaging = await db.deleteFrom("cardmarket_staging").execute();
-console.log(`Deleted ${cmStaging[0].numDeletedRows} cardmarket_staging`);
+const staging = await db.deleteFrom("marketplace_staging").execute();
+console.log(`Deleted ${staging[0].numDeletedRows} marketplace_staging`);
 
 await db.destroy();
 console.log("Done — all price tables cleared.");
