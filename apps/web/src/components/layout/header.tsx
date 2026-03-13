@@ -10,7 +10,7 @@ import {
   Sun,
   User,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import changelogMd from "@/CHANGELOG.md?raw";
@@ -90,30 +90,6 @@ export function Header() {
   const [checking, setChecking] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
-
-  // HACK: work around base-ui#4180 — side drawers block vertical touch scroll.
-  // Fixed upstream in base-ui#4187 (merged 2026-03-04, not yet in a stable release).
-  // Remove this workaround after upgrading @base-ui/react past 1.2.0.
-  // How it works: stopping touchstart/touchmove propagation prevents the Viewport's
-  // React handler from setting its internal touchScrollStateRef, so the document-level
-  // capture handler returns early without calling preventDefault().
-  // Trade-off: swipe-to-dismiss doesn't work from inside the scroll area.
-  const scrollCleanupRef = useRef<(() => void) | null>(null);
-  const scrollRef = (el: HTMLDivElement | null) => {
-    scrollCleanupRef.current?.();
-    scrollCleanupRef.current = null;
-    if (!el) {
-      return;
-    }
-
-    const stopTouch = (e: TouchEvent) => e.stopPropagation();
-    el.addEventListener("touchstart", stopTouch, { passive: true });
-    el.addEventListener("touchmove", stopTouch, { passive: true });
-    scrollCleanupRef.current = () => {
-      el.removeEventListener("touchstart", stopTouch);
-      el.removeEventListener("touchmove", stopTouch);
-    };
-  };
 
   return (
     <>
@@ -235,7 +211,7 @@ export function Header() {
 
       <Drawer swipeDirection="right" open={changelogOpen} onOpenChange={setChangelogOpen}>
         <DrawerContent className="flex flex-col gap-0 overflow-hidden">
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
             <DrawerHeader className="px-0 pb-4 pt-2">
               <DrawerTitle>What&apos;s new</DrawerTitle>
               <DrawerDescription>
