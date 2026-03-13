@@ -58,28 +58,23 @@ export function StagedProductCard({
   return (
     <div className="rounded-lg border bg-background px-3 py-2.5">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p
-            className="flex items-center gap-1 truncate text-sm font-medium"
-            title={sp.productName}
-          >
-            {isAssigned && (
-              <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
-            )}
-            <span className="truncate">{sp.productName}</span>
-          </p>
-          {sp.groupName && (
-            <p className="truncate text-xs text-muted-foreground" title={sp.groupName}>
-              {sp.groupName}
-            </p>
+        <p className="flex min-w-0 items-center gap-1 text-sm font-medium" title={sp.productName}>
+          {isAssigned && (
+            <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
           )}
-        </div>
+          <span className="truncate">{sp.productName}</span>
+        </p>
         <Badge variant="outline" className="shrink-0">
           <ProductLink config={config} externalId={sp.externalId}>
             #{sp.externalId}
           </ProductLink>
         </Badge>
       </div>
+      {sp.groupName && (
+        <p className="truncate text-xs text-muted-foreground" title={sp.groupName}>
+          {sp.groupName}
+        </p>
+      )}
       <div className="mt-1.5 flex items-baseline gap-2">
         {sp.marketCents > 0 && (
           <span className="text-lg font-semibold tabular-nums">
@@ -92,7 +87,7 @@ export function StagedProductCard({
           </Badge>
         )}
       </div>
-      <div className="mt-1.5 flex items-end justify-between gap-2">
+      <div className="mt-1.5 flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
         <p
           className={cn(
             "w-fit rounded px-1.5 py-0.5 text-xs",
@@ -103,7 +98,7 @@ export function StagedProductCard({
         >
           {sp.recordedAt.slice(0, 16).replace("T", " ")}
         </p>
-        <div className="flex shrink-0 gap-1">
+        <div className="flex flex-wrap gap-1">
           {onAssignToCard && allCards && (
             <Button
               variant="ghost"

@@ -37,8 +37,7 @@ export const queryKeys = {
       sourceNames: ["admin", "card-sources", "source-names"] as const,
       sourceStats: ["admin", "card-sources", "source-stats"] as const,
     },
-    cardmarketGroups: ["admin", "cardmarket-groups"] as const,
-    tcgplayerGroups: ["admin", "tcgplayer-groups"] as const,
+    marketplaceGroups: ["admin", "marketplace-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
     cronStatus: ["admin", "cron-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,
@@ -47,5 +46,10 @@ export const queryKeys = {
       bySourceAndFilter: (config: SourceMappingConfig, showAll: boolean) =>
         ["admin", config.source, "mappings", { all: showAll }] as const,
     },
+    unifiedMappings: {
+      all: ["admin", "unified-mappings"] as const,
+      byFilter: (showAll: boolean) => ["admin", "unified-mappings", { all: showAll }] as const,
+    },
+    ignoredProducts: ["admin", "ignored-products"] as const,
   },
 } as const;
