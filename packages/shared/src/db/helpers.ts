@@ -10,7 +10,7 @@ import { sql } from "kysely";
  * raw sql: columns are dynamic at runtime — eb.ref('excluded.col') only works for static columns.
  * @returns A record mapping column names to `excluded.<col>` SQL expressions.
  */
-export function buildExcludedSet(columns: string[]) {
+export function buildExcludedSet(columns: readonly string[]) {
   // oxlint-disable-next-line typescript/no-explicit-any -- dynamic column mapping for Kysely doUpdateSet
   const set: Record<string, any> = {};
   for (const col of columns) {
@@ -26,7 +26,7 @@ export function buildExcludedSet(columns: string[]) {
  * but only for static column refs; here columns come from a runtime array.
  * @returns A raw SQL boolean expression for the conflict WHERE clause.
  */
-export function buildDistinctWhere(table: string, columns: string[]) {
+export function buildDistinctWhere(table: string, columns: readonly string[]) {
   return sql.raw<SqlBool>(
     columns.map((c) => `excluded.${c} IS DISTINCT FROM ${table}.${c}`).join("\n              OR "),
   );
