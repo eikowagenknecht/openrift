@@ -200,76 +200,62 @@ function buildResponseGroups(
   mappedProductInfo: Map<string, ProductInfo>,
   groupNameMap: Map<number, string>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => Record<string, unknown>,
-  showAll: boolean,
 ) {
-  return [...cardGroups.values()]
-    .map((group) => {
-      const key = group.cardId;
-      const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
-        mapStagedRow(row, { isOverride: overrideMap.has(`${row.external_id}::${row.finish}`) }),
-      );
+  return [...cardGroups.values()].map((group) => {
+    const key = group.cardId;
+    const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
+      mapStagedRow(row, { isOverride: overrideMap.has(`${row.external_id}::${row.finish}`) }),
+    );
 
-      const seenAssigned = new Set<string>();
-      const assignedProducts: typeof stagedProducts = [];
-      for (const p of group.printings) {
-        const dedupKey = `${p.externalId}::${p.finish}`;
-        if (p.externalId !== null && !seenAssigned.has(dedupKey)) {
-          seenAssigned.add(dedupKey);
-          const info = mappedProductInfo.get(p.printingId);
-          if (info) {
-            assignedProducts.push({
-              externalId: p.externalId,
-              productName: info.productName ?? group.cardName,
-              finish: p.finish,
-              marketCents: info.marketCents,
-              lowCents: info.lowCents,
-              currency: info.currency,
-              recordedAt: info.recordedAt,
-              midCents: info.midCents,
-              highCents: info.highCents,
-              trendCents: info.trendCents,
-              avg1Cents: info.avg1Cents,
-              avg7Cents: info.avg7Cents,
-              avg30Cents: info.avg30Cents,
-              isOverride: false,
-              groupId: p.sourceGroupId,
-              groupName: p.sourceGroupId
-                ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
-                : undefined,
-            });
-          }
+    const seenAssigned = new Set<string>();
+    const assignedProducts: typeof stagedProducts = [];
+    for (const p of group.printings) {
+      const dedupKey = `${p.externalId}::${p.finish}`;
+      if (p.externalId !== null && !seenAssigned.has(dedupKey)) {
+        seenAssigned.add(dedupKey);
+        const info = mappedProductInfo.get(p.printingId);
+        if (info) {
+          assignedProducts.push({
+            externalId: p.externalId,
+            productName: info.productName ?? group.cardName,
+            finish: p.finish,
+            marketCents: info.marketCents,
+            lowCents: info.lowCents,
+            currency: info.currency,
+            recordedAt: info.recordedAt,
+            midCents: info.midCents,
+            highCents: info.highCents,
+            trendCents: info.trendCents,
+            avg1Cents: info.avg1Cents,
+            avg7Cents: info.avg7Cents,
+            avg30Cents: info.avg30Cents,
+            isOverride: false,
+            groupId: p.sourceGroupId,
+            groupName: p.sourceGroupId
+              ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
+              : undefined,
+          });
         }
       }
+    }
 
-      // Exclude staged products that are already assigned
-      const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
-      const filteredStaged = stagedProducts.filter(
-        (p) => !assignedKeys.has(`${p.externalId}::${p.finish}`),
-      );
+    // Exclude staged products that are already assigned
+    const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
+    const filteredStaged = stagedProducts.filter(
+      (p) => !assignedKeys.has(`${p.externalId}::${p.finish}`),
+    );
 
-      return {
-        ...group,
-        stagedProducts: filteredStaged,
-        assignedProducts,
-      };
-    })
-    .filter((group) => {
-      if (showAll) {
-        return true;
-      }
-      return group.printings.some((p) => p.externalId === null);
-    });
+    return {
+      ...group,
+      stagedProducts: filteredStaged,
+      assignedProducts,
+    };
+  });
 }
 
 // ── getMappingOverview ───────────────────────────────────────────────────────
 
-export async function getMappingOverview(
-  db: Kysely<Database>,
-  config: MarketplaceConfig,
-  opts: { showAll: boolean },
-) {
-  const { showAll } = opts;
-
+export async function getMappingOverview(db: Kysely<Database>, config: MarketplaceConfig) {
   // 1. Load ignored products
   const ignoredRows = await db
     .selectFrom("marketplace_ignored_products")
@@ -457,7 +443,6 @@ export async function getMappingOverview(
     mappedProductInfo,
     groupNameMap,
     mapStagedRow,
-    showAll,
   );
 
   // Lightweight card list for manual assignment

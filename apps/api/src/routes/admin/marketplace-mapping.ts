@@ -30,7 +30,10 @@ export function createMappingRoutes(
 
   app.get(path, async (c) => {
     const showAll = c.req.query("all") === "true";
-    const result = await getMappingOverview(db, config, { showAll });
+    const result = await getMappingOverview(db, config);
+    if (!showAll) {
+      result.groups = result.groups.filter((g) => g.printings.some((p) => p.externalId === null));
+    }
     return c.json(result);
   });
 

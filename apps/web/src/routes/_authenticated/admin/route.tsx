@@ -51,7 +51,7 @@ function AdminContent() {
   const title = pageTitles[routeId] ?? "Admin";
 
   return (
-    <div className="relative flex w-full flex-1 flex-col">
+    <div className="relative flex min-w-0 flex-1 flex-col">
       <header className="flex h-12 items-center gap-2 border-b px-4">
         <SidebarTrigger />
         <Separator orientation="vertical" className="mx-1 h-4! self-center!" />

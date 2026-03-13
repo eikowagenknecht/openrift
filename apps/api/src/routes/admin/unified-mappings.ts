@@ -18,8 +18,8 @@ unifiedMappingsRoute.get("/admin/marketplace-mappings", async (c) => {
   const showAll = c.req.query("all") === "true";
 
   const [tcgResult, cmResult] = await Promise.all([
-    getMappingOverview(db, tcgplayerConfig, { showAll }),
-    getMappingOverview(db, cardmarketConfig, { showAll }),
+    getMappingOverview(db, tcgplayerConfig),
+    getMappingOverview(db, cardmarketConfig),
   ]);
 
   // Merge by cardId — combine data from both marketplaces per card
@@ -132,12 +132,23 @@ unifiedMappingsRoute.get("/admin/marketplace-mappings", async (c) => {
     }
   }
 
+  // Filter after merge so both marketplaces have complete data
+  const allGroups = [...mergedMap.values()];
+  const filteredGroups = showAll
+    ? allGroups
+    : allGroups.filter(
+        (g) =>
+          g.printings.some((p) => p.tcgExternalId === null || p.cmExternalId === null) ||
+          (g.tcgplayer.stagedProducts as unknown[]).length > 0 ||
+          (g.cardmarket.stagedProducts as unknown[]).length > 0,
+      );
+
   // allCards only needs to be sent once (same card pool for both)
   const allCards =
     tcgResult.allCards.length >= cmResult.allCards.length ? tcgResult.allCards : cmResult.allCards;
 
   return c.json({
-    groups: [...mergedMap.values()],
+    groups: filteredGroups,
     unmatchedProducts: {
       tcgplayer: tcgResult.unmatchedProducts,
       cardmarket: cmResult.unmatchedProducts,
