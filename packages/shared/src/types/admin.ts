@@ -42,6 +42,7 @@ export interface PrintingSource {
   printedEffectText: string;
   imageUrl: string | null;
   flavorText: string;
+  sourceEntityId: string | null;
   extraData: unknown | null;
   checkedAt: string | null;
   createdAt: string;

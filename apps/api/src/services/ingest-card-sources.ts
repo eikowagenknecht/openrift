@@ -36,6 +36,7 @@ interface IngestPrinting {
   printed_effect_text: string;
   image_url?: string | null;
   flavor_text?: string;
+  source_entity_id?: string | null;
   extra_data?: unknown | null;
 }
 
@@ -304,6 +305,9 @@ export async function ingestCardSources(
             printed_effect_text: p.printed_effect_text,
             image_url: p.image_url ?? null,
             flavor_text: p.flavor_text ?? "",
+            ...(p.source_entity_id !== undefined && {
+              source_entity_id: p.source_entity_id ?? null,
+            }),
             extra_data: jsonOrNull(p.extra_data),
           };
 

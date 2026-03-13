@@ -373,6 +373,7 @@ export interface PrintingSourcesTable {
   printed_effect_text: string;
   image_url: string | null;
   flavor_text: string;
+  source_entity_id: string | null;
   extra_data: unknown | null;
   checked_at: Date | null;
   created_at: CreatedAt;

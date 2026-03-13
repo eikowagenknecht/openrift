@@ -27,6 +27,7 @@ import * as m021 from "./021-nullable-art-variant.js";
 import * as m022 from "./022-unify-marketplace-tables.js";
 import * as m023 from "./023-uuidv7.js";
 import * as m024 from "./024-surrogate-keys.js";
+import * as m025 from "./025-printing-source-entity-id.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -53,4 +54,5 @@ export const migrations: Record<string, Migration> = {
   "022-unify-marketplace-tables": m022,
   "023-uuidv7": m023,
   "024-surrogate-keys": m024,
+  "025-printing-source-entity-id": m025,
 };
