@@ -14,6 +14,7 @@ const pageTitles: Record<string, string> = {
   "/_authenticated/admin/cards": "Cards",
   "/_authenticated/admin/settings": "Settings",
   "/_authenticated/admin/feature-flags": "Feature Flags",
+  "/_authenticated/admin/scan": "Scan Test",
 };
 
 export const Route = createFileRoute("/_authenticated/admin")({

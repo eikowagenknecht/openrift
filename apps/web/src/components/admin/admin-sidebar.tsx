@@ -2,6 +2,7 @@ import { Link, useMatches } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   BanIcon,
+  CameraIcon,
   GalleryVerticalIcon,
   DatabaseIcon,
   FlagIcon,
@@ -40,6 +41,7 @@ const marketplacePages = [
 
 const systemPages = [
   { to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" },
+  { to: "/admin/scan" as const, icon: CameraIcon, title: "Scan Test" },
 ];
 
 export function AdminSidebar() {
