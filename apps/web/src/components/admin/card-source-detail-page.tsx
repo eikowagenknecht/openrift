@@ -5,6 +5,7 @@ import {
   CheckCheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CopyCheckIcon,
   CopyIcon,
   DownloadIcon,
   ImagePlusIcon,
@@ -222,6 +223,28 @@ export function CardSourceDetailPage() {
             acceptCardField.mutate({ cardId, field, value });
           }}
           onCheck={(sourceId) => checkCardSource.mutate(sourceId)}
+          columnActions={(row) => (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 hover:text-primary [&>svg]:transition-transform [&>svg]:hover:scale-125"
+              title="Accept all fields from this source"
+              onClick={() => {
+                const record = row as unknown as Record<string, unknown>;
+                for (const field of CARD_SOURCE_FIELDS) {
+                  if (field.readOnly) {
+                    continue;
+                  }
+                  const val = record[field.key];
+                  if (val !== null && val !== undefined && val !== "") {
+                    acceptCardField.mutate({ cardId, field: field.key, value: val });
+                  }
+                }
+              }}
+            >
+              <CopyCheckIcon className="size-3.5" />
+            </Button>
+          )}
         />
       </section>
 
@@ -582,51 +605,73 @@ function NewPrintingGroupCard({
                 );
               }}
               onCheck={onCheck}
-              columnActions={
-                existingPrintings.length > 0
-                  ? (row) => (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-6"
-                              title="Assign to printing…"
-                              disabled={isLinking}
-                            />
-                          }
-                        >
-                          <MoveIcon className="size-3" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                          {existingPrintings.map((p) => (
-                            <DropdownMenuItem
-                              key={`link-${p.id as string}`}
-                              onClick={() => onLink(p.id as string, [row.id])}
-                            >
-                              <MoveIcon className="mr-2 size-3.5" />
-                              {p.sourceId as string} · {p.finish as string}
-                            </DropdownMenuItem>
-                          ))}
-                          {existingPrintings.map((p) => (
-                            <DropdownMenuItem
-                              key={`copy-${p.id as string}`}
-                              onClick={() => onCopy(row.id, p.id as string)}
-                            >
-                              <CopyIcon className="mr-2 size-3.5" />
-                              Copy to {p.sourceId as string} · {p.finish as string}
-                            </DropdownMenuItem>
-                          ))}
-                          <DropdownMenuItem onClick={() => onDelete(row.id)}>
-                            <Trash2Icon className="mr-2 size-3.5" />
-                            Delete
+              columnActions={(row) => (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    title="Accept all fields from this source"
+                    onClick={() => {
+                      const record = row as unknown as Record<string, unknown>;
+                      const values: Record<string, unknown> = {};
+                      for (const field of PRINTING_SOURCE_FIELDS) {
+                        if (field.readOnly) {
+                          continue;
+                        }
+                        const val = record[field.key];
+                        if (val !== null && val !== undefined && val !== "") {
+                          values[field.key] = val;
+                        }
+                      }
+                      setActivePrinting((prev) => ({ ...prev, ...values }));
+                    }}
+                  >
+                    <CopyIcon className="size-3.5" />
+                  </Button>
+                  {existingPrintings.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6"
+                            title="Assign to printing…"
+                            disabled={isLinking}
+                          />
+                        }
+                      >
+                        <MoveIcon className="size-3" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64">
+                        {existingPrintings.map((p) => (
+                          <DropdownMenuItem
+                            key={`link-${p.id as string}`}
+                            onClick={() => onLink(p.id as string, [row.id])}
+                          >
+                            <MoveIcon className="mr-2 size-3.5" />
+                            {p.sourceId as string} · {p.finish as string}
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )
-                  : undefined
-              }
+                        ))}
+                        {existingPrintings.map((p) => (
+                          <DropdownMenuItem
+                            key={`copy-${p.id as string}`}
+                            onClick={() => onCopy(row.id, p.id as string)}
+                          >
+                            <CopyIcon className="mr-2 size-3.5" />
+                            Copy to {p.sourceId as string} · {p.finish as string}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuItem onClick={() => onDelete(row.id)}>
+                          <Trash2Icon className="mr-2 size-3.5" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </>
+              )}
             />
           </div>
         </>

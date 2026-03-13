@@ -238,7 +238,8 @@ export function SourceSpreadsheet({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-6"
+                      className="size-6 hover:text-green-600 [&>svg]:transition-transform [&>svg]:hover:scale-125"
+                      title="Mark as checked"
                       onClick={() => onCheck(row.id)}
                     >
                       <CheckIcon className="size-3.5" />

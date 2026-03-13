@@ -113,6 +113,11 @@ export function CardSourcesListPage() {
                           ({row.sourceIds.join(", ")})
                         </span>
                       )}
+                      {row.pendingSourceIds.length > 0 && (
+                        <span className="ml-2 font-normal italic text-muted-foreground/50">
+                          ({row.pendingSourceIds.join(", ")})
+                        </span>
+                      )}
                     </Link>
                     {row.hasGallery && <Badge className="ml-2 text-xs">gallery</Badge>}
                   </TableCell>

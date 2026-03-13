@@ -60,12 +60,12 @@ catalogRoute.get("/admin/cardmarket-groups", async (c) => {
 });
 
 const updateExpansionSchema = z.object({
-  expansionId: z.number(),
   name: z.string().nullable(),
 });
 
-catalogRoute.put("/admin/cardmarket-groups", async (c) => {
-  const { expansionId, name } = updateExpansionSchema.parse(await c.req.json());
+catalogRoute.patch("/admin/cardmarket-groups/:id", async (c) => {
+  const expansionId = Number(c.req.param("id"));
+  const { name } = updateExpansionSchema.parse(await c.req.json());
 
   await db
     .updateTable("marketplace_groups")
@@ -149,7 +149,7 @@ catalogRoute.get("/admin/sets", async (c) => {
 
   return c.json({
     sets: sets.map((s) => ({
-      id: s.id,
+      id: s.slug,
       name: s.name,
       printedTotal: s.printed_total,
       sortOrder: s.sort_order,
@@ -173,7 +173,7 @@ catalogRoute.put("/admin/sets", async (c) => {
   await db
     .updateTable("sets")
     .set({ name, printed_total: printedTotal, released_at: releasedAt, updated_at: new Date() })
-    .where("id", "=", id)
+    .where("slug", "=", id)
     .execute();
 
   return c.json({ ok: true });
@@ -189,7 +189,11 @@ const createSetSchema = z.object({
 catalogRoute.post("/admin/sets", async (c) => {
   const { id, name, printedTotal, releasedAt } = createSetSchema.parse(await c.req.json());
 
-  const existing = await db.selectFrom("sets").select("id").where("id", "=", id).executeTakeFirst();
+  const existing = await db
+    .selectFrom("sets")
+    .select("id")
+    .where("slug", "=", id)
+    .executeTakeFirst();
 
   if (existing) {
     throw new AppError(409, "CONFLICT", `Set with ID "${id}" already exists`);
@@ -203,7 +207,7 @@ catalogRoute.post("/admin/sets", async (c) => {
   await db
     .insertInto("sets")
     .values({
-      id,
+      slug: id,
       name,
       printed_total: printedTotal,
       released_at: releasedAt ?? null,
@@ -230,7 +234,7 @@ catalogRoute.put("/admin/sets/reorder", async (c) => {
       await tx
         .updateTable("sets")
         .set({ sort_order: i + 1, updated_at: new Date() })
-        .where("id", "=", ids[i])
+        .where("slug", "=", ids[i])
         .execute();
     }
   });
