@@ -107,6 +107,9 @@ export function CardSourcesListPage() {
                       className="font-medium hover:underline"
                     >
                       {row.name}
+                      {row.cardId && (
+                        <span className="ml-1 text-muted-foreground">({row.cardId})</span>
+                      )}
                     </Link>
                     {row.hasGallery && <Badge className="ml-2 text-xs">gallery</Badge>}
                   </TableCell>
@@ -115,7 +118,9 @@ export function CardSourcesListPage() {
                   </TableCell>
                   <TableCell>
                     {total > 0 ? (
-                      <Badge variant="destructive">{total}</Badge>
+                      <Badge variant="destructive">
+                        {row.uncheckedCardCount} + {row.uncheckedPrintingCount}
+                      </Badge>
                     ) : (
                       <Badge variant="outline">0</Badge>
                     )}
