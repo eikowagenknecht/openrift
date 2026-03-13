@@ -5,14 +5,28 @@ import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCards } from "@/hooks/use-cards";
 import { getCardImageUrl } from "@/lib/images";
 import type { OcrResult } from "@/lib/ocr-scanner";
 import { ocrScan, terminateOcr } from "@/lib/ocr-scanner";
-import type { PhashIndex, PhashResult } from "@/lib/phash-scanner";
-import { buildPhashIndex, phashScan } from "@/lib/phash-scanner";
+import type { PhashConfig, PhashIndex, PhashResult } from "@/lib/phash-scanner";
+import {
+  DEFAULT_PHASH_CONFIG,
+  buildPhashIndex,
+  hashBitCount,
+  phashScan,
+} from "@/lib/phash-scanner";
 
 export function ScanTestPage() {
   const { allCards, isLoading: cardsLoading } = useCards();
@@ -30,11 +44,13 @@ export function ScanTestPage() {
   const [ocrRunning, setOcrRunning] = useState(false);
 
   // pHash state
+  const [phashConfig, setPhashConfig] = useState<PhashConfig>(DEFAULT_PHASH_CONFIG);
   const [phashIndex, setPhashIndex] = useState<PhashIndex | null>(null);
   const [phashBuilding, setPhashBuilding] = useState(false);
   const [phashProgress, setPhashProgress] = useState({ done: 0, total: 0 });
   const [phashResult, setPhashResult] = useState<PhashResult | null>(null);
   const [phashRunning, setPhashRunning] = useState(false);
+  const [indexConfig, setIndexConfig] = useState<PhashConfig | null>(null);
 
   async function startCamera() {
     setCameraError(null);
@@ -66,25 +82,14 @@ export function ScanTestPage() {
     setCameraActive(false);
   }
 
-  /**
-   * Compute the crop rectangle (in video pixels) that matches the guide overlay.
-   * The guide is a 63×88 (standard card ratio) rectangle centered in the feed,
-   * sized to fill 80% of the container without exceeding 80% on either axis.
-   * @returns The crop region as {x, y, w, h} in video pixels.
-   */
   function getGuideRect(videoW: number, videoH: number) {
-    const cardAspect = 63 / 88; // width / height
-
-    // Start with 80% of height, derive width
+    const cardAspect = 63 / 88;
     let guideH = videoH * 0.8;
     let guideW = guideH * cardAspect;
-
-    // If width exceeds 80% of container, constrain by width instead
     if (guideW > videoW * 0.8) {
       guideW = videoW * 0.8;
       guideH = guideW / cardAspect;
     }
-
     const x = (videoW - guideW) / 2;
     const y = (videoH - guideH) / 2;
     return { x, y, w: guideW, h: guideH };
@@ -98,8 +103,6 @@ export function ScanTestPage() {
     }
 
     const { x, y, w, h } = getGuideRect(video.videoWidth, video.videoHeight);
-
-    // Crop to the guide region only
     canvas.width = Math.round(w);
     canvas.height = Math.round(h);
     const ctx = canvas.getContext("2d");
@@ -141,10 +144,11 @@ export function ScanTestPage() {
     setPhashBuilding(true);
     setPhashProgress({ done: 0, total: allCards.length });
     try {
-      const index = await buildPhashIndex(allCards, (done, total) => {
+      const index = await buildPhashIndex(allCards, phashConfig, (done, total) => {
         setPhashProgress({ done, total });
       });
       setPhashIndex(index);
+      setIndexConfig({ ...phashConfig });
     } finally {
       setPhashBuilding(false);
     }
@@ -158,12 +162,15 @@ export function ScanTestPage() {
 
     setPhashRunning(true);
     try {
-      const result = phashScan(canvas, phashIndex);
+      const result = phashScan(canvas, phashIndex, phashConfig);
       setPhashResult(result);
     } finally {
       setPhashRunning(false);
     }
   }
+
+  const configMatchesIndex =
+    indexConfig !== null && JSON.stringify(indexConfig) === JSON.stringify(phashConfig);
 
   return (
     <div className="space-y-6">
@@ -287,13 +294,91 @@ export function ScanTestPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="phash" className="mt-4">
+          <TabsContent value="phash" className="mt-4 space-y-4">
+            {/* Parameter controls */}
             <Card>
               <CardHeader>
-                <CardTitle>Perceptual Hash (dHash)</CardTitle>
+                <CardTitle>Parameters</CardTitle>
                 <CardDescription>
-                  Computes a visual fingerprint of the captured image and compares it against
-                  pre-computed hashes of all card artwork. Requires building an index first.
+                  Tweak hash settings and rebuild the index to experiment. Changes to algorithm,
+                  grid size, crop, or blur require a re-index. Normalization is applied at scan time
+                  too but the index stores raw hashes, so re-index after changes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <ParamSelect
+                    label="Algorithm"
+                    value={phashConfig.algorithm}
+                    options={[
+                      { value: "dhash-h", label: "dHash horizontal" },
+                      { value: "dhash-v", label: "dHash vertical" },
+                      { value: "ahash", label: "Average hash" },
+                    ]}
+                    onChange={(v) =>
+                      setPhashConfig((c) => ({ ...c, algorithm: v as PhashConfig["algorithm"] }))
+                    }
+                  />
+                  <ParamSelect
+                    label="Normalization"
+                    value={phashConfig.normalize}
+                    options={[
+                      { value: "minmax", label: "Min-max stretch" },
+                      { value: "median", label: "Median stretch" },
+                      { value: "none", label: "None" },
+                    ]}
+                    onChange={(v) =>
+                      setPhashConfig((c) => ({ ...c, normalize: v as PhashConfig["normalize"] }))
+                    }
+                  />
+                  <ParamSlider
+                    label="Grid width"
+                    value={phashConfig.hashW}
+                    min={5}
+                    max={128}
+                    step={1}
+                    onChange={(v) => setPhashConfig((c) => ({ ...c, hashW: v }))}
+                  />
+                  <ParamSlider
+                    label="Grid height"
+                    value={phashConfig.hashH}
+                    min={5}
+                    max={128}
+                    step={1}
+                    onChange={(v) => setPhashConfig((c) => ({ ...c, hashH: v }))}
+                  />
+                  <ParamSlider
+                    label="Border crop %"
+                    value={Math.round(phashConfig.borderInset * 100)}
+                    min={0}
+                    max={25}
+                    step={1}
+                    onChange={(v) => setPhashConfig((c) => ({ ...c, borderInset: v / 100 }))}
+                  />
+                  <ParamSlider
+                    label="Blur radius"
+                    value={phashConfig.blur}
+                    min={0}
+                    max={3}
+                    step={1}
+                    onChange={(v) => setPhashConfig((c) => ({ ...c, blur: v }))}
+                  />
+                </div>
+                {!configMatchesIndex && phashIndex && (
+                  <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                    Parameters changed since last index build — rebuild to apply.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Actions & results */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Perceptual Hash Match</CardTitle>
+                <CardDescription>
+                  Build the index with current parameters, then run a match against the captured
+                  frame.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -301,12 +386,12 @@ export function ScanTestPage() {
                   <Button
                     onClick={buildIndex}
                     disabled={phashBuilding || allCards.length === 0}
-                    variant={phashIndex ? "outline" : "default"}
+                    variant={phashIndex && configMatchesIndex ? "outline" : "default"}
                   >
                     {phashBuilding
                       ? "Building..."
                       : phashIndex
-                        ? `Rebuild Index (${phashIndex.entries.length} hashes)`
+                        ? `Rebuild Index (${phashIndex.entries.length})`
                         : "Build Hash Index"}
                   </Button>
                   <Button onClick={runPhash} disabled={phashRunning || !phashIndex}>
@@ -335,11 +420,49 @@ export function ScanTestPage() {
                       Hash: <code className="font-mono">{phashResult.hashComputed}</code> | Matched
                       in {phashResult.elapsed}ms
                     </p>
+
+                    {/* Debug pipeline visualization */}
+                    {phashResult.debug && (
+                      <div>
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">
+                          Pipeline Debug
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <p className="mb-1 text-xs text-muted-foreground">
+                              1. Cropped ({Math.round((1 - 2 * phashConfig.borderInset) * 100)}%)
+                            </p>
+                            <img
+                              src={phashResult.debug.croppedDataUrl}
+                              alt="Cropped"
+                              className="w-full rounded border"
+                            />
+                          </div>
+                          <div>
+                            <p className="mb-1 text-xs text-muted-foreground">
+                              2. Grid {phashResult.debug.gridW}&times;
+                              {phashResult.debug.gridH} &rarr; {hashBitCount(phashConfig)} bits
+                            </p>
+                            <img
+                              src={phashResult.debug.downsampledDataUrl}
+                              alt="Downsampled grid"
+                              className="w-full rounded border"
+                              style={{ imageRendering: "pixelated" }}
+                            />
+                          </div>
+                          <div>
+                            <p className="mb-1 text-xs text-muted-foreground">3. Hash bits</p>
+                            <HashBitsViz hash={phashResult.hashComputed} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <MatchResults
                       matches={phashResult.matches.map((m) => ({
                         printing: m.printing,
                         score: m.similarity,
-                        detail: `distance ${m.distance}/256`,
+                        detail: `distance ${m.distance}/${hashBitCount(phashConfig)}`,
                       }))}
                     />
                   </div>
@@ -353,13 +476,116 @@ export function ScanTestPage() {
   );
 }
 
-/**
- * CSS-based overlay that darkens everything outside a card-shaped cutout.
- * Uses box-shadow to create the dark surround and aspect-ratio to maintain
- * the standard card proportions (63:88). The cutout is centered and sized
- * to 80% of the container, matching the crop logic in getGuideRect().
- * @returns The overlay JSX element.
- */
+// Render hash hex as a small black/white grid of bits.
+function HashBitsViz({ hash }: { hash: string }) {
+  let bits = "";
+  for (const ch of hash) {
+    bits += Number.parseInt(ch, 16).toString(2).padStart(4, "0");
+  }
+  const size = Math.ceil(Math.sqrt(bits.length));
+  const cellSize = 4;
+  const rows: string[][] = [];
+  for (let r = 0; r < size; r++) {
+    const row: string[] = [];
+    for (let c = 0; c < size; c++) {
+      const idx = r * size + c;
+      row.push(idx < bits.length && bits[idx] === "1" ? "#fff" : "#000");
+    }
+    rows.push(row);
+  }
+
+  return (
+    <svg
+      viewBox={`0 0 ${size * cellSize} ${size * cellSize}`}
+      className="w-full rounded border"
+      style={{ imageRendering: "pixelated" }}
+    >
+      {rows.map((row, r) =>
+        row.map((color, c) => (
+          <rect
+            key={`${r}-${c}`}
+            x={c * cellSize}
+            y={r * cellSize}
+            width={cellSize}
+            height={cellSize}
+            fill={color}
+          />
+        )),
+      )}
+    </svg>
+  );
+}
+
+function ParamSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">{label}</Label>
+        <span className="text-xs font-mono text-muted-foreground">{value}</span>
+      </div>
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={(v) => onChange(Array.isArray(v) ? v[0] : v)}
+        aria-label={label}
+      />
+    </div>
+  );
+}
+
+function ParamSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          if (v !== null) {
+            onChange(v);
+          }
+        }}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function CardGuideOverlay() {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md">

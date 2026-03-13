@@ -130,6 +130,36 @@ export function CardSourceDetailPage() {
   const sourceLabels = Object.fromEntries(data.sources.map((s) => [s.id, s.source]));
   const unmatchedGroups = groupPrintingSources(data.printingSources.filter((ps) => !ps.printingId));
 
+  // Auto-match: for each unmatched group, check if exactly 1 accepted printing
+  // shares the same differentiators (setId, artVariant, isSigned, isPromo, finish)
+  const { autoMatchedByPrinting, ambiguousGroups } = (() => {
+    const matched = new Map<string, PrintingGroup[]>();
+    const ambiguous: PrintingGroup[] = [];
+    for (const group of unmatchedGroups) {
+      const d = group.differentiators;
+      const matches = data.printings.filter((p) => {
+        const pSetId = (p.setId as string | null) ?? null;
+        const pVariant = (p.artVariant as string) || "normal";
+        return (
+          pSetId === (d.setId ?? null) &&
+          pVariant === d.artVariant &&
+          (p.isSigned as boolean) === d.isSigned &&
+          (p.isPromo as boolean) === d.isPromo &&
+          (p.finish as string) === d.finish
+        );
+      });
+      if (matches.length === 1) {
+        const pid = matches[0].id as string;
+        const existing = matched.get(pid) ?? [];
+        existing.push(group);
+        matched.set(pid, existing);
+      } else {
+        ambiguous.push(group);
+      }
+    }
+    return { autoMatchedByPrinting: matched, ambiguousGroups: ambiguous };
+  })();
+
   const expectedCardId = (() => {
     const linked = data.printingSources.filter((ps) => ps.printingId);
     if (linked.length === 0) {
@@ -294,14 +324,14 @@ export function CardSourceDetailPage() {
             onClick={() => {
               const allKeys = [
                 ...data.printings.map((p) => p.id as string),
-                ...unmatchedGroups.map((g) => g.key),
+                ...ambiguousGroups.map((g) => g.key),
               ];
               setExpandedPrintings((prev) =>
                 prev.size === allKeys.length ? new Set() : new Set(allKeys),
               );
             }}
           >
-            {expandedPrintings.size === data.printings.length + unmatchedGroups.length
+            {expandedPrintings.size === data.printings.length + ambiguousGroups.length
               ? "Collapse all"
               : "Expand all"}
           </Button>
@@ -311,6 +341,10 @@ export function CardSourceDetailPage() {
           const printingSlug = printing.slug as string;
           const isExpanded = expandedPrintings.has(printingId);
           const relatedSources = data.printingSources.filter((ps) => ps.printingId === printingId);
+          const autoGroups = autoMatchedByPrinting.get(printingId);
+          const autoMatchedCount = autoGroups
+            ? autoGroups.reduce((n, g) => n + g.sources.length, 0)
+            : 0;
           const activeImage = data.printingImages.find(
             (pi) => pi.printingId === printingId && pi.isActive,
           );
@@ -336,6 +370,10 @@ export function CardSourceDetailPage() {
                   )}
                   <span className={isStale ? "text-orange-600 line-through" : ""}>
                     {printingSlug}
+                  </span>
+                  <span className="text-muted-foreground font-normal">
+                    &mdash; {relatedSources.length + autoMatchedCount} source
+                    {relatedSources.length + autoMatchedCount === 1 ? "" : "s"}
                   </span>
                 </button>
                 {isStale && (
@@ -379,94 +417,175 @@ export function CardSourceDetailPage() {
               </div>
               {isExpanded && (
                 <div className="space-y-3 border-t p-3">
-                  <SourceSpreadsheet
-                    fields={PRINTING_SOURCE_FIELDS}
-                    activeRow={printingWithImage}
-                    sourceRows={relatedSources}
-                    sourceLabels={sourceLabels}
-                    favoriteSources={favorites}
-                    onCellClick={(field, value) => {
-                      acceptPrintingField.mutate({ printingId, field, value });
-                    }}
-                    onActiveChange={(field, value) => {
-                      if (value === null || value === undefined) {
-                        return;
-                      }
-                      acceptPrintingField.mutate({ printingId, field, value });
-                    }}
-                    onCheck={(id) => checkPrintingSource.mutate(id)}
-                    columnActions={(row) => (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-6"
-                              title="Move or unassign…"
-                              disabled={linkPrintingSources.isPending}
-                            />
+                  {(() => {
+                    const autoSources = autoGroups ? autoGroups.flatMap((g) => g.sources) : [];
+                    const allSources = [...relatedSources, ...autoSources];
+                    const autoSourceIds = new Set(autoSources.map((s) => s.id));
+                    return (
+                      <SourceSpreadsheet
+                        fields={PRINTING_SOURCE_FIELDS}
+                        activeRow={printingWithImage}
+                        sourceRows={allSources}
+                        sourceLabels={sourceLabels}
+                        favoriteSources={favorites}
+                        onCellClick={(field, value) => {
+                          acceptPrintingField.mutate({ printingId, field, value });
+                        }}
+                        onActiveChange={(field, value) => {
+                          if (value === null || value === undefined) {
+                            return;
                           }
-                        >
-                          <MoveIcon className="size-3" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuItem
-                            onClick={() =>
-                              linkPrintingSources.mutate({
-                                printingSourceIds: [row.id],
-                                printingId: null,
-                              })
-                            }
-                          >
-                            <XIcon className="mr-2 size-3.5" />
-                            Unassign
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => deletePrintingSource.mutate(row.id)}>
-                            <Trash2Icon className="mr-2 size-3.5" />
-                            Delete
-                          </DropdownMenuItem>
-                          {data.printings
-                            .filter((p) => (p.id as string) !== printingId)
-                            .map((p) => (
-                              <DropdownMenuItem
-                                key={`move-${p.id as string}`}
-                                onClick={() =>
-                                  linkPrintingSources.mutate({
-                                    printingSourceIds: [row.id],
-                                    printingId: p.id as string,
-                                  })
+                          acceptPrintingField.mutate({ printingId, field, value });
+                        }}
+                        onCheck={(id) => checkPrintingSource.mutate(id)}
+                        columnClassName={(row) =>
+                          autoSourceIds.has(row.id)
+                            ? "bg-violet-50 dark:bg-violet-950/30"
+                            : undefined
+                        }
+                        columnActions={(row) =>
+                          autoSourceIds.has(row.id) ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-6"
+                                    title="Actions…"
+                                    disabled={
+                                      linkPrintingSources.isPending || acceptPrintingGroup.isPending
+                                    }
+                                  />
                                 }
                               >
-                                <MoveIcon className="mr-2 size-3.5" />
-                                Move to {p.sourceId as string} · {p.finish as string}
-                              </DropdownMenuItem>
-                            ))}
-                          {data.printings
-                            .filter((p) => (p.id as string) !== printingId)
-                            .map((p) => (
-                              <DropdownMenuItem
-                                key={`copy-${p.id as string}`}
-                                onClick={() =>
-                                  copyPrintingSource.mutate({
-                                    id: row.id,
-                                    printingId: p.id as string,
-                                  })
+                                <MoveIcon className="size-3" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-64">
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    linkPrintingSources.mutate({
+                                      printingSourceIds: [row.id],
+                                      printingId,
+                                    })
+                                  }
+                                >
+                                  <MoveIcon className="mr-2 size-3.5" />
+                                  Link to this printing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const record = row as unknown as Record<string, unknown>;
+                                    const fields: Record<string, unknown> = {};
+                                    for (const field of PRINTING_SOURCE_FIELDS) {
+                                      if (field.readOnly) {
+                                        continue;
+                                      }
+                                      const val = record[field.key];
+                                      if (val !== null && val !== undefined && val !== "") {
+                                        fields[field.key] = val;
+                                      }
+                                    }
+                                    const variant = (fields.artVariant as string) ?? "";
+                                    const slug = `${fields.sourceId}:${variant}:${(fields.isSigned as boolean) ? "signed" : ""}:${(fields.isPromo as boolean) ? "promo" : ""}:${fields.finish}`;
+                                    acceptPrintingGroup.mutate({
+                                      cardId,
+                                      printingFields: { id: slug, ...fields },
+                                      printingSourceIds: [row.id],
+                                    });
+                                  }}
+                                >
+                                  <PlusIcon className="mr-2 size-3.5" />
+                                  Create new printing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => deletePrintingSource.mutate(row.id)}
+                                >
+                                  <Trash2Icon className="mr-2 size-3.5" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-6"
+                                    title="Move or unassign…"
+                                    disabled={linkPrintingSources.isPending}
+                                  />
                                 }
                               >
-                                <CopyIcon className="mr-2 size-3.5" />
-                                Copy to {p.sourceId as string} · {p.finish as string}
-                              </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  />
+                                <MoveIcon className="size-3" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-64">
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    linkPrintingSources.mutate({
+                                      printingSourceIds: [row.id],
+                                      printingId: null,
+                                    })
+                                  }
+                                >
+                                  <XIcon className="mr-2 size-3.5" />
+                                  Unassign
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => deletePrintingSource.mutate(row.id)}
+                                >
+                                  <Trash2Icon className="mr-2 size-3.5" />
+                                  Delete
+                                </DropdownMenuItem>
+                                {data.printings
+                                  .filter((p) => (p.id as string) !== printingId)
+                                  .map((p) => (
+                                    <DropdownMenuItem
+                                      key={`move-${p.id as string}`}
+                                      onClick={() =>
+                                        linkPrintingSources.mutate({
+                                          printingSourceIds: [row.id],
+                                          printingId: p.id as string,
+                                        })
+                                      }
+                                    >
+                                      <MoveIcon className="mr-2 size-3.5" />
+                                      Move to {p.sourceId as string} · {p.finish as string}
+                                    </DropdownMenuItem>
+                                  ))}
+                                {data.printings
+                                  .filter((p) => (p.id as string) !== printingId)
+                                  .map((p) => (
+                                    <DropdownMenuItem
+                                      key={`copy-${p.id as string}`}
+                                      onClick={() =>
+                                        copyPrintingSource.mutate({
+                                          id: row.id,
+                                          printingId: p.id as string,
+                                        })
+                                      }
+                                    >
+                                      <CopyIcon className="mr-2 size-3.5" />
+                                      Copy to {p.sourceId as string} · {p.finish as string}
+                                    </DropdownMenuItem>
+                                  ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )
+                        }
+                      />
+                    );
+                  })()}
                   <PrintingImagesSection
                     printingId={printingId}
                     images={data.printingImages.filter((pi) => pi.printingId === printingId)}
                     sourceImages={[
-                      ...relatedSources
+                      ...[
+                        ...relatedSources,
+                        ...(autoGroups ? autoGroups.flatMap((g) => g.sources) : []),
+                      ]
                         .filter(
                           (ps) =>
                             ps.imageUrl &&
@@ -492,8 +611,8 @@ export function CardSourceDetailPage() {
           );
         })}
 
-        {/* Unmatched printing sources (printing_id is null), grouped */}
-        {unmatchedGroups.map((group) => (
+        {/* Unmatched printing sources — only groups with 0 or 2+ printing matches */}
+        {ambiguousGroups.map((group) => (
           <NewPrintingGroupCard
             key={group.key}
             cardId={cardId}

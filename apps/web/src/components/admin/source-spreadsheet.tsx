@@ -157,6 +157,8 @@ interface SourceSpreadsheetProps {
   onCheck?: (sourceId: string) => void;
   /** Render extra action buttons in each source column header. */
   columnActions?: (row: CardSource | PrintingSource) => React.ReactNode;
+  /** Extra CSS classes for a source column header `<th>`. */
+  columnClassName?: (row: CardSource | PrintingSource) => string | undefined;
 }
 
 /** Field keys where word-level diff highlighting is applied. */
@@ -246,6 +248,7 @@ export function SourceSpreadsheet({
   onActiveChange,
   onCheck,
   columnActions,
+  columnClassName,
 }: SourceSpreadsheetProps) {
   const sortedRows = [...sourceRows].sort((a, b) => {
     const aLabel = getSourceLabel(a, sourceLabels);
@@ -292,6 +295,7 @@ export function SourceSpreadsheet({
                   "w-[200px] border-l px-3 py-2 text-left font-medium",
                   isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                   isChecked(row) && "opacity-50",
+                  columnClassName?.(row),
                 )}
               >
                 <div className="flex items-center gap-2">

@@ -136,12 +136,21 @@ function MarketplaceStatusBadge({
   const mkGroup = toMarketplaceGroup(group, marketplace);
   const unmapped = mkGroup.printings.filter((p) => p.externalId === null).length;
   const suggestions = computeSuggestions(mkGroup);
+  const extraProducts = mkGroup.stagedProducts.length;
 
-  if (unmapped === 0) {
+  if (unmapped === 0 && extraProducts === 0) {
     return (
       <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
         <CheckCircle2Icon className="size-3" />
         {label}
+      </Badge>
+    );
+  }
+  if (unmapped === 0 && extraProducts > 0) {
+    return (
+      <Badge className="border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400">
+        <WrenchIcon className="size-3" />
+        {label} +{extraProducts}
       </Badge>
     );
   }
@@ -847,7 +856,7 @@ export function UnifiedMappingsPage() {
         <p className="text-sm text-muted-foreground">
           {groups.length === 0
             ? "No products need mapping."
-            : `${groups.length} card${groups.length === 1 ? "" : "s"} with unassigned products`}
+            : `${groups.length} card${groups.length === 1 ? "" : "s"} need${groups.length === 1 ? "s" : ""} attention`}
         </p>
         <div className="flex items-center gap-2">
           {safeGroupCount > 0 && (
