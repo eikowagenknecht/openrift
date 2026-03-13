@@ -46,9 +46,24 @@ export function useCheckCardSource() {
   });
 }
 
+export function useCheckAllCardSources() {
+  return useMutationWithInvalidation<{ ok: boolean; updated: number }, string>({
+    mutationFn: (cardId) => api.post(`/api/admin/card-sources/${cardId}/check-all`),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
 export function useCheckPrintingSource() {
   return useMutationWithInvalidation<{ ok: boolean }, string>({
     mutationFn: (id) => api.post(`/api/admin/card-sources/printing-sources/${id}/check`),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useCheckAllPrintingSources() {
+  return useMutationWithInvalidation<{ ok: boolean; updated: number }, string>({
+    mutationFn: (printingId) =>
+      api.post("/api/admin/card-sources/printing-sources/check-all", { printingId }),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -123,6 +138,21 @@ export function useReassignPrintingSource() {
   });
 }
 
+export function useDeletePrintingSource() {
+  return useMutationWithInvalidation<{ ok: boolean }, string>({
+    mutationFn: (id) => api.del(`/api/admin/card-sources/printing-sources/${id}`),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useCopyPrintingSource() {
+  return useMutationWithInvalidation<{ ok: boolean }, { id: string; printingId: string }>({
+    mutationFn: ({ id, printingId }) =>
+      api.post(`/api/admin/card-sources/printing-sources/${id}/copy`, { printingId }),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
 export function useLinkPrintingSources() {
   return useMutationWithInvalidation<
     { ok: boolean },
@@ -166,6 +196,89 @@ export function useSourceNames() {
   return useQuery<string[]>({
     queryKey: queryKeys.admin.cardSources.sourceNames,
     queryFn: () => api.get("/api/admin/card-sources/source-names"),
+  });
+}
+
+export function useDeletePrintingImage() {
+  return useMutationWithInvalidation<{ ok: boolean }, string>({
+    mutationFn: (imageId) => api.del(`/api/admin/card-sources/printing-images/${imageId}`),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useActivatePrintingImage() {
+  return useMutationWithInvalidation<{ ok: boolean }, { imageId: string; active: boolean }>({
+    mutationFn: ({ imageId, active }) =>
+      api.post(`/api/admin/card-sources/printing-images/${imageId}/activate`, { active }),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useRehostPrintingImage() {
+  return useMutationWithInvalidation<{ ok: boolean; rehostedUrl: string }, string>({
+    mutationFn: (imageId) => api.post(`/api/admin/card-sources/printing-images/${imageId}/rehost`),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useUnrehostPrintingImage() {
+  return useMutationWithInvalidation<{ ok: boolean }, string>({
+    mutationFn: (imageId) =>
+      api.post(`/api/admin/card-sources/printing-images/${imageId}/unrehost`),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useAddImageFromUrl() {
+  return useMutationWithInvalidation<
+    { ok: boolean },
+    { printingId: string; url: string; source?: string; mode?: "main" | "additional" }
+  >({
+    mutationFn: ({ printingId, ...body }) =>
+      api.post(`/api/admin/card-sources/printing/${printingId}/add-image-url`, body),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useUploadPrintingImage() {
+  return useMutationWithInvalidation<
+    { ok: boolean; rehostedUrl: string },
+    { printingId: string; file: File; source?: string; mode?: "main" | "additional" }
+  >({
+    mutationFn: async ({ printingId, file, source, mode }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (source) {
+        formData.append("source", source);
+      }
+      if (mode) {
+        formData.append("mode", mode);
+      }
+      const res = await fetch(`/api/admin/card-sources/printing/${printingId}/upload-image`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          (body as { error?: string } | null)?.error ?? `Upload failed: ${res.status}`,
+        );
+      }
+      return res.json() as Promise<{ ok: boolean; rehostedUrl: string }>;
+    },
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useSetPrintingSourceImage() {
+  return useMutationWithInvalidation<
+    { ok: boolean },
+    { printingSourceId: string; mode: "main" | "additional" }
+  >({
+    mutationFn: ({ printingSourceId, mode }) =>
+      api.post(`/api/admin/card-sources/printing-sources/${printingSourceId}/set-image`, { mode }),
+    invalidates: [queryKeys.admin.cardSources.all],
   });
 }
 

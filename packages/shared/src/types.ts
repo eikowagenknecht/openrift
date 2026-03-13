@@ -339,6 +339,18 @@ export interface PrintingSource {
   updatedAt: string;
 }
 
+export interface AdminPrintingImage {
+  id: string;
+  printingId: string;
+  face: CardFace;
+  source: string;
+  originalUrl: string | null;
+  rehostedUrl: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CardSourceSummary {
   cardId: string | null;
   name: string;

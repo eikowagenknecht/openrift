@@ -1,7 +1,7 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, extname, join } from "node:path";
 
@@ -20,7 +20,7 @@ function findProjectRoot(): string {
   throw new Error("Could not find project root (no bun.lock found)");
 }
 
-const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
+export const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
 
 const SIZES = [
   { suffix: "300w", width: 300, quality: 85 },
@@ -43,7 +43,7 @@ interface RehostProgress {
  * File format:        `{source_id}-{art_variant}-{y|n}-{y|n}-{finish}`
  * @returns The filesystem-safe filename base
  */
-function printingIdToFileBase(printingId: string): string {
+export function printingIdToFileBase(printingId: string): string {
   const [sourceId, artVariant, signed, promo, finish] = printingId.split(":");
   return `${sourceId}-${artVariant}-${signed ? "y" : "n"}-${promo ? "y" : "n"}-${finish}`;
 }
@@ -65,7 +65,7 @@ function guessExtension(contentType: string | null, url: string): string {
   return ext || ".png";
 }
 
-async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string }> {
+export async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string }> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Download failed (${res.status}): ${url}`);
@@ -91,7 +91,7 @@ async function generateWebpVariants(
   }
 }
 
-async function processAndSave(
+export async function processAndSave(
   buffer: Buffer,
   originalExt: string,
   outputDir: string,
@@ -100,6 +100,60 @@ async function processAndSave(
   await mkdir(outputDir, { recursive: true });
   await writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
   await generateWebpVariants(buffer, outputDir, fileBase);
+}
+
+/**
+ * Delete all rehosted files for a given rehosted_url path prefix.
+ * Removes orig, 300w, 400w, full variants.
+ */
+export async function deleteRehostFiles(rehostedUrl: string): Promise<void> {
+  const dir = join(CARD_IMAGES_DIR, rehostedUrl.replace(/^\/card-images\//, ""));
+  const parentDir = dirname(dir);
+  const base = dir.split("/").pop() as string;
+
+  let files: string[];
+  try {
+    files = await readdir(parentDir);
+  } catch {
+    return; // directory doesn't exist
+  }
+
+  for (const file of files) {
+    if (file.startsWith(`${base}-`)) {
+      // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
+      await unlink(join(parentDir, file)).catch(() => {});
+    }
+  }
+}
+
+/**
+ * Rename all rehosted files from one base to another.
+ * Handles orig, 300w, 400w, full variants.
+ */
+export async function renameRehostFiles(
+  oldRehostedUrl: string,
+  newRehostedUrl: string,
+): Promise<void> {
+  const oldDir = join(CARD_IMAGES_DIR, oldRehostedUrl.replace(/^\/card-images\//, ""));
+  const newDir = join(CARD_IMAGES_DIR, newRehostedUrl.replace(/^\/card-images\//, ""));
+  const parentDir = dirname(oldDir);
+  const oldBase = oldDir.split("/").pop() as string;
+  const newBase = newDir.split("/").pop() as string;
+
+  let files: string[];
+  try {
+    files = await readdir(parentDir);
+  } catch {
+    return;
+  }
+
+  for (const file of files) {
+    if (file.startsWith(`${oldBase}-`)) {
+      const suffix = file.slice(oldBase.length);
+      // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
+      await rename(join(parentDir, file), join(parentDir, `${newBase}${suffix}`)).catch(() => {});
+    }
+  }
 }
 
 const BATCH_SIZE = 10;

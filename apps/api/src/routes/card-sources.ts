@@ -1,3 +1,6 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem path join
+import { join } from "node:path";
+
 import {
   acceptNewCardFromSources,
   insertPrintingImage,
@@ -16,6 +19,15 @@ import { sql } from "kysely";
 import { db } from "../db.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../errors.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import {
+  CARD_IMAGES_DIR,
+  deleteRehostFiles,
+  downloadImage,
+  printingIdToFileBase,
+  processAndSave,
+  renameRehostFiles,
+} from "../services/image-rehost.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
@@ -244,6 +256,17 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
           .execute()
       : [];
 
+  const printingIds = printings.map((p) => p.id);
+  const printingImages =
+    printingIds.length > 0
+      ? await db
+          .selectFrom("printing_images")
+          .selectAll()
+          .where("printing_id", "in", printingIds)
+          .orderBy("created_at", "asc")
+          .execute()
+      : [];
+
   return c.json({
     card: {
       id: card.id,
@@ -325,6 +348,17 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
       checkedAt: ps.checked_at?.toISOString() ?? null,
       createdAt: ps.created_at.toISOString(),
       updatedAt: ps.updated_at.toISOString(),
+    })),
+    printingImages: printingImages.map((pi) => ({
+      id: pi.id,
+      printingId: pi.printing_id,
+      face: pi.face,
+      source: pi.source,
+      originalUrl: pi.original_url,
+      rehostedUrl: pi.rehosted_url,
+      isActive: pi.is_active,
+      createdAt: pi.created_at.toISOString(),
+      updatedAt: pi.updated_at.toISOString(),
     })),
   });
 });
@@ -424,6 +458,24 @@ cardSourcesRoute.post("/card-sources/:cardSourceId/check", async (c) => {
   return c.json({ ok: true });
 });
 
+// ── POST /card-sources/printing-sources/check-all ───────────────────────────
+// Mark all printing_sources for a given printing as checked
+// NOTE: Must be registered before /card-sources/:cardId/check-all to avoid
+// the :cardId wildcard matching "printing-sources" as a card ID.
+cardSourcesRoute.post("/card-sources/printing-sources/check-all", async (c) => {
+  const { printingId } = await c.req.json<{ printingId: string }>();
+
+  const results = await db
+    .updateTable("printing_sources")
+    .set({ checked_at: new Date(), updated_at: new Date() })
+    .where("printing_id", "=", printingId)
+    .where("checked_at", "is", null)
+    .execute();
+
+  const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+  return c.json({ ok: true, updated });
+});
+
 // ── POST /card-sources/printing-sources/:id/check ───────────────────────────
 cardSourcesRoute.post("/card-sources/printing-sources/:id/check", async (c) => {
   const { id } = c.req.param();
@@ -439,6 +491,22 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/check", async (c) => {
   }
 
   return c.json({ ok: true });
+});
+
+// ── POST /card-sources/:cardId/check-all ────────────────────────────────────
+// Mark all card_sources for a given card as checked
+cardSourcesRoute.post("/card-sources/:cardId/check-all", async (c) => {
+  const { cardId } = c.req.param();
+
+  const results = await db
+    .updateTable("card_sources")
+    .set({ checked_at: new Date(), updated_at: new Date() })
+    .where("card_id", "=", cardId)
+    .where("checked_at", "is", null)
+    .execute();
+
+  const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+  return c.json({ ok: true, updated });
 });
 
 // ── PATCH /card-sources/printing-sources/:id ─────────────────────────────────
@@ -478,6 +546,77 @@ cardSourcesRoute.patch("/card-sources/printing-sources/:id", async (c) => {
   if (!result || result.numUpdatedRows === 0n) {
     throw new AppError(404, "NOT_FOUND", "Printing source not found");
   }
+
+  return c.json({ ok: true });
+});
+
+// ── DELETE /card-sources/printing-sources/:id ─────────────────────────────────
+cardSourcesRoute.delete("/card-sources/printing-sources/:id", async (c) => {
+  const { id } = c.req.param();
+
+  const result = await db.deleteFrom("printing_sources").where("id", "=", id).execute();
+
+  if (Number(result[0].numDeletedRows) === 0) {
+    throw new AppError(404, "NOT_FOUND", "Printing source not found");
+  }
+
+  return c.json({ ok: true });
+});
+
+// ── POST /card-sources/printing-sources/:id/copy ─────────────────────────────
+// Duplicate a printing_source and link the copy to a different printing
+cardSourcesRoute.post("/card-sources/printing-sources/:id/copy", async (c) => {
+  const { id } = c.req.param();
+  const body = await c.req.json();
+  const { printingId } = body as { printingId: string };
+
+  if (!printingId) {
+    throw new AppError(400, "BAD_REQUEST", "printingId is required");
+  }
+
+  const ps = await db
+    .selectFrom("printing_sources")
+    .selectAll()
+    .where("id", "=", id)
+    .executeTakeFirst();
+
+  if (!ps) {
+    throw new AppError(404, "NOT_FOUND", "Printing source not found");
+  }
+
+  const target = await db
+    .selectFrom("printings")
+    .select(["finish", "art_variant", "is_signed", "is_promo"])
+    .where("id", "=", printingId)
+    .executeTakeFirst();
+
+  if (!target) {
+    throw new AppError(404, "NOT_FOUND", "Target printing not found");
+  }
+
+  await db
+    .insertInto("printing_sources")
+    .values({
+      card_source_id: ps.card_source_id,
+      printing_id: printingId,
+      source_id: ps.source_id,
+      set_id: ps.set_id,
+      set_name: ps.set_name,
+      collector_number: ps.collector_number,
+      rarity: ps.rarity,
+      art_variant: target.art_variant,
+      is_signed: target.is_signed,
+      is_promo: target.is_promo,
+      finish: target.finish,
+      artist: ps.artist,
+      public_code: ps.public_code,
+      printed_rules_text: ps.printed_rules_text,
+      printed_effect_text: ps.printed_effect_text,
+      image_url: ps.image_url,
+      flavor_text: ps.flavor_text,
+      extra_data: ps.extra_data,
+    })
+    .execute();
 
   return c.json({ ok: true });
 });
@@ -916,6 +1055,279 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/set-image", async (c) 
   });
 
   return c.json({ ok: true });
+});
+
+// ── DELETE /card-sources/printing-images/:imageId ────────────────────────────
+cardSourcesRoute.delete("/card-sources/printing-images/:imageId", async (c) => {
+  const { imageId } = c.req.param();
+
+  const image = await db
+    .selectFrom("printing_images")
+    .select(["id", "rehosted_url"])
+    .where("id", "=", imageId)
+    .executeTakeFirst();
+
+  if (!image) {
+    throw new AppError(404, "NOT_FOUND", "Printing image not found");
+  }
+
+  await db.deleteFrom("printing_images").where("id", "=", imageId).execute();
+
+  if (image.rehosted_url) {
+    await deleteRehostFiles(image.rehosted_url);
+  }
+
+  return c.json({ ok: true });
+});
+
+// ── POST /card-sources/printing-images/:imageId/activate ────────────────────
+cardSourcesRoute.post("/card-sources/printing-images/:imageId/activate", async (c) => {
+  const { imageId } = c.req.param();
+  const { active } = await c.req.json<{ active: boolean }>();
+
+  const image = await db
+    .selectFrom("printing_images")
+    .innerJoin("printings", "printings.id", "printing_images.printing_id")
+    .select([
+      "printing_images.id",
+      "printing_images.printing_id",
+      "printing_images.face",
+      "printing_images.rehosted_url",
+      "printings.set_id",
+    ])
+    .where("printing_images.id", "=", imageId)
+    .executeTakeFirst();
+
+  if (!image) {
+    throw new AppError(404, "NOT_FOUND", "Printing image not found");
+  }
+
+  const baseFileBase = printingIdToFileBase(image.printing_id);
+  const mainPath = `/card-images/${image.set_id}/${baseFileBase}`;
+
+  // Find the currently active image (if any) for file rename purposes
+  const currentActive = active
+    ? await db
+        .selectFrom("printing_images")
+        .select(["id", "rehosted_url"])
+        .where("printing_id", "=", image.printing_id)
+        .where("face", "=", image.face)
+        .where("is_active", "=", true)
+        .executeTakeFirst()
+    : null;
+
+  await db.transaction().execute(async (trx) => {
+    if (active && currentActive) {
+      // Deactivate the current active image
+      await trx
+        .updateTable("printing_images")
+        .set({ is_active: false, updated_at: new Date() })
+        .where("id", "=", currentActive.id)
+        .execute();
+
+      // Rename current active's files: main path → ID-suffixed path
+      if (currentActive.rehosted_url) {
+        const demotedPath = `${mainPath}-${currentActive.id}`;
+        await renameRehostFiles(currentActive.rehosted_url, demotedPath);
+        await trx
+          .updateTable("printing_images")
+          .set({ rehosted_url: demotedPath, updated_at: new Date() })
+          .where("id", "=", currentActive.id)
+          .execute();
+      }
+    }
+
+    await trx
+      .updateTable("printing_images")
+      .set({ is_active: active, updated_at: new Date() })
+      .where("id", "=", imageId)
+      .execute();
+
+    if (active && image.rehosted_url) {
+      // Rename newly active image's files: ID-suffixed path → main path
+      await renameRehostFiles(image.rehosted_url, mainPath);
+      await trx
+        .updateTable("printing_images")
+        .set({ rehosted_url: mainPath, updated_at: new Date() })
+        .where("id", "=", imageId)
+        .execute();
+    } else if (!active && image.rehosted_url) {
+      // Demoting: rename from main path → ID-suffixed path
+      const demotedPath = `${mainPath}-${image.id}`;
+      await renameRehostFiles(image.rehosted_url, demotedPath);
+      await trx
+        .updateTable("printing_images")
+        .set({ rehosted_url: demotedPath, updated_at: new Date() })
+        .where("id", "=", imageId)
+        .execute();
+    }
+  });
+
+  return c.json({ ok: true });
+});
+
+// ── POST /card-sources/printing-images/:imageId/unrehost ─────────────────────
+cardSourcesRoute.post("/card-sources/printing-images/:imageId/unrehost", async (c) => {
+  const { imageId } = c.req.param();
+
+  const image = await db
+    .selectFrom("printing_images")
+    .select(["id", "rehosted_url", "original_url"])
+    .where("id", "=", imageId)
+    .executeTakeFirst();
+
+  if (!image) {
+    throw new AppError(404, "NOT_FOUND", "Printing image not found");
+  }
+
+  if (!image.rehosted_url) {
+    throw new AppError(400, "BAD_REQUEST", "Image is not rehosted");
+  }
+
+  await deleteRehostFiles(image.rehosted_url);
+
+  await db
+    .updateTable("printing_images")
+    .set({ rehosted_url: null, updated_at: new Date() })
+    .where("id", "=", imageId)
+    .execute();
+
+  return c.json({ ok: true });
+});
+
+// ── POST /card-sources/printing-images/:imageId/rehost ──────────────────────
+cardSourcesRoute.post("/card-sources/printing-images/:imageId/rehost", async (c) => {
+  const { imageId } = c.req.param();
+
+  const image = await db
+    .selectFrom("printing_images")
+    .innerJoin("printings", "printings.id", "printing_images.printing_id")
+    .select([
+      "printing_images.id",
+      "printing_images.printing_id",
+      "printing_images.original_url",
+      "printing_images.is_active",
+      "printings.set_id",
+    ])
+    .where("printing_images.id", "=", imageId)
+    .executeTakeFirst();
+
+  if (!image) {
+    throw new AppError(404, "NOT_FOUND", "Printing image not found");
+  }
+
+  if (!image.original_url) {
+    throw new AppError(400, "BAD_REQUEST", "Image has no original URL to rehost");
+  }
+
+  const { buffer, ext } = await downloadImage(image.original_url);
+  const baseFileBase = printingIdToFileBase(image.printing_id);
+  const fileBase = image.is_active ? baseFileBase : `${baseFileBase}-${image.id}`;
+  const outputDir = join(CARD_IMAGES_DIR, image.set_id);
+
+  await processAndSave(buffer, ext, outputDir, fileBase);
+
+  const rehostedUrl = `/card-images/${image.set_id}/${fileBase}`;
+
+  await db
+    .updateTable("printing_images")
+    .set({ rehosted_url: rehostedUrl, updated_at: new Date() })
+    .where("id", "=", imageId)
+    .execute();
+
+  return c.json({ ok: true, rehostedUrl });
+});
+
+// ── POST /card-sources/printing/:printingId/add-image-url ───────────────────
+cardSourcesRoute.post("/card-sources/printing/:printingId/add-image-url", async (c) => {
+  const { printingId } = c.req.param();
+  const body = await c.req.json<{ url: string; source?: string; mode?: "main" | "additional" }>();
+
+  if (!body.url?.trim()) {
+    throw new AppError(400, "BAD_REQUEST", "url is required");
+  }
+
+  const mode = body.mode ?? "main";
+  const source = body.source?.trim() || "manual";
+
+  await db.transaction().execute(async (trx) => {
+    await insertPrintingImage(trx, printingId, body.url.trim(), source, mode);
+  });
+
+  return c.json({ ok: true });
+});
+
+// ── POST /card-sources/printing/:printingId/upload-image ────────────────────
+cardSourcesRoute.post("/card-sources/printing/:printingId/upload-image", async (c) => {
+  const { printingId } = c.req.param();
+
+  const printing = await db
+    .selectFrom("printings")
+    .select("set_id")
+    .where("id", "=", printingId)
+    .executeTakeFirst();
+
+  if (!printing) {
+    throw new AppError(404, "NOT_FOUND", "Printing not found");
+  }
+
+  const body = await c.req.parseBody();
+  const file = body.file;
+
+  if (!(file instanceof File)) {
+    throw new AppError(400, "BAD_REQUEST", "file is required");
+  }
+
+  const mode = (body.mode as string) === "additional" ? ("additional" as const) : ("main" as const);
+  const source = (body.source as string)?.trim() || "upload";
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
+  const baseFileBase = printingIdToFileBase(printingId);
+  const outputDir = join(CARD_IMAGES_DIR, printing.set_id);
+
+  // Insert the DB row first so we have the ID for non-main file paths
+  const imageRow = await db.transaction().execute(async (trx) => {
+    if (mode === "main") {
+      await trx
+        .updateTable("printing_images")
+        .set({ is_active: false, updated_at: new Date() })
+        .where("printing_id", "=", printingId)
+        .where("face", "=", "front")
+        .where("is_active", "=", true)
+        .execute();
+    }
+
+    return trx
+      .insertInto("printing_images")
+      .values({
+        printing_id: printingId,
+        face: "front",
+        source,
+        is_active: mode === "main",
+      })
+      .onConflict((oc) =>
+        oc.columns(["printing_id", "face", "source"]).doUpdateSet({
+          is_active: mode === "main",
+          updated_at: new Date(),
+        }),
+      )
+      .returning("id")
+      .executeTakeFirstOrThrow();
+  });
+
+  const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageRow.id}`;
+  await processAndSave(buffer, ext, outputDir, fileBase);
+
+  const rehostedUrl = `/card-images/${printing.set_id}/${fileBase}`;
+
+  await db
+    .updateTable("printing_images")
+    .set({ rehosted_url: rehostedUrl, updated_at: new Date() })
+    .where("id", "=", imageRow.id)
+    .execute();
+
+  return c.json({ ok: true, rehostedUrl });
 });
 
 // ── POST /card-sources/upload ───────────────────────────────────────────────

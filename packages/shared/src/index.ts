@@ -3,6 +3,7 @@ export type {
   ActivityAction,
   ActivityItem,
   ActivityType,
+  AdminPrintingImage,
   Card,
   CardFilters,
   FilterRange,
