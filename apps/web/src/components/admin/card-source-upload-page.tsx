@@ -155,25 +155,33 @@ export function CardSourceUploadPage() {
                     <CommandEmpty className="py-3 text-center text-sm text-muted-foreground">
                       No existing sources found.
                     </CommandEmpty>
-                    {sourceNames && sourceNames.length > 0 && (
-                      <CommandGroup heading="Existing sources">
-                        {sourceNames.map((name) => (
-                          <CommandItem
-                            key={name}
-                            value={name}
-                            data-checked={source === name || undefined}
-                            onSelect={(val) => {
-                              setSource(val);
-                              setSourceOpen(false);
-                            }}
-                          >
-                            {name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
+                    {(() => {
+                      const PINNED_SOURCES = ["gallery"];
+                      const allNames = sourceNames
+                        ? [...new Set([...PINNED_SOURCES, ...sourceNames])]
+                        : PINNED_SOURCES;
+                      return (
+                        allNames.length > 0 && (
+                          <CommandGroup heading="Existing sources">
+                            {allNames.map((name) => (
+                              <CommandItem
+                                key={name}
+                                value={name}
+                                data-checked={source === name || undefined}
+                                onSelect={(val) => {
+                                  setSource(val);
+                                  setSourceOpen(false);
+                                }}
+                              >
+                                {name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )
+                      );
+                    })()}
                     {source.trim() &&
-                      !sourceNames?.some(
+                      !["gallery", ...(sourceNames ?? [])].some(
                         (n) => n.toLowerCase() === source.trim().toLowerCase(),
                       ) && (
                         <CommandGroup>
