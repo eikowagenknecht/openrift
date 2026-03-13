@@ -8,13 +8,12 @@ export interface UpsertRowCounts {
 }
 
 export interface UpsertCounts {
-  sources: UpsertRowCounts;
   snapshots: UpsertRowCounts;
   staging: UpsertRowCounts;
 }
 
 export interface PriceRefreshResult {
-  fetched: {
+  transformed: {
     groups: number;
     products: number;
     prices: number;
@@ -32,16 +31,10 @@ export interface PriceUpsertConfig {
 
 // ── Generic row types ───────────────────────────────────────────────────
 
-export interface SourceRow {
-  printing_id: string;
-  external_id: number;
+export interface GroupRow {
   group_id: number;
-  product_name: string;
-}
-
-export interface SnapshotData {
-  printing_id: string;
-  recorded_at: Date;
+  name?: string;
+  abbreviation?: string;
 }
 
 export interface StagingRow {
@@ -51,6 +44,27 @@ export interface StagingRow {
   finish: string;
   recorded_at: Date;
 }
+
+// ── Marketplace-specific price columns ─────────────────────────────────
+
+export interface CardmarketPrices {
+  market_cents: number | null;
+  low_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+}
+
+export interface TcgplayerPrices {
+  market_cents: number | null;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+}
+
+export type CardmarketStagingRow = StagingRow & CardmarketPrices;
+export type TcgplayerStagingRow = StagingRow & TcgplayerPrices;
 
 // ── Reference data ──────────────────────────────────────────────────────
 

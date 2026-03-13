@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { sql } from "kysely";
 import { z } from "zod/v4";
 
 import { auth } from "./auth.js";
@@ -94,7 +93,7 @@ app.use("/api/*", async (c, next) => {
 
 app.get("/api/health", async (c) => {
   try {
-    await sql`SELECT 1`.execute(db);
+    await db.selectNoFrom((eb) => eb.lit(1).as("one")).execute();
   } catch {
     return c.json({ status: "db_unreachable" }, 503);
   }

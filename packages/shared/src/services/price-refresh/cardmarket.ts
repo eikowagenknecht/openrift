@@ -1,50 +1,27 @@
 /**
  * Refreshes Cardmarket price data from the Cardmarket product catalog API.
  *
- * Fetches price guides and singles, matches products to DB printings, and
- * writes cardmarket_sources + cardmarket_snapshots. Unmatched products are
- * staged for manual admin mapping.
+ * Fetches price guides and singles, writes snapshots for already-mapped
+ * sources into marketplace_snapshots, and stages all products in
+ * marketplace_staging for manual admin mapping.
  *
  * Usage: bun scripts/refresh-cardmarket-prices.ts
  */
 
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../../db/types.js";
 import type { Logger } from "../../logger.js";
 import { toCents } from "../../utils.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
-import type { PriceRefreshResult, PriceUpsertConfig } from "./types.js";
-import { BATCH_SIZE, buildMappedSnapshots, loadIgnoredKeys, upsertPriceData } from "./upsert.js";
-
-// ── Local row types (exported for tests) ──────────────────────────────────
-
-export interface CardmarketSnapshotData {
-  printing_id: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  trend_cents: number | null;
-  avg1_cents: number | null;
-  avg7_cents: number | null;
-  avg30_cents: number | null;
-}
-
-export interface CardmarketStagingRow {
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  finish: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  trend_cents: number | null;
-  avg1_cents: number | null;
-  avg7_cents: number | null;
-  avg30_cents: number | null;
-}
+import type {
+  CardmarketStagingRow,
+  GroupRow,
+  PriceRefreshResult,
+  PriceUpsertConfig,
+} from "./types.js";
+import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
 // ── Upsert config ─────────────────────────────────────────────────────────
 
@@ -131,9 +108,7 @@ async function fetchCardmarketData(): Promise<CardmarketFetchResult> {
 // ── Transform ──────────────────────────────────────────────────────────────
 
 function buildCardmarketStaging(
-  singles: CmProduct[],
-  priceGuides: CmPriceGuide[],
-  recordedAt: Date,
+  { singles, priceGuides, recordedAt }: CardmarketFetchResult,
   ignoredKeys: Set<string>,
 ): CardmarketStagingRow[] {
   const cmPriceById = new Map<number, CmPriceGuide>();
@@ -185,37 +160,10 @@ function buildCardmarketStaging(
   return allStaging;
 }
 
-// ── Persist ────────────────────────────────────────────────────────────────
-
-async function upsertCardmarketExpansions(
-  db: Kysely<Database>,
-  singles: CmProduct[],
-): Promise<{ group_id: number }[]> {
-  const expansionIds = new Set<number>();
-  for (const product of singles) {
-    expansionIds.add(product.idExpansion);
-  }
-  const expansionValues = [...expansionIds].map((expId) => ({
-    marketplace: "cardmarket" as const,
-    group_id: expId,
+function buildCardmarketGroups(singles: CmProduct[]): GroupRow[] {
+  return [...new Set(singles.map((p) => p.idExpansion))].map((id) => ({
+    group_id: id,
   }));
-
-  const dbExpansions: { group_id: number }[] = [];
-  for (let i = 0; i < expansionValues.length; i += BATCH_SIZE) {
-    const batch = expansionValues.slice(i, i + BATCH_SIZE);
-    const rows = await db
-      .insertInto("marketplace_groups")
-      .values(batch)
-      .onConflict((oc) =>
-        oc.columns(["marketplace", "group_id"]).doUpdateSet({
-          updated_at: sql<Date>`now()`,
-        }),
-      )
-      .returning(["group_id"])
-      .execute();
-    dbExpansions.push(...rows);
-  }
-  return dbExpansions;
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
@@ -233,25 +181,26 @@ export async function refreshCardmarketPrices(
   const ignoredKeys = await loadIgnoredKeys(db, "cardmarket");
 
   // Phase 1: Fetch
-  const { singles, priceGuides, recordedAt } = await fetchCardmarketData();
+  const fetchResult = await fetchCardmarketData();
+  const { singles } = fetchResult;
 
   // Phase 2: Transform
-  const allStaging = buildCardmarketStaging(singles, priceGuides, recordedAt, ignoredKeys);
+  const allStaging = buildCardmarketStaging(fetchResult, ignoredKeys);
+  const groupRows = buildCardmarketGroups(singles);
 
-  // Phase 3: Persist
-  const dbExpansions = await upsertCardmarketExpansions(db, singles);
-
-  const fetchedCounts = {
-    groups: dbExpansions.length,
+  const transformedCounts = {
+    groups: groupRows.length,
     products: singles.length,
-    prices: priceGuides.length,
+    prices: allStaging.length,
   };
 
-  const allSnapshots = await buildMappedSnapshots(db, log, UPSERT_CONFIG, allStaging);
-  logFetchSummary(log, "expansions", fetchedCounts, ignoredKeys.size);
+  logFetchSummary(log, transformedCounts, ignoredKeys.size);
 
-  const counts = await upsertPriceData(db, UPSERT_CONFIG, allSnapshots, allStaging);
+  // Phase 3: Persist
+  await upsertMarketplaceGroups(db, "cardmarket", groupRows);
+
+  const counts = await upsertPriceData(db, log, UPSERT_CONFIG, allStaging);
   logUpsertCounts(log, counts);
 
-  return { fetched: fetchedCounts, upserted: counts };
+  return { transformed: transformedCounts, upserted: counts };
 }

@@ -4,7 +4,6 @@ import {
   refreshTcgplayerPrices,
 } from "@openrift/shared/services/price-refresh";
 import { Hono } from "hono";
-import { sql } from "kysely";
 import { z } from "zod/v4";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -38,12 +37,14 @@ operationsRoute.post("/admin/clear-prices", async (c) => {
 
   try {
     // Delete snapshots for this marketplace (via source_id join)
-    const snapshots = await sql`
-      DELETE FROM marketplace_snapshots
-      WHERE source_id IN (
-        SELECT id FROM marketplace_sources WHERE marketplace = ${source}
+    const snapshots = await db
+      .deleteFrom("marketplace_snapshots")
+      .where(
+        "source_id",
+        "in",
+        db.selectFrom("marketplace_sources").select("id").where("marketplace", "=", source),
       )
-    `.execute(db);
+      .execute();
 
     const sources = await db
       .deleteFrom("marketplace_sources")
@@ -60,7 +61,7 @@ operationsRoute.post("/admin/clear-prices", async (c) => {
       result: {
         source,
         deleted: {
-          snapshots: Number(snapshots.numAffectedRows ?? 0),
+          snapshots: Number(snapshots[0].numDeletedRows),
           sources: Number(sources[0].numDeletedRows),
           staging: Number(staging[0].numDeletedRows),
         },

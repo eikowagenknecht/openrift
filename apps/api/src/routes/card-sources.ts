@@ -64,10 +64,10 @@ cardSourcesRoute.get("/card-sources/source-stats", async (c) => {
   const rows = await db
     .selectFrom("card_sources as cs")
     .leftJoin("printing_sources as ps", "ps.card_source_id", "cs.id")
-    .select([
-      "cs.source",
-      sql<number>`count(DISTINCT cs.name)`.as("cardCount"),
-      sql<number>`count(DISTINCT ps.id)`.as("printingCount"),
+    .select((eb) => [
+      "cs.source" as const,
+      eb.fn.count<number>("cs.name").distinct().as("cardCount"),
+      eb.fn.count<number>("ps.id").distinct().as("printingCount"),
       sql<string>`max(greatest(cs.updated_at, coalesce(ps.updated_at, cs.updated_at)))`.as(
         "lastUpdated",
       ),

@@ -1,35 +1,27 @@
 /**
  * Refreshes TCGPlayer price data from the TCGCSV API.
  *
- * Fetches groups and products, stages all products for manual admin mapping.
+ * Fetches groups, products, and prices, writes snapshots for already-mapped
+ * sources into marketplace_snapshots, and stages all products in
+ * marketplace_staging for manual admin mapping.
  *
  * Usage: bun scripts/refresh-tcgplayer-prices.ts
  */
 
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../../db/types.js";
 import type { Logger } from "../../logger.js";
 import { groupIntoMap, toCents } from "../../utils.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
-import type { PriceRefreshResult, PriceUpsertConfig } from "./types.js";
-import { buildMappedSnapshots, loadIgnoredKeys, upsertPriceData } from "./upsert.js";
-
-// ── Local row types ───────────────────────────────────────────────────────
-
-interface TcgplayerStagingRow {
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  finish: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-}
+import type {
+  GroupRow,
+  PriceRefreshResult,
+  PriceUpsertConfig,
+  TcgplayerStagingRow,
+} from "./types.js";
+import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
 // ── Upsert config ─────────────────────────────────────────────────────────
 
@@ -76,8 +68,8 @@ interface TcgplayerFetchResult {
   groups: TcgcsvGroup[];
   groupProducts: Map<number, TcgcsvProduct[]>;
   groupPrices: Map<number, TcgcsvPrice[]>;
+  groupRecordedAt: Map<number, Date>;
   totalProducts: number;
-  recordedAt: Date;
 }
 
 async function fetchTcgplayerData(): Promise<TcgplayerFetchResult> {
@@ -87,44 +79,43 @@ async function fetchTcgplayerData(): Promise<TcgplayerFetchResult> {
   const groups = groupsData.results;
 
   const groupProducts = new Map<number, TcgcsvProduct[]>();
-  let totalProducts = 0;
-  for (const group of groups) {
-    const { data } = await fetchJson<{ results: TcgcsvProduct[] }>(
-      `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/products`,
-    );
-    const results = data.results || [];
-    groupProducts.set(group.groupId, results);
-    totalProducts += results.length;
-  }
-
   const groupPrices = new Map<number, TcgcsvPrice[]>();
-  let recordedAt: Date | null = null;
-  for (const group of groups) {
-    const { data: pricesData, lastModified } = await fetchJson<{ results: TcgcsvPrice[] }>(
-      `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/prices`,
-    );
-    if (!recordedAt) {
-      recordedAt = lastModified ?? new Date();
-    }
-    groupPrices.set(group.groupId, pricesData.results || []);
-  }
+  const groupRecordedAt = new Map<number, Date>();
+  let totalProducts = 0;
+
+  await Promise.all(
+    groups.map(async (group) => {
+      const [productsRes, pricesRes] = await Promise.all([
+        fetchJson<{ results: TcgcsvProduct[] }>(
+          `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/products`,
+        ),
+        fetchJson<{ results: TcgcsvPrice[] }>(
+          `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/prices`,
+        ),
+      ]);
+
+      const products = productsRes.data.results || [];
+      groupProducts.set(group.groupId, products);
+      totalProducts += products.length;
+
+      groupRecordedAt.set(group.groupId, pricesRes.lastModified ?? new Date());
+      groupPrices.set(group.groupId, pricesRes.data.results || []);
+    }),
+  );
 
   return {
     groups,
     groupProducts,
     groupPrices,
+    groupRecordedAt,
     totalProducts,
-    recordedAt: recordedAt ?? new Date(),
   };
 }
 
 // ── Transform ──────────────────────────────────────────────────────────────
 
 function buildTcgplayerStaging(
-  groups: TcgcsvGroup[],
-  groupProducts: Map<number, TcgcsvProduct[]>,
-  groupPrices: Map<number, TcgcsvPrice[]>,
-  recordedAt: Date,
+  { groups, groupProducts, groupPrices, groupRecordedAt }: TcgplayerFetchResult,
   ignoredKeys: Set<string>,
 ): TcgplayerStagingRow[] {
   const allStaging: TcgplayerStagingRow[] = [];
@@ -136,6 +127,7 @@ function buildTcgplayerStaging(
       continue;
     }
 
+    const recordedAt = groupRecordedAt.get(group.groupId) ?? new Date();
     const pricesByProductId = groupIntoMap(prices, (p) => p.productId);
 
     for (const product of products) {
@@ -167,30 +159,12 @@ function buildTcgplayerStaging(
   return allStaging;
 }
 
-// ── Persist ────────────────────────────────────────────────────────────────
-
-async function upsertTcgplayerGroups(db: Kysely<Database>, groups: TcgcsvGroup[]): Promise<void> {
-  if (groups.length === 0) {
-    return;
-  }
-  await db
-    .insertInto("marketplace_groups")
-    .values(
-      groups.map((g) => ({
-        marketplace: "tcgplayer" as const,
-        group_id: g.groupId,
-        name: g.name,
-        abbreviation: g.abbreviation,
-      })),
-    )
-    .onConflict((oc) =>
-      oc.columns(["marketplace", "group_id"]).doUpdateSet({
-        name: sql<string>`excluded.name`,
-        abbreviation: sql<string>`excluded.abbreviation`,
-        updated_at: sql<Date>`now()`,
-      }),
-    )
-    .execute();
+function buildTcgplayerGroups(groups: TcgcsvGroup[]): GroupRow[] {
+  return groups.map((g) => ({
+    group_id: g.groupId,
+    name: g.name,
+    abbreviation: g.abbreviation,
+  }));
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
@@ -208,32 +182,26 @@ export async function refreshTcgplayerPrices(
   const ignoredKeys = await loadIgnoredKeys(db, "tcgplayer");
 
   // Phase 1: Fetch
-  const { groups, groupProducts, groupPrices, totalProducts, recordedAt } =
-    await fetchTcgplayerData();
+  const fetchResult = await fetchTcgplayerData();
+  const { groups, totalProducts } = fetchResult;
 
   // Phase 2: Transform
-  const allStaging = buildTcgplayerStaging(
-    groups,
-    groupProducts,
-    groupPrices,
-    recordedAt,
-    ignoredKeys,
-  );
+  const allStaging = buildTcgplayerStaging(fetchResult, ignoredKeys);
+  const groupRows = buildTcgplayerGroups(groups);
 
-  // Phase 3: Persist
-  await upsertTcgplayerGroups(db, groups);
-
-  const fetchedCounts = {
-    groups: groups.length,
+  const transformedCounts = {
+    groups: groupRows.length,
     products: totalProducts,
     prices: allStaging.length,
   };
 
-  logFetchSummary(log, "groups", fetchedCounts, ignoredKeys.size);
+  logFetchSummary(log, transformedCounts, ignoredKeys.size);
 
-  const allSnapshots = await buildMappedSnapshots(db, log, UPSERT_CONFIG, allStaging);
-  const counts = await upsertPriceData(db, UPSERT_CONFIG, allSnapshots, allStaging);
+  // Phase 3: Persist
+  await upsertMarketplaceGroups(db, "tcgplayer", groupRows);
+
+  const counts = await upsertPriceData(db, log, UPSERT_CONFIG, allStaging);
   logUpsertCounts(log, counts);
 
-  return { fetched: fetchedCounts, upserted: counts };
+  return { transformed: transformedCounts, upserted: counts };
 }
