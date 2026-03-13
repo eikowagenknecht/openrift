@@ -26,15 +26,15 @@
     "postinstall": "test -n \"$CI\" || test -n \"$DOCKER_CONTAINER\" || env | grep -q ^DEPENDABOT || lefthook install"
   },
   "devDependencies": {
-    "@commitlint/cli": "20.4.3",
-    "@commitlint/config-conventional": "20.4.3",
-    "@commitlint/types": "20.4.3",
+    "@commitlint/cli": "20.4.4",
+    "@commitlint/config-conventional": "20.4.4",
+    "@commitlint/types": "20.4.4",
     "knip": "5.86.0",
-    "lefthook": "2.1.3",
-    "oxfmt": "0.37.0",
-    "oxlint": "1.52.0",
+    "lefthook": "2.1.4",
+    "oxfmt": "0.40.0",
+    "oxlint": "1.55.0",
     "syncpack": "14.2.0",
-    "turbo": "2.8.15"
+    "turbo": "2.8.16"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
