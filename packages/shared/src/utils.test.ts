@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { boundsOf, unique } from "./utils";
+import { boundsOf, buildPrintingId, unique } from "./utils";
 
 describe("unique", () => {
   it("returns empty array for empty input", () => {
@@ -21,6 +21,38 @@ describe("unique", () => {
 
   it("handles single-element array", () => {
     expect(unique([42])).toEqual([42]);
+  });
+});
+
+describe("buildPrintingId", () => {
+  it("builds ID for a normal non-signed non-promo card", () => {
+    expect(buildPrintingId("OGN-001", "normal", false, false, "normal")).toBe(
+      "OGN-001:normal:::normal",
+    );
+  });
+
+  it("includes signed flag", () => {
+    expect(buildPrintingId("OGN-001", "normal", true, false, "normal")).toBe(
+      "OGN-001:normal:signed::normal",
+    );
+  });
+
+  it("includes promo flag", () => {
+    expect(buildPrintingId("OGN-001", "normal", false, true, "foil")).toBe(
+      "OGN-001:normal::promo:foil",
+    );
+  });
+
+  it("includes both signed and promo flags", () => {
+    expect(buildPrintingId("SFD-010", "altart", true, true, "foil")).toBe(
+      "SFD-010:altart:signed:promo:foil",
+    );
+  });
+
+  it("handles overnumbered art variant", () => {
+    expect(buildPrintingId("OGN-105", "overnumbered", false, false, "normal")).toBe(
+      "OGN-105:overnumbered:::normal",
+    );
   });
 });
 

@@ -593,6 +593,29 @@ describe("fetchCatalog", () => {
     expect(blast?.printedEffectText).toBe("If [Burn] was triggered, deal 1 more.");
   });
 
+  it("warns when a card has a different denominator than its set", async () => {
+    fetchSpy = spyOn(globalThis, "fetch");
+    // Second OGN card with a different denominator (50 instead of 100)
+    const mismatchCard = makeGalleryCard({
+      collectorNumber: 2,
+      id: "ogn-002-50",
+      name: "Ice Mage",
+      publicCode: "OGN-002/50",
+    });
+    const items = [makeGalleryCard(), mismatchCard];
+    mockFetchWith(fetchSpy, buildGalleryHtml(items));
+
+    const warnings: string[] = [];
+    const log = {
+      ...makeMockLogger(),
+      warn: (msg: string) => warnings.push(msg),
+    } as unknown as Logger;
+
+    await fetchCatalog(log);
+
+    expect(warnings.some((w) => w.includes("OGN-002/50") && w.includes("denominator"))).toBe(true);
+  });
+
   it("throws when a card has no card type", async () => {
     fetchSpy = spyOn(globalThis, "fetch");
     const noTypeCard = makeGalleryCard({
