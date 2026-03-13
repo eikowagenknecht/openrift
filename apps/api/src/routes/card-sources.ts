@@ -278,6 +278,10 @@ cardSourcesRoute.get("/card-sources/export", async (c) => {
       "printing_images.rehosted_url",
       "printing_images.original_url",
     ])
+    .orderBy("printings.set_id")
+    .orderBy("printings.collector_number")
+    .orderBy("printings.art_variant")
+    .orderBy("printings.finish")
     .execute();
 
   const printingsByCardId = new Map<string, typeof printings>();
