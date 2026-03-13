@@ -68,7 +68,7 @@ services:
   # Scheduled PostgreSQL backups to Cloudflare R2.
   # Runs pg_dump on BACKUP_SCHEDULE, uploads encrypted backup to R2, prunes old backups.
   backup:
-    image: eeshugerman/postgres-backup-s3:16
+    image: siemens/postgres-backup-s3:16
     depends_on:
       db:
         condition: service_healthy
