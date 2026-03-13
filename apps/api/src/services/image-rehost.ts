@@ -163,7 +163,8 @@ export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress
   const images = await db
     .selectFrom("printing_images as pi")
     .innerJoin("printings as p", "p.id", "pi.printing_id")
-    .select(["pi.id as image_id", "pi.printing_id", "pi.original_url", "p.set_id"])
+    .innerJoin("sets as s", "s.id", "p.set_id")
+    .select(["pi.id as image_id", "pi.printing_id", "pi.original_url", "s.slug as set_slug"])
     .where("pi.is_active", "=", true)
     .where("pi.face", "=", "front")
     .where("pi.rehosted_url", "is", null)
@@ -188,11 +189,11 @@ export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress
     try {
       const { buffer, ext } = await downloadImage(img.original_url);
       const fileBase = printingIdToFileBase(img.printing_id);
-      const outputDir = join(CARD_IMAGES_DIR, img.set_id);
+      const outputDir = join(CARD_IMAGES_DIR, img.set_slug);
 
       await processAndSave(buffer, ext, outputDir, fileBase);
 
-      const selfHostedPath = `/card-images/${img.set_id}/${fileBase}`;
+      const selfHostedPath = `/card-images/${img.set_slug}/${fileBase}`;
 
       await db
         .updateTable("printing_images")

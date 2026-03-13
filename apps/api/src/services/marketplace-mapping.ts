@@ -332,7 +332,7 @@ export async function getMappingOverview(
       "c.energy",
       "c.might",
       "p.id as printing_id",
-      "p.set_id",
+      "s.slug as set_id",
       "p.source_id",
       "p.rarity",
       "s.name as set_name",
@@ -345,7 +345,7 @@ export async function getMappingOverview(
       "ps.external_id",
       "ps.group_id as source_group_id",
     ])
-    .orderBy("p.set_id")
+    .orderBy("s.slug")
     .orderBy("c.name")
     .orderBy("p.source_id")
     .orderBy("p.finish", "desc");
