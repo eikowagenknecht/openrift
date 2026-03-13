@@ -4,6 +4,7 @@ import {
   ChevronsUpDownIcon,
   DownloadIcon,
   LoaderIcon,
+  StarIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -29,6 +30,8 @@ import {
   useSourceStats,
   useUploadCardSources,
 } from "@/hooks/use-card-sources";
+import { useFavoriteSources } from "@/hooks/use-favorite-sources";
+import { cn } from "@/lib/utils";
 
 export function CardSourceUploadPage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -357,8 +360,17 @@ function ManageSourcesCard({
   sourceStats?: SourceStats[];
 }) {
   const deleteSource = useDeleteSource();
+  const { favorites, toggleFavorite } = useFavoriteSources();
   const [confirming, setConfirming] = useState<string | null>(null);
   const statsBySource = new Map(sourceStats?.map((s) => [s.source, s]));
+  const sortedNames = [...sourceNames].sort((a, b) => {
+    const aFav = favorites.has(a);
+    const bFav = favorites.has(b);
+    if (aFav !== bFav) {
+      return aFav ? -1 : 1;
+    }
+    return a.localeCompare(b);
+  });
 
   return (
     <Card>
@@ -373,14 +385,27 @@ function ManageSourcesCard({
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {sourceNames.map((name) => {
+          {sortedNames.map((name) => {
             const stats = statsBySource.get(name);
+            const isFav = favorites.has(name);
             return (
               <div
                 key={name}
                 className="flex items-center justify-between rounded-md border px-3 py-2"
               >
-                <span className="text-sm font-medium">{name}</span>
+                <span className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-yellow-500"
+                    onClick={() => toggleFavorite(name)}
+                    title={isFav ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <StarIcon
+                      className={cn("size-4", isFav && "fill-yellow-400 text-yellow-400")}
+                    />
+                  </button>
+                  <span className="text-sm font-medium">{name}</span>
+                </span>
                 <span className="flex items-center gap-4">
                   {stats && (
                     <span className="text-sm text-muted-foreground">

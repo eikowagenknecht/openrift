@@ -67,7 +67,8 @@ export interface PrintingGroup {
 export function groupPrintingSources(printingSources: PrintingSource[]): PrintingGroup[] {
   const groups = new Map<string, PrintingSource[]>();
   for (const ps of printingSources) {
-    const key = `${ps.setId ?? ""}|${ps.artVariant}|${ps.isSigned}|${ps.isPromo}|${ps.finish}`;
+    const variant = ps.artVariant || "normal";
+    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.isPromo}|${ps.finish}`;
     const group = groups.get(key) ?? [];
     group.push(ps);
     groups.set(key, group);
@@ -80,9 +81,10 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
     }
     const mostCommonId = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
     const ps = sources[0];
+    const variant = ps.artVariant || "normal";
     const parts = [mostCommonId, ps.finish];
-    if (ps.artVariant && ps.artVariant !== "normal") {
-      parts.push(ps.artVariant);
+    if (variant !== "normal") {
+      parts.push(variant);
     }
     if (ps.isSigned) {
       parts.push("signed");
@@ -94,7 +96,7 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
       key,
       label: parts.join(" · "),
       differentiators: {
-        artVariant: ps.artVariant,
+        artVariant: variant,
         isSigned: ps.isSigned,
         isPromo: ps.isPromo,
         finish: ps.finish,
@@ -112,6 +114,8 @@ interface SourceSpreadsheetProps {
   sourceRows: (CardSource | PrintingSource)[];
   /** Map from cardSourceId → source name, used to label PrintingSource columns. */
   sourceLabels?: Record<string, string>;
+  /** Source names to sort first (before alphabetical). */
+  favoriteSources?: Set<string>;
   /** Field keys that must be selected before the card can be accepted. */
   requiredKeys?: string[];
   onCellClick?: (field: string, value: unknown, sourceId: string) => void;
@@ -162,14 +166,11 @@ function isChecked(row: CardSource | PrintingSource): boolean {
   return row.checkedAt !== null;
 }
 
-function isGalleryPS(
+function isGallery(
   row: CardSource | PrintingSource,
   sourceLabels?: Record<string, string>,
 ): boolean {
-  if ("source" in row) {
-    return row.source === "gallery";
-  }
-  return sourceLabels?.[row.cardSourceId] === "gallery";
+  return getSourceLabel(row, sourceLabels) === "gallery";
 }
 
 export function SourceSpreadsheet({
@@ -177,12 +178,24 @@ export function SourceSpreadsheet({
   activeRow,
   sourceRows,
   sourceLabels,
+  favoriteSources,
   requiredKeys,
   onCellClick,
   onActiveChange,
   onCheck,
   columnActions,
 }: SourceSpreadsheetProps) {
+  const sortedRows = [...sourceRows].sort((a, b) => {
+    const aLabel = getSourceLabel(a, sourceLabels);
+    const bLabel = getSourceLabel(b, sourceLabels);
+    const aFav = favoriteSources?.has(aLabel) ?? false;
+    const bFav = favoriteSources?.has(bLabel) ?? false;
+    if (aFav !== bFav) {
+      return aFav ? -1 : 1;
+    }
+    return aLabel.localeCompare(bLabel);
+  });
+
   const [editingField, setEditingField] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -201,7 +214,7 @@ export function SourceSpreadsheet({
         className="break-all text-sm"
         style={{
           tableLayout: "fixed",
-          width: `${150 + 200 * (1 + sourceRows.length)}px`,
+          width: `${150 + 200 * (1 + sortedRows.length)}px`,
         }}
       >
         <thead>
@@ -210,12 +223,12 @@ export function SourceSpreadsheet({
               Field
             </th>
             <th className="w-[200px] border-l px-3 py-2 text-left font-medium">Active</th>
-            {sourceRows.map((row) => (
+            {sortedRows.map((row) => (
               <th
                 key={row.id}
                 className={cn(
                   "w-[200px] border-l px-3 py-2 text-left font-medium",
-                  isGalleryPS(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
+                  isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                   isChecked(row) && "opacity-50",
                 )}
               >
@@ -317,13 +330,33 @@ export function SourceSpreadsheet({
                       }}
                       onClick={(e) => e.stopPropagation()}
                     />
+                  ) : field.key === "imageUrl" && typeof activeValue === "string" ? (
+                    <HoverCard>
+                      <HoverCardTrigger
+                        href={activeValue}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block truncate text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                        title={activeValue}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      >
+                        {activeValue}
+                      </HoverCardTrigger>
+                      <HoverCardContent side="right" className="w-auto p-1">
+                        <img
+                          src={activeValue}
+                          alt="Active"
+                          className="max-h-[80vh] max-w-[40vw] rounded object-contain"
+                        />
+                      </HoverCardContent>
+                    </HoverCard>
                   ) : (
                     <span className={cn(isMissing ? "text-red-400" : "text-muted-foreground")}>
                       {activeRow ? formatValue(activeValue) : isMissing ? "required" : "\u2014"}
                     </span>
                   )}
                 </td>
-                {sourceRows.map((row) => {
+                {sortedRows.map((row) => {
                   const sourceValue = (row as unknown as Record<string, unknown>)[field.key];
                   const isClickable =
                     !field.readOnly &&
@@ -337,12 +370,12 @@ export function SourceSpreadsheet({
                       key={row.id}
                       className={cn(
                         "border-l px-3 py-1.5",
-                        isGalleryPS(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
+                        isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
-                        isDifferent && "bg-yellow-50 dark:bg-yellow-950/30",
+                        isDifferent && "bg-yellow-100 dark:bg-yellow-900/40",
                         isClickable &&
                           onCellClick &&
-                          "cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/40",
+                          "cursor-pointer hover:bg-yellow-200 dark:hover:bg-yellow-800/50",
                       )}
                       onClick={
                         isClickable && onCellClick
