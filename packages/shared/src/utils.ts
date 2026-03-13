@@ -1,3 +1,6 @@
+import type { ArtVariant } from "./types.js";
+import { ART_VARIANT_ORDER } from "./types.js";
+
 /**
  * Deduplicates an array, preserving insertion order.
  *
@@ -50,6 +53,24 @@ export function buildPrintingId(
  */
 export function normalizeNameForMatching(name: string): string {
   return name.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Compare two printings by set, collector number, then art variant.
+ * Use as a comparator for `.sort()` to get canonical printing order.
+ *
+ * @returns Negative if a comes first, positive if b comes first, 0 if equal.
+ */
+export function comparePrintings(
+  a: { setId?: string | null; collectorNumber: number; artVariant: string },
+  b: { setId?: string | null; collectorNumber: number; artVariant: string },
+): number {
+  return (
+    (a.setId ?? "").localeCompare(b.setId ?? "") ||
+    a.collectorNumber - b.collectorNumber ||
+    ART_VARIANT_ORDER.indexOf(a.artVariant as ArtVariant) -
+      ART_VARIANT_ORDER.indexOf(b.artVariant as ArtVariant)
+  );
 }
 
 /**

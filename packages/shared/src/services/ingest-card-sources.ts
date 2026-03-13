@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/types.js";
-import { buildPrintingId, normalizeNameForMatching } from "../utils.js";
+import { buildPrintingId } from "../utils.js";
 
 interface IngestCard {
   name: string;
@@ -125,12 +125,14 @@ function getChangedFields(
 /**
  * Ingest card data from a named source into card_sources / printing_sources.
  *
+ * card_id is never set at ingest time — matching is done dynamically in the
+ * admin UI. Existing card_id values (from prior admin linking) are preserved.
+ *
  * For each card:
- * 1. Match card_id via aliases -> exact name -> null
- * 2. Find existing card_sources row by (source, card_id) or (source, name)
- * 3. If found and changed: update, reset checked_at. Unchanged: skip.
- * 4. If not found: insert new row.
- * 5. Same for printing_sources.
+ * 1. Find existing card_sources row by (source, source_id) or (source, name)
+ * 2. If found and changed: update fields, reset checked_at. Unchanged: skip.
+ * 3. If not found: insert new row with card_id = null.
+ * 4. Same for printing_sources.
  *
  * @returns Counts of new, updated, unchanged cards and any errors.
  */
@@ -143,14 +145,6 @@ export async function ingestCardSources(
     throw new Error("source name must not be empty");
   }
 
-  // Load alias table for matching (keyed by normalized name for fuzzy matching)
-  const aliasRows = await db.selectFrom("card_name_aliases").select(["alias", "card_id"]).execute();
-  const aliasMap = new Map(aliasRows.map((r) => [normalizeNameForMatching(r.alias), r.card_id]));
-
-  // Load existing card names for matching (keyed by normalized name)
-  const cardRows = await db.selectFrom("cards").select(["id", "name"]).execute();
-  const nameToCardId = new Map(cardRows.map((r) => [normalizeNameForMatching(r.name), r.id]));
-
   let newCards = 0;
   let updates = 0;
   let unchanged = 0;
@@ -159,9 +153,6 @@ export async function ingestCardSources(
 
   for (const card of cards) {
     try {
-      const normalized = normalizeNameForMatching(card.name);
-      const matchCardId = aliasMap.get(normalized) ?? nameToCardId.get(normalized) ?? null;
-
       // oxlint-disable-next-line no-loop-func -- sequential per-card transactions that share counters
       await db.transaction().execute(async (trx) => {
         // Find existing card_source row: by (source, source_id) if available,
@@ -200,7 +191,7 @@ export async function ingestCardSources(
             await trx
               .updateTable("card_sources")
               .set({
-                card_id: matchCardId,
+                // card_id is NOT set here — preserve existing value
                 name: card.name,
                 type: card.type,
                 super_types: card.super_types,
@@ -224,23 +215,14 @@ export async function ingestCardSources(
               .execute();
             updates++;
           } else {
-            // Update card_id if it was previously unmatched
-            if (matchCardId && !existingCardSource.card_id) {
-              await trx
-                .updateTable("card_sources")
-                .set({ card_id: matchCardId, updated_at: new Date() })
-                .where("id", "=", existingCardSource.id)
-                .execute();
-            }
             unchanged++;
           }
           cardSourceId = existingCardSource.id;
         } else {
-          // Insert new card_source
+          // Insert new card_source — card_id starts as null
           const [inserted] = await trx
             .insertInto("card_sources")
             .values({
-              card_id: matchCardId,
               source,
               name: card.name,
               type: card.type,
@@ -266,8 +248,11 @@ export async function ingestCardSources(
         }
 
         // Process printings
+        // Use existing card_id (from prior admin linking) for printing_id resolution
+        const effectiveCardId = existingCardSource?.card_id ?? null;
+
         for (const p of card.printings) {
-          const printingId = matchCardId
+          const printingId = effectiveCardId
             ? buildPrintingId(
                 p.source_id,
                 p.art_variant || "normal",

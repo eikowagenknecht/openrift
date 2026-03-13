@@ -1,5 +1,5 @@
 import type { CardSource, PrintingSource } from "@openrift/shared";
-import { ART_VARIANT_ORDER } from "@openrift/shared";
+import { comparePrintings } from "@openrift/shared";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowRightIcon, LinkIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
@@ -80,12 +80,7 @@ export function CardSourceUnmatchedPage() {
     if (data.printingSources.length === 0) {
       return "";
     }
-    const canonical = [...data.printingSources].sort(
-      (a, b) =>
-        (a.setId ?? "").localeCompare(b.setId ?? "") ||
-        a.collectorNumber - b.collectorNumber ||
-        ART_VARIANT_ORDER.indexOf(a.artVariant) - ART_VARIANT_ORDER.indexOf(b.artVariant),
-    )[0];
+    const canonical = [...data.printingSources].sort(comparePrintings)[0];
     return canonical.sourceId.replace(/(?<=\d)[a-z*]+$/, "");
   })();
 

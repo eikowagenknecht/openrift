@@ -355,10 +355,12 @@ export interface CardSourceSummary {
   cardId: string | null;
   name: string;
   normalizedName: string;
+  sourceIds: string[];
   sourceCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasGallery: boolean;
+  suggestedCard: { id: string; name: string } | null;
 }
 
 export interface SourceStats {
