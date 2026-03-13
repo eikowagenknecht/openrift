@@ -1,23 +1,18 @@
 /**
  * Core upsert logic for price refresh workflows.
  *
- * Handles batch upserting of sources, snapshots, and staging rows,
+ * Handles batch upserting of snapshots and staging rows,
  * deduplication, and conflict resolution with IS DISTINCT FROM.
  */
 
-import type { Kysely, SqlBool } from "kysely";
+import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { buildDistinctWhere, buildExcludedSet } from "../../db/helpers.js";
 import type { Database } from "../../db/types.js";
 import type { Logger } from "../../logger.js";
 import { groupIntoMap } from "../../utils.js";
-import type {
-  PriceUpsertConfig,
-  SnapshotData,
-  SourceRow,
-  StagingRow,
-  UpsertCounts,
-} from "./types.js";
+import type { GroupRow, PriceUpsertConfig, StagingRow, UpsertCounts } from "./types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -41,70 +36,38 @@ export async function loadIgnoredKeys(
   return new Set(rows.map((r) => `${r.external_id}::${r.finish}`));
 }
 
-// ── Snapshot building ──────────────────────────────────────────────────────
+// ── Group upsert ────────────────────────────────────────────────────────────
 
 /**
- * Build snapshot rows from staging data and existing source mappings.
- * Matches staging rows to printing IDs via (external_id, finish) and copies price columns.
- *
- * @returns Snapshot rows ready for upsert, one per (printing, recorded_at).
+ * Upsert marketplace groups (TCGPlayer groups / Cardmarket expansions).
+ * Uses COALESCE to preserve existing name/abbreviation when not provided.
  */
-export function buildSnapshotsFromStaging(
-  existingSources: { printing_id: string; external_id: number; finish: string }[],
-  allStaging: StagingRow[],
-  priceColumns: string[],
-): SnapshotData[] {
-  const printingByExtIdFinish = groupIntoMap(
-    existingSources,
-    (src) => `${src.external_id}::${src.finish}`,
-  );
-  const snapshots: SnapshotData[] = [];
-  for (const staging of allStaging) {
-    const key = `${staging.external_id}::${staging.finish}`;
-    const sources = printingByExtIdFinish.get(key);
-    if (!sources) {
-      continue;
-    }
-    for (const src of sources) {
-      const row: Record<string, unknown> = {
-        printing_id: src.printing_id,
-        recorded_at: staging.recorded_at,
-      };
-      const stagingRecord = staging as unknown as Record<string, unknown>;
-      for (const col of priceColumns) {
-        row[col] = stagingRecord[col];
-      }
-      snapshots.push(row as unknown as SnapshotData);
-    }
-  }
-  return snapshots;
-}
-
-/**
- * Load existing source->printing mappings and build snapshot rows from staging data.
- * Logs snapshot count when snapshots are produced.
- * @returns Snapshot rows ready for upsert.
- */
-export async function buildMappedSnapshots(
+export async function upsertMarketplaceGroups(
   db: Kysely<Database>,
-  log: Logger,
-  config: PriceUpsertConfig,
-  allStaging: StagingRow[],
-): Promise<SnapshotData[]> {
-  const existingSources: { printing_id: string; external_id: number; finish: string }[] = await db
-    .selectFrom("marketplace_sources as src")
-    .innerJoin("printings as p", "p.id", "src.printing_id")
-    .select(["src.printing_id", "src.external_id", "p.finish"])
-    .where("src.marketplace", "=", config.marketplace)
-    .execute();
-
-  const snapshots = buildSnapshotsFromStaging(existingSources, allStaging, config.priceColumns);
-
-  if (snapshots.length > 0) {
-    log.info(`${snapshots.length} snapshots for ${existingSources.length} mapped sources`);
+  marketplace: string,
+  groups: GroupRow[],
+): Promise<void> {
+  if (groups.length === 0) {
+    return;
   }
-
-  return snapshots;
+  await db
+    .insertInto("marketplace_groups")
+    .values(
+      groups.map((g) => ({
+        marketplace,
+        group_id: g.group_id,
+        name: g.name ?? null,
+        abbreviation: g.abbreviation ?? null,
+      })),
+    )
+    .onConflict((oc) =>
+      oc.columns(["marketplace", "group_id"]).doUpdateSet({
+        name: sql<string>`coalesce(excluded.name, marketplace_groups.name)`,
+        abbreviation: sql<string>`coalesce(excluded.abbreviation, marketplace_groups.abbreviation)`,
+        updated_at: sql<Date>`now()`,
+      }),
+    )
+    .execute();
 }
 
 // ── Internal helpers ───────────────────────────────────────────────────────
@@ -115,7 +78,7 @@ export async function buildMappedSnapshots(
  */
 async function countRows(
   db: Kysely<Database>,
-  table: "marketplace_sources" | "marketplace_snapshots" | "marketplace_staging",
+  table: "marketplace_snapshots" | "marketplace_staging",
   marketplace: string,
 ): Promise<number> {
   if (table === "marketplace_snapshots") {
@@ -135,122 +98,73 @@ async function countRows(
   return Number(result.count);
 }
 
-/**
- * Build a `doUpdateSet` record that maps each column to its `excluded.*` value.
- * raw sql: columns are dynamic at runtime — eb.ref('excluded.col') only works for static columns.
- * @returns A record mapping column names to `excluded.<col>` SQL expressions.
- */
-function buildExcludedSet(columns: string[]) {
-  // oxlint-disable-next-line typescript/no-explicit-any -- dynamic column mapping for Kysely doUpdateSet
-  const set: Record<string, any> = {};
-  for (const col of columns) {
-    set[col] = sql.raw(`excluded.${col}`);
-  }
-  return set;
-}
-
-/**
- * Build a WHERE clause that checks if any of the given columns changed
- * (using IS DISTINCT FROM to handle NULLs correctly).
- * raw sql: columns are dynamic at runtime — Kysely supports 'is distinct from' operator
- * but only for static column refs; here columns come from a runtime array.
- * @returns A raw SQL boolean expression for the conflict WHERE clause.
- */
-function buildDistinctWhere(table: string, columns: string[]) {
-  return sql.raw<SqlBool>(
-    columns.map((c) => `excluded.${c} IS DISTINCT FROM ${table}.${c}`).join("\n              OR "),
-  );
-}
-
 // ── Main upsert ────────────────────────────────────────────────────────────
 
 /**
- * Batch-upsert sources, snapshots, and staging rows for a single marketplace
- * (TCGPlayer or Cardmarket). Deduplicates inputs, handles conflict resolution
+ * Batch-upsert snapshots and staging rows for a single marketplace
+ * (TCGPlayer or Cardmarket). Loads source mappings, builds snapshot rows
+ * from staging data, deduplicates inputs, handles conflict resolution
  * with `IS DISTINCT FROM` to skip no-op updates, and returns per-table counts
  * of new / updated / unchanged rows.
  *
- * @param allSources - Source rows to upsert. Defaults to `[]` (sources are
- *   typically created via admin mapping, not during refresh).
  * @returns Per-table breakdown of new, updated, and unchanged rows.
  */
 export async function upsertPriceData(
   db: Kysely<Database>,
+  log: Logger,
   config: PriceUpsertConfig,
-  allSnapshots: SnapshotData[],
   allStaging: StagingRow[],
-  allSources: SourceRow[] = [],
 ): Promise<UpsertCounts> {
   const { marketplace } = config;
 
-  // ── Sources ─────────────────────────────────────────────────────────────
+  // ── Source lookup (single query for both snapshot building & ID mapping) ─
 
-  // Deduplicate sources: keep last entry per printing_id
-  const uniqueSources = new Map<string, SourceRow>();
-  for (const src of allSources) {
-    uniqueSources.set(src.printing_id, src);
-  }
-
-  const sourceRows = [...uniqueSources.values()];
-  const sourcesBefore = await countRows(db, "marketplace_sources", marketplace);
-  let sourcesAffected = 0;
-
-  for (let i = 0; i < sourceRows.length; i += BATCH_SIZE) {
-    const batch = sourceRows.slice(i, i + BATCH_SIZE).map((r) => ({ ...r, marketplace }));
-    const rows = await db
-      .insertInto("marketplace_sources")
-      .values(batch)
-      .onConflict((oc) =>
-        oc
-          .columns(["marketplace", "printing_id"])
-          .doUpdateSet({
-            group_id: sql<number>`excluded.group_id`,
-            updated_at: sql<Date>`now()`,
-          })
-          .where(buildDistinctWhere("marketplace_sources", ["group_id"])),
-      )
-      .returning(sql<number>`1`.as("_"))
-      .execute();
-    sourcesAffected += rows.length;
-  }
-
-  const sourcesAfter = await countRows(db, "marketplace_sources", marketplace);
-  const newSources = sourcesAfter - sourcesBefore;
-
-  // ── Source ID lookup ────────────────────────────────────────────────────
-
-  const sourceIdLookup = new Map<string, string>();
   const dbSources = await db
-    .selectFrom("marketplace_sources")
-    .select(["id", "printing_id"])
-    .where("marketplace", "=", marketplace)
+    .selectFrom("marketplace_sources as src")
+    .innerJoin("printings as p", "p.id", "src.printing_id")
+    .select(["src.id", "src.printing_id", "src.external_id", "p.finish"])
+    .where("src.marketplace", "=", marketplace)
     .execute();
 
+  const sourceIdLookup = new Map<string, string>();
   for (const row of dbSources) {
     sourceIdLookup.set(row.printing_id, row.id);
   }
 
-  // ── Snapshots ──────────────────────────────────────────────────────────
+  // ── Build snapshots from staging + source mappings ─────────────────────
 
-  // Deduplicate snapshots: keep last entry per (source_id, recorded_at)
+  const printingByExtIdFinish = groupIntoMap(
+    dbSources,
+    (src) => `${src.external_id}::${src.finish}`,
+  );
+
   const uniqueSnapshots = new Map<string, Record<string, unknown>>();
-
-  for (const snap of allSnapshots) {
-    const sourceId = sourceIdLookup.get(snap.printing_id);
-    if (sourceId === undefined) {
+  for (const staging of allStaging) {
+    const key = `${staging.external_id}::${staging.finish}`;
+    const sources = printingByExtIdFinish.get(key);
+    if (!sources) {
       continue;
     }
-
-    const key = `${sourceId}|${snap.recorded_at.toISOString()}`;
-    const row: Record<string, unknown> = {
-      source_id: sourceId,
-      recorded_at: snap.recorded_at,
-    };
-    const snapRecord = snap as unknown as Record<string, unknown>;
-    for (const col of config.priceColumns) {
-      row[col] = snapRecord[col];
+    for (const src of sources) {
+      const sourceId = sourceIdLookup.get(src.printing_id);
+      if (sourceId === undefined) {
+        continue;
+      }
+      const snapKey = `${sourceId}|${staging.recorded_at.toISOString()}`;
+      const row: Record<string, unknown> = {
+        source_id: sourceId,
+        recorded_at: staging.recorded_at,
+      };
+      const stagingRecord = staging as unknown as Record<string, unknown>;
+      for (const col of config.priceColumns) {
+        row[col] = stagingRecord[col];
+      }
+      uniqueSnapshots.set(snapKey, row);
     }
-    uniqueSnapshots.set(key, row);
+  }
+
+  if (uniqueSnapshots.size > 0) {
+    log.info(`${uniqueSnapshots.size} snapshots for ${dbSources.length} mapped sources`);
   }
 
   const snapshotRows = [...uniqueSnapshots.values()];
@@ -322,12 +236,6 @@ export async function upsertPriceData(
   const updatedStaging = stagingAffected - newStaging;
 
   return {
-    sources: {
-      total: sourceRows.length,
-      new: newSources,
-      updated: sourcesAffected - newSources,
-      unchanged: sourceRows.length - sourcesAffected,
-    },
     snapshots: {
       total: snapshotRows.length,
       new: newSnapshots,

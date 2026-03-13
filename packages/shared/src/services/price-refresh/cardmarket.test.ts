@@ -4,11 +4,10 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types";
 import type { Logger } from "../../logger";
-import type { CardmarketSnapshotData, CardmarketStagingRow } from "./cardmarket";
 import { refreshCardmarketPrices } from "./cardmarket";
 import * as fetchMod from "./fetch";
 import * as logMod from "./log";
-import type { UpsertCounts } from "./types";
+import type { CardmarketStagingRow, UpsertCounts } from "./types";
 import * as upsertMod from "./upsert";
 
 // ── Representative mock data (sampled from real Cardmarket API) ──────────
@@ -70,7 +69,6 @@ const PRICE_TEEMO = {
 };
 
 const ZERO_COUNTS: UpsertCounts = {
-  sources: { total: 0, new: 0, updated: 0, unchanged: 0 },
   snapshots: { total: 0, new: 0, updated: 0, unchanged: 0 },
   staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
@@ -119,8 +117,6 @@ function makeChain(value: unknown): any {
 
 interface MockDbConfig {
   ignoredProducts?: { external_id: number; finish: string }[];
-  expansions?: { group_id: number }[];
-  existingSources?: { printing_id: string; external_id: number; finish: string }[];
 }
 
 function createMockDb(config: MockDbConfig = {}) {
@@ -138,14 +134,14 @@ function createMockDb(config: MockDbConfig = {}) {
                 insertedExpansionIds.push(v.group_id);
               }
             }
-            return makeChain(config.expansions ?? []);
+            return makeChain([]);
           };
         }
         if (prop === "then" || prop === "catch" || prop === "finally") {
           // oxlint-disable-next-line no-useless-undefined -- must explicitly return undefined so the proxy isn't treated as a thenable
           return undefined;
         }
-        return makeChain(config.expansions ?? []);
+        return makeChain([]);
       },
       apply() {
         return makeChain(null);
@@ -157,9 +153,6 @@ function createMockDb(config: MockDbConfig = {}) {
     selectFrom(table: string) {
       if (table === "marketplace_ignored_products") {
         return makeChain(config.ignoredProducts ?? []);
-      }
-      if (table.startsWith("marketplace_sources")) {
-        return makeChain(config.existingSources ?? []);
       }
       return makeChain([]);
     },
@@ -204,16 +197,8 @@ describe("refreshCardmarketPrices", () => {
   let upsertSpy: ReturnType<typeof spyOn>;
   let logUpsertSpy: ReturnType<typeof spyOn>;
 
-  /**
-   * Extract [snapshots, staging] from the spy upsert call args.
-   * @returns The snapshots and staging arrays from the first upsert call.
-   */
-  function upsertArgs(): {
-    snapshots: CardmarketSnapshotData[];
-    staging: CardmarketStagingRow[];
-  } {
-    const args = upsertSpy.mock.calls[0];
-    return { snapshots: args[2], staging: args[3] };
+  function upsertStaging(): CardmarketStagingRow[] {
+    return upsertSpy.mock.calls[0][3];
   }
 
   beforeEach(() => {
@@ -256,11 +241,10 @@ describe("refreshCardmarketPrices", () => {
 
       const result = await refreshCardmarketPrices(db, log);
 
-      const { snapshots, staging } = upsertArgs();
+      const staging = upsertStaging();
       expect(staging).toHaveLength(0);
-      expect(snapshots).toHaveLength(0);
-      expect(result.fetched.products).toBe(0);
-      expect(result.fetched.prices).toBe(0);
+      expect(result.transformed.products).toBe(0);
+      expect(result.transformed.prices).toBe(0);
     });
   });
 
@@ -274,7 +258,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       const normal = staging.find(
         (r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "normal",
       );
@@ -296,7 +280,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       const foil = staging.find(
         (r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "foil",
       );
@@ -316,7 +300,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       const foil = staging.find(
         (r: CardmarketStagingRow) => r.external_id === 847_277 && r.finish === "foil",
       );
@@ -330,7 +314,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       const normal = staging.find(
         (r: CardmarketStagingRow) => r.external_id === 847_140 && r.finish === "normal",
       );
@@ -344,7 +328,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       const foil = staging.find(
         (r: CardmarketStagingRow) => r.external_id === 847_140 && r.finish === "foil",
       );
@@ -360,7 +344,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       expect(staging).toHaveLength(0);
     });
 
@@ -373,7 +357,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       expect(
         staging.find(
           (r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "normal",
@@ -393,7 +377,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       expect(
         staging.find((r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "foil"),
       ).toBeUndefined();
@@ -415,100 +399,11 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       // Blazing: normal + foil = 2
       // Annie: normal only (foil avg = 0) = 1
       // Teemo: foil only (normal avg = 0) = 1
       expect(staging).toHaveLength(4);
-    });
-  });
-
-  // ── Snapshot rows ─────────────────────────────────────────────────────
-
-  describe("snapshot rows", () => {
-    it("creates snapshot for staging row with matching source", async () => {
-      const { db } = createMockDb({
-        existingSources: [{ printing_id: "print-001", external_id: 845_712, finish: "normal" }],
-      });
-      const { log } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
-
-      await refreshCardmarketPrices(db, log);
-
-      const { snapshots } = upsertArgs();
-      expect(snapshots).toHaveLength(1);
-      expect(snapshots[0].printing_id).toBe("print-001");
-      expect(snapshots[0].market_cents).toBe(4);
-      expect(snapshots[0].low_cents).toBe(2);
-      expect(snapshots[0].trend_cents).toBe(2);
-    });
-
-    it("creates snapshots for both normal and foil mapped sources", async () => {
-      const { db } = createMockDb({
-        existingSources: [
-          { printing_id: "print-001", external_id: 845_712, finish: "normal" },
-          { printing_id: "print-002", external_id: 845_712, finish: "foil" },
-        ],
-      });
-      const { log } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
-
-      await refreshCardmarketPrices(db, log);
-
-      const { snapshots } = upsertArgs();
-      expect(snapshots).toHaveLength(2);
-      const ids = snapshots.map((s: CardmarketSnapshotData) => s.printing_id).sort();
-      expect(ids).toEqual(["print-001", "print-002"]);
-    });
-
-    it("creates multiple snapshots when one source maps to multiple printings", async () => {
-      const { db } = createMockDb({
-        existingSources: [
-          { printing_id: "print-001", external_id: 845_712, finish: "normal" },
-          { printing_id: "print-003", external_id: 845_712, finish: "normal" },
-        ],
-      });
-      const { log } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
-
-      await refreshCardmarketPrices(db, log);
-
-      const { snapshots } = upsertArgs();
-      const normalSnaps = snapshots.filter(
-        (s: CardmarketSnapshotData) =>
-          s.printing_id === "print-001" || s.printing_id === "print-003",
-      );
-      expect(normalSnaps).toHaveLength(2);
-      expect(normalSnaps[0].market_cents).toBe(normalSnaps[1].market_cents);
-    });
-
-    it("produces no snapshots when no sources are mapped", async () => {
-      const { db } = createMockDb({ existingSources: [] });
-      const { log } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
-
-      await refreshCardmarketPrices(db, log);
-
-      const { snapshots } = upsertArgs();
-      expect(snapshots).toHaveLength(0);
-    });
-
-    it("skips foil snapshot when foil source exists but foil avg is 0", async () => {
-      const { db } = createMockDb({
-        existingSources: [
-          { printing_id: "print-001", external_id: 847_277, finish: "normal" },
-          { printing_id: "print-002", external_id: 847_277, finish: "foil" },
-        ],
-      });
-      const { log } = makeMockLogger();
-      // Annie: normal only, foil avg = 0 → no foil staging → no foil snapshot
-      setupFetchJson(fetchJsonSpy, [PRODUCT_ANNIE], [PRICE_ANNIE]);
-
-      await refreshCardmarketPrices(db, log);
-
-      const { snapshots } = upsertArgs();
-      expect(snapshots).toHaveLength(1);
-      expect(snapshots[0].printing_id).toBe("print-001");
     });
   });
 
@@ -553,7 +448,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       expect(staging[0].recorded_at).toEqual(new Date("2026-03-10T02:49:27+0100"));
     });
 
@@ -568,7 +463,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       expect(staging[0].recorded_at).toEqual(lastMod);
     });
 
@@ -583,7 +478,7 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(db, log);
 
-      const { staging } = upsertArgs();
+      const staging = upsertStaging();
       const ts = staging[0].recorded_at.getTime();
       expect(ts).toBeGreaterThanOrEqual(before);
       expect(ts).toBeLessThanOrEqual(Date.now());
@@ -608,9 +503,7 @@ describe("refreshCardmarketPrices", () => {
 
   describe("return value", () => {
     it("returns correct fetched counts", async () => {
-      const { db } = createMockDb({
-        expansions: [{ group_id: 6286 }, { group_id: 6289 }],
-      });
+      const { db } = createMockDb();
       const { log } = makeMockLogger();
       setupFetchJson(
         fetchJsonSpy,
@@ -620,10 +513,11 @@ describe("refreshCardmarketPrices", () => {
 
       const result = await refreshCardmarketPrices(db, log);
 
-      expect(result.fetched).toEqual({
+      expect(result.transformed).toEqual({
         groups: 2,
         products: 3,
-        prices: 3,
+        // Blazing: normal + foil, Annie: normal only, Teemo: foil only
+        prices: 4,
       });
     });
 
@@ -632,7 +526,6 @@ describe("refreshCardmarketPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [], []);
       const customCounts: UpsertCounts = {
-        sources: { total: 0, new: 0, updated: 0, unchanged: 0 },
         snapshots: { total: 20, new: 10, updated: 5, unchanged: 5 },
         staging: { total: 15, new: 8, updated: 4, unchanged: 3 },
       };
@@ -647,36 +540,8 @@ describe("refreshCardmarketPrices", () => {
   // ── Logging ───────────────────────────────────────────────────────────
 
   describe("logging", () => {
-    it("logs snapshot count when snapshots exist", async () => {
-      const { db } = createMockDb({
-        existingSources: [{ printing_id: "print-001", external_id: 845_712, finish: "normal" }],
-      });
-      const { log, messages } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
-
-      await refreshCardmarketPrices(db, log);
-
-      expect(
-        messages.some((m) => m.includes("1 snapshots") && m.includes("1 mapped sources")),
-      ).toBe(true);
-    });
-
-    it("does not log snapshot line when there are no snapshots", async () => {
-      const { db } = createMockDb();
-      const { log, messages } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
-
-      await refreshCardmarketPrices(db, log);
-
-      expect(messages.some((m) => m.includes("snapshots") && m.includes("mapped sources"))).toBe(
-        false,
-      );
-    });
-
     it("logs fetched summary with expansion and product counts", async () => {
-      const { db } = createMockDb({
-        expansions: [{ group_id: 6286 }, { group_id: 6289 }],
-      });
+      const { db } = createMockDb();
       const { log, messages } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING, PRODUCT_ANNIE], [PRICE_BLAZING, PRICE_ANNIE]);
 
@@ -684,9 +549,9 @@ describe("refreshCardmarketPrices", () => {
 
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).toBeDefined();
-      expect(summary).toContain("2 expansions");
+      expect(summary).toContain("2 groups");
       expect(summary).toContain("2 products");
-      expect(summary).toContain("2 prices");
+      expect(summary).toContain("3 prices");
     });
 
     it("includes ignored count in summary when products are ignored", async () => {

@@ -7,7 +7,7 @@ import type { Logger } from "../../logger";
 import * as fetchMod from "./fetch";
 import * as logMod from "./log";
 import { refreshTcgplayerPrices } from "./tcgplayer";
-import type { UpsertCounts } from "./types";
+import type { TcgplayerStagingRow, UpsertCounts } from "./types";
 import * as upsertMod from "./upsert";
 
 // ── Representative mock data (modelled on real TCGCSV responses) ─────────
@@ -98,7 +98,6 @@ const PRICE_BOLT_NORMAL = {
 };
 
 const ZERO_COUNTS: UpsertCounts = {
-  sources: { total: 0, new: 0, updated: 0, unchanged: 0 },
   snapshots: { total: 0, new: 0, updated: 0, unchanged: 0 },
   staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
@@ -149,7 +148,6 @@ function makeChain(value: unknown): any {
 
 interface MockDbConfig {
   ignoredProducts?: { external_id: number; finish: string }[];
-  existingSources?: { printing_id: string; external_id: number; finish: string }[];
 }
 
 function createMockDb(config: MockDbConfig = {}) {
@@ -159,9 +157,6 @@ function createMockDb(config: MockDbConfig = {}) {
     selectFrom(table: string) {
       if (table === "marketplace_ignored_products") {
         return makeChain(config.ignoredProducts ?? []);
-      }
-      if (table.startsWith("marketplace_sources")) {
-        return makeChain(config.existingSources ?? []);
       }
       return makeChain([]);
     },
@@ -174,29 +169,6 @@ function createMockDb(config: MockDbConfig = {}) {
   return { db, wasInsertCalled: () => insertIntoCalled };
 }
 
-// ── Staging row type (mirrors private TcgplayerStagingRow) ───────────────
-
-interface StagingRow {
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  finish: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-}
-
-interface SnapshotRow {
-  printing_id: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-}
-
 // ── fetchJson mock setup ─────────────────────────────────────────────────
 
 interface MockApiData {
@@ -206,6 +178,8 @@ interface MockApiData {
   /** Prices keyed by groupId */
   pricesByGroup?: Map<number, Record<string, unknown>[]>;
   lastModified?: Date | null;
+  /** Per-group Last-Modified overrides (takes precedence over lastModified) */
+  lastModifiedByGroup?: Map<number, Date | null>;
 }
 
 function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiData = {}) {
@@ -213,6 +187,7 @@ function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiDat
   const productsByGroup = data.productsByGroup ?? new Map();
   const pricesByGroup = data.pricesByGroup ?? new Map();
   const lastModified = data.lastModified ?? null;
+  const lastModifiedByGroup = data.lastModifiedByGroup;
 
   fetchJsonSpy.mockImplementation(async (url: string) => {
     if (url.endsWith("/groups")) {
@@ -229,21 +204,18 @@ function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiDat
     const pricesMatch = url.match(/\/(\d+)\/prices$/);
     if (pricesMatch) {
       const groupId = Number(pricesMatch[1]);
+      const lm = lastModifiedByGroup?.get(groupId) ?? lastModified;
       return {
         data: { results: pricesByGroup.get(groupId) ?? [] },
-        lastModified,
+        lastModified: lm,
       };
     }
     return { data: { results: [] }, lastModified: null };
   });
 }
 
-function upsertArgs(spy: ReturnType<typeof spyOn>): {
-  snapshots: SnapshotRow[];
-  staging: StagingRow[];
-} {
-  const args = spy.mock.calls[0];
-  return { snapshots: args[2], staging: args[3] };
+function upsertStaging(spy: ReturnType<typeof spyOn>): TcgplayerStagingRow[] {
+  return spy.mock.calls[0][3];
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -295,11 +267,11 @@ describe("refreshTcgplayerPrices", () => {
 
       const result = await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
-      expect(result.fetched.groups).toBe(0);
-      expect(result.fetched.products).toBe(0);
-      expect(result.fetched.prices).toBe(0);
+      expect(result.transformed.groups).toBe(0);
+      expect(result.transformed.products).toBe(0);
+      expect(result.transformed.prices).toBe(0);
     });
 
     it("fetches products and prices for each group", async () => {
@@ -342,7 +314,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       const normal = staging.find((r) => r.external_id === 5001 && r.finish === "normal");
       expect(normal).toBeDefined();
       expect(normal?.market_cents).toBe(75);
@@ -365,7 +337,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       const foil = staging.find((r) => r.external_id === 5001 && r.finish === "foil");
       expect(foil).toBeDefined();
       expect(foil?.market_cents).toBe(150);
@@ -385,7 +357,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(2);
       expect(staging.find((r) => r.finish === "normal")).toBeDefined();
       expect(staging.find((r) => r.finish === "foil")).toBeDefined();
@@ -402,7 +374,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
     });
 
@@ -417,7 +389,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
     });
 
@@ -432,7 +404,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
     });
 
@@ -449,7 +421,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging.find((r) => r.external_id === 5001 && r.finish === "normal")).toBeUndefined();
       expect(staging.find((r) => r.external_id === 5001 && r.finish === "foil")).toBeDefined();
     });
@@ -467,7 +439,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging.find((r) => r.external_id === 5001 && r.finish === "foil")).toBeUndefined();
       expect(staging.find((r) => r.external_id === 5001 && r.finish === "normal")).toBeDefined();
     });
@@ -489,7 +461,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(2);
       expect(staging.find((r) => r.group_id === 101)).toBeDefined();
       expect(staging.find((r) => r.group_id === 102)).toBeDefined();
@@ -506,72 +478,8 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
-    });
-  });
-
-  // ── Snapshot rows ─────────────────────────────────────────────────────
-
-  describe("snapshot rows", () => {
-    it("creates snapshot for staging row with matching source", async () => {
-      const { db } = createMockDb({
-        existingSources: [{ printing_id: "print-001", external_id: 5001, finish: "normal" }],
-      });
-      const { log } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, {
-        groups: [GROUP_A],
-        productsByGroup: new Map([[101, [PRODUCT_FLAME]]]),
-        pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
-        lastModified: LAST_MODIFIED,
-      });
-
-      await refreshTcgplayerPrices(db, log);
-
-      const { snapshots } = upsertArgs(upsertSpy);
-      expect(snapshots).toHaveLength(1);
-      expect(snapshots[0].printing_id).toBe("print-001");
-      expect(snapshots[0].market_cents).toBe(75);
-      expect(snapshots[0].low_cents).toBe(50);
-      expect(snapshots[0].mid_cents).toBe(100);
-      expect(snapshots[0].high_cents).toBe(200);
-    });
-
-    it("creates snapshots for both normal and foil mapped sources", async () => {
-      const { db } = createMockDb({
-        existingSources: [
-          { printing_id: "print-001", external_id: 5001, finish: "normal" },
-          { printing_id: "print-002", external_id: 5001, finish: "foil" },
-        ],
-      });
-      const { log } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, {
-        groups: [GROUP_A],
-        productsByGroup: new Map([[101, [PRODUCT_FLAME]]]),
-        pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL, PRICE_FLAME_FOIL]]]),
-      });
-
-      await refreshTcgplayerPrices(db, log);
-
-      const { snapshots } = upsertArgs(upsertSpy);
-      expect(snapshots).toHaveLength(2);
-      const ids = snapshots.map((s) => s.printing_id).sort();
-      expect(ids).toEqual(["print-001", "print-002"]);
-    });
-
-    it("produces no snapshots when no sources are mapped", async () => {
-      const { db } = createMockDb({ existingSources: [] });
-      const { log } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, {
-        groups: [GROUP_A],
-        productsByGroup: new Map([[101, [PRODUCT_FLAME]]]),
-        pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
-      });
-
-      await refreshTcgplayerPrices(db, log);
-
-      const { snapshots } = upsertArgs(upsertSpy);
-      expect(snapshots).toHaveLength(0);
     });
   });
 
@@ -608,7 +516,7 @@ describe("refreshTcgplayerPrices", () => {
   // ── recorded_at ───────────────────────────────────────────────────────
 
   describe("recorded_at", () => {
-    it("uses Last-Modified header from first prices response", async () => {
+    it("uses Last-Modified header from prices response", async () => {
       const { db } = createMockDb();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
@@ -620,8 +528,38 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       expect(staging[0].recorded_at).toEqual(LAST_MODIFIED);
+    });
+
+    it("uses per-group Last-Modified timestamps", async () => {
+      const { db } = createMockDb();
+      const { log } = makeMockLogger();
+      const groupATime = new Date("2026-03-10T18:00:00Z");
+      const groupBTime = new Date("2026-03-10T20:00:00Z");
+      setupFetchJson(fetchJsonSpy, {
+        groups: [GROUP_A, GROUP_B],
+        productsByGroup: new Map([
+          [101, [PRODUCT_FLAME]],
+          [102, [PRODUCT_BOLT]],
+        ]),
+        pricesByGroup: new Map([
+          [101, [PRICE_FLAME_NORMAL]],
+          [102, [PRICE_BOLT_NORMAL]],
+        ]),
+        lastModifiedByGroup: new Map([
+          [101, groupATime],
+          [102, groupBTime],
+        ]),
+      });
+
+      await refreshTcgplayerPrices(db, log);
+
+      const staging = upsertStaging(upsertSpy);
+      const flameRow = staging.find((r) => r.external_id === 5001);
+      const boltRow = staging.find((r) => r.external_id === 5003);
+      expect(flameRow?.recorded_at).toEqual(groupATime);
+      expect(boltRow?.recorded_at).toEqual(groupBTime);
     });
 
     it("falls back to current time when no Last-Modified header", async () => {
@@ -637,7 +575,7 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(db, log);
 
-      const { staging } = upsertArgs(upsertSpy);
+      const staging = upsertStaging(upsertSpy);
       const ts = staging[0].recorded_at.getTime();
       expect(ts).toBeGreaterThanOrEqual(before);
       expect(ts).toBeLessThanOrEqual(Date.now());
@@ -678,10 +616,10 @@ describe("refreshTcgplayerPrices", () => {
 
       const result = await refreshTcgplayerPrices(db, log);
 
-      expect(result.fetched.groups).toBe(2);
-      expect(result.fetched.products).toBe(3);
+      expect(result.transformed.groups).toBe(2);
+      expect(result.transformed.products).toBe(3);
       // prices = staging rows count (only products with valid market price)
-      expect(result.fetched.prices).toBe(2);
+      expect(result.transformed.prices).toBe(2);
     });
 
     it("returns upsert counts from upsertPriceData", async () => {
@@ -689,7 +627,6 @@ describe("refreshTcgplayerPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
       const customCounts: UpsertCounts = {
-        sources: { total: 0, new: 0, updated: 0, unchanged: 0 },
         snapshots: { total: 10, new: 5, updated: 3, unchanged: 2 },
         staging: { total: 8, new: 4, updated: 2, unchanged: 2 },
       };
@@ -704,40 +641,6 @@ describe("refreshTcgplayerPrices", () => {
   // ── Logging ───────────────────────────────────────────────────────────
 
   describe("logging", () => {
-    it("logs snapshot count when snapshots exist", async () => {
-      const { db } = createMockDb({
-        existingSources: [{ printing_id: "print-001", external_id: 5001, finish: "normal" }],
-      });
-      const { log, messages } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, {
-        groups: [GROUP_A],
-        productsByGroup: new Map([[101, [PRODUCT_FLAME]]]),
-        pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
-      });
-
-      await refreshTcgplayerPrices(db, log);
-
-      expect(
-        messages.some((m) => m.includes("1 snapshots") && m.includes("1 mapped sources")),
-      ).toBe(true);
-    });
-
-    it("does not log snapshot line when there are no snapshots", async () => {
-      const { db } = createMockDb();
-      const { log, messages } = makeMockLogger();
-      setupFetchJson(fetchJsonSpy, {
-        groups: [GROUP_A],
-        productsByGroup: new Map([[101, [PRODUCT_FLAME]]]),
-        pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
-      });
-
-      await refreshTcgplayerPrices(db, log);
-
-      expect(messages.some((m) => m.includes("snapshots") && m.includes("mapped sources"))).toBe(
-        false,
-      );
-    });
-
     it("logs fetched summary with group and product counts", async () => {
       const { db } = createMockDb();
       const { log, messages } = makeMockLogger();

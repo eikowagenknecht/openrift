@@ -18,15 +18,12 @@ import { ConfirmClearButton } from "./confirm-clear-button";
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface PriceResult {
-  fetched: {
+  transformed: {
     groups: number;
-    mapped: number;
-    unmapped: number;
     products: number;
     prices: number;
   };
   upserted: {
-    sources: { total: number; new: number; updated: number; unchanged: number };
     snapshots: { total: number; new: number; updated: number; unchanged: number };
     staging: { total: number; new: number; updated: number; unchanged: number };
   };
@@ -40,14 +37,12 @@ interface ClearPriceResult {
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 function PriceRefreshResult({ result }: { result: PriceResult }) {
-  const { fetched, upserted } = result;
+  const { transformed, upserted } = result;
   const insertedParts = [
-    upserted.sources.new > 0 ? `${upserted.sources.new} sources` : null,
     upserted.snapshots.new > 0 ? `${upserted.snapshots.new} snapshots` : null,
     upserted.staging.new > 0 ? `${upserted.staging.new} staged` : null,
   ].filter(Boolean);
   const updatedParts = [
-    upserted.sources.updated > 0 ? `${upserted.sources.updated} sources` : null,
     upserted.snapshots.updated > 0 ? `${upserted.snapshots.updated} snapshots` : null,
     upserted.staging.updated > 0 ? `${upserted.staging.updated} staged` : null,
   ].filter(Boolean);
@@ -56,10 +51,8 @@ function PriceRefreshResult({ result }: { result: PriceResult }) {
     <div className="space-y-0.5 text-xs text-muted-foreground">
       <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
         <CheckIcon className="size-4" />
-        Fetched {fetched.products} products, {fetched.prices} prices
-      </p>
-      <p>
-        {fetched.groups} groups ({fetched.mapped} mapped, {fetched.unmapped} unmapped)
+        Fetched {transformed.groups} groups, {transformed.products} products, {transformed.prices}{" "}
+        prices
       </p>
       {insertedParts.length > 0 && <p>Inserted: {insertedParts.join(", ")}</p>}
       {updatedParts.length > 0 && <p>Updated: {updatedParts.join(", ")}</p>}

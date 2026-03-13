@@ -6,14 +6,14 @@ import type { Database } from "../../db/types.js";
 import type { Logger } from "../../logger.js";
 import { setupTestDb } from "../../test/integration-setup.js";
 import { loadReferenceData } from "./reference-data.js";
-import type { PriceUpsertConfig, SnapshotData, SourceRow, StagingRow } from "./types.js";
+import type { PriceUpsertConfig, StagingRow } from "./types.js";
 import { upsertPriceData } from "./upsert.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
 // oxlint-disable-next-line no-empty-function -- noop logger for tests
 const noop = () => {};
-const _noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unknown as Logger;
+const noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unknown as Logger;
 
 // ── Cardmarket config (matches real usage) ───────────────────────────────
 
@@ -126,6 +126,27 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
       .execute();
     printingId = insertedPrintings[0].id;
     printingId2 = insertedPrintings[1].id;
+
+    // Seed marketplace sources (created via admin mapping in production)
+    await db
+      .insertInto("marketplace_sources")
+      .values([
+        {
+          marketplace: "cardmarket",
+          printing_id: printingId,
+          external_id: 1001,
+          group_id: 1,
+          product_name: "Test Product",
+        },
+        {
+          marketplace: "cardmarket",
+          printing_id: printingId2,
+          external_id: 2001,
+          group_id: 1,
+          product_name: "Test Product Foil",
+        },
+      ])
+      .execute();
   });
 
   afterAll(async () => {
@@ -186,10 +207,6 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
   describe("upsertPriceData", () => {
     const recordedAt = new Date("2026-03-10T00:00:00Z");
 
-    function makeSourceRow(pid: string, extId: number): SourceRow {
-      return { printing_id: pid, external_id: extId, group_id: 1, product_name: "Test Product" };
-    }
-
     function makeStagingRow(extId: number, finish: string): StagingRow {
       return {
         external_id: extId,
@@ -200,22 +217,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
       } as StagingRow;
     }
 
-    it("inserts new sources, snapshots, and staging rows", async () => {
-      const sources: SourceRow[] = [makeSourceRow(printingId, 1001)];
-
-      const snapshots: SnapshotData[] = [
-        {
-          printing_id: printingId,
-          recorded_at: recordedAt,
-          market_cents: 100,
-          low_cents: 50,
-          trend_cents: 80,
-          avg1_cents: 90,
-          avg7_cents: 85,
-          avg30_cents: 88,
-        } as unknown as SnapshotData,
-      ];
-
+    it("inserts new snapshots and staging rows", async () => {
       const staging: StagingRow[] = [
         {
           ...makeStagingRow(1001, "normal"),
@@ -228,13 +230,9 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, staging, sources);
+      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
 
-      expect(counts.sources.total).toBe(1);
-      expect(counts.sources.new).toBe(1);
-      expect(counts.sources.updated).toBe(0);
-      expect(counts.sources.unchanged).toBe(0);
-
+      // Snapshot built internally from staging + mapped source for ext_id 1001
       expect(counts.snapshots.total).toBe(1);
       expect(counts.snapshots.new).toBe(1);
 
@@ -244,21 +242,6 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
     it("reports unchanged when upserting identical data", async () => {
       // Same data as the first insert — should be unchanged
-      const sources: SourceRow[] = [makeSourceRow(printingId, 1001)];
-
-      const snapshots: SnapshotData[] = [
-        {
-          printing_id: printingId,
-          recorded_at: recordedAt,
-          market_cents: 100,
-          low_cents: 50,
-          trend_cents: 80,
-          avg1_cents: 90,
-          avg7_cents: 85,
-          avg30_cents: 88,
-        } as unknown as SnapshotData,
-      ];
-
       const staging: StagingRow[] = [
         {
           ...makeStagingRow(1001, "normal"),
@@ -271,10 +254,8 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, staging, sources);
+      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
 
-      expect(counts.sources.new).toBe(0);
-      expect(counts.sources.unchanged).toBe(1);
       expect(counts.snapshots.new).toBe(0);
       expect(counts.snapshots.unchanged).toBe(1);
       expect(counts.staging.new).toBe(0);
@@ -282,21 +263,6 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
     });
 
     it("reports updated when prices change", async () => {
-      const sources: SourceRow[] = [makeSourceRow(printingId, 1001)];
-
-      const snapshots: SnapshotData[] = [
-        {
-          printing_id: printingId,
-          recorded_at: recordedAt,
-          market_cents: 200,
-          low_cents: 100,
-          trend_cents: 180,
-          avg1_cents: 190,
-          avg7_cents: 185,
-          avg30_cents: 188,
-        } as unknown as SnapshotData,
-      ];
-
       const staging: StagingRow[] = [
         {
           ...makeStagingRow(1001, "normal"),
@@ -309,22 +275,10 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, staging, sources);
+      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
 
       expect(counts.snapshots.updated).toBeGreaterThan(0);
       expect(counts.staging.updated).toBeGreaterThan(0);
-    });
-
-    it("deduplicates sources by printing_id", async () => {
-      const sources: SourceRow[] = [
-        makeSourceRow(printingId2, 2001),
-        makeSourceRow(printingId2, 2002), // duplicate printing_id, last wins
-      ];
-
-      const counts = await upsertPriceData(db, CM_CONFIG, [], [], sources);
-
-      // Only one unique source should be upserted
-      expect(counts.sources.total).toBe(1);
     });
 
     it("deduplicates staging by (external_id, finish, recorded_at)", async () => {
@@ -349,34 +303,34 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, [], staging);
+      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
 
       expect(counts.staging.total).toBe(1);
     });
 
-    it("skips snapshots for sources not in the database", async () => {
-      const snapshots: SnapshotData[] = [
+    it("builds no snapshots for staging with unmapped external_id", async () => {
+      const staging: StagingRow[] = [
         {
-          printing_id: "nonexistent-printing",
-          recorded_at: recordedAt,
+          ...makeStagingRow(99_999, "normal"),
           market_cents: 100,
           low_cents: 50,
           trend_cents: 80,
           avg1_cents: 90,
           avg7_cents: 85,
           avg30_cents: 88,
-        } as unknown as SnapshotData,
+        } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, []);
+      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
 
       expect(counts.snapshots.total).toBe(0);
+      // Staging is still inserted even without a mapped source
+      expect(counts.staging.total).toBe(1);
     });
 
     it("handles empty inputs", async () => {
-      const counts = await upsertPriceData(db, CM_CONFIG, [], []);
+      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, []);
 
-      expect(counts.sources.total).toBe(0);
       expect(counts.snapshots.total).toBe(0);
       expect(counts.staging.total).toBe(0);
     });
