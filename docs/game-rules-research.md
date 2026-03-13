@@ -140,9 +140,11 @@ The Core Rules use a **numbered rule system** (similar to MTG's Comprehensive Ru
   - Full searchable Core Rules and Tournament Rules database
   - Hyperlinked in-app rules
   - Interactive FAQ with most recent rulings
-  - Dedicated Card Errata section
+  - Dedicated Card Errata section showing changed cards with updated text inline
+  - **"AI Judge" feature** — AI-powered instant rulings explanations (premium)
+  - Patch notes tied directly to rule updates
 - **Other features:** Deck building, collection tracking (camera scan), CSV export, performance tracking
-- **Takeaway:** RiftCore is the closest existing competitor. It combines rules + cards + collection in one app. The hyperlinked rules are a key differentiator.
+- **Takeaway:** RiftCore is the closest existing competitor. It combines rules + cards + collection in one app. The hyperlinked rules and inline errata display are key differentiators. **Mobile-only, no web version** — this is the gap we fill.
 
 ### 4b. riftrules.com
 
@@ -164,9 +166,20 @@ The Core Rules use a **numbered rule system** (similar to MTG's Comprehensive Ru
 
 ### 4d. riftbound.gg
 
-- **Type:** Community fan site
-- **Features:** Hosts the Core Rules and Tournament Rules as web pages, plus Spiritforged patch notes
-- **Takeaway:** Content mirror, not interactive
+- **Type:** WordPress-based community site
+- **Features:** Full Core Rules rendered as HTML with TOC sidebar. Also: deck builder, collection tracker, tier list.
+- **Takeaway:** Web-accessible, browser Ctrl+F searchable, but no hyperlinked cross-references, no dedicated search, no keyword glossary. Heavily ad-laden.
+
+### 4d2. playloltcg.help
+
+- **URL:** [playloltcg.help/en/blogs/corerules](https://playloltcg.help/en/blogs/corerules)
+- **Type:** Web-based rules broken into topic-based pages
+- **Features:**
+  - Complete rules with keyword search
+  - **Weekly rules proficiency quizzes** for testing knowledge
+  - Rules broken into digestible topic-based pages (not one monolithic doc)
+  - Judge exam reference materials
+- **Takeaway:** Innovative quiz/gamification approach to rules learning. Topic-based breakdown makes rules more approachable than a 65-page PDF. Worth emulating.
 
 ### 4e. runesandrift.com
 
@@ -329,11 +342,60 @@ The Core Rules use a **numbered rule system** (similar to MTG's Comprehensive Ru
 - Regular errata and revisions
 - **Takeaway:** PDF-first, minimal web interactivity
 
-### 6f. Flesh and Blood
+### 6f. Flesh and Blood — Best Official Web Implementation
 
-- Official rules at fabtcg.com
-- Comprehensive Rules hosted as web page with anchor navigation
-- **Takeaway:** One of the better official web-first approaches
+- **URL:** [rules.fabtcg.com/en/cr/](https://rules.fabtcg.com/en/cr/)
+- **Format:** Dedicated web platform built with Material Design framework
+- **Key Features:**
+  - Persistent sidebar navigation with collapsible, hierarchical TOC (9 chapters + glossary)
+  - Built-in search with client-side JS — result counts displayed
+  - Anchor links with paragraph marks for deep linking to specific rules
+  - Cross-referenced rule numbers (e.g., `[7.7.2]`) that link to related sections
+  - Multi-language support (English/Japanese)
+  - Dark/light mode toggle with local storage persistence
+  - Semantic versioning (MAJOR.MINOR.PATCH) prominently displayed
+  - Breadcrumb navigation
+  - Separate chapter URLs (e.g., `/cr/08-keywords/`)
+  - Change log tracking between versions
+- **Takeaway:** **This is the gold standard for official web-native TCG rules.** Migrated from PDF to web in mid-2025, signaling an industry trend. Combines search, hyperlinking, navigation, versioning, and clean typography.
+
+### 6g. Netrunner (Null Signal Games)
+
+- **URL:** [rules.nullsignal.games](https://rules.nullsignal.games/)
+- **Format:** Browser-friendly HTML document
+- **Key Features:**
+  - Expandable/collapsible TOC with 11 chapters
+  - Built-in search function
+  - Extensive hyperlinked cross-references (e.g., `[section 1.10]`, `[rule 1.2.3]`)
+  - SVG game icons inline (credit, click, recurring symbols)
+  - Deep linking via HTML anchors to every rule
+  - PDF versions also available (regular AND annotated with margin notes explaining design intent)
+- **Takeaway:** Clean, purpose-built for reference lookup. The **annotated PDF with design intent** is a unique offering worth considering.
+
+### 6h. Disney Lorcana — Colored-Text Version Diffing
+
+- **URL:** [lorcana.gg/comprehensive-rules/](https://lorcana.gg/comprehensive-rules/)
+- **Format:** PDF (31 pages), multi-language (EN, DE, FR, IT)
+- **Notable Feature:** Uses **colored text to highlight changes** — new/changed text in Sapphire (blue), moved text in Amber (yellow)
+- **Takeaway:** The colored-text approach for version diffing is elegant and worth stealing for our version diff feature.
+
+### Feature Comparison Matrix
+
+| Feature | Riot Official | RiftCore App | riftrules.com | FAB (rules.fabtcg.com) | Yawgatog (MTG) | Netrunner (NSG) |
+|---|---|---|---|---|---|---|
+| Web-native HTML rules | No (PDF) | No (app) | Yes | Yes | Yes | Yes |
+| Built-in search | No | Yes | Yes | Yes | No (Ctrl+F) | Yes |
+| Hyperlinked cross-refs | No | Yes | No | Yes | Yes | Yes |
+| Deep-linkable sections | No | N/A | Yes | Yes | Yes | Yes |
+| Keyword glossary | No | Yes | No | Yes | Yes | No |
+| Version history/diffing | Patch notes | Yes | Yes | Yes (changelog) | Yes (per-set diffs) | PDF annotations |
+| Errata integration | Separate PDF | Yes (inline) | No | Separate | No | Yes |
+| Dark/light mode | N/A | Yes | No | Yes | Yes | No |
+| Multi-language | No | No | No | Yes (EN/JP) | No | No |
+| Offline access | PDF | Yes | No | No | No | No |
+| Mobile-optimized | PDF | Native app | Unknown | Responsive | Responsive | Responsive |
+
+**Key insight:** The biggest gap in the Riftbound ecosystem is the lack of a web-native, searchable, hyperlinked rules viewer. RiftCore fills this gap brilliantly but is mobile-only. No web tool currently offers FAB/Yawgatog-level experience for Riftbound.
 
 ---
 
@@ -350,9 +412,10 @@ Taking inspiration from the best implementations above and thinking about what w
 | **Cross-references** | Rule numbers in text are clickable links | Yawgatog |
 | **Keyword glossary** | All game keywords linked to their definitions | Yawgatog, runesandrift |
 | **Version selector** | Toggle between v1.0, v1.1, v1.2 of the rules | Yawgatog rules-changes |
-| **Version diff** | Highlight what changed between versions | Yawgatog, riftrules.com |
-| **Table of contents** | Collapsible sidebar navigation with section tree | Standard |
+| **Version diff** | Highlight what changed between versions, colored text (blue=new, yellow=moved) | Yawgatog, riftrules.com, Lorcana |
+| **Table of contents** | Collapsible sidebar navigation with section tree | FAB, Netrunner |
 | **Card cross-references** | Card names in rules/examples link to card detail pages | OpenRift unique |
+| **Separate chapter URLs** | Each major section gets its own URL (e.g., `/rules/cr/keywords/`) | FAB |
 
 ### 7b. Enhanced Features (Should-Have)
 
@@ -375,6 +438,9 @@ Taking inspiration from the best implementations above and thinking about what w
 | **Interactive examples** | Animated or step-by-step visual examples for complex rules (chains, combat, layering) | Makes rules actually understandable |
 | **AI rules assistant** | Chat interface: "Can I play a spell during my opponent's action phase?" → links to relevant rules | Cutting edge |
 | **Community annotations** | Allow users to add tips/notes on rules (moderated) | Wiki-style but focused |
+| **Rules quizzes** | Weekly proficiency quizzes to test rules knowledge | playloltcg.help |
+| **Annotated mode** | Margin notes explaining design intent behind complex rules | Netrunner annotated PDF |
+| **Game icons inline** | SVG icons for game concepts (Energy, Power, domains) inline with rule text | Netrunner |
 | **Rule of the day** | Highlight an obscure or commonly-misunderstood rule | Engagement |
 | **Tournament judge mode** | Quick-reference view with penalties, remedies, and rule links | riftrules.com |
 | **Offline support** | PWA/service worker so rules work without internet at events | Essential for IRL play |
