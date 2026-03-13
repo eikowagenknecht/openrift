@@ -1,4 +1,5 @@
 import type { Database } from "@openrift/shared/db";
+import { buildExcludedSet } from "@openrift/shared/db";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
@@ -552,9 +553,7 @@ export async function saveMappings(
       .values(sourceValues as never[])
       .onConflict((oc) =>
         oc.columns(["marketplace", "printing_id"]).doUpdateSet({
-          external_id: sql`excluded.external_id`,
-          group_id: sql`excluded.group_id`,
-          product_name: sql`excluded.product_name`,
+          ...buildExcludedSet(["external_id", "group_id", "product_name"]),
           updated_at: new Date(),
         } as never),
       )
@@ -563,11 +562,7 @@ export async function saveMappings(
     const sourceIdByPrinting = new Map(sourceResults.map((r) => [r.printing_id, r.id]));
 
     // 5. Batch-insert snapshots (1 query instead of N×M)
-    // raw sql: dynamic column list determined at runtime by marketplace config
-    const priceColNames = sql.raw(config.priceColumns.join(", "));
-    const updateClause = sql.raw(config.priceColumns.map((c) => `${c} = excluded.${c}`).join(", "));
-
-    const snapTuples: ReturnType<typeof sql>[] = [];
+    const snapshotRows: Record<string, unknown>[] = [];
     for (const sv of sourceValues) {
       const sourceId = sourceIdByPrinting.get(sv.printing_id);
       if (sourceId === undefined) {
@@ -579,21 +574,27 @@ export async function saveMappings(
       }
       const rows = stagingByKey.get(`${sv.external_id}::${finish}`) ?? [];
       for (const row of rows) {
-        const priceVals = config.priceColumns.map(
-          (c) => sql`${(row as Record<string, unknown>)[c]}`,
-        );
-        snapTuples.push(sql`(${sourceId}, ${row.recorded_at}, ${sql.join(priceVals)})`);
+        const snap: Record<string, unknown> = {
+          source_id: sourceId,
+          recorded_at: row.recorded_at,
+        };
+        for (const c of config.priceColumns) {
+          snap[c] = (row as Record<string, unknown>)[c];
+        }
+        snapshotRows.push(snap);
       }
     }
 
-    // raw sql: INSERT with runtime-dynamic column list + ON CONFLICT not expressible in Kysely
-    if (snapTuples.length > 0) {
-      await sql`
-        INSERT INTO marketplace_snapshots
-          (source_id, recorded_at, ${priceColNames})
-        VALUES ${sql.join(snapTuples)}
-        ON CONFLICT (source_id, recorded_at) DO UPDATE SET ${updateClause}
-      `.execute(tx);
+    if (snapshotRows.length > 0) {
+      await tx
+        .insertInto("marketplace_snapshots")
+        .values(snapshotRows as never[])
+        .onConflict((oc) =>
+          oc
+            .columns(["source_id", "recorded_at"])
+            .doUpdateSet(buildExcludedSet(config.priceColumns) as never),
+        )
+        .execute();
     }
 
     // 6. Batch-delete staging rows (1 query instead of N)
