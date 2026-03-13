@@ -3,6 +3,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { ErrorFallback } from "./components/error-fallback";
 import { loadFeatureFlags } from "./lib/feature-flags";
 import { routeTree } from "./routeTree.gen";
 
@@ -40,6 +41,7 @@ const queryClient = new QueryClient();
 const router = createRouter({
   routeTree,
   context: { queryClient },
+  defaultErrorComponent: ErrorFallback,
 });
 
 declare module "@tanstack/react-router" {

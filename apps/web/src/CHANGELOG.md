@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-13
+
+- feat: Route errors now show a friendly fallback page instead of a blank screen
+
 ## 2026-03-12
 
 - feat: Price mapping cards now show cross-set reprints together, with variant badges (Alt Art, Overnumbered) on each printing and a cleaner product card layout

@@ -3,6 +3,7 @@ import { createRootRouteWithContext, Outlet, useMatch } from "@tanstack/react-ro
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
+import { ErrorFallback } from "@/components/error-fallback";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
@@ -20,6 +21,7 @@ export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
   component: RootComponent,
+  errorComponent: ErrorFallback,
 });
 
 function RootComponent() {
