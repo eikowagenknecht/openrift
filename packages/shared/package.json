@@ -10,9 +10,7 @@
     "./db/connect": "./src/db/connect.ts",
     "./db/migrate": "./src/db/migrate.ts",
     "./utils": "./src/utils.ts",
-    "./services/refresh-prices-shared": "./src/services/refresh-prices-shared.ts",
-    "./services/refresh-tcgplayer-prices": "./src/services/refresh-tcgplayer-prices.ts",
-    "./services/refresh-cardmarket-prices": "./src/services/refresh-cardmarket-prices.ts",
+    "./services/price-refresh": "./src/services/price-refresh/index.ts",
     "./keywords": "./src/keywords.ts",
     "./types": "./src/types.ts",
     "./logger": "./src/logger.ts"

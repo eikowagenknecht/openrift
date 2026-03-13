@@ -1,7 +1,9 @@
 import { migrate } from "@openrift/shared/db/migrate";
 import { createLogger } from "@openrift/shared/logger";
-import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardmarket-prices";
-import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
+import {
+  refreshCardmarketPrices,
+  refreshTcgplayerPrices,
+} from "@openrift/shared/services/price-refresh";
 import { Cron } from "croner";
 
 import { config, validateConfig } from "./config.js";
