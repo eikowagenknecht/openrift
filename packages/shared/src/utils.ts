@@ -62,14 +62,13 @@ export function normalizeNameForMatching(name: string): string {
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
  */
 export function comparePrintings(
-  a: { setId?: string | null; collectorNumber: number; artVariant: string },
-  b: { setId?: string | null; collectorNumber: number; artVariant: string },
+  a: { setId?: string | null; collectorNumber: number; artVariant: ArtVariant },
+  b: { setId?: string | null; collectorNumber: number; artVariant: ArtVariant },
 ): number {
   return (
     (a.setId ?? "").localeCompare(b.setId ?? "") ||
     a.collectorNumber - b.collectorNumber ||
-    ART_VARIANT_ORDER.indexOf(a.artVariant as ArtVariant) -
-      ART_VARIANT_ORDER.indexOf(b.artVariant as ArtVariant)
+    ART_VARIANT_ORDER.indexOf(a.artVariant) - ART_VARIANT_ORDER.indexOf(b.artVariant)
   );
 }
 
