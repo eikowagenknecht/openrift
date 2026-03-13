@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { SettingsIcon } from "lucide-react";
+import { LinkIcon, SettingsIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCardSourceList, useSourceNames } from "@/hooks/use-card-sources";
+import { useCardSourceList, useLinkCard, useSourceNames } from "@/hooks/use-card-sources";
 
 type Filter = "all" | "unchecked" | "unmatched";
 
@@ -29,6 +29,7 @@ export function CardSourcesListPage() {
   const [source, setSource] = useState<string>();
   const { data: sourceNames } = useSourceNames();
   const { data, isLoading } = useCardSourceList(filter, source);
+  const linkCard = useLinkCard();
 
   if (isLoading) {
     return (
@@ -107,8 +108,10 @@ export function CardSourcesListPage() {
                       className="font-medium hover:underline"
                     >
                       {row.name}
-                      {row.cardId && (
-                        <span className="ml-1 text-muted-foreground">({row.cardId})</span>
+                      {row.sourceIds.length > 0 && (
+                        <span className="ml-2 font-normal text-muted-foreground">
+                          ({row.sourceIds.join(", ")})
+                        </span>
                       )}
                     </Link>
                     {row.hasGallery && <Badge className="ml-2 text-xs">gallery</Badge>}
@@ -128,6 +131,17 @@ export function CardSourcesListPage() {
                   <TableCell>
                     {row.cardId ? (
                       <Badge variant="outline">Matched</Badge>
+                    ) : row.suggestedCard ? (
+                      <SuggestedMatch
+                        cardName={row.suggestedCard.name}
+                        isPending={linkCard.isPending}
+                        onLink={() =>
+                          linkCard.mutate({
+                            name: row.normalizedName,
+                            cardId: row.suggestedCard?.id ?? "",
+                          })
+                        }
+                      />
                     ) : (
                       <Badge variant="secondary">Unmatched</Badge>
                     )}
@@ -138,6 +152,34 @@ export function CardSourcesListPage() {
           </TableBody>
         </Table>
       )}
+    </div>
+  );
+}
+
+function SuggestedMatch({
+  cardName,
+  isPending,
+  onLink,
+}: {
+  cardName: string;
+  isPending: boolean;
+  onLink: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <Badge variant="secondary" className="truncate">
+        {cardName}
+      </Badge>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-6 shrink-0 text-xs"
+        disabled={isPending}
+        onClick={onLink}
+      >
+        <LinkIcon className="mr-1 size-3" />
+        Link
+      </Button>
     </div>
   );
 }

@@ -1,18 +1,13 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem path join
 import { join } from "node:path";
 
-import {
-  acceptNewCardFromSources,
-  insertPrintingImage,
-  linkUnmatchedSources,
-  upsertSet,
-} from "@openrift/shared/services/card-source-helpers";
-import { extractKeywords } from "@openrift/shared/services/extract-keywords";
+import type { Database } from "@openrift/shared/db";
+import { extractKeywords } from "@openrift/shared/keywords";
 import { ingestCardSources } from "@openrift/shared/services/ingest-card-sources";
-import type { Rarity } from "@openrift/shared/types";
+import type { CardType, Rarity } from "@openrift/shared/types";
 import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
-import type { SqlBool } from "kysely";
+import type { SqlBool, Transaction } from "kysely";
 import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -147,17 +142,118 @@ cardSourcesRoute.get("/card-sources", async (c) => {
     query = query.where("cs.card_id", "is", null);
   }
 
-  const rows = await query.orderBy(sql`min(cs.name)`).execute();
+  // Sort matched cards by card_id (like marketplace), unmatched by name at the end
+  const rows = await query
+    .orderBy(sql`max(cs.card_id) IS NULL`)
+    .orderBy(sql`max(cs.card_id)`)
+    .orderBy(sql`min(cs.name)`)
+    .execute();
+
+  // Include cards that have no card_sources (unless filtering for unmatched/source)
+  type ResultRow = (typeof rows)[number] & { _fromCard?: boolean };
+  const allRows: ResultRow[] = [...rows];
+
+  if (filter !== "unmatched" && !source) {
+    const cardIdsWithSources = new Set(
+      rows.filter((r) => r.card_id).map((r) => r.card_id as string),
+    );
+    let orphanQuery = db.selectFrom("cards as c").select(["c.id", "c.name"]).orderBy("c.id");
+    if (cardIdsWithSources.size > 0) {
+      orphanQuery = orphanQuery.where("c.id", "not in", [...cardIdsWithSources]);
+    }
+    const orphanCards = await orphanQuery.execute();
+
+    for (const oc of orphanCards) {
+      allRows.push({
+        card_id: oc.id,
+        name: oc.name,
+        groupKey: oc.id,
+        sourceCount: 0 as unknown as number,
+        uncheckedCardCount: 0 as unknown as number,
+        uncheckedPrintingCount: 0 as unknown as number,
+        hasGallery: false as unknown as boolean,
+        _fromCard: true,
+      });
+    }
+
+    // Re-sort: matched cards by card_id, unmatched by name at the end
+    allRows.sort((a, b) => {
+      const aMatched = a.card_id === null ? 1 : 0;
+      const bMatched = b.card_id === null ? 1 : 0;
+      if (aMatched !== bMatched) {
+        return aMatched - bMatched;
+      }
+      if (a.card_id && b.card_id) {
+        return a.card_id.localeCompare(b.card_id);
+      }
+      return String(a.name).localeCompare(String(b.name));
+    });
+  }
+
+  // Compute dynamic match suggestions for unmatched groups
+  const unmatchedNormNames = allRows.filter((r) => !r.card_id).map((r) => r.groupKey as string);
+
+  const suggestionMap = new Map<string, { id: string; name: string }>();
+  if (unmatchedNormNames.length > 0) {
+    const suggestions = await db
+      .selectFrom("cards as c")
+      .select(["c.id", "c.name", sqlNormName("c.name").as("norm")])
+      .where(sqlNormName("c.name"), "in", unmatchedNormNames)
+      .execute();
+    for (const s of suggestions) {
+      suggestionMap.set(s.norm as string, { id: s.id, name: s.name });
+    }
+
+    // Also check aliases for matches not covered by direct card name
+    const missingNorms = unmatchedNormNames.filter((n) => !suggestionMap.has(n));
+    if (missingNorms.length > 0) {
+      const aliasSuggestions = await db
+        .selectFrom("card_name_aliases as cna")
+        .innerJoin("cards as c", "c.id", "cna.card_id")
+        .select(["c.id", "c.name", sqlNormName("cna.alias").as("norm")])
+        .where(sqlNormName("cna.alias"), "in", missingNorms)
+        .execute();
+      for (const s of aliasSuggestions) {
+        if (!suggestionMap.has(s.norm as string)) {
+          suggestionMap.set(s.norm as string, { id: s.id, name: s.name });
+        }
+      }
+    }
+  }
+
+  // Load printing source IDs for matched cards (like marketplace shows OGN-042, OGN-042a)
+  const matchedCardIds = allRows.filter((r) => r.card_id).map((r) => r.card_id as string);
+  const printingSourceIdsMap = new Map<string, string[]>();
+  if (matchedCardIds.length > 0) {
+    const printingRows = await db
+      .selectFrom("printings")
+      .select(["card_id", "source_id"])
+      .where("card_id", "in", matchedCardIds)
+      .orderBy("source_id")
+      .execute();
+    for (const pr of printingRows) {
+      const existing = printingSourceIdsMap.get(pr.card_id);
+      if (existing) {
+        if (!existing.includes(pr.source_id)) {
+          existing.push(pr.source_id);
+        }
+      } else {
+        printingSourceIdsMap.set(pr.card_id, [pr.source_id]);
+      }
+    }
+  }
 
   return c.json(
-    rows.map((r) => ({
+    allRows.map((r) => ({
       cardId: r.card_id,
       name: r.name,
-      normalizedName: r.card_id ? normalizeNameForMatching(r.name) : r.groupKey,
+      normalizedName: r.card_id ? normalizeNameForMatching(String(r.name)) : r.groupKey,
+      sourceIds: r.card_id ? (printingSourceIdsMap.get(r.card_id as string) ?? []) : [],
       sourceCount: Number(r.sourceCount),
       uncheckedCardCount: Number(r.uncheckedCardCount),
       uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
       hasGallery: Boolean(r.hasGallery),
+      suggestedCard: r.card_id ? null : (suggestionMap.get(r.groupKey as string) ?? null),
     })),
   );
 });
@@ -1420,3 +1516,182 @@ cardSourcesRoute.delete("/card-sources/by-source/:source", async (c) => {
   const deleted = Number(result[0].numDeletedRows);
   return c.json({ status: "ok", source, deleted });
 });
+
+// ── Helpers (inlined from packages/shared/src/services/card-source-helpers.ts) ─
+
+/** Upsert a set by ID, inserting it with the next sort_order if it doesn't exist. */
+async function upsertSet(
+  trx: Transaction<Database>,
+  setId: string,
+  setName: string,
+): Promise<void> {
+  const existing = await trx
+    .selectFrom("sets")
+    .select("id")
+    .where("id", "=", setId)
+    .executeTakeFirst();
+
+  if (!existing) {
+    const { max } = await trx
+      .selectFrom("sets")
+      .select((eb) => eb.fn.coalesce(eb.fn.max("sort_order"), eb.lit(0)).as("max"))
+      .executeTakeFirstOrThrow();
+    await trx
+      .insertInto("sets")
+      .values({ id: setId, name: setName, printed_total: 0, sort_order: max + 1 })
+      .execute();
+  }
+}
+
+/**
+ * Insert an image record into printing_images.
+ *
+ * @param mode - `'main'`: deactivate current active image, insert/update as active.
+ *               `'additional'`: insert as inactive.
+ */
+async function insertPrintingImage(
+  trx: Transaction<Database>,
+  printingId: string,
+  imageUrl: string | null,
+  source: string,
+  mode: "main" | "additional" = "main",
+): Promise<void> {
+  if (!imageUrl) {
+    return;
+  }
+
+  if (mode === "main") {
+    // Deactivate current active front image
+    await trx
+      .updateTable("printing_images")
+      .set({ is_active: false, updated_at: new Date() })
+      .where("printing_id", "=", printingId)
+      .where("face", "=", "front")
+      .where("is_active", "=", true)
+      .execute();
+
+    // Insert or update as active
+    await trx
+      .insertInto("printing_images")
+      .values({
+        printing_id: printingId,
+        face: "front",
+        source,
+        original_url: imageUrl,
+        is_active: true,
+      })
+      .onConflict((oc) =>
+        oc.columns(["printing_id", "face", "source"]).doUpdateSet({
+          original_url: imageUrl,
+          is_active: true,
+          updated_at: new Date(),
+        }),
+      )
+      .execute();
+  } else {
+    // Insert as inactive additional image
+    await trx
+      .insertInto("printing_images")
+      .values({
+        printing_id: printingId,
+        face: "front",
+        source,
+        original_url: imageUrl,
+        is_active: false,
+      })
+      .onConflict((oc) =>
+        oc.columns(["printing_id", "face", "source"]).doUpdateSet({
+          original_url: imageUrl,
+          updated_at: new Date(),
+        }),
+      )
+      .execute();
+  }
+}
+
+/**
+ * Create a new card from source data,
+ * then link all card_sources with the given normalized name to the new card.
+ * Printings are accepted separately via acceptNewPrintingFromSource.
+ */
+async function acceptNewCardFromSources(
+  trx: Transaction<Database>,
+  cardFields: {
+    id: string;
+    name: string;
+    type: CardType;
+    superTypes: string[];
+    domains: string[];
+    might: number | null;
+    energy: number | null;
+    power: number | null;
+    mightBonus: number | null;
+    rulesText: string | null;
+    effectText: string | null;
+    tags: string[];
+  },
+  normalizedName: string,
+): Promise<void> {
+  const keywords = [
+    ...extractKeywords(cardFields.rulesText ?? ""),
+    ...extractKeywords(cardFields.effectText ?? ""),
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  await trx
+    .insertInto("cards")
+    .values({
+      id: cardFields.id,
+      name: cardFields.name,
+      type: cardFields.type,
+      super_types: cardFields.superTypes,
+      domains: cardFields.domains,
+      might: cardFields.might,
+      energy: cardFields.energy,
+      power: cardFields.power,
+      might_bonus: cardFields.mightBonus,
+      keywords,
+      rules_text: cardFields.rulesText,
+      effect_text: cardFields.effectText,
+      tags: cardFields.tags,
+    })
+    .execute();
+
+  // Link all card_sources with matching normalized name to the new card
+  await linkUnmatchedSources(trx, normalizedName, cardFields.id);
+}
+
+/**
+ * Set card_id on all unmatched card_sources whose normalized name matches,
+ * and create name aliases for every distinct spelling.
+ */
+async function linkUnmatchedSources(
+  trx: Transaction<Database>,
+  normalizedName: string,
+  cardId: string,
+): Promise<void> {
+  // Find all distinct name spellings that match
+  const nameRows = await trx
+    .selectFrom("card_sources")
+    .select("name")
+    .distinct()
+    .where(sqlNormName("card_sources.name"), "=", normalizedName)
+    .where("card_id", "is", null)
+    .execute();
+
+  // Link all matching card_sources
+  await trx
+    .updateTable("card_sources")
+    .set({ card_id: cardId, updated_at: new Date() })
+    .where(sqlNormName("card_sources.name"), "=", normalizedName)
+    .where("card_id", "is", null)
+    .execute();
+
+  // Create aliases for every name variant so future uploads match automatically
+  for (const { name } of nameRows) {
+    await trx
+      .insertInto("card_name_aliases")
+      .values({ alias: name, card_id: cardId })
+      .onConflict((oc) => oc.column("alias").doUpdateSet({ card_id: cardId }))
+      .execute();
+  }
+}

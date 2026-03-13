@@ -60,6 +60,6 @@ export {
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
 
-export { normalizeNameForMatching } from "./utils.js";
+export { comparePrintings, normalizeNameForMatching } from "./utils.js";
 
-export { extractKeywords, KEYWORD_LOOKUP } from "./services/extract-keywords.js";
+export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";

@@ -1,5 +1,5 @@
 import type { AdminPrintingImage, CardSource, PrintingSource } from "@openrift/shared";
-import { ART_VARIANT_ORDER } from "@openrift/shared";
+import { comparePrintings } from "@openrift/shared";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   CheckCheckIcon,
@@ -92,7 +92,7 @@ export function CardSourceDetailPage() {
   const renamePrinting = useRenamePrinting();
   const { favorites } = useFavoriteSources();
 
-  const [collapsedPrintings, setCollapsedPrintings] = useState<Set<string>>(new Set());
+  const [expandedPrintings, setExpandedPrintings] = useState<Set<string>>(new Set());
 
   if (isError) {
     return (
@@ -115,7 +115,7 @@ export function CardSourceDetailPage() {
   }
 
   function togglePrinting(id: string) {
-    setCollapsedPrintings((prev) => {
+    setExpandedPrintings((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -141,9 +141,7 @@ export function CardSourceDetailPage() {
       (a, b) =>
         Number(isGallery(b)) - Number(isGallery(a)) ||
         Number(matchesCurrent(b)) - Number(matchesCurrent(a)) ||
-        (a.setId ?? "").localeCompare(b.setId ?? "") ||
-        a.collectorNumber - b.collectorNumber ||
-        ART_VARIANT_ORDER.indexOf(a.artVariant) - ART_VARIANT_ORDER.indexOf(b.artVariant),
+        comparePrintings(a, b),
     )[0];
     return canonical.sourceId.replace(/(?<=\d)[a-z*]+$/, "");
   })();
@@ -239,19 +237,19 @@ export function CardSourceDetailPage() {
                 ...data.printings.map((p) => p.id as string),
                 ...unmatchedGroups.map((g) => g.key),
               ];
-              setCollapsedPrintings((prev) =>
+              setExpandedPrintings((prev) =>
                 prev.size === allKeys.length ? new Set() : new Set(allKeys),
               );
             }}
           >
-            {collapsedPrintings.size === data.printings.length + unmatchedGroups.length
-              ? "Expand all"
-              : "Collapse all"}
+            {expandedPrintings.size === data.printings.length + unmatchedGroups.length
+              ? "Collapse all"
+              : "Expand all"}
           </Button>
         </div>
         {data.printings.map((printing) => {
           const printingId = printing.id as string;
-          const isExpanded = !collapsedPrintings.has(printingId);
+          const isExpanded = expandedPrintings.has(printingId);
           const relatedSources = data.printingSources.filter((ps) => ps.printingId === printingId);
           const activeImage = data.printingImages.find(
             (pi) => pi.printingId === printingId && pi.isActive,
@@ -443,7 +441,7 @@ export function CardSourceDetailPage() {
             existingPrintings={data.printings}
             sourceLabels={sourceLabels}
             favoriteSources={favorites}
-            isExpanded={!collapsedPrintings.has(group.key)}
+            isExpanded={expandedPrintings.has(group.key)}
             onToggle={() => togglePrinting(group.key)}
             onCheck={(id) => checkPrintingSource.mutate(id)}
             onAccept={(printingFields, printingSourceIds) => {
