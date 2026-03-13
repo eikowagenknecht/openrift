@@ -19,13 +19,13 @@ function VerifyEmailPage() {
   const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleVerify() {
-    if (otp.length < 6) {
+  async function handleVerify(code: string) {
+    if (code.length < 6) {
       return;
     }
     setVerifying(true);
     setError("");
-    const result = await authClient.emailOtp.verifyEmail({ email, otp });
+    const result = await authClient.emailOtp.verifyEmail({ email, otp: code });
     setVerifying(false);
     if (result.error) {
       if (result.error.code === "OTP_EXPIRED") {
@@ -62,7 +62,14 @@ function VerifyEmailPage() {
             </p>
             <FieldGroup className="items-center">
               {error && <FieldError>{error}</FieldError>}
-              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+              <InputOTP
+                maxLength={6}
+                value={otp}
+                onChange={setOtp}
+                onComplete={handleVerify}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- OTP input is the sole action on this page
+                autoFocus
+              >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -75,7 +82,7 @@ function VerifyEmailPage() {
               <Button
                 className="w-full"
                 disabled={otp.length < 6 || verifying}
-                onClick={handleVerify}
+                onClick={() => handleVerify(otp)}
               >
                 {verifying ? "Verifying..." : "Verify"}
               </Button>
