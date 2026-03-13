@@ -141,6 +141,75 @@ cardSourcesRoute.get("/card-sources", async (c) => {
   );
 });
 
+// ── GET /card-sources/export ──────────────────────────────────────────────────
+// Export all active cards + printings in the same JSON format the upload endpoint accepts
+cardSourcesRoute.get("/card-sources/export", async (c) => {
+  const cards = await db.selectFrom("cards").selectAll().orderBy("name").execute();
+
+  const printings = await db
+    .selectFrom("printings")
+    .innerJoin("sets", "sets.id", "printings.set_id")
+    .leftJoin("printing_images", (jb) =>
+      jb
+        .onRef("printing_images.printing_id", "=", "printings.id")
+        .on("printing_images.face", "=", "front")
+        .on("printing_images.is_active", "=", true),
+    )
+    .selectAll("printings")
+    .select([
+      "sets.name as set_name",
+      "printing_images.rehosted_url",
+      "printing_images.original_url",
+    ])
+    .execute();
+
+  const printingsByCardId = new Map<string, typeof printings>();
+  for (const p of printings) {
+    const list = printingsByCardId.get(p.card_id) ?? [];
+    list.push(p);
+    printingsByCardId.set(p.card_id, list);
+  }
+
+  const candidates = cards.map((card) => ({
+    card: {
+      name: card.name,
+      type: card.type,
+      super_types: card.super_types,
+      domains: card.domains,
+      might: card.might,
+      energy: card.energy,
+      power: card.power,
+      might_bonus: card.might_bonus,
+      rules_text: card.rules_text ?? "",
+      effect_text: card.effect_text ?? "",
+      tags: card.tags,
+      source_id: card.id,
+      source_entity_id: null,
+      extra_data: null,
+    },
+    printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
+      source_id: p.source_id,
+      set_id: p.set_id,
+      set_name: p.set_name,
+      collector_number: p.collector_number,
+      rarity: p.rarity,
+      art_variant: p.art_variant,
+      is_signed: p.is_signed,
+      is_promo: p.is_promo,
+      finish: p.finish,
+      artist: p.artist,
+      public_code: p.public_code,
+      printed_rules_text: p.printed_rules_text,
+      printed_effect_text: p.printed_effect_text,
+      image_url: p.original_url ?? p.rehosted_url ?? null,
+      flavor_text: p.flavor_text,
+      extra_data: null,
+    })),
+  }));
+
+  return c.json(candidates);
+});
+
 // ── GET /card-sources/:cardId ────────────────────────────────────────────────
 // Detail: active card + all card_sources + printings + printing_sources
 cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
