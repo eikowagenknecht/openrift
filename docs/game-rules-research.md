@@ -35,7 +35,7 @@ All official rules are published under [Rules and Releases](https://riftbound.le
 | 1 | 2025-06-06 | [How to Play: Get Started Now](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/how-to-play-get-started/) | Quick Start Guide |
 | 2 | 2025-06-06 | [How to Play Riftbound: Core Rules and Gameplay Guide](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/gameplay-guide-core-rules/) | Core Rules (v1.0) |
 | 3 | 2025-07-28 | [Deckbuilding Primer](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/deckbuilding-primer/) | Guide |
-| 4 | 2025-10-16 | [Riftbound Origins FAQ](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-origins-faq/) | FAQ |
+| 4 | 2025-10-16 | [Riftbound Origins FAQ](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-origins-faq/) | FAQ (**RETIRED** Nov 4, 2025) |
 | 5 | 2025-10-16 | [Riftbound Tournament Rules](https://riftbound.leagueoflegends.com/en-us/news/organizedplay/riftbound-tournament-rules/) | Tournament Rules |
 | 6 | 2025-10-24 | [Riftbound Core Rules: Patch Notes](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-core-rules-patch-notes/) | CR Patch Notes (v1.1) |
 | 7 | 2025-10-28 | [Riftbound: Origins Card Errata](https://riftbound.leagueoflegends.com/en-us/news/rules-and-releases/riftbound-origins-card-errata/) | Errata |
@@ -57,8 +57,8 @@ All official rules are published under [Rules and Releases](https://riftbound.le
 | Version | Date | Set | Key Changes |
 |---------|------|-----|-------------|
 | **v1.0** | 2025-06-06 | Origins (launch) | Initial release, 65 pages |
-| **v1.1** | 2025-10-24 | Origins (first patch) | Layers now loop until stable; "Relevant Players" concept removed; move destinations must be chosen at chain time |
-| **v1.2** | 2025-12-05 | Spiritforged | "Double" and "swap" added as game actions; new rules for unit placement (base or controlled battlefield); housekeeping and language clarifications |
+| **v1.1** | 2025-10-24 | Origins (first patch) | Layers now loop until stable; "Relevant Players" concept removed; move destinations must be chosen at chain time; null values, dependencies, triggered abilities, Hidden mechanic, combat terminology, cleanups system updates |
+| **v1.2** | 2025-12-05 (effective Dec 12) | Spiritforged | Attachment mechanics; Equipment keywords (Equip, Quick-Draw, Weaponmaster); Repeat mechanic; Inactive Text system; "Double"/"Swap" game actions; Deathknell overhaul; reflexive triggers; Priority vs Focus distinction |
 
 ### Update Philosophy
 
@@ -111,13 +111,19 @@ The Core Rules use a **numbered rule system** (similar to MTG's Comprehensive Ru
 346. Playing Cards
   347-356  Complete card play process (6 steps)
 
-357+     Abilities, Game Actions, Combat, Scoring, Layers, Modes of Play, Keywords
+357+     Abilities — Triggered abilities, activated abilities, reflexive triggers
+
+433+     Combat — Attacker/defender designations, staged combat, combat damage
 
 600+     Revealing, Damage Assignment, Resolution, Cleanup, Scoring
   626     Damage assignment
   627     Resolution steps for battlefield conflicts
   628     Cleanup procedures
   629-632  Scoring (Conquer and Hold methods)
+
+649+     Keywords (intentional gap before this section)
+
+716+     More Keywords — Hidden, Legion, Focus, Recall, Accelerate, etc.
 ```
 
 **Note:** There are intentional gaps (e.g., 200s seem reserved, gap before 649). The devs have confirmed these are deliberate to allow future expansion without renumbering.
@@ -177,7 +183,14 @@ The Core Rules use a **numbered rule system** (similar to MTG's Comprehensive Ru
 - **Features:** Full Core Rules with section breakdown, community-editable
 - **Takeaway:** Good reference but wiki format is cluttered
 
-### 4g. Piltover Archive (piltoverarchive.com)
+### 4g. rules.flexslot.gg
+
+- **URL:** [rules.flexslot.gg](https://rules.flexslot.gg/)
+- **Type:** Web-based searchable rules tool
+- **Features:** Searchable, offline-ready comprehensive rules tool
+- **Takeaway:** Another competitor doing searchable + offline rules — validates our approach
+
+### 4h. Piltover Archive (piltoverarchive.com)
 
 - **Type:** News/community site
 - **Features:** News articles about rules releases
@@ -460,3 +473,12 @@ Taking inspiration from the best implementations above and thinking about what w
 - [Scribd — Core Rules v1.0](https://www.scribd.com/document/883173099/Riftbound-Core-Rules-2025-06-02)
 - [Scribd — Core Rules v1.1](https://www.scribd.com/document/938535952/Riftbound-Core-Rules-v1-1-100125)
 - [Diffchecker — v1.0 vs v1.1](https://www.diffchecker.com/c1wW577p/)
+- [rules.flexslot.gg](https://rules.flexslot.gg/) — Searchable, offline-ready rules tool
+- [BoardGameGeek](https://boardgamegeek.com/boardgame/436560/riftbound-the-league-of-legends-trading-card-game) — Community page with rules links
+- [Fextralife Wiki — Card Errata](https://riftbound.wiki.fextralife.com/Card+Errata)
+
+### Errata Scope
+
+- **Origins Errata:** 33 cards affected (including Ava Achiever, Disintegrate, Dragon's Rage, Zhonya's Hourglass, and more)
+- **Spiritforged Errata:** 3 Origins cards (Falling Star, Icathian Rain, Reinforce) + 11 Spiritforged cards (Blood Rush, Deathgrip, Janna Savior, Jax Unmatched, etc.)
+- Errata are for clarity and error correction only — no power-level balancing
