@@ -96,11 +96,12 @@ cardSourcesRoute.get("/card-sources", async (c) => {
   let query = db
     .selectFrom("card_sources as cs")
     .leftJoin("printing_sources as ps", "ps.card_source_id", "cs.id")
+    .leftJoin("cards as c", "c.id", "cs.card_id")
     // raw sql: could use fn.count(eb.case()...).distinct() but the sql`` form is
     // much more readable for these multi-condition conditional aggregates
     .select([
       sql<string | null>`max(cs.card_id)`.as("card_id"),
-      sql<string>`min(cs.name)`.as("name"),
+      sql<string>`COALESCE(max(c.name), min(cs.name))`.as("name"),
       sql<number>`count(DISTINCT cs.id)`.as("sourceCount"),
       sql<number>`count(DISTINCT CASE WHEN cs.checked_at IS NULL THEN cs.id END)`.as(
         "uncheckedCardCount",
