@@ -332,13 +332,13 @@ export async function getRehostStatus(db: Kysely<Database>): Promise<{
           .on("pi.is_active", "=", true),
       )
       .select([
-        "printings.set_id as setId",
+        "sets.slug as setId",
         "sets.name as setName",
         ({ fn }) => fn.countAll<number>().as("total"),
         ({ fn }) =>
           fn.count<number>("pi.id").filterWhere("pi.rehosted_url", "is not", null).as("rehosted"),
       ])
-      .groupBy(["printings.set_id", "sets.name"])
+      .groupBy(["sets.slug", "sets.name"])
       .orderBy("sets.name")
       .execute(),
     getDiskStats(),
