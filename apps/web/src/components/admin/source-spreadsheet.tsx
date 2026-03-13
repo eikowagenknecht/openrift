@@ -53,6 +53,7 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
   { key: "printedRulesText", label: "Printed Rules" },
   { key: "printedEffectText", label: "Printed Effect" },
   { key: "flavorText", label: "Flavor Text" },
+  { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
   { key: "extraData", label: "Extra Data", readOnly: true },
   { key: "imageUrl", label: "Image", readOnly: true },
 ];

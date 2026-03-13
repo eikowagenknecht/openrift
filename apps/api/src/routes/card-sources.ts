@@ -393,7 +393,7 @@ cardSourcesRoute.get("/card-sources/export", async (c) => {
       effect_text: card.effect_text ?? "",
       tags: card.tags,
       source_id: card.slug,
-      source_entity_id: null,
+      source_entity_id: card.id,
       extra_data: null,
     },
     printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
@@ -412,6 +412,7 @@ cardSourcesRoute.get("/card-sources/export", async (c) => {
       printed_effect_text: p.printed_effect_text,
       image_url: p.original_url ?? p.rehosted_url ?? null,
       flavor_text: p.flavor_text,
+      source_entity_id: p.id,
       extra_data: null,
     })),
   }));
@@ -566,6 +567,7 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
       printedEffectText: ps.printed_effect_text,
       imageUrl: ps.image_url,
       flavorText: ps.flavor_text,
+      sourceEntityId: ps.source_entity_id,
       extraData: ps.extra_data,
       checkedAt: ps.checked_at?.toISOString() ?? null,
       createdAt: ps.created_at.toISOString(),
@@ -661,6 +663,7 @@ cardSourcesRoute.get("/card-sources/new/:name", async (c) => {
       printedEffectText: ps.printed_effect_text,
       imageUrl: ps.image_url,
       flavorText: ps.flavor_text,
+      sourceEntityId: ps.source_entity_id,
       extraData: ps.extra_data,
       checkedAt: ps.checked_at?.toISOString() ?? null,
       createdAt: ps.created_at.toISOString(),
@@ -852,6 +855,7 @@ cardSourcesRoute.post("/card-sources/printing-sources/:id/copy", async (c) => {
       printed_effect_text: ps.printed_effect_text,
       image_url: ps.image_url,
       flavor_text: ps.flavor_text,
+      source_entity_id: ps.source_entity_id,
       extra_data: ps.extra_data,
     })
     .execute();
