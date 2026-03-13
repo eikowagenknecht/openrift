@@ -13,7 +13,8 @@ import {
 
 function stub(overrides: Partial<Printing> = {}): Printing {
   return {
-    id: "OGS-001:normal:::normal",
+    id: "00000000-0000-0000-0000-000000000001",
+    slug: "OGS-001:normal:::normal",
     sourceId: "OGS-001",
     set: "",
     collectorNumber: 1,
@@ -26,7 +27,8 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     artist: "",
     publicCode: "ABCD",
     card: {
-      id: "OGS-001",
+      id: "00000000-0000-0000-0000-000000000001",
+      slug: "OGS-001",
       name: "",
       type: "Unit",
       superTypes: [],

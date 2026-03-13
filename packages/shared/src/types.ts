@@ -60,6 +60,7 @@ export interface CardStats {
 
 export interface Card {
   id: string;
+  slug: string;
   name: string;
   type: CardType;
   superTypes: SuperType[];
@@ -79,6 +80,7 @@ export interface PrintingImage {
 
 export interface Printing {
   id: string;
+  slug: string;
   sourceId: string;
   set: string;
   collectorNumber: number;
@@ -103,6 +105,7 @@ export function getOrientation(type: CardType): "portrait" | "landscape" {
 
 export interface ContentSet {
   id: string;
+  slug: string;
   name: string;
   printedTotal: number;
   printings: Printing[];
@@ -356,6 +359,7 @@ export interface AdminPrintingImage {
 
 export interface CardSourceSummary {
   cardId: string | null;
+  cardSlug: string | null;
   name: string;
   normalizedName: string;
   sourceIds: string[];
@@ -364,7 +368,7 @@ export interface CardSourceSummary {
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasGallery: boolean;
-  suggestedCard: { id: string; name: string } | null;
+  suggestedCard: { id: string; slug: string; name: string } | null;
 }
 
 export interface SourceStats {

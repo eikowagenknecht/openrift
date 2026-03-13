@@ -1,16 +1,21 @@
 import { describe, expect, it } from "bun:test";
 
 import { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters";
-import type { CardFilters, Printing } from "./types";
+import type { Card, CardFilters, Printing } from "./types";
 
 // ---------------------------------------------------------------------------
 // Helpers — build minimal Printing objects for testing
 // ---------------------------------------------------------------------------
 
-function makePrinting(overrides: Partial<Printing> = {}): Printing {
+function makePrinting(
+  overrides: Omit<Partial<Printing>, "card"> & { card?: Partial<Card> } = {},
+): Printing {
   const { card: cardOverrides, ...printingOverrides } = overrides;
+  const cardId = cardOverrides?.id ?? "00000000-0000-0000-0000-000000000001";
+  const cardSlug = cardOverrides?.slug ?? "SET1-001";
   return {
-    id: "SET1-001:normal:::",
+    id: "00000000-0000-0000-0000-000000000001",
+    slug: "SET1-001:normal:::",
     sourceId: "SET1-001",
     set: "Set Alpha",
     collectorNumber: 1,
@@ -23,7 +28,8 @@ function makePrinting(overrides: Partial<Printing> = {}): Printing {
     artist: "Jane Doe",
     publicCode: "ABCD",
     card: {
-      id: "SET1-001",
+      id: cardId,
+      slug: cardSlug,
       name: "Test Card",
       type: "Unit",
       superTypes: [],

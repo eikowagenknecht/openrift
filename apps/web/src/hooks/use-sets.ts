@@ -6,6 +6,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 interface AdminSet {
   id: string;
+  slug: string;
   name: string;
   printedTotal: number;
   sortOrder: number;

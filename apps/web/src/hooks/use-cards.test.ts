@@ -10,7 +10,8 @@ import { useCards, ApiError } from "./use-cards";
 // Stub printing for tests
 function stubPrinting(overrides: Partial<Printing> = {}): Printing {
   return {
-    id: "RB1-001:normal:::normal",
+    id: "00000000-0000-0000-0000-000000000001",
+    slug: "RB1-001:normal:::normal",
     sourceId: "RB1-001",
     set: "RB1",
     collectorNumber: 1,
@@ -23,7 +24,8 @@ function stubPrinting(overrides: Partial<Printing> = {}): Printing {
     artist: "Artist",
     publicCode: "rb1-001",
     card: {
-      id: "RB1-001",
+      id: "00000000-0000-0000-0000-000000000001",
+      slug: "RB1-001",
       name: "Test Card",
       type: "Unit",
       superTypes: [],
@@ -45,19 +47,22 @@ const CARDS_RESPONSE: RiftboundContent = {
   lastUpdated: "2025-01-01",
   sets: [
     {
-      id: "RB1",
+      id: "00000000-0000-0000-0000-000000000010",
+      slug: "RB1",
       name: "First Set",
       printedTotal: 2,
       printings: [
         stubPrinting({
-          id: "RB1-001:normal:::normal",
+          id: "00000000-0000-0000-0000-000000000011",
+          slug: "RB1-001:normal:::normal",
           sourceId: "RB1-001",
-          card: { ...stubPrinting().card, id: "RB1-001", name: "Card A" },
+          card: { ...stubPrinting().card, name: "Card A" },
         }),
         stubPrinting({
-          id: "RB1-002:normal:::normal",
+          id: "00000000-0000-0000-0000-000000000012",
+          slug: "RB1-002:normal:::normal",
           sourceId: "RB1-002",
-          card: { ...stubPrinting().card, id: "RB1-002", name: "Card B" },
+          card: { ...stubPrinting().card, name: "Card B" },
         }),
       ],
     },
@@ -68,7 +73,7 @@ const PRICES_RESPONSE: PricesData = {
   source: "test",
   fetchedAt: "2025-01-01",
   prices: {
-    "RB1-001:normal:::normal": 1,
+    "00000000-0000-0000-0000-000000000011": 1,
   },
 };
 
@@ -138,8 +143,12 @@ describe("useCards", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    const withPrice = result.current.allCards.find((c) => c.id === "RB1-001:normal:::normal");
-    const withoutPrice = result.current.allCards.find((c) => c.id === "RB1-002:normal:::normal");
+    const withPrice = result.current.allCards.find(
+      (c) => c.id === "00000000-0000-0000-0000-000000000011",
+    );
+    const withoutPrice = result.current.allCards.find(
+      (c) => c.id === "00000000-0000-0000-0000-000000000012",
+    );
 
     expect(withPrice?.marketPrice).toBe(1);
     expect(withoutPrice?.marketPrice).toBeUndefined();

@@ -61,7 +61,7 @@ export function CardSourceUnmatchedPage() {
       ? allCards
           .filter((c) => c.name.toLowerCase().includes(linkSearch.toLowerCase()))
           .slice(0, 20)
-          .map((c) => ({ id: c.id, label: c.name, sublabel: c.id, detail: c.type }))
+          .map((c) => ({ id: c.slug, label: c.name, sublabel: c.slug, detail: c.type }))
       : [];
 
   if (isLoading || !data) {

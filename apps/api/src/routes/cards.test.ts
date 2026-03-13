@@ -52,13 +52,16 @@ app.route("/api", cardsRoute);
 // Test data
 // ---------------------------------------------------------------------------
 
-const dbSet = { id: "OGS", name: "Original Set", printed_total: 100 };
+const dbSet = { id: "OGS", slug: "OGS", name: "Original Set", printed_total: 100 };
 
 // Joined row from printings + cards
 const dbJoinedRow = {
   printing_id: "OGS-001:normal:::normal",
+  printing_slug: "OGS-001:normal:::normal",
   card_id: "OGS-001",
+  card_slug: "OGS-001",
   set_id: "OGS",
+  set_slug: "OGS",
   source_id: "OGS-001",
   collector_number: 1,
   rarity: "Rare",
@@ -170,13 +173,16 @@ describe("GET /api/cards", () => {
   });
 
   it("groups printings by set", async () => {
-    const secondSet = { id: "S2", name: "Set Two", printed_total: 50 };
+    const secondSet = { id: "S2", slug: "S2", name: "Set Two", printed_total: 50 };
     const secondRow = {
       ...dbJoinedRow,
       printing_id: "S2-001:normal:::normal",
+      printing_slug: "S2-001:normal:::normal",
       card_id: "S2-001",
+      card_slug: "S2-001",
       source_id: "S2-001",
       set_id: "S2",
+      set_slug: "S2",
     };
     mockState.tables = {
       sets: [dbSet, secondSet],
@@ -193,7 +199,7 @@ describe("GET /api/cards", () => {
   });
 
   it("returns empty printings array for sets with no printings", async () => {
-    const emptySet = { id: "EMPTY", name: "Empty Set", printed_total: 0 };
+    const emptySet = { id: "EMPTY", slug: "EMPTY", name: "Empty Set", printed_total: 0 };
     mockState.tables = { sets: [emptySet], "printings as p": [] };
 
     const res = await app.request("/api/cards");

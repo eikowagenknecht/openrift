@@ -173,7 +173,7 @@ export const addCopiesSchema = z.object({
   copies: z
     .array(
       z.object({
-        printingId: z.string(),
+        printingId: z.string().uuid(),
         collectionId: z.string().uuid().optional(),
         sourceId: z.string().uuid().optional(),
       }),
