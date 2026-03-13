@@ -47,6 +47,18 @@ mock.module("kysely", () => {
 
 mock.module("./db.js", () => ({
   db: {
+    selectNoFrom: () => {
+      const chain: Record<string, unknown> = {
+        as: () => chain,
+        execute: () => {
+          if (mockState.sqlFails) {
+            throw new Error("connection refused");
+          }
+          return [{ one: 1 }];
+        },
+      };
+      return chain;
+    },
     selectFrom: (table: string) => {
       const chain: Record<string, unknown> = {
         selectAll: () => chain,
