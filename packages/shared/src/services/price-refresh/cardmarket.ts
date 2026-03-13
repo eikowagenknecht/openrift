@@ -11,19 +11,13 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../db/types.js";
-import type { Logger } from "../logger.js";
-import {
-  BATCH_SIZE,
-  buildMappedSnapshots,
-  fetchJson,
-  loadIgnoredKeys,
-  logFetchSummary,
-  logUpsertCounts,
-  toCents,
-  upsertPriceData,
-} from "./refresh-prices-shared.js";
-import type { PriceRefreshResult, PriceUpsertConfig } from "./refresh-prices-shared.js";
+import type { Database } from "../../db/types.js";
+import type { Logger } from "../../logger.js";
+import { toCents } from "../../utils.js";
+import { fetchJson } from "./fetch.js";
+import { logFetchSummary, logUpsertCounts } from "./log.js";
+import type { PriceRefreshResult, PriceUpsertConfig } from "./types.js";
+import { BATCH_SIZE, buildMappedSnapshots, loadIgnoredKeys, upsertPriceData } from "./upsert.js";
 
 // ── Local row types (exported for tests) ──────────────────────────────────
 
@@ -95,26 +89,25 @@ interface CmPriceGuide {
   "avg30-foil": number;
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Fetch the latest Cardmarket price guides and singles for Riftbound, upsert
- * expansion metadata, and write snapshots for already-mapped sources. Unmatched
- * products are staged for manual admin mapping.
- * @returns Fetch totals and per-table upsert counts.
+ * Build a Cardmarket product page URL from an idProduct.
+ * @returns The full Cardmarket product URL.
  */
-export async function refreshCardmarketPrices(
-  db: Kysely<Database>,
-  log: Logger,
-): Promise<PriceRefreshResult> {
-  const ignoredKeys = await loadIgnoredKeys(db, "cardmarket");
+export function cmProductUrl(externalId: number): string {
+  return `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${externalId}`;
+}
 
-  // ── Collected rows ─────────────────────────────────────────────────────────
+// ── Fetch ──────────────────────────────────────────────────────────────────
 
-  const allStaging: CardmarketStagingRow[] = [];
+interface CardmarketFetchResult {
+  singles: CmProduct[];
+  priceGuides: CmPriceGuide[];
+  recordedAt: Date;
+}
 
-  // ── Fetch Cardmarket data ──────────────────────────────────────────────────
-
+async function fetchCardmarketData(): Promise<CardmarketFetchResult> {
   const [cmPriceGuideRes, cmSinglesRes] = await Promise.all([
     fetchJson<{ createdAt?: string; priceGuides: CmPriceGuide[] }>(
       `${CARDMARKET_BASE}/priceGuide/price_guide_${CARDMARKET_GAME}.json`,
@@ -124,47 +117,33 @@ export async function refreshCardmarketPrices(
     ),
   ]);
 
-  const cmPriceGuides = cmPriceGuideRes.data.priceGuides || [];
-  const cmSingles = cmSinglesRes.data.products || [];
-
-  // Use createdAt from response body if available, otherwise Last-Modified header, otherwise now
-  const cmRecordedAt = cmPriceGuideRes.data.createdAt
+  const recordedAt = cmPriceGuideRes.data.createdAt
     ? new Date(cmPriceGuideRes.data.createdAt)
     : (cmPriceGuideRes.lastModified ?? new Date());
 
-  // Build price guide lookup: idProduct -> price guide
+  return {
+    singles: cmSinglesRes.data.products || [],
+    priceGuides: cmPriceGuideRes.data.priceGuides || [],
+    recordedAt,
+  };
+}
+
+// ── Transform ──────────────────────────────────────────────────────────────
+
+function buildCardmarketStaging(
+  singles: CmProduct[],
+  priceGuides: CmPriceGuide[],
+  recordedAt: Date,
+  ignoredKeys: Set<string>,
+): CardmarketStagingRow[] {
   const cmPriceById = new Map<number, CmPriceGuide>();
-  for (const pg of cmPriceGuides) {
+  for (const pg of priceGuides) {
     cmPriceById.set(pg.idProduct, pg);
   }
 
-  // Upsert expansions into marketplace_groups
-  const expansionIds = new Set<number>();
-  for (const product of cmSingles) {
-    expansionIds.add(product.idExpansion);
-  }
-  const expansionValues = [...expansionIds].map((expId) => ({
-    marketplace: "cardmarket" as const,
-    group_id: expId,
-  }));
-  const dbExpansions: { group_id: number }[] = [];
-  for (let i = 0; i < expansionValues.length; i += BATCH_SIZE) {
-    const batch = expansionValues.slice(i, i + BATCH_SIZE);
-    const rows = await db
-      .insertInto("marketplace_groups")
-      .values(batch)
-      .onConflict((oc) =>
-        oc.columns(["marketplace", "group_id"]).doUpdateSet({
-          updated_at: sql<Date>`now()`,
-        }),
-      )
-      .returning(["group_id"])
-      .execute();
-    dbExpansions.push(...rows);
-  }
+  const allStaging: CardmarketStagingRow[] = [];
 
-  // Stage ALL products, regardless of mapping status
-  for (const product of cmSingles) {
+  for (const product of singles) {
     const pg = cmPriceById.get(product.idProduct);
     if (!pg) {
       continue;
@@ -176,7 +155,7 @@ export async function refreshCardmarketPrices(
         group_id: product.idExpansion,
         product_name: product.name,
         finish: "normal",
-        recorded_at: cmRecordedAt,
+        recorded_at: recordedAt,
         market_cents: normalMarket,
         low_cents: toCents(pg.low),
         trend_cents: toCents(pg.trend),
@@ -192,7 +171,7 @@ export async function refreshCardmarketPrices(
         group_id: product.idExpansion,
         product_name: product.name,
         finish: "foil",
-        recorded_at: cmRecordedAt,
+        recorded_at: recordedAt,
         market_cents: foilMarket,
         low_cents: toCents(pg["low-foil"]),
         trend_cents: toCents(pg["trend-foil"]),
@@ -203,18 +182,75 @@ export async function refreshCardmarketPrices(
     }
   }
 
-  // ── Upsert ──────────────────────────────────────────────────────────────────
+  return allStaging;
+}
+
+// ── Persist ────────────────────────────────────────────────────────────────
+
+async function upsertCardmarketExpansions(
+  db: Kysely<Database>,
+  singles: CmProduct[],
+): Promise<{ group_id: number }[]> {
+  const expansionIds = new Set<number>();
+  for (const product of singles) {
+    expansionIds.add(product.idExpansion);
+  }
+  const expansionValues = [...expansionIds].map((expId) => ({
+    marketplace: "cardmarket" as const,
+    group_id: expId,
+  }));
+
+  const dbExpansions: { group_id: number }[] = [];
+  for (let i = 0; i < expansionValues.length; i += BATCH_SIZE) {
+    const batch = expansionValues.slice(i, i + BATCH_SIZE);
+    const rows = await db
+      .insertInto("marketplace_groups")
+      .values(batch)
+      .onConflict((oc) =>
+        oc.columns(["marketplace", "group_id"]).doUpdateSet({
+          updated_at: sql<Date>`now()`,
+        }),
+      )
+      .returning(["group_id"])
+      .execute();
+    dbExpansions.push(...rows);
+  }
+  return dbExpansions;
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch the latest Cardmarket price guides and singles for Riftbound, upsert
+ * expansion metadata, and write snapshots for already-mapped sources. Unmatched
+ * products are staged for manual admin mapping.
+ * @returns Fetch totals and per-table upsert counts.
+ */
+export async function refreshCardmarketPrices(
+  db: Kysely<Database>,
+  log: Logger,
+): Promise<PriceRefreshResult> {
+  const ignoredKeys = await loadIgnoredKeys(db, "cardmarket");
+
+  // Phase 1: Fetch
+  const { singles, priceGuides, recordedAt } = await fetchCardmarketData();
+
+  // Phase 2: Transform
+  const allStaging = buildCardmarketStaging(singles, priceGuides, recordedAt, ignoredKeys);
+
+  // Phase 3: Persist
+  const dbExpansions = await upsertCardmarketExpansions(db, singles);
 
   const fetchedCounts = {
     groups: dbExpansions.length,
-    products: cmSingles.length,
-    prices: cmPriceGuides.length,
+    products: singles.length,
+    prices: priceGuides.length,
   };
 
   const allSnapshots = await buildMappedSnapshots(db, log, UPSERT_CONFIG, allStaging);
   logFetchSummary(log, "expansions", fetchedCounts, ignoredKeys.size);
 
-  const counts = await upsertPriceData(db, UPSERT_CONFIG, [], allSnapshots, allStaging);
+  const counts = await upsertPriceData(db, UPSERT_CONFIG, allSnapshots, allStaging);
   logUpsertCounts(log, counts);
 
   return { fetched: fetchedCounts, upserted: counts };

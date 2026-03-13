@@ -1,6 +1,8 @@
 import { createLogger } from "@openrift/shared/logger";
-import { refreshCardmarketPrices } from "@openrift/shared/services/refresh-cardmarket-prices";
-import { refreshTcgplayerPrices } from "@openrift/shared/services/refresh-tcgplayer-prices";
+import {
+  refreshCardmarketPrices,
+  refreshTcgplayerPrices,
+} from "@openrift/shared/services/price-refresh";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { z } from "zod/v4";

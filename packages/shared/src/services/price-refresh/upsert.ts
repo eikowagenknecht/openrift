@@ -1,119 +1,47 @@
 /**
- * Shared helpers for the TCGPlayer and Cardmarket price refresh scripts.
+ * Core upsert logic for price refresh workflows.
  *
- * Provides reference data loading, staging reconciliation, and batch upsert
- * logic used by both `refresh-tcgplayer-prices.ts` and
- * `refresh-cardmarket-prices.ts`.
+ * Handles batch upserting of sources, snapshots, and staging rows,
+ * deduplication, and conflict resolution with IS DISTINCT FROM.
  */
 
 import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../db/types.js";
-import type { Logger } from "../logger.js";
-import { groupIntoMap, normalizeNameForMatching } from "../utils.js";
+import type { Database } from "../../db/types.js";
+import type { Logger } from "../../logger.js";
+import { groupIntoMap } from "../../utils.js";
+import type {
+  PriceUpsertConfig,
+  SnapshotData,
+  SourceRow,
+  StagingRow,
+  UpsertCounts,
+} from "./types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 export const BATCH_SIZE = 200;
 
-export interface UpsertRowCounts {
-  total: number;
-  new: number;
-  updated: number;
-  unchanged: number;
-}
-
-export interface UpsertCounts {
-  sources: UpsertRowCounts;
-  snapshots: UpsertRowCounts;
-  staging: UpsertRowCounts;
-}
-
-export interface PriceRefreshResult {
-  fetched: {
-    groups: number;
-    products: number;
-    prices: number;
-  };
-  upserted: UpsertCounts;
-}
+// ── Ignored keys ───────────────────────────────────────────────────────────
 
 /**
- * Log a human-readable breakdown of an upsert result (inserted / updated / unchanged)
- * across sources, snapshots, and staging tables.
+ * Load the set of ignored (external_id, finish) keys for a marketplace.
+ * @returns A set of "external_id::finish" strings for filtering.
  */
-export function logUpsertCounts(log: Logger, counts: UpsertCounts): void {
-  const inserted = [
-    counts.sources.new > 0 ? `${counts.sources.new} sources` : null,
-    counts.snapshots.new > 0 ? `${counts.snapshots.new} snapshots` : null,
-    counts.staging.new > 0 ? `${counts.staging.new} staged` : null,
-  ].filter(Boolean);
-
-  const updated = [
-    counts.sources.updated > 0 ? `${counts.sources.updated} sources` : null,
-    counts.snapshots.updated > 0 ? `${counts.snapshots.updated} snapshots` : null,
-    counts.staging.updated > 0 ? `${counts.staging.updated} staged` : null,
-  ].filter(Boolean);
-
-  const unchanged = [
-    counts.sources.unchanged > 0 ? `${counts.sources.unchanged} sources` : null,
-    counts.snapshots.unchanged > 0 ? `${counts.snapshots.unchanged} snapshots` : null,
-    counts.staging.unchanged > 0 ? `${counts.staging.unchanged} staged` : null,
-  ].filter(Boolean);
-
-  log.info(`Inserted: ${inserted.length > 0 ? inserted.join(", ") : "—"}`);
-  log.info(`Updated: ${updated.length > 0 ? updated.join(", ") : "—"}`);
-  log.info(`Unchanged: ${unchanged.length > 0 ? unchanged.join(", ") : "—"}`);
-}
-
-/**
- * Return the row count of a marketplace table, filtered by marketplace.
- * @returns The row count.
- */
-async function countRows(
+export async function loadIgnoredKeys(
   db: Kysely<Database>,
-  table: "marketplace_sources" | "marketplace_snapshots" | "marketplace_staging",
   marketplace: string,
-): Promise<number> {
-  if (table === "marketplace_snapshots") {
-    const result = await db
-      .selectFrom("marketplace_snapshots as snap")
-      .innerJoin("marketplace_sources as src", "src.id", "snap.source_id")
-      .select(db.fn.countAll<number>().as("count"))
-      .where("src.marketplace", "=", marketplace)
-      .executeTakeFirstOrThrow();
-    return Number(result.count);
-  }
-  const result = await db
-    .selectFrom(table)
-    .select(db.fn.countAll<number>().as("count"))
+): Promise<Set<string>> {
+  const rows = await db
+    .selectFrom("marketplace_ignored_products")
+    .select(["external_id", "finish"])
     .where("marketplace", "=", marketplace)
-    .executeTakeFirstOrThrow();
-  return Number(result.count);
+    .execute();
+  return new Set(rows.map((r) => `${r.external_id}::${r.finish}`));
 }
 
-// ── Generic row types ────────────────────────────────────────────────────
-
-export interface SourceRow {
-  printing_id: string;
-  external_id: number;
-  group_id: number;
-  product_name: string;
-}
-
-export interface SnapshotData {
-  printing_id: string;
-  recorded_at: Date;
-}
-
-export interface StagingRow {
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  finish: string;
-  recorded_at: Date;
-}
+// ── Snapshot building ──────────────────────────────────────────────────────
 
 /**
  * Build snapshot rows from staging data and existing source mappings.
@@ -152,34 +80,8 @@ export function buildSnapshotsFromStaging(
   return snapshots;
 }
 
-// ── Price upsert config ─────────────────────────────────────────────────
-
-export interface PriceUpsertConfig {
-  marketplace: string;
-  /** Price columns present in both snapshot and staging tables */
-  priceColumns: string[];
-}
-
-// ── Price refresh helpers ──────────────────────────────────────────────────
-
 /**
- * Load the set of ignored (external_id, finish) keys for a marketplace.
- * @returns A set of "external_id::finish" strings for filtering.
- */
-export async function loadIgnoredKeys(
-  db: Kysely<Database>,
-  marketplace: string,
-): Promise<Set<string>> {
-  const rows = await db
-    .selectFrom("marketplace_ignored_products")
-    .select(["external_id", "finish"])
-    .where("marketplace", "=", marketplace)
-    .execute();
-  return new Set(rows.map((r) => `${r.external_id}::${r.finish}`));
-}
-
-/**
- * Load existing source→printing mappings and build snapshot rows from staging data.
+ * Load existing source->printing mappings and build snapshot rows from staging data.
  * Logs snapshot count when snapshots are produced.
  * @returns Snapshot rows ready for upsert.
  */
@@ -205,159 +107,33 @@ export async function buildMappedSnapshots(
   return snapshots;
 }
 
-/**
- * Log a standardized fetch summary line for a price refresh.
- */
-export function logFetchSummary(
-  log: Logger,
-  groupLabel: string,
-  counts: PriceRefreshResult["fetched"],
-  ignoredCount: number,
-): void {
-  const ignoredSuffix = ignoredCount > 0 ? `, ${ignoredCount} ignored` : "";
-  log.info(
-    `Fetched: ${counts.groups} ${groupLabel}, ${counts.products} products, ${counts.prices} prices${ignoredSuffix}`,
-  );
-}
-
-// ── Reference data ─────────────────────────────────────────────────────────
-
-export interface ReferenceData {
-  sets: { id: string; name: string }[];
-  cards: { id: string; name: string }[];
-  printings: {
-    id: string;
-    card_id: string;
-    set_id: string;
-    source_id: string;
-    public_code: string;
-    finish: string;
-    art_variant: string;
-    is_signed: boolean;
-  }[];
-  setNameById: Map<string, string>;
-  cardNameById: Map<string, string>;
-  namesBySet: Map<string, Map<string, string>>;
-  printingsByCardSetFinish: Map<string, string[]>;
-  printingByFullKey: Map<string, string>;
-}
+// ── Internal helpers ───────────────────────────────────────────────────────
 
 /**
- * Load sets, cards, and printings from the DB and build lookup maps used by
- * price refresh scripts to match external products to internal printings.
- *
- * Returned maps:
- * - `setNameById` / `cardNameById` — display-name lookups.
- * - `namesBySet` — per-set map of normalized card name → card_id (for fuzzy matching).
- * - `printingsByCardSetFinish` — `"card_id|set_id|finish"` → printing_id[] (coarse match).
- * - `printingByFullKey` — `"card_id|set_id|finish|art_variant|is_signed"` → single printing_id.
- * @returns Raw rows and pre-built lookup maps.
+ * Return the row count of a marketplace table, filtered by marketplace.
+ * @returns The row count.
  */
-export async function loadReferenceData(db: Kysely<Database>): Promise<ReferenceData> {
-  const [sets, cards, printings] = await Promise.all([
-    db.selectFrom("sets").select(["id", "name"]).execute(),
-    db.selectFrom("cards").select(["id", "name"]).execute(),
-    db
-      .selectFrom("printings")
-      .select([
-        "id",
-        "card_id",
-        "set_id",
-        "source_id",
-        "public_code",
-        "finish",
-        "art_variant",
-        "is_signed",
-      ])
-      .execute(),
-  ]);
-
-  const setNameById = new Map(sets.map((s) => [s.id, s.name]));
-  const cardNameById = new Map(cards.map((c) => [c.id, c.name]));
-
-  // namesBySet: set_id -> Map<lowercaseName, card_id>
-  const namesBySet = new Map<string, Map<string, string>>();
-  for (const p of printings) {
-    let setMap = namesBySet.get(p.set_id);
-    if (!setMap) {
-      setMap = new Map();
-      namesBySet.set(p.set_id, setMap);
-    }
-    const name = cardNameById.get(p.card_id);
-    if (name) {
-      const key = normalizeNameForMatching(name);
-      if (!setMap.has(key)) {
-        setMap.set(key, p.card_id);
-      }
-    }
+async function countRows(
+  db: Kysely<Database>,
+  table: "marketplace_sources" | "marketplace_snapshots" | "marketplace_staging",
+  marketplace: string,
+): Promise<number> {
+  if (table === "marketplace_snapshots") {
+    const result = await db
+      .selectFrom("marketplace_snapshots as snap")
+      .innerJoin("marketplace_sources as src", "src.id", "snap.source_id")
+      .select(db.fn.countAll<number>().as("count"))
+      .where("src.marketplace", "=", marketplace)
+      .executeTakeFirstOrThrow();
+    return Number(result.count);
   }
-
-  // printingsByCardSetFinish: "card_id|set_id|finish" -> printing_id[]
-  const printingsByCardSetFinish = new Map<string, string[]>();
-  // printingByFullKey: "card_id|set_id|finish|art_variant|is_signed" -> printing_id
-  const printingByFullKey = new Map<string, string>();
-  for (const p of printings) {
-    const key = `${p.card_id}|${p.set_id}|${p.finish}`;
-    let arr = printingsByCardSetFinish.get(key);
-    if (!arr) {
-      arr = [];
-      printingsByCardSetFinish.set(key, arr);
-    }
-    arr.push(p.id);
-
-    const fullKey = `${key}|${p.art_variant}|${p.is_signed}`;
-    printingByFullKey.set(fullKey, p.id);
-  }
-
-  return {
-    sets,
-    cards,
-    printings,
-    setNameById,
-    cardNameById,
-    namesBySet,
-    printingsByCardSetFinish,
-    printingByFullKey,
-  };
+  const result = await db
+    .selectFrom(table)
+    .select(db.fn.countAll<number>().as("count"))
+    .where("marketplace", "=", marketplace)
+    .executeTakeFirstOrThrow();
+  return Number(result.count);
 }
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Fetch JSON from a URL and return the parsed body along with the `Last-Modified`
- * header (used as `recorded_at` for price snapshots). Throws on non-2xx responses.
- * @returns The parsed JSON body and the `Last-Modified` date (if present).
- */
-export async function fetchJson<T>(url: string): Promise<{ data: T; lastModified: Date | null }> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} for ${url}: ${await res.text()}`);
-  }
-  const lm = res.headers.get("last-modified");
-  const lastModified = lm ? new Date(lm) : null;
-  return { data: await (res.json() as Promise<T>), lastModified };
-}
-
-/**
- * Convert a dollar/euro amount to integer cents. Treats 0 as null (no data).
- * @returns The amount in cents, or null if empty/zero.
- */
-export function toCents(amount: number | null | undefined): number | null {
-  if (amount === null || amount === undefined || amount === 0) {
-    return null;
-  }
-  return Math.round(amount * 100);
-}
-
-/**
- * Build a Cardmarket product page URL from an idProduct.
- * @returns The full Cardmarket product URL.
- */
-export function cmProductUrl(externalId: number): string {
-  return `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${externalId}`;
-}
-
-// ── Generic price data upsert ──────────────────────────────────────────────
 
 /**
  * Build a `doUpdateSet` record that maps each column to its `excluded.*` value.
@@ -386,19 +162,24 @@ function buildDistinctWhere(table: string, columns: string[]) {
   );
 }
 
+// ── Main upsert ────────────────────────────────────────────────────────────
+
 /**
  * Batch-upsert sources, snapshots, and staging rows for a single marketplace
  * (TCGPlayer or Cardmarket). Deduplicates inputs, handles conflict resolution
  * with `IS DISTINCT FROM` to skip no-op updates, and returns per-table counts
  * of new / updated / unchanged rows.
+ *
+ * @param allSources - Source rows to upsert. Defaults to `[]` (sources are
+ *   typically created via admin mapping, not during refresh).
  * @returns Per-table breakdown of new, updated, and unchanged rows.
  */
 export async function upsertPriceData(
   db: Kysely<Database>,
   config: PriceUpsertConfig,
-  allSources: SourceRow[],
   allSnapshots: SnapshotData[],
   allStaging: StagingRow[],
+  allSources: SourceRow[] = [],
 ): Promise<UpsertCounts> {
   const { marketplace } = config;
 

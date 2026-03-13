@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 
 import type { Kysely } from "kysely";
 
-import type { Database } from "../db/types";
-import type { Logger } from "../logger";
-import type { CardmarketSnapshotData, CardmarketStagingRow } from "./refresh-cardmarket-prices";
-import { refreshCardmarketPrices } from "./refresh-cardmarket-prices";
-import type { UpsertCounts } from "./refresh-prices-shared";
-import * as shared from "./refresh-prices-shared";
+import type { Database } from "../../db/types";
+import type { Logger } from "../../logger";
+import type { CardmarketSnapshotData, CardmarketStagingRow } from "./cardmarket";
+import { refreshCardmarketPrices } from "./cardmarket";
+import * as fetchMod from "./fetch";
+import * as logMod from "./log";
+import type { UpsertCounts } from "./types";
+import * as upsertMod from "./upsert";
 
 // ── Representative mock data (sampled from real Cardmarket API) ──────────
 
@@ -211,16 +213,16 @@ describe("refreshCardmarketPrices", () => {
     staging: CardmarketStagingRow[];
   } {
     const args = upsertSpy.mock.calls[0];
-    return { snapshots: args[3], staging: args[4] };
+    return { snapshots: args[2], staging: args[3] };
   }
 
   beforeEach(() => {
-    fetchJsonSpy = spyOn(shared, "fetchJson" as any).mockResolvedValue({
+    fetchJsonSpy = spyOn(fetchMod, "fetchJson" as any).mockResolvedValue({
       data: {},
       lastModified: null,
     });
-    upsertSpy = spyOn(shared, "upsertPriceData" as any).mockResolvedValue(ZERO_COUNTS);
-    logUpsertSpy = spyOn(shared, "logUpsertCounts" as any);
+    upsertSpy = spyOn(upsertMod, "upsertPriceData" as any).mockResolvedValue(ZERO_COUNTS);
+    logUpsertSpy = spyOn(logMod, "logUpsertCounts" as any);
   });
 
   afterEach(() => {

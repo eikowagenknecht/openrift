@@ -74,6 +74,17 @@ export function comparePrintings(
 }
 
 /**
+ * Convert a dollar/euro amount to integer cents. Treats 0 as null (no data).
+ * @returns The amount in cents, or null if empty/zero.
+ */
+export function toCents(amount: number | null | undefined): number | null {
+  if (amount === null || amount === undefined || amount === 0) {
+    return null;
+  }
+  return Math.round(amount * 100);
+}
+
+/**
  * Returns the min and max of a number array, snapped to whole numbers (floor min, ceil max). Defaults to 0 when empty.
  *
  * @returns An object with `min` and `max` bounds.

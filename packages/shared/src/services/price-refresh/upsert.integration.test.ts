@@ -2,16 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 
 import type { Kysely } from "kysely";
 
-import type { Database } from "../db/types.js";
-import type { Logger } from "../logger.js";
-import { setupTestDb } from "../test/integration-setup.js";
-import { loadReferenceData, upsertPriceData } from "./refresh-prices-shared.js";
-import type {
-  PriceUpsertConfig,
-  SnapshotData,
-  SourceRow,
-  StagingRow,
-} from "./refresh-prices-shared.js";
+import type { Database } from "../../db/types.js";
+import type { Logger } from "../../logger.js";
+import { setupTestDb } from "../../test/integration-setup.js";
+import { loadReferenceData } from "./reference-data.js";
+import type { PriceUpsertConfig, SnapshotData, SourceRow, StagingRow } from "./types.js";
+import { upsertPriceData } from "./upsert.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -232,7 +228,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, sources, snapshots, staging);
+      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, staging, sources);
 
       expect(counts.sources.total).toBe(1);
       expect(counts.sources.new).toBe(1);
@@ -275,7 +271,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, sources, snapshots, staging);
+      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, staging, sources);
 
       expect(counts.sources.new).toBe(0);
       expect(counts.sources.unchanged).toBe(1);
@@ -313,7 +309,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, sources, snapshots, staging);
+      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, staging, sources);
 
       expect(counts.snapshots.updated).toBeGreaterThan(0);
       expect(counts.staging.updated).toBeGreaterThan(0);
@@ -325,7 +321,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         makeSourceRow(printingId2, 2002), // duplicate printing_id, last wins
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, sources, [], []);
+      const counts = await upsertPriceData(db, CM_CONFIG, [], [], sources);
 
       // Only one unique source should be upserted
       expect(counts.sources.total).toBe(1);
@@ -353,7 +349,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as StagingRow,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, [], [], staging);
+      const counts = await upsertPriceData(db, CM_CONFIG, [], staging);
 
       expect(counts.staging.total).toBe(1);
     });
@@ -372,13 +368,13 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         } as unknown as SnapshotData,
       ];
 
-      const counts = await upsertPriceData(db, CM_CONFIG, [], snapshots, []);
+      const counts = await upsertPriceData(db, CM_CONFIG, snapshots, []);
 
       expect(counts.snapshots.total).toBe(0);
     });
 
     it("handles empty inputs", async () => {
-      const counts = await upsertPriceData(db, CM_CONFIG, [], [], []);
+      const counts = await upsertPriceData(db, CM_CONFIG, [], []);
 
       expect(counts.sources.total).toBe(0);
       expect(counts.snapshots.total).toBe(0);
