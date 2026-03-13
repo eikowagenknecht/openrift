@@ -65,7 +65,7 @@ export function AdminSidebar() {
   const currentPath = matches.at(-1)?.fullPath;
 
   return (
-    <Sidebar className="sticky! top-14 h-[calc(100svh-3.5rem-1px)]! border-l-0!">
+    <Sidebar className="sticky! top-14 h-[calc(100svh-3.5rem-1px)]! overflow-hidden! border-l-0! group-data-[collapsible=offcanvas]:w-0!">
       <SidebarHeader>
         <Link to="/admin" className="px-2 py-1 text-lg font-semibold tracking-tight">
           Admin
