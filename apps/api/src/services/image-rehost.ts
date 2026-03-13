@@ -275,6 +275,36 @@ export async function regenerateImages(
   return progress;
 }
 
+export async function clearAllRehosted(db: Kysely<Database>): Promise<{ cleared: number }> {
+  // Null out all rehosted_url values
+  const result = await db
+    .updateTable("printing_images")
+    .set({ rehosted_url: null, updated_at: new Date() })
+    .where("rehosted_url", "is not", null)
+    .execute();
+
+  const cleared = Number(result[0].numUpdatedRows);
+
+  // Delete all files in the card-images directory
+  try {
+    const entries = await readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const setDir = join(CARD_IMAGES_DIR, entry.name);
+      const files = await readdir(setDir);
+      for (const file of files) {
+        await unlink(join(setDir, file));
+      }
+    }
+  } catch {
+    // Directory doesn't exist — nothing to delete
+  }
+
+  return { cleared };
+}
+
 interface SetImageStats {
   setId: string;
   setName: string;

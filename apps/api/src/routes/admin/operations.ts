@@ -12,7 +12,12 @@ import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { getRehostStatus, regenerateImages, rehostImages } from "../../services/image-rehost.js";
+import {
+  clearAllRehosted,
+  getRehostStatus,
+  regenerateImages,
+  rehostImages,
+} from "../../services/image-rehost.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 
@@ -111,6 +116,17 @@ operationsRoute.post("/admin/regenerate-images", async (c) => {
   } catch (error) {
     log.error(error, "regenerate-images failed");
     throw new AppError(500, "INTERNAL_ERROR", "Image regeneration failed");
+  }
+});
+
+operationsRoute.use("/admin/clear-rehosted", requireAdmin);
+operationsRoute.post("/admin/clear-rehosted", async (c) => {
+  try {
+    const result = await clearAllRehosted(db);
+    return c.json({ status: "ok", result });
+  } catch (error) {
+    log.error(error, "clear-rehosted failed");
+    throw new AppError(500, "INTERNAL_ERROR", "Failed to clear rehosted images");
   }
 });
 

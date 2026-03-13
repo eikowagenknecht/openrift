@@ -6,7 +6,6 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 const pageTitles: Record<string, string> = {
   "/_authenticated/admin/": "Overview",
   "/_authenticated/admin/sets": "Sets",
-  "/_authenticated/admin/images": "Images",
   "/_authenticated/admin/tcgplayer-groups": "TCGplayer Groups",
   "/_authenticated/admin/tcgplayer-mappings": "TCGplayer Mappings",
   "/_authenticated/admin/cardmarket-groups": "Cardmarket Groups",
