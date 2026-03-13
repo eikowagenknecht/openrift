@@ -38,11 +38,11 @@ const sqlNormName = (col: string) =>
 cardSourcesRoute.get("/card-sources/all-cards", async (c) => {
   const rows = await db
     .selectFrom("cards")
-    .select(["slug", "name", "type"])
+    .select(["id", "slug", "name", "type"])
     .orderBy("name")
     .execute();
 
-  return c.json(rows.map((r) => ({ id: r.slug, name: r.name, type: r.type })));
+  return c.json(rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, type: r.type })));
 });
 
 // ── GET /card-sources/source-names ────────────────────────────────────────────
@@ -208,8 +208,8 @@ cardSourcesRoute.get("/card-sources", async (c) => {
           continue;
         }
         const relDate =
-          op.released_at instanceof Date
-            ? op.released_at.toISOString().slice(0, 10)
+          (op.released_at as unknown) instanceof Date
+            ? (op.released_at as unknown as Date).toISOString().slice(0, 10)
             : (op.released_at ?? null);
         if (relDate) {
           if (!row.releasedSourceId || op.source_id < row.releasedSourceId) {
@@ -253,15 +253,15 @@ cardSourcesRoute.get("/card-sources", async (c) => {
   // Compute dynamic match suggestions for unmatched groups
   const unmatchedNormNames = allRows.filter((r) => !r.card_id).map((r) => r.groupKey as string);
 
-  const suggestionMap = new Map<string, { id: string; name: string }>();
+  const suggestionMap = new Map<string, { id: string; slug: string; name: string }>();
   if (unmatchedNormNames.length > 0) {
     const suggestions = await db
       .selectFrom("cards as c")
-      .select(["c.slug", "c.name", sqlNormName("c.name").as("norm")])
+      .select(["c.id", "c.slug", "c.name", sqlNormName("c.name").as("norm")])
       .where(sqlNormName("c.name"), "in", unmatchedNormNames)
       .execute();
     for (const s of suggestions) {
-      suggestionMap.set(s.norm as string, { id: s.slug, name: s.name });
+      suggestionMap.set(s.norm as string, { id: s.id, slug: s.slug, name: s.name });
     }
 
     // Also check aliases for matches not covered by direct card name
@@ -270,12 +270,12 @@ cardSourcesRoute.get("/card-sources", async (c) => {
       const aliasSuggestions = await db
         .selectFrom("card_name_aliases as cna")
         .innerJoin("cards as c", "c.id", "cna.card_id")
-        .select(["c.slug", "c.name", sqlNormName("cna.alias").as("norm")])
+        .select(["c.id", "c.slug", "c.name", sqlNormName("cna.alias").as("norm")])
         .where(sqlNormName("cna.alias"), "in", missingNorms)
         .execute();
       for (const s of aliasSuggestions) {
         if (!suggestionMap.has(s.norm as string)) {
-          suggestionMap.set(s.norm as string, { id: s.slug, name: s.name });
+          suggestionMap.set(s.norm as string, { id: s.id, slug: s.slug, name: s.name });
         }
       }
     }
@@ -330,7 +330,8 @@ cardSourcesRoute.get("/card-sources", async (c) => {
 
   return c.json(
     allRows.map((r) => ({
-      cardId: r.card_slug ?? null,
+      cardId: r.card_id ?? null,
+      cardSlug: r.card_slug ?? null,
       name: r.name,
       normalizedName: r.card_id ? normalizeNameForMatching(String(r.name)) : r.groupKey,
       sourceIds: r.card_id ? (printingSourceIdsMap.get(r.card_id as string) ?? []) : [],
@@ -481,15 +482,10 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
     }
   }
 
-  // Build printing UUID → slug map for child table responses
-  const printingSlugMap = new Map<string, string>();
-  for (const p of printings) {
-    printingSlugMap.set(p.id, p.slug);
-  }
-
   return c.json({
     card: {
-      id: card.slug,
+      id: card.id,
+      slug: card.slug,
       name: card.name,
       type: card.type,
       superTypes: card.super_types,
@@ -529,8 +525,9 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
       updatedAt: s.updated_at.toISOString(),
     })),
     printings: printings.map((p) => ({
-      id: p.slug,
-      cardId: card.slug,
+      id: p.id,
+      slug: p.slug,
+      cardId: card.id,
       setId: setSlugMap.get(p.set_id) ?? p.set_id,
       sourceId: p.source_id,
       collectorNumber: p.collector_number,
@@ -548,7 +545,7 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
     printingSources: printingSources.map((ps) => ({
       id: ps.id,
       cardSourceId: ps.card_source_id,
-      printingId: ps.printing_id ? (printingSlugMap.get(ps.printing_id) ?? ps.printing_id) : null,
+      printingId: ps.printing_id,
       sourceId: ps.source_id,
       setId: ps.set_id,
       setName: ps.set_name,
@@ -571,7 +568,7 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
     })),
     printingImages: printingImages.map((pi) => ({
       id: pi.id,
-      printingId: printingSlugMap.get(pi.printing_id) ?? pi.printing_id,
+      printingId: pi.printing_id,
       face: pi.face,
       source: pi.source,
       originalUrl: pi.original_url,
@@ -1061,11 +1058,11 @@ cardSourcesRoute.post("/card-sources/new/:name/link", async (c) => {
     throw new AppError(400, "BAD_REQUEST", "cardId required");
   }
 
-  // Verify card exists (resolve slug → uuid)
+  // Verify card exists (accept both UUID and slug)
   const card = await db
     .selectFrom("cards")
     .select("id")
-    .where("slug", "=", cardSlug)
+    .where((eb) => eb.or([eb("id", "=", cardSlug), eb("slug", "=", cardSlug)]))
     .executeTakeFirst();
 
   if (!card) {

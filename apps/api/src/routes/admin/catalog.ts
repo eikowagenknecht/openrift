@@ -149,13 +149,14 @@ catalogRoute.get("/admin/sets", async (c) => {
 
   return c.json({
     sets: sets.map((s) => ({
-      id: s.slug,
+      id: s.id,
+      slug: s.slug,
       name: s.name,
       printedTotal: s.printed_total,
       sortOrder: s.sort_order,
       releasedAt:
-        s.released_at instanceof Date
-          ? s.released_at.toISOString().slice(0, 10)
+        (s.released_at as unknown) instanceof Date
+          ? (s.released_at as unknown as Date).toISOString().slice(0, 10)
           : (s.released_at ?? null),
       cardCount: cardCountMap.get(s.id) ?? 0,
       printingCount: printingCountMap.get(s.id) ?? 0,

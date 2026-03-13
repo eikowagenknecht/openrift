@@ -53,13 +53,13 @@ export function SetsPage() {
   const { sets } = data;
 
   function startEditing(set: {
-    id: string;
+    slug: string;
     name: string;
     printedTotal: number;
     releasedAt: string | null;
   }) {
     setEditing({
-      id: set.id,
+      id: set.slug,
       name: set.name,
       printedTotal: String(set.printedTotal),
       releasedAt: set.releasedAt ?? "",
@@ -117,7 +117,7 @@ export function SetsPage() {
     if (newIndex < 0 || newIndex >= sets.length) {
       return;
     }
-    const reordered = sets.map((s) => s.id);
+    const reordered = sets.map((s) => s.slug);
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
@@ -221,10 +221,10 @@ export function SetsPage() {
               </TableRow>
             )}
             {sets.map((set, index) =>
-              editing?.id === set.id ? (
-                <TableRow key={set.id}>
+              editing?.id === set.slug ? (
+                <TableRow key={set.slug}>
                   <TableCell className="text-muted-foreground text-center">{index + 1}</TableCell>
-                  <TableCell className="font-mono">{set.id}</TableCell>
+                  <TableCell className="font-mono">{set.slug}</TableCell>
                   <TableCell>
                     <Input
                       value={editing.name}
@@ -270,7 +270,7 @@ export function SetsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                <TableRow key={set.id}>
+                <TableRow key={set.slug}>
                   <TableCell>
                     <div className="flex items-center gap-0.5">
                       <Button
@@ -293,7 +293,7 @@ export function SetsPage() {
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono">{set.id}</TableCell>
+                  <TableCell className="font-mono">{set.slug}</TableCell>
                   <TableCell>{set.name}</TableCell>
                   <TableCell className="text-right">{set.printedTotal}</TableCell>
                   <TableCell className="text-muted-foreground">{set.releasedAt ?? "—"}</TableCell>

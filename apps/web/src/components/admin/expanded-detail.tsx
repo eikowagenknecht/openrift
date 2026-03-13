@@ -28,6 +28,7 @@ import type { Suggestion } from "./suggest-mapping";
 function toPrinting(group: MappingGroup, p: MappingPrinting): Printing {
   return {
     id: p.printingId,
+    slug: p.printingId,
     sourceId: p.sourceId,
     set: group.setName,
     collectorNumber: p.collectorNumber,
@@ -41,6 +42,7 @@ function toPrinting(group: MappingGroup, p: MappingPrinting): Printing {
     publicCode: p.sourceId,
     card: {
       id: group.cardId,
+      slug: group.cardId,
       name: group.cardName,
       type: group.cardType as CardType,
       superTypes: group.superTypes as SuperType[],

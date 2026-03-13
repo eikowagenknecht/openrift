@@ -17,7 +17,7 @@ export function useCardSourceList(filter: string, source?: string) {
 }
 
 export function useAllCards() {
-  return useQuery<{ id: string; name: string; type: string }[]>({
+  return useQuery<{ id: string; slug: string; name: string; type: string }[]>({
     queryKey: queryKeys.admin.cardSources.allCards,
     queryFn: () => api.get("/api/admin/card-sources/all-cards"),
   });

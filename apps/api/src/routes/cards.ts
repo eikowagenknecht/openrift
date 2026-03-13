@@ -58,6 +58,7 @@ cardsRoute.get("/cards", async (c) => {
   const rows = await selectPrintingWithCard(db)
     .innerJoin("sets as s", "s.id", "p.set_id")
     .select([
+      "p.id as printing_id",
       "p.slug as printing_slug",
       "p.set_id",
       "p.source_id",
@@ -73,6 +74,7 @@ cardsRoute.get("/cards", async (c) => {
       "p.printed_rules_text",
       "p.printed_effect_text",
       "p.flavor_text",
+      "c.id as card_id",
       "c.slug as card_slug",
       "c.name",
       "c.type",
@@ -97,7 +99,8 @@ cardsRoute.get("/cards", async (c) => {
   for (const row of rows) {
     const images: PrintingImage[] = row.image_url ? [{ face: "front", url: row.image_url }] : [];
     const card: Card = {
-      id: row.card_slug,
+      id: row.card_id,
+      slug: row.card_slug,
       name: row.name,
       type: row.type as CardType,
       superTypes: row.super_types as SuperType[],
@@ -114,7 +117,8 @@ cardsRoute.get("/cards", async (c) => {
       effect: row.effect_text ?? "",
     };
     const printing: Printing = {
-      id: row.printing_slug,
+      id: row.printing_id,
+      slug: row.printing_slug,
       sourceId: row.source_id,
       set: row.set_slug,
       collectorNumber: row.collector_number,
@@ -141,7 +145,8 @@ cardsRoute.get("/cards", async (c) => {
   }
 
   const contentSets: ContentSet[] = sets.map((s) => ({
-    id: s.slug,
+    id: s.id,
+    slug: s.slug,
     name: s.name,
     printedTotal: s.printed_total,
     printings: printingsBySet.get(s.slug) ?? [],
@@ -166,7 +171,7 @@ cardsRoute.get("/prices", async (c) => {
     .innerJoin("printings as p", "p.id", "ps.printing_id")
     .where("ps.marketplace", "=", "tcgplayer")
     .distinctOn("ps.id")
-    .select(["p.slug as printing_slug", "snap.market_cents"])
+    .select(["p.id as printing_id", "snap.market_cents"])
     .orderBy("ps.id")
     .orderBy("snap.recorded_at", "desc")
     .execute();
@@ -174,7 +179,7 @@ cardsRoute.get("/prices", async (c) => {
   const prices: Record<string, number> = {};
 
   for (const row of rows) {
-    prices[row.printing_slug] = row.market_cents / 100;
+    prices[row.printing_id] = row.market_cents / 100;
   }
 
   return c.json({
@@ -192,21 +197,21 @@ const RANGE_DAYS: Record<TimeRange, number | null> = {
 };
 
 cardsRoute.get("/prices/:printingId/history", async (c) => {
-  const printingSlug = c.req.param("printingId");
+  const param = c.req.param("printingId");
   const rangeParam = c.req.query("range") ?? "30d";
   const days = rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam as TimeRange] : RANGE_DAYS["30d"];
   const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
-  // Resolve slug → uuid for FK lookup
+  // Accept both UUID and slug
   const printing = await db
     .selectFrom("printings")
     .select("id")
-    .where("slug", "=", printingSlug)
+    .where((eb) => eb.or([eb("id", "=", param), eb("slug", "=", param)]))
     .executeTakeFirst();
 
   if (!printing) {
     return c.json({
-      printingId: printingSlug,
+      printingId: param,
       tcgplayer: { available: false, currency: "USD", productId: null, snapshots: [] },
       cardmarket: { available: false, currency: "EUR", productId: null, snapshots: [] },
     });
@@ -245,7 +250,7 @@ cardsRoute.get("/prices/:printingId/history", async (c) => {
     : [];
 
   const response: PriceHistoryResponse = {
-    printingId: printingSlug,
+    printingId: printing.id,
     tcgplayer: {
       available: Boolean(tcgSource),
       currency: "USD",

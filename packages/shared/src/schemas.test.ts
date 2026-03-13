@@ -321,7 +321,7 @@ describe("updateSourceSchema", () => {
 describe("addCopiesSchema", () => {
   it("accepts valid copies", () => {
     const result = addCopiesSchema.safeParse({
-      copies: [{ printingId: "SET1-001:normal:::normal" }],
+      copies: [{ printingId: "550e8400-e29b-41d4-a716-446655440000" }],
     });
     expect(result.success).toBe(true);
   });
@@ -330,9 +330,9 @@ describe("addCopiesSchema", () => {
     const result = addCopiesSchema.safeParse({
       copies: [
         {
-          printingId: "SET1-001:normal:::normal",
-          collectionId: "550e8400-e29b-41d4-a716-446655440000",
-          sourceId: "550e8400-e29b-41d4-a716-446655440001",
+          printingId: "550e8400-e29b-41d4-a716-446655440000",
+          collectionId: "550e8400-e29b-41d4-a716-446655440001",
+          sourceId: "550e8400-e29b-41d4-a716-446655440002",
         },
       ],
     });
@@ -343,8 +343,17 @@ describe("addCopiesSchema", () => {
     expect(addCopiesSchema.safeParse({ copies: [] }).success).toBe(false);
   });
 
+  it("rejects non-uuid printingId", () => {
+    const result = addCopiesSchema.safeParse({
+      copies: [{ printingId: "SET1-001:normal:::normal" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects more than 500 copies", () => {
-    const copies = Array.from({ length: 501 }, (_, i) => ({ printingId: `p-${i}` }));
+    const copies = Array.from({ length: 501 }, (_, i) => ({
+      printingId: `550e8400-e29b-41d4-a716-${String(i).padStart(12, "0")}`,
+    }));
     expect(addCopiesSchema.safeParse({ copies }).success).toBe(false);
   });
 });

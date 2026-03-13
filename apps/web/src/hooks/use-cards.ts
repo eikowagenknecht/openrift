@@ -91,7 +91,7 @@ export function useCards(): UseCardsResult {
   const setInfoList: SetInfo[] = cardsQuery.data
     ? cardsQuery.data.sets.map((s) => ({
         name: s.name,
-        code: s.id,
+        code: s.slug,
       }))
     : [];
 

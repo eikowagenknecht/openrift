@@ -210,7 +210,7 @@ export function CardSourceDetailPage() {
         </div>
         <SourceSpreadsheet
           fields={CARD_SOURCE_FIELDS}
-          activeRow={{ ...data.card, sourceId: data.card.id }}
+          activeRow={{ ...data.card, sourceId: data.card.slug }}
           sourceRows={data.sources}
           favoriteSources={favorites}
           onCellClick={(field, value) => {
@@ -272,6 +272,7 @@ export function CardSourceDetailPage() {
         </div>
         {data.printings.map((printing) => {
           const printingId = printing.id as string;
+          const printingSlug = printing.slug as string;
           const isExpanded = expandedPrintings.has(printingId);
           const relatedSources = data.printingSources.filter((ps) => ps.printingId === printingId);
           const activeImage = data.printingImages.find(
@@ -282,7 +283,7 @@ export function CardSourceDetailPage() {
             imageUrl: activeImage?.originalUrl ?? null,
           };
           const expectedId = `${printing.sourceId as string}:${(printing.artVariant as string) ?? ""}:${(printing.isSigned as boolean) ? "signed" : ""}:${(printing.isPromo as boolean) ? "promo" : ""}:${printing.finish as string}`;
-          const isStale = printingId !== expectedId;
+          const isStale = printingSlug !== expectedId;
 
           return (
             <div key={printingId} className="rounded-md border">
@@ -298,7 +299,7 @@ export function CardSourceDetailPage() {
                     <ChevronRightIcon className="size-4" />
                   )}
                   <span className={isStale ? "text-orange-600 line-through" : ""}>
-                    {printingId}
+                    {printingSlug}
                   </span>
                 </button>
                 {isStale && (

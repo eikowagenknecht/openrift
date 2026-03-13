@@ -100,11 +100,13 @@ export function CardSourcesListPage() {
             {rows.map((row) => {
               const total = row.uncheckedCardCount + row.uncheckedPrintingCount;
               return (
-                <TableRow key={row.cardId ?? row.name}>
+                <TableRow key={row.cardSlug ?? row.name}>
                   <TableCell>
                     <Link
                       to={row.cardId ? "/admin/cards/$cardId" : "/admin/cards/new/$name"}
-                      params={row.cardId ? { cardId: row.cardId } : { name: row.normalizedName }}
+                      params={
+                        row.cardSlug ? { cardId: row.cardSlug } : { name: row.normalizedName }
+                      }
                       className="font-medium hover:underline"
                     >
                       {row.name}
@@ -143,7 +145,7 @@ export function CardSourcesListPage() {
                         onLink={() =>
                           linkCard.mutate({
                             name: row.normalizedName,
-                            cardId: row.suggestedCard?.id ?? "",
+                            cardId: row.suggestedCard?.slug ?? "",
                           })
                         }
                       />
