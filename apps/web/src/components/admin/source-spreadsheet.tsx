@@ -62,7 +62,13 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
 export interface PrintingGroup {
   key: string;
   label: string;
-  differentiators: { artVariant: string; isSigned: boolean; isPromo: boolean; finish: string };
+  differentiators: {
+    setId: string | null;
+    artVariant: string;
+    isSigned: boolean;
+    isPromo: boolean;
+    finish: string;
+  };
   sources: PrintingSource[];
 }
 
@@ -76,7 +82,7 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
     groups.set(key, group);
   }
 
-  return [...groups.entries()].map(([key, sources]) => {
+  const result = [...groups.entries()].map(([key, sources]) => {
     const counts = new Map<string, number>();
     for (const s of sources) {
       counts.set(s.sourceId, (counts.get(s.sourceId) ?? 0) + 1);
@@ -98,6 +104,7 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
       key,
       label: parts.join(" · "),
       differentiators: {
+        setId: ps.setId,
         artVariant: variant,
         isSigned: ps.isSigned,
         isPromo: ps.isPromo,
@@ -106,6 +113,29 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
       sources,
     };
   });
+
+  result.sort((a, b) => {
+    const d = a.differentiators;
+    const e = b.differentiators;
+    // Set, then non-promo before promo, non-signed before signed, then finish and artVariant
+    const sc = (d.setId ?? "").localeCompare(e.setId ?? "");
+    if (sc !== 0) {
+      return sc;
+    }
+    if (d.isPromo !== e.isPromo) {
+      return d.isPromo ? 1 : -1;
+    }
+    if (d.isSigned !== e.isSigned) {
+      return d.isSigned ? 1 : -1;
+    }
+    const fc = d.finish.localeCompare(e.finish);
+    if (fc !== 0) {
+      return fc;
+    }
+    return d.artVariant.localeCompare(e.artVariant);
+  });
+
+  return result;
 }
 
 // ── Spreadsheet component ────────────────────────────────────────────────────

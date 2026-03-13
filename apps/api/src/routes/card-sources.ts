@@ -454,6 +454,11 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
           .selectFrom("printing_sources")
           .selectAll()
           .where("card_source_id", "in", sourceIds)
+          .orderBy("set_id")
+          .orderBy("finish")
+          .orderBy("is_promo")
+          .orderBy("is_signed")
+          .orderBy("source_id")
           .execute()
       : [];
 
