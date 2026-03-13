@@ -268,7 +268,13 @@ export async function ingestCardSources(
         // Process printings
         for (const p of card.printings) {
           const printingId = matchCardId
-            ? buildPrintingId(p.source_id, p.art_variant, p.is_signed, p.is_promo, p.finish)
+            ? buildPrintingId(
+                p.source_id,
+                p.art_variant || "normal",
+                p.is_signed,
+                p.is_promo,
+                p.finish,
+              )
             : null;
 
           // Check if the printing actually exists
