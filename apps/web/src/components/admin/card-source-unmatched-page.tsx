@@ -35,8 +35,8 @@ interface UnmatchedData {
 
 export function CardSourceUnmatchedPage() {
   const navigate = useNavigate();
-  const { name } = useParams({ from: "/_authenticated/admin/cards_/new/$name" });
-  const decodedName = decodeURIComponent(name);
+  const { name: normalizedName } = useParams({ from: "/_authenticated/admin/cards_/new/$name" });
+  const decodedName = decodeURIComponent(normalizedName);
   const { data, isLoading } = useUnmatchedCardDetail(decodedName) as {
     data: UnmatchedData | undefined;
     isLoading: boolean;
@@ -131,7 +131,7 @@ export function CardSourceUnmatchedPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">{decodedName}</h2>
+        <h2 className="text-lg font-semibold">{data.name}</h2>
         <p className="text-sm text-muted-foreground">
           Unmatched card &mdash; {data.sources.length} source
           {data.sources.length === 1 ? "" : "s"}

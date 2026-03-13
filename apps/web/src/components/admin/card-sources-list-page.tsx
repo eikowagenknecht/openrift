@@ -103,7 +103,7 @@ export function CardSourcesListPage() {
                   <TableCell>
                     <Link
                       to={row.cardId ? "/admin/cards/$cardId" : "/admin/cards/new/$name"}
-                      params={row.cardId ? { cardId: row.cardId } : { name: row.name }}
+                      params={row.cardId ? { cardId: row.cardId } : { name: row.normalizedName }}
                       className="font-medium hover:underline"
                     >
                       {row.name}

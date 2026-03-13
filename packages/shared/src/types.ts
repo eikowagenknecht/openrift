@@ -354,6 +354,7 @@ export interface AdminPrintingImage {
 export interface CardSourceSummary {
   cardId: string | null;
   name: string;
+  normalizedName: string;
   sourceCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;

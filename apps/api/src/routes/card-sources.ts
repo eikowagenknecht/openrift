@@ -10,7 +10,7 @@ import {
 import { extractKeywords } from "@openrift/shared/services/extract-keywords";
 import { ingestCardSources } from "@openrift/shared/services/ingest-card-sources";
 import type { Rarity } from "@openrift/shared/types";
-import { buildPrintingId } from "@openrift/shared/utils";
+import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
 import type { SqlBool } from "kysely";
 import { sql } from "kysely";
@@ -32,6 +32,10 @@ import {
 import type { Variables } from "../types.js";
 
 export const cardSourcesRoute = new Hono<{ Variables: Variables }>();
+
+// SQL equivalent of normalizeNameForMatching — strips non-alphanumeric and lowercases
+const sqlNormName = (col: string) =>
+  sql`lower(regexp_replace(${sql.ref(col)}, '[^a-zA-Z0-9]', '', 'g'))`;
 
 // ── GET /card-sources/all-cards ──────────────────────────────────────────────
 // Lightweight list of all cards for client-side search (link combobox etc.)
@@ -102,6 +106,7 @@ cardSourcesRoute.get("/card-sources", async (c) => {
     .select([
       sql<string | null>`max(cs.card_id)`.as("card_id"),
       sql<string>`COALESCE(max(c.name), min(cs.name))`.as("name"),
+      sql<string>`COALESCE(cs.card_id, ${sqlNormName("cs.name")})`.as("groupKey"),
       sql<number>`count(DISTINCT cs.id)`.as("sourceCount"),
       sql<number>`count(DISTINCT CASE WHEN cs.checked_at IS NULL THEN cs.id END)`.as(
         "uncheckedCardCount",
@@ -111,7 +116,7 @@ cardSourcesRoute.get("/card-sources", async (c) => {
       ),
       sql<boolean>`bool_or(cs.source = 'gallery')`.as("hasGallery"),
     ])
-    .groupBy(sql`COALESCE(cs.card_id, cs.name)`);
+    .groupBy(sql`COALESCE(cs.card_id, ${sqlNormName("cs.name")})`);
 
   if (source) {
     // Only include cards that have at least one card_source from this source.
@@ -123,7 +128,9 @@ cardSourcesRoute.get("/card-sources", async (c) => {
           .selectFrom("card_sources as cs2")
           .select(sql.lit(1).as("x"))
           .where("cs2.source", "=", source)
-          .where(sql<SqlBool>`COALESCE(cs2.card_id, cs2.name) = COALESCE(cs.card_id, cs.name)`),
+          .where(
+            sql<SqlBool>`COALESCE(cs2.card_id, ${sqlNormName("cs2.name")}) = COALESCE(cs.card_id, ${sqlNormName("cs.name")})`,
+          ),
       ),
     );
   }
@@ -146,6 +153,7 @@ cardSourcesRoute.get("/card-sources", async (c) => {
     rows.map((r) => ({
       cardId: r.card_id,
       name: r.name,
+      normalizedName: r.card_id ? normalizeNameForMatching(r.name) : r.groupKey,
       sourceCount: Number(r.sourceCount),
       uncheckedCardCount: Number(r.uncheckedCardCount),
       uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
@@ -365,14 +373,14 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
 });
 
 // ── GET /card-sources/new/:name ──────────────────────────────────────────────
-// Unmatched detail: card_sources where card_id IS NULL grouped by name
+// Unmatched detail: card_sources where card_id IS NULL grouped by normalized name
 cardSourcesRoute.get("/card-sources/new/:name", async (c) => {
   const name = decodeURIComponent(c.req.param("name"));
 
   const sources = await db
     .selectFrom("card_sources")
     .selectAll()
-    .where("name", "=", name)
+    .where(sqlNormName("card_sources.name"), "=", name)
     .where("card_id", "is", null)
     .orderBy("source")
     .execute();
@@ -388,8 +396,14 @@ cardSourcesRoute.get("/card-sources/new/:name", async (c) => {
     .where("card_source_id", "in", sourceIds)
     .execute();
 
+  // Use the shortest raw name from the group as the display name
+  const displayName = sources.reduce(
+    (best, s) => (s.name.length < best.length ? s.name : best),
+    sources[0].name,
+  );
+
   return c.json({
-    name,
+    name: displayName,
     sources: sources.map((s) => ({
       id: s.id,
       cardId: s.card_id,
@@ -786,7 +800,7 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/rename", async (c) => 
 // ── POST /card-sources/new/:name/accept ─────────────────────────────────────
 // Create new card from source data and link card_sources
 cardSourcesRoute.post("/card-sources/new/:name/accept", async (c) => {
-  const name = decodeURIComponent(c.req.param("name"));
+  const normalizedName = decodeURIComponent(c.req.param("name"));
   const body = await c.req.json();
   const { cardFields } = body;
 
@@ -795,7 +809,7 @@ cardSourcesRoute.post("/card-sources/new/:name/accept", async (c) => {
   }
 
   await db.transaction().execute(async (trx) => {
-    await acceptNewCardFromSources(trx, { ...cardFields, name });
+    await acceptNewCardFromSources(trx, cardFields, normalizedName);
   });
 
   return c.json({ ok: true });
@@ -804,7 +818,7 @@ cardSourcesRoute.post("/card-sources/new/:name/accept", async (c) => {
 // ── POST /card-sources/new/:name/link ────────────────────────────────────────
 // Link unmatched sources to an existing card
 cardSourcesRoute.post("/card-sources/new/:name/link", async (c) => {
-  const name = decodeURIComponent(c.req.param("name"));
+  const normalizedName = decodeURIComponent(c.req.param("name"));
   const body = await c.req.json();
   const { cardId } = body;
 
@@ -824,7 +838,7 @@ cardSourcesRoute.post("/card-sources/new/:name/link", async (c) => {
   }
 
   await db.transaction().execute(async (trx) => {
-    await linkUnmatchedSources(trx, name, cardId);
+    await linkUnmatchedSources(trx, normalizedName, cardId);
   });
 
   return c.json({ ok: true });

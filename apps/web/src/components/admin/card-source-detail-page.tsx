@@ -407,17 +407,26 @@ export function CardSourceDetailPage() {
                   <PrintingImagesSection
                     printingId={printingId}
                     images={data.printingImages.filter((pi) => pi.printingId === printingId)}
-                    sourceImages={relatedSources
-                      .filter(
-                        (ps) =>
-                          ps.imageUrl &&
-                          !data.printingImages.some((pi) => pi.originalUrl === ps.imageUrl),
-                      )
-                      .map((ps) => ({
-                        printingSourceId: ps.id,
-                        url: ps.imageUrl as string,
-                        source: sourceLabels[ps.cardSourceId] ?? "unknown",
-                      }))}
+                    sourceImages={[
+                      ...relatedSources
+                        .filter(
+                          (ps) =>
+                            ps.imageUrl &&
+                            !data.printingImages.some((pi) => pi.originalUrl === ps.imageUrl),
+                        )
+                        .reduce((acc, ps) => {
+                          const url = ps.imageUrl as string;
+                          const src = sourceLabels[ps.cardSourceId] ?? "unknown";
+                          const existing = acc.get(url);
+                          if (existing) {
+                            existing.source += `, ${src}`;
+                          } else {
+                            acc.set(url, { printingSourceId: ps.id, url, source: src });
+                          }
+                          return acc;
+                        }, new Map<string, { printingSourceId: string; url: string; source: string }>())
+                        .values(),
+                    ]}
                   />
                 </div>
               )}

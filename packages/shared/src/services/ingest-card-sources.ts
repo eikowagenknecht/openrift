@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/types.js";
-import { buildPrintingId } from "../utils.js";
+import { buildPrintingId, normalizeNameForMatching } from "../utils.js";
 
 interface IngestCard {
   name: string;
@@ -143,13 +143,13 @@ export async function ingestCardSources(
     throw new Error("source name must not be empty");
   }
 
-  // Load alias table for matching
+  // Load alias table for matching (keyed by normalized name for fuzzy matching)
   const aliasRows = await db.selectFrom("card_name_aliases").select(["alias", "card_id"]).execute();
-  const aliasMap = new Map(aliasRows.map((r) => [r.alias.toLowerCase(), r.card_id]));
+  const aliasMap = new Map(aliasRows.map((r) => [normalizeNameForMatching(r.alias), r.card_id]));
 
-  // Load existing card names for exact matching
+  // Load existing card names for matching (keyed by normalized name)
   const cardRows = await db.selectFrom("cards").select(["id", "name"]).execute();
-  const nameToCardId = new Map(cardRows.map((r) => [r.name.toLowerCase(), r.id]));
+  const nameToCardId = new Map(cardRows.map((r) => [normalizeNameForMatching(r.name), r.id]));
 
   let newCards = 0;
   let updates = 0;
@@ -159,8 +159,8 @@ export async function ingestCardSources(
 
   for (const card of cards) {
     try {
-      const nameLower = card.name.toLowerCase();
-      const matchCardId = aliasMap.get(nameLower) ?? nameToCardId.get(nameLower) ?? null;
+      const normalized = normalizeNameForMatching(card.name);
+      const matchCardId = aliasMap.get(normalized) ?? nameToCardId.get(normalized) ?? null;
 
       // oxlint-disable-next-line no-loop-func -- sequential per-card transactions that share counters
       await db.transaction().execute(async (trx) => {
