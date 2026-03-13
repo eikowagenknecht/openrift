@@ -481,6 +481,12 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
     }
   }
 
+  // Build printing UUID → slug map for child table responses
+  const printingSlugMap = new Map<string, string>();
+  for (const p of printings) {
+    printingSlugMap.set(p.id, p.slug);
+  }
+
   return c.json({
     card: {
       id: card.slug,
@@ -542,7 +548,7 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
     printingSources: printingSources.map((ps) => ({
       id: ps.id,
       cardSourceId: ps.card_source_id,
-      printingId: ps.printing_id,
+      printingId: ps.printing_id ? (printingSlugMap.get(ps.printing_id) ?? ps.printing_id) : null,
       sourceId: ps.source_id,
       setId: ps.set_id,
       setName: ps.set_name,
@@ -565,7 +571,7 @@ cardSourcesRoute.get("/card-sources/:cardId", async (c) => {
     })),
     printingImages: printingImages.map((pi) => ({
       id: pi.id,
-      printingId: pi.printing_id,
+      printingId: printingSlugMap.get(pi.printing_id) ?? pi.printing_id,
       face: pi.face,
       source: pi.source,
       originalUrl: pi.original_url,
