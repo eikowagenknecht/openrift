@@ -34,7 +34,7 @@ function centsToDollars(cents: number | null): number | null {
 }
 
 async function fetchSnapshots<R>(
-  sourceId: number,
+  sourceId: string,
   cutoff: Date | null,
   mapRow: (row: Selectable<Database["marketplace_snapshots"]>) => R,
 ): Promise<R[]> {

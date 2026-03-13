@@ -104,7 +104,7 @@ export interface MarketplaceConfig<
   /** Map a snapshot query result → unified product-info */
   mapSnapshotPrices(row: M): ProductInfo;
   /** Insert a snapshot row from staging during the POST (map) operation */
-  insertSnapshot(tx: Transaction<Database>, sourceId: number, row: S): Promise<void>;
+  insertSnapshot(tx: Transaction<Database>, sourceId: string, row: S): Promise<void>;
   /** Insert a staging row from a snapshot during the DELETE (unmap) operation */
   insertStagingFromSnapshot(
     tx: Transaction<Database>,

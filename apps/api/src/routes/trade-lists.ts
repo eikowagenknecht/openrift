@@ -129,11 +129,9 @@ tradeListsRoute.post("/trade-lists/:id/items", async (c) => {
     throw new AppError(404, "NOT_FOUND", "Copy not found");
   }
 
-  const id = crypto.randomUUID();
   const row = await db
     .insertInto("trade_list_items")
     .values({
-      id,
       trade_list_id: tradeListId,
       user_id: userId,
       copy_id: body.copyId,

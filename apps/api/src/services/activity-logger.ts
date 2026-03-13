@@ -31,12 +31,9 @@ export async function createActivity(
   trx: Transaction<Database>,
   input: CreateActivityInput,
 ): Promise<string> {
-  const activityId = crypto.randomUUID();
-
-  await trx
+  const activity = await trx
     .insertInto("activities")
     .values({
-      id: activityId,
       user_id: input.userId,
       type: input.type,
       name: input.name ?? null,
@@ -44,14 +41,16 @@ export async function createActivity(
       description: input.description ?? null,
       is_auto: input.isAuto ?? false,
     })
-    .execute();
+    .returning("id")
+    .executeTakeFirstOrThrow();
+
+  const activityId = activity.id;
 
   if (input.items.length > 0) {
     await trx
       .insertInto("activity_items")
       .values(
         input.items.map((item) => ({
-          id: crypto.randomUUID(),
           activity_id: activityId,
           user_id: input.userId,
           activity_type: input.type,

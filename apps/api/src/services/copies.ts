@@ -32,15 +32,18 @@ export async function addCopies(
   const inboxId = await ensureInbox(db, userId);
 
   const created = await db.transaction().execute(async (trx) => {
-    const copyRows = copies.map((item) => ({
-      id: crypto.randomUUID(),
+    const copyValues = copies.map((item) => ({
       user_id: userId,
       printing_id: item.printingId,
       collection_id: item.collectionId ?? inboxId,
       source_id: item.sourceId ?? null,
     }));
 
-    await trx.insertInto("copies").values(copyRows).execute();
+    const copyRows = await trx
+      .insertInto("copies")
+      .values(copyValues)
+      .returning(["id", "printing_id", "collection_id", "source_id"])
+      .execute();
 
     // Look up collection names for activity items
     const collectionIds = [...new Set(copyRows.map((r) => r.collection_id))];
@@ -71,7 +74,7 @@ export async function addCopies(
     id: r.id,
     printingId: r.printing_id,
     collectionId: r.collection_id,
-    sourceId: r.source_id,
+    sourceId: r.source_id ?? null,
   }));
 }
 

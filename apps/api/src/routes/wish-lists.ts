@@ -87,11 +87,9 @@ wishListsRoute.post("/wish-lists/:id/items", async (c) => {
     throw new AppError(404, "NOT_FOUND", "Wish list not found");
   }
 
-  const id = crypto.randomUUID();
   const row = await db
     .insertInto("wish_list_items")
     .values({
-      id,
       wish_list_id: wishListId,
       user_id: userId,
       card_id: body.cardId ?? null,

@@ -153,7 +153,6 @@ decksRoute.put("/decks/:id/cards", async (c) => {
         .insertInto("deck_cards")
         .values(
           body.cards.map((card) => ({
-            id: crypto.randomUUID(),
             deck_id: id,
             card_id: card.cardId,
             zone: card.zone,

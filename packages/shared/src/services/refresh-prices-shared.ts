@@ -438,7 +438,7 @@ export async function upsertPriceData(
 
   // ── Source ID lookup ────────────────────────────────────────────────────
 
-  const sourceIdLookup = new Map<string, number>();
+  const sourceIdLookup = new Map<string, string>();
   const dbSources = await db
     .selectFrom("marketplace_sources")
     .select(["id", "printing_id"])

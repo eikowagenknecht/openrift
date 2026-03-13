@@ -80,7 +80,7 @@ export interface PrintingsTable {
 // ─── Unified marketplace pricing (migration 022) ────────────────────────────
 
 export interface MarketplaceGroupsTable {
-  id: Generated<number>;
+  id: Generated<string>;
   marketplace: string;
   group_id: number;
   name: string | null;
@@ -90,7 +90,7 @@ export interface MarketplaceGroupsTable {
 }
 
 export interface MarketplaceSourcesTable {
-  id: Generated<number>;
+  id: Generated<string>;
   marketplace: string;
   printing_id: string;
   external_id: number;
@@ -101,8 +101,8 @@ export interface MarketplaceSourcesTable {
 }
 
 export interface MarketplaceSnapshotsTable {
-  id: Generated<number>;
-  source_id: number;
+  id: Generated<string>;
+  source_id: string;
   recorded_at: CreatedAt;
   market_cents: number;
   low_cents: number | null;
@@ -115,7 +115,7 @@ export interface MarketplaceSnapshotsTable {
 }
 
 export interface MarketplaceStagingTable {
-  id: Generated<number>;
+  id: Generated<string>;
   marketplace: string;
   external_id: number;
   group_id: number;
@@ -210,7 +210,7 @@ export interface VerificationsTable {
 // ─── Collection tracking (migration 009) ────────────────────────────────────
 
 export interface CollectionsTable {
-  id: string;
+  id: Generated<string>;
   user_id: string;
   name: string;
   description: string | null;
@@ -223,7 +223,7 @@ export interface CollectionsTable {
 }
 
 export interface SourcesTable {
-  id: string;
+  id: Generated<string>;
   user_id: string;
   name: string;
   description: string | null;
@@ -232,7 +232,7 @@ export interface SourcesTable {
 }
 
 export interface CopiesTable {
-  id: string;
+  id: Generated<string>;
   user_id: string;
   printing_id: string;
   collection_id: string;
@@ -242,7 +242,7 @@ export interface CopiesTable {
 }
 
 export interface ActivitiesTable {
-  id: string;
+  id: Generated<string>;
   user_id: string;
   type: string;
   name: string | null;
@@ -254,7 +254,7 @@ export interface ActivitiesTable {
 }
 
 export interface ActivityItemsTable {
-  id: string;
+  id: Generated<string>;
   activity_id: string;
   user_id: string;
   activity_type: string;
@@ -270,7 +270,7 @@ export interface ActivityItemsTable {
 }
 
 export interface DecksTable {
-  id: string;
+  id: Generated<string>;
   user_id: string;
   name: string;
   description: string | null;
@@ -283,7 +283,7 @@ export interface DecksTable {
 }
 
 export interface DeckCardsTable {
-  id: string;
+  id: Generated<string>;
   deck_id: string;
   card_id: string;
   zone: string;
@@ -291,7 +291,7 @@ export interface DeckCardsTable {
 }
 
 export interface WishListsTable {
-  id: string;
+  id: Generated<string>;
   user_id: string;
   name: string;
   rules: unknown;
@@ -301,7 +301,7 @@ export interface WishListsTable {
 }
 
 export interface WishListItemsTable {
-  id: string;
+  id: Generated<string>;
   wish_list_id: string;
   user_id: string;
   card_id: string | null;
@@ -310,7 +310,7 @@ export interface WishListItemsTable {
 }
 
 export interface TradeListsTable {
-  id: string;
+  id: Generated<string>;
   user_id: string;
   name: string;
   rules: unknown;
@@ -320,7 +320,7 @@ export interface TradeListsTable {
 }
 
 export interface TradeListItemsTable {
-  id: string;
+  id: Generated<string>;
   trade_list_id: string;
   user_id: string;
   copy_id: string;

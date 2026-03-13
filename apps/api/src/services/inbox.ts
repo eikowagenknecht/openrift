@@ -17,11 +17,9 @@ export async function ensureInbox(db: Kysely<Database>, userId: string): Promise
     return existing.id;
   }
 
-  const id = crypto.randomUUID();
   await db
     .insertInto("collections")
     .values({
-      id,
       user_id: userId,
       name: "Inbox",
       is_inbox: true,

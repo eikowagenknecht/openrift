@@ -90,7 +90,7 @@ export function createCrudRoute(config: CrudRouteConfig): Hono<{ Variables: Vari
       const body = createSchema.parse(await c.req.json());
       const row = await dynDb
         .insertInto(table)
-        .values({ id: crypto.randomUUID(), user_id: userId, ...toInsert(body) })
+        .values({ user_id: userId, ...toInsert(body) })
         .returningAll()
         .executeTakeFirstOrThrow();
       return c.json(toDto(row as object), 201);
