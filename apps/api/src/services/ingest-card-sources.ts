@@ -1,7 +1,6 @@
+import type { Database } from "@openrift/shared/db";
+import { buildPrintingId } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
-
-import type { Database } from "../db/types.js";
-import { buildPrintingId } from "../utils.js";
 
 interface IngestCard {
   name: string;
@@ -40,13 +39,13 @@ interface IngestPrinting {
   extra_data?: unknown | null;
 }
 
-export interface UpdatedCardDetail {
+interface UpdatedCardDetail {
   name: string;
   sourceId: string | null;
   fields: { field: string; from: unknown; to: unknown }[];
 }
 
-export interface IngestResult {
+interface IngestResult {
   newCards: number;
   updates: number;
   unchanged: number;

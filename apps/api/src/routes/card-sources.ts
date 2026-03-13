@@ -3,7 +3,6 @@ import { join } from "node:path";
 
 import type { Database } from "@openrift/shared/db";
 import { extractKeywords } from "@openrift/shared/keywords";
-import { ingestCardSources } from "@openrift/shared/services/ingest-card-sources";
 import type { CardType, Rarity } from "@openrift/shared/types";
 import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
@@ -23,6 +22,8 @@ import {
   processAndSave,
   renameRehostFiles,
 } from "../services/image-rehost.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { ingestCardSources } from "../services/ingest-card-sources.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 

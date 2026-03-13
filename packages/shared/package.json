@@ -14,7 +14,6 @@
     "./services/refresh-tcgplayer-prices": "./src/services/refresh-tcgplayer-prices.ts",
     "./services/refresh-cardmarket-prices": "./src/services/refresh-cardmarket-prices.ts",
     "./keywords": "./src/keywords.ts",
-    "./services/ingest-card-sources": "./src/services/ingest-card-sources.ts",
     "./types": "./src/types.ts",
     "./logger": "./src/logger.ts"
   },
