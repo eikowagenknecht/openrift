@@ -40,11 +40,7 @@ interface TcgplayerStagingRow {
 // ── Upsert config ─────────────────────────────────────────────────────────
 
 const UPSERT_CONFIG: PriceUpsertConfig = {
-  tables: {
-    sources: "tcgplayer_sources",
-    snapshots: "tcgplayer_snapshots",
-    staging: "tcgplayer_staging",
-  },
+  marketplace: "tcgplayer",
   priceColumns: ["market_cents", "low_cents", "mid_cents", "high_cents"],
 };
 
@@ -92,7 +88,7 @@ export async function refreshTcgplayerPrices(
   db: Kysely<Database>,
   log: Logger,
 ): Promise<PriceRefreshResult> {
-  const ignoredKeys = await loadIgnoredKeys(db, "tcgplayer_ignored_products");
+  const ignoredKeys = await loadIgnoredKeys(db, "tcgplayer");
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
@@ -105,19 +101,20 @@ export async function refreshTcgplayerPrices(
   );
   const groups = groupsData.results;
 
-  // Upsert all groups into tcgplayer_groups
+  // Upsert all groups into marketplace_groups
   if (groups.length > 0) {
     await db
-      .insertInto("tcgplayer_groups")
+      .insertInto("marketplace_groups")
       .values(
         groups.map((g) => ({
+          marketplace: "tcgplayer" as const,
           group_id: g.groupId,
           name: g.name,
           abbreviation: g.abbreviation,
         })),
       )
       .onConflict((oc) =>
-        oc.column("group_id").doUpdateSet({
+        oc.columns(["marketplace", "group_id"]).doUpdateSet({
           name: sql<string>`excluded.name`,
           abbreviation: sql<string>`excluded.abbreviation`,
           updated_at: sql<Date>`now()`,

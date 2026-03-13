@@ -77,107 +77,78 @@ export interface PrintingsTable {
   updated_at: UpdatedAt;
 }
 
-// ─── TCGPlayer pricing ───────────────────────────────────────────────────────
+// ─── Unified marketplace pricing (migration 022) ────────────────────────────
 
-export interface TcgplayerSourcesTable {
+export interface MarketplaceGroupsTable {
   id: Generated<number>;
-  printing_id: string;
-  external_id: number;
+  marketplace: string;
   group_id: number;
-  product_name: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-export interface TcgplayerSnapshotsTable {
-  id: Generated<number>;
-  source_id: number;
-  recorded_at: CreatedAt;
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-export interface TcgplayerStagingTable {
-  id: Generated<number>;
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  finish: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-// ─── Cardmarket pricing ─────────────────────────────────────────────────────
-
-export interface CardmarketSourcesTable {
-  id: Generated<number>;
-  printing_id: string;
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-export interface CardmarketSnapshotsTable {
-  id: Generated<number>;
-  source_id: number;
-  recorded_at: CreatedAt;
-  market_cents: number;
-  low_cents: number | null;
-  trend_cents: number | null;
-  avg1_cents: number | null;
-  avg7_cents: number | null;
-  avg30_cents: number | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-export interface CardmarketStagingTable {
-  id: Generated<number>;
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  finish: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  trend_cents: number | null;
-  avg1_cents: number | null;
-  avg7_cents: number | null;
-  avg30_cents: number | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-// ─── TCGPlayer groups (migration 016) ─────────────────────────────────────
-
-export interface TcgplayerGroupsTable {
-  id: Generated<number>;
-  group_id: number;
-  name: string;
-  abbreviation: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-// ─── Cardmarket expansions (migration 017) ────────────────────────────────
-
-export interface CardmarketExpansionsTable {
-  id: Generated<number>;
-  expansion_id: number;
   name: string | null;
+  abbreviation: string | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
+}
+
+export interface MarketplaceSourcesTable {
+  id: Generated<number>;
+  marketplace: string;
+  printing_id: string;
+  external_id: number;
+  group_id: number;
+  product_name: string;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface MarketplaceSnapshotsTable {
+  id: Generated<number>;
+  source_id: number;
+  recorded_at: CreatedAt;
+  market_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+}
+
+export interface MarketplaceStagingTable {
+  id: Generated<number>;
+  marketplace: string;
+  external_id: number;
+  group_id: number;
+  product_name: string;
+  finish: string;
+  recorded_at: Date;
+  market_cents: number;
+  low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
+  trend_cents: number | null;
+  avg1_cents: number | null;
+  avg7_cents: number | null;
+  avg30_cents: number | null;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface MarketplaceIgnoredProductsTable {
+  marketplace: string;
+  external_id: number;
+  finish: string;
+  product_name: string;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
+}
+
+export interface MarketplaceStagingCardOverridesTable {
+  marketplace: string;
+  external_id: number;
+  finish: string;
+  card_id: string;
+  created_at: CreatedAt;
 }
 
 // ─── Admin (migration 012) ────────────────────────────────────────────────
@@ -232,31 +203,6 @@ export interface VerificationsTable {
   identifier: string;
   value: string;
   expires_at: Date;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-// ─── Ignored products ───────────────────────────────────────────────────────
-
-export interface StagingCardOverridesTable {
-  external_id: number;
-  finish: string;
-  card_id: string;
-  created_at: CreatedAt;
-}
-
-export interface TcgplayerIgnoredProductsTable {
-  external_id: number;
-  finish: string;
-  product_name: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
-}
-
-export interface CardmarketIgnoredProductsTable {
-  external_id: number;
-  finish: string;
-  product_name: string;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -464,18 +410,14 @@ export interface Database {
   sets: SetsTable;
   cards: CardsTable;
   printings: PrintingsTable;
-  tcgplayer_sources: TcgplayerSourcesTable;
-  tcgplayer_snapshots: TcgplayerSnapshotsTable;
-  tcgplayer_staging: TcgplayerStagingTable;
-  cardmarket_sources: CardmarketSourcesTable;
-  cardmarket_snapshots: CardmarketSnapshotsTable;
-  cardmarket_staging: CardmarketStagingTable;
-  tcgplayer_groups: TcgplayerGroupsTable;
-  cardmarket_expansions: CardmarketExpansionsTable;
-  tcgplayer_staging_card_overrides: StagingCardOverridesTable;
-  cardmarket_staging_card_overrides: StagingCardOverridesTable;
-  tcgplayer_ignored_products: TcgplayerIgnoredProductsTable;
-  cardmarket_ignored_products: CardmarketIgnoredProductsTable;
+
+  // Unified marketplace pricing (migration 022)
+  marketplace_groups: MarketplaceGroupsTable;
+  marketplace_sources: MarketplaceSourcesTable;
+  marketplace_snapshots: MarketplaceSnapshotsTable;
+  marketplace_staging: MarketplaceStagingTable;
+  marketplace_ignored_products: MarketplaceIgnoredProductsTable;
+  marketplace_staging_card_overrides: MarketplaceStagingCardOverridesTable;
 
   // Admin (migration 012)
   admins: AdminsTable;

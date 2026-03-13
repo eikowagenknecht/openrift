@@ -22,11 +22,7 @@ const _noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unkn
 // ── Cardmarket config (matches real usage) ───────────────────────────────
 
 const CM_CONFIG: PriceUpsertConfig = {
-  tables: {
-    sources: "cardmarket_sources",
-    snapshots: "cardmarket_snapshots",
-    staging: "cardmarket_staging",
-  },
+  marketplace: "cardmarket",
   priceColumns: [
     "market_cents",
     "low_cents",
@@ -76,10 +72,10 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
       })
       .execute();
 
-    // Seed expansion for FK on cardmarket_sources/staging
+    // Seed group for cardmarket marketplace
     await db
-      .insertInto("cardmarket_expansions")
-      .values({ expansion_id: 1, name: "Test Expansion" })
+      .insertInto("marketplace_groups")
+      .values({ marketplace: "cardmarket", group_id: 1, name: "Test Expansion" })
       .execute();
 
     await db

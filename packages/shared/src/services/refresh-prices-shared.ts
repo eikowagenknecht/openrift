@@ -68,13 +68,27 @@ export function logUpsertCounts(log: Logger, counts: UpsertCounts): void {
 }
 
 /**
- * Return the total row count of a table (used to compute new-row counts around upserts).
+ * Return the row count of a marketplace table, filtered by marketplace.
  * @returns The row count.
  */
-async function countRows(db: Kysely<Database>, table: keyof Database): Promise<number> {
+async function countRows(
+  db: Kysely<Database>,
+  table: "marketplace_sources" | "marketplace_snapshots" | "marketplace_staging",
+  marketplace: string,
+): Promise<number> {
+  if (table === "marketplace_snapshots") {
+    const result = await db
+      .selectFrom("marketplace_snapshots as snap")
+      .innerJoin("marketplace_sources as src", "src.id", "snap.source_id")
+      .select(db.fn.countAll<number>().as("count"))
+      .where("src.marketplace", "=", marketplace)
+      .executeTakeFirstOrThrow();
+    return Number(result.count);
+  }
   const result = await db
     .selectFrom(table)
     .select(db.fn.countAll<number>().as("count"))
+    .where("marketplace", "=", marketplace)
     .executeTakeFirstOrThrow();
   return Number(result.count);
 }
@@ -141,11 +155,7 @@ export function buildSnapshotsFromStaging(
 // ── Price upsert config ─────────────────────────────────────────────────
 
 export interface PriceUpsertConfig {
-  tables: {
-    sources: keyof Database;
-    snapshots: keyof Database;
-    staging: keyof Database;
-  };
+  marketplace: string;
   /** Price columns present in both snapshot and staging tables */
   priceColumns: string[];
 }
@@ -153,16 +163,17 @@ export interface PriceUpsertConfig {
 // ── Price refresh helpers ──────────────────────────────────────────────────
 
 /**
- * Load the set of ignored (external_id, finish) keys from a marketplace's ignored-products table.
+ * Load the set of ignored (external_id, finish) keys for a marketplace.
  * @returns A set of "external_id::finish" strings for filtering.
  */
 export async function loadIgnoredKeys(
   db: Kysely<Database>,
-  table: keyof Database,
+  marketplace: string,
 ): Promise<Set<string>> {
-  // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
-  const rows: { external_id: number; finish: string }[] = await (db.selectFrom(table as any) as any)
+  const rows = await db
+    .selectFrom("marketplace_ignored_products")
     .select(["external_id", "finish"])
+    .where("marketplace", "=", marketplace)
     .execute();
   return new Set(rows.map((r) => `${r.external_id}::${r.finish}`));
 }
@@ -178,12 +189,11 @@ export async function buildMappedSnapshots(
   config: PriceUpsertConfig,
   allStaging: StagingRow[],
 ): Promise<SnapshotData[]> {
-  // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
-  const existingSources: { printing_id: string; external_id: number; finish: string }[] = await (
-    db.selectFrom(`${config.tables.sources} as src`) as any
-  )
+  const existingSources: { printing_id: string; external_id: number; finish: string }[] = await db
+    .selectFrom("marketplace_sources as src")
     .innerJoin("printings as p", "p.id", "src.printing_id")
     .select(["src.printing_id", "src.external_id", "p.finish"])
+    .where("src.marketplace", "=", config.marketplace)
     .execute();
 
   const snapshots = buildSnapshotsFromStaging(existingSources, allStaging, config.priceColumns);
@@ -390,6 +400,8 @@ export async function upsertPriceData(
   allSnapshots: SnapshotData[],
   allStaging: StagingRow[],
 ): Promise<UpsertCounts> {
+  const { marketplace } = config;
+
   // ── Sources ─────────────────────────────────────────────────────────────
 
   // Deduplicate sources: keep last entry per printing_id
@@ -399,39 +411,38 @@ export async function upsertPriceData(
   }
 
   const sourceRows = [...uniqueSources.values()];
-  const sourcesBefore = await countRows(db, config.tables.sources);
+  const sourcesBefore = await countRows(db, "marketplace_sources", marketplace);
   let sourcesAffected = 0;
 
   for (let i = 0; i < sourceRows.length; i += BATCH_SIZE) {
-    const batch = sourceRows.slice(i, i + BATCH_SIZE);
-    // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
-    const rows = await (db.insertInto(config.tables.sources as any) as any)
+    const batch = sourceRows.slice(i, i + BATCH_SIZE).map((r) => ({ ...r, marketplace }));
+    const rows = await db
+      .insertInto("marketplace_sources")
       .values(batch)
-      .onConflict((oc: any) =>
+      .onConflict((oc) =>
         oc
-          .column("printing_id")
+          .columns(["marketplace", "printing_id"])
           .doUpdateSet({
             group_id: sql<number>`excluded.group_id`,
             updated_at: sql<Date>`now()`,
           })
-          .where(buildDistinctWhere(config.tables.sources, ["group_id"])),
+          .where(buildDistinctWhere("marketplace_sources", ["group_id"])),
       )
       .returning(sql<number>`1`.as("_"))
       .execute();
     sourcesAffected += rows.length;
   }
 
-  const sourcesAfter = await countRows(db, config.tables.sources);
+  const sourcesAfter = await countRows(db, "marketplace_sources", marketplace);
   const newSources = sourcesAfter - sourcesBefore;
 
   // ── Source ID lookup ────────────────────────────────────────────────────
 
   const sourceIdLookup = new Map<string, number>();
-  // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
-  const dbSources: { id: number; printing_id: string }[] = await (
-    db.selectFrom(config.tables.sources as any) as any
-  )
+  const dbSources = await db
+    .selectFrom("marketplace_sources")
     .select(["id", "printing_id"])
+    .where("marketplace", "=", marketplace)
     .execute();
 
   for (const row of dbSources) {
@@ -462,21 +473,21 @@ export async function upsertPriceData(
   }
 
   const snapshotRows = [...uniqueSnapshots.values()];
-  const snapshotsBefore = await countRows(db, config.tables.snapshots);
+  const snapshotsBefore = await countRows(db, "marketplace_snapshots", marketplace);
   let snapshotsAffected = 0;
 
   const snapshotUpdateSet = buildExcludedSet(config.priceColumns);
-  const snapshotDistinctWhere = buildDistinctWhere(config.tables.snapshots, config.priceColumns);
+  const snapshotDistinctWhere = buildDistinctWhere("marketplace_snapshots", config.priceColumns);
 
   for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
     const batch = snapshotRows.slice(i, i + BATCH_SIZE);
-    // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
-    const rows = await (db.insertInto(config.tables.snapshots as any) as any)
-      .values(batch)
-      .onConflict((oc: any) =>
+    const rows = await db
+      .insertInto("marketplace_snapshots")
+      .values(batch as never[])
+      .onConflict((oc) =>
         oc
           .columns(["source_id", "recorded_at"])
-          .doUpdateSet(snapshotUpdateSet)
+          .doUpdateSet(snapshotUpdateSet as never)
           .where(snapshotDistinctWhere),
       )
       .returning(sql<number>`1`.as("_"))
@@ -484,7 +495,7 @@ export async function upsertPriceData(
     snapshotsAffected += rows.length;
   }
 
-  const snapshotsAfter = await countRows(db, config.tables.snapshots);
+  const snapshotsAfter = await countRows(db, "marketplace_snapshots", marketplace);
   const newSnapshots = snapshotsAfter - snapshotsBefore;
 
   // ── Staging ────────────────────────────────────────────────────────────
@@ -496,7 +507,7 @@ export async function upsertPriceData(
   }
 
   const stagingRows = [...uniqueStaging.values()];
-  const stagingBefore = await countRows(db, config.tables.staging);
+  const stagingBefore = await countRows(db, "marketplace_staging", marketplace);
   let stagingAffected = 0;
 
   const stagingUpdateSet = {
@@ -504,20 +515,20 @@ export async function upsertPriceData(
     ...buildExcludedSet(config.priceColumns),
     updated_at: sql`now()`,
   };
-  const stagingDistinctWhere = buildDistinctWhere(config.tables.staging, [
+  const stagingDistinctWhere = buildDistinctWhere("marketplace_staging", [
     "group_id",
     ...config.priceColumns,
   ]);
 
   for (let i = 0; i < stagingRows.length; i += BATCH_SIZE) {
-    const batch = stagingRows.slice(i, i + BATCH_SIZE);
-    // oxlint-disable-next-line typescript/no-explicit-any -- dynamic table name requires type assertion
-    const rows = await (db.insertInto(config.tables.staging as any) as any)
-      .values(batch)
-      .onConflict((oc: any) =>
+    const batch = stagingRows.slice(i, i + BATCH_SIZE).map((r) => ({ ...r, marketplace }));
+    const rows = await db
+      .insertInto("marketplace_staging")
+      .values(batch as never[])
+      .onConflict((oc) =>
         oc
-          .columns(["external_id", "finish", "recorded_at"])
-          .doUpdateSet(stagingUpdateSet)
+          .columns(["marketplace", "external_id", "finish", "recorded_at"])
+          .doUpdateSet(stagingUpdateSet as never)
           .where(stagingDistinctWhere),
       )
       .returning(sql<number>`1`.as("_"))
@@ -525,7 +536,7 @@ export async function upsertPriceData(
     stagingAffected += rows.length;
   }
 
-  const stagingAfter = await countRows(db, config.tables.staging);
+  const stagingAfter = await countRows(db, "marketplace_staging", marketplace);
   const newStaging = stagingAfter - stagingBefore;
   const updatedStaging = stagingAffected - newStaging;
 

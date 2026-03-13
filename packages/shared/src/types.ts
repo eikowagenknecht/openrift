@@ -137,6 +137,9 @@ export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
   id: "id",
 };
 
+// Marketplace discriminator
+export type Marketplace = "tcgplayer" | "cardmarket";
+
 // Price history types
 export type PriceSource = "tcgplayer" | "cardmarket";
 export type TimeRange = "7d" | "30d" | "90d" | "all";

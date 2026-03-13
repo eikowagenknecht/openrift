@@ -55,11 +55,7 @@ export interface CardmarketStagingRow {
 // ── Upsert config ─────────────────────────────────────────────────────────
 
 const UPSERT_CONFIG: PriceUpsertConfig = {
-  tables: {
-    sources: "cardmarket_sources",
-    snapshots: "cardmarket_snapshots",
-    staging: "cardmarket_staging",
-  },
+  marketplace: "cardmarket",
   priceColumns: [
     "market_cents",
     "low_cents",
@@ -111,7 +107,7 @@ export async function refreshCardmarketPrices(
   db: Kysely<Database>,
   log: Logger,
 ): Promise<PriceRefreshResult> {
-  const ignoredKeys = await loadIgnoredKeys(db, "cardmarket_ignored_products");
+  const ignoredKeys = await loadIgnoredKeys(db, "cardmarket");
 
   // ── Collected rows ─────────────────────────────────────────────────────────
 
@@ -142,24 +138,27 @@ export async function refreshCardmarketPrices(
     cmPriceById.set(pg.idProduct, pg);
   }
 
-  // Upsert expansions into cardmarket_expansions
+  // Upsert expansions into marketplace_groups
   const expansionIds = new Set<number>();
   for (const product of cmSingles) {
     expansionIds.add(product.idExpansion);
   }
-  const expansionValues = [...expansionIds].map((expId) => ({ expansion_id: expId }));
-  const dbExpansions: { expansion_id: number }[] = [];
+  const expansionValues = [...expansionIds].map((expId) => ({
+    marketplace: "cardmarket" as const,
+    group_id: expId,
+  }));
+  const dbExpansions: { group_id: number }[] = [];
   for (let i = 0; i < expansionValues.length; i += BATCH_SIZE) {
     const batch = expansionValues.slice(i, i + BATCH_SIZE);
     const rows = await db
-      .insertInto("cardmarket_expansions")
+      .insertInto("marketplace_groups")
       .values(batch)
       .onConflict((oc) =>
-        oc.column("expansion_id").doUpdateSet({
+        oc.columns(["marketplace", "group_id"]).doUpdateSet({
           updated_at: sql<Date>`now()`,
         }),
       )
-      .returning(["expansion_id"])
+      .returning(["group_id"])
       .execute();
     dbExpansions.push(...rows);
   }

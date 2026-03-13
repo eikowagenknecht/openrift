@@ -117,7 +117,7 @@ function makeChain(value: unknown): any {
 
 interface MockDbConfig {
   ignoredProducts?: { external_id: number; finish: string }[];
-  expansions?: { expansion_id: number }[];
+  expansions?: { group_id: number }[];
   existingSources?: { printing_id: string; external_id: number; finish: string }[];
 }
 
@@ -130,10 +130,10 @@ function createMockDb(config: MockDbConfig = {}) {
     {
       get(_, prop) {
         if (prop === "values") {
-          return (vals: { expansion_id?: number }[]) => {
+          return (vals: { group_id?: number }[]) => {
             for (const v of vals) {
-              if (v.expansion_id !== undefined) {
-                insertedExpansionIds.push(v.expansion_id);
+              if (v.group_id !== undefined) {
+                insertedExpansionIds.push(v.group_id);
               }
             }
             return makeChain(config.expansions ?? []);
@@ -153,10 +153,10 @@ function createMockDb(config: MockDbConfig = {}) {
 
   const db = {
     selectFrom(table: string) {
-      if (table === "cardmarket_ignored_products") {
+      if (table === "marketplace_ignored_products") {
         return makeChain(config.ignoredProducts ?? []);
       }
-      if (table.startsWith("cardmarket_sources")) {
+      if (table.startsWith("marketplace_sources")) {
         return makeChain(config.existingSources ?? []);
       }
       return makeChain([]);
@@ -607,7 +607,7 @@ describe("refreshCardmarketPrices", () => {
   describe("return value", () => {
     it("returns correct fetched counts", async () => {
       const { db } = createMockDb({
-        expansions: [{ expansion_id: 6286 }, { expansion_id: 6289 }],
+        expansions: [{ group_id: 6286 }, { group_id: 6289 }],
       });
       const { log } = makeMockLogger();
       setupFetchJson(
@@ -673,7 +673,7 @@ describe("refreshCardmarketPrices", () => {
 
     it("logs fetched summary with expansion and product counts", async () => {
       const { db } = createMockDb({
-        expansions: [{ expansion_id: 6286 }, { expansion_id: 6289 }],
+        expansions: [{ group_id: 6286 }, { group_id: 6289 }],
       });
       const { log, messages } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING, PRODUCT_ANNIE], [PRICE_BLAZING, PRICE_ANNIE]);
