@@ -1058,11 +1058,10 @@ cardSourcesRoute.post("/card-sources/new/:name/link", async (c) => {
     throw new AppError(400, "BAD_REQUEST", "cardId required");
   }
 
-  // Verify card exists (accept both UUID and slug)
   const card = await db
     .selectFrom("cards")
     .select("id")
-    .where((eb) => eb.or([eb("id", "=", cardSlug), eb("slug", "=", cardSlug)]))
+    .where("slug", "=", cardSlug)
     .executeTakeFirst();
 
   if (!card) {
