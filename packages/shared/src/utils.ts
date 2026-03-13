@@ -1,5 +1,5 @@
-import type { ArtVariant } from "./types.js";
-import { ART_VARIANT_ORDER } from "./types.js";
+import type { ArtVariant } from "./types/index.js";
+import { ART_VARIANT_ORDER } from "./types/index.js";
 
 /**
  * Deduplicates an array, preserving insertion order.

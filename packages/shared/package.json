@@ -12,7 +12,7 @@
     "./utils": "./src/utils.ts",
     "./services/price-refresh": "./src/services/price-refresh/index.ts",
     "./keywords": "./src/keywords.ts",
-    "./types": "./src/types.ts",
+    "./types": "./src/types/index.ts",
     "./logger": "./src/logger.ts"
   },
   "scripts": {

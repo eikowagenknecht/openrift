@@ -42,7 +42,7 @@ export type {
   TradeListItem,
   WishList,
   WishListItem,
-} from "./types.js";
+} from "./types/index.js";
 export {
   ALL_SEARCH_FIELDS,
   ART_VARIANT_ORDER,
@@ -52,7 +52,7 @@ export {
   RARITY_ORDER,
   SEARCH_PREFIX_MAP,
   getOrientation,
-} from "./types.js";
+} from "./types/index.js";
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";

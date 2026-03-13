@@ -1,0 +1,96 @@
+import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
+
+export interface CardSource {
+  id: string;
+  cardId: string | null;
+  source: string;
+  name: string;
+  type: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+  mightBonus: number | null;
+  rulesText: string;
+  effectText: string;
+  tags: string[];
+  sourceId: string | null;
+  sourceEntityId: string | null;
+  extraData: unknown | null;
+  checkedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrintingSource {
+  id: string;
+  cardSourceId: string;
+  printingId: string | null;
+  sourceId: string;
+  setId: string | null;
+  setName: string | null;
+  collectorNumber: number;
+  rarity: Rarity;
+  artVariant: ArtVariant;
+  isSigned: boolean;
+  isPromo: boolean;
+  finish: Finish;
+  artist: string;
+  publicCode: string;
+  printedRulesText: string;
+  printedEffectText: string;
+  imageUrl: string | null;
+  flavorText: string;
+  extraData: unknown | null;
+  checkedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminPrintingImage {
+  id: string;
+  printingId: string;
+  face: CardFace;
+  source: string;
+  originalUrl: string | null;
+  rehostedUrl: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CardSourceSummary {
+  cardId: string | null;
+  cardSlug: string | null;
+  name: string;
+  normalizedName: string;
+  sourceIds: string[];
+  pendingSourceIds: string[];
+  sourceCount: number;
+  uncheckedCardCount: number;
+  uncheckedPrintingCount: number;
+  hasGallery: boolean;
+  suggestedCard: { id: string; slug: string; name: string } | null;
+}
+
+export interface SourceStats {
+  source: string;
+  cardCount: number;
+  printingCount: number;
+  lastUpdated: string;
+}
+
+interface CardSourceUploadUpdatedCard {
+  name: string;
+  sourceId: string | null;
+  fields: { field: string; from: unknown; to: unknown }[];
+}
+
+export interface CardSourceUploadResult {
+  newCards: number;
+  updates: number;
+  unchanged: number;
+  errors: string[];
+  updatedCards: CardSourceUploadUpdatedCard[];
+}
