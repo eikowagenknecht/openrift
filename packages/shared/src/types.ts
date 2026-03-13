@@ -185,7 +185,6 @@ export interface PriceHistoryResponse {
 
 export type ActivityType = "acquisition" | "disposal" | "trade" | "reorganization";
 export type ActivityAction = "added" | "removed" | "moved";
-export type DeckFormat = "standard" | "freeform";
 export type DeckZone = "main" | "sideboard";
 
 export interface Collection {
@@ -228,39 +227,16 @@ export interface Activity {
   updatedAt: string;
 }
 
-export interface ActivityItem {
-  id: string;
-  activityId: string;
-  activityType: ActivityType;
-  copyId: string | null;
-  printingId: string;
-  action: ActivityAction;
-  fromCollectionId: string | null;
-  fromCollectionName: string | null;
-  toCollectionId: string | null;
-  toCollectionName: string | null;
-  metadataSnapshot: unknown;
-  createdAt: string;
-}
-
 export interface Deck {
   id: string;
   name: string;
   description: string | null;
-  format: DeckFormat;
+  format: "standard" | "freeform";
   isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface DeckCard {
-  id: string;
-  deckId: string;
-  cardId: string;
-  zone: DeckZone;
-  quantity: number;
 }
 
 export interface WishList {
@@ -378,7 +354,7 @@ export interface SourceStats {
   lastUpdated: string;
 }
 
-export interface CardSourceUploadUpdatedCard {
+interface CardSourceUploadUpdatedCard {
   name: string;
   sourceId: string | null;
   fields: { field: string; from: unknown; to: unknown }[];

@@ -1,6 +1,6 @@
 import type { ColumnType, Generated } from "kysely";
 
-import type { CardType, Domain, Rarity, SuperType } from "../types";
+import type { CardFace, CardType, Domain, Rarity, SuperType } from "../types";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
 
@@ -382,7 +382,7 @@ export interface PrintingSourcesTable {
 export interface PrintingImagesTable {
   id: Generated<string>;
   printing_id: string;
-  face: string;
+  face: CardFace;
   source: string;
   original_url: string | null;
   rehosted_url: string | null;

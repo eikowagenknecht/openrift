@@ -1,7 +1,6 @@
 export type {
   Activity,
   ActivityAction,
-  ActivityItem,
   ActivityType,
   AdminPrintingImage,
   Card,
@@ -20,8 +19,6 @@ export type {
   ContentSet,
   Copy,
   Deck,
-  DeckCard,
-  DeckFormat,
   DeckZone,
   Domain,
   ArtVariant,
