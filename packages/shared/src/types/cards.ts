@@ -1,0 +1,67 @@
+import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
+
+export interface CardStats {
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+}
+
+export interface Card {
+  id: string;
+  slug: string;
+  name: string;
+  type: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+  stats: CardStats;
+  keywords: string[];
+  tags: string[];
+  mightBonus: number | null;
+  description: string;
+  effect: string;
+}
+
+export interface PrintingImage {
+  face: CardFace;
+  url: string;
+}
+
+export interface Printing {
+  id: string;
+  slug: string;
+  sourceId: string;
+  set: string;
+  collectorNumber: number;
+  rarity: Rarity;
+  artVariant: ArtVariant;
+  isSigned: boolean;
+  isPromo: boolean;
+  finish: Finish;
+  images: PrintingImage[];
+  artist: string;
+  publicCode: string;
+  printedDescription?: string;
+  printedEffect?: string;
+  flavorText?: string;
+  marketPrice?: number;
+  card: Card;
+}
+
+export function getOrientation(type: CardType): "portrait" | "landscape" {
+  return type === "Battlefield" ? "landscape" : "portrait";
+}
+
+export interface ContentSet {
+  id: string;
+  slug: string;
+  name: string;
+  printedTotal: number;
+  printings: Printing[];
+}
+
+export interface RiftboundContent {
+  game: string;
+  version: string;
+  lastUpdated: string;
+  sets: ContentSet[];
+}

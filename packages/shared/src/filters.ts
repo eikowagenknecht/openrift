@@ -10,7 +10,7 @@ import type {
   SearchField,
   SortOption,
   SuperType,
-} from "./types.js";
+} from "./types/index.js";
 import {
   ALL_SEARCH_FIELDS,
   ART_VARIANT_ORDER,
@@ -18,7 +18,7 @@ import {
   FINISH_ORDER,
   RARITY_ORDER,
   SEARCH_PREFIX_MAP,
-} from "./types.js";
+} from "./types/index.js";
 import { boundsOf, unique } from "./utils.js";
 
 export interface ParsedSearchTerm {
