@@ -28,7 +28,7 @@ export function useUpdateSet() {
       name: string;
       printedTotal: number;
       releasedAt: string | null;
-    }) => api.put<{ ok: boolean }>("/api/admin/sets", body),
+    }) => api.patch<{ ok: boolean }>(`/api/admin/sets/${body.id}`, body),
     invalidates: [queryKeys.admin.sets],
   });
 }

@@ -25,7 +25,7 @@ export function useCardmarketGroups() {
 export function useUpdateCardmarketGroup() {
   return useMutationWithInvalidation({
     mutationFn: (body: { expansionId: number; name: string | null }) =>
-      api.put<{ ok: boolean }>("/api/admin/cardmarket-groups", body),
+      api.patch<{ ok: boolean }>(`/api/admin/cardmarket-groups/${body.expansionId}`, body),
     invalidates: [queryKeys.admin.cardmarketGroups],
   });
 }

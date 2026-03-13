@@ -161,14 +161,14 @@ catalogRoute.get("/admin/sets", async (c) => {
 });
 
 const updateSetSchema = z.object({
-  id: z.string(),
   name: z.string().min(1),
   printedTotal: z.number().int().min(0),
   releasedAt: z.string().nullable(),
 });
 
-catalogRoute.put("/admin/sets", async (c) => {
-  const { id, name, printedTotal, releasedAt } = updateSetSchema.parse(await c.req.json());
+catalogRoute.patch("/admin/sets/:id", async (c) => {
+  const id = c.req.param("id");
+  const { name, printedTotal, releasedAt } = updateSetSchema.parse(await c.req.json());
 
   await db
     .updateTable("sets")
