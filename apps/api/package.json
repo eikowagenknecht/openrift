@@ -3,14 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./rpc": {
+      "types": "./dist/rpc-types.d.ts",
+      "default": "./src/rpc-types.ts"
+    }
+  },
   "scripts": {
     "test": "bun --env-file=../../.env test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
-    "test:integration": "bun --env-file=../../.env test $(find src -name '*.integration.test.ts')",
+    "test:integration": "find src -name '*.integration.test.ts' -exec bun --env-file=../../.env test {} \\;",
     "dev": "bun --env-file=../../.env --watch src/index.ts",
     "start": "bun --env-file=../../.env src/index.ts",
     "build": "tsc"
   },
   "dependencies": {
+    "@hono/zod-validator": "0.5.0",
     "@openrift/shared": "workspace:*",
     "better-auth": "1.5.5",
     "croner": "10.0.1",

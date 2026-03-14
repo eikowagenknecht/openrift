@@ -11,55 +11,51 @@ import { cardSourcesRoute } from "../card-sources.js";
 import { catalogRoute } from "./catalog.js";
 import { featureFlagsRoute } from "./feature-flags.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
-import { cardmarketConfig, tcgplayerConfig } from "./marketplace-configs.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
-import { createMappingRoutes } from "./marketplace-mapping.js";
+import { cardmarketMappingsRoute, tcgplayerMappingsRoute } from "./marketplace-mapping.js";
 import { operationsRoute } from "./operations.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 
-export const adminRoute = new Hono<{ Variables: Variables }>();
+export const adminRoute = new Hono<{ Variables: Variables }>()
 
-// ── GET /admin/cron-status ──────────────────────────────────────────────────
+  // ── GET /admin/cron-status ────────────────────────────────────────────────
 
-adminRoute.use("/admin/cron-status", requireAdmin);
-adminRoute.get("/admin/cron-status", (c) =>
-  c.json({
-    tcgplayer: cronJobs.tcgplayer
-      ? { nextRun: cronJobs.tcgplayer.nextRun()?.toISOString() ?? null }
-      : null,
-    cardmarket: cronJobs.cardmarket
-      ? { nextRun: cronJobs.cardmarket.nextRun()?.toISOString() ?? null }
-      : null,
-  }),
-);
+  .use("/admin/cron-status", requireAdmin)
+  .get("/admin/cron-status", (c) =>
+    c.json({
+      tcgplayer: cronJobs.tcgplayer
+        ? { nextRun: cronJobs.tcgplayer.nextRun()?.toISOString() ?? null }
+        : null,
+      cardmarket: cronJobs.cardmarket
+        ? { nextRun: cronJobs.cardmarket.nextRun()?.toISOString() ?? null }
+        : null,
+    }),
+  )
 
-// ── GET /admin/me — any authenticated user ───────────────────────────────────
+  // ── GET /admin/me — any authenticated user ────────────────────────────────
 
-adminRoute.get("/admin/me", async (c) => {
-  const user = c.get("user");
-  if (!user) {
-    return c.json({ isAdmin: false });
-  }
+  .get("/admin/me", async (c) => {
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ isAdmin: false });
+    }
 
-  return c.json({ isAdmin: await isAdmin(user.id) });
-});
+    return c.json({ isAdmin: await isAdmin(user.id) });
+  })
 
-// ── Register marketplace mapping routes ─────────────────────────────────────
+  // ── Mount sub-routes ──────────────────────────────────────────────────────
 
-createMappingRoutes(adminRoute, "/admin/tcgplayer-mappings", tcgplayerConfig);
-createMappingRoutes(adminRoute, "/admin/cardmarket-mappings", cardmarketConfig);
+  .route("/", tcgplayerMappingsRoute)
+  .route("/", cardmarketMappingsRoute)
+  .route("/", featureFlagsRoute)
+  .route("/", ignoredProductsRoute)
+  .route("/", catalogRoute)
+  .route("/", operationsRoute)
+  .route("/", marketplaceGroupsRoute)
+  .route("/", unifiedMappingsRoute)
 
-// ── Mount sub-routes ────────────────────────────────────────────────────────
+  // ── Card source routes ────────────────────────────────────────────────────
 
-adminRoute.route("/", featureFlagsRoute);
-adminRoute.route("/", ignoredProductsRoute);
-adminRoute.route("/", catalogRoute);
-adminRoute.route("/", operationsRoute);
-adminRoute.route("/", marketplaceGroupsRoute);
-adminRoute.route("/", unifiedMappingsRoute);
-
-// ── Card source routes ──────────────────────────────────────────────────────
-
-adminRoute.use("/admin/card-sources/*", requireAdmin);
-adminRoute.use("/admin/card-sources", requireAdmin);
-adminRoute.route("/admin", cardSourcesRoute);
+  .use("/admin/card-sources/*", requireAdmin)
+  .use("/admin/card-sources", requireAdmin)
+  .route("/admin", cardSourcesRoute);

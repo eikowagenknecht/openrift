@@ -11,15 +11,13 @@ import { buildShoppingList } from "../services/shopping-list.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
-export const shoppingListRoute = new Hono<{ Variables: Variables }>();
-
-shoppingListRoute.use("/shopping-list", requireAuth);
-
 // ── GET /shopping-list ────────────────────────────────────────────────────────
 // Unified "still needed" view: wanted deck shortfalls + wish list items
 
-shoppingListRoute.get("/shopping-list", async (c) => {
-  const userId = getUserId(c);
-  const items = await buildShoppingList(db, userId);
-  return c.json({ items });
-});
+export const shoppingListRoute = new Hono<{ Variables: Variables }>()
+  .use("/shopping-list", requireAuth)
+  .get("/shopping-list", async (c) => {
+    const userId = getUserId(c);
+    const items = await buildShoppingList(db, userId);
+    return c.json({ items });
+  });

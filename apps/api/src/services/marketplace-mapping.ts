@@ -30,6 +30,7 @@ interface PrintingRow {
 
 interface CardGroup {
   cardId: string;
+  cardSlug: string;
   cardName: string;
   cardType: string;
   superTypes: string[];
@@ -51,6 +52,7 @@ interface CardIndex {
 function buildCardIndex(
   matchedCards: {
     card_id: string;
+    card_slug: string;
     card_name: string;
     card_type: string;
     super_types: unknown;
@@ -80,6 +82,7 @@ function buildCardIndex(
     if (!group) {
       group = {
         cardId: row.card_id,
+        cardSlug: row.card_slug,
         cardName: row.card_name,
         cardType: row.card_type,
         superTypes: row.super_types as string[],
@@ -312,6 +315,7 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
     )
     .select([
       "c.id as card_id",
+      "c.slug as card_slug",
       "c.name as card_name",
       "c.type as card_type",
       "c.super_types",
@@ -457,7 +461,6 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
       finish: p.finish,
       collectorNumber: p.collectorNumber,
       isSigned: p.isSigned,
-      isPromo: p.isPromo,
       externalId: p.externalId,
     })),
   }));

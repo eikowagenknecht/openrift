@@ -1,5 +1,5 @@
 import type { Database } from "@openrift/shared/db";
-import { buildPrintingId } from "@openrift/shared/utils";
+import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
 interface IngestCard {
@@ -125,14 +125,14 @@ function getChangedFields(
 /**
  * Ingest card data from a named source into card_sources / printing_sources.
  *
- * card_id is never set at ingest time — matching is done dynamically in the
- * admin UI. Existing card_id values (from prior admin linking) are preserved.
+ * Card matching is done dynamically via card name / card_name_aliases — there
+ * is no stored card_id on card_sources.
  *
- * For each card:
- * 1. Find existing card_sources row by (source, source_id) or (source, name)
- * 2. If found and changed: update fields, reset checked_at. Unchanged: skip.
- * 3. If not found: insert new row with card_id = null.
- * 4. Same for printing_sources.
+ * The entire import runs in a single transaction so that a failure in any card
+ * rolls back the whole batch (all-or-nothing).
+ *
+ * Performance: bulk-fetches all existing data before the loop so the hot path
+ * only does writes (~5 bulk SELECTs up front instead of ~7 queries per card).
  *
  * @returns Counts of new, updated, unchanged cards and any errors.
  */
@@ -148,82 +148,107 @@ export async function ingestCardSources(
   let newCards = 0;
   let updates = 0;
   let unchanged = 0;
-  const errors: string[] = [];
   const updatedCards: UpdatedCardDetail[] = [];
 
-  for (const card of cards) {
-    try {
-      // oxlint-disable-next-line no-loop-func -- sequential per-card transactions that share counters
-      await db.transaction().execute(async (trx) => {
-        // Find existing card_source row: by (source, source_id) if available,
-        // otherwise by (source, name) for entries without source_id
-        const existingCardSource = card.source_id
-          ? await trx
-              .selectFrom("card_sources")
-              .selectAll()
-              .where("source", "=", source)
-              .where("source_id", "=", card.source_id)
-              .executeTakeFirst()
-          : await trx
-              .selectFrom("card_sources")
-              .selectAll()
-              .where("source", "=", source)
-              .where("name", "=", card.name)
-              .where("source_id", "is", null)
-              .executeTakeFirst();
+  await db.transaction().execute(async (trx) => {
+    // ── Phase 1: Bulk-fetch all existing data ──────────────────────────────
 
-        let cardSourceId: string;
+    // 1a. All existing card_sources for this source (keyed by source_id or name)
+    const existingCSRows = await trx
+      .selectFrom("card_sources")
+      .selectAll()
+      .where("source", "=", source)
+      .execute();
 
-        if (existingCardSource) {
-          // Compare fields to see if anything changed
-          const changedFields = getChangedFields(
-            existingCardSource as unknown as Record<string, unknown>,
-            card as unknown as Record<string, unknown>,
-            CARD_FIELDS,
-          );
+    // Index by (source_id) and by (name where source_id is null)
+    const csBySid = new Map<string, (typeof existingCSRows)[number]>();
+    const csByName = new Map<string, (typeof existingCSRows)[number]>();
+    for (const row of existingCSRows) {
+      if (row.source_id) {
+        csBySid.set(row.source_id, row);
+      } else {
+        csByName.set(row.name, row);
+      }
+    }
 
-          if (changedFields.length > 0) {
-            updatedCards.push({
-              name: card.name,
-              sourceId: card.source_id ?? null,
-              fields: changedFields,
-            });
-            await trx
-              .updateTable("card_sources")
-              .set({
-                // card_id is NOT set here — preserve existing value
-                name: card.name,
-                type: card.type,
-                super_types: card.super_types,
-                domains: card.domains,
-                might: card.might,
-                energy: card.energy,
-                power: card.power,
-                might_bonus: card.might_bonus,
-                rules_text: card.rules_text,
-                effect_text: card.effect_text,
-                tags: card.tags,
-                ...(card.source_id !== undefined && { source_id: card.source_id ?? null }),
-                ...(card.source_entity_id !== undefined && {
-                  source_entity_id: card.source_entity_id ?? null,
-                }),
-                ...(card.extra_data !== undefined && { extra_data: jsonOrNull(card.extra_data) }),
-                checked_at: null,
-                updated_at: new Date(),
-              })
-              .where("id", "=", existingCardSource.id)
-              .execute();
-            updates++;
-          } else {
-            unchanged++;
-          }
-          cardSourceId = existingCardSource.id;
-        } else {
-          // Insert new card_source — card_id starts as null
-          const [inserted] = await trx
-            .insertInto("card_sources")
-            .values({
-              source,
+    // 1b. All cards (for norm_name → id resolution)
+    const allCards = await trx.selectFrom("cards").select(["id", "norm_name"]).execute();
+    const cardByNorm = new Map<string, string>();
+    for (const c of allCards) {
+      cardByNorm.set(c.norm_name, c.id);
+    }
+
+    // 1c. All card_name_aliases (for norm_name → card_id fallback)
+    const allAliases = await trx
+      .selectFrom("card_name_aliases")
+      .select(["norm_name", "card_id"])
+      .execute();
+    const aliasByNorm = new Map<string, string>();
+    for (const a of allAliases) {
+      aliasByNorm.set(a.norm_name, a.card_id);
+    }
+
+    // 1d. All printings (for slug → id resolution)
+    const allPrintings = await trx.selectFrom("printings").select(["id", "slug"]).execute();
+    const printingBySlug = new Map<string, string>();
+    for (const p of allPrintings) {
+      printingBySlug.set(p.slug, p.id);
+    }
+
+    // 1e. All existing printing_sources for card_sources owned by this source.
+    // We need the card_source_ids first, so collect from the existing rows.
+    const existingCSIds = new Set(existingCSRows.map((r) => r.id));
+    let existingPSRows: Awaited<
+      ReturnType<
+        ReturnType<ReturnType<typeof trx.selectFrom<"printing_sources">>["selectAll"]>["execute"]
+      >
+    > = [];
+    if (existingCSIds.size > 0) {
+      existingPSRows = await trx
+        .selectFrom("printing_sources")
+        .selectAll()
+        .where("card_source_id", "in", [...existingCSIds])
+        .execute();
+    }
+
+    // Index printing_sources two ways:
+    // - by (card_source_id, printing_id) for rows with a printing_id
+    // - by (card_source_id, source_id, finish) for rows without
+    const psByPrintingId = new Map<string, (typeof existingPSRows)[number]>();
+    const psBySourceFinish = new Map<string, (typeof existingPSRows)[number]>();
+    for (const ps of existingPSRows) {
+      if (ps.printing_id) {
+        psByPrintingId.set(`${ps.card_source_id}:${ps.printing_id}`, ps);
+      }
+      psBySourceFinish.set(`${ps.card_source_id}:${ps.source_id}:${ps.finish}`, ps);
+    }
+
+    // ── Phase 2: Process each card (writes only) ───────────────────────────
+
+    for (const card of cards) {
+      // Look up existing card_source from pre-fetched data
+      const existingCardSource = card.source_id
+        ? csBySid.get(card.source_id)
+        : csByName.get(card.name);
+
+      let cardSourceId: string;
+
+      if (existingCardSource) {
+        const changedFields = getChangedFields(
+          existingCardSource as unknown as Record<string, unknown>,
+          card as unknown as Record<string, unknown>,
+          CARD_FIELDS,
+        );
+
+        if (changedFields.length > 0) {
+          updatedCards.push({
+            name: card.name,
+            sourceId: card.source_id ?? null,
+            fields: changedFields,
+          });
+          await trx
+            .updateTable("card_sources")
+            .set({
               name: card.name,
               type: card.type,
               super_types: card.super_types,
@@ -240,121 +265,122 @@ export async function ingestCardSources(
                 source_entity_id: card.source_entity_id ?? null,
               }),
               ...(card.extra_data !== undefined && { extra_data: jsonOrNull(card.extra_data) }),
+              checked_at: null,
+              updated_at: new Date(),
             })
-            .returning("id")
+            .where("id", "=", existingCardSource.id)
             .execute();
-          cardSourceId = inserted.id;
-          newCards++;
+          updates++;
+        } else {
+          unchanged++;
         }
-
-        // Process printings
-        // Use existing card_id (from prior admin linking) for printing_id resolution
-        const effectiveCardId = existingCardSource?.card_id ?? null;
-
-        for (const p of card.printings) {
-          const printingId = effectiveCardId
-            ? buildPrintingId(
-                p.source_id,
-                p.art_variant || "normal",
-                p.is_signed,
-                p.is_promo,
-                p.finish,
-              )
-            : null;
-
-          // Check if the printing actually exists
-          let resolvedPrintingId: string | null = null;
-          if (printingId) {
-            const exists = await trx
-              .selectFrom("printings")
-              .select("id")
-              .where("slug", "=", printingId)
-              .executeTakeFirst();
-            resolvedPrintingId = exists ? exists.id : null;
-          }
-
-          // Find existing printing_source
-          const existingPS = resolvedPrintingId
-            ? await trx
-                .selectFrom("printing_sources")
-                .selectAll()
-                .where("card_source_id", "=", cardSourceId)
-                .where("printing_id", "=", resolvedPrintingId)
-                .executeTakeFirst()
-            : await trx
-                .selectFrom("printing_sources")
-                .selectAll()
-                .where("card_source_id", "=", cardSourceId)
-                .where("source_id", "=", p.source_id)
-                .where("finish", "=", p.finish)
-                .executeTakeFirst();
-
-          const printingFields = {
-            source_id: p.source_id,
-            set_id: p.set_id,
-            set_name: p.set_name ?? null,
-            collector_number: p.collector_number,
-            rarity: p.rarity,
-            art_variant: p.art_variant,
-            is_signed: p.is_signed,
-            is_promo: p.is_promo,
-            finish: p.finish,
-            artist: p.artist,
-            public_code: p.public_code,
-            printed_rules_text: p.printed_rules_text,
-            printed_effect_text: p.printed_effect_text,
-            image_url: p.image_url ?? null,
-            flavor_text: p.flavor_text ?? "",
-            ...(p.source_entity_id !== undefined && {
-              source_entity_id: p.source_entity_id ?? null,
+        cardSourceId = existingCardSource.id;
+      } else {
+        const [inserted] = await trx
+          .insertInto("card_sources")
+          .values({
+            source,
+            name: card.name,
+            type: card.type,
+            super_types: card.super_types,
+            domains: card.domains,
+            might: card.might,
+            energy: card.energy,
+            power: card.power,
+            might_bonus: card.might_bonus,
+            rules_text: card.rules_text,
+            effect_text: card.effect_text,
+            tags: card.tags,
+            ...(card.source_id !== undefined && { source_id: card.source_id ?? null }),
+            ...(card.source_entity_id !== undefined && {
+              source_entity_id: card.source_entity_id ?? null,
             }),
-            extra_data: jsonOrNull(p.extra_data),
-          };
+            ...(card.extra_data !== undefined && { extra_data: jsonOrNull(card.extra_data) }),
+          })
+          .returning("id")
+          .execute();
+        cardSourceId = inserted.id;
+        newCards++;
+      }
 
-          if (existingPS) {
-            const pChangedFields = getChangedFields(
-              existingPS as unknown as Record<string, unknown>,
-              printingFields as unknown as Record<string, unknown>,
-              Object.keys(printingFields),
-            );
+      // Resolve card by norm_name from pre-fetched maps
+      const normName = normalizeNameForMatching(card.name);
+      const effectiveCardId = cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null;
 
-            if (pChangedFields.length > 0) {
-              await trx
-                .updateTable("printing_sources")
-                .set({
-                  ...printingFields,
-                  // Preserve manually-assigned printing_id; only auto-assign if unset
-                  ...(!existingPS.printing_id && resolvedPrintingId
-                    ? { printing_id: resolvedPrintingId }
-                    : {}),
-                  checked_at: null,
-                  updated_at: new Date(),
-                })
-                .where("id", "=", existingPS.id)
-                .execute();
-            } else if (resolvedPrintingId && !existingPS.printing_id) {
-              await trx
-                .updateTable("printing_sources")
-                .set({ printing_id: resolvedPrintingId, updated_at: new Date() })
-                .where("id", "=", existingPS.id)
-                .execute();
-            }
-          } else {
+      for (const p of card.printings) {
+        const printingSlug = effectiveCardId
+          ? buildPrintingId(p.source_id, p.rarity, p.is_promo, p.finish)
+          : null;
+        const resolvedPrintingId = printingSlug ? (printingBySlug.get(printingSlug) ?? null) : null;
+
+        // Look up existing printing_source from pre-fetched maps
+        const existingPS = resolvedPrintingId
+          ? psByPrintingId.get(`${cardSourceId}:${resolvedPrintingId}`)
+          : psBySourceFinish.get(`${cardSourceId}:${p.source_id}:${p.finish}`);
+
+        const printingFields = {
+          source_id: p.source_id,
+          set_id: p.set_id,
+          set_name: p.set_name ?? null,
+          collector_number: p.collector_number,
+          rarity: p.rarity,
+          art_variant: p.art_variant,
+          is_signed: p.is_signed,
+          is_promo: p.is_promo,
+          finish: p.finish,
+          artist: p.artist,
+          public_code: p.public_code,
+          printed_rules_text: p.printed_rules_text,
+          printed_effect_text: p.printed_effect_text,
+          image_url: p.image_url ?? null,
+          flavor_text: p.flavor_text ?? null,
+          ...(p.source_entity_id !== undefined && {
+            source_entity_id: p.source_entity_id ?? null,
+          }),
+          extra_data: jsonOrNull(p.extra_data),
+        };
+
+        if (existingPS) {
+          const pChangedFields = getChangedFields(
+            existingPS as unknown as Record<string, unknown>,
+            printingFields as unknown as Record<string, unknown>,
+            Object.keys(printingFields),
+          );
+
+          if (pChangedFields.length > 0) {
             await trx
-              .insertInto("printing_sources")
-              .values({
-                card_source_id: cardSourceId,
-                printing_id: resolvedPrintingId,
+              .updateTable("printing_sources")
+              .set({
                 ...printingFields,
+                // Preserve manually-assigned printing_id; only auto-assign if unset
+                ...(!existingPS.printing_id && resolvedPrintingId
+                  ? { printing_id: resolvedPrintingId }
+                  : {}),
+                checked_at: null,
+                updated_at: new Date(),
               })
+              .where("id", "=", existingPS.id)
+              .execute();
+          } else if (resolvedPrintingId && !existingPS.printing_id) {
+            await trx
+              .updateTable("printing_sources")
+              .set({ printing_id: resolvedPrintingId, updated_at: new Date() })
+              .where("id", "=", existingPS.id)
               .execute();
           }
+        } else {
+          await trx
+            .insertInto("printing_sources")
+            .values({
+              card_source_id: cardSourceId,
+              printing_id: resolvedPrintingId,
+              ...printingFields,
+            })
+            .execute();
         }
-      });
-    } catch (error) {
-      errors.push(`${card.name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
-  }
+  });
 
-  return { newCards, updates, unchanged, errors, updatedCards };
+  return { newCards, updates, unchanged, errors: [], updatedCards };
 }

@@ -1,3 +1,4 @@
+import { zValidator } from "@hono/zod-validator";
 import { createLogger } from "@openrift/shared/logger";
 import {
   refreshCardmarketPrices,
@@ -22,124 +23,131 @@ import {
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 
-export const operationsRoute = new Hono<{ Variables: Variables }>();
-
 const log = createLogger("admin");
 
-// ── Clear price data ─────────────────────────────────────────────────────────
+// ── Schemas ─────────────────────────────────────────────────────────────────
 
 const clearPriceSourceSchema = z.enum(["tcgplayer", "cardmarket"]);
 
-operationsRoute.use("/admin/clear-prices", requireAdmin);
-operationsRoute.post("/admin/clear-prices", async (c) => {
-  const body = await c.req.json();
-  const source = clearPriceSourceSchema.parse(body.source);
+const clearPricesSchema = z.object({
+  source: clearPriceSourceSchema,
+});
 
-  try {
-    // Delete snapshots for this marketplace (via source_id join)
-    const snapshots = await db
-      .deleteFrom("marketplace_snapshots")
-      .where(
-        "source_id",
-        "in",
-        db.selectFrom("marketplace_sources").select("id").where("marketplace", "=", source),
-      )
-      .execute();
+// ── Route ───────────────────────────────────────────────────────────────────
 
-    const sources = await db
-      .deleteFrom("marketplace_sources")
-      .where("marketplace", "=", source)
-      .execute();
+export const operationsRoute = new Hono<{ Variables: Variables }>()
 
-    const staging = await db
-      .deleteFrom("marketplace_staging")
-      .where("marketplace", "=", source)
-      .execute();
+  // ── Clear price data ─────────────────────────────────────────────────────────
 
-    return c.json({
-      status: "ok",
-      result: {
-        source,
-        deleted: {
-          snapshots: Number(snapshots[0].numDeletedRows),
-          sources: Number(sources[0].numDeletedRows),
-          staging: Number(staging[0].numDeletedRows),
+  .use("/admin/clear-prices", requireAdmin)
+  .post("/admin/clear-prices", zValidator("json", clearPricesSchema), async (c) => {
+    const { source } = c.req.valid("json");
+
+    try {
+      // Delete snapshots for this marketplace (via source_id join)
+      const snapshots = await db
+        .deleteFrom("marketplace_snapshots")
+        .where(
+          "source_id",
+          "in",
+          db.selectFrom("marketplace_sources").select("id").where("marketplace", "=", source),
+        )
+        .execute();
+
+      const sources = await db
+        .deleteFrom("marketplace_sources")
+        .where("marketplace", "=", source)
+        .execute();
+
+      const staging = await db
+        .deleteFrom("marketplace_staging")
+        .where("marketplace", "=", source)
+        .execute();
+
+      return c.json({
+        status: "ok",
+        result: {
+          source,
+          deleted: {
+            snapshots: Number(snapshots[0].numDeletedRows),
+            sources: Number(sources[0].numDeletedRows),
+            staging: Number(staging[0].numDeletedRows),
+          },
         },
-      },
-    });
-  } catch (error) {
-    log.error(error, `clear-prices (${source}) failed`);
-    throw new AppError(500, "INTERNAL_ERROR", `Failed to clear ${source} price data`);
-  }
-});
+      });
+    } catch (error) {
+      log.error(error, `clear-prices (${source}) failed`);
+      throw new AppError(500, "INTERNAL_ERROR", `Failed to clear ${source} price data`);
+    }
+  })
 
-// ── Manual refresh endpoints ────────────────────────────────────────────────
+  // ── Manual refresh endpoints ────────────────────────────────────────────────
 
-operationsRoute.use("/admin/refresh-tcgplayer-prices", requireAdmin);
-operationsRoute.post("/admin/refresh-tcgplayer-prices", async (c) => {
-  try {
-    const result = await refreshTcgplayerPrices(db, log.child({ service: "tcgplayer" }));
-    return c.json({ status: "ok", result });
-  } catch (error) {
-    log.error(error, "refresh-tcgplayer-prices failed");
-    throw new AppError(500, "INTERNAL_ERROR", "TCGPlayer price refresh failed");
-  }
-});
+  .use("/admin/refresh-tcgplayer-prices", requireAdmin)
+  .post("/admin/refresh-tcgplayer-prices", async (c) => {
+    try {
+      const result = await refreshTcgplayerPrices(db, log.child({ service: "tcgplayer" }));
+      return c.json({ status: "ok", result });
+    } catch (error) {
+      log.error(error, "refresh-tcgplayer-prices failed");
+      throw new AppError(500, "INTERNAL_ERROR", "TCGPlayer price refresh failed");
+    }
+  })
 
-operationsRoute.use("/admin/refresh-cardmarket-prices", requireAdmin);
-operationsRoute.post("/admin/refresh-cardmarket-prices", async (c) => {
-  try {
-    const result = await refreshCardmarketPrices(db, log.child({ service: "cardmarket" }));
-    return c.json({ status: "ok", result });
-  } catch (error) {
-    log.error(error, "refresh-cardmarket-prices failed");
-    throw new AppError(500, "INTERNAL_ERROR", "Cardmarket price refresh failed");
-  }
-});
+  .use("/admin/refresh-cardmarket-prices", requireAdmin)
+  .post("/admin/refresh-cardmarket-prices", async (c) => {
+    try {
+      const result = await refreshCardmarketPrices(db, log.child({ service: "cardmarket" }));
+      return c.json({ status: "ok", result });
+    } catch (error) {
+      log.error(error, "refresh-cardmarket-prices failed");
+      throw new AppError(500, "INTERNAL_ERROR", "Cardmarket price refresh failed");
+    }
+  })
 
-// ── Image rehosting ─────────────────────────────────────────────────────────
+  // ── Image rehosting ─────────────────────────────────────────────────────────
 
-operationsRoute.use("/admin/rehost-images", requireAdmin);
-operationsRoute.post("/admin/rehost-images", async (c) => {
-  try {
-    const result = await rehostImages(db);
-    return c.json({ status: "ok", result });
-  } catch (error) {
-    log.error(error, "rehost-images failed");
-    throw new AppError(500, "INTERNAL_ERROR", "Image rehosting failed");
-  }
-});
+  .use("/admin/rehost-images", requireAdmin)
+  .post("/admin/rehost-images", async (c) => {
+    try {
+      const result = await rehostImages(db);
+      return c.json({ status: "ok", result });
+    } catch (error) {
+      log.error(error, "rehost-images failed");
+      throw new AppError(500, "INTERNAL_ERROR", "Image rehosting failed");
+    }
+  })
 
-operationsRoute.use("/admin/regenerate-images", requireAdmin);
-operationsRoute.post("/admin/regenerate-images", async (c) => {
-  const offset = Number(c.req.query("offset") ?? 0);
-  try {
-    const result = await regenerateImages(offset);
-    return c.json({ status: "ok", result });
-  } catch (error) {
-    log.error(error, "regenerate-images failed");
-    throw new AppError(500, "INTERNAL_ERROR", "Image regeneration failed");
-  }
-});
+  .use("/admin/regenerate-images", requireAdmin)
+  .post("/admin/regenerate-images", async (c) => {
+    const offset = Number(c.req.query("offset") ?? 0);
+    try {
+      const result = await regenerateImages(offset);
+      return c.json({ status: "ok", result });
+    } catch (error) {
+      log.error(error, "regenerate-images failed");
+      throw new AppError(500, "INTERNAL_ERROR", "Image regeneration failed");
+    }
+  })
 
-operationsRoute.use("/admin/clear-rehosted", requireAdmin);
-operationsRoute.post("/admin/clear-rehosted", async (c) => {
-  try {
-    const result = await clearAllRehosted(db);
-    return c.json({ status: "ok", result });
-  } catch (error) {
-    log.error(error, "clear-rehosted failed");
-    throw new AppError(500, "INTERNAL_ERROR", "Failed to clear rehosted images");
-  }
-});
+  .use("/admin/clear-rehosted", requireAdmin)
+  .post("/admin/clear-rehosted", async (c) => {
+    try {
+      const result = await clearAllRehosted(db);
+      return c.json({ status: "ok", result });
+    } catch (error) {
+      log.error(error, "clear-rehosted failed");
+      throw new AppError(500, "INTERNAL_ERROR", "Failed to clear rehosted images");
+    }
+  })
 
-operationsRoute.use("/admin/rehost-status", requireAdmin);
-operationsRoute.get("/admin/rehost-status", async (c) => {
-  try {
-    const result = await getRehostStatus(db);
-    return c.json(result);
-  } catch (error) {
-    log.error(error, "rehost-status failed");
-    throw new AppError(500, "INTERNAL_ERROR", "Failed to get rehost status");
-  }
-});
+  .use("/admin/rehost-status", requireAdmin)
+  .get("/admin/rehost-status", async (c) => {
+    try {
+      const result = await getRehostStatus(db);
+      return c.json(result);
+    } catch (error) {
+      log.error(error, "rehost-status failed");
+      throw new AppError(500, "INTERNAL_ERROR", "Failed to get rehost status");
+    }
+  });

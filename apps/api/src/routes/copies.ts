@@ -1,3 +1,4 @@
+import { zValidator } from "@hono/zod-validator";
 import { addCopiesSchema, disposeCopiesSchema, moveCopiesSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
@@ -15,127 +16,131 @@ import { requireAuth } from "../middleware/require-auth.js";
 import { addCopies, disposeCopies, moveCopies } from "../services/copies.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+import { toCopy } from "../utils/dto.js";
 
-export const copiesRoute = new Hono<{ Variables: Variables }>();
+export const copiesRoute = new Hono<{ Variables: Variables }>()
+  .use("/copies/*", requireAuth)
+  .use("/copies", requireAuth)
 
-copiesRoute.use("/copies/*", requireAuth);
-copiesRoute.use("/copies", requireAuth);
+  // ── GET /copies ─────────────────────────────────────────────────────────────
+  // All copies for the authenticated user (combined view)
 
-// ── GET /copies ───────────────────────────────────────────────────────────────
-// All copies for the authenticated user (combined view)
+  .get("/copies", async (c) => {
+    const userId = getUserId(c);
 
-copiesRoute.get("/copies", async (c) => {
-  const userId = getUserId(c);
+    const copies = await selectCopyWithCard(db)
+      .select([
+        "cp.id",
+        "cp.printing_id",
+        "cp.collection_id",
+        "cp.source_id",
+        "cp.created_at",
+        "cp.updated_at",
+        "p.card_id",
+        "p.set_id",
+        "p.collector_number",
+        "p.rarity",
+        "p.art_variant",
+        "p.is_signed",
+        "p.finish",
+        imageUrl("pi").as("image_url"),
+        "p.artist",
+        "c.name as card_name",
+        "c.type as card_type",
+      ])
+      .where("cp.user_id", "=", userId)
+      .orderBy("c.name")
+      .orderBy("p.collector_number")
+      .execute();
 
-  const copies = await selectCopyWithCard(db)
-    .select([
-      "cp.id",
-      "cp.printing_id",
-      "cp.collection_id",
-      "cp.source_id",
-      "cp.created_at",
-      "cp.updated_at",
-      "p.card_id",
-      "p.set_id",
-      "p.collector_number",
-      "p.rarity",
-      "p.art_variant",
-      "p.is_signed",
-      "p.is_promo",
-      "p.finish",
-      imageUrl("pi").as("image_url"),
-      "p.artist",
-      "c.name as card_name",
-      "c.type as card_type",
-    ])
-    .where("cp.user_id", "=", userId)
-    .orderBy("c.name")
-    .orderBy("p.collector_number")
-    .execute();
+    return c.json(copies.map((row) => toCopy(row)));
+  })
 
-  return c.json(copies);
-});
+  // ── POST /copies ────────────────────────────────────────────────────────────
+  // Batch add copies (acquisition)
 
-// ── POST /copies ──────────────────────────────────────────────────────────────
-// Batch add copies (acquisition)
+  .post("/copies", zValidator("json", addCopiesSchema), async (c) => {
+    const userId = getUserId(c);
+    const body = c.req.valid("json");
+    const result = await addCopies(db, userId, body.copies);
+    return c.json(result, 201);
+  })
 
-copiesRoute.post("/copies", async (c) => {
-  const userId = getUserId(c);
-  const body = addCopiesSchema.parse(await c.req.json());
-  const result = await addCopies(db, userId, body.copies);
-  return c.json(result, 201);
-});
+  // ── POST /copies/move ───────────────────────────────────────────────────────
+  // Move copies between collections (reorganization)
 
-// ── POST /copies/move ─────────────────────────────────────────────────────────
-// Move copies between collections (reorganization)
+  .post("/copies/move", zValidator("json", moveCopiesSchema), async (c) => {
+    const userId = getUserId(c);
+    const body = c.req.valid("json");
+    await moveCopies(db, userId, body.copyIds, body.toCollectionId);
+    return c.json({ ok: true });
+  })
 
-copiesRoute.post("/copies/move", async (c) => {
-  const userId = getUserId(c);
-  const body = moveCopiesSchema.parse(await c.req.json());
-  await moveCopies(db, userId, body.copyIds, body.toCollectionId);
-  return c.json({ ok: true });
-});
+  // ── POST /copies/dispose ────────────────────────────────────────────────────
+  // Dispose copies (disposal) — hard-deletes with metadata snapshot
 
-// ── POST /copies/dispose ──────────────────────────────────────────────────────
-// Dispose copies (disposal) — hard-deletes with metadata snapshot
+  .post("/copies/dispose", zValidator("json", disposeCopiesSchema), async (c) => {
+    const userId = getUserId(c);
+    const body = c.req.valid("json");
+    await disposeCopies(db, userId, body.copyIds);
+    return c.json({ ok: true });
+  })
 
-copiesRoute.post("/copies/dispose", async (c) => {
-  const userId = getUserId(c);
-  const body = disposeCopiesSchema.parse(await c.req.json());
-  await disposeCopies(db, userId, body.copyIds);
-  return c.json({ ok: true });
-});
+  // ── GET /copies/count ───────────────────────────────────────────────────────
+  // Returns owned count per printing for the authenticated user
 
-// ── GET /copies/count ─────────────────────────────────────────────────────────
-// Returns owned count per printing for the authenticated user
+  .get("/copies/count", async (c) => {
+    const userId = getUserId(c);
 
-copiesRoute.get("/copies/count", async (c) => {
-  const userId = getUserId(c);
+    const rows = await db
+      .selectFrom("copies")
+      .select(["printing_id", db.fn.count<number>("id").as("count")])
+      .where("user_id", "=", userId)
+      .groupBy("printing_id")
+      .execute();
 
-  const rows = await db
-    .selectFrom("copies")
-    .select(["printing_id", db.fn.count<number>("id").as("count")])
-    .where("user_id", "=", userId)
-    .groupBy("printing_id")
-    .execute();
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.printing_id] = Number(row.count);
+    }
 
-  const counts: Record<string, number> = {};
-  for (const row of rows) {
-    counts[row.printing_id] = Number(row.count);
-  }
+    return c.json(counts);
+  })
 
-  return c.json(counts);
-});
+  // ── GET /copies/:id ─────────────────────────────────────────────────────────
 
-// ── GET /copies/:id ───────────────────────────────────────────────────────────
+  .get("/copies/:id", async (c) => {
+    const userId = getUserId(c);
+    const id = c.req.param("id");
 
-copiesRoute.get("/copies/:id", async (c) => {
-  const userId = getUserId(c);
-  const id = c.req.param("id");
+    const copy = await selectCopyWithCard(db)
+      .select([
+        "cp.id",
+        "cp.printing_id",
+        "cp.collection_id",
+        "cp.source_id",
+        "cp.created_at",
+        "cp.updated_at",
+        "p.card_id",
+        "p.set_id",
+        "p.collector_number",
+        "p.rarity",
+        "p.art_variant",
+        "p.is_signed",
+        "p.finish",
+        imageUrl("pi").as("image_url"),
+        "p.artist",
+        "c.name as card_name",
+        "c.type as card_type",
+      ])
+      .where("cp.id", "=", id)
+      .where("cp.user_id", "=", userId)
+      .executeTakeFirst();
 
-  const copy = await selectCopyWithCard(db)
-    .select([
-      "cp.id",
-      "cp.printing_id",
-      "cp.collection_id",
-      "cp.source_id",
-      "cp.created_at",
-      "cp.updated_at",
-      "p.card_id",
-      "p.set_id",
-      "p.collector_number",
-      "p.rarity",
-      imageUrl("pi").as("image_url"),
-      "c.name as card_name",
-      "c.type as card_type",
-    ])
-    .where("cp.id", "=", id)
-    .where("cp.user_id", "=", userId)
-    .executeTakeFirst();
+    if (!copy) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
 
-  if (!copy) {
-    throw new AppError(404, "NOT_FOUND", "Not found");
-  }
-
-  return c.json(copy);
-});
+    return c.json(toCopy(copy));
+  });

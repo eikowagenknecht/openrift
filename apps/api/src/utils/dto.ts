@@ -37,3 +37,7 @@ export const toTradeListItem = (row: object): TradeListItem => rowToDto<TradeLis
 export const toWishList = (row: object): WishList => rowToDto<WishList>(row, TIMESTAMPS);
 
 export const toWishListItem = (row: object): WishListItem => rowToDto<WishListItem>(row);
+
+/** Converts a denormalized copy row (with joined card/printing fields) to camelCase.
+ * @returns The copy DTO with camelCase keys and formatted timestamps. */
+export const toCopy = (row: object): Record<string, unknown> => rowToDto(row, TIMESTAMPS);
