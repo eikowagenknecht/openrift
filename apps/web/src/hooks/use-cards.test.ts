@@ -11,7 +11,7 @@ import { useCards, ApiError } from "./use-cards";
 function stubPrinting(overrides: Partial<Printing> = {}): Printing {
   return {
     id: "00000000-0000-0000-0000-000000000001",
-    slug: "RB1-001:normal:::normal",
+    slug: "RB1-001:common:normal:",
     sourceId: "RB1-001",
     set: "RB1",
     collectorNumber: 1,
@@ -42,9 +42,6 @@ function stubPrinting(overrides: Partial<Printing> = {}): Printing {
 }
 
 const CARDS_RESPONSE: RiftboundContent = {
-  game: "Riftbound",
-  version: "2",
-  lastUpdated: "2025-01-01",
   sets: [
     {
       id: "00000000-0000-0000-0000-000000000010",
@@ -54,13 +51,13 @@ const CARDS_RESPONSE: RiftboundContent = {
       printings: [
         stubPrinting({
           id: "00000000-0000-0000-0000-000000000011",
-          slug: "RB1-001:normal:::normal",
+          slug: "RB1-001:common:normal:",
           sourceId: "RB1-001",
           card: { ...stubPrinting().card, name: "Card A" },
         }),
         stubPrinting({
           id: "00000000-0000-0000-0000-000000000012",
-          slug: "RB1-002:normal:::normal",
+          slug: "RB1-002:common:normal",
           sourceId: "RB1-002",
           card: { ...stubPrinting().card, name: "Card B" },
         }),
@@ -70,8 +67,6 @@ const CARDS_RESPONSE: RiftboundContent = {
 };
 
 const PRICES_RESPONSE: PricesData = {
-  source: "test",
-  fetchedAt: "2025-01-01",
   prices: {
     "00000000-0000-0000-0000-000000000011": 1,
   },

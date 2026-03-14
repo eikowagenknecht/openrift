@@ -32,9 +32,11 @@ mock.module("../db.js", () => ({
         leftJoin: () => chain,
         distinctOn: () => chain,
         where: () => chain,
+        or: () => chain,
         orderBy: () => chain,
         limit: () => chain,
         execute: () => data,
+        executeTakeFirst: () => data[0] ?? undefined,
       };
       return chain;
     },
@@ -56,8 +58,8 @@ const dbSet = { id: "OGS", slug: "OGS", name: "Original Set", printed_total: 100
 
 // Joined row from printings + cards
 const dbJoinedRow = {
-  printing_id: "OGS-001:normal:::normal",
-  printing_slug: "OGS-001:normal:::normal",
+  printing_id: "OGS-001:rare:normal:",
+  printing_slug: "OGS-001:rare:normal:",
   card_id: "OGS-001",
   card_slug: "OGS-001",
   set_id: "OGS",
@@ -89,13 +91,13 @@ const dbJoinedRow = {
 };
 
 const dbPrice = {
-  printing_id: "OGS-001:normal:::normal",
+  printing_id: "OGS-001:rare:normal:",
   market_cents: 275,
   recorded_at: new Date("2026-03-01"),
 };
 
 const dbPriceFoil = {
-  printing_id: "OGS-001:normal:::foil",
+  printing_id: "OGS-001:rare:foil:",
   market_cents: 800,
   recorded_at: new Date("2026-03-01"),
 };
@@ -114,8 +116,6 @@ describe("GET /api/cards", () => {
     expect(res.status).toBe(200);
 
     const json = await res.json();
-    expect(json.game).toBe("Riftbound");
-    expect(json.version).toBe("2.0.0");
     expect(json.sets).toHaveLength(1);
   });
 
@@ -124,12 +124,13 @@ describe("GET /api/cards", () => {
     const json = await res.json();
     const printing = json.sets[0].printings[0];
 
-    expect(printing.id).toBe("OGS-001:normal:::normal");
+    expect(printing.id).toBe("OGS-001:rare:normal:");
     expect(printing.sourceId).toBe("OGS-001");
     expect(printing.collectorNumber).toBe(1);
     expect(printing.publicCode).toBe("ABCD");
     expect(printing.artVariant).toBe("normal");
     expect(printing.isSigned).toBe(false);
+    expect(printing.isPromo).toBe(false);
     expect(printing.finish).toBe("normal");
     expect(printing.artist).toBe("Alice");
 
@@ -176,8 +177,8 @@ describe("GET /api/cards", () => {
     const secondSet = { id: "S2", slug: "S2", name: "Set Two", printed_total: 50 };
     const secondRow = {
       ...dbJoinedRow,
-      printing_id: "S2-001:normal:::normal",
-      printing_slug: "S2-001:normal:::normal",
+      printing_id: "S2-001:rare:normal",
+      printing_slug: "S2-001:rare:normal",
       card_id: "S2-001",
       card_slug: "S2-001",
       source_id: "S2-001",
@@ -233,7 +234,6 @@ describe("GET /api/prices", () => {
     expect(res.status).toBe(200);
 
     const json = await res.json();
-    expect(json.source).toBe("tcgplayer");
     expect(json.prices).toBeDefined();
   });
 
@@ -241,15 +241,15 @@ describe("GET /api/prices", () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
 
-    expect(json.prices["OGS-001:normal:::normal"]).toBe(2.75);
+    expect(json.prices["OGS-001:rare:normal:"]).toBe(2.75);
   });
 
   it("returns one entry per printing", async () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
 
-    expect(json.prices["OGS-001:normal:::normal"]).toBe(2.75);
-    expect(json.prices["OGS-001:normal:::foil"]).toBe(8);
+    expect(json.prices["OGS-001:rare:normal:"]).toBe(2.75);
+    expect(json.prices["OGS-001:rare:foil:"]).toBe(8);
   });
 
   it("returns empty prices when no rows exist", async () => {
@@ -258,7 +258,149 @@ describe("GET /api/prices", () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
 
-    expect(json.source).toBe("tcgplayer");
     expect(json.prices).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/prices/:printingId/history
+// ---------------------------------------------------------------------------
+
+const dbPrinting = {
+  id: "OGS-001:rare:normal",
+  slug: "OGS-001:rare:normal",
+};
+
+const dbMarketplaceSource = {
+  id: "ms-tcg-1",
+  external_id: 12_345,
+  marketplace: "tcgplayer",
+  printing_id: "OGS-001:rare:normal",
+};
+
+const dbMarketplaceSourceCM = {
+  id: "ms-cm-1",
+  external_id: 67_890,
+  marketplace: "cardmarket",
+  printing_id: "OGS-001:rare:normal",
+};
+
+const dbSnapshot = {
+  id: "snap-1",
+  source_id: "ms-tcg-1",
+  recorded_at: new Date("2026-03-01"),
+  market_cents: 275,
+  low_cents: 200,
+  mid_cents: 250,
+  high_cents: 400,
+  trend_cents: null,
+  avg1_cents: null,
+  avg7_cents: null,
+  avg30_cents: null,
+};
+
+describe("GET /api/prices/:printingId/history", () => {
+  beforeEach(() => {
+    mockState.tables = {
+      printings: [dbPrinting],
+      marketplace_sources: [dbMarketplaceSource, dbMarketplaceSourceCM],
+      marketplace_snapshots: [dbSnapshot],
+    };
+  });
+
+  it("returns 200 with PriceHistoryResponse structure", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.printingId).toBe("OGS-001:rare:normal");
+    expect(json.tcgplayer).toBeDefined();
+    expect(json.cardmarket).toBeDefined();
+  });
+
+  it("returns tcgplayer data with correct currency", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const json = await res.json();
+
+    expect(json.tcgplayer.available).toBe(true);
+    expect(json.tcgplayer.currency).toBe("USD");
+    expect(json.tcgplayer.productId).toBe(12_345);
+  });
+
+  it("returns cardmarket data with correct currency", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const json = await res.json();
+
+    expect(json.cardmarket.available).toBe(true);
+    expect(json.cardmarket.currency).toBe("EUR");
+    expect(json.cardmarket.productId).toBe(67_890);
+  });
+
+  it("converts snapshot cents to dollars", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const json = await res.json();
+
+    // The mock returns all snapshots for both tcg and cm (mock doesn't filter)
+    expect(json.tcgplayer.snapshots).toHaveLength(1);
+    expect(json.tcgplayer.snapshots[0].market).toBe(2.75);
+    expect(json.tcgplayer.snapshots[0].low).toBe(2);
+    expect(json.tcgplayer.snapshots[0].mid).toBe(2.5);
+    expect(json.tcgplayer.snapshots[0].high).toBe(4);
+  });
+
+  it("handles null cents values", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const json = await res.json();
+
+    // Snapshot has null trend/avg fields — cardmarket mapper uses these
+    expect(json.cardmarket.snapshots[0].trend).toBeNull();
+    expect(json.cardmarket.snapshots[0].avg1).toBeNull();
+  });
+
+  it("formats snapshot date as YYYY-MM-DD", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const json = await res.json();
+
+    expect(json.tcgplayer.snapshots[0].date).toBe("2026-03-01");
+  });
+
+  it("returns unavailable sources for non-existent printing", async () => {
+    mockState.tables = { printings: [] };
+
+    const res = await app.request("/api/prices/nonexistent/history");
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.printingId).toBe("nonexistent");
+    expect(json.tcgplayer.available).toBe(false);
+    expect(json.tcgplayer.snapshots).toEqual([]);
+    expect(json.cardmarket.available).toBe(false);
+    expect(json.cardmarket.snapshots).toEqual([]);
+  });
+
+  it("returns unavailable when no marketplace sources exist", async () => {
+    mockState.tables = {
+      printings: [dbPrinting],
+      marketplace_sources: [],
+      marketplace_snapshots: [],
+    };
+
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const json = await res.json();
+
+    expect(json.tcgplayer.available).toBe(false);
+    expect(json.tcgplayer.productId).toBeNull();
+    expect(json.cardmarket.available).toBe(false);
+    expect(json.cardmarket.productId).toBeNull();
+  });
+
+  it("accepts range query parameter", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history?range=7d");
+    expect(res.status).toBe(200);
+  });
+
+  it("defaults to 30d range for invalid range parameter", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history?range=invalid");
+    expect(res.status).toBe(200);
   });
 });

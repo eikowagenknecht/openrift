@@ -54,7 +54,7 @@ const rows = {
     rarity: "Rare",
     art_variant: "normal",
     is_signed: false,
-    is_promo: false,
+
     finish: "normal",
     image_url: null,
     artist: null,

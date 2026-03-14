@@ -211,6 +211,15 @@ describe("useCardFilters", () => {
     expect(mockSetFilterState).toHaveBeenCalledWith({ signed: null });
   });
 
+  it("clearSigned resets signed to null", () => {
+    mockFilterState = { ...defaultFilterState(), signed: "false" };
+    const { result } = renderHook(() => useCardFilters());
+
+    act(() => result.current.clearSigned());
+
+    expect(mockSetFilterState).toHaveBeenCalledWith({ signed: null });
+  });
+
   it("togglePromo cycles null → 'true' → 'false' → null", () => {
     const { result } = renderHook(() => useCardFilters());
 
@@ -228,15 +237,6 @@ describe("useCardFilters", () => {
     const { result: r3 } = renderHook(() => useCardFilters());
     act(() => r3.current.togglePromo());
     expect(mockSetFilterState).toHaveBeenCalledWith({ promo: null });
-  });
-
-  it("clearSigned resets signed to null", () => {
-    mockFilterState = { ...defaultFilterState(), signed: "false" };
-    const { result } = renderHook(() => useCardFilters());
-
-    act(() => result.current.clearSigned());
-
-    expect(mockSetFilterState).toHaveBeenCalledWith({ signed: null });
   });
 
   it("clearPromo resets promo to null", () => {
