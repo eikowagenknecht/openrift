@@ -193,7 +193,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       .execute(db);
   }
 
-  // Recreate indexes
+  // Recreate indexes (unique constraints as indexes — the up() path uses indexes)
   await sql`CREATE INDEX idx_printings_card_id ON printings (card_id)`.execute(db);
   await sql`CREATE INDEX idx_printings_set_id ON printings (set_id)`.execute(db);
   await sql`CREATE INDEX idx_copies_user_printing ON copies (user_id, printing_id)`.execute(db);
@@ -275,8 +275,12 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   for (const { table, constraint } of [...PRINTING_FKS, ...CARD_FKS, ...SET_FKS]) {
     await sql.raw(`ALTER TABLE ${table} DROP CONSTRAINT ${constraint}`).execute(db);
   }
+  // up() creates uq_deck_cards, uq_wish_list_items_card, uq_wish_list_items_printing
+  // as unique indexes, and marketplace_sources_marketplace_printing_id_key as a constraint
   for (const { table, constraint } of AFFECTED_UNIQUE_CONSTRAINTS) {
-    await sql.raw(`ALTER TABLE ${table} DROP CONSTRAINT ${constraint}`).execute(db);
+    await (constraint === "marketplace_sources_marketplace_printing_id_key"
+      ? sql.raw(`ALTER TABLE ${table} DROP CONSTRAINT ${constraint}`).execute(db)
+      : sql.raw(`DROP INDEX ${constraint}`).execute(db));
   }
   for (const idx of AFFECTED_INDEXES) {
     await sql.raw(`DROP INDEX ${idx}`).execute(db);
@@ -341,15 +345,18 @@ export async function down(db: Kysely<unknown>): Promise<void> {
       .execute(db);
   }
 
-  // Recreate indexes
+  // Recreate indexes and unique constraints (as constraints, not indexes,
+  // to match the pre-024 state so up() can DROP CONSTRAINT on re-run)
   await sql`CREATE INDEX idx_printings_card_id ON printings (card_id)`.execute(db);
   await sql`CREATE INDEX idx_printings_set_id ON printings (set_id)`.execute(db);
   await sql`CREATE INDEX idx_copies_user_printing ON copies (user_id, printing_id)`.execute(db);
-  await sql`CREATE UNIQUE INDEX uq_deck_cards ON deck_cards (deck_id, card_id, zone)`.execute(db);
-  await sql`CREATE UNIQUE INDEX uq_wish_list_items_card ON wish_list_items (wish_list_id, card_id)`.execute(
+  await sql`ALTER TABLE deck_cards ADD CONSTRAINT uq_deck_cards UNIQUE (deck_id, card_id, zone)`.execute(
     db,
   );
-  await sql`CREATE UNIQUE INDEX uq_wish_list_items_printing ON wish_list_items (wish_list_id, printing_id)`.execute(
+  await sql`ALTER TABLE wish_list_items ADD CONSTRAINT uq_wish_list_items_card UNIQUE (wish_list_id, card_id)`.execute(
+    db,
+  );
+  await sql`ALTER TABLE wish_list_items ADD CONSTRAINT uq_wish_list_items_printing UNIQUE (wish_list_id, printing_id)`.execute(
     db,
   );
   await sql`ALTER TABLE marketplace_sources ADD CONSTRAINT marketplace_sources_marketplace_printing_id_key UNIQUE (marketplace, printing_id)`.execute(

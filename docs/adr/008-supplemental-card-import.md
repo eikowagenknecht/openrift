@@ -82,7 +82,6 @@ interface CandidateCard {
     rarity: Rarity;
     art_variant: string;
     is_signed: boolean;
-    is_promo: boolean;
     finish: string;
     artist: string;
     public_code: string;
@@ -145,7 +144,6 @@ CREATE TABLE candidate_printings (
   rarity               text NOT NULL,
   art_variant          text NOT NULL,
   is_signed            boolean NOT NULL DEFAULT false,
-  is_promo             boolean NOT NULL DEFAULT false,
   finish               text NOT NULL,
   artist               text NOT NULL,
   public_code          text NOT NULL,

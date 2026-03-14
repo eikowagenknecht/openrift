@@ -36,8 +36,8 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
   // Seed slugs (human-readable) — UUIDs are auto-generated
   const setSlug = "INT";
   const cardSlug = "INT-001";
-  const printingSlug = "INT-001:normal:::normal";
-  const printingSlug2 = "INT-001:normal:::foil";
+  const printingSlug = "INT-001:common:normal";
+  const printingSlug2 = "INT-001:common:foil";
 
   // UUIDs populated by beforeAll after INSERT ... RETURNING
   let setId: string;

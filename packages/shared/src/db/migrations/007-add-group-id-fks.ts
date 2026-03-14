@@ -115,18 +115,22 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .alterTable("cardmarket_staging")
     .dropConstraint("fk_cardmarket_staging_expansion")
+    .ifExists()
     .execute();
   await db.schema
     .alterTable("cardmarket_sources")
     .dropConstraint("fk_cardmarket_sources_expansion")
+    .ifExists()
     .execute();
   await db.schema
     .alterTable("tcgplayer_staging")
     .dropConstraint("fk_tcgplayer_staging_group")
+    .ifExists()
     .execute();
   await db.schema
     .alterTable("tcgplayer_sources")
     .dropConstraint("fk_tcgplayer_sources_group")
+    .ifExists()
     .execute();
 
   await db.schema.alterTable("tcgplayer_sources").addColumn("url", "text").execute();

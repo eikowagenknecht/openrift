@@ -46,17 +46,19 @@ export type {
 export {
   ALL_SEARCH_FIELDS,
   ART_VARIANT_ORDER,
+  CARD_TYPE_ORDER,
   DEFAULT_SEARCH_SCOPE,
   DOMAIN_ORDER,
   FINISH_ORDER,
   RARITY_ORDER,
   SEARCH_PREFIX_MAP,
+  SUPER_TYPE_ORDER,
   getOrientation,
 } from "./types/index.js";
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
 
-export { comparePrintings, normalizeNameForMatching } from "./utils.js";
+export { buildPrintingId, comparePrintings, normalizeNameForMatching } from "./utils.js";
 
 export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";

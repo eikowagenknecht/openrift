@@ -39,6 +39,7 @@ export interface CardsTable {
   id: Generated<string>;
   slug: string;
   name: string;
+  norm_name: Generated<string>;
   type: CardType;
   super_types: Unchecked<SuperType>[];
   domains: Unchecked<Domain>[];
@@ -57,7 +58,7 @@ export interface CardsTable {
 /**
  * Physical printing of a game card.
  *
- * The `slug` is a composite key: "{source_id}:{art_variant}:{signed|}:{promo|}:{finish}".
+ * The `slug` is a composite key: "{source_id}:{rarity (lowercase)}:{finish}:{promo|}".
  */
 export interface PrintingsTable {
   id: Generated<string>;
@@ -74,8 +75,9 @@ export interface PrintingsTable {
   artist: string;
   public_code: string;
   printed_rules_text: string;
-  printed_effect_text: string;
-  flavor_text: string;
+  printed_effect_text: string | null;
+  flavor_text: string | null;
+  comment: string | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -333,9 +335,9 @@ export interface TradeListItemsTable {
 
 export interface CardSourcesTable {
   id: Generated<string>;
-  card_id: string | null;
   source: string;
   name: string;
+  norm_name: Generated<string>;
   type: string;
   super_types: Unchecked<SuperType>[];
   domains: Unchecked<Domain>[];
@@ -370,9 +372,9 @@ export interface PrintingSourcesTable {
   artist: string | null;
   public_code: string;
   printed_rules_text: string | null;
-  printed_effect_text: string;
+  printed_effect_text: string | null;
   image_url: string | null;
-  flavor_text: string;
+  flavor_text: string | null;
   source_entity_id: string | null;
   extra_data: unknown | null;
   checked_at: Date | null;
@@ -393,7 +395,7 @@ export interface PrintingImagesTable {
 }
 
 export interface CardNameAliasesTable {
-  alias: string;
+  norm_name: string;
   card_id: string;
 }
 

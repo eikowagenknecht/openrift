@@ -2,7 +2,6 @@ import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType 
 
 export interface CardSource {
   id: string;
-  cardId: string | null;
   source: string;
   name: string;
   type: CardType;
@@ -39,9 +38,9 @@ export interface PrintingSource {
   artist: string;
   publicCode: string;
   printedRulesText: string;
-  printedEffectText: string;
+  printedEffectText: string | null;
   imageUrl: string | null;
-  flavorText: string;
+  flavorText: string | null;
   sourceEntityId: string | null;
   extraData: unknown | null;
   checkedAt: string | null;
@@ -68,6 +67,7 @@ export interface CardSourceSummary {
   normalizedName: string;
   sourceIds: string[];
   pendingSourceIds: string[];
+  candidateSourceIds: string[];
   sourceCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
