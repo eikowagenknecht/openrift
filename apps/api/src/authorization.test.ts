@@ -6,9 +6,10 @@ import { mock, describe, expect, it, beforeEach } from "bun:test";
 //
 // Strategy: We mock the auth module so that user-a is always the authenticated
 // user. Resources in the DB belong to user-b. The test verifies that user-a
-// cannot access user-b's data through any route. Routes using the CRUD factory
-// hit the real DB (which correctly returns 404 because user-a has no rows).
+// cannot access user-b's data through any route.
 // Custom route handlers use the mocked db which simulates user_id filtering.
+// CRUD factory routes are tested in authorization.integration.test.ts (they
+// bypass the db mock and need a real database).
 // ---------------------------------------------------------------------------
 
 // Valid UUIDs (RFC 4122 v4 format) — required because some routes hit the
@@ -345,56 +346,6 @@ describe("Authorization: user isolation", () => {
     mockState.whereCalls = [];
   });
 
-  // ── CRUD factory ─────────────────────────────────────────────────────────────
-  // These hit the real DB (crud-factory's db import isn't intercepted by the mock)
-  // but still return 404 because user-a doesn't exist in the real DB.
-
-  describe("CRUD factory — getOne", () => {
-    it("GET /collections/:id returns 404 for another user's collection", async () => {
-      await expectStatus("GET", `/collections/${COL_ID}`, 404);
-    });
-
-    it("GET /sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("GET", `/sources/${SRC_ID}`, 404);
-    });
-  });
-
-  describe("CRUD factory — update", () => {
-    it("PATCH /collections/:id returns 404 for another user's collection", async () => {
-      await expectStatus("PATCH", `/collections/${COL_ID}`, 404, { name: "Hijacked" });
-    });
-
-    it("PATCH /decks/:id returns 404 for another user's deck", async () => {
-      await expectStatus("PATCH", `/decks/${DECK_ID}`, 404, { name: "Hijacked" });
-    });
-
-    it("PATCH /sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("PATCH", `/sources/${SRC_ID}`, 404, { name: "Hijacked" });
-    });
-  });
-
-  describe("CRUD factory — delete", () => {
-    it("DELETE /sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("DELETE", `/sources/${SRC_ID}`, 404);
-    });
-  });
-
-  describe("CRUD factory — list only returns own resources", () => {
-    it("GET /sources returns empty array (user-a has no sources)", async () => {
-      const res = await app.fetch(req("GET", "/sources"));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json).toEqual([]);
-    });
-
-    it("GET /decks returns empty array (user-a has no decks)", async () => {
-      const res = await app.fetch(req("GET", "/decks"));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json).toEqual([]);
-    });
-  });
-
   // ── Collections (custom handlers — uses mock db) ─────────────────────────────
 
   describe("Collections — custom handlers", () => {
@@ -487,25 +438,6 @@ describe("Authorization: user isolation", () => {
     });
   });
 
-  // ── Wish Lists (CRUD factory — hits real DB) ─────────────────────────────────
-
-  describe("Wish Lists — CRUD factory", () => {
-    it("PATCH /wish-lists/:id returns 404 for another user's wish list", async () => {
-      await expectStatus("PATCH", `/wish-lists/${WL_ID}`, 404, { name: "Hijacked" });
-    });
-
-    it("DELETE /wish-lists/:id returns 404 for another user's wish list", async () => {
-      await expectStatus("DELETE", `/wish-lists/${WL_ID}`, 404);
-    });
-
-    it("GET /wish-lists returns empty array (user-a has no wish lists)", async () => {
-      const res = await app.fetch(req("GET", "/wish-lists"));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json).toEqual([]);
-    });
-  });
-
   // ── Trade Lists (custom handlers — uses mock db) ─────────────────────────────
 
   describe("Trade Lists — custom handlers", () => {
@@ -519,25 +451,6 @@ describe("Authorization: user isolation", () => {
 
     it("DELETE /trade-lists/:id/items/:itemId returns 404 for another user's item", async () => {
       await expectStatus("DELETE", `/trade-lists/${TL_ID}/items/${TLI_ID}`, 404);
-    });
-  });
-
-  // ── Trade Lists (CRUD factory — hits real DB) ────────────────────────────────
-
-  describe("Trade Lists — CRUD factory", () => {
-    it("PATCH /trade-lists/:id returns 404 for another user's trade list", async () => {
-      await expectStatus("PATCH", `/trade-lists/${TL_ID}`, 404, { name: "Hijacked" });
-    });
-
-    it("DELETE /trade-lists/:id returns 404 for another user's trade list", async () => {
-      await expectStatus("DELETE", `/trade-lists/${TL_ID}`, 404);
-    });
-
-    it("GET /trade-lists returns empty array (user-a has no trade lists)", async () => {
-      const res = await app.fetch(req("GET", "/trade-lists"));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json).toEqual([]);
     });
   });
 
