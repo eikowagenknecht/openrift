@@ -30,6 +30,7 @@ import * as m024 from "./024-surrogate-keys.js";
 import * as m025 from "./025-printing-source-entity-id.js";
 import * as m026 from "./026-printing-schema-updates.js";
 import * as m027 from "./027-card-name-matching.js";
+import * as m028 from "./028-nullable-text-fields.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -59,4 +60,5 @@ export const migrations: Record<string, Migration> = {
   "025-printing-source-entity-id": m025,
   "026-printing-schema-updates": m026,
   "027-card-name-matching": m027,
+  "028-nullable-text-fields": m028,
 };

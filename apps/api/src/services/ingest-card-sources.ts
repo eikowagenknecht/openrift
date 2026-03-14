@@ -11,8 +11,8 @@ interface IngestCard {
   energy: number | null;
   power: number | null;
   might_bonus: number | null;
-  rules_text: string;
-  effect_text: string;
+  rules_text: string | null;
+  effect_text: string | null;
   tags: string[];
   source_id?: string | null;
   source_entity_id?: string | null;
@@ -32,8 +32,8 @@ interface IngestPrinting {
   finish: string;
   artist: string;
   public_code: string;
-  printed_rules_text: string;
-  printed_effect_text: string;
+  printed_rules_text: string | null;
+  printed_effect_text: string | null;
   image_url?: string | null;
   flavor_text?: string;
   source_entity_id?: string | null;

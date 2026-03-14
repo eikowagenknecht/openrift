@@ -11,8 +11,8 @@ export interface CardSource {
   energy: number | null;
   power: number | null;
   mightBonus: number | null;
-  rulesText: string;
-  effectText: string;
+  rulesText: string | null;
+  effectText: string | null;
   tags: string[];
   sourceId: string | null;
   sourceEntityId: string | null;
@@ -37,7 +37,7 @@ export interface PrintingSource {
   finish: Finish;
   artist: string;
   publicCode: string;
-  printedRulesText: string;
+  printedRulesText: string | null;
   printedEffectText: string | null;
   imageUrl: string | null;
   flavorText: string | null;

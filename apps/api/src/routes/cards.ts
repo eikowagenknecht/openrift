@@ -139,9 +139,10 @@ export const cardsRoute = new Hono()
         images,
         artist: row.artist,
         publicCode: row.public_code,
-        ...(row.printed_rules_text !== row.rules_text && {
-          printedDescription: row.printed_rules_text,
-        }),
+        ...(row.printed_rules_text !== null &&
+          row.printed_rules_text !== row.rules_text && {
+            printedDescription: row.printed_rules_text,
+          }),
         ...(row.printed_effect_text !== null &&
           row.printed_effect_text !== row.effect_text && {
             printedEffect: row.printed_effect_text,

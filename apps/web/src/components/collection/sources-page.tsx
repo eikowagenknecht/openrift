@@ -37,7 +37,6 @@ export function SourcesPage() {
           setIsCreating(false);
           toast.success("Source created");
         },
-        onError: (err) => toast.error(err.message),
       },
     );
   };
@@ -55,7 +54,6 @@ export function SourcesPage() {
           setEditingId(null);
           toast.success("Source renamed");
         },
-        onError: (err) => toast.error(err.message),
       },
     );
   };
@@ -69,7 +67,6 @@ export function SourcesPage() {
         setDeleteId(null);
         toast.success("Source deleted");
       },
-      onError: (err) => toast.error(err.message),
     });
   };
 

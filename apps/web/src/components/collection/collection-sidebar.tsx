@@ -59,7 +59,6 @@ export function CollectionSidebar() {
           setIsCreating(false);
           toast.success("Collection created");
         },
-        onError: (err) => toast.error(err.message),
       },
     );
   };
