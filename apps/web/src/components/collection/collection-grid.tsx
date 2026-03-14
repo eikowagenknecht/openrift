@@ -123,7 +123,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           setSelected(new Set());
           setMoveOpen(false);
         },
-        onError: (err) => toast.error(err.message),
       },
     );
   };
@@ -137,7 +136,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           setSelected(new Set());
           setDisposeOpen(false);
         },
-        onError: (err) => toast.error(err.message),
       },
     );
   };

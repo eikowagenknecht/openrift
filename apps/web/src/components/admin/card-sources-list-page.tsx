@@ -70,7 +70,7 @@ export function CardSourcesListPage() {
           value={source ?? ""}
           onValueChange={(v) => setSource(!v || v === "__all__" ? undefined : v)}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger size="sm" className="w-48">
             <SelectValue placeholder="All sources" />
           </SelectTrigger>
           <SelectContent>

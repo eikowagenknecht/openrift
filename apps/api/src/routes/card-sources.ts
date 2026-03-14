@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { zValidator } from "@hono/zod-validator";
 import type { Database } from "@openrift/shared/db";
 import { extractKeywords } from "@openrift/shared/keywords";
-import type { CardType, Finish, Rarity } from "@openrift/shared/types";
+import type { Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
 import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
@@ -140,20 +140,7 @@ async function insertPrintingImage(
  */
 async function acceptNewCardFromSources(
   trx: Transaction<Database>,
-  cardFields: {
-    id: string;
-    name: string;
-    type: CardType;
-    superTypes: string[];
-    domains: string[];
-    might: number | null;
-    energy: number | null;
-    power: number | null;
-    mightBonus: number | null;
-    rulesText: string | null;
-    effectText: string | null;
-    tags: string[];
-  },
+  cardFields: z.infer<typeof acceptNewCardSchema>["cardFields"],
   normalizedName: string,
 ): Promise<void> {
   const keywords = [
@@ -167,16 +154,16 @@ async function acceptNewCardFromSources(
       slug: cardFields.id,
       name: cardFields.name,
       type: cardFields.type,
-      super_types: cardFields.superTypes,
+      super_types: cardFields.superTypes ?? [],
       domains: cardFields.domains,
-      might: cardFields.might,
-      energy: cardFields.energy,
-      power: cardFields.power,
-      might_bonus: cardFields.mightBonus,
+      might: cardFields.might ?? null,
+      energy: cardFields.energy ?? null,
+      power: cardFields.power ?? null,
+      might_bonus: cardFields.mightBonus ?? null,
       keywords,
-      rules_text: cardFields.rulesText,
-      effect_text: cardFields.effectText,
-      tags: cardFields.tags,
+      rules_text: cardFields.rulesText ?? null,
+      effect_text: cardFields.effectText ?? null,
+      tags: cardFields.tags ?? [],
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -246,15 +233,15 @@ const acceptNewCardSchema = z.object({
     id: z.string(),
     name: z.string(),
     type: z.enum(["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"]),
-    superTypes: z.array(z.string()),
-    domains: z.array(z.string()),
-    might: z.number().nullable(),
-    energy: z.number().nullable(),
-    power: z.number().nullable(),
-    mightBonus: z.number().nullable(),
-    rulesText: z.string().nullable(),
-    effectText: z.string().nullable(),
-    tags: z.array(z.string()),
+    superTypes: z.array(z.string()).optional(),
+    domains: z.array(z.string()).min(1),
+    might: z.number().optional(),
+    energy: z.number().optional(),
+    power: z.number().optional(),
+    mightBonus: z.number().optional(),
+    rulesText: z.string().min(1).optional(),
+    effectText: z.string().min(1).optional(),
+    tags: z.array(z.string()).optional(),
   }),
 });
 
@@ -732,8 +719,8 @@ export const cardSourcesRoute = new Hono<{ Variables: Variables }>()
         energy: card.energy,
         power: card.power,
         might_bonus: card.might_bonus,
-        rules_text: card.rules_text ?? "",
-        effect_text: card.effect_text ?? "",
+        rules_text: card.rules_text ?? null,
+        effect_text: card.effect_text ?? null,
         tags: card.tags,
         source_id: card.slug,
         source_entity_id: card.id,
@@ -895,7 +882,7 @@ export const cardSourcesRoute = new Hono<{ Variables: Variables }>()
         mightBonus: s.might_bonus,
         keywords: [
           ...extractKeywords(s.rules_text ?? ""),
-          ...extractKeywords(s.effect_text),
+          ...extractKeywords(s.effect_text ?? ""),
         ].filter((v, i, a) => a.indexOf(v) === i),
         rulesText: s.rules_text,
         effectText: s.effect_text,
@@ -1011,7 +998,7 @@ export const cardSourcesRoute = new Hono<{ Variables: Variables }>()
         mightBonus: s.might_bonus,
         keywords: [
           ...extractKeywords(s.rules_text ?? ""),
-          ...extractKeywords(s.effect_text),
+          ...extractKeywords(s.effect_text ?? ""),
         ].filter((v, i, a) => a.indexOf(v) === i),
         rulesText: s.rules_text,
         effectText: s.effect_text,
@@ -1579,7 +1566,7 @@ export const cardSourcesRoute = new Hono<{ Variables: Variables }>()
             finish: printingFields.finish ?? ("normal" satisfies Finish),
             artist: printingFields.artist ?? "",
             public_code: printingFields.publicCode ?? "",
-            printed_rules_text: printingFields.printedRulesText ?? "",
+            printed_rules_text: printingFields.printedRulesText ?? null,
             printed_effect_text: printingFields.printedEffectText ?? null,
             flavor_text: printingFields.flavorText ?? null,
           })
@@ -1697,7 +1684,7 @@ export const cardSourcesRoute = new Hono<{ Variables: Variables }>()
           finish: ps.finish,
           artist: ps.artist ?? "",
           public_code: ps.public_code,
-          printed_rules_text: ps.printed_rules_text ?? "",
+          printed_rules_text: ps.printed_rules_text ?? null,
           printed_effect_text: ps.printed_effect_text,
           flavor_text: ps.flavor_text,
         })
@@ -2088,8 +2075,8 @@ export const cardSourcesRoute = new Hono<{ Variables: Variables }>()
         energy: candidate.card.energy as number | null,
         power: candidate.card.power as number | null,
         might_bonus: (candidate.card.might_bonus as number | null) ?? null,
-        rules_text: candidate.card.rules_text as string,
-        effect_text: (candidate.card.effect_text as string) ?? "",
+        rules_text: (candidate.card.rules_text as string | null) ?? null,
+        effect_text: (candidate.card.effect_text as string | null) ?? null,
         tags: (candidate.card.tags as string[]) ?? [],
         source_id: (candidate.card.source_id as string) ?? null,
         source_entity_id: (candidate.card.source_entity_id as string) ?? null,

@@ -74,7 +74,7 @@ export interface PrintingsTable {
   finish: string;
   artist: string;
   public_code: string;
-  printed_rules_text: string;
+  printed_rules_text: string | null;
   printed_effect_text: string | null;
   flavor_text: string | null;
   comment: string | null;
@@ -346,7 +346,7 @@ export interface CardSourcesTable {
   power: number | null;
   might_bonus: number | null;
   rules_text: string | null;
-  effect_text: string;
+  effect_text: string | null;
   tags: Unchecked<string>[];
   source_id: string | null;
   source_entity_id: string | null;

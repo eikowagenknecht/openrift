@@ -42,7 +42,6 @@ export function AddCardPopover({
           toast.success(`Added ${quantity}× ${printing.card.name}`);
           onDone();
         },
-        onError: (err) => toast.error(err.message),
       },
     );
   };

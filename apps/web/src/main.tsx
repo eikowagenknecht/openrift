@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { toast } from "sonner";
 
 import { ErrorBoundary, RouterErrorFallback } from "./components/error-fallback";
 import { loadFeatureFlags } from "./lib/feature-flags";
@@ -36,7 +37,13 @@ import "./index.css";
   );
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    mutations: {
+      onError: (err) => toast.error(err.message),
+    },
+  },
+});
 
 const router = createRouter({
   routeTree,
