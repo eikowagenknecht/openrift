@@ -60,7 +60,7 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
   { key: "rarity", label: "Rarity", options: RARITY_ORDER },
   { key: "artVariant", label: "Art Variant", options: ART_VARIANT_ORDER },
   { key: "isSigned", label: "Signed", type: "boolean" },
-
+  { key: "isPromo", label: "Promo", type: "boolean" },
   { key: "finish", label: "Finish", options: FINISH_ORDER },
   { key: "artist", label: "Artist" },
   { key: "publicCode", label: "Public Code" },
