@@ -61,9 +61,12 @@ export function useCheckPrintingSource() {
 }
 
 export function useCheckAllPrintingSources() {
-  return useMutationWithInvalidation<{ ok: boolean; updated: number }, string>({
-    mutationFn: (printingId) =>
-      api.post("/api/admin/card-sources/printing-sources/check-all", { printingId }),
+  return useMutationWithInvalidation<
+    { ok: boolean; updated: number },
+    { printingId: string; extraIds?: string[] }
+  >({
+    mutationFn: ({ printingId, extraIds }) =>
+      api.post("/api/admin/card-sources/printing-sources/check-all", { printingId, extraIds }),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }

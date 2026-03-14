@@ -13,6 +13,7 @@ import {
   groupPrintingSources,
 } from "@/components/admin/source-spreadsheet";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -204,11 +205,7 @@ export function CardSourceUnmatchedPage() {
           }}
           onCheck={(sourceId) => checkCardSource.mutate(sourceId)}
           columnActions={(row) => (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 hover:text-primary [&>svg]:transition-transform [&>svg]:hover:scale-125"
-              title="Accept all fields, create card, and mark checked"
+            <DropdownMenuItem
               disabled={!cardId.trim() || acceptNewCard.isPending}
               onClick={() => {
                 const record = row as unknown as Record<string, unknown>;
@@ -237,8 +234,9 @@ export function CardSourceUnmatchedPage() {
                 );
               }}
             >
-              <RocketIcon className="size-3.5" />
-            </Button>
+              <RocketIcon className="mr-2 size-3.5" />
+              Accept all &amp; create card
+            </DropdownMenuItem>
           )}
         />
       </section>

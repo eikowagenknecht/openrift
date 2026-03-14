@@ -1,9 +1,15 @@
 import type { CardSource, PrintingSource } from "@openrift/shared";
 import { ART_VARIANT_ORDER, DOMAIN_ORDER, FINISH_ORDER, RARITY_ORDER } from "@openrift/shared";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, EllipsisVerticalIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import type { DiffSegment } from "@/lib/word-diff";
@@ -298,23 +304,29 @@ export function SourceSpreadsheet({
                   columnClassName?.(row),
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <span className="truncate">{getSourceLabel(row, sourceLabels)}</span>
-                  {onCheck && !isChecked(row) && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-6 hover:text-green-600 [&>svg]:transition-transform [&>svg]:hover:scale-125"
-                      title="Mark as checked"
-                      onClick={() => onCheck(row.id)}
-                    >
-                      <CheckIcon className="size-3.5" />
-                    </Button>
-                  )}
+                <div className="flex items-center gap-1">
+                  <span className="min-w-0 break-words">{getSourceLabel(row, sourceLabels)}</span>
                   {isChecked(row) && (
-                    <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
+                    <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
                   )}
-                  {columnActions?.(row)}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button variant="ghost" size="icon" className="ml-auto size-6 shrink-0" />
+                      }
+                    >
+                      <EllipsisVerticalIcon className="size-3.5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-max">
+                      {onCheck && !isChecked(row) && (
+                        <DropdownMenuItem onClick={() => onCheck(row.id)}>
+                          <CheckIcon className="mr-2 size-3.5" />
+                          Mark as checked
+                        </DropdownMenuItem>
+                      )}
+                      {columnActions?.(row)}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </th>
             ))}
