@@ -52,16 +52,16 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   if (copies) {
     const stackMap = new Map<string, StackedEntry>();
     for (const copy of copies) {
-      const printing = printingById.get(copy.printing_id);
+      const printing = printingById.get(copy.printingId);
       if (!printing) {
         continue;
       }
-      const existing = stackMap.get(copy.printing_id);
+      const existing = stackMap.get(copy.printingId);
       if (existing) {
         existing.copyIds.push(copy.id);
       } else {
-        const entry: StackedEntry = { printingId: copy.printing_id, printing, copyIds: [copy.id] };
-        stackMap.set(copy.printing_id, entry);
+        const entry: StackedEntry = { printingId: copy.printingId, printing, copyIds: [copy.id] };
+        stackMap.set(copy.printingId, entry);
         stacks.push(entry);
       }
     }

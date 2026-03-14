@@ -1,3 +1,4 @@
+import type { ArtVariant } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared";
 
 import type { MappingGroup, MappingPrinting, StagedProduct } from "./price-mappings-types";
@@ -53,7 +54,7 @@ function extractSuffix(productName: string, cardName: string): string | null {
  * Infer the art variant from a product name suffix (spaceless slug).
  * @returns The inferred artVariant value, or null if ambiguous.
  */
-function inferVariant(suffix: string): string | null {
+function inferVariant(suffix: string): ArtVariant | null {
   if (suffix === "") {
     return "normal";
   }

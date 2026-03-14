@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface CronStatus {
@@ -31,14 +31,14 @@ export const refreshActions = {
     key: "tcgplayer",
     title: "Refresh TCGPlayer Prices",
     description: "Fetch latest prices from TCGPlayer",
-    endpoint: "/api/admin/refresh-tcgplayer-prices",
+    post: () => client.api.admin["refresh-tcgplayer-prices"].$post(),
     cronKey: "tcgplayer" as const,
   },
   cardmarket: {
     key: "cardmarket",
     title: "Refresh Cardmarket Prices",
     description: "Fetch latest prices from Cardmarket",
-    endpoint: "/api/admin/refresh-cardmarket-prices",
+    post: () => client.api.admin["refresh-cardmarket-prices"].$post(),
     cronKey: "cardmarket" as const,
   },
 } as const;
@@ -63,7 +63,7 @@ export const clearActions = {
 export function useCronStatus() {
   return useQuery<CronStatus>({
     queryKey: queryKeys.admin.cronStatus,
-    queryFn: () => api.get<CronStatus>("/api/admin/cron-status"),
+    queryFn: () => rpc<CronStatus>(client.api.admin["cron-status"].$get()),
     refetchInterval: 60_000,
   });
 }

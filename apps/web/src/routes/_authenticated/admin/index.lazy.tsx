@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSets } from "@/hooks/use-sets";
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 
 export const Route = createLazyFileRoute("/_authenticated/admin/")({
   component: AdminOverviewPage,
@@ -53,7 +53,7 @@ function formatBytes(bytes: number): string {
 function useRehostStatus() {
   return useQuery<RehostStatus>({
     queryKey: queryKeys.admin.rehostStatus,
-    queryFn: () => api.get<RehostStatus>("/api/admin/rehost-status"),
+    queryFn: () => rpc<RehostStatus>(client.api.admin["rehost-status"].$get()),
   });
 }
 
@@ -93,7 +93,7 @@ function ImagesSection() {
     mutationFn: async (): Promise<RehostResult> => {
       const totals: RehostResult = { total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] };
       for (;;) {
-        const json = await api.post<{ result: RehostResult }>("/api/admin/rehost-images");
+        const json = await rpc<{ result: RehostResult }>(client.api.admin["rehost-images"].$post());
         const batch = json.result;
         totals.total += batch.total;
         totals.rehosted += batch.rehosted;
@@ -115,9 +115,13 @@ function ImagesSection() {
       const totals: RegenerateResult = { total: 0, regenerated: 0, failed: 0, errors: [] };
       let offset = 0;
       for (;;) {
-        const json = await api.post<{
+        const json = await rpc<{
           result: RegenerateResult & { totalFiles: number; hasMore: boolean };
-        }>(`/api/admin/regenerate-images?offset=${offset}`);
+        }>(
+          client.api.admin["regenerate-images"].$post({
+            query: { offset: String(offset) },
+          }),
+        );
         const batch = json.result;
         totals.total += batch.total;
         totals.regenerated += batch.regenerated;
@@ -138,7 +142,8 @@ function ImagesSection() {
   });
 
   const clearMutation = useMutation({
-    mutationFn: () => api.post<{ result: { cleared: number } }>("/api/admin/clear-rehosted"),
+    mutationFn: () =>
+      rpc<{ result: { cleared: number } }>(client.api.admin["clear-rehosted"].$post()),
     onSuccess: () => refetch(),
   });
 

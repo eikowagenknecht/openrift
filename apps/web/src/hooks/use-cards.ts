@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { queryKeys } from "@/lib/query-keys";
+import { client } from "@/lib/rpc-client";
 
 type HealthStatus = "db_unreachable" | "db_not_migrated" | "db_empty" | null;
 
@@ -25,7 +26,7 @@ interface UseCardsResult {
 
 async function checkHealth(): Promise<HealthStatus> {
   try {
-    const res = await fetch(`/api/health`);
+    const res = await client.api.health.$get();
     const data = (await res.json()) as { status: string };
     if (
       data.status === "db_unreachable" ||
@@ -41,7 +42,7 @@ async function checkHealth(): Promise<HealthStatus> {
 }
 
 async function fetchCards(): Promise<RiftboundContent> {
-  const res = await fetch(`/api/cards`);
+  const res = await client.api.cards.$get();
   if (!res.ok) {
     const healthStatus = await checkHealth();
     throw new ApiError(`Failed to fetch cards: ${res.status}`, healthStatus);
@@ -50,7 +51,7 @@ async function fetchCards(): Promise<RiftboundContent> {
 }
 
 async function fetchPrices(): Promise<PricesData> {
-  const res = await fetch(`/api/prices`);
+  const res = await client.api.prices.$get();
   if (!res.ok) {
     const healthStatus = await checkHealth();
     throw new ApiError(`Failed to fetch prices: ${res.status}`, healthStatus);

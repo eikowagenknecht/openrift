@@ -11,7 +11,7 @@ import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
-import { api } from "@/lib/api-client";
+import { client, rpc } from "@/lib/rpc-client";
 
 import { ConfirmClearButton } from "./confirm-clear-button";
 
@@ -82,16 +82,16 @@ function PriceSection({
 
   const refreshMutation = useMutation({
     mutationFn: async (): Promise<PriceResult | null> => {
-      const body = await api.post<{ result?: PriceResult }>(refreshAction.endpoint);
+      const body = await rpc<{ result?: PriceResult }>(refreshAction.post());
       return body.result ?? null;
     },
   });
 
   const clearMutation = useMutation({
     mutationFn: async (): Promise<ClearPriceResult> => {
-      const body = await api.post<{ result: ClearPriceResult }>("/api/admin/clear-prices", {
-        source: clearAction.source,
-      });
+      const body = await rpc<{ result: ClearPriceResult }>(
+        client.api.admin["clear-prices"].$post({ json: { source: clearAction.source } }),
+      );
       return body.result;
     },
   });

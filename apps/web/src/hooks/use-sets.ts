@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 interface AdminSet {
@@ -18,7 +18,7 @@ interface AdminSet {
 export function useSets() {
   return useQuery({
     queryKey: queryKeys.admin.sets,
-    queryFn: () => api.get<{ sets: AdminSet[] }>("/api/admin/sets"),
+    queryFn: () => rpc<{ sets: AdminSet[] }>(client.api.admin.sets.$get()),
   });
 }
 
@@ -29,7 +29,10 @@ export function useUpdateSet() {
       name: string;
       printedTotal: number;
       releasedAt: string | null;
-    }) => api.patch<{ ok: boolean }>(`/api/admin/sets/${body.id}`, body),
+    }) =>
+      rpc<{ ok: boolean }>(
+        client.api.admin.sets[":id"].$patch({ param: { id: body.id }, json: body }),
+      ),
     invalidates: [queryKeys.admin.sets],
   });
 }
@@ -41,14 +44,15 @@ export function useCreateSet() {
       name: string;
       printedTotal: number;
       releasedAt?: string | null;
-    }) => api.post<{ ok: boolean }>("/api/admin/sets", body),
+    }) => rpc<{ ok: boolean }>(client.api.admin.sets.$post({ json: body })),
     invalidates: [queryKeys.admin.sets],
   });
 }
 
 export function useReorderSets() {
   return useMutationWithInvalidation({
-    mutationFn: (ids: string[]) => api.put<{ ok: boolean }>("/api/admin/sets/reorder", { ids }),
+    mutationFn: (ids: string[]) =>
+      rpc<{ ok: boolean }>(client.api.admin.sets.reorder.$put({ json: { ids } })),
     invalidates: [queryKeys.admin.sets],
   });
 }

@@ -1,14 +1,14 @@
 import type { Collection } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export function useCollections() {
   return useQuery({
     queryKey: queryKeys.collections.all,
-    queryFn: () => api.get<Collection[]>("/api/collections"),
+    queryFn: () => rpc<Collection[]>(client.api.collections.$get()),
   });
 }
 
@@ -18,7 +18,7 @@ export function useCreateCollection() {
       name: string;
       description?: string | null;
       availableForDeckbuilding?: boolean;
-    }) => api.post<Collection>("/api/collections", body),
+    }) => rpc<Collection>(client.api.collections.$post({ json: body })),
     invalidates: [queryKeys.collections.all],
   });
 }

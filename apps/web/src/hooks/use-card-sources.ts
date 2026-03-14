@@ -1,32 +1,32 @@
 import type { CardSourceSummary, CardSourceUploadResult, SourceStats } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export function useCardSourceList(filter: string, source?: string) {
-  const params = new URLSearchParams({ filter });
+  const query: Record<string, string> = { filter };
   if (source) {
-    params.set("source", source);
+    query.source = source;
   }
   return useQuery<CardSourceSummary[]>({
     queryKey: queryKeys.admin.cardSources.list(filter, source),
-    queryFn: () => api.get(`/api/admin/card-sources?${params}`),
+    queryFn: () => rpc(client.api.admin["card-sources"].$get({ query })),
   });
 }
 
 export function useAllCards() {
   return useQuery<{ id: string; slug: string; name: string; type: string }[]>({
     queryKey: queryKeys.admin.cardSources.allCards,
-    queryFn: () => api.get("/api/admin/card-sources/all-cards"),
+    queryFn: () => rpc(client.api.admin["card-sources"]["all-cards"].$get()),
   });
 }
 
 export function useCardSourceDetail(cardId: string) {
   return useQuery({
     queryKey: queryKeys.admin.cardSources.detail(cardId),
-    queryFn: () => api.get(`/api/admin/card-sources/${cardId}`),
+    queryFn: () => rpc(client.api.admin["card-sources"][":cardId"].$get({ param: { cardId } })),
     enabled: Boolean(cardId),
   });
 }
@@ -34,28 +34,39 @@ export function useCardSourceDetail(cardId: string) {
 export function useUnmatchedCardDetail(name: string) {
   return useQuery({
     queryKey: queryKeys.admin.cardSources.unmatched(name),
-    queryFn: () => api.get(`/api/admin/card-sources/new/${encodeURIComponent(name)}`),
+    queryFn: () => rpc(client.api.admin["card-sources"].new[":name"].$get({ param: { name } })),
     enabled: Boolean(name),
   });
 }
 
 export function useCheckCardSource() {
   return useMutationWithInvalidation<{ ok: boolean }, string>({
-    mutationFn: (cardSourceId) => api.post(`/api/admin/card-sources/${cardSourceId}/check`),
+    mutationFn: (cardSourceId) =>
+      rpc(
+        client.api.admin["card-sources"][":cardSourceId"].check.$post({
+          param: { cardSourceId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
 
 export function useCheckAllCardSources() {
   return useMutationWithInvalidation<{ ok: boolean; updated: number }, string>({
-    mutationFn: (cardId) => api.post(`/api/admin/card-sources/${cardId}/check-all`),
+    mutationFn: (cardId) =>
+      rpc(client.api.admin["card-sources"][":cardId"]["check-all"].$post({ param: { cardId } })),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
 
 export function useCheckPrintingSource() {
   return useMutationWithInvalidation<{ ok: boolean }, string>({
-    mutationFn: (id) => api.post(`/api/admin/card-sources/printing-sources/${id}/check`),
+    mutationFn: (id) =>
+      rpc(
+        client.api.admin["card-sources"]["printing-sources"][":id"].check.$post({
+          param: { id },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -66,7 +77,11 @@ export function useCheckAllPrintingSources() {
     { printingId: string; extraIds?: string[] }
   >({
     mutationFn: ({ printingId, extraIds }) =>
-      api.post("/api/admin/card-sources/printing-sources/check-all", { printingId, extraIds }),
+      rpc(
+        client.api.admin["card-sources"]["printing-sources"]["check-all"].$post({
+          json: { printingId, extraIds },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -74,7 +89,12 @@ export function useCheckAllPrintingSources() {
 export function useRenameCard() {
   return useMutationWithInvalidation<{ ok: boolean }, { cardId: string; newId: string }>({
     mutationFn: ({ cardId, newId }) =>
-      api.post(`/api/admin/card-sources/${cardId}/rename`, { newId }),
+      rpc(
+        client.api.admin["card-sources"][":cardId"].rename.$post({
+          param: { cardId },
+          json: { newId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -85,7 +105,12 @@ export function useAcceptCardField() {
     { cardId: string; field: string; value: unknown }
   >({
     mutationFn: ({ cardId, field, value }) =>
-      api.post(`/api/admin/card-sources/${cardId}/accept-field`, { field, value }),
+      rpc(
+        client.api.admin["card-sources"][":cardId"]["accept-field"].$post({
+          param: { cardId },
+          json: { field, value },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -96,7 +121,12 @@ export function useAcceptPrintingField() {
     { printingId: string; field: string; value: unknown }
   >({
     mutationFn: ({ printingId, field, value }) =>
-      api.post(`/api/admin/card-sources/printing/${printingId}/accept-field`, { field, value }),
+      rpc(
+        client.api.admin["card-sources"].printing[":printingId"]["accept-field"].$post({
+          param: { printingId },
+          json: { field, value },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -104,7 +134,12 @@ export function useAcceptPrintingField() {
 export function useRenamePrinting() {
   return useMutationWithInvalidation<{ ok: boolean }, { printingId: string; newId: string }>({
     mutationFn: ({ printingId, newId }) =>
-      api.post(`/api/admin/card-sources/printing/${printingId}/rename`, { newId }),
+      rpc(
+        client.api.admin["card-sources"].printing[":printingId"].rename.$post({
+          param: { printingId },
+          json: { newId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -114,10 +149,14 @@ export function useAcceptNewCard() {
     { ok: boolean },
     { name: string; cardFields: Record<string, unknown> }
   >({
+    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- admin sends dynamic card field data, validated by API
     mutationFn: ({ name, cardFields }) =>
-      api.post(`/api/admin/card-sources/new/${encodeURIComponent(name)}/accept`, {
-        cardFields,
-      }),
+      rpc(
+        client.api.admin["card-sources"].new[":name"].accept.$post({
+          param: { name },
+          json: { cardFields } as any,
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -125,7 +164,12 @@ export function useAcceptNewCard() {
 export function useLinkCard() {
   return useMutationWithInvalidation<{ ok: boolean }, { name: string; cardId: string }>({
     mutationFn: ({ name, cardId }) =>
-      api.post(`/api/admin/card-sources/new/${encodeURIComponent(name)}/link`, { cardId }),
+      rpc(
+        client.api.admin["card-sources"].new[":name"].link.$post({
+          param: { name },
+          json: { cardId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -136,14 +180,20 @@ export function useReassignPrintingSource() {
     { id: string; fields: Record<string, unknown> }
   >({
     mutationFn: ({ id, fields }) =>
-      api.patch(`/api/admin/card-sources/printing-sources/${id}`, fields),
+      rpc(
+        client.api.admin["card-sources"]["printing-sources"][":id"].$patch({
+          param: { id },
+          json: fields,
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
 
 export function useDeletePrintingSource() {
   return useMutationWithInvalidation<{ ok: boolean }, string>({
-    mutationFn: (id) => api.del(`/api/admin/card-sources/printing-sources/${id}`),
+    mutationFn: (id) =>
+      rpc(client.api.admin["card-sources"]["printing-sources"][":id"].$delete({ param: { id } })),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -151,7 +201,12 @@ export function useDeletePrintingSource() {
 export function useCopyPrintingSource() {
   return useMutationWithInvalidation<{ ok: boolean }, { id: string; printingId: string }>({
     mutationFn: ({ id, printingId }) =>
-      api.post(`/api/admin/card-sources/printing-sources/${id}/copy`, { printingId }),
+      rpc(
+        client.api.admin["card-sources"]["printing-sources"][":id"].copy.$post({
+          param: { id },
+          json: { printingId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -161,7 +216,8 @@ export function useLinkPrintingSources() {
     { ok: boolean },
     { printingSourceIds: string[]; printingId: string | null }
   >({
-    mutationFn: (payload) => api.post("/api/admin/card-sources/printing-sources/link", payload),
+    mutationFn: (payload) =>
+      rpc(client.api.admin["card-sources"]["printing-sources"].link.$post({ json: payload })),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -171,11 +227,14 @@ export function useAcceptPrintingGroup() {
     { ok: boolean; printingId: string },
     { cardId: string; printingFields: Record<string, unknown>; printingSourceIds: string[] }
   >({
+    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- admin sends dynamic printing field data, validated by API
     mutationFn: ({ cardId, printingFields, printingSourceIds }) =>
-      api.post(`/api/admin/card-sources/${cardId}/accept-printing`, {
-        printingFields,
-        printingSourceIds,
-      }),
+      rpc(
+        client.api.admin["card-sources"][":cardId"]["accept-printing"].$post({
+          param: { cardId },
+          json: { printingFields, printingSourceIds } as any,
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -183,7 +242,11 @@ export function useAcceptPrintingGroup() {
 export function useDeleteSource() {
   return useMutationWithInvalidation<{ status: string; source: string; deleted: number }, string>({
     mutationFn: (source) =>
-      api.del(`/api/admin/card-sources/by-source/${encodeURIComponent(source)}`),
+      rpc(
+        client.api.admin["card-sources"]["by-source"][":source"].$delete({
+          param: { source },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -191,20 +254,25 @@ export function useDeleteSource() {
 export function useSourceStats() {
   return useQuery<SourceStats[]>({
     queryKey: queryKeys.admin.cardSources.sourceStats,
-    queryFn: () => api.get("/api/admin/card-sources/source-stats"),
+    queryFn: () => rpc(client.api.admin["card-sources"]["source-stats"].$get()),
   });
 }
 
 export function useSourceNames() {
   return useQuery<string[]>({
     queryKey: queryKeys.admin.cardSources.sourceNames,
-    queryFn: () => api.get("/api/admin/card-sources/source-names"),
+    queryFn: () => rpc(client.api.admin["card-sources"]["source-names"].$get()),
   });
 }
 
 export function useDeletePrintingImage() {
   return useMutationWithInvalidation<{ ok: boolean }, string>({
-    mutationFn: (imageId) => api.del(`/api/admin/card-sources/printing-images/${imageId}`),
+    mutationFn: (imageId) =>
+      rpc(
+        client.api.admin["card-sources"]["printing-images"][":imageId"].$delete({
+          param: { imageId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -212,14 +280,24 @@ export function useDeletePrintingImage() {
 export function useActivatePrintingImage() {
   return useMutationWithInvalidation<{ ok: boolean }, { imageId: string; active: boolean }>({
     mutationFn: ({ imageId, active }) =>
-      api.post(`/api/admin/card-sources/printing-images/${imageId}/activate`, { active }),
+      rpc(
+        client.api.admin["card-sources"]["printing-images"][":imageId"].activate.$post({
+          param: { imageId },
+          json: { active },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
 
 export function useRehostPrintingImage() {
   return useMutationWithInvalidation<{ ok: boolean; rehostedUrl: string }, string>({
-    mutationFn: (imageId) => api.post(`/api/admin/card-sources/printing-images/${imageId}/rehost`),
+    mutationFn: (imageId) =>
+      rpc(
+        client.api.admin["card-sources"]["printing-images"][":imageId"].rehost.$post({
+          param: { imageId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -227,7 +305,11 @@ export function useRehostPrintingImage() {
 export function useUnrehostPrintingImage() {
   return useMutationWithInvalidation<{ ok: boolean }, string>({
     mutationFn: (imageId) =>
-      api.post(`/api/admin/card-sources/printing-images/${imageId}/unrehost`),
+      rpc(
+        client.api.admin["card-sources"]["printing-images"][":imageId"].unrehost.$post({
+          param: { imageId },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -238,7 +320,12 @@ export function useAddImageFromUrl() {
     { printingId: string; url: string; source?: string; mode?: "main" | "additional" }
   >({
     mutationFn: ({ printingId, ...body }) =>
-      api.post(`/api/admin/card-sources/printing/${printingId}/add-image-url`, body),
+      rpc(
+        client.api.admin["card-sources"].printing[":printingId"]["add-image-url"].$post({
+          param: { printingId },
+          json: body,
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -248,28 +335,13 @@ export function useUploadPrintingImage() {
     { ok: boolean; rehostedUrl: string },
     { printingId: string; file: File; source?: string; mode?: "main" | "additional" }
   >({
-    mutationFn: async ({ printingId, file, source, mode }) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      if (source) {
-        formData.append("source", source);
-      }
-      if (mode) {
-        formData.append("mode", mode);
-      }
-      const res = await fetch(`/api/admin/card-sources/printing/${printingId}/upload-image`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(
-          (body as { error?: string } | null)?.error ?? `Upload failed: ${res.status}`,
-        );
-      }
-      return res.json() as Promise<{ ok: boolean; rehostedUrl: string }>;
-    },
+    mutationFn: ({ printingId, file, source, mode }) =>
+      rpc<{ ok: boolean; rehostedUrl: string }>(
+        client.api.admin["card-sources"].printing[":printingId"]["upload-image"].$post({
+          param: { printingId },
+          form: { file, source, mode },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -280,7 +352,12 @@ export function useSetPrintingSourceImage() {
     { printingSourceId: string; mode: "main" | "additional" }
   >({
     mutationFn: ({ printingSourceId, mode }) =>
-      api.post(`/api/admin/card-sources/printing-sources/${printingSourceId}/set-image`, { mode }),
+      rpc(
+        client.api.admin["card-sources"]["printing-sources"][":id"]["set-image"].$post({
+          param: { id: printingSourceId },
+          json: { mode },
+        }),
+      ),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }
@@ -290,7 +367,9 @@ export function useUploadCardSources() {
     CardSourceUploadResult,
     { source: string; candidates: unknown[] }
   >({
-    mutationFn: (payload) => api.post("/api/admin/card-sources/upload", payload),
+    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- candidates shape varies by source, validated by API
+    mutationFn: (payload) =>
+      rpc(client.api.admin["card-sources"].upload.$post({ json: payload as any })),
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }

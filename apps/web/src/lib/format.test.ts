@@ -14,7 +14,7 @@ import {
 function stub(overrides: Partial<Printing> = {}): Printing {
   return {
     id: "00000000-0000-0000-0000-000000000001",
-    slug: "OGS-001:normal:::normal",
+    slug: "OGS-001:common:normal:",
     sourceId: "OGS-001",
     set: "",
     collectorNumber: 1,

@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { useRef, useState } from "react";
 
@@ -64,7 +64,7 @@ export function CardThumbnail({
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const richEffects = useDisplayStore((s) => s.richEffects);
-  const isFoilCard = printing.finish === "foil";
+  const isFoilCard = printing.finish === ("foil" satisfies Finish);
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
   const compact = cardWidth !== undefined && cardWidth < COMPACT_THRESHOLD;
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
@@ -178,7 +178,7 @@ export function CardThumbnail({
                 ) : (
                   <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
                 ))}
-              {sibling.finish === "foil" && <FoilOverlay active shimmer dim />}
+              {sibling.finish === ("foil" satisfies Finish) && <FoilOverlay active shimmer dim />}
             </div>
           );
         })}

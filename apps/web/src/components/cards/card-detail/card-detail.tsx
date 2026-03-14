@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
 import { ArrowLeft, X } from "lucide-react";
@@ -47,7 +47,7 @@ export function CardDetail({
   const setNumber = formatPublicCode(printing);
   const asideRef = useRef<HTMLElement>(null);
   const orientation = getOrientation(card.type);
-  const isFoil = printing.finish === "foil";
+  const isFoil = printing.finish === ("foil" satisfies Finish);
 
   useDrag(
     ({ last, movement: [dx, dy], swipe: [swipeX] }) => {

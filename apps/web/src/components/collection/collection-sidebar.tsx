@@ -41,7 +41,7 @@ export function CollectionSidebar() {
   const copyCounts = new Map<string, number>();
   if (allCopies) {
     for (const copy of allCopies) {
-      copyCounts.set(copy.collection_id, (copyCounts.get(copy.collection_id) ?? 0) + 1);
+      copyCounts.set(copy.collectionId, (copyCounts.get(copy.collectionId) ?? 0) + 1);
     }
   }
   const totalCopies = allCopies?.length ?? 0;

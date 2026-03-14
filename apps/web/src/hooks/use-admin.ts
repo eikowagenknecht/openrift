@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
+import { client } from "@/lib/rpc-client";
 
 async function fetchIsAdmin(): Promise<boolean> {
-  const res = await fetch("/api/admin/me", { credentials: "include" });
+  const res = await client.api.admin.me.$get();
   if (!res.ok) {
     return false;
   }

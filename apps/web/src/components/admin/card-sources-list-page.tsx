@@ -24,6 +24,17 @@ import { useCardSourceList, useLinkCard, useSourceNames } from "@/hooks/use-card
 
 type Filter = "all" | "unchecked" | "unmatched";
 
+function formatSourceIds(ids: string[]): string {
+  const counts = new Map<string, number>();
+  for (const id of ids) {
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .toSorted(([a], [b]) => a.localeCompare(b))
+    .map(([id, n]) => (n > 1 ? `${id} ×${n}` : id))
+    .join(", ");
+}
+
 export function CardSourcesListPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [source, setSource] = useState<string>();
@@ -79,7 +90,7 @@ export function CardSourcesListPage() {
             size="sm"
             onClick={() => setFilter(f)}
           >
-            {f === "all" ? "All" : f === "unchecked" ? "Has unchecked" : "Unmatched only"}
+            {f === "all" ? "All" : f === "unchecked" ? "Needs review" : "Candidates only"}
           </Button>
         ))}
       </div>
@@ -90,17 +101,42 @@ export function CardSourcesListPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Card Name</TableHead>
-              <TableHead className="w-28">Sources</TableHead>
-              <TableHead className="w-28">Unchecked</TableHead>
               <TableHead className="w-28">Status</TableHead>
+              <TableHead>Card Name</TableHead>
+              <TableHead>Printing IDs</TableHead>
+              <TableHead className="w-28">Sources</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row) => {
               const total = row.uncheckedCardCount + row.uncheckedPrintingCount;
+              const suggestedCardId =
+                !row.cardSlug && row.pendingSourceIds.length > 0
+                  ? row.pendingSourceIds[0].replace(/(?<=\d)[a-z*]+$/, "")
+                  : null;
               return (
                 <TableRow key={row.cardSlug ?? row.name}>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {row.cardId ? (
+                        <Badge variant="outline">Active</Badge>
+                      ) : row.suggestedCard ? (
+                        <SuggestedMatch
+                          cardName={row.suggestedCard.name}
+                          isPending={linkCard.isPending}
+                          onLink={() =>
+                            linkCard.mutate({
+                              name: row.normalizedName,
+                              cardId: row.suggestedCard?.slug ?? "",
+                            })
+                          }
+                        />
+                      ) : (
+                        <Badge variant="secondary">Candidate</Badge>
+                      )}
+                      {total > 0 && <Badge variant="destructive">Unchecked</Badge>}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Link
                       to={row.cardId ? "/admin/cards/$cardId" : "/admin/cards/new/$name"}
@@ -109,49 +145,51 @@ export function CardSourcesListPage() {
                       }
                       className="font-medium hover:underline"
                     >
+                      {(row.cardSlug || suggestedCardId) && (
+                        <span
+                          className={
+                            row.cardSlug ? "text-muted-foreground" : "text-muted-foreground/40"
+                          }
+                        >
+                          {row.cardSlug ?? suggestedCardId}
+                        </span>
+                      )}{" "}
                       {row.name}
-                      {row.sourceIds.length > 0 && (
-                        <span className="ml-2 font-normal text-muted-foreground">
-                          ({row.sourceIds.join(", ")})
-                        </span>
-                      )}
-                      {row.pendingSourceIds.length > 0 && (
-                        <span className="ml-2 font-normal italic text-muted-foreground/50">
-                          ({row.pendingSourceIds.join(", ")})
-                        </span>
-                      )}
                     </Link>
                     {row.hasGallery && <Badge className="ml-2 text-xs">gallery</Badge>}
                   </TableCell>
+                  <TableCell className="whitespace-normal">
+                    <span>
+                      {row.sourceIds.length > 0 &&
+                        formatSourceIds(row.sourceIds)
+                          .split(", ")
+                          .map((id, i, arr) => (
+                            <span key={id} className="text-muted-foreground">
+                              {id}
+                              {(i < arr.length - 1 ||
+                                row.pendingSourceIds.length > 0 ||
+                                row.candidateSourceIds.length > 0) &&
+                                ", "}
+                            </span>
+                          ))}
+                      {row.pendingSourceIds.map((id, i) => (
+                        <span key={`p-${id}`} className="italic text-muted-foreground/50">
+                          {id}
+                          {(i < row.pendingSourceIds.length - 1 ||
+                            row.candidateSourceIds.length > 0) &&
+                            ", "}
+                        </span>
+                      ))}
+                      {row.candidateSourceIds.map((id, i) => (
+                        <span key={`c-${id}`} className="italic text-muted-foreground/50">
+                          {id}
+                          {i < row.candidateSourceIds.length - 1 && ", "}
+                        </span>
+                      ))}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{row.sourceCount}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {total > 0 ? (
-                      <Badge variant="destructive">
-                        {row.uncheckedCardCount} + {row.uncheckedPrintingCount}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">0</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {row.cardId ? (
-                      <Badge variant="outline">Matched</Badge>
-                    ) : row.suggestedCard ? (
-                      <SuggestedMatch
-                        cardName={row.suggestedCard.name}
-                        isPending={linkCard.isPending}
-                        onLink={() =>
-                          linkCard.mutate({
-                            name: row.normalizedName,
-                            cardId: row.suggestedCard?.slug ?? "",
-                          })
-                        }
-                      />
-                    ) : (
-                      <Badge variant="secondary">Unmatched</Badge>
-                    )}
                   </TableCell>
                 </TableRow>
               );

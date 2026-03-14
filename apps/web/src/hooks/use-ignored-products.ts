@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 
 interface IgnoredProduct {
   marketplace: "tcgplayer" | "cardmarket";
@@ -18,7 +18,7 @@ interface IgnoredProductsResponse {
 export function useIgnoredProducts() {
   return useQuery({
     queryKey: queryKeys.admin.ignoredProducts,
-    queryFn: () => api.get<IgnoredProductsResponse>("/api/admin/ignored-products"),
+    queryFn: () => rpc<IgnoredProductsResponse>(client.api.admin["ignored-products"].$get()),
   });
 }
 
@@ -30,10 +30,14 @@ export function useUnignoreProduct() {
       externalId: number;
       finish: string;
     }) =>
-      api.del<{ ok: boolean }>("/api/admin/ignored-products", {
-        source: product.marketplace,
-        products: [{ externalId: product.externalId, finish: product.finish }],
-      }),
+      rpc<{ ok: boolean }>(
+        client.api.admin["ignored-products"].$delete({
+          json: {
+            source: product.marketplace,
+            products: [{ externalId: product.externalId, finish: product.finish }],
+          },
+        }),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.admin.ignoredProducts,

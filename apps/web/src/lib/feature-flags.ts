@@ -1,5 +1,7 @@
 // Feature flags fetched from the API at app boot, with localStorage fallback.
 
+import { client } from "./rpc-client";
+
 type FeatureFlags = Record<string, boolean>;
 
 const STORAGE_KEY = "openrift:feature-flags";
@@ -12,7 +14,7 @@ export function featureEnabled(key: string): boolean {
 
 export async function loadFeatureFlags(): Promise<void> {
   try {
-    const res = await fetch("/api/feature-flags");
+    const res = await client.api["feature-flags"].$get();
     if (res.ok) {
       flags = (await res.json()) as FeatureFlags;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(flags));

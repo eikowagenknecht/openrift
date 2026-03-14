@@ -5,7 +5,6 @@ export const CM_CONFIG: SourceMappingConfig = {
   displayName: "Cardmarket",
   shortName: "CM",
   productUrl: (id) => `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${id}`,
-  apiPath: "/api/admin/cardmarket-mappings",
 };
 
 export const TCG_CONFIG: SourceMappingConfig = {
@@ -13,5 +12,4 @@ export const TCG_CONFIG: SourceMappingConfig = {
   displayName: "TCGplayer",
   shortName: "TCG",
   productUrl: (id) => `https://www.tcgplayer.com/product/${id}`,
-  apiPath: "/api/admin/tcgplayer-mappings",
 };

@@ -1,3 +1,5 @@
+import type { CardType, Domain, SuperType } from "@openrift/shared";
+
 type FilterCategory =
   | "sets"
   | "rarities"
@@ -7,7 +9,7 @@ type FilterCategory =
   | "artVariants"
   | "finishes";
 
-const SUPERTYPE_ICONS = new Set(["Champion"]);
+const SUPERTYPE_ICONS = new Set(["Champion" satisfies SuperType]);
 
 /**
  * Icon for a card's type row — uses the champion icon for Champion/Signature
@@ -15,7 +17,11 @@ const SUPERTYPE_ICONS = new Set(["Champion"]);
  * @returns Path to the SVG icon.
  */
 export function getTypeIconPath(type: string, superTypes: string[]): string {
-  if (type === "Unit" && (superTypes.includes("Champion") || superTypes.includes("Signature"))) {
+  if (
+    type === ("Unit" satisfies CardType) &&
+    (superTypes.includes("Champion" satisfies SuperType) ||
+      superTypes.includes("Signature" satisfies SuperType))
+  ) {
     return "/images/supertypes/champion.svg";
   }
   return `/images/types/${type.toLowerCase()}.svg`;
@@ -25,7 +31,7 @@ export function getFilterIconPath(category: FilterCategory, value: string): stri
   const lower = value.toLowerCase();
   switch (category) {
     case "domains": {
-      return `/images/domains/${lower}.${value === "Colorless" ? "svg" : "webp"}`;
+      return `/images/domains/${lower}.${value === ("Colorless" satisfies Domain) ? "svg" : "webp"}`;
     }
     case "types": {
       return `/images/types/${lower}.svg`;

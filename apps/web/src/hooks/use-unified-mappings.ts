@@ -5,9 +5,8 @@ import type {
   StagedProduct,
   UnifiedMappingGroup,
 } from "@/components/admin/price-mappings-types";
-import { CM_CONFIG, TCG_CONFIG } from "@/components/admin/source-configs";
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 
 interface UnifiedMappingsResponse {
   groups: UnifiedMappingGroup[];
@@ -21,12 +20,12 @@ interface UnifiedMappingsResponse {
 export function useUnifiedMappings(showAll = false) {
   return useQuery({
     queryKey: queryKeys.admin.unifiedMappings.byFilter(showAll),
-    queryFn: () => {
-      const url = showAll
-        ? "/api/admin/marketplace-mappings?all=true"
-        : "/api/admin/marketplace-mappings";
-      return api.get<UnifiedMappingsResponse>(url);
-    },
+    queryFn: () =>
+      rpc<UnifiedMappingsResponse>(
+        client.api.admin["marketplace-mappings"].$get({
+          query: { all: showAll ? "true" : undefined },
+        }),
+      ),
   });
 }
 
@@ -35,7 +34,6 @@ function useUnifiedMutation<TInput, TResult>(
   marketplace: "tcgplayer" | "cardmarket",
   mutationFn: (input: TInput) => Promise<TResult>,
 ) {
-  const config = marketplace === "tcgplayer" ? TCG_CONFIG : CM_CONFIG;
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
@@ -44,7 +42,7 @@ function useUnifiedMutation<TInput, TResult>(
         queryKey: queryKeys.admin.unifiedMappings.all,
       });
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.priceMappings.bySource(config),
+        queryKey: ["admin", marketplace] as const,
       });
     },
   });
@@ -55,25 +53,32 @@ interface SaveMappingsBody {
 }
 
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket") {
-  const config = marketplace === "tcgplayer" ? TCG_CONFIG : CM_CONFIG;
+  const mappingClient =
+    marketplace === "tcgplayer"
+      ? client.api.admin["tcgplayer-mappings"]
+      : client.api.admin["cardmarket-mappings"];
   return useUnifiedMutation(marketplace, (body: SaveMappingsBody) =>
-    api.post<{ saved: number }>(config.apiPath, body),
+    rpc<{ saved: number }>(mappingClient.$post({ json: body })),
   );
 }
 
 export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket") {
-  const config = marketplace === "tcgplayer" ? TCG_CONFIG : CM_CONFIG;
+  const mappingClient =
+    marketplace === "tcgplayer"
+      ? client.api.admin["tcgplayer-mappings"]
+      : client.api.admin["cardmarket-mappings"];
   return useUnifiedMutation(marketplace, (printingId: string) =>
-    api.del<{ ok: boolean }>(config.apiPath, { printingId }),
+    rpc<{ ok: boolean }>(mappingClient.$delete({ json: { printingId } })),
   );
 }
 
 export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket") {
   return useUnifiedMutation(marketplace, (products: { externalId: number; finish: string }[]) =>
-    api.post<{ ok: boolean; ignored: number }>("/api/admin/ignored-products", {
-      source: marketplace,
-      products,
-    }),
+    rpc<{ ok: boolean; ignored: number }>(
+      client.api.admin["ignored-products"].$post({
+        json: { source: marketplace, products },
+      }),
+    ),
   );
 }
 
@@ -81,18 +86,20 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket") 
   return useUnifiedMutation(
     marketplace,
     (override: { externalId: number; finish: string; cardId: string }) =>
-      api.post<{ ok: boolean }>("/api/admin/staging-card-overrides", {
-        source: marketplace,
-        ...override,
-      }),
+      rpc<{ ok: boolean }>(
+        client.api.admin["staging-card-overrides"].$post({
+          json: { source: marketplace, ...override },
+        }),
+      ),
   );
 }
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket") {
   return useUnifiedMutation(marketplace, (params: { externalId: number; finish: string }) =>
-    api.del<{ ok: boolean }>("/api/admin/staging-card-overrides", {
-      source: marketplace,
-      ...params,
-    }),
+    rpc<{ ok: boolean }>(
+      client.api.admin["staging-card-overrides"].$delete({
+        json: { source: marketplace, ...params },
+      }),
+    ),
   );
 }

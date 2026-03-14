@@ -31,6 +31,7 @@ import {
   useUploadCardSources,
 } from "@/hooks/use-card-sources";
 import { useFavoriteSources } from "@/hooks/use-favorite-sources";
+import { client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
 export function CardSourceUploadPage() {
@@ -54,6 +55,10 @@ export function CardSourceUploadPage() {
     setFileName(file.name);
     setParseError(null);
     setFileData(null);
+
+    if (!source) {
+      setSource(file.name.replace(/\.json$/i, ""));
+    }
 
     const text = await file.text();
     try {
@@ -304,7 +309,7 @@ function ExportCardsCard() {
     setExporting(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/card-sources/export", { credentials: "include" });
+      const res = await client.api.admin["card-sources"].export.$get();
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(

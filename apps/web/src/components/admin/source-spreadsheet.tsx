@@ -1,5 +1,13 @@
-import type { CardSource, PrintingSource } from "@openrift/shared";
-import { ART_VARIANT_ORDER, DOMAIN_ORDER, FINISH_ORDER, RARITY_ORDER } from "@openrift/shared";
+import type { ArtVariant, CardSource, PrintingSource } from "@openrift/shared";
+import {
+  ART_VARIANT_ORDER,
+  CARD_TYPE_ORDER,
+  DOMAIN_ORDER,
+  FINISH_ORDER,
+  RARITY_ORDER,
+  SUPER_TYPE_ORDER,
+  comparePrintings,
+} from "@openrift/shared";
 import { CheckIcon, EllipsisVerticalIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -23,8 +31,8 @@ interface FieldDef {
   options?: readonly string[];
 }
 
-const CARD_TYPE_OPTIONS = ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"] as const;
-const SUPER_TYPE_OPTIONS = ["Basic", "Champion", "Signature", "Token"] as const;
+const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
+const SUPER_TYPE_OPTIONS = SUPER_TYPE_ORDER;
 
 export const CARD_SOURCE_FIELDS: FieldDef[] = [
   { key: "name", label: "Name" },
@@ -52,13 +60,14 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
   { key: "rarity", label: "Rarity", options: RARITY_ORDER },
   { key: "artVariant", label: "Art Variant", options: ART_VARIANT_ORDER },
   { key: "isSigned", label: "Signed", type: "boolean" },
-  { key: "isPromo", label: "Promo", type: "boolean" },
+
   { key: "finish", label: "Finish", options: FINISH_ORDER },
   { key: "artist", label: "Artist" },
   { key: "publicCode", label: "Public Code" },
   { key: "printedRulesText", label: "Printed Rules" },
   { key: "printedEffectText", label: "Printed Effect" },
   { key: "flavorText", label: "Flavor Text" },
+  { key: "comment", label: "Comment" },
   { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
   { key: "extraData", label: "Extra Data", readOnly: true },
   { key: "imageUrl", label: "Image", readOnly: true },
@@ -71,9 +80,11 @@ export interface PrintingGroup {
   label: string;
   differentiators: {
     setId: string | null;
+    collectorNumber: number | null;
     artVariant: string;
     isSigned: boolean;
     isPromo: boolean;
+    rarity: string;
     finish: string;
   };
   sources: PrintingSource[];
@@ -82,8 +93,8 @@ export interface PrintingGroup {
 export function groupPrintingSources(printingSources: PrintingSource[]): PrintingGroup[] {
   const groups = new Map<string, PrintingSource[]>();
   for (const ps of printingSources) {
-    const variant = ps.artVariant || "normal";
-    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.isPromo}|${ps.finish}`;
+    const variant = ps.artVariant || ("normal" satisfies ArtVariant);
+    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.isPromo}|${ps.rarity}|${ps.finish}`;
     const group = groups.get(key) ?? [];
     group.push(ps);
     groups.set(key, group);
@@ -96,9 +107,9 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
     }
     const mostCommonId = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
     const ps = sources[0];
-    const variant = ps.artVariant || "normal";
+    const variant = ps.artVariant || ("normal" satisfies ArtVariant);
     const parts = [mostCommonId, ps.finish];
-    if (variant !== "normal") {
+    if (variant !== ("normal" satisfies ArtVariant)) {
       parts.push(variant);
     }
     if (ps.isSigned) {
@@ -112,35 +123,18 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
       label: parts.join(" · "),
       differentiators: {
         setId: ps.setId,
+        collectorNumber: ps.collectorNumber,
         artVariant: variant,
         isSigned: ps.isSigned,
         isPromo: ps.isPromo,
+        rarity: ps.rarity,
         finish: ps.finish,
       },
       sources,
     };
   });
 
-  result.sort((a, b) => {
-    const d = a.differentiators;
-    const e = b.differentiators;
-    // Set, then non-promo before promo, non-signed before signed, then finish and artVariant
-    const sc = (d.setId ?? "").localeCompare(e.setId ?? "");
-    if (sc !== 0) {
-      return sc;
-    }
-    if (d.isPromo !== e.isPromo) {
-      return d.isPromo ? 1 : -1;
-    }
-    if (d.isSigned !== e.isSigned) {
-      return d.isSigned ? 1 : -1;
-    }
-    const fc = d.finish.localeCompare(e.finish);
-    if (fc !== 0) {
-      return fc;
-    }
-    return d.artVariant.localeCompare(e.artVariant);
-  });
+  result.sort((a, b) => comparePrintings(a.differentiators, b.differentiators));
 
   return result;
 }

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export interface MarketplaceGroup {
@@ -20,16 +20,18 @@ interface MarketplaceGroupsResponse {
 export function useMarketplaceGroups() {
   return useQuery({
     queryKey: queryKeys.admin.marketplaceGroups,
-    queryFn: () => api.get<MarketplaceGroupsResponse>("/api/admin/marketplace-groups"),
+    queryFn: () => rpc<MarketplaceGroupsResponse>(client.api.admin["marketplace-groups"].$get()),
   });
 }
 
 export function useUpdateMarketplaceGroup() {
   return useMutationWithInvalidation({
     mutationFn: (body: { marketplace: string; groupId: number; name: string | null }) =>
-      api.patch<{ ok: boolean }>(
-        `/api/admin/marketplace-groups/${body.marketplace}/${body.groupId}`,
-        body,
+      rpc<{ ok: boolean }>(
+        client.api.admin["marketplace-groups"][":marketplace"][":id"].$patch({
+          param: { marketplace: body.marketplace, id: String(body.groupId) },
+          json: body,
+        }),
       ),
     invalidates: [queryKeys.admin.marketplaceGroups],
   });

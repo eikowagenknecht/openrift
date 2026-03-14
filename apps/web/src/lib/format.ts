@@ -1,15 +1,15 @@
-import type { Printing } from "@openrift/shared";
+import type { ArtVariant, Finish, Printing } from "@openrift/shared";
 
 export const ART_VARIANT_LABELS: Record<string, string> = {
   normal: "Normal",
   altart: "Alt Art",
   overnumbered: "Overnumbered",
-};
+} satisfies Record<ArtVariant, string>;
 
 export const FINISH_LABELS: Record<string, string> = {
   normal: "Normal",
   foil: "Foil",
-};
+} satisfies Record<Finish, string>;
 
 /**
  * Human-readable label for a printing's distinguishing attributes.
@@ -22,10 +22,10 @@ export function formatPrintingLabel(printing: Printing, siblings?: Printing[]): 
     siblings ? siblings.every((s) => fn(s) === fn(printing)) : false;
 
   const parts: string[] = [];
-  if (printing.artVariant !== "normal" && !allSame((c) => c.artVariant)) {
+  if (printing.artVariant !== ("normal" satisfies ArtVariant) && !allSame((c) => c.artVariant)) {
     parts.push(ART_VARIANT_LABELS[printing.artVariant] ?? printing.artVariant);
   }
-  if (printing.finish !== "normal" && !allSame((c) => c.finish)) {
+  if (printing.finish !== ("normal" satisfies Finish) && !allSame((c) => c.finish)) {
     parts.push(FINISH_LABELS[printing.finish] ?? printing.finish);
   }
   if (printing.isSigned && !allSame((c) => c.isSigned)) {

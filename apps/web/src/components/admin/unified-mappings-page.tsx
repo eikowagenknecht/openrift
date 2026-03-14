@@ -73,6 +73,7 @@ function toMarketplaceGroup(
   const mkData = group[marketplace];
   return {
     cardId: group.cardId,
+    cardSlug: group.cardSlug,
     cardName: group.cardName,
     cardType: group.cardType,
     superTypes: group.superTypes,
@@ -405,8 +406,10 @@ function UnifiedExpandedDetail({
                   <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                     <span>
                       {p.finish}
-                      {p.artVariant === "altart" ? " · Alt Art" : ""}
-                      {p.artVariant === "overnumbered" ? " · Overnumbered" : ""}
+                      {p.artVariant === ("altart" satisfies ArtVariant) ? " · Alt Art" : ""}
+                      {p.artVariant === ("overnumbered" satisfies ArtVariant)
+                        ? " · Overnumbered"
+                        : ""}
                       {p.isSigned ? " · Signed" : ""}
                       {p.isPromo ? " · Promo" : ""}
                     </span>
@@ -891,7 +894,7 @@ export function UnifiedMappingsPage() {
               <TableRow>
                 <TableHead className="w-8" />
                 <TableHead>Card</TableHead>
-                <TableHead className="text-center">Printings</TableHead>
+                <TableHead>Printings</TableHead>
                 <TableHead className="text-center">TCG</TableHead>
                 <TableHead className="text-center">CM</TableHead>
               </TableRow>
@@ -1018,16 +1021,20 @@ function UnifiedCardGroupRow({
           )}
         </TableCell>
         <TableCell className="font-medium">
-          {group.cardName}
-          <span className="ml-2 font-normal text-muted-foreground">
-            (
-            {[...new Set(group.printings.map((p) => p.sourceId))]
-              .toSorted((a, b) => a.localeCompare(b))
-              .join(", ")}
-            )
-          </span>
+          <span className="text-muted-foreground">{group.cardSlug}</span> {group.cardName}
         </TableCell>
-        <TableCell className="text-center">{group.printings.length}</TableCell>
+        <TableCell className="text-muted-foreground">
+          {(() => {
+            const counts = new Map<string, number>();
+            for (const p of group.printings) {
+              counts.set(p.sourceId, (counts.get(p.sourceId) ?? 0) + 1);
+            }
+            return [...counts.entries()]
+              .toSorted(([a], [b]) => a.localeCompare(b))
+              .map(([id, n]) => (n > 1 ? `${id} ×${n}` : id))
+              .join(", ");
+          })()}
+        </TableCell>
         <TableCell className="text-center">
           <MarketplaceStatusBadge label="TCG" group={group} marketplace="tcgplayer" />
         </TableCell>

@@ -3,7 +3,6 @@ export interface SourceMappingConfig {
   displayName: string;
   shortName: string;
   productUrl: (id: number) => string;
-  apiPath: string;
 }
 
 export interface MappingPrinting {
@@ -40,6 +39,7 @@ export interface StagedProduct {
 
 export interface MappingGroup {
   cardId: string;
+  cardSlug: string;
   cardName: string;
   cardType: string;
   superTypes: string[];
@@ -60,6 +60,7 @@ export interface UnifiedMappingPrinting extends MappingPrinting {
 
 export interface UnifiedMappingGroup {
   cardId: string;
+  cardSlug: string;
   cardName: string;
   cardType: string;
   superTypes: string[];
@@ -84,7 +85,6 @@ export interface AssignableCard {
     finish: string;
     collectorNumber: number;
     isSigned: boolean;
-    isPromo: boolean;
     externalId: number | null;
   }[];
 }

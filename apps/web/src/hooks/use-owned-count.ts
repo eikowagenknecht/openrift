@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { client, rpc } from "@/lib/rpc-client";
 
 export function useOwnedCount(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.ownedCount.all,
-    queryFn: () => api.get<Record<string, number>>("/api/copies/count"),
+    queryFn: () => rpc<Record<string, number>>(client.api.copies.count.$get()),
     enabled,
     staleTime: 60_000,
   });
