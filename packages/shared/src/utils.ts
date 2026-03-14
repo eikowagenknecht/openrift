@@ -1,5 +1,5 @@
-import type { ArtVariant } from "./types/index.js";
-import { ART_VARIANT_ORDER } from "./types/index.js";
+import type { ArtVariant, Finish, Rarity } from "./types/index.js";
+import { ART_VARIANT_ORDER, FINISH_ORDER, RARITY_ORDER } from "./types/index.js";
 
 /**
  * Deduplicates an array, preserving insertion order.
@@ -31,16 +31,15 @@ export function groupIntoMap<K, T>(items: T[], keyFn: (item: T) => K): Map<K, T[
 
 /**
  * Build composite printing ID.
- * @returns Deterministic ID string: "{source_id}:{art_variant}:{signed|}:{promo|}:{finish}"
+ * @returns Deterministic ID string: "{source_id}:{rarity}:{finish}:{promo|}"
  */
 export function buildPrintingId(
   sourceId: string,
-  artVariant: string,
-  isSigned: boolean,
+  rarity: string,
   isPromo: boolean,
   finish: string,
 ): string {
-  return `${sourceId}:${artVariant}:${isSigned ? "signed" : ""}:${isPromo ? "promo" : ""}:${finish}`;
+  return `${sourceId}:${rarity.toLowerCase()}:${finish}:${isPromo ? "promo" : ""}`;
 }
 
 /**
@@ -56,19 +55,39 @@ export function normalizeNameForMatching(name: string): string {
 }
 
 /**
- * Compare two printings by set, collector number, then art variant.
+ * Compare two printings for canonical ordering.
+ * Sort order: set → collector number → art variant → rarity → finish → signed.
+ * Null/empty art variants are treated as "normal".
  * Use as a comparator for `.sort()` to get canonical printing order.
  *
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
  */
 export function comparePrintings(
-  a: { setId?: string | null; collectorNumber: number; artVariant: ArtVariant },
-  b: { setId?: string | null; collectorNumber: number; artVariant: ArtVariant },
+  a: {
+    setId?: string | null;
+    collectorNumber: number;
+    artVariant: ArtVariant | null;
+    rarity: Rarity | string;
+    finish: Finish | string;
+    isSigned: boolean;
+  },
+  b: {
+    setId?: string | null;
+    collectorNumber: number;
+    artVariant: ArtVariant | null;
+    rarity: Rarity | string;
+    finish: Finish | string;
+    isSigned: boolean;
+  },
 ): number {
+  const av = (v: ArtVariant | null): ArtVariant => v || "normal";
   return (
     (a.setId ?? "").localeCompare(b.setId ?? "") ||
     a.collectorNumber - b.collectorNumber ||
-    ART_VARIANT_ORDER.indexOf(a.artVariant) - ART_VARIANT_ORDER.indexOf(b.artVariant)
+    ART_VARIANT_ORDER.indexOf(av(a.artVariant)) - ART_VARIANT_ORDER.indexOf(av(b.artVariant)) ||
+    RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity) ||
+    FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish) ||
+    Number(a.isSigned) - Number(b.isSigned)
   );
 }
 

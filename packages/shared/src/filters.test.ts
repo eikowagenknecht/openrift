@@ -15,7 +15,7 @@ function makePrinting(
   const cardSlug = cardOverrides?.slug ?? "SET1-001";
   return {
     id: "00000000-0000-0000-0000-000000000001",
-    slug: "SET1-001:normal:::",
+    slug: "SET1-001:common:normal:",
     sourceId: "SET1-001",
     set: "Set Alpha",
     collectorNumber: 1,
@@ -153,7 +153,7 @@ describe("parseSearchTerms", () => {
 describe("filterCards", () => {
   const printings = [
     makePrinting({
-      id: "SET1-001:normal:::normal",
+      id: "SET1-001:rare:normal:",
       sourceId: "SET1-001",
       set: "Set Alpha",
       rarity: "Rare",
@@ -176,7 +176,7 @@ describe("filterCards", () => {
       },
     }),
     makePrinting({
-      id: "SET1-002:normal:::normal",
+      id: "SET1-002:common:foil:",
       sourceId: "SET1-002",
       set: "Set Alpha",
       rarity: "Common",
@@ -199,7 +199,7 @@ describe("filterCards", () => {
       },
     }),
     makePrinting({
-      id: "SET2-001:altart:::normal",
+      id: "SET2-001:epic:normal:",
       sourceId: "SET2-001a",
       set: "Set Beta",
       rarity: "Epic",
@@ -742,19 +742,6 @@ describe("getAvailableFilters", () => {
     expect(result.hasSigned).toBe(false);
   });
 
-  it("computes hasPromo when promo printings exist", () => {
-    const result = getAvailableFilters([
-      makePrinting({ isPromo: true }),
-      makePrinting({ isPromo: false }),
-    ]);
-    expect(result.hasPromo).toBe(true);
-  });
-
-  it("computes hasPromo false when no promo printings", () => {
-    const result = getAvailableFilters([makePrinting({ isPromo: false })]);
-    expect(result.hasPromo).toBe(false);
-  });
-
   it("handles empty array", () => {
     const result = getAvailableFilters([]);
     expect(result.sets).toEqual([]);
@@ -767,7 +754,6 @@ describe("getAvailableFilters", () => {
     expect(result.energy).toEqual({ min: 0, max: 0 });
     expect(result.price).toEqual({ min: 0, max: 0 });
     expect(result.hasSigned).toBe(false);
-    expect(result.hasPromo).toBe(false);
   });
 });
 
@@ -778,7 +764,7 @@ describe("getAvailableFilters", () => {
 describe("sortCards", () => {
   const printings = [
     makePrinting({
-      id: "SET1-003:normal:::normal",
+      id: "SET1-003:epic:normal:",
       sourceId: "SET1-003",
       rarity: "Epic",
       card: {
@@ -796,7 +782,7 @@ describe("sortCards", () => {
       },
     }),
     makePrinting({
-      id: "SET1-001:normal:::normal",
+      id: "SET1-001:rare:normal:",
       sourceId: "SET1-001",
       rarity: "Common",
       card: {
@@ -814,7 +800,7 @@ describe("sortCards", () => {
       },
     }),
     makePrinting({
-      id: "SET1-002:normal:::normal",
+      id: "SET1-002:common:foil:",
       sourceId: "SET1-002",
       rarity: "Rare",
       card: {

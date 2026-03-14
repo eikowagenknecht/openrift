@@ -126,7 +126,7 @@ describe("addCopiesSchema", () => {
 
   it("rejects non-uuid printingId", () => {
     const result = addCopiesSchema.safeParse({
-      copies: [{ printingId: "SET1-001:normal:::normal" }],
+      copies: [{ printingId: "SET1-001:common:normal" }],
     });
     expect(result.success).toBe(false);
   });
@@ -275,7 +275,7 @@ describe("createWishListItemSchema", () => {
 
   it("accepts item with printingId", () => {
     expect(
-      createWishListItemSchema.safeParse({ printingId: "SET1-001:normal:::normal" }).success,
+      createWishListItemSchema.safeParse({ printingId: "SET1-001:common:normal" }).success,
     ).toBe(true);
   });
 

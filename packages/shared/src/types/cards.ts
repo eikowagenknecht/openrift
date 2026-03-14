@@ -43,6 +43,7 @@ export interface Printing {
   printedDescription?: string;
   printedEffect?: string;
   flavorText?: string;
+  comment?: string;
   marketPrice?: number;
   card: Card;
 }
@@ -60,8 +61,5 @@ export interface ContentSet {
 }
 
 export interface RiftboundContent {
-  game: string;
-  version: string;
-  lastUpdated: string;
   sets: ContentSet[];
 }

@@ -41,3 +41,19 @@ export const ART_VARIANT_ORDER: readonly ArtVariant[] = [
 ] as const;
 
 export const FINISH_ORDER: readonly Finish[] = ["normal", "foil"] as const;
+
+export const CARD_TYPE_ORDER: readonly CardType[] = [
+  "Legend",
+  "Unit",
+  "Rune",
+  "Spell",
+  "Gear",
+  "Battlefield",
+] as const;
+
+export const SUPER_TYPE_ORDER: readonly SuperType[] = [
+  "Basic",
+  "Champion",
+  "Signature",
+  "Token",
+] as const;

@@ -1,6 +1,4 @@
 export interface PricesData {
-  source: string;
-  fetchedAt: string;
   prices: Record<string, number>;
 }
 

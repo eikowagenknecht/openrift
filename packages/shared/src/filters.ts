@@ -207,7 +207,7 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
       includes(filters.types, card.type) &&
       overlaps(filters.superTypes, card.superTypes) &&
       includes(filters.rarities, printing.rarity) &&
-      includes(filters.artVariants, printing.artVariant) &&
+      includes(filters.artVariants, printing.artVariant || "normal") &&
       includes(filters.finishes, printing.finish) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
       matchesFlag(filters.isPromo, printing.isPromo) &&
@@ -262,7 +262,7 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
   const rarities = unique(printings.map((p) => p.rarity)).sort(
     (a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b),
   ) as Rarity[];
-  const artVariants = unique(printings.map((p) => p.artVariant)).sort(
+  const artVariants = unique(printings.map((p) => p.artVariant || "normal")).sort(
     (a, b) => ART_VARIANT_ORDER.indexOf(a) - ART_VARIANT_ORDER.indexOf(b),
   );
   const finishes = unique(printings.map((p) => p.finish)).sort(

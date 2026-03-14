@@ -12,7 +12,7 @@ PostgreSQL database managed by Kysely migrations in `packages/shared/src/db/migr
 | Indexes         | `idx_{table}_{columns}`            | `idx_printings_set_id`       |
 | Timestamps      | `timestamptz`, `_at` suffix        | `created_at`, `expires_at`   |
 | Monetary values | integer cents, `_cents` suffix     | `market_cents`, `low_cents`  |
-| Boolean columns | Descriptive prefix (`is_`, `has_`) | `is_signed`, `is_promo`      |
+| Boolean columns | Descriptive prefix (`is_`, `has_`) | `is_signed`                  |
 
 **Rationale:** PostgreSQL folds unquoted identifiers to lowercase, so `snake_case` avoids the need for quoting. Plural table names are used consistently throughout — including join tables (e.g. `deck_cards`).
 
@@ -58,29 +58,28 @@ Stats are nullable with type-specific semantics: `might` is only set for Units, 
 
 Physical product variations of a game card (art, rarity, finish, etc.). One card can have many printings across sets and variants.
 
-| Column                | Type        | Constraints                                       |
-| --------------------- | ----------- | ------------------------------------------------- |
-| `id`                  | text        | primary key (composite, see below)                |
-| `card_id`             | text        | not null, FK → cards.id                           |
-| `set_id`              | text        | not null, FK → sets.id                            |
-| `source_id`           | text        | not null                                          |
-| `collector_number`    | integer     | not null                                          |
-| `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase) |
-| `art_variant`         | text        | not null                                          |
-| `is_signed`           | boolean     | not null, default false                           |
-| `is_promo`            | boolean     | not null, default false                           |
-| `finish`              | text        | not null (normal, foil)                           |
-| `image_url`           | text        | not null                                          |
-| `artist`              | text        | not null                                          |
-| `public_code`         | text        | not null                                          |
-| `printed_rules_text`  | text        | not null (may differ from card's canonical text)  |
-| `printed_effect_text` | text        | not null, default ''                              |
-| `created_at`          | timestamptz | not null, default now()                           |
-| `updated_at`          | timestamptz | not null, default now()                           |
+| Column                | Type        | Constraints                                              |
+| --------------------- | ----------- | -------------------------------------------------------- |
+| `id`                  | text        | primary key (composite, see below)                       |
+| `card_id`             | text        | not null, FK → cards.id                                  |
+| `set_id`              | text        | not null, FK → sets.id                                   |
+| `source_id`           | text        | not null                                                 |
+| `collector_number`    | integer     | not null                                                 |
+| `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase, Promo) |
+| `art_variant`         | text        | not null                                                 |
+| `is_signed`           | boolean     | not null, default false                                  |
+| `finish`              | text        | not null (normal, foil)                                  |
+| `image_url`           | text        | not null                                                 |
+| `artist`              | text        | not null                                                 |
+| `public_code`         | text        | not null                                                 |
+| `printed_rules_text`  | text        | not null (may differ from card's canonical text)         |
+| `printed_effect_text` | text        | not null, default ''                                     |
+| `created_at`          | timestamptz | not null, default now()                                  |
+| `updated_at`          | timestamptz | not null, default now()                                  |
 
-**Composite ID format:** `{source_id}:{art_variant}:{signed?}:{promo?}:{finish}` — e.g. `OGN-027:a::foil`. This makes IDs deterministic and reproducible across refresh runs.
+**Composite ID format:** `{source_id}:{rarity}:{finish}:{promo|}` — e.g. `OGN-027:common:foil:`. This makes IDs deterministic and reproducible across refresh runs.
 
-Indexes: `card_id`, `set_id`, `rarity`. Unique constraint on `(source_id, art_variant, is_signed, is_promo, finish)`.
+Indexes: `card_id`, `set_id`, `rarity`. Unique constraint on `(source_id, art_variant, is_signed, is_promo, rarity, finish)`.
 
 All FKs use `NO ACTION` on delete — deleting a card or set is blocked while printings reference it. This is intentional: printings are the primary unit of ownership (collections, wishlists) so they must never be silently removed.
 

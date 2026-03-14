@@ -22,7 +22,7 @@ export async function down(db: Kysely<unknown>): Promise<void> {
     .alterTable("candidate_printings")
     .addCheckConstraint(
       "chk_candidate_printings_rarity",
-      sql`rarity IN ('Common', 'Uncommon', 'Rare', 'Epic', 'Showcase')`,
+      sql`rarity IN ('Common', 'Uncommon', 'Rare', 'Epic', 'Showcase', 'Promo')`,
     )
     .execute();
   await db.schema

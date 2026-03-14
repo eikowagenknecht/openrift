@@ -25,33 +25,21 @@ describe("unique", () => {
 });
 
 describe("buildPrintingId", () => {
-  it("builds ID for a normal non-signed non-promo card", () => {
-    expect(buildPrintingId("OGN-001", "normal", false, false, "normal")).toBe(
-      "OGN-001:normal:::normal",
-    );
+  it("builds a basic non-promo slug", () => {
+    expect(buildPrintingId("OGN-001", "Common", false, "normal")).toBe("OGN-001:common:normal:");
   });
 
-  it("includes signed flag", () => {
-    expect(buildPrintingId("OGN-001", "normal", true, false, "normal")).toBe(
-      "OGN-001:normal:signed::normal",
-    );
+  it("includes promo segment when isPromo is true", () => {
+    expect(buildPrintingId("OGN-001", "Common", true, "foil")).toBe("OGN-001:common:foil:promo");
   });
 
-  it("includes promo flag", () => {
-    expect(buildPrintingId("OGN-001", "normal", false, true, "foil")).toBe(
-      "OGN-001:normal::promo:foil",
-    );
+  it("lowercases rarity", () => {
+    expect(buildPrintingId("SFD-010", "Epic", false, "foil")).toBe("SFD-010:epic:foil:");
   });
 
-  it("includes both signed and promo flags", () => {
-    expect(buildPrintingId("SFD-010", "altart", true, true, "foil")).toBe(
-      "SFD-010:altart:signed:promo:foil",
-    );
-  });
-
-  it("handles overnumbered art variant", () => {
-    expect(buildPrintingId("OGN-105", "overnumbered", false, false, "normal")).toBe(
-      "OGN-105:overnumbered:::normal",
+  it("preserves finish value", () => {
+    expect(buildPrintingId("OGN-105", "Showcase", false, "normal")).toBe(
+      "OGN-105:showcase:normal:",
     );
   });
 });
