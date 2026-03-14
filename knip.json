@@ -6,8 +6,8 @@
       "project": []
     },
     "apps/api": {
-      "entry": ["src/**/*.test.ts"],
-      "ignore": []
+      "entry": ["src/app.ts"],
+      "ignore": ["src/**/*.test.ts", "src/**/*.integration.test.ts"]
     },
     "apps/web": {
       "entry": [
@@ -18,7 +18,7 @@
       "ignore": ["src/env.d.ts", "src/components/ui/**"]
     },
     "packages/shared": {
-      "entry": ["src/**/*.test.ts", "src/**/*.integration.test.ts"]
+      "ignore": ["src/**/*.test.ts", "src/**/*.integration.test.ts", "src/test/**"]
     }
   },
   "ignoreBinaries": ["wait"]
