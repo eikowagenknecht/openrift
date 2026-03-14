@@ -38,12 +38,12 @@ export interface PhashConfig {
 }
 
 export const DEFAULT_PHASH_CONFIG: PhashConfig = {
-  hashW: 16,
-  hashH: 16,
+  hashW: 32,
+  hashH: 32,
   borderInset: 0.04,
-  normalize: "minmax",
-  blur: 0,
-  algorithm: "dhash-h",
+  normalize: "median",
+  blur: 1,
+  algorithm: "ahash",
 };
 
 // Number of bits in the hash output for the given config.
