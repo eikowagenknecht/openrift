@@ -694,12 +694,20 @@ cardSourcesRoute.post("/card-sources/:cardSourceId/check", async (c) => {
 // NOTE: Must be registered before /card-sources/:cardId/check-all to avoid
 // the :cardId wildcard matching "printing-sources" as a card ID.
 cardSourcesRoute.post("/card-sources/printing-sources/check-all", async (c) => {
-  const { printingId } = await c.req.json<{ printingId: string }>();
+  const { printingId, extraIds } = await c.req.json<{
+    printingId: string;
+    extraIds?: string[];
+  }>();
 
   const results = await db
     .updateTable("printing_sources")
     .set({ checked_at: new Date(), updated_at: new Date() })
-    .where("printing_id", "=", printingId)
+    .where((eb) =>
+      eb.or([
+        eb("printing_id", "=", printingId),
+        ...(extraIds?.length ? [eb("id", "in", extraIds)] : []),
+      ]),
+    )
     .where("checked_at", "is", null)
     .execute();
 
@@ -1005,9 +1013,16 @@ cardSourcesRoute.post("/card-sources/printing/:printingId/accept-field", async (
     throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
   }
 
+  // Normalize enum fields that have DB check constraints
+  let normalizedValue = value;
+  if (field === "rarity" && typeof value === "string") {
+    const validRarities = ["Common", "Uncommon", "Rare", "Epic", "Showcase"];
+    normalizedValue = validRarities.find((r) => r.toLowerCase() === value.toLowerCase()) || value;
+  }
+
   await db
     .updateTable("printings")
-    .set({ [dbField]: value, updated_at: new Date() })
+    .set({ [dbField]: normalizedValue, updated_at: new Date() })
     .where("slug", "=", printingSlug)
     .execute();
 
@@ -1139,6 +1154,12 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
       setUuid = setRow?.id ?? "";
     }
 
+    // Normalize rarity to title case (source data may be lowercase)
+    const validRarities = ["Common", "Uncommon", "Rare", "Epic", "Showcase"];
+    const rawRarity = String(printingFields.rarity || "Common");
+    const normalizedRarity =
+      validRarities.find((r) => r.toLowerCase() === rawRarity.toLowerCase()) || "Common";
+
     const inserted = await trx
       .insertInto("printings")
       .values({
@@ -1147,7 +1168,7 @@ cardSourcesRoute.post("/card-sources/:cardId/accept-printing", async (c) => {
         set_id: setUuid,
         source_id: printingFields.sourceId,
         collector_number: printingFields.collectorNumber ?? 0,
-        rarity: printingFields.rarity || "Common",
+        rarity: normalizedRarity,
         art_variant: printingFields.artVariant ?? "",
         is_signed: printingFields.isSigned ?? false,
         is_promo: printingFields.isPromo ?? false,
