@@ -6,10 +6,8 @@ import { mock, describe, expect, it } from "bun:test";
 // The mock for db.js is not intercepted by bun for the CRUD factory module,
 // so these tests hit the real database. user-a (authenticated via auth mock)
 // has no rows in the real DB, so all queries correctly return 404 / empty.
-// Requires DATABASE_URL (skipped in CI where no database is available).
+// Requires DATABASE_URL — excluded from `bun run test` by filename convention.
 // ---------------------------------------------------------------------------
-
-const DATABASE_URL = process.env.DATABASE_URL;
 
 const USER_A_ID = "a0000000-0000-4000-a000-00000000aa01";
 const USER_A = { id: USER_A_ID, email: "a@test.com", name: "User A" };
@@ -147,7 +145,7 @@ async function expectStatus(method: string, path: string, expected: number, body
 // Tests: CRUD factory routes hit the real DB — user-a must NOT see user-b's data
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Authorization: user isolation — CRUD factory (integration)", () => {
+describe("Authorization: user isolation — CRUD factory (integration)", () => {
   describe("getOne", () => {
     it("GET /collections/:id returns 404 for another user's collection", async () => {
       await expectStatus("GET", `/collections/${COL_ID}`, 404);

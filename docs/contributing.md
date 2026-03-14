@@ -27,6 +27,14 @@ import { useCardFilters } from "./use-card-filters";
 
 Always include a `-- reason` after the rule name to explain the suppression.
 
+## Testing
+
+Tests use `bun:test` (API, shared) and `vitest` (web). Run all tests via `bun run test` (goes through Turbo).
+
+**Unit vs. integration tests** — any test that needs a live database (or other external service) must use a `*.integration.test.ts` filename. The `test` scripts exclude these files so they never run in CI. Run them locally with `bun run test:integration`.
+
+Regular unit tests (`*.test.ts`) must never depend on external services — mock everything via `mock.module`. Note that bun's `mock.module` does not always intercept transitive imports (e.g. the CRUD factory's `db` import) — if a test hits the real DB, it belongs in an integration file.
+
 ## Commits
 
 [Conventional Commits](https://www.conventionalcommits.org/), enforced by commitlint (`feat:`, `fix:`, `refactor:`, `chore:`, etc.).
