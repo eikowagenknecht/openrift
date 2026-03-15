@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "bun --env-file=../../.env test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
+    "test:watch": "bun --env-file=../../.env --watch test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
     "test:integration": "find src -name '*.integration.test.ts' -exec bun --env-file=../../.env test {} \\;",
     "dev": "bun --env-file=../../.env --watch src/index.ts",
     "start": "bun --env-file=../../.env src/index.ts",
