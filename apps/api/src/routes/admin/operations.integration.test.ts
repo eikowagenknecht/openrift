@@ -115,7 +115,7 @@ async function seedMarketplaceData(marketplace: string) {
       source_id: `${marketplace}-001`,
       collector_number: 1,
       rarity: "Common",
-      art_variant: "",
+      art_variant: "normal",
       is_signed: false,
       is_promo: false,
       finish: "normal",
