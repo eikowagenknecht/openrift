@@ -2,7 +2,6 @@ import type { Database } from "@openrift/shared/db";
 import type { Transaction } from "kysely";
 import { sql } from "kysely";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../../db.js";
 
 // ── Unified product-info shape consumed by the frontend ─────────────────────

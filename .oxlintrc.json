@@ -132,6 +132,12 @@
       "rules": {
         "require-await": "off"
       }
+    },
+    {
+      "files": ["apps/api/**"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
     }
   ]
 }

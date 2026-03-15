@@ -4,7 +4,6 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { imageUrl } from "../db-helpers.js";
 import type {
   MarketplaceConfig,

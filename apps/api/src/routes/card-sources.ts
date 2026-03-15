@@ -12,11 +12,8 @@ import type { SqlBool, Transaction } from "kysely";
 import { sql } from "kysely";
 import { z } from "zod";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../errors.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import {
   CARD_IMAGES_DIR,
   deleteRehostFiles,
@@ -25,9 +22,7 @@ import {
   processAndSave,
   renameRehostFiles,
 } from "../services/image-rehost.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { ingestCardSources } from "../services/ingest-card-sources.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
 // Resolve card_id dynamically: direct card name match → alias match.

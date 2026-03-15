@@ -2,11 +2,8 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────

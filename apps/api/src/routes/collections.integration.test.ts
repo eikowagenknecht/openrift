@@ -4,9 +4,7 @@ import type { Collection } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import postgres from "postgres";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type * as AppModule from "../app.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type * as DbModule from "../db.js";
 
 // ---------------------------------------------------------------------------

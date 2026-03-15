@@ -20,9 +20,7 @@ import { Hono } from "hono";
 import type { Selectable } from "kysely";
 import { z } from "zod/v4";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { imageUrl, selectPrintingWithCard } from "../db-helpers.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
 
 // ─── Snapshot helpers ────────────────────────────────────────────────────────

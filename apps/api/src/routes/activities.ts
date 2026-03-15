@@ -3,17 +3,11 @@ import type { Activity, ActivityType } from "@openrift/shared";
 import { activitiesQuerySchema, idParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { imageUrl } from "../db-helpers.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../errors.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { getUserId } from "../middleware/get-user-id.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAuth } from "../middleware/require-auth.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../types.js";
 
 export const activitiesRoute = new Hono<{ Variables: Variables }>()

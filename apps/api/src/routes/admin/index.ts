@@ -1,12 +1,8 @@
 import { Hono } from "hono";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { cronJobs } from "../../cron-jobs.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { isAdmin, requireAdmin } from "../../middleware/require-admin.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { cardSourcesRoute } from "../card-sources.js";
 import { catalogRoute } from "./catalog.js";
 import { featureFlagsRoute } from "./feature-flags.js";

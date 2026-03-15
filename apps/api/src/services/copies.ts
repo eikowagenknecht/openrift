@@ -1,7 +1,6 @@
 import type { Database } from "@openrift/shared/db";
 import type { Kysely } from "kysely";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../errors.js";
 import { createActivity } from "./activity-logger.js";
 import { ensureInbox } from "./inbox.js";
