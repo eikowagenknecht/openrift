@@ -26,7 +26,8 @@ import { db } from "../db.js";
 // ─── Snapshot helpers ────────────────────────────────────────────────────────
 
 function formatSnapshotDate(recordedAt: Date | string): string {
-  return (recordedAt as Date).toISOString().split("T")[0];
+  const d = recordedAt instanceof Date ? recordedAt : new Date(recordedAt);
+  return d.toISOString().split("T")[0];
 }
 
 function centsToDollars(cents: number | null): number | null {
