@@ -146,6 +146,7 @@ CREATE TABLE public.activity_items (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT activity_items_new_printing_id_not_null NOT NULL,
     CONSTRAINT chk_activity_items_action CHECK ((action = ANY (ARRAY['added'::text, 'removed'::text, 'moved'::text]))),
+    CONSTRAINT chk_activity_items_collection_presence CHECK ((((action = 'added'::text) AND (to_collection_id IS NOT NULL)) OR ((action = 'removed'::text) AND (from_collection_id IS NOT NULL)) OR ((action = 'moved'::text) AND (from_collection_id IS NOT NULL) AND (to_collection_id IS NOT NULL)))),
     CONSTRAINT chk_activity_items_type_action CHECK ((((activity_type = 'acquisition'::text) AND (action = 'added'::text)) OR ((activity_type = 'disposal'::text) AND (action = 'removed'::text)) OR ((activity_type = 'trade'::text) AND (action = ANY (ARRAY['added'::text, 'removed'::text]))) OR ((activity_type = 'reorganization'::text) AND (action = 'moved'::text))))
 );
 
@@ -181,7 +182,7 @@ CREATE TABLE public.card_sources (
     source_id text,
     source_entity_id text,
     name text NOT NULL,
-    type text NOT NULL,
+    type text,
     super_types text[] DEFAULT '{}'::text[] NOT NULL,
     domains text[] NOT NULL,
     might integer,
@@ -196,8 +197,18 @@ CREATE TABLE public.card_sources (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     norm_name text NOT NULL,
+    CONSTRAINT chk_card_sources_energy_non_negative CHECK ((energy >= 0)),
+    CONSTRAINT chk_card_sources_might_bonus_non_negative CHECK ((might_bonus >= 0)),
+    CONSTRAINT chk_card_sources_might_non_negative CHECK ((might >= 0)),
+    CONSTRAINT chk_card_sources_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_card_sources_no_empty_effect_text CHECK ((effect_text <> ''::text)),
-    CONSTRAINT chk_card_sources_no_empty_rules_text CHECK ((rules_text <> ''::text))
+    CONSTRAINT chk_card_sources_no_empty_extra_data CHECK (((extra_data <> '{}'::jsonb) AND (extra_data <> 'null'::jsonb))),
+    CONSTRAINT chk_card_sources_no_empty_rules_text CHECK ((rules_text <> ''::text)),
+    CONSTRAINT chk_card_sources_no_empty_source_entity_id CHECK ((source_entity_id <> ''::text)),
+    CONSTRAINT chk_card_sources_no_empty_source_id CHECK ((source_id <> ''::text)),
+    CONSTRAINT chk_card_sources_no_empty_type CHECK ((type <> ''::text)),
+    CONSTRAINT chk_card_sources_power_non_negative CHECK ((power >= 0)),
+    CONSTRAINT chk_card_sources_source_not_empty CHECK ((source <> ''::text))
 );
 
 
@@ -224,8 +235,14 @@ CREATE TABLE public.cards (
     id uuid DEFAULT uuidv7() CONSTRAINT cards_new_id_not_null NOT NULL,
     norm_name text NOT NULL,
     CONSTRAINT chk_cards_domains_not_empty CHECK ((array_length(domains, 1) > 0)),
+    CONSTRAINT chk_cards_energy_non_negative CHECK ((energy >= 0)),
+    CONSTRAINT chk_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
+    CONSTRAINT chk_cards_might_non_negative CHECK ((might >= 0)),
+    CONSTRAINT chk_cards_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_cards_no_empty_effect_text CHECK ((effect_text <> ''::text)),
     CONSTRAINT chk_cards_no_empty_rules_text CHECK ((rules_text <> ''::text)),
+    CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
+    CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text)),
     CONSTRAINT chk_cards_type CHECK ((type = ANY (ARRAY['Legend'::text, 'Unit'::text, 'Rune'::text, 'Spell'::text, 'Gear'::text, 'Battlefield'::text])))
 );
 
@@ -244,7 +261,8 @@ CREATE TABLE public.collections (
     sort_order integer DEFAULT 0 NOT NULL,
     share_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_collections_name_not_empty CHECK ((name <> ''::text))
 );
 
 
@@ -293,7 +311,8 @@ CREATE TABLE public.decks (
     share_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_decks_format CHECK ((format = ANY (ARRAY['standard'::text, 'freeform'::text])))
+    CONSTRAINT chk_decks_format CHECK ((format = ANY (ARRAY['standard'::text, 'freeform'::text]))),
+    CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text))
 );
 
 
@@ -374,7 +393,15 @@ CREATE TABLE public.marketplace_snapshots (
     avg7_cents integer,
     avg30_cents integer,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_snapshots_new_id_not_null NOT NULL,
-    source_id uuid CONSTRAINT marketplace_snapshots_new_source_id_not_null NOT NULL
+    source_id uuid CONSTRAINT marketplace_snapshots_new_source_id_not_null NOT NULL,
+    CONSTRAINT chk_marketplace_snapshots_avg1_cents_non_negative CHECK ((avg1_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_avg30_cents_non_negative CHECK ((avg30_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_avg7_cents_non_negative CHECK ((avg7_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_high_cents_non_negative CHECK ((high_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_low_cents_non_negative CHECK ((low_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_market_cents_non_negative CHECK ((market_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_mid_cents_non_negative CHECK ((mid_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_trend_cents_non_negative CHECK ((trend_cents >= 0))
 );
 
 
@@ -390,7 +417,10 @@ CREATE TABLE public.marketplace_sources (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_sources_new_id_not_null NOT NULL,
-    printing_id uuid CONSTRAINT marketplace_sources_new_printing_id_not_null NOT NULL
+    printing_id uuid CONSTRAINT marketplace_sources_new_printing_id_not_null NOT NULL,
+    CONSTRAINT chk_marketplace_sources_external_id_positive CHECK ((external_id > 0)),
+    CONSTRAINT chk_marketplace_sources_marketplace_not_empty CHECK ((marketplace <> ''::text)),
+    CONSTRAINT chk_marketplace_sources_product_name_not_empty CHECK ((product_name <> ''::text))
 );
 
 
@@ -445,7 +475,12 @@ CREATE TABLE public.printing_images (
     is_active boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    printing_id uuid CONSTRAINT printing_images_new_printing_id_not_null NOT NULL
+    printing_id uuid CONSTRAINT printing_images_new_printing_id_not_null NOT NULL,
+    CONSTRAINT chk_printing_images_face CHECK ((face = ANY (ARRAY['front'::text, 'back'::text]))),
+    CONSTRAINT chk_printing_images_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
+    CONSTRAINT chk_printing_images_no_empty_original_url CHECK ((original_url <> ''::text)),
+    CONSTRAINT chk_printing_images_no_empty_rehosted_url CHECK ((rehosted_url <> ''::text)),
+    CONSTRAINT chk_printing_images_source_not_empty CHECK ((source <> ''::text))
 );
 
 
@@ -459,14 +494,14 @@ CREATE TABLE public.printing_sources (
     source_id text NOT NULL,
     set_id text,
     set_name text,
-    collector_number integer NOT NULL,
-    rarity text NOT NULL,
+    collector_number integer,
+    rarity text,
     art_variant text,
-    is_signed boolean DEFAULT false NOT NULL,
-    is_promo boolean DEFAULT false NOT NULL,
-    finish text NOT NULL,
+    is_signed boolean,
+    is_promo boolean,
+    finish text,
     artist text,
-    public_code text NOT NULL,
+    public_code text,
     printed_rules_text text,
     printed_effect_text text DEFAULT ''::text,
     flavor_text text DEFAULT ''::text,
@@ -477,8 +512,21 @@ CREATE TABLE public.printing_sources (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid,
     source_entity_id text,
+    CONSTRAINT chk_printing_sources_collector_number_positive CHECK ((collector_number > 0)),
+    CONSTRAINT chk_printing_sources_no_empty_art_variant CHECK ((art_variant <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_artist CHECK ((artist <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_extra_data CHECK (((extra_data <> '{}'::jsonb) AND (extra_data <> 'null'::jsonb))),
+    CONSTRAINT chk_printing_sources_no_empty_finish CHECK ((finish <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_image_url CHECK ((image_url <> ''::text)),
     CONSTRAINT chk_printing_sources_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text))
+    CONSTRAINT chk_printing_sources_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_rarity CHECK ((rarity <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_set_id CHECK ((set_id <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_set_name CHECK ((set_name <> ''::text)),
+    CONSTRAINT chk_printing_sources_no_empty_source_entity_id CHECK ((source_entity_id <> ''::text)),
+    CONSTRAINT chk_printing_sources_public_code_not_empty CHECK ((public_code <> ''::text)),
+    CONSTRAINT chk_printing_sources_source_id_not_empty CHECK ((source_id <> ''::text))
 );
 
 
@@ -497,19 +545,27 @@ CREATE TABLE public.printings (
     artist text NOT NULL,
     public_code text NOT NULL,
     printed_rules_text text,
-    printed_effect_text text DEFAULT ''::text,
+    printed_effect_text text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    flavor_text text DEFAULT ''::text,
+    flavor_text text,
     slug text NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT printings_new_id_not_null NOT NULL,
     card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
     set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
     comment text,
+    CONSTRAINT chk_printings_art_variant CHECK ((art_variant = ANY (ARRAY['normal'::text, 'altart'::text, 'overnumbered'::text]))),
+    CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
+    CONSTRAINT chk_printings_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_printings_finish CHECK ((finish = ANY (ARRAY['normal'::text, 'foil'::text]))),
+    CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
-    CONSTRAINT chk_printings_rarity CHECK ((rarity = ANY (ARRAY['Common'::text, 'Uncommon'::text, 'Rare'::text, 'Epic'::text, 'Showcase'::text])))
+    CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
+    CONSTRAINT chk_printings_rarity CHECK ((rarity = ANY (ARRAY['Common'::text, 'Uncommon'::text, 'Rare'::text, 'Epic'::text, 'Showcase'::text]))),
+    CONSTRAINT chk_printings_slug_not_empty CHECK ((slug <> ''::text)),
+    CONSTRAINT chk_printings_source_id_not_empty CHECK ((source_id <> ''::text))
 );
 
 
@@ -535,13 +591,16 @@ CREATE TABLE public.sessions (
 
 CREATE TABLE public.sets (
     name text NOT NULL,
-    printed_total integer NOT NULL,
+    printed_total integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
     released_at date,
     slug text NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT sets_new_id_not_null NOT NULL
+    id uuid DEFAULT uuidv7() CONSTRAINT sets_new_id_not_null NOT NULL,
+    CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
+    CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -567,7 +626,9 @@ CREATE TABLE public.trade_list_items (
     id uuid DEFAULT uuidv7() NOT NULL,
     trade_list_id uuid NOT NULL,
     user_id text NOT NULL,
-    copy_id uuid NOT NULL
+    copy_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -626,7 +687,10 @@ CREATE TABLE public.wish_list_items (
     quantity_desired integer DEFAULT 1 NOT NULL,
     printing_id uuid,
     card_id uuid,
-    CONSTRAINT chk_wish_list_items_quantity CHECK ((quantity_desired > 0))
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_wish_list_items_quantity CHECK ((quantity_desired > 0)),
+    CONSTRAINT chk_wish_list_items_target_xor CHECK (((card_id IS NOT NULL) <> (printing_id IS NOT NULL)))
 );
 
 
@@ -971,6 +1035,14 @@ ALTER TABLE ONLY public.collections
 
 ALTER TABLE ONLY public.copies
     ADD CONSTRAINT uq_copies_id_user UNIQUE (id, user_id);
+
+
+--
+-- Name: decks uq_decks_id_user; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT uq_decks_id_user UNIQUE (id, user_id);
 
 
 --
@@ -1392,7 +1464,7 @@ ALTER TABLE ONLY public.admins
 --
 
 ALTER TABLE ONLY public.card_name_aliases
-    ADD CONSTRAINT card_name_aliases_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
+    ADD CONSTRAINT card_name_aliases_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
 
 
 --
@@ -1524,6 +1596,14 @@ ALTER TABLE ONLY public.marketplace_snapshots
 
 
 --
+-- Name: marketplace_sources marketplace_sources_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_sources
+    ADD CONSTRAINT marketplace_sources_group_fkey FOREIGN KEY (marketplace, group_id) REFERENCES public.marketplace_groups(marketplace, group_id);
+
+
+--
 -- Name: marketplace_sources marketplace_sources_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1630,6 +1710,3 @@ ALTER TABLE ONLY public.wish_lists
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict 9Eo4rA4UyJDR0Zqdity5im5eoQtozGC9YerjakX63nJM5sbThN6eUYKh3RGWAtd
-

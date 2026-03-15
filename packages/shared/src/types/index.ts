@@ -46,6 +46,7 @@ export type {
   Copy,
   CopyRow,
   Deck,
+  DeckFormat,
   DeckZone,
   Source,
   TradeList,
