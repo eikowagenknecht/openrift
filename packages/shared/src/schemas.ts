@@ -158,11 +158,15 @@ export const updateWishListSchema = z.object({
   rules: z.unknown().optional(),
 });
 
-export const createWishListItemSchema = z.object({
-  cardId: z.string().optional(),
-  printingId: z.string().optional(),
-  quantityDesired: wishListItemFieldRules.quantityDesired.default(1),
-});
+export const createWishListItemSchema = z
+  .object({
+    cardId: z.string().optional(),
+    printingId: z.string().optional(),
+    quantityDesired: wishListItemFieldRules.quantityDesired.default(1),
+  })
+  .refine((data) => Boolean(data.cardId) !== Boolean(data.printingId), {
+    message: "Exactly one of cardId or printingId must be provided",
+  });
 
 export const updateWishListItemSchema = z.object({
   quantityDesired: wishListItemFieldRules.quantityDesired,
