@@ -16,6 +16,7 @@
     "lint:oxfmt": "oxfmt ./apps ./packages --check",
     "lefthook": "lefthook",
     "db:migrate": "bun run --cwd packages/shared db:migrate",
+    "db:cleanup": "bun --env-file=.env scripts/db-cleanup.ts",
     "db:rollback": "bun run --cwd packages/shared db:rollback",
     "make-admin": "bun run --cwd packages/shared make-admin --",
     "dev:api": "bun --env-file=.env --watch apps/api/src/index.ts | bunx pino-pretty",
