@@ -35,6 +35,16 @@ bun run --cwd packages/shared build
 
 For dev setup, see `docs/development.md`. For deployment, see `docs/deployment.md`.
 
+## Database Schema
+
+**`docs/schema.sql`** contains the full current schema as a `pg_dump --schema-only` snapshot. **Read this file instead of replaying migration files** when you need to understand the database structure.
+
+Regenerate after applying migrations:
+
+```bash
+docker exec openrift-db-1 pg_dump -U openrift --schema-only --no-owner --no-privileges > docs/schema.sql
+```
+
 ## Migrations
 
 The dev server (`bun dev:api`) hot-reloads on file changes and **instantly applies any new migration** it detects. This means a partially-written migration file will be executed the moment it's saved to disk, potentially leaving the database in a broken state that's hard to recover from.
@@ -44,6 +54,7 @@ The dev server (`bun dev:api`) hot-reloads on file changes and **instantly appli
 1. **Ask the user to stop `bun dev:api`** (or `bun dev`) before creating or editing a migration file. Do not proceed until they confirm the server is stopped.
 2. **Write the migration in one go** — use the `Write` tool (not incremental `Edit`s) so the file lands on disk complete and correct in a single step.
 3. Once the migration file is finalized, tell the user they can restart the dev server (which will apply it) or run `bun db:migrate` manually.
+4. **After a migration is applied**, regenerate the schema snapshot: `docker exec openrift-db-1 pg_dump -U openrift --schema-only --no-owner --no-privileges > docs/schema.sql` and include it in the same commit.
 
 ## Key Patterns
 
