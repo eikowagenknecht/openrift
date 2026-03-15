@@ -10,7 +10,7 @@ import type { Variables } from "../../types.js";
 
 const marketplaceGroupParamSchema = z.object({
   marketplace: z.string().min(1),
-  id: z.string().min(1),
+  id: z.coerce.number().int(),
 });
 
 const updateGroupSchema = z.object({
@@ -82,8 +82,7 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", marketplaceGroupParamSchema),
     zValidator("json", updateGroupSchema),
     async (c) => {
-      const { marketplace, id } = c.req.valid("param");
-      const groupId = Number(id);
+      const { marketplace, id: groupId } = c.req.valid("param");
       const { name } = c.req.valid("json");
 
       await db
