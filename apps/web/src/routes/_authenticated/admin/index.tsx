@@ -1,3 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/admin/")({});
+export const Route = createFileRoute("/_authenticated/admin/")({
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/sets" });
+  },
+});

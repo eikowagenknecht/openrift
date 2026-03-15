@@ -5,7 +5,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { client } from "@/lib/rpc-client";
 const pageTitles: Record<string, string> = {
-  "/_authenticated/admin/": "Overview",
   "/_authenticated/admin/sets": "Sets",
   "/_authenticated/admin/marketplace-overview": "Marketplace Overview",
   "/_authenticated/admin/marketplace-groups": "Marketplace Groups",
