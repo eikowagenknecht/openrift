@@ -22,6 +22,9 @@
     "routes:generate": "bun run --cwd apps/web routes:generate",
     "preview": "turbo run build && (bun run --cwd apps/api start & bun run --cwd apps/web preview & wait)",
     "test": "turbo run test",
+    "test:watch:web": "bun run --cwd apps/web test:watch",
+    "test:watch:api": "bun run --cwd apps/api test:watch",
+    "test:watch:shared": "bun run --cwd packages/shared test:watch",
     "test:integration": "turbo run test:integration",
     "knip": "knip",
     "postinstall": "test -n \"$CI\" || test -n \"$DOCKER_CONTAINER\" || env | grep -q ^DEPENDABOT || lefthook install"
