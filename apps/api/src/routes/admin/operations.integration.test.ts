@@ -119,14 +119,24 @@ async function seedMarketplaceData(marketplace: string) {
       is_signed: false,
       is_promo: false,
       finish: "normal",
-      artist: "",
-      public_code: "",
+      artist: "Test Artist",
+      public_code: "TST",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
       comment: null,
     })
     .returning("id")
+    .execute();
+
+  // marketplace_groups (needed for marketplace_sources FK)
+  await db
+    .insertInto("marketplace_groups")
+    .values({
+      marketplace,
+      group_id: 1,
+      name: `${marketplace} Group`,
+    })
     .execute();
 
   // marketplace_sources
