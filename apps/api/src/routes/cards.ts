@@ -196,9 +196,10 @@ export const cardsRoute = new Hono()
   })
   .get(
     "/prices/:printingId/history",
+    zValidator("param", z.object({ printingId: z.string().min(1) })),
     zValidator("query", z.object({ range: z.string().optional() })),
     async (c) => {
-      const param = c.req.param("printingId");
+      const { printingId: param } = c.req.valid("param");
       const rangeParam = c.req.valid("query").range ?? "30d";
       const days =
         rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam as TimeRange] : RANGE_DAYS["30d"];

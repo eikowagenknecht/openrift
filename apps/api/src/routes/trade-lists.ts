@@ -2,6 +2,8 @@ import { zValidator } from "@hono/zod-validator";
 import {
   createTradeListItemSchema,
   createTradeListSchema,
+  idAndItemIdParamSchema,
+  idParamSchema,
   updateTradeListSchema,
 } from "@openrift/shared/schemas";
 import { Hono } from "hono";
@@ -25,9 +27,6 @@ import type { Variables } from "../types.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toTradeList, toTradeListItem } from "../utils/dto.js";
 
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic table names lose Kysely's static types
-const dynDb = db as any;
-
 const patchFields: FieldMapping = {
   name: "name",
   rules: (v) => ["rules", v ? JSON.stringify(v) : null],
@@ -40,20 +39,20 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/trade-lists", async (c) => {
     const userId = getUserId(c);
-    const rows = await dynDb
+    const rows = await db
       .selectFrom("trade_lists")
       .selectAll()
       .where("user_id", "=", userId)
       .orderBy("name")
       .execute();
-    return c.json(rows.map((row: object) => toTradeList(row)));
+    return c.json(rows.map((row) => toTradeList(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/trade-lists", zValidator("json", createTradeListSchema), async (c) => {
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await dynDb
+    const row = await db
       .insertInto("trade_lists")
       .values({
         user_id: userId,
@@ -66,9 +65,9 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE (custom: returns trade list with enriched items) ────────────────
-  .get("/trade-lists/:id", async (c) => {
+  .get("/trade-lists/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
 
     const tradeList = await db
       .selectFrom("trade_lists")
@@ -128,29 +127,36 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .patch("/trade-lists/:id", zValidator("json", updateTradeListSchema), async (c) => {
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    const updates = buildPatchUpdates(body, patchFields);
-    const row = await dynDb
-      .updateTable("trade_lists")
-      .set(updates)
-      .where("id", "=", c.req.param("id"))
-      .where("user_id", "=", userId)
-      .returningAll()
-      .executeTakeFirst();
-    if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
-    }
-    return c.json(toTradeList(row as object));
-  })
+  .patch(
+    "/trade-lists/:id",
+    zValidator("param", idParamSchema),
+    zValidator("json", updateTradeListSchema),
+    async (c) => {
+      const userId = getUserId(c);
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const updates = buildPatchUpdates(body, patchFields);
+      const row = await db
+        .updateTable("trade_lists")
+        .set(updates)
+        .where("id", "=", id)
+        .where("user_id", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+      if (!row) {
+        throw new AppError(404, "NOT_FOUND", "Not found");
+      }
+      return c.json(toTradeList(row));
+    },
+  )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/trade-lists/:id", async (c) => {
+  .delete("/trade-lists/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const result = await dynDb
+    const { id } = c.req.valid("param");
+    const result = await db
       .deleteFrom("trade_lists")
-      .where("id", "=", c.req.param("id"))
+      .where("id", "=", id)
       .where("user_id", "=", userId)
       .executeTakeFirst();
     if (result.numDeletedRows === 0n) {
@@ -160,64 +166,72 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /trade-lists/:id/items ───────────────────────────────────────────
-  .post("/trade-lists/:id/items", zValidator("json", createTradeListItemSchema), async (c) => {
-    const userId = getUserId(c);
-    const tradeListId = c.req.param("id");
-    const body = c.req.valid("json");
+  .post(
+    "/trade-lists/:id/items",
+    zValidator("param", idParamSchema),
+    zValidator("json", createTradeListItemSchema),
+    async (c) => {
+      const userId = getUserId(c);
+      const { id: tradeListId } = c.req.valid("param");
+      const body = c.req.valid("json");
 
-    // Verify trade list belongs to user
-    const tradeList = await db
-      .selectFrom("trade_lists")
-      .select("id")
-      .where("id", "=", tradeListId)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+      // Verify trade list belongs to user
+      const tradeList = await db
+        .selectFrom("trade_lists")
+        .select("id")
+        .where("id", "=", tradeListId)
+        .where("user_id", "=", userId)
+        .executeTakeFirst();
 
-    if (!tradeList) {
-      throw new AppError(404, "NOT_FOUND", "Trade list not found");
-    }
+      if (!tradeList) {
+        throw new AppError(404, "NOT_FOUND", "Trade list not found");
+      }
 
-    // Verify copy belongs to user
-    const copy = await db
-      .selectFrom("copies")
-      .select("id")
-      .where("id", "=", body.copyId)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+      // Verify copy belongs to user
+      const copy = await db
+        .selectFrom("copies")
+        .select("id")
+        .where("id", "=", body.copyId)
+        .where("user_id", "=", userId)
+        .executeTakeFirst();
 
-    if (!copy) {
-      throw new AppError(404, "NOT_FOUND", "Copy not found");
-    }
+      if (!copy) {
+        throw new AppError(404, "NOT_FOUND", "Copy not found");
+      }
 
-    const row = await db
-      .insertInto("trade_list_items")
-      .values({
-        trade_list_id: tradeListId,
-        user_id: userId,
-        copy_id: body.copyId,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+      const row = await db
+        .insertInto("trade_list_items")
+        .values({
+          trade_list_id: tradeListId,
+          user_id: userId,
+          copy_id: body.copyId,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
 
-    return c.json(toTradeListItem(row), 201);
-  })
+      return c.json(toTradeListItem(row), 201);
+    },
+  )
 
   // ── DELETE /trade-lists/:id/items/:itemId ─────────────────────────────────
-  .delete("/trade-lists/:id/items/:itemId", async (c) => {
-    const userId = getUserId(c);
-    const tradeListId = c.req.param("id");
-    const itemId = c.req.param("itemId");
+  .delete(
+    "/trade-lists/:id/items/:itemId",
+    zValidator("param", idAndItemIdParamSchema),
+    async (c) => {
+      const userId = getUserId(c);
+      const { id: tradeListId, itemId } = c.req.valid("param");
 
-    const result = await db
-      .deleteFrom("trade_list_items")
-      .where("id", "=", itemId)
-      .where("trade_list_id", "=", tradeListId)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+      const result = await db
+        .deleteFrom("trade_list_items")
+        .where("id", "=", itemId)
+        .where("trade_list_id", "=", tradeListId)
+        .where("user_id", "=", userId)
+        .executeTakeFirst();
 
-    if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
-    }
+      if (result.numDeletedRows === 0n) {
+        throw new AppError(404, "NOT_FOUND", "Not found");
+      }
 
-    return c.json({ ok: true });
-  });
+      return c.json({ ok: true });
+    },
+  );

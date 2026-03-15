@@ -158,7 +158,10 @@ export async function renameRehostFiles(
 
 const BATCH_SIZE = 10;
 
-export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress> {
+export async function rehostImages(
+  db: Kysely<Database>,
+  limit = BATCH_SIZE,
+): Promise<RehostProgress> {
   // Find active front images that haven't been rehosted yet
   const images = await db
     .selectFrom("printing_images as pi")
@@ -174,7 +177,7 @@ export async function rehostImages(db: Kysely<Database>): Promise<RehostProgress
     .where("pi.face", "=", "front")
     .where("pi.rehosted_url", "is", null)
     .where("pi.original_url", "is not", null)
-    .limit(BATCH_SIZE)
+    .limit(limit)
     .execute();
 
   const progress: RehostProgress = {

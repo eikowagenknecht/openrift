@@ -1,4 +1,6 @@
+import { zValidator } from "@hono/zod-validator";
 import type { Activity, ActivityType } from "@openrift/shared";
+import { activitiesQuerySchema, idParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -20,10 +22,10 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /activities ───────────────────────────────────────────────────────────
 
-  .get("/activities", async (c) => {
+  .get("/activities", zValidator("query", activitiesQuerySchema), async (c) => {
     const userId = getUserId(c);
-    const cursor = c.req.query("cursor");
-    const limit = Math.min(Number(c.req.query("limit") ?? 50), 100);
+    const { cursor, limit: rawLimit } = c.req.valid("query");
+    const limit = rawLimit ?? 50;
 
     let query = db
       .selectFrom("activities")
@@ -60,9 +62,9 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /activities/:id ───────────────────────────────────────────────────────
 
-  .get("/activities/:id", async (c) => {
+  .get("/activities/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
 
     const activity = await db
       .selectFrom("activities")

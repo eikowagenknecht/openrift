@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { createSourceSchema, updateSourceSchema } from "@openrift/shared/schemas";
+import { createSourceSchema, idParamSchema, updateSourceSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -19,9 +19,6 @@ import type { Variables } from "../types.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toSource } from "../utils/dto.js";
 
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic table names lose Kysely's static types
-const dynDb = db as any;
-
 const patchFields: FieldMapping = { name: "name", description: "description" };
 
 export const sourcesRoute = new Hono<{ Variables: Variables }>()
@@ -31,20 +28,20 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/sources", async (c) => {
     const userId = getUserId(c);
-    const rows = await dynDb
+    const rows = await db
       .selectFrom("sources")
       .selectAll()
       .where("user_id", "=", userId)
       .orderBy("name")
       .execute();
-    return c.json(rows.map((row: object) => toSource(row)));
+    return c.json(rows.map((row) => toSource(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/sources", zValidator("json", createSourceSchema), async (c) => {
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await dynDb
+    const row = await db
       .insertInto("sources")
       .values({
         user_id: userId,
@@ -53,48 +50,56 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
       })
       .returningAll()
       .executeTakeFirstOrThrow();
-    return c.json(toSource(row as object), 201);
+    return c.json(toSource(row), 201);
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
-  .get("/sources/:id", async (c) => {
+  .get("/sources/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const row = await dynDb
+    const { id } = c.req.valid("param");
+    const row = await db
       .selectFrom("sources")
       .selectAll()
-      .where("id", "=", c.req.param("id"))
+      .where("id", "=", id)
       .where("user_id", "=", userId)
       .executeTakeFirst();
     if (!row) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
-    return c.json(toSource(row as object));
+    return c.json(toSource(row));
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .patch("/sources/:id", zValidator("json", updateSourceSchema), async (c) => {
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    const updates = buildPatchUpdates(body, patchFields);
-    const row = await dynDb
-      .updateTable("sources")
-      .set(updates)
-      .where("id", "=", c.req.param("id"))
-      .where("user_id", "=", userId)
-      .returningAll()
-      .executeTakeFirst();
-    if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
-    }
-    return c.json(toSource(row as object));
-  })
+  .patch(
+    "/sources/:id",
+    zValidator("param", idParamSchema),
+    zValidator("json", updateSourceSchema),
+    async (c) => {
+      const userId = getUserId(c);
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const updates = buildPatchUpdates(body, patchFields);
+      const row = await db
+        .updateTable("sources")
+        .set(updates)
+        .where("id", "=", id)
+        .where("user_id", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+      if (!row) {
+        throw new AppError(404, "NOT_FOUND", "Not found");
+      }
+      return c.json(toSource(row));
+    },
+  )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/sources/:id", async (c) => {
+  .delete("/sources/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const result = await dynDb
+    const { id } = c.req.valid("param");
+    const result = await db
       .deleteFrom("sources")
-      .where("id", "=", c.req.param("id"))
+      .where("id", "=", id)
       .where("user_id", "=", userId)
       .executeTakeFirst();
     if (result.numDeletedRows === 0n) {

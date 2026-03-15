@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { slugParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -85,19 +86,24 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     });
   })
 
-  .patch("/admin/cardmarket-groups/:id", zValidator("json", updateExpansionSchema), async (c) => {
-    const expansionId = Number(c.req.param("id"));
-    const { name } = c.req.valid("json");
+  .patch(
+    "/admin/cardmarket-groups/:id",
+    zValidator("param", slugParamSchema),
+    zValidator("json", updateExpansionSchema),
+    async (c) => {
+      const expansionId = Number(c.req.valid("param").id);
+      const { name } = c.req.valid("json");
 
-    await db
-      .updateTable("marketplace_groups")
-      .set({ name, updated_at: new Date() })
-      .where("marketplace", "=", "cardmarket")
-      .where("group_id", "=", expansionId)
-      .execute();
+      await db
+        .updateTable("marketplace_groups")
+        .set({ name, updated_at: new Date() })
+        .where("marketplace", "=", "cardmarket")
+        .where("group_id", "=", expansionId)
+        .execute();
 
-    return c.json({ ok: true });
-  })
+      return c.json({ ok: true });
+    },
+  )
 
   // ── TCGPlayer Groups ─────────────────────────────────────────────────────────
 
@@ -191,18 +197,28 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     });
   })
 
-  .patch("/admin/sets/:id", zValidator("json", updateSetSchema), async (c) => {
-    const id = c.req.param("id");
-    const { name, printedTotal, releasedAt } = c.req.valid("json");
+  .patch(
+    "/admin/sets/:id",
+    zValidator("param", slugParamSchema),
+    zValidator("json", updateSetSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { name, printedTotal, releasedAt } = c.req.valid("json");
 
-    await db
-      .updateTable("sets")
-      .set({ name, printed_total: printedTotal, released_at: releasedAt, updated_at: new Date() })
-      .where("slug", "=", id)
-      .execute();
+      await db
+        .updateTable("sets")
+        .set({
+          name,
+          printed_total: printedTotal,
+          released_at: releasedAt,
+          updated_at: new Date(),
+        })
+        .where("slug", "=", id)
+        .execute();
 
-    return c.json({ ok: true });
-  })
+      return c.json({ ok: true });
+    },
+  )
 
   .post("/admin/sets", zValidator("json", createSetSchema), async (c) => {
     const { id, name, printedTotal, releasedAt } = c.req.valid("json");

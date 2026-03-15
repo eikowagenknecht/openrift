@@ -1,5 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
-import { addCopiesSchema, disposeCopiesSchema, moveCopiesSchema } from "@openrift/shared/schemas";
+import {
+  addCopiesSchema,
+  disposeCopiesSchema,
+  idParamSchema,
+  moveCopiesSchema,
+} from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -110,9 +115,9 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /copies/:id ─────────────────────────────────────────────────────────
 
-  .get("/copies/:id", async (c) => {
+  .get("/copies/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
 
     const copy = await selectCopyWithCard(db)
       .select([

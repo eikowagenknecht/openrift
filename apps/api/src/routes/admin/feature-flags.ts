@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { keyParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -84,37 +85,42 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
 
   // ── Admin: PATCH /admin/feature-flags/:key ──────────────────────────────────
 
-  .patch("/admin/feature-flags/:key", zValidator("json", updateFlagSchema), async (c) => {
-    const key = c.req.param("key");
-    const body = c.req.valid("json");
+  .patch(
+    "/admin/feature-flags/:key",
+    zValidator("param", keyParamSchema),
+    zValidator("json", updateFlagSchema),
+    async (c) => {
+      const { key } = c.req.valid("param");
+      const body = c.req.valid("json");
 
-    const existing = await db
-      .selectFrom("feature_flags")
-      .select("key")
-      .where("key", "=", key)
-      .executeTakeFirst();
+      const existing = await db
+        .selectFrom("feature_flags")
+        .select("key")
+        .where("key", "=", key)
+        .executeTakeFirst();
 
-    if (!existing) {
-      throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
-    }
+      if (!existing) {
+        throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
+      }
 
-    const updates: Record<string, unknown> = { updated_at: new Date() };
-    if (body.enabled !== undefined) {
-      updates.enabled = body.enabled;
-    }
-    if (body.description !== undefined) {
-      updates.description = body.description;
-    }
+      const updates: Record<string, unknown> = { updated_at: new Date() };
+      if (body.enabled !== undefined) {
+        updates.enabled = body.enabled;
+      }
+      if (body.description !== undefined) {
+        updates.description = body.description;
+      }
 
-    await db.updateTable("feature_flags").set(updates).where("key", "=", key).execute();
+      await db.updateTable("feature_flags").set(updates).where("key", "=", key).execute();
 
-    return c.json({ ok: true });
-  })
+      return c.json({ ok: true });
+    },
+  )
 
   // ── Admin: DELETE /admin/feature-flags/:key ─────────────────────────────────
 
-  .delete("/admin/feature-flags/:key", async (c) => {
-    const key = c.req.param("key");
+  .delete("/admin/feature-flags/:key", zValidator("param", keyParamSchema), async (c) => {
+    const { key } = c.req.valid("param");
 
     const result = await db.deleteFrom("feature_flags").where("key", "=", key).executeTakeFirst();
 

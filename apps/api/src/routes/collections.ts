@@ -1,5 +1,9 @@
 import { zValidator } from "@hono/zod-validator";
-import { createCollectionSchema, updateCollectionSchema } from "@openrift/shared/schemas";
+import {
+  createCollectionSchema,
+  idParamSchema,
+  updateCollectionSchema,
+} from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -25,9 +29,6 @@ import type { Variables } from "../types.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toCollection, toCopy } from "../utils/dto.js";
 
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic table names lose Kysely's static types
-const dynDb = db as any;
-
 const patchFields: FieldMapping = {
   name: "name",
   description: "description",
@@ -43,7 +44,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   .get("/collections", async (c) => {
     await ensureInbox(db, getUserId(c));
     const userId = getUserId(c);
-    const rows = await dynDb
+    const rows = await db
       .selectFrom("collections")
       .selectAll()
       .where("user_id", "=", userId)
@@ -51,14 +52,14 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       .orderBy("sort_order")
       .orderBy("name")
       .execute();
-    return c.json(rows.map((row: object) => toCollection(row)));
+    return c.json(rows.map((row) => toCollection(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/collections", zValidator("json", createCollectionSchema), async (c) => {
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await dynDb
+    const row = await db
       .insertInto("collections")
       .values({
         user_id: userId,
@@ -70,47 +71,54 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       })
       .returningAll()
       .executeTakeFirstOrThrow();
-    return c.json(toCollection(row as object), 201);
+    return c.json(toCollection(row), 201);
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
-  .get("/collections/:id", async (c) => {
+  .get("/collections/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const row = await dynDb
+    const { id } = c.req.valid("param");
+    const row = await db
       .selectFrom("collections")
       .selectAll()
-      .where("id", "=", c.req.param("id"))
+      .where("id", "=", id)
       .where("user_id", "=", userId)
       .executeTakeFirst();
     if (!row) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
-    return c.json(toCollection(row as object));
+    return c.json(toCollection(row));
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .patch("/collections/:id", zValidator("json", updateCollectionSchema), async (c) => {
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    const updates = buildPatchUpdates(body, patchFields);
-    const row = await dynDb
-      .updateTable("collections")
-      .set(updates)
-      .where("id", "=", c.req.param("id"))
-      .where("user_id", "=", userId)
-      .returningAll()
-      .executeTakeFirst();
-    if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
-    }
-    return c.json(toCollection(row as object));
-  })
+  .patch(
+    "/collections/:id",
+    zValidator("param", idParamSchema),
+    zValidator("json", updateCollectionSchema),
+    async (c) => {
+      const userId = getUserId(c);
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const updates = buildPatchUpdates(body, patchFields);
+      const row = await db
+        .updateTable("collections")
+        .set(updates)
+        .where("id", "=", id)
+        .where("user_id", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+      if (!row) {
+        throw new AppError(404, "NOT_FOUND", "Not found");
+      }
+      return c.json(toCollection(row));
+    },
+  )
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
   // Complex: validates inbox, relocates copies, logs activity
-  .delete("/collections/:id", async (c) => {
+  .delete("/collections/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
     const moveCopiesTo = c.req.query("move_copies_to");
 
     const collection = await db
@@ -194,9 +202,9 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
-  .get("/collections/:id/copies", async (c) => {
+  .get("/collections/:id/copies", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
 
     // Verify collection belongs to user
     const collection = await db

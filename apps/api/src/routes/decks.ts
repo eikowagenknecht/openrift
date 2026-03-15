@@ -2,6 +2,8 @@ import { zValidator } from "@hono/zod-validator";
 import type { DeckZone } from "@openrift/shared";
 import {
   createDeckSchema,
+  decksQuerySchema,
+  idParamSchema,
   updateDeckCardsSchema,
   updateDeckSchema,
 } from "@openrift/shared/schemas";
@@ -24,9 +26,6 @@ import type { Variables } from "../types.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { toDeck } from "../utils/dto.js";
 
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic table names lose Kysely's static types
-const dynDb = db as any;
-
 const patchFields: FieldMapping = {
   name: "name",
   description: "description",
@@ -40,23 +39,24 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   .use("/decks", requireAuth)
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/decks", async (c) => {
+  .get("/decks", zValidator("query", decksQuerySchema), async (c) => {
     const userId = getUserId(c);
-    let query = dynDb.selectFrom("decks").selectAll().where("user_id", "=", userId).orderBy("name");
+    const { wanted } = c.req.valid("query");
+    let query = db.selectFrom("decks").selectAll().where("user_id", "=", userId).orderBy("name");
 
-    if (c.req.query("wanted") === "true") {
+    if (wanted === "true") {
       query = query.where("is_wanted", "=", true);
     }
 
     const rows = await query.execute();
-    return c.json(rows.map((row: object) => toDeck(row)));
+    return c.json(rows.map((row) => toDeck(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/decks", zValidator("json", createDeckSchema), async (c) => {
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await dynDb
+    const row = await db
       .insertInto("decks")
       .values({
         user_id: userId,
@@ -68,13 +68,13 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
       })
       .returningAll()
       .executeTakeFirstOrThrow();
-    return c.json(toDeck(row as object), 201);
+    return c.json(toDeck(row), 201);
   })
 
   // ── GET ONE (custom: returns deck with deck_cards joined) ───────────────────
-  .get("/decks/:id", async (c) => {
+  .get("/decks/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
 
     const deck = await db
       .selectFrom("decks")
@@ -127,29 +127,36 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .patch("/decks/:id", zValidator("json", updateDeckSchema), async (c) => {
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    const updates = buildPatchUpdates(body, patchFields);
-    const row = await dynDb
-      .updateTable("decks")
-      .set(updates)
-      .where("id", "=", c.req.param("id"))
-      .where("user_id", "=", userId)
-      .returningAll()
-      .executeTakeFirst();
-    if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
-    }
-    return c.json(toDeck(row as object));
-  })
+  .patch(
+    "/decks/:id",
+    zValidator("param", idParamSchema),
+    zValidator("json", updateDeckSchema),
+    async (c) => {
+      const userId = getUserId(c);
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const updates = buildPatchUpdates(body, patchFields);
+      const row = await db
+        .updateTable("decks")
+        .set(updates)
+        .where("id", "=", id)
+        .where("user_id", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+      if (!row) {
+        throw new AppError(404, "NOT_FOUND", "Not found");
+      }
+      return c.json(toDeck(row));
+    },
+  )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/decks/:id", async (c) => {
+  .delete("/decks/:id", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const result = await dynDb
+    const { id } = c.req.valid("param");
+    const result = await db
       .deleteFrom("decks")
-      .where("id", "=", c.req.param("id"))
+      .where("id", "=", id)
       .where("user_id", "=", userId)
       .executeTakeFirst();
     if (result.numDeletedRows === 0n) {
@@ -160,75 +167,88 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── PUT /decks/:id/cards ──────────────────────────────────────────────────
   // Full replace of deck cards
-  .put("/decks/:id/cards", zValidator("json", updateDeckCardsSchema), async (c) => {
-    const userId = getUserId(c);
-    const id = c.req.param("id");
-    const body = c.req.valid("json");
+  .put(
+    "/decks/:id/cards",
+    zValidator("param", idParamSchema),
+    zValidator("json", updateDeckCardsSchema),
+    async (c) => {
+      const userId = getUserId(c);
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
 
-    // Verify deck belongs to user
-    const deck = await db
-      .selectFrom("decks")
-      .select(["id", "format"])
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+      // Verify deck belongs to user
+      const deck = await db
+        .selectFrom("decks")
+        .select(["id", "format"])
+        .where("id", "=", id)
+        .where("user_id", "=", userId)
+        .executeTakeFirst();
 
-    if (!deck) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
-    }
-
-    // Validate format rules
-    if (deck.format === "standard") {
-      const mainCount = body.cards
-        .filter((entry) => entry.zone === "main")
-        .reduce((sum, entry) => sum + entry.quantity, 0);
-      const sideboardCount = body.cards
-        .filter((entry) => entry.zone === "sideboard")
-        .reduce((sum, entry) => sum + entry.quantity, 0);
-
-      if (mainCount < 40) {
-        throw new AppError(
-          400,
-          "BAD_REQUEST",
-          "Standard format requires at least 40 main deck cards",
-        );
+      if (!deck) {
+        throw new AppError(404, "NOT_FOUND", "Not found");
       }
-      if (sideboardCount > 8) {
-        throw new AppError(400, "BAD_REQUEST", "Standard format allows at most 8 sideboard cards");
+
+      // Validate format rules
+      if (deck.format === "standard") {
+        const mainCount = body.cards
+          .filter((entry) => entry.zone === "main")
+          .reduce((sum, entry) => sum + entry.quantity, 0);
+        const sideboardCount = body.cards
+          .filter((entry) => entry.zone === "sideboard")
+          .reduce((sum, entry) => sum + entry.quantity, 0);
+
+        if (mainCount < 40) {
+          throw new AppError(
+            400,
+            "BAD_REQUEST",
+            "Standard format requires at least 40 main deck cards",
+          );
+        }
+        if (sideboardCount > 8) {
+          throw new AppError(
+            400,
+            "BAD_REQUEST",
+            "Standard format allows at most 8 sideboard cards",
+          );
+        }
       }
-    }
 
-    await db.transaction().execute(async (trx) => {
-      // Delete existing cards
-      await trx.deleteFrom("deck_cards").where("deck_id", "=", id).execute();
+      await db.transaction().execute(async (trx) => {
+        // Delete existing cards
+        await trx.deleteFrom("deck_cards").where("deck_id", "=", id).execute();
 
-      // Insert new cards
-      if (body.cards.length > 0) {
+        // Insert new cards
+        if (body.cards.length > 0) {
+          await trx
+            .insertInto("deck_cards")
+            .values(
+              body.cards.map((card) => ({
+                deck_id: id,
+                card_id: card.cardId,
+                zone: card.zone,
+                quantity: card.quantity,
+              })),
+            )
+            .execute();
+        }
+
+        // Touch deck updated_at
         await trx
-          .insertInto("deck_cards")
-          .values(
-            body.cards.map((card) => ({
-              deck_id: id,
-              card_id: card.cardId,
-              zone: card.zone,
-              quantity: card.quantity,
-            })),
-          )
+          .updateTable("decks")
+          .set({ updated_at: new Date() })
+          .where("id", "=", id)
           .execute();
-      }
+      });
 
-      // Touch deck updated_at
-      await trx.updateTable("decks").set({ updated_at: new Date() }).where("id", "=", id).execute();
-    });
-
-    return c.json({ ok: true });
-  })
+      return c.json({ ok: true });
+    },
+  )
 
   // ── GET /decks/:id/availability ───────────────────────────────────────────
   // For a wanted deck, returns per-card availability from deckbuilding collections
-  .get("/decks/:id/availability", async (c) => {
+  .get("/decks/:id/availability", zValidator("param", idParamSchema), async (c) => {
     const userId = getUserId(c);
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
 
     const deck = await db
       .selectFrom("decks")

@@ -11,6 +11,11 @@ import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
+const marketplaceGroupParamSchema = z.object({
+  marketplace: z.string().min(1),
+  id: z.string().min(1),
+});
+
 const updateGroupSchema = z.object({
   name: z.string().nullable(),
 });
@@ -77,10 +82,11 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
 
   .patch(
     "/admin/marketplace-groups/:marketplace/:id",
+    zValidator("param", marketplaceGroupParamSchema),
     zValidator("json", updateGroupSchema),
     async (c) => {
-      const marketplace = c.req.param("marketplace");
-      const groupId = Number(c.req.param("id"));
+      const { marketplace, id } = c.req.valid("param");
+      const groupId = Number(id);
       const { name } = c.req.valid("json");
 
       await db
