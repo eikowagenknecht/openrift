@@ -9,9 +9,6 @@ commit-msg:
 pre-commit:
   parallel: false
   commands:
-    typescript-check:
-      glob: "*.{ts,tsx}"
-      run: bun run --cwd packages/shared typecheck && bun run --cwd apps/web typecheck
     oxlint-check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}"
       run: bunx oxlint --deny-warnings '{staged_files}'
@@ -25,14 +22,19 @@ pre-commit:
     oxfmt-fix:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,md}"
       run: bunx oxfmt '{staged_files}' && git update-index --again
-    knip-check:
-      glob: "*.{js,ts,cjs,mjs,jsx,tsx}"
-      run: bun run knip
 
 pre-push:
   commands:
+    typescript-check:
+      glob: "*.{ts,tsx}"
+      run: bun run --cwd packages/shared typecheck && bun run --cwd apps/web typecheck
+    knip-check:
+      glob: "*.{js,ts,cjs,mjs,jsx,tsx}"
+      run: bun run knip
     lockfile-check:
       glob: "**/package.json"
       run: bun install --frozen-lockfile
     test:
       run: bun run test
+    test-integration:
+      run: bun run test:integration
