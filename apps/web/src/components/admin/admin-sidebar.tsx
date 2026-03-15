@@ -25,8 +25,6 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
-const topPages = [{ to: "/admin" as const, icon: LayoutDashboardIcon, title: "Overview" }];
-
 const catalogPages = [
   { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
   { to: "/admin/cards" as const, icon: GalleryVerticalIcon, title: "Cards" },
@@ -52,22 +50,6 @@ export function AdminSidebar() {
   return (
     <Sidebar className="sticky! top-14 h-[calc(100svh-3.5rem-1px)]! overflow-hidden! border-l-0! group-data-[collapsible=offcanvas]:w-0!">
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            {topPages.map((page) => (
-              <SidebarMenuItem key={page.to}>
-                <SidebarMenuButton
-                  isActive={currentPath === page.to}
-                  render={<Link to={page.to} />}
-                >
-                  <page.icon />
-                  <span>{page.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
         <SidebarGroup>
           <SidebarGroupLabel>Catalog</SidebarGroupLabel>
           <SidebarMenu>
