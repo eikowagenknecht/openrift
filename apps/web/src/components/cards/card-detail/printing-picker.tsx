@@ -73,7 +73,7 @@ function PrintingPrices({
   printingId: string;
 }) {
   const { data: history } = usePriceHistory(printingId, "30d");
-  const cmSnapshots = history?.cardmarket.snapshots;
+  const cmSnapshots = history?.cardmarket?.snapshots;
   const cmLatest = cmSnapshots?.length ? cmSnapshots.at(-1) : null;
 
   if (marketPrice === undefined && !cmLatest) {
