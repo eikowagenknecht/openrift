@@ -44,7 +44,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -686,25 +685,37 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                 </div>
                 {isExpanded && (
                   <div className="flex gap-3 border-t p-3">
-                    {(() => {
-                      const imgUrl = activeImage?.rehostedUrl
-                        ? `${activeImage.rehostedUrl}-full.webp`
-                        : activeImage?.originalUrl;
-                      return imgUrl ? (
-                        <a
-                          href={imgUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0"
-                        >
-                          <img
-                            src={imgUrl}
-                            alt={printingSlug}
-                            className="w-96 rounded border object-contain"
-                          />
-                        </a>
-                      ) : null;
-                    })()}
+                    <PrintingImageSwitcher
+                      printingId={printingId}
+                      printingSlug={printingSlug}
+                      images={printingImages.filter((pi) => pi.printingId === printingId)}
+                      favoriteSources={favorites}
+                      sourceImages={[
+                        ...allSources
+                          .filter(
+                            (ps) =>
+                              ps.imageUrl &&
+                              !printingImages.some(
+                                (pi) =>
+                                  pi.printingId === printingId && pi.originalUrl === ps.imageUrl,
+                              ),
+                          )
+                          .reduce((acc, ps) => {
+                            const url = ps.imageUrl as string;
+                            const src = sourceLabels[ps.cardSourceId] ?? "unknown";
+                            const existing = acc.get(url);
+                            if (existing) {
+                              if (!existing.source.split(", ").includes(src)) {
+                                existing.source += `, ${src}`;
+                              }
+                            } else {
+                              acc.set(url, { printingSourceId: ps.id, url, source: src });
+                            }
+                            return acc;
+                          }, new Map<string, { printingSourceId: string; url: string; source: string }>())
+                          .values(),
+                      ]}
+                    />
                     <div className="min-w-0 flex-1 space-y-3">
                       <SourceSpreadsheet
                         fields={PRINTING_SOURCE_FIELDS}
@@ -845,30 +856,6 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                             </>
                           )
                         }
-                      />
-                      <PrintingImagesSection
-                        printingId={printingId}
-                        images={printingImages.filter((pi) => pi.printingId === printingId)}
-                        sourceImages={[
-                          ...allSources
-                            .filter(
-                              (ps) =>
-                                ps.imageUrl &&
-                                !printingImages.some((pi) => pi.originalUrl === ps.imageUrl),
-                            )
-                            .reduce((acc, ps) => {
-                              const url = ps.imageUrl as string;
-                              const src = sourceLabels[ps.cardSourceId] ?? "unknown";
-                              const existing = acc.get(url);
-                              if (existing) {
-                                existing.source += `, ${src}`;
-                              } else {
-                                acc.set(url, { printingSourceId: ps.id, url, source: src });
-                              }
-                              return acc;
-                            }, new Map<string, { printingSourceId: string; url: string; source: string }>())
-                            .values(),
-                        ]}
                       />
                     </div>
                   </div>
@@ -1195,36 +1182,30 @@ function NewPrintingGroupCard({
 
 // ── Image hover link ─────────────────────────────────────────────────────────
 
-function ImageHoverLink({ url, children }: { url: string; children?: React.ReactNode }) {
-  return (
-    <HoverCard>
-      <HoverCardTrigger
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block truncate text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-        title={url}
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-      >
-        {children ?? url}
-      </HoverCardTrigger>
-      <HoverCardContent side="right" className="w-auto p-1">
-        <img src={url} alt="Preview" className="max-h-[80vh] max-w-[40vw] rounded object-contain" />
-      </HoverCardContent>
-    </HoverCard>
-  );
+// ── Printing image switcher (replaces the old table) ─────────────────────────
+
+interface SourceImage {
+  printingSourceId: string;
+  url: string;
+  source: string;
 }
 
-// ── Printing images management ───────────────────────────────────────────────
+function getDisplayUrl(img: AdminPrintingImage): string | null {
+  return img.rehostedUrl ? `${img.rehostedUrl}-full.webp` : img.originalUrl;
+}
 
-function PrintingImagesSection({
+function PrintingImageSwitcher({
   printingId,
+  printingSlug,
   images,
   sourceImages,
+  favoriteSources,
 }: {
   printingId: string;
+  printingSlug: string;
   images: AdminPrintingImage[];
-  sourceImages: { printingSourceId: string; url: string; source: string }[];
+  sourceImages: SourceImage[];
+  favoriteSources: Set<string>;
 }) {
   const deletePrintingImage = useDeletePrintingImage();
   const activatePrintingImage = useActivatePrintingImage();
@@ -1234,280 +1215,378 @@ function PrintingImagesSection({
   const uploadPrintingImage = useUploadPrintingImage();
   const setPrintingSourceImage = useSetPrintingSourceImage();
 
+  // Sort images + source images: favorites first, then alphabetical by source name
+  const favSort = (aLabel: string, bLabel: string) => {
+    const aFav = favoriteSources.has(aLabel);
+    const bFav = favoriteSources.has(bLabel);
+    if (aFav !== bFav) {
+      return aFav ? -1 : 1;
+    }
+    return aLabel.localeCompare(bLabel);
+  };
+  const sortedImages = [...images].sort((a, b) => favSort(a.source, b.source));
+  const sortedSourceImages = [...sourceImages].sort((a, b) => favSort(a.source, b.source));
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [resolution, setResolution] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState("");
   const [urlSource, setUrlSource] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const hasContent = images.length > 0 || sourceImages.length > 0;
+  // Determine what's selected: an accepted image, a source image, or nothing
+  const selectedImage = images.find((img) => img.id === selectedId);
+  const selectedSource = sourceImages.find((si) => si.printingSourceId === selectedId);
+
+  // Default to the active image when nothing is explicitly selected
+  const activeImage = images.find((img) => img.isActive);
+  const effectiveImage = selectedImage ?? (selectedId ? null : activeImage);
+  const effectiveSource = selectedSource;
+  const effectiveUrl = effectiveImage
+    ? getDisplayUrl(effectiveImage)
+    : (effectiveSource?.url ?? null);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <h4 className="text-xs font-medium text-muted-foreground">Images</h4>
-        <div className="ml-auto flex gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs"
-            onClick={() => setShowUrlInput((v) => !v)}
-          >
-            <ImagePlusIcon className="mr-1 size-3" />
-            Add URL
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadPrintingImage.isPending}
-          >
-            <UploadIcon className="mr-1 size-3" />
-            Upload
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                uploadPrintingImage.mutate({ printingId, file, mode: "main" });
-                e.target.value = "";
-              }
+    <div className="w-96 shrink-0 space-y-2">
+      {/* Image tabs + add buttons */}
+      <div className="flex flex-wrap items-center gap-1">
+        {sortedImages.map((img) => {
+          const isSelected = effectiveImage?.id === img.id;
+          return (
+            <button
+              key={img.id}
+              type="button"
+              className={`rounded px-1.5 py-0.5 text-[10px] ${
+                isSelected
+                  ? "bg-primary text-primary-foreground"
+                  : img.isActive
+                    ? "bg-muted font-medium"
+                    : "bg-muted/50 text-muted-foreground"
+              }`}
+              onClick={() => {
+                setSelectedId(isSelected ? null : img.id);
+                setResolution(null);
+                setImgError(false);
+              }}
+            >
+              {img.source}
+              {img.rehostedUrl ? null : <span className="text-orange-500"> !</span>}
+            </button>
+          );
+        })}
+        {sortedSourceImages.map((si) => (
+          <button
+            key={si.printingSourceId}
+            type="button"
+            className={`rounded border border-dashed px-1.5 py-0.5 text-[10px] ${
+              effectiveSource?.printingSourceId === si.printingSourceId
+                ? "border-primary bg-primary/10"
+                : "text-muted-foreground"
+            }`}
+            onClick={() => {
+              setSelectedId(
+                effectiveSource?.printingSourceId === si.printingSourceId
+                  ? null
+                  : si.printingSourceId,
+              );
+              setResolution(null);
+              setImgError(false);
             }}
-          />
-        </div>
+          >
+            {si.source}
+          </button>
+        ))}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-5"
+          title="Add from URL"
+          onClick={() => setShowUrlInput((v) => !v)}
+        >
+          <ImagePlusIcon className="size-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-5"
+          title="Upload image"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadPrintingImage.isPending}
+        >
+          <UploadIcon className="size-3" />
+        </Button>
       </div>
 
+      {/* Preview */}
+      <div className="relative">
+        {effectiveUrl && !imgError ? (
+          <a href={effectiveUrl} target="_blank" rel="noopener noreferrer">
+            <img
+              src={effectiveUrl}
+              alt={printingSlug}
+              className="w-full rounded border object-contain"
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                setResolution(`${img.naturalWidth}×${img.naturalHeight}`);
+              }}
+              onError={() => setImgError(true)}
+            />
+          </a>
+        ) : effectiveUrl && imgError ? (
+          <a
+            href={effectiveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex aspect-[5/7] w-full items-center justify-center rounded border bg-muted/30 text-xs text-muted-foreground hover:bg-muted/50"
+          >
+            Failed to load — click to open
+          </a>
+        ) : (
+          <div className="flex aspect-[5/7] w-full items-center justify-center rounded border text-xs text-muted-foreground">
+            No image
+          </div>
+        )}
+        {resolution && effectiveUrl && !imgError && (
+          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+            {resolution}
+          </span>
+        )}
+      </div>
+      {(effectiveImage || effectiveSource) && (
+        <div className="space-y-0.5">
+          {effectiveImage?.originalUrl && (
+            <a
+              href={effectiveImage.originalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
+              title={effectiveImage.originalUrl}
+            >
+              {effectiveImage.originalUrl}
+            </a>
+          )}
+          {effectiveImage?.rehostedUrl && (
+            <a
+              href={`${effectiveImage.rehostedUrl}-full.webp`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block truncate text-[10px] text-green-600 hover:text-green-500"
+              title={`${effectiveImage.rehostedUrl}-full.webp`}
+            >
+              {effectiveImage.rehostedUrl.split("/").pop()}-full.webp
+            </a>
+          )}
+          {effectiveSource && (
+            <a
+              href={effectiveSource.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
+              title={effectiveSource.url}
+            >
+              {effectiveSource.url}
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Status + actions bar */}
+      {effectiveImage && (
+        <div className="flex items-center gap-1">
+          {effectiveImage.isActive ? (
+            <Badge variant="default" className="h-4 text-[10px] leading-none">
+              Active
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="h-4 text-[10px] leading-none">
+              Inactive
+            </Badge>
+          )}
+          {effectiveImage.rehostedUrl ? (
+            <Badge variant="outline" className="h-4 text-[10px] leading-none text-green-600">
+              Rehosted
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="h-4 text-[10px] leading-none text-orange-600">
+              External
+            </Badge>
+          )}
+          <span className="text-[10px] text-muted-foreground">{effectiveImage.source}</span>
+          <div className="ml-auto flex items-center gap-0.5">
+            {effectiveImage.isActive ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                title="Deactivate"
+                disabled={activatePrintingImage.isPending}
+                onClick={() =>
+                  activatePrintingImage.mutate({ imageId: effectiveImage.id, active: false })
+                }
+              >
+                <EyeIcon className="size-3" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                title="Set as active"
+                disabled={activatePrintingImage.isPending}
+                onClick={() =>
+                  activatePrintingImage.mutate({ imageId: effectiveImage.id, active: true })
+                }
+              >
+                <EyeOffIcon className="size-3" />
+              </Button>
+            )}
+            {!effectiveImage.rehostedUrl && effectiveImage.originalUrl && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                title="Rehost"
+                disabled={rehostPrintingImage.isPending}
+                onClick={() => rehostPrintingImage.mutate(effectiveImage.id)}
+              >
+                <DownloadIcon className="size-3" />
+              </Button>
+            )}
+            {effectiveImage.rehostedUrl && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                title="Un-rehost (delete files)"
+                disabled={unrehostPrintingImage.isPending}
+                onClick={() => unrehostPrintingImage.mutate(effectiveImage.id)}
+              >
+                <XIcon className="size-3" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 text-destructive"
+              title="Remove"
+              disabled={deletePrintingImage.isPending}
+              onClick={() => deletePrintingImage.mutate(effectiveImage.id)}
+            >
+              <Trash2Icon className="size-3" />
+            </Button>
+          </div>
+        </div>
+      )}
+      {!effectiveImage && effectiveSource && (
+        <div className="flex items-center gap-1">
+          <Badge variant="outline" className="h-4 text-[10px] leading-none">
+            Source
+          </Badge>
+          <span className="text-[10px] text-muted-foreground">{effectiveSource.source}</span>
+          <div className="ml-auto flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[10px]"
+              disabled={setPrintingSourceImage.isPending}
+              onClick={() =>
+                setPrintingSourceImage.mutate(
+                  { printingSourceId: effectiveSource.printingSourceId, mode: "main" },
+                  { onSuccess: () => setSelectedId(null) },
+                )
+              }
+            >
+              <PlusIcon className="mr-0.5 size-3" />
+              Main
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[10px]"
+              disabled={setPrintingSourceImage.isPending}
+              onClick={() =>
+                setPrintingSourceImage.mutate(
+                  { printingSourceId: effectiveSource.printingSourceId, mode: "additional" },
+                  { onSuccess: () => setSelectedId(null) },
+                )
+              }
+            >
+              <PlusIcon className="mr-0.5 size-3" />
+              Alt
+            </Button>
+          </div>
+        </div>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            uploadPrintingImage.mutate({ printingId, file, mode: "main" });
+            e.target.value = "";
+          }
+        }}
+      />
+
       {showUrlInput && (
-        <div className="flex items-center gap-2">
+        <div className="space-y-1">
           <Input
             placeholder="Image URL…"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
-            className="h-7 flex-1 text-xs"
-          />
-          <Input
-            placeholder="Source name"
-            value={urlSource}
-            onChange={(e) => setUrlSource(e.target.value)}
-            className="h-7 w-32 text-xs"
-          />
-          <Button
-            variant="outline"
-            size="sm"
             className="h-7 text-xs"
-            disabled={!urlValue.trim() || addImageFromUrl.isPending}
-            onClick={() => {
-              addImageFromUrl.mutate(
-                {
-                  printingId,
-                  url: urlValue.trim(),
-                  source: urlSource.trim() || undefined,
-                  mode: "main",
-                },
-                {
-                  onSuccess: () => {
-                    setUrlValue("");
-                    setUrlSource("");
-                    setShowUrlInput(false);
+          />
+          <div className="flex gap-1">
+            <Input
+              placeholder="Source name"
+              value={urlSource}
+              onChange={(e) => setUrlSource(e.target.value)}
+              className="h-7 flex-1 text-xs"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={!urlValue.trim() || addImageFromUrl.isPending}
+              onClick={() => {
+                addImageFromUrl.mutate(
+                  {
+                    printingId,
+                    url: urlValue.trim(),
+                    source: urlSource.trim() || undefined,
+                    mode: "main",
                   },
-                },
-              );
-            }}
-          >
-            <PlusIcon className="mr-1 size-3" />
-            Add
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => {
-              setShowUrlInput(false);
-              setUrlValue("");
-              setUrlSource("");
-            }}
-          >
-            <XIcon className="size-3" />
-          </Button>
+                  {
+                    onSuccess: () => {
+                      setUrlValue("");
+                      setUrlSource("");
+                      setShowUrlInput(false);
+                    },
+                  },
+                );
+              }}
+            >
+              Add
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setShowUrlInput(false);
+                setUrlValue("");
+                setUrlSource("");
+              }}
+            >
+              <XIcon className="size-3" />
+            </Button>
+          </div>
         </div>
       )}
-
-      {hasContent && (
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="pb-1 pr-2 font-medium">Status</th>
-              <th className="pb-1 pr-2 font-medium">Source</th>
-              <th className="pb-1 pr-2 font-medium">Image</th>
-              <th className="pb-1 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {images.map((img) => {
-              const displayUrl = img.rehostedUrl ? `${img.rehostedUrl}-full.webp` : img.originalUrl;
-
-              return (
-                <tr key={img.id} className="border-b last:border-b-0">
-                  <td className="py-1.5 pr-2">
-                    <div className="flex items-center gap-1">
-                      {img.isActive ? (
-                        <Badge variant="default" className="text-[10px]">
-                          Active
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Inactive
-                        </Badge>
-                      )}
-                      {img.rehostedUrl ? (
-                        <Badge variant="outline" className="text-[10px] text-green-600">
-                          Rehosted
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] text-orange-600">
-                          External
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-1.5 pr-2">{img.source}</td>
-                  <td className="max-w-64 py-1.5 pr-2">
-                    {displayUrl ? (
-                      img.rehostedUrl ? (
-                        <ImageHoverLink url={displayUrl}>
-                          {img.rehostedUrl.split("/").pop()}
-                        </ImageHoverLink>
-                      ) : (
-                        <ImageHoverLink url={displayUrl} />
-                      )
-                    ) : (
-                      <span className="text-muted-foreground">No URL</span>
-                    )}
-                  </td>
-                  <td className="py-1.5">
-                    <div className="flex items-center gap-1">
-                      {img.isActive ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          title="Deactivate"
-                          disabled={activatePrintingImage.isPending}
-                          onClick={() =>
-                            activatePrintingImage.mutate({ imageId: img.id, active: false })
-                          }
-                        >
-                          <EyeIcon className="size-3" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          title="Set as active"
-                          disabled={activatePrintingImage.isPending}
-                          onClick={() =>
-                            activatePrintingImage.mutate({ imageId: img.id, active: true })
-                          }
-                        >
-                          <EyeOffIcon className="size-3" />
-                        </Button>
-                      )}
-                      {!img.rehostedUrl && img.originalUrl && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          title="Rehost"
-                          disabled={rehostPrintingImage.isPending}
-                          onClick={() => rehostPrintingImage.mutate(img.id)}
-                        >
-                          <DownloadIcon className="size-3" />
-                        </Button>
-                      )}
-                      {img.rehostedUrl && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          title="Un-rehost (delete files)"
-                          disabled={unrehostPrintingImage.isPending}
-                          onClick={() => unrehostPrintingImage.mutate(img.id)}
-                        >
-                          <XIcon className="size-3" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 text-destructive"
-                        title="Remove"
-                        disabled={deletePrintingImage.isPending}
-                        onClick={() => deletePrintingImage.mutate(img.id)}
-                      >
-                        <Trash2Icon className="size-3" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {sourceImages.map(({ printingSourceId, url, source }) => (
-              <tr key={printingSourceId} className="border-b last:border-b-0 opacity-60">
-                <td className="py-1.5 pr-2">
-                  <Badge variant="outline" className="text-[10px]">
-                    Source
-                  </Badge>
-                </td>
-                <td className="py-1.5 pr-2">{source}</td>
-                <td className="max-w-64 py-1.5 pr-2">
-                  <ImageHoverLink url={url} />
-                </td>
-                <td className="py-1.5">
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[10px]"
-                      disabled={setPrintingSourceImage.isPending}
-                      onClick={() =>
-                        setPrintingSourceImage.mutate({
-                          printingSourceId,
-                          mode: "main",
-                        })
-                      }
-                    >
-                      <PlusIcon className="mr-0.5 size-3" />
-                      Main
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[10px]"
-                      disabled={setPrintingSourceImage.isPending}
-                      onClick={() =>
-                        setPrintingSourceImage.mutate({
-                          printingSourceId,
-                          mode: "additional",
-                        })
-                      }
-                    >
-                      <PlusIcon className="mr-0.5 size-3" />
-                      Alt
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {!hasContent && <p className="text-xs text-muted-foreground">No images available.</p>}
     </div>
   );
 }
