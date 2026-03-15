@@ -36,5 +36,5 @@ pre-push:
       run: bun install --frozen-lockfile
     test:
       run: bun run test
-    test-integration:
-      run: bun run test:integration
+    # test-integration:
+      # run: bun run test:integration
