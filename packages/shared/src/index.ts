@@ -18,6 +18,7 @@ export type {
   Collection,
   ContentSet,
   Copy,
+  CopyRow,
   Deck,
   DeckZone,
   Domain,
