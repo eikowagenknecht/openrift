@@ -16,7 +16,7 @@ export function matchOrigin(origin: string, allowed?: string): string | undefine
     }
     if (pattern.includes("*")) {
       const regex = new RegExp(
-        `^${pattern.replaceAll(".", String.raw`\.`).replace("*", "[^.]+")}$`,
+        `^${pattern.replaceAll(".", String.raw`\.`).replaceAll("*", "[^.]+")}$`,
       );
       if (regex.test(origin)) {
         return origin;
