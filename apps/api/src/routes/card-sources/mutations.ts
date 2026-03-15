@@ -4,6 +4,7 @@ import type { Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
 import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
+import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { db } from "../../db.js";
@@ -17,6 +18,7 @@ import {
   acceptNewCardFromSources,
   createNameAliases,
   insertPrintingImage,
+  resolveCardId,
   upsertSet,
 } from "./helpers.js";
 import {
@@ -32,8 +34,69 @@ import {
   uploadCardSourcesSchema,
 } from "./schemas.js";
 
-// ── POST /:cardSourceId/check ──────────────────────────────────────────────
+// ── POST /auto-check ───────────────────────────────────────────────────────
+// Bulk-mark sources as checked when every acceptable field matches the active
+// card or printing.  Must be registered before /:cardSourceId/check so the
+// wildcard doesn't swallow "auto-check".
 export const mutationsRoute = new Hono<{ Variables: Variables }>()
+  .post("/auto-check", async (c) => {
+    const now = new Date();
+    const rcid = resolveCardId("cs");
+
+    // Normalise empty strings to NULL so '' and NULL are treated as equal.
+    const n = (ref: string) => sql`COALESCE(NULLIF(${sql.ref(ref)}, ''), NULL)`;
+
+    // 1. Card sources: compare all acceptablefields against the resolved card
+    const cardResult = await sql`
+      UPDATE card_sources cs
+      SET checked_at = ${now}, updated_at = ${now}
+      FROM cards c
+      WHERE c.id = (${rcid})
+        AND cs.checked_at IS NULL
+        AND cs.name        IS NOT DISTINCT FROM c.name
+        AND cs.type        IS NOT DISTINCT FROM c.type
+        AND cs.super_types IS NOT DISTINCT FROM c.super_types
+        AND cs.domains     IS NOT DISTINCT FROM c.domains
+        AND cs.might       IS NOT DISTINCT FROM c.might
+        AND cs.energy      IS NOT DISTINCT FROM c.energy
+        AND cs.power       IS NOT DISTINCT FROM c.power
+        AND cs.might_bonus IS NOT DISTINCT FROM c.might_bonus
+        AND ${n("cs.rules_text")}  IS NOT DISTINCT FROM ${n("c.rules_text")}
+        AND ${n("cs.effect_text")} IS NOT DISTINCT FROM ${n("c.effect_text")}
+        AND cs.tags        IS NOT DISTINCT FROM c.tags
+    `.execute(db);
+
+    // 2. Printing sources: compare against the linked printing
+    const printingResult = await sql`
+      UPDATE printing_sources ps
+      SET checked_at = ${now}, updated_at = ${now}
+      FROM printings p
+      LEFT JOIN sets s ON s.id = p.set_id
+      WHERE ps.printing_id = p.id
+        AND ps.checked_at IS NULL
+        AND ps.source_id         IS NOT DISTINCT FROM p.source_id
+        AND ps.set_id            IS NOT DISTINCT FROM s.slug
+        AND ps.collector_number  IS NOT DISTINCT FROM p.collector_number
+        AND LOWER(ps.rarity)     IS NOT DISTINCT FROM LOWER(p.rarity)
+        AND ${n("ps.art_variant")}  IS NOT DISTINCT FROM ${n("p.art_variant")}
+        AND ps.is_signed         IS NOT DISTINCT FROM p.is_signed
+        AND ps.is_promo          IS NOT DISTINCT FROM p.is_promo
+        AND ps.finish            IS NOT DISTINCT FROM p.finish
+        AND COALESCE(ps.artist, '') IS NOT DISTINCT FROM p.artist
+        AND ps.public_code       IS NOT DISTINCT FROM p.public_code
+        AND ${n("ps.printed_rules_text")}  IS NOT DISTINCT FROM ${n("p.printed_rules_text")}
+        AND ${n("ps.printed_effect_text")} IS NOT DISTINCT FROM ${n("p.printed_effect_text")}
+        AND ${n("ps.flavor_text")}         IS NOT DISTINCT FROM ${n("p.flavor_text")}
+    `.execute(db);
+
+    return c.json({
+      ok: true,
+      cardSourcesChecked: Number(cardResult.numAffectedRows),
+      printingSourcesChecked: Number(printingResult.numAffectedRows),
+    });
+  })
+
+  // ── POST /:cardSourceId/check ──────────────────────────────────────────────
   .post("/:cardSourceId/check", async (c) => {
     const { cardSourceId } = c.req.param();
 

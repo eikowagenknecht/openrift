@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { LinkIcon, SettingsIcon } from "lucide-react";
+import { CheckCheckIcon, LinkIcon, SettingsIcon } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCardSourceList, useLinkCard, useSourceNames } from "@/hooks/use-card-sources";
+import {
+  useAutoCheckSources,
+  useCardSourceList,
+  useLinkCard,
+  useSourceNames,
+} from "@/hooks/use-card-sources";
 
 type Filter = "all" | "unchecked" | "unmatched";
 
@@ -41,6 +47,7 @@ export function CardSourcesListPage() {
   const { data: sourceNames } = useSourceNames();
   const { data, isLoading } = useCardSourceList(filter, source);
   const linkCard = useLinkCard();
+  const autoCheck = useAutoCheckSources();
 
   if (isLoading) {
     return (
@@ -64,6 +71,27 @@ export function CardSourcesListPage() {
         >
           <SettingsIcon />
           Manage
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={autoCheck.isPending}
+          onClick={() =>
+            autoCheck.mutate(undefined, {
+              onSuccess: (result) => {
+                const total = result.cardSourcesChecked + result.printingSourcesChecked;
+                toast(
+                  total > 0
+                    ? `Auto-checked ${result.cardSourcesChecked} card + ${result.printingSourcesChecked} printing sources`
+                    : "No matching unchecked sources found",
+                );
+              },
+            })
+          }
+        >
+          <CheckCheckIcon />
+          {autoCheck.isPending ? "Checking..." : "Auto-check matching"}
         </Button>
 
         <Select

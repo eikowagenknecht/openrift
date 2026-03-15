@@ -38,6 +38,13 @@ export function useUnmatchedCardDetail(name: string) {
   });
 }
 
+export function useAutoCheckSources() {
+  return useMutationWithInvalidation({
+    mutationFn: () => rpc(client.api.admin["card-sources"]["auto-check"].$post()),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
 export function useCheckCardSource() {
   return useMutationWithInvalidation({
     mutationFn: (cardSourceId: string) =>
