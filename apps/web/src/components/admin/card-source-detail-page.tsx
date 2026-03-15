@@ -221,6 +221,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
           pVariant === d.artVariant &&
           (p.rarity as string) === d.rarity &&
           (p.isSigned as boolean) === d.isSigned &&
+          (p.isPromo as boolean) === d.isPromo &&
           (p.finish as string) === d.finish
         );
       });
@@ -983,7 +984,18 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   );
 }
 
-const REQUIRED_PRINTING_KEYS = ["sourceId", "setId", "rarity", "finish"];
+const REQUIRED_PRINTING_KEYS = [
+  "sourceId",
+  "setId",
+  "collectorNumber",
+  "rarity",
+  "artVariant",
+  "isSigned",
+  "isPromo",
+  "finish",
+  "artist",
+  "publicCode",
+];
 
 function NewPrintingGroupCard({
   cardId: _cardId,
@@ -1087,7 +1099,7 @@ function NewPrintingGroupCard({
         <>
           {!hasRequired && (
             <p className="px-3 pb-2 text-xs text-muted-foreground">
-              Click cells to select sourceId, setId, rarity, and finish.
+              Click cells to fill all required fields (marked with *).
             </p>
           )}
           <div className="border-t p-3">
@@ -1120,9 +1132,13 @@ function NewPrintingGroupCard({
                           continue;
                         }
                         const val = record[field.key];
-                        if (val !== null && val !== undefined && val !== "") {
-                          values[field.key] = val;
+                        if (val === null || val === undefined || val === "") {
+                          continue;
                         }
+                        if (field.options && !field.options.includes(String(val))) {
+                          continue;
+                        }
+                        values[field.key] = val;
                       }
                       setActivePrinting((prev) => ({ ...prev, ...values }));
                     }}
