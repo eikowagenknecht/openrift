@@ -71,7 +71,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         might_bonus: null,
         keywords: [],
         rules_text: "Test rules",
-        effect_text: "",
+        effect_text: null,
         tags: [],
       })
       .returning("id")
@@ -101,8 +101,8 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           artist: "Test Artist",
           public_code: "INT-001/100",
           printed_rules_text: "Test rules",
-          printed_effect_text: "",
-          flavor_text: "",
+          printed_effect_text: null,
+          flavor_text: null,
         },
         {
           slug: printingSlug2,
@@ -118,8 +118,8 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           artist: "Test Artist",
           public_code: "INT-001/100",
           printed_rules_text: "Test rules",
-          printed_effect_text: "",
-          flavor_text: "",
+          printed_effect_text: null,
+          flavor_text: null,
         },
       ])
       .returning("id")
