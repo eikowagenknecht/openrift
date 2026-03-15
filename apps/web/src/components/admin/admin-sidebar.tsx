@@ -6,6 +6,7 @@ import {
   GalleryVerticalIcon,
   DatabaseIcon,
   FlagIcon,
+  ImageIcon,
   LayoutDashboardIcon,
   LayersIcon,
   MapIcon,
@@ -29,6 +30,7 @@ const topPages = [{ to: "/admin" as const, icon: LayoutDashboardIcon, title: "Ov
 const catalogPages = [
   { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
   { to: "/admin/cards" as const, icon: GalleryVerticalIcon, title: "Cards" },
+  { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
 ];
 
 const marketplacePages = [

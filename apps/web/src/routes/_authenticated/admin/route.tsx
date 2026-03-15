@@ -13,6 +13,7 @@ const pageTitles: Record<string, string> = {
   "/_authenticated/admin/ignored-products": "Ignored Products",
   "/_authenticated/admin/cards-manage": "Manage Sources",
   "/_authenticated/admin/cards": "Cards",
+  "/_authenticated/admin/images": "Images",
   "/_authenticated/admin/settings": "Settings",
   "/_authenticated/admin/feature-flags": "Feature Flags",
   "/_authenticated/admin/scan": "Scan Test",

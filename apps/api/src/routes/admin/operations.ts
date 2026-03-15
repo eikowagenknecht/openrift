@@ -14,13 +14,6 @@ import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import {
-  clearAllRehosted,
-  getRehostStatus,
-  regenerateImages,
-  rehostImages,
-} from "../../services/image-rehost.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 
 const log = createLogger("admin");
@@ -102,52 +95,5 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
     } catch (error) {
       log.error(error, "refresh-cardmarket-prices failed");
       throw new AppError(500, "INTERNAL_ERROR", "Cardmarket price refresh failed");
-    }
-  })
-
-  // ── Image rehosting ─────────────────────────────────────────────────────────
-
-  .use("/admin/rehost-images", requireAdmin)
-  .post("/admin/rehost-images", async (c) => {
-    try {
-      const result = await rehostImages(db);
-      return c.json({ status: "ok", result });
-    } catch (error) {
-      log.error(error, "rehost-images failed");
-      throw new AppError(500, "INTERNAL_ERROR", "Image rehosting failed");
-    }
-  })
-
-  .use("/admin/regenerate-images", requireAdmin)
-  .post("/admin/regenerate-images", async (c) => {
-    const offset = Number(c.req.query("offset") ?? 0);
-    try {
-      const result = await regenerateImages(offset);
-      return c.json({ status: "ok", result });
-    } catch (error) {
-      log.error(error, "regenerate-images failed");
-      throw new AppError(500, "INTERNAL_ERROR", "Image regeneration failed");
-    }
-  })
-
-  .use("/admin/clear-rehosted", requireAdmin)
-  .post("/admin/clear-rehosted", async (c) => {
-    try {
-      const result = await clearAllRehosted(db);
-      return c.json({ status: "ok", result });
-    } catch (error) {
-      log.error(error, "clear-rehosted failed");
-      throw new AppError(500, "INTERNAL_ERROR", "Failed to clear rehosted images");
-    }
-  })
-
-  .use("/admin/rehost-status", requireAdmin)
-  .get("/admin/rehost-status", async (c) => {
-    try {
-      const result = await getRehostStatus(db);
-      return c.json(result);
-    } catch (error) {
-      log.error(error, "rehost-status failed");
-      throw new AppError(500, "INTERNAL_ERROR", "Failed to get rehost status");
     }
   });
