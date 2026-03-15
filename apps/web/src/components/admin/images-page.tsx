@@ -19,13 +19,6 @@ import { client, rpc } from "@/lib/rpc-client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface RehostStatus {
-  total: number;
-  rehosted: number;
-  external: number;
-  disk: { totalBytes: number; sets: { setId: string; bytes: number; fileCount: number }[] };
-}
-
 interface RehostResult {
   total: number;
   rehosted: number;
@@ -41,11 +34,6 @@ interface RegenerateResult {
   errors: string[];
 }
 
-interface RestoreResult {
-  source: string;
-  updated: number;
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
@@ -59,9 +47,9 @@ function formatBytes(bytes: number): string {
 }
 
 function useRehostStatus() {
-  return useQuery<RehostStatus>({
+  return useQuery({
     queryKey: queryKeys.admin.rehostStatus,
-    queryFn: () => rpc<RehostStatus>(client.api.admin["rehost-status"].$get()),
+    queryFn: () => rpc(client.api.admin["rehost-status"].$get()),
   });
 }
 
@@ -125,7 +113,7 @@ function RehostSection() {
     mutationFn: async (): Promise<RehostResult> => {
       const totals: RehostResult = { total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] };
       for (;;) {
-        const json = await rpc<{ result: RehostResult }>(client.api.admin["rehost-images"].$post());
+        const json = await rpc(client.api.admin["rehost-images"].$post({ query: {} }));
         const batch = json.result;
         totals.total += batch.total;
         totals.rehosted += batch.rehosted;
@@ -147,9 +135,7 @@ function RehostSection() {
       const totals: RegenerateResult = { total: 0, regenerated: 0, failed: 0, errors: [] };
       let offset = 0;
       for (;;) {
-        const json = await rpc<{
-          result: RegenerateResult & { totalFiles: number; hasMore: boolean };
-        }>(
+        const json = await rpc(
           client.api.admin["regenerate-images"].$post({
             query: { offset: String(offset) },
           }),
@@ -174,8 +160,7 @@ function RehostSection() {
   });
 
   const clearMutation = useMutation({
-    mutationFn: () =>
-      rpc<{ result: { cleared: number } }>(client.api.admin["clear-rehosted"].$post()),
+    mutationFn: () => rpc(client.api.admin["clear-rehosted"].$post()),
     onSuccess: () => refetch(),
   });
 
@@ -267,9 +252,7 @@ function RestoreUrlsSection() {
 
   const restoreMutation = useMutation({
     mutationFn: async (source: string) => {
-      const json = await rpc<{ result: RestoreResult }>(
-        client.api.admin["restore-image-urls"].$post({ json: { source } }),
-      );
+      const json = await rpc(client.api.admin["restore-image-urls"].$post({ json: { source } }));
       return json.result;
     },
     onSuccess: () => refetch(),
