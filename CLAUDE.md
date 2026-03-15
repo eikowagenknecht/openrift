@@ -45,6 +45,8 @@ Regenerate after applying migrations:
 docker exec openrift-db-1 pg_dump -U openrift --schema-only --no-owner --no-privileges > docs/schema.sql
 ```
 
+Make sure to remove restrict and unrestrict statements from the dump.
+
 ## Migrations
 
 The dev server (`bun dev:api`) hot-reloads on file changes and **instantly applies any new migration** it detects. This means a partially-written migration file will be executed the moment it's saved to disk, potentially leaving the database in a broken state that's hard to recover from.
