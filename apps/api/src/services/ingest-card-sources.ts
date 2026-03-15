@@ -82,8 +82,11 @@ const CARD_FIELDS = [
 ] as const;
 
 function normalize(value: unknown): unknown {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || value === "") {
     return null;
+  }
+  if (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))) {
+    return Number(value);
   }
   if (
     typeof value === "object" &&
@@ -107,15 +110,7 @@ function getChangedFields(
     }
     const a = normalize(existing[f]);
     const b = normalize(incoming[f]);
-    let changed = false;
-    if (typeof a === "object" && a !== null && typeof b === "object" && b !== null) {
-      if (JSON.stringify(a) !== JSON.stringify(b)) {
-        changed = true;
-      }
-    } else if (a !== b) {
-      changed = true;
-    }
-    if (changed) {
+    if (!Bun.deepEquals(a, b)) {
       diffs.push({ field: f, from: a, to: b });
     }
   }
