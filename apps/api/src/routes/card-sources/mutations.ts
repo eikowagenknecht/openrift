@@ -239,9 +239,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   .delete("/printing-sources/:id", async (c) => {
     const { id } = c.req.param();
 
-    const result = await db.deleteFrom("printing_sources").where("id", "=", id).execute();
+    const result = await db.deleteFrom("printing_sources").where("id", "=", id).executeTakeFirst();
 
-    if (Number(result[0].numDeletedRows) === 0) {
+    if (!result || result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
