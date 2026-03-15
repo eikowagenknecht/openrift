@@ -82,7 +82,7 @@ export function IgnoredProductsPage() {
                             className="h-7 px-2 text-xs"
                             onClick={() =>
                               unignoreMutation.mutate({
-                                marketplace: p.marketplace,
+                                marketplace: p.marketplace as "tcgplayer" | "cardmarket",
                                 externalId: p.externalId,
                                 finish: p.finish,
                               })

@@ -1,4 +1,4 @@
-import type { PriceHistoryResponse, TimeRange } from "@openrift/shared";
+import type { TimeRange } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -8,7 +8,7 @@ export function usePriceHistory(printingId: string | null, range: TimeRange = "3
   return useQuery({
     queryKey: queryKeys.priceHistory.byPrinting(printingId ?? "", range),
     queryFn: () =>
-      rpc<PriceHistoryResponse>(
+      rpc(
         client.api.prices[":printingId"].history.$get({
           // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- guarded by enabled: Boolean(printingId)
           param: { printingId: printingId! },

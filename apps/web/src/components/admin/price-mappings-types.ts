@@ -14,7 +14,7 @@ export interface MappingPrinting {
   isPromo: boolean;
   finish: string;
   collectorNumber: number;
-  imageUrl: string;
+  imageUrl: string | null;
   externalId: number | null;
 }
 
@@ -53,7 +53,7 @@ export interface MappingGroup {
   assignedProducts: StagedProduct[];
 }
 
-export interface UnifiedMappingPrinting extends MappingPrinting {
+export interface UnifiedMappingPrinting extends Omit<MappingPrinting, "externalId"> {
   tcgExternalId: number | null;
   cmExternalId: number | null;
 }

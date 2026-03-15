@@ -61,9 +61,9 @@ export const clearActions = {
 // ── Hook ────────────────────────────────────────────────────────────────────
 
 export function useCronStatus() {
-  return useQuery<CronStatus>({
+  return useQuery({
     queryKey: queryKeys.admin.cronStatus,
-    queryFn: () => rpc<CronStatus>(client.api.admin["cron-status"].$get()),
+    queryFn: () => rpc(client.api.admin["cron-status"].$get()),
     refetchInterval: 60_000,
   });
 }

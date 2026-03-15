@@ -1,4 +1,5 @@
 import type { AppType } from "api/rpc";
+import type { ClientResponse } from "hono/client";
 import { hc } from "hono/client";
 
 import { ApiError } from "./api-client";
@@ -9,12 +10,20 @@ export const client = hc<AppType>("/", {
   },
 });
 
+/** Extract the data type from a Hono ClientResponse (distributes over status code unions). */
+type ExtractData<T> = T extends ClientResponse<infer D, number, string> ? D : never;
+
 /**
  * Unwrap an RPC response — handles errors identically to api-client.ts.
+ * The return type is inferred from the Hono route chain, so callers no longer
+ * need to pass an explicit `<T>` type parameter.
+ *
  * Usage: `queryFn: () => rpc(client.api.copies.$get())`
- * @returns The parsed response body as type T
+ * @returns The parsed response body, typed via the Hono route chain.
  */
-export async function rpc<T>(response: Promise<Response>): Promise<T> {
+export async function rpc<R extends ClientResponse<unknown, number, string>>(
+  response: Promise<R>,
+): Promise<ExtractData<R>> {
   const res = await response;
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
@@ -44,7 +53,7 @@ export async function rpc<T>(response: Promise<Response>): Promise<T> {
   }
   const text = await res.text();
   if (!text) {
-    return undefined as T;
+    return undefined as ExtractData<R>;
   }
-  return JSON.parse(text) as T;
+  return JSON.parse(text) as ExtractData<R>;
 }

@@ -82,14 +82,14 @@ function PriceSection({
 
   const refreshMutation = useMutation({
     mutationFn: async (): Promise<PriceResult | null> => {
-      const body = await rpc<{ result?: PriceResult }>(refreshAction.post());
+      const body = await rpc(refreshAction.post());
       return body.result ?? null;
     },
   });
 
   const clearMutation = useMutation({
     mutationFn: async (): Promise<ClearPriceResult> => {
-      const body = await rpc<{ result: ClearPriceResult }>(
+      const body = await rpc(
         client.api.admin["clear-prices"].$post({ json: { source: clearAction.source } }),
       );
       return body.result;

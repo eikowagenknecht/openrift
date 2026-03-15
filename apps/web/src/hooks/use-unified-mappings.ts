@@ -21,11 +21,12 @@ export function useUnifiedMappings(showAll = false) {
   return useQuery({
     queryKey: queryKeys.admin.unifiedMappings.byFilter(showAll),
     queryFn: () =>
-      rpc<UnifiedMappingsResponse>(
+      rpc(
         client.api.admin["marketplace-mappings"].$get({
           query: { all: showAll ? "true" : undefined },
         }),
-      ),
+        // Server uses unknown[] for stagedProducts — cast to local types
+      ) as unknown as Promise<UnifiedMappingsResponse>,
   });
 }
 
@@ -58,7 +59,7 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket") 
       ? client.api.admin["tcgplayer-mappings"]
       : client.api.admin["cardmarket-mappings"];
   return useUnifiedMutation(marketplace, (body: SaveMappingsBody) =>
-    rpc<{ saved: number }>(mappingClient.$post({ json: body })),
+    rpc(mappingClient.$post({ json: body })),
   );
 }
 
@@ -68,13 +69,13 @@ export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket")
       ? client.api.admin["tcgplayer-mappings"]
       : client.api.admin["cardmarket-mappings"];
   return useUnifiedMutation(marketplace, (printingId: string) =>
-    rpc<{ ok: boolean }>(mappingClient.$delete({ json: { printingId } })),
+    rpc(mappingClient.$delete({ json: { printingId } })),
   );
 }
 
 export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket") {
   return useUnifiedMutation(marketplace, (products: { externalId: number; finish: string }[]) =>
-    rpc<{ ok: boolean; ignored: number }>(
+    rpc(
       client.api.admin["ignored-products"].$post({
         json: { source: marketplace, products },
       }),
@@ -86,7 +87,7 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket") 
   return useUnifiedMutation(
     marketplace,
     (override: { externalId: number; finish: string; cardId: string }) =>
-      rpc<{ ok: boolean }>(
+      rpc(
         client.api.admin["staging-card-overrides"].$post({
           json: { source: marketplace, ...override },
         }),
@@ -96,7 +97,7 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket") 
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket") {
   return useUnifiedMutation(marketplace, (params: { externalId: number; finish: string }) =>
-    rpc<{ ok: boolean }>(
+    rpc(
       client.api.admin["staging-card-overrides"].$delete({
         json: { source: marketplace, ...params },
       }),
