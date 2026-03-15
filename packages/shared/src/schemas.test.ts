@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+  activitiesQuerySchema,
   addCopiesSchema,
   createCollectionSchema,
   createDeckSchema,
@@ -9,8 +10,13 @@ import {
   createTradeListSchema,
   createWishListItemSchema,
   createWishListSchema,
+  decksQuerySchema,
   disposeCopiesSchema,
+  idAndItemIdParamSchema,
+  idParamSchema,
+  keyParamSchema,
   moveCopiesSchema,
+  slugParamSchema,
   updateCollectionSchema,
   updateDeckCardsSchema,
   updateDeckSchema,
@@ -333,5 +339,93 @@ describe("createTradeListItemSchema", () => {
 
   it("rejects non-uuid copyId", () => {
     expect(createTradeListItemSchema.safeParse({ copyId: "not-uuid" }).success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Param & query schemas
+// ---------------------------------------------------------------------------
+
+describe("idParamSchema", () => {
+  it("accepts a valid UUID", () => {
+    expect(idParamSchema.safeParse({ id: "550e8400-e29b-41d4-a716-446655440000" }).success).toBe(
+      true,
+    );
+  });
+
+  it("rejects non-uuid string", () => {
+    expect(idParamSchema.safeParse({ id: "not-a-uuid" }).success).toBe(false);
+  });
+});
+
+describe("idAndItemIdParamSchema", () => {
+  it("accepts two valid UUIDs", () => {
+    expect(
+      idAndItemIdParamSchema.safeParse({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        itemId: "550e8400-e29b-41d4-a716-446655440001",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects missing itemId", () => {
+    expect(
+      idAndItemIdParamSchema.safeParse({ id: "550e8400-e29b-41d4-a716-446655440000" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("slugParamSchema", () => {
+  it("accepts a non-empty string", () => {
+    expect(slugParamSchema.safeParse({ id: "core-set" }).success).toBe(true);
+  });
+
+  it("rejects empty string", () => {
+    expect(slugParamSchema.safeParse({ id: "" }).success).toBe(false);
+  });
+});
+
+describe("keyParamSchema", () => {
+  it("accepts a non-empty key", () => {
+    expect(keyParamSchema.safeParse({ key: "deck-builder" }).success).toBe(true);
+  });
+
+  it("rejects empty key", () => {
+    expect(keyParamSchema.safeParse({ key: "" }).success).toBe(false);
+  });
+});
+
+describe("activitiesQuerySchema", () => {
+  it("accepts empty query", () => {
+    expect(activitiesQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it("accepts cursor and limit", () => {
+    expect(
+      activitiesQuerySchema.safeParse({ cursor: "2025-01-01T00:00:00Z", limit: 25 }).success,
+    ).toBe(true);
+  });
+
+  it("coerces string limit to number", () => {
+    const result = activitiesQuerySchema.parse({ limit: "50" });
+    expect(result.limit).toBe(50);
+  });
+
+  it("rejects limit over 100", () => {
+    expect(activitiesQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+  });
+
+  it("rejects limit under 1", () => {
+    expect(activitiesQuerySchema.safeParse({ limit: 0 }).success).toBe(false);
+  });
+});
+
+describe("decksQuerySchema", () => {
+  it("accepts empty query", () => {
+    expect(decksQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it("accepts wanted param", () => {
+    expect(decksQuerySchema.safeParse({ wanted: "true" }).success).toBe(true);
   });
 });

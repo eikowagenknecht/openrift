@@ -1,6 +1,27 @@
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
+// Common param & query schemas (used by zValidator("param"//"query"))
+// ---------------------------------------------------------------------------
+
+export const idParamSchema = z.object({ id: z.uuid() });
+
+export const idAndItemIdParamSchema = z.object({ id: z.uuid(), itemId: z.uuid() });
+
+export const slugParamSchema = z.object({ id: z.string().min(1) });
+
+export const keyParamSchema = z.object({ key: z.string().min(1) });
+
+export const activitiesQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export const decksQuerySchema = z.object({
+  wanted: z.string().optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Collection tracking schemas
 // ---------------------------------------------------------------------------
 

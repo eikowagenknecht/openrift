@@ -31,6 +31,21 @@ export interface Copy {
   updatedAt: string;
 }
 
+/** Denormalized copy with joined card/printing fields (returned by GET /copies). */
+export interface CopyRow extends Copy {
+  cardId: string;
+  setId: string;
+  collectorNumber: string;
+  rarity: string;
+  artVariant: string;
+  isSigned: boolean;
+  finish: string;
+  imageUrl: string | null;
+  artist: string | null;
+  cardName: string;
+  cardType: string;
+}
+
 export interface Activity {
   id: string;
   type: ActivityType;

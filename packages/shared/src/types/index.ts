@@ -44,6 +44,7 @@ export type {
   ActivityType,
   Collection,
   Copy,
+  CopyRow,
   Deck,
   DeckZone,
   Source,
