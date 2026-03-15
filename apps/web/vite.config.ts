@@ -5,9 +5,10 @@ import { createReadStream, existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Vite config runs in Node.js
 import path from "node:path";
 
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -16,6 +17,7 @@ const proxy = { "/api": "http://localhost:3000" };
 const cardImagesDir = path.resolve(__dirname, "../../card-images");
 
 export default defineConfig({
+  devtools: true,
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
   },
@@ -43,10 +45,10 @@ export default defineConfig({
     },
     TanStackRouterVite(),
     tailwindcss(),
-    react({
-      babel: {
-        plugins: ["babel-plugin-react-compiler"],
-      },
+    react(),
+    babel({
+      presets: [reactCompilerPreset()],
+      exclude: /node_modules|packages\//,
     }),
     VitePWA({
       registerType: "autoUpdate",
@@ -110,7 +112,7 @@ export default defineConfig({
   ],
   build: {
     sourcemap: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) {
@@ -149,11 +151,9 @@ export default defineConfig({
       },
     },
   },
-  server: { proxy },
+  server: { proxy, forwardConsole: true },
   preview: { proxy },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    tsconfigPaths: true,
   },
 });
