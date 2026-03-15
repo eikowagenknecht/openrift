@@ -370,7 +370,13 @@ export async function getRehostStatus(db: Kysely<Database>): Promise<{
       .select([
         "sets.slug as setId",
         "sets.name as setName",
-        ({ fn }) => fn.countAll<number>().as("total"),
+        ({ fn }) =>
+          fn
+            .count<number>("pi.id")
+            .filterWhere((wb) =>
+              wb.or([wb("pi.original_url", "is not", null), wb("pi.rehosted_url", "is not", null)]),
+            )
+            .as("total"),
         ({ fn }) =>
           fn.count<number>("pi.id").filterWhere("pi.rehosted_url", "is not", null).as("rehosted"),
       ])
