@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
@@ -14,26 +14,29 @@ interface SWUpdateContextValue {
 const SWUpdateContext = createContext<SWUpdateContextValue | null>(null);
 
 export function SWUpdateProvider({ children }: { children: ReactNode }) {
-  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useRegisterSW({
-    onRegistered(registration) {
-      registrationRef.current = registration ?? null;
-      if (!registration) {
-        return;
-      }
-      setInterval(() => {
-        void registration.update();
-      }, UPDATE_INTERVAL_MS);
+    onRegistered(reg) {
+      setRegistration(reg ?? null);
     },
   });
 
-  const checkForUpdate = async (): Promise<void> => {
-    const reg = registrationRef.current;
-    if (!reg) {
+  useEffect(() => {
+    if (!registration) {
       return;
     }
-    await reg.update();
+    const id = setInterval(() => {
+      void registration.update();
+    }, UPDATE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [registration]);
+
+  const checkForUpdate = async (): Promise<void> => {
+    if (!registration) {
+      return;
+    }
+    await registration.update();
   };
 
   return <SWUpdateContext.Provider value={{ checkForUpdate }}>{children}</SWUpdateContext.Provider>;
