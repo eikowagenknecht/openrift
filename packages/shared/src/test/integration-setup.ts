@@ -34,11 +34,32 @@ export async function createTempDb(databaseUrl: string, label: string): Promise<
   return name;
 }
 
-/** Drop a temporary database. */
+/**
+ * Drop a temporary database.
+ * Skipped when KEEP_TEST_DB is set — use `bun run db:cleanup` to drop later.
+ */
 export async function dropTempDb(databaseUrl: string, name: string): Promise<void> {
+  if (process.env.KEEP_TEST_DB) {
+    console.log(`KEEP_TEST_DB: preserving ${name}`);
+    return;
+  }
   const sql = postgres(replaceDbName(databaseUrl, "postgres"), { onnotice: noop });
   await sql.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
   await sql.end();
+}
+
+/**
+ * List all test databases (names starting with `openrift_test_`).
+ *
+ * @returns An array of database names.
+ */
+export async function listTestDatabases(databaseUrl: string): Promise<string[]> {
+  const sql = postgres(replaceDbName(databaseUrl, "postgres"), { onnotice: noop });
+  const rows = await sql<{ datname: string }[]>`
+    SELECT datname FROM pg_database WHERE datname LIKE 'openrift_test_%'
+  `;
+  await sql.end();
+  return rows.map((r) => r.datname);
 }
 
 /**
@@ -48,15 +69,8 @@ export async function dropTempDb(databaseUrl: string, name: string): Promise<voi
  *
  * @returns The Kysely db, a noop logger, and a teardown function.
  */
-export async function setupTestDb(databaseUrl: string, label?: string) {
-  const dbName = label ? `openrift_test_${label}_${Date.now()}` : `openrift_test_${Date.now()}`;
-  const adminUrl = replaceDbName(databaseUrl, "postgres");
-
-  // Create the test database via the maintenance DB
-  const adminSql = postgres(adminUrl, { onnotice: noop });
-  await adminSql.unsafe(`DROP DATABASE IF EXISTS "${dbName}"`);
-  await adminSql.unsafe(`CREATE DATABASE "${dbName}"`);
-  await adminSql.end();
+export async function setupTestDb(databaseUrl: string, label: string) {
+  const dbName = await createTempDb(databaseUrl, label);
 
   // Connect and run migrations
   const testUrl = replaceDbName(databaseUrl, dbName);
@@ -65,18 +79,12 @@ export async function setupTestDb(databaseUrl: string, label?: string) {
   });
   await migrate(db, noopLogger);
 
-  if (process.env.KEEP_TEST_DB) {
-    console.log(`Test database: ${dbName}`);
-  }
-
   return {
     db,
     log: noopLogger,
     teardown: async () => {
       await db.destroy();
-      const sql = postgres(adminUrl, { onnotice: noop });
-      await sql.unsafe(`DROP DATABASE IF EXISTS "${dbName}"`);
-      await sql.end();
+      await dropTempDb(databaseUrl, dbName);
     },
   };
 }

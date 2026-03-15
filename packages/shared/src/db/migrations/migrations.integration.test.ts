@@ -17,7 +17,7 @@ describe.skipIf(!DATABASE_URL)("migrations up/down cycle", () => {
 
   beforeAll(async () => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by describe.skipIf
-    ({ db, log, teardown } = await setupTestDb(DATABASE_URL!));
+    ({ db, log, teardown } = await setupTestDb(DATABASE_URL!, "migrations"));
   });
 
   afterAll(async () => {

@@ -47,7 +47,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
   beforeAll(async () => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by describe.skipIf
-    ({ db, teardown } = await setupTestDb(DATABASE_URL!));
+    ({ db, teardown } = await setupTestDb(DATABASE_URL!, "price_upsert"));
 
     // Seed reference data: set → card → printings
     const insertedSet = await db
