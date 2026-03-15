@@ -1,5 +1,5 @@
 import type { Database } from "@openrift/shared/db";
-import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
+import { buildPrintingId, emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
 interface IngestCard {
@@ -257,8 +257,8 @@ export async function ingestCardSources(
               energy: card.energy,
               power: card.power,
               might_bonus: card.might_bonus,
-              rules_text: card.rules_text,
-              effect_text: card.effect_text,
+              rules_text: emptyToNull(card.rules_text),
+              effect_text: emptyToNull(card.effect_text),
               tags: card.tags,
               ...(card.source_id !== undefined && { source_id: card.source_id ?? null }),
               ...(card.source_entity_id !== undefined && {
@@ -288,8 +288,8 @@ export async function ingestCardSources(
             energy: card.energy,
             power: card.power,
             might_bonus: card.might_bonus,
-            rules_text: card.rules_text,
-            effect_text: card.effect_text,
+            rules_text: emptyToNull(card.rules_text),
+            effect_text: emptyToNull(card.effect_text),
             tags: card.tags,
             ...(card.source_id !== undefined && { source_id: card.source_id ?? null }),
             ...(card.source_entity_id !== undefined && {
@@ -330,8 +330,8 @@ export async function ingestCardSources(
           finish: p.finish,
           artist: p.artist,
           public_code: p.public_code,
-          printed_rules_text: p.printed_rules_text,
-          printed_effect_text: p.printed_effect_text,
+          printed_rules_text: emptyToNull(p.printed_rules_text),
+          printed_effect_text: emptyToNull(p.printed_effect_text),
           image_url: p.image_url ?? null,
           flavor_text: p.flavor_text ?? null,
           ...(p.source_entity_id !== undefined && {
