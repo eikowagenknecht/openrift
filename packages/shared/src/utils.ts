@@ -103,6 +103,15 @@ export function toCents(amount: number | null | undefined): number | null {
 }
 
 /**
+ * Converts empty strings to `null`, passing through non-empty strings and nullish values as-is.
+ *
+ * @returns The original string if non-empty, otherwise `null`.
+ */
+export function emptyToNull(value: string | null | undefined): string | null {
+  return value || null;
+}
+
+/**
  * Returns the min and max of a number array, snapped to whole numbers (floor min, ceil max). Defaults to 0 when empty.
  *
  * @returns An object with `min` and `max` bounds.
