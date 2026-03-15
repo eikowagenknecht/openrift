@@ -577,9 +577,16 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
       // Normalize rarity to title case (source data may be lowercase)
       const rawRarity = String(printingFields.rarity || ("Common" satisfies Rarity));
-      const normalizedRarity =
-        RARITY_ORDER.find((r) => r.toLowerCase() === rawRarity.toLowerCase()) ||
-        ("Common" satisfies Rarity);
+      const normalizedRarity = RARITY_ORDER.find(
+        (r) => r.toLowerCase() === rawRarity.toLowerCase(),
+      );
+      if (!normalizedRarity) {
+        throw new AppError(
+          400,
+          "BAD_REQUEST",
+          `Invalid rarity "${rawRarity}". Must be one of: ${RARITY_ORDER.join(", ")}`,
+        );
+      }
 
       const inserted = await trx
         .insertInto("printings")
