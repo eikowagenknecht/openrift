@@ -45,7 +45,10 @@ export default defineConfig({
     TanStackRouterVite(),
     tailwindcss(),
     react(),
-    babel({ presets: [reactCompilerPreset()] }),
+    babel({
+      presets: [reactCompilerPreset()],
+      exclude: /node_modules|packages\//,
+    }),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [
@@ -147,11 +150,9 @@ export default defineConfig({
       },
     },
   },
-  server: { proxy },
+  server: { proxy, forwardConsole: true },
   preview: { proxy },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    tsconfigPaths: true,
   },
 });
