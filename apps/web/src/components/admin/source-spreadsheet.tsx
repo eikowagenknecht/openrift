@@ -8,8 +8,8 @@ import {
   SUPER_TYPE_ORDER,
   comparePrintings,
 } from "@openrift/shared";
-import { CheckIcon, EllipsisVerticalIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, EllipsisVerticalIcon } from "lucide-react";
+import { Fragment, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { DiffSegment } from "@/lib/word-diff";
 import { wordDiff } from "@/lib/word-diff";
@@ -29,6 +36,10 @@ interface FieldDef {
   readOnly?: boolean;
   type?: "boolean";
   options?: readonly string[];
+  /** Show another field's value in parentheses after the main value. */
+  suffixKey?: string;
+  /** When true, this field is hidden behind a collapsible toggle row. */
+  collapsible?: boolean;
 }
 
 const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
@@ -49,13 +60,12 @@ export const CARD_SOURCE_FIELDS: FieldDef[] = [
   { key: "tags", label: "Tags" },
   { key: "sourceId", label: "Source ID", readOnly: true },
   { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
-  { key: "extraData", label: "Extra Data", readOnly: true },
+  { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
 ];
 
 export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
   { key: "sourceId", label: "Source ID" },
-  { key: "setId", label: "Set" },
-  { key: "setName", label: "Set Name", readOnly: true },
+  { key: "setId", label: "Set", suffixKey: "setName" },
   { key: "collectorNumber", label: "Collector #" },
   { key: "rarity", label: "Rarity", options: RARITY_ORDER },
   { key: "artVariant", label: "Art Variant", options: ART_VARIANT_ORDER },
@@ -69,8 +79,8 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
   { key: "flavorText", label: "Flavor Text" },
   { key: "comment", label: "Comment" },
   { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
-  { key: "extraData", label: "Extra Data", readOnly: true },
-  { key: "imageUrl", label: "Image", readOnly: true },
+  { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
+  { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
 ];
 
 // ── Printing source grouping ──────────────────────────────────────────────────
@@ -200,20 +210,23 @@ function hasValue(value: unknown): boolean {
   return true;
 }
 
-function formatValue(value: unknown): string {
+function formatValue(value: unknown, suffix?: unknown): string {
+  let text: string;
   if (value === null || value === undefined) {
-    return "\u2014";
+    text = "\u2014";
+  } else if (Array.isArray(value)) {
+    text = value.length === 0 ? "\u2014" : value.join(", ");
+  } else if (typeof value === "object") {
+    text = JSON.stringify(value);
+  } else if (typeof value === "boolean") {
+    text = value ? "Yes" : "No";
+  } else {
+    text = String(value);
   }
-  if (Array.isArray(value)) {
-    return value.length === 0 ? "\u2014" : value.join(", ");
+  if (suffix !== null && suffix !== undefined && suffix !== "") {
+    text += ` (${String(suffix)})`;
   }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "boolean") {
-    return value ? "Yes" : "No";
-  }
-  return String(value);
+  return text;
 }
 
 function getSourceLabel(
@@ -262,7 +275,10 @@ export function SourceSpreadsheet({
   });
 
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const hasCollapsible = fields.some((f) => f.collapsible);
 
   function commitEdit(field: string, raw: string) {
     setEditingField(null);
@@ -274,25 +290,19 @@ export function SourceSpreadsheet({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <table
-        className="break-words text-sm"
-        style={{
-          tableLayout: "fixed",
-          width: `${150 + 200 * (1 + sortedRows.length)}px`,
-        }}
-      >
+    <div className="w-fit max-w-full overflow-x-auto rounded-md border">
+      <table className="text-sm">
         <thead>
           <tr className="border-b bg-muted/50">
-            <th className="sticky left-0 z-10 w-[150px] bg-muted/50 px-3 py-2 text-left font-medium">
+            <th className="sticky left-0 z-10 min-w-[150px] bg-muted/50 px-3 py-2 text-left font-medium">
               Field
             </th>
-            <th className="w-[200px] border-l px-3 py-2 text-left font-medium">Active</th>
+            <th className="min-w-[200px] border-l px-3 py-2 text-left font-medium">Active</th>
             {sortedRows.map((row) => (
               <th
                 key={row.id}
                 className={cn(
-                  "w-[200px] border-l px-3 py-2 text-left font-medium",
+                  "min-w-[200px] border-l px-3 py-2 text-left font-medium",
                   isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                   isChecked(row) && "opacity-50",
                   columnClassName?.(row),
@@ -327,12 +337,19 @@ export function SourceSpreadsheet({
           </tr>
         </thead>
         <tbody>
-          {fields.map((field) => {
+          {fields.map((field, fieldIndex) => {
+            if (field.collapsible && collapsed) {
+              return null;
+            }
+
             const activeValue = activeRow ? (activeRow[field.key] as unknown) : null;
             const isRequired = requiredKeys?.includes(field.key);
             const isMissing = isRequired && !hasValue(activeValue);
 
-            return (
+            const isFirstCollapsible =
+              hasCollapsible && !field.collapsible && fields[fieldIndex + 1]?.collapsible;
+
+            const fieldRow = (
               <tr key={field.key} className="border-b last:border-b-0">
                 <td className="sticky left-0 z-10 bg-background px-3 py-1.5 font-medium">
                   {field.label}
@@ -366,25 +383,35 @@ export function SourceSpreadsheet({
                   }}
                 >
                   {editingField === field.key && field.options ? (
-                    <select
-                      className="w-full border-b border-primary bg-transparent text-sm outline-none"
-                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
-                      autoFocus
-                      defaultValue={hasValue(activeValue) ? String(activeValue) : ""}
-                      onChange={(e) => {
+                    <Select
+                      value={hasValue(activeValue) ? String(activeValue) : ""}
+                      onValueChange={(v) => {
                         setEditingField(null);
-                        onActiveChange?.(field.key, e.target.value || null);
+                        onActiveChange?.(field.key, v || null);
                       }}
-                      onBlur={() => setEditingField(null)}
-                      onClick={(e) => e.stopPropagation()}
+                      defaultOpen
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setEditingField(null);
+                        }
+                      }}
                     >
-                      <option value="">— clear —</option>
-                      {field.options.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger
+                        size="sm"
+                        className="h-6 w-full gap-1 rounded border-none px-1 text-sm shadow-none"
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      >
+                        <SelectValue placeholder="— select —" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— clear —</SelectItem>
+                        {field.options.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : editingField === field.key ? (
                     <input
                       ref={inputRef}
@@ -425,14 +452,26 @@ export function SourceSpreadsheet({
                     </HoverCard>
                   ) : (
                     <span className={cn(isMissing ? "text-red-400" : "text-muted-foreground")}>
-                      {activeRow ? formatValue(activeValue) : isMissing ? "required" : "\u2014"}
+                      {activeRow
+                        ? formatValue(
+                            activeValue,
+                            field.suffixKey ? activeRow[field.suffixKey] : undefined,
+                          )
+                        : isMissing
+                          ? "required"
+                          : "\u2014"}
                     </span>
                   )}
                 </td>
                 {sortedRows.map((row) => {
                   const sourceValue = (row as unknown as Record<string, unknown>)[field.key];
+                  const invalidOption =
+                    field.options &&
+                    hasValue(sourceValue) &&
+                    !field.options.includes(String(sourceValue));
                   const isClickable =
                     !field.readOnly &&
+                    !invalidOption &&
                     hasValue(sourceValue) &&
                     (activeRow === null ||
                       JSON.stringify(sourceValue) !== JSON.stringify(activeValue));
@@ -441,10 +480,16 @@ export function SourceSpreadsheet({
                   return (
                     <td
                       key={row.id}
+                      title={
+                        invalidOption
+                          ? `"${String(sourceValue)}" is not a valid ${field.label.toLowerCase()}`
+                          : undefined
+                      }
                       className={cn(
                         "border-l px-3 py-1.5",
                         isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
+                        invalidOption && "bg-red-50 line-through dark:bg-red-950/30",
                         isDifferent && "bg-yellow-100 dark:bg-yellow-900/40",
                         isClickable &&
                           onCellClick &&
@@ -482,12 +527,48 @@ export function SourceSpreadsheet({
                         typeof activeValue === "string" ? (
                         <DiffText segments={wordDiff(activeValue, String(sourceValue))} />
                       ) : (
-                        formatValue(sourceValue)
+                        formatValue(
+                          sourceValue,
+                          field.suffixKey
+                            ? (row as unknown as Record<string, unknown>)[field.suffixKey]
+                            : undefined,
+                        )
                       )}
                     </td>
                   );
                 })}
               </tr>
+            );
+
+            if (!isFirstCollapsible) {
+              return fieldRow;
+            }
+
+            const collapsibleCount = fields.filter((f) => f.collapsible).length;
+            return (
+              <Fragment key={`${field.key}+toggle`}>
+                {fieldRow}
+                <tr
+                  className="cursor-pointer border-b bg-muted/30 hover:bg-muted/50"
+                  onClick={() => setCollapsed((c) => !c)}
+                >
+                  <td
+                    className="sticky left-0 z-10 bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground"
+                    colSpan={2 + sortedRows.length}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {collapsed ? (
+                        <ChevronRightIcon className="size-3" />
+                      ) : (
+                        <ChevronDownIcon className="size-3" />
+                      )}
+                      {collapsed
+                        ? `${collapsibleCount} more field${collapsibleCount > 1 ? "s" : ""}`
+                        : "Hide"}
+                    </span>
+                  </td>
+                </tr>
+              </Fragment>
             );
           })}
         </tbody>
