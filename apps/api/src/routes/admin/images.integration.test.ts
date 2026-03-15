@@ -1,14 +1,15 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 
-import type * as AppModule from "../../app.js";
-import type * as DbModule from "../../db.js";
 import {
   createTempDb,
   dropTempDb,
   noopLogger,
   replaceDbName,
-  req,
-} from "../../test/integration-helper.js";
+} from "@openrift/shared/test/integration-setup";
+
+import type * as AppModule from "../../app.js";
+import type * as DbModule from "../../db.js";
+import { req } from "../../test/integration-helper.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin image management routes
@@ -85,8 +86,7 @@ let tempDbName = "";
 let printingId: string;
 
 if (DATABASE_URL) {
-  tempDbName = `openrift_test_images_${Date.now()}`;
-  await createTempDb(DATABASE_URL, tempDbName);
+  tempDbName = await createTempDb(DATABASE_URL, "images");
   process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
 
   const [appModule, dbModule, migrateModule] = await Promise.all([

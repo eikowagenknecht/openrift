@@ -13,7 +13,8 @@
     "./services/price-refresh": "./src/services/price-refresh/index.ts",
     "./keywords": "./src/keywords.ts",
     "./types": "./src/types/index.ts",
-    "./logger": "./src/logger.ts"
+    "./logger": "./src/logger.ts",
+    "./test/integration-setup": "./src/test/integration-setup.ts"
   },
   "scripts": {
     "test": "bun test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",

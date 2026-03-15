@@ -1,7 +1,11 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 
-import type { Logger } from "@openrift/shared/logger";
-import postgres from "postgres";
+import {
+  createTempDb,
+  dropTempDb,
+  noopLogger,
+  replaceDbName,
+} from "@openrift/shared/test/integration-setup";
 
 import type * as AppModule from "./app.js";
 import type * as DbModule from "./db.js";
@@ -25,13 +29,6 @@ const SRC_ID = "f0000000-0000-4000-a000-0000000000a1";
 const WL_ID = "f1000000-0000-4000-a000-000000000f01";
 const TL_ID = "e1000000-0000-4000-a000-000000000e01";
 
-// oxlint-disable-next-line no-empty-function -- noop for postgres notice handler and logger
-const noop = () => {};
-
-function replaceDbName(url: string, name: string): string {
-  return url.replace(/\/[^/?]+(\?|$)/, `/${name}$1`);
-}
-
 // ── Mock auth (the only mock needed — db/config/kysely are real) ───────
 
 mock.module("./auth.js", () => ({
@@ -54,11 +51,7 @@ let db: DbModule["db"];
 let tempDbName = "";
 
 if (DATABASE_URL) {
-  tempDbName = `openrift_test_auth_${Date.now()}`;
-  const adminSql = postgres(replaceDbName(DATABASE_URL, "postgres"), { onnotice: noop });
-  await adminSql.unsafe(`DROP DATABASE IF EXISTS "${tempDbName}"`);
-  await adminSql.unsafe(`CREATE DATABASE "${tempDbName}"`);
-  await adminSql.end();
+  tempDbName = await createTempDb(DATABASE_URL, "auth");
 
   // Point all app modules to the temp database
   process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
@@ -75,7 +68,6 @@ if (DATABASE_URL) {
   db = dbModule.db;
 
   // Run migrations on the temp database
-  const noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unknown as Logger;
   await migrateModule.migrate(db, noopLogger);
 }
 
@@ -108,9 +100,7 @@ describe.skipIf(!DATABASE_URL)("Authorization: user isolation — CRUD factory (
       return;
     }
     await db.destroy();
-    const sql = postgres(replaceDbName(DATABASE_URL, "postgres"), { onnotice: noop });
-    await sql.unsafe(`DROP DATABASE IF EXISTS "${tempDbName}"`);
-    await sql.end();
+    await dropTempDb(DATABASE_URL, tempDbName);
   });
 
   describe("getOne", () => {
