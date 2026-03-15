@@ -1,14 +1,15 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 
-import type * as AppModule from "../../app.js";
-import type * as DbModule from "../../db.js";
 import {
   createTempDb,
   dropTempDb,
   noopLogger,
   replaceDbName,
-  req,
-} from "../../test/integration-helper.js";
+} from "@openrift/shared/test/integration-setup";
+
+import type * as AppModule from "../../app.js";
+import type * as DbModule from "../../db.js";
+import { req } from "../../test/integration-helper.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin operations (clear prices, refresh prices)
@@ -46,8 +47,7 @@ let db: DbModule["db"];
 let tempDbName = "";
 
 if (DATABASE_URL) {
-  tempDbName = `openrift_test_operations_${Date.now()}`;
-  await createTempDb(DATABASE_URL, tempDbName);
+  tempDbName = await createTempDb(DATABASE_URL, "operations");
   process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
 
   const [appModule, dbModule, migrateModule] = await Promise.all([

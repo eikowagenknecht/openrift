@@ -1,7 +1,11 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 
-import type { Logger } from "@openrift/shared/logger";
-import postgres from "postgres";
+import {
+  createTempDb,
+  dropTempDb,
+  noopLogger,
+  replaceDbName,
+} from "@openrift/shared/test/integration-setup";
 
 import type * as AppModule from "../app.js";
 import type * as DbModule from "../db.js";
@@ -21,13 +25,6 @@ const CARD_ID = "c0000000-0000-4000-a000-000000000001";
 const PRINTING_1 = "d0000000-0000-4000-a000-000000000001";
 const PRINTING_2 = "d0000000-0000-4000-a000-000000000002";
 
-// oxlint-disable-next-line no-empty-function -- noop for postgres notice handler and logger
-const noop = () => {};
-
-function replaceDbName(url: string, name: string): string {
-  return url.replace(/\/[^/?]+(\?|$)/, `/${name}$1`);
-}
-
 mock.module("../auth.js", () => ({
   auth: {
     handler: () => new Response("ok"),
@@ -46,11 +43,7 @@ let db: DbModule["db"];
 let tempDbName = "";
 
 if (DATABASE_URL) {
-  tempDbName = `openrift_test_copies_${Date.now()}`;
-  const adminSql = postgres(replaceDbName(DATABASE_URL, "postgres"), { onnotice: noop });
-  await adminSql.unsafe(`DROP DATABASE IF EXISTS "${tempDbName}"`);
-  await adminSql.unsafe(`CREATE DATABASE "${tempDbName}"`);
-  await adminSql.end();
+  tempDbName = await createTempDb(DATABASE_URL, "copies");
 
   process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
 
@@ -62,7 +55,6 @@ if (DATABASE_URL) {
   app = appModule.app;
   db = dbModule.db;
 
-  const noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unknown as Logger;
   await migrateModule.migrate(db, noopLogger);
 
   // Seed test user
@@ -171,9 +163,7 @@ describe.skipIf(!DATABASE_URL)("Copies routes (integration)", () => {
       return;
     }
     await db.destroy();
-    const sql = postgres(replaceDbName(DATABASE_URL, "postgres"), { onnotice: noop });
-    await sql.unsafe(`DROP DATABASE IF EXISTS "${tempDbName}"`);
-    await sql.end();
+    await dropTempDb(DATABASE_URL, tempDbName);
   });
 
   let collectionId: string;

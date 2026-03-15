@@ -1,14 +1,15 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 
-import type * as AppModule from "../../app.js";
-import type * as DbModule from "../../db.js";
 import {
   createTempDb,
   dropTempDb,
   noopLogger,
   replaceDbName,
-  req,
-} from "../../test/integration-helper.js";
+} from "@openrift/shared/test/integration-setup";
+
+import type * as AppModule from "../../app.js";
+import type * as DbModule from "../../db.js";
+import { req } from "../../test/integration-helper.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources query routes (/admin/card-sources/*)
@@ -47,8 +48,7 @@ let cs1Id: string;
 let cs2Id: string;
 
 if (DATABASE_URL) {
-  tempDbName = `openrift_test_card_sources_queries_${Date.now()}`;
-  await createTempDb(DATABASE_URL, tempDbName);
+  tempDbName = await createTempDb(DATABASE_URL, "card_sources_queries");
   process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
 
   const [appModule, dbModule, migrateModule] = await Promise.all([
