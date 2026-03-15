@@ -56,7 +56,7 @@ export interface ContentSet {
   id: string;
   slug: string;
   name: string;
-  printedTotal: number;
+  printedTotal: number | null;
   printings: Printing[];
 }
 

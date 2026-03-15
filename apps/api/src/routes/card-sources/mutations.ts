@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { extractKeywords } from "@openrift/shared/keywords";
-import type { Finish, Rarity } from "@openrift/shared/types";
+import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
 import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
@@ -597,10 +597,10 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
           source_id: printingFields.sourceId,
           collector_number: printingFields.collectorNumber ?? 0,
           rarity: normalizedRarity as Rarity,
-          art_variant: printingFields.artVariant ?? "",
+          art_variant: (printingFields.artVariant ?? "normal") as ArtVariant,
           is_signed: printingFields.isSigned ?? false,
           is_promo: printingFields.isPromo ?? false,
-          finish: printingFields.finish ?? ("normal" satisfies Finish),
+          finish: (printingFields.finish ?? "normal") as Finish,
           artist: printingFields.artist ?? "",
           public_code: printingFields.publicCode ?? "",
           printed_rules_text: printingFields.printedRulesText ?? null,
@@ -688,7 +688,12 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Card source does not match any card");
     }
 
-    const printingId = buildPrintingId(ps.source_id, ps.rarity, ps.is_promo, ps.finish);
+    const printingId = buildPrintingId(
+      ps.source_id,
+      ps.rarity ?? "",
+      ps.is_promo ?? false,
+      ps.finish ?? "normal",
+    );
 
     await db.transaction().execute(async (trx) => {
       if (ps.set_id) {
@@ -712,14 +717,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
           card_id: cardId,
           set_id: setUuid,
           source_id: ps.source_id,
-          collector_number: ps.collector_number,
+          collector_number: ps.collector_number ?? 0,
           rarity: ps.rarity as Rarity,
-          art_variant: ps.art_variant ?? "",
-          is_signed: ps.is_signed,
-          is_promo: ps.is_promo,
-          finish: ps.finish,
+          art_variant: (ps.art_variant ?? "normal") as ArtVariant,
+          is_signed: ps.is_signed ?? false,
+          is_promo: ps.is_promo ?? false,
+          finish: ps.finish as Finish,
           artist: ps.artist ?? "",
-          public_code: ps.public_code,
+          public_code: ps.public_code ?? "",
           printed_rules_text: ps.printed_rules_text ?? null,
           printed_effect_text: ps.printed_effect_text,
           flavor_text: ps.flavor_text,

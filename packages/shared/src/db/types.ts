@@ -1,6 +1,15 @@
 import type { ColumnType, Generated } from "kysely";
 
-import type { CardFace, CardType, Domain, Rarity, SuperType } from "../types";
+import type { ActivityAction, ActivityType, DeckFormat, DeckZone } from "../types/collection.js";
+import type {
+  ArtVariant,
+  CardFace,
+  CardType,
+  Domain,
+  Finish,
+  Rarity,
+  SuperType,
+} from "../types/enums.js";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
 
@@ -21,9 +30,12 @@ type UpdatedAt = ColumnType<Date, Date | undefined, Date>;
 
 export interface SetsTable {
   id: Generated<string>;
+  /** CHECK: <> '' */
   slug: string;
+  /** CHECK: <> '' */
   name: string;
-  printed_total: number;
+  /** CHECK: >= 0 */
+  printed_total: number | null;
   sort_order: number;
   released_at: string | null;
   created_at: CreatedAt;
@@ -37,18 +49,27 @@ export interface SetsTable {
  */
 export interface CardsTable {
   id: Generated<string>;
+  /** CHECK: <> '' */
   slug: string;
+  /** CHECK: <> '' */
   name: string;
   norm_name: Generated<string>;
   type: CardType;
   super_types: Unchecked<SuperType>[];
+  /** CHECK: array_length > 0 */
   domains: Unchecked<Domain>[];
+  /** CHECK: >= 0 */
   might: number | null;
+  /** CHECK: >= 0 */
   energy: number | null;
+  /** CHECK: >= 0 */
   power: number | null;
+  /** CHECK: >= 0 */
   might_bonus: number | null;
   keywords: Unchecked<string>[];
+  /** CHECK: <> '' */
   rules_text: string | null;
+  /** CHECK: <> '' */
   effect_text: string | null;
   tags: Unchecked<string>[];
   created_at: CreatedAt;
@@ -62,21 +83,30 @@ export interface CardsTable {
  */
 export interface PrintingsTable {
   id: Generated<string>;
+  /** CHECK: <> '' */
   slug: string;
   card_id: string;
   set_id: string;
+  /** CHECK: <> '' */
   source_id: string;
+  /** CHECK: > 0 */
   collector_number: number;
   rarity: Rarity;
-  art_variant: string;
+  art_variant: ArtVariant;
   is_signed: boolean;
   is_promo: boolean;
-  finish: string;
+  finish: Finish;
+  /** CHECK: <> '' */
   artist: string;
+  /** CHECK: <> '' */
   public_code: string;
+  /** CHECK: <> '' */
   printed_rules_text: string | null;
+  /** CHECK: <> '' */
   printed_effect_text: string | null;
+  /** CHECK: <> '' */
   flavor_text: string | null;
+  /** CHECK: <> '' */
   comment: string | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
@@ -96,10 +126,14 @@ export interface MarketplaceGroupsTable {
 
 export interface MarketplaceSourcesTable {
   id: Generated<string>;
+  /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
   marketplace: string;
   printing_id: string;
+  /** CHECK: > 0 */
   external_id: number;
+  /** FK composite → marketplace_groups(marketplace, group_id) */
   group_id: number;
+  /** CHECK: <> '' */
   product_name: string;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
@@ -109,13 +143,21 @@ export interface MarketplaceSnapshotsTable {
   id: Generated<string>;
   source_id: string;
   recorded_at: CreatedAt;
+  /** CHECK: >= 0 */
   market_cents: number;
+  /** CHECK: >= 0 */
   low_cents: number | null;
+  /** CHECK: >= 0 */
   mid_cents: number | null;
+  /** CHECK: >= 0 */
   high_cents: number | null;
+  /** CHECK: >= 0 */
   trend_cents: number | null;
+  /** CHECK: >= 0 */
   avg1_cents: number | null;
+  /** CHECK: >= 0 */
   avg7_cents: number | null;
+  /** CHECK: >= 0 */
   avg30_cents: number | null;
 }
 
@@ -217,6 +259,7 @@ export interface VerificationsTable {
 export interface CollectionsTable {
   id: Generated<string>;
   user_id: string;
+  /** CHECK: <> '' */
   name: string;
   description: string | null;
   available_for_deckbuilding: boolean;
@@ -249,7 +292,7 @@ export interface CopiesTable {
 export interface ActivitiesTable {
   id: Generated<string>;
   user_id: string;
-  type: string;
+  type: ActivityType;
   name: string | null;
   date: Date;
   description: string | null;
@@ -258,14 +301,20 @@ export interface ActivitiesTable {
   updated_at: UpdatedAt;
 }
 
+/**
+ * CHECK: action/collection presence —
+ *   added → to_collection_id NOT NULL,
+ *   removed → from_collection_id NOT NULL,
+ *   moved → both NOT NULL.
+ */
 export interface ActivityItemsTable {
   id: Generated<string>;
   activity_id: string;
   user_id: string;
-  activity_type: string;
+  activity_type: ActivityType;
   copy_id: string | null;
   printing_id: string;
-  action: string;
+  action: ActivityAction;
   from_collection_id: string | null;
   from_collection_name: string | null;
   to_collection_id: string | null;
@@ -277,9 +326,10 @@ export interface ActivityItemsTable {
 export interface DecksTable {
   id: Generated<string>;
   user_id: string;
+  /** CHECK: <> '' */
   name: string;
   description: string | null;
-  format: string;
+  format: DeckFormat;
   is_wanted: boolean;
   is_public: boolean;
   share_token: string | null;
@@ -291,7 +341,8 @@ export interface DeckCardsTable {
   id: Generated<string>;
   deck_id: string;
   card_id: string;
-  zone: string;
+  zone: DeckZone;
+  /** CHECK: > 0 */
   quantity: number;
 }
 
@@ -305,13 +356,17 @@ export interface WishListsTable {
   updated_at: UpdatedAt;
 }
 
+/** CHECK: exactly one of card_id or printing_id must be set (XOR). */
 export interface WishListItemsTable {
   id: Generated<string>;
   wish_list_id: string;
   user_id: string;
   card_id: string | null;
   printing_id: string | null;
+  /** CHECK: > 0 */
   quantity_desired: number;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 export interface TradeListsTable {
@@ -329,27 +384,41 @@ export interface TradeListItemsTable {
   trade_list_id: string;
   user_id: string;
   copy_id: string;
+  created_at: CreatedAt;
+  updated_at: UpdatedAt;
 }
 
 // ─── Card sources (migration 018) ────────────────────────────────────────────
 
 export interface CardSourcesTable {
   id: Generated<string>;
+  /** CHECK: <> '' */
   source: string;
+  /** CHECK: <> '' */
   name: string;
   norm_name: Generated<string>;
-  type: string;
+  /** CHECK: <> '' */
+  type: string | null;
   super_types: Unchecked<SuperType>[];
   domains: Unchecked<Domain>[];
+  /** CHECK: >= 0 */
   might: number | null;
+  /** CHECK: >= 0 */
   energy: number | null;
+  /** CHECK: >= 0 */
   power: number | null;
+  /** CHECK: >= 0 */
   might_bonus: number | null;
+  /** CHECK: <> '' */
   rules_text: string | null;
+  /** CHECK: <> '' */
   effect_text: string | null;
   tags: Unchecked<string>[];
+  /** CHECK: <> '' */
   source_id: string | null;
+  /** CHECK: <> '' */
   source_entity_id: string | null;
+  /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extra_data: unknown | null;
   checked_at: Date | null;
   created_at: CreatedAt;
@@ -360,34 +429,53 @@ export interface PrintingSourcesTable {
   id: Generated<string>;
   card_source_id: string;
   printing_id: string | null;
+  /** CHECK: <> '' */
   source_id: string;
+  /** CHECK: <> '' */
   set_id: string | null;
+  /** CHECK: <> '' */
   set_name: string | null;
-  collector_number: number;
-  rarity: string;
+  /** CHECK: > 0 */
+  collector_number: number | null;
+  /** CHECK: <> '' */
+  rarity: string | null;
+  /** CHECK: <> '' */
   art_variant: string | null;
-  is_signed: boolean;
-  is_promo: boolean;
-  finish: string;
+  is_signed: boolean | null;
+  is_promo: boolean | null;
+  /** CHECK: <> '' */
+  finish: string | null;
+  /** CHECK: <> '' */
   artist: string | null;
-  public_code: string;
+  /** CHECK: <> '' */
+  public_code: string | null;
+  /** CHECK: <> '' */
   printed_rules_text: string | null;
+  /** CHECK: <> '' */
   printed_effect_text: string | null;
+  /** CHECK: <> '' */
   image_url: string | null;
+  /** CHECK: <> '' */
   flavor_text: string | null;
+  /** CHECK: <> '' */
   source_entity_id: string | null;
+  /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extra_data: unknown | null;
   checked_at: Date | null;
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
 
+/** CHECK: face IN ('front', 'back'); at least one URL must be non-NULL */
 export interface PrintingImagesTable {
   id: Generated<string>;
   printing_id: string;
   face: CardFace;
+  /** CHECK: <> '' */
   source: string;
+  /** CHECK: <> '' */
   original_url: string | null;
+  /** CHECK: <> '' */
   rehosted_url: string | null;
   is_active: boolean;
   created_at: CreatedAt;
@@ -396,6 +484,7 @@ export interface PrintingImagesTable {
 
 export interface CardNameAliasesTable {
   norm_name: string;
+  /** FK: ON DELETE CASCADE */
   card_id: string;
 }
 

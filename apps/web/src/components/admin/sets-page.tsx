@@ -55,13 +55,13 @@ export function SetsPage() {
   function startEditing(set: {
     slug: string;
     name: string;
-    printedTotal: number;
+    printedTotal: number | null;
     releasedAt: string | null;
   }) {
     setEditing({
       id: set.slug,
       name: set.name,
-      printedTotal: String(set.printedTotal),
+      printedTotal: set.printedTotal === null ? "" : String(set.printedTotal),
       releasedAt: set.releasedAt ?? "",
     });
   }
