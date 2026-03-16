@@ -53,16 +53,6 @@ interface CmPriceGuide {
   "avg30-foil": number;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Build a Cardmarket product page URL from an idProduct.
- * @returns The full Cardmarket product URL.
- */
-export function cmProductUrl(externalId: number): string {
-  return `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${externalId}`;
-}
-
 // ── Fetch ──────────────────────────────────────────────────────────────────
 
 interface CardmarketFetchResult {

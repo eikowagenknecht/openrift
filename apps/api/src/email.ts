@@ -52,5 +52,3 @@ export function createEmailSender(smtp: Config["smtp"]) {
     }
   };
 }
-
-export type SendEmail = ReturnType<typeof createEmailSender>;
