@@ -13,6 +13,7 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
+      reporter: ["text", "lcov"],
       exclude: ["src/components/ui/**"],
     },
   },

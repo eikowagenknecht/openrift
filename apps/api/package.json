@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "bun --env-file=../../.env test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
+    "test:coverage": "bun --env-file=../../.env test --coverage --coverage-reporter=lcov --coverage-dir=./coverage/unit $(find src -name '*.test.ts' ! -name '*.integration.test.ts') && COVERAGE=1 bun --env-file=../../.env run src/test/run-integration.ts",
     "test:watch": "bun --env-file=../../.env --watch test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
     "test:integration": "bun --env-file=../../.env run src/test/run-integration.ts",
     "dev": "bun --env-file=../../.env --watch src/index.ts",

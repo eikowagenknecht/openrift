@@ -105,6 +105,8 @@ if (!DATABASE_URL) {
   process.exit(0);
 }
 
+const coverageArgs = process.env.COVERAGE ? ["--coverage", "--coverage-reporter=lcov"] : [];
+
 let tempDbName = "";
 
 try {
@@ -152,20 +154,27 @@ try {
 
   // Batch 1: parallel tests
   console.log(`\nRunning ${PARALLEL_FILES.length} test files in parallel...`);
-  const parallelResult = Bun.spawnSync(["bun", "test", ...PARALLEL_FILES], {
-    cwd: resolve(import.meta.dirname!, "../.."),
-    env,
-    stdout: "inherit",
-    stderr: "inherit",
-  });
+  const parallelCoverageDir =
+    coverageArgs.length > 0 ? ["--coverage-dir=./coverage/integration-parallel"] : [];
+  const parallelResult = Bun.spawnSync(
+    ["bun", "test", ...coverageArgs, ...parallelCoverageDir, ...PARALLEL_FILES],
+    {
+      cwd: resolve(import.meta.dirname!, "../.."),
+      env,
+      stdout: "inherit",
+      stderr: "inherit",
+    },
+  );
   if (parallelResult.exitCode !== 0) {
     failed = true;
   }
 
   // Batch 2: mock.module tests (separate processes)
-  for (const file of MOCK_MODULE_FILES) {
+  for (const [i, file] of MOCK_MODULE_FILES.entries()) {
     console.log(`\nRunning ${file} (separate process)...`);
-    const result = Bun.spawnSync(["bun", "test", file], {
+    const mockCoverageDir =
+      coverageArgs.length > 0 ? [`--coverage-dir=./coverage/integration-mock-${i}`] : [];
+    const result = Bun.spawnSync(["bun", "test", ...coverageArgs, ...mockCoverageDir, file], {
       cwd: resolve(import.meta.dirname!, "../.."),
       env,
       stdout: "inherit",
@@ -178,12 +187,17 @@ try {
 
   // Batch 3: migrations test (own temp DB, uses DATABASE_URL directly)
   console.log(`\nRunning ${MIGRATIONS_FILE} (own temp DB)...`);
-  const migrationsResult = Bun.spawnSync(["bun", "test", MIGRATIONS_FILE], {
-    cwd: resolve(import.meta.dirname!, "../.."),
-    env: { ...process.env },
-    stdout: "inherit",
-    stderr: "inherit",
-  });
+  const migrationsCoverageDir =
+    coverageArgs.length > 0 ? ["--coverage-dir=./coverage/integration-migrations"] : [];
+  const migrationsResult = Bun.spawnSync(
+    ["bun", "test", ...coverageArgs, ...migrationsCoverageDir, MIGRATIONS_FILE],
+    {
+      cwd: resolve(import.meta.dirname!, "../.."),
+      env: { ...process.env },
+      stdout: "inherit",
+      stderr: "inherit",
+    },
+  );
   if (migrationsResult.exitCode !== 0) {
     failed = true;
   }
