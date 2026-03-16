@@ -1,26 +1,4 @@
-import { afterAll, describe, expect, it, mock } from "bun:test";
-
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
-
-// ---------------------------------------------------------------------------
-// Integration tests: Card-sources image management routes
-//
-// Uses a temp database — auth and image-rehost are mocked. Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
-// ---------------------------------------------------------------------------
-
-const DATABASE_URL = process.env.DATABASE_URL;
-
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
+import { describe, expect, it, mock } from "bun:test";
 
 // Mock image rehost service (filesystem operations)
 mock.module("../../services/image-rehost.js", () => ({
@@ -52,56 +30,41 @@ mock.module("../../services/image-rehost.js", () => ({
   }),
 }));
 
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
+// oxlint-disable-next-line import/first -- mock.module must run before this import
+import { createTestContext, req } from "../../test/integration-context.js";
 
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
+// ---------------------------------------------------------------------------
+// Integration tests: Card-sources image management routes
+//
+// Uses the shared integration database. Auth and image-rehost are mocked.
+// ---------------------------------------------------------------------------
 
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
+const USER_ID = "a0000000-0021-4000-a000-000000000001";
+
+const ctx = createTestContext(USER_ID);
 
 // Seed data IDs (populated during setup)
 let printingId = "";
-const printingSlug = "TEST-001:common:normal:";
+const printingSlug = "CSI-001:common:normal:";
 let psId = ""; // printing source with image + linked
 let psNoImageId = ""; // printing source without image
 let psUnlinkedId = ""; // printing source not linked to a printing
 
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "cs_images");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
+// Seed test-specific data (CSI- prefix to avoid collisions)
+if (ctx) {
+  const { db } = ctx;
 
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed test user + admin
+  // Ensure user is an admin
   await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
+    .insertInto("admins")
+    .values({ user_id: USER_ID })
+    .onConflict((oc) => oc.column("user_id").doNothing())
     .execute();
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
 
   // Seed set
   const [set] = await db
     .insertInto("sets")
-    .values({ slug: "TEST", name: "Test Set", printed_total: 1, sort_order: 1 })
+    .values({ slug: "CSI", name: "CSI Test Set", printed_total: 1, sort_order: 930 })
     .returning("id")
     .execute();
 
@@ -109,8 +72,8 @@ if (DATABASE_URL) {
   const [card] = await db
     .insertInto("cards")
     .values({
-      slug: "TEST-001",
-      name: "Test Card",
+      slug: "CSI-001",
+      name: "CSI Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -133,7 +96,7 @@ if (DATABASE_URL) {
       slug: printingSlug,
       card_id: card.id,
       set_id: set.id,
-      source_id: "TEST-001",
+      source_id: "CSI-001",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -141,7 +104,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "CSI",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
@@ -155,8 +118,8 @@ if (DATABASE_URL) {
   const [cs] = await db
     .insertInto("card_sources")
     .values({
-      source: "test-source",
-      name: "Test Card",
+      source: "csi-source",
+      name: "CSI Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -167,7 +130,7 @@ if (DATABASE_URL) {
       rules_text: null,
       effect_text: null,
       tags: [],
-      source_id: "TEST-001",
+      source_id: "CSI-001",
       source_entity_id: null,
       extra_data: null,
     })
@@ -180,9 +143,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: cs.id,
       printing_id: printingId,
-      source_id: "TEST-001",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "CSI-001",
+      set_id: "CSI",
+      set_name: "CSI Test Set",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -190,10 +153,10 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "CSI",
       printed_rules_text: null,
       printed_effect_text: null,
-      image_url: "https://example.com/test.png",
+      image_url: "https://example.com/csi-test.png",
       flavor_text: null,
       source_entity_id: null,
       extra_data: null,
@@ -206,8 +169,8 @@ if (DATABASE_URL) {
   const [cs2] = await db
     .insertInto("card_sources")
     .values({
-      source: "test-source-2",
-      name: "Test Card",
+      source: "csi-source-2",
+      name: "CSI Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -218,7 +181,7 @@ if (DATABASE_URL) {
       rules_text: null,
       effect_text: null,
       tags: [],
-      source_id: "TEST-001",
+      source_id: "CSI-001",
       source_entity_id: null,
       extra_data: null,
     })
@@ -231,9 +194,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: cs2.id,
       printing_id: printingId,
-      source_id: "TEST-001b",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "CSI-001b",
+      set_id: "CSI",
+      set_name: "CSI Test Set",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -241,7 +204,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "CSI",
       printed_rules_text: null,
       printed_effect_text: null,
       image_url: null,
@@ -259,9 +222,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: cs.id,
       printing_id: null,
-      source_id: "TEST-002",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "CSI-002",
+      set_id: "CSI",
+      set_name: "CSI Test Set",
       collector_number: 2,
       rarity: "Rare",
       art_variant: "normal",
@@ -269,10 +232,10 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "CSI",
       printed_rules_text: null,
       printed_effect_text: null,
-      image_url: "https://example.com/test2.png",
+      image_url: "https://example.com/csi-test2.png",
       flavor_text: null,
       source_entity_id: null,
       extra_data: null,
@@ -286,14 +249,9 @@ if (DATABASE_URL) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
   // Track printing_image IDs created during tests
   let mainImageId = "";
@@ -322,9 +280,9 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
       const active = images.find((i) => i.is_active);
       expect(active).toBeDefined();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(active!.original_url).toBe("https://example.com/test.png");
+      expect(active!.original_url).toBe("https://example.com/csi-test.png");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(active!.source).toBe("test-source");
+      expect(active!.source).toBe("csi-source");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       mainImageId = active!.id;
     });
@@ -334,8 +292,8 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
       const [cs2] = await db
         .insertInto("card_sources")
         .values({
-          source: "alt-source",
-          name: "Test Card",
+          source: "csi-alt-source",
+          name: "CSI Test Card",
           type: "Unit",
           super_types: [],
           domains: ["Arcane"],
@@ -346,7 +304,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
           rules_text: null,
           effect_text: null,
           tags: [],
-          source_id: "TEST-001-ALT",
+          source_id: "CSI-001-ALT",
           source_entity_id: null,
           extra_data: null,
         })
@@ -358,9 +316,9 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
         .values({
           card_source_id: cs2.id,
           printing_id: printingId,
-          source_id: "TEST-001-ALT",
-          set_id: "TEST",
-          set_name: "Test Set",
+          source_id: "CSI-001-ALT",
+          set_id: "CSI",
+          set_name: "CSI Test Set",
           collector_number: 1,
           rarity: "Common",
           art_variant: "normal",
@@ -368,10 +326,10 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
           is_promo: false,
           finish: "normal",
           artist: "Test Artist",
-          public_code: "TST",
+          public_code: "CSI",
           printed_rules_text: null,
           printed_effect_text: null,
-          image_url: "https://example.com/test-alt.png",
+          image_url: "https://example.com/csi-test-alt.png",
           flavor_text: null,
           source_entity_id: null,
           extra_data: null,
@@ -394,7 +352,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
         .selectFrom("printing_images")
         .selectAll()
         .where("printing_id", "=", printingId)
-        .where("source", "=", "alt-source")
+        .where("source", "=", "csi-alt-source")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].is_active).toBe(false);
@@ -527,9 +485,9 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
         .values({
           printing_id: printingId,
           face: "front",
-          source: "no-url-source",
+          source: "csi-no-url-source",
           original_url: null,
-          rehosted_url: "/card-images/TEST/placeholder",
+          rehosted_url: "/card-images/CSI/placeholder",
           is_active: false,
         })
         .returning("id")
@@ -632,7 +590,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
       // Set rehosted_url on mainImageId to test the deleteRehostFiles path
       await db
         .updateTable("printing_images")
-        .set({ rehosted_url: "/card-images/TEST/test-rehosted" })
+        .set({ rehosted_url: "/card-images/CSI/csi-test-rehosted" })
         .where("id", "=", mainImageId)
         .execute();
 
@@ -666,8 +624,8 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
     it("adds an image URL to a printing", async () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing/${printingSlug}/add-image-url`, {
-          url: "https://example.com/new-image.png",
-          source: "manual-test",
+          url: "https://example.com/csi-new-image.png",
+          source: "csi-manual-test",
           mode: "main",
         }),
       );
@@ -681,17 +639,17 @@ describe.skipIf(!DATABASE_URL)("Card-sources images routes (integration)", () =>
         .selectFrom("printing_images")
         .selectAll()
         .where("printing_id", "=", printingId)
-        .where("source", "=", "manual-test")
+        .where("source", "=", "csi-manual-test")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].original_url).toBe("https://example.com/new-image.png");
+      expect(images[0].original_url).toBe("https://example.com/csi-new-image.png");
       expect(images[0].is_active).toBe(true);
     });
 
     it("adds an image URL with default mode and source", async () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing/${printingSlug}/add-image-url`, {
-          url: "https://example.com/another-image.png",
+          url: "https://example.com/csi-another-image.png",
         }),
       );
       expect(res.status).toBe(200);

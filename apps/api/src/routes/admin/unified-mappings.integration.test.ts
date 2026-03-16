@@ -1,50 +1,18 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
+import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Unified marketplace mappings route
 //
 // GET /admin/marketplace-mappings merges TCGPlayer + Cardmarket data per card.
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
+// Uses the shared integration database. Requires INTEGRATION_DB_URL.
+// Uses prefix UNM- for entities it creates.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const USER_ID = "a0000000-0014-4000-a000-000000000001";
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
+const ctx = createTestContext(USER_ID);
 
 // Seed IDs populated during setup
 let setId: string;
@@ -53,25 +21,13 @@ let printingId: string;
 let secondCardId: string;
 let _secondPrintingId: string;
 
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "unifiedmap");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed user + admin
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
+if (ctx) {
+  const { db } = ctx;
 
   // Seed set
   const [setRow] = await db
     .insertInto("sets")
-    .values({ slug: "UTEST", name: "Unified Test Set", printed_total: 2, sort_order: 1 })
+    .values({ slug: "UNM-TEST", name: "UNM Unified Test Set", printed_total: 2, sort_order: 101 })
     .returning("id")
     .execute();
   setId = setRow.id;
@@ -80,8 +36,8 @@ if (DATABASE_URL) {
   const [cardRow] = await db
     .insertInto("cards")
     .values({
-      slug: "UTEST-001",
-      name: "Alpha Card",
+      slug: "UNM-001",
+      name: "UNM Alpha Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -102,10 +58,10 @@ if (DATABASE_URL) {
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "UTEST-001:common:normal:",
+      slug: "UNM-001:common:normal:",
       card_id: cardId,
       set_id: setId,
-      source_id: "UTEST-001",
+      source_id: "UNM-001",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -113,7 +69,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "UNM",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
@@ -127,8 +83,8 @@ if (DATABASE_URL) {
   const [secondCardRow] = await db
     .insertInto("cards")
     .values({
-      slug: "UTEST-002",
-      name: "Beta Card",
+      slug: "UNM-002",
+      name: "UNM Beta Card",
       type: "Spell",
       super_types: [],
       domains: ["Shadow"],
@@ -149,10 +105,10 @@ if (DATABASE_URL) {
   const [secondPrintingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "UTEST-002:rare:normal:",
+      slug: "UNM-002:rare:normal:",
       card_id: secondCardId,
       set_id: setId,
-      source_id: "UTEST-002",
+      source_id: "UNM-002",
       collector_number: 2,
       rarity: "Rare",
       art_variant: "normal",
@@ -160,7 +116,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "UNM",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
@@ -173,11 +129,11 @@ if (DATABASE_URL) {
   // Marketplace groups
   await db
     .insertInto("marketplace_groups")
-    .values({ marketplace: "tcgplayer", group_id: 10, name: "TCG Unified Group" })
+    .values({ marketplace: "tcgplayer", group_id: 10_300, name: "UNM TCG Group" })
     .execute();
   await db
     .insertInto("marketplace_groups")
-    .values({ marketplace: "cardmarket", group_id: 200, name: "CM Unified Group" })
+    .values({ marketplace: "cardmarket", group_id: 10_301, name: "UNM CM Group" })
     .execute();
 
   // TCGPlayer staging row for Alpha Card
@@ -186,8 +142,8 @@ if (DATABASE_URL) {
     .values({
       marketplace: "tcgplayer",
       external_id: 11_111,
-      group_id: 10,
-      product_name: "Alpha Card Normal",
+      group_id: 10_300,
+      product_name: "UNM Alpha Card Normal",
       finish: "normal",
       recorded_at: new Date("2026-02-01T10:00:00Z"),
       market_cents: 200,
@@ -207,8 +163,8 @@ if (DATABASE_URL) {
     .values({
       marketplace: "cardmarket",
       external_id: 22_222,
-      group_id: 200,
-      product_name: "Alpha Card Normal",
+      group_id: 10_301,
+      product_name: "UNM Alpha Card Normal",
       finish: "normal",
       recorded_at: new Date("2026-02-01T10:00:00Z"),
       market_cents: 180,
@@ -228,8 +184,8 @@ if (DATABASE_URL) {
     .values({
       marketplace: "tcgplayer",
       external_id: 33_333,
-      group_id: 10,
-      product_name: "Beta Card Normal",
+      group_id: 10_300,
+      product_name: "UNM Beta Card Normal",
       finish: "normal",
       recorded_at: new Date("2026-02-01T10:00:00Z"),
       market_cents: 500,
@@ -248,14 +204,9 @@ if (DATABASE_URL) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
   // ── Empty state ────────────────────────────────────────────────────────────
 
@@ -281,7 +232,9 @@ describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () 
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      const alphaGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Alpha Card");
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
       expect(alphaGroup).toBeDefined();
 
       // Should have both marketplace staged products
@@ -309,7 +262,9 @@ describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () 
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const json = await res.json();
 
-      const alphaGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Alpha Card");
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
       expect(alphaGroup).toBeDefined();
 
       for (const printing of alphaGroup.printings) {
@@ -323,14 +278,16 @@ describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () 
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const json = await res.json();
 
-      const alphaGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Alpha Card");
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
       expect(alphaGroup).toBeDefined();
       expect(alphaGroup.cardId).toBeString();
-      expect(alphaGroup.cardSlug).toBe("UTEST-001");
+      expect(alphaGroup.cardSlug).toBe("UNM-001");
       expect(alphaGroup.cardType).toBe("Unit");
       expect(alphaGroup.domains).toContain("Arcane");
       expect(alphaGroup.energy).toBe(3);
-      expect(alphaGroup.setName).toBe("Unified Test Set");
+      expect(alphaGroup.setName).toBe("UNM Unified Test Set");
     });
 
     it("groups contain both cards from seed data", async () => {
@@ -338,15 +295,17 @@ describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () 
       const json = await res.json();
 
       const cardNames = json.groups.map((g: { cardName: string }) => g.cardName);
-      expect(cardNames).toContain("Alpha Card");
-      expect(cardNames).toContain("Beta Card");
+      expect(cardNames).toContain("UNM Alpha Card");
+      expect(cardNames).toContain("UNM Beta Card");
     });
 
-    it("Beta Card group has TCGPlayer data but no Cardmarket staged products", async () => {
+    it("UNM Beta Card group has TCGPlayer data but no Cardmarket staged products", async () => {
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const json = await res.json();
 
-      const betaGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Beta Card");
+      const betaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Beta Card",
+      );
       expect(betaGroup).toBeDefined();
 
       // TCGPlayer has a staged product for Beta Card
@@ -396,7 +355,7 @@ describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () 
       const resAll = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const allJson = await resAll.json();
       const alphaInAll = allJson.groups.find(
-        (g: { cardName: string }) => g.cardName === "Alpha Card",
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
       );
       expect(alphaInAll).toBeDefined();
 
@@ -428,8 +387,8 @@ describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () 
         .values({
           marketplace: "tcgplayer",
           external_id: 11_111,
-          group_id: 10,
-          product_name: "Alpha Card Normal",
+          group_id: 10_300,
+          product_name: "UNM Alpha Card Normal",
           finish: "normal",
           recorded_at: new Date("2026-02-01T10:00:00Z"),
           market_cents: 200,
@@ -455,7 +414,9 @@ describe.skipIf(!DATABASE_URL)("Unified marketplace mappings (integration)", () 
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const json = await res.json();
 
-      const alphaGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Alpha Card");
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
       expect(alphaGroup).toBeDefined();
 
       const mapped = alphaGroup.printings.find(

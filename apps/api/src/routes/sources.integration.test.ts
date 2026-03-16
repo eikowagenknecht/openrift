@@ -1,74 +1,20 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
 import type { Source } from "@openrift/shared";
 
-import { createApp } from "../app.js";
-import { createDb } from "../db/connect.js";
-import { migrate } from "../db/migrate.js";
-import { createTempDb, dropTempDb, noopLogger, replaceDbName } from "../test/integration-setup.js";
+import { createTestContext, req } from "../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Sources routes (pure CRUD)
+//
+// Uses the shared integration database. Only auth is mocked.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const ctx = createTestContext("a0000000-0009-4000-a000-000000000001");
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "sources");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-}
-
-function req(method: string, path: string, body?: unknown): Request {
-  const opts: RequestInit = { method, headers: { "Content-Type": "application/json" } };
-  if (body) {
-    opts.body = JSON.stringify(body);
-  }
-  return new Request(`http://localhost/api${path}`, opts);
-}
-
-describe.skipIf(!DATABASE_URL)("Sources routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Sources routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app } = ctx!;
 
   let sourceId: string;
 

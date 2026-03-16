@@ -1,27 +1,4 @@
-import { afterAll, describe, expect, it, mock } from "bun:test";
-
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
-
-// ---------------------------------------------------------------------------
-// Integration tests: Admin image management routes
-//
-// Uses a temp database — auth and image-rehost service are mocked.
-// Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
-// ---------------------------------------------------------------------------
-
-const DATABASE_URL = process.env.DATABASE_URL;
-
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
+import { describe, expect, it, mock } from "bun:test";
 
 // Mock the image rehost service BEFORE the app is created
 mock.module("../../services/image-rehost.js", () => ({
@@ -47,8 +24,8 @@ mock.module("../../services/image-rehost.js", () => ({
     external: 3,
     sets: [
       {
-        setId: "TEST",
-        setName: "Test Set",
+        setId: "IMG",
+        setName: "IMG Test Set",
         total: 5,
         rehosted: 2,
         external: 3,
@@ -67,60 +44,40 @@ mock.module("../../services/image-rehost.js", () => ({
   renameRehostFiles: async () => {},
 }));
 
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
+// oxlint-disable-next-line import/first -- mock.module must run before this import
+import { createTestContext, req } from "../../test/integration-context.js";
 
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
+// ---------------------------------------------------------------------------
+// Integration tests: Admin image management routes
+//
+// Uses the shared integration database. Auth and image-rehost service are mocked.
+// ---------------------------------------------------------------------------
 
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-let printingId: string;
+const USER_ID = "a0000000-0020-4000-a000-000000000001";
 
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "images");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
+const ctx = createTestContext(USER_ID);
 
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
+let printingId = "";
 
-  // Seed test user + admin
+// Seed test-specific data (IMG- prefix to avoid collisions)
+if (ctx) {
+  const { db } = ctx;
+
+  // Ensure user is an admin
   await db
-    .insertInto("users")
-    .values({
-      id: USER_ID,
-      email: "a@test.com",
-      name: "User A",
-      email_verified: true,
-      image: null,
-    })
+    .insertInto("admins")
+    .values({ user_id: USER_ID })
+    .onConflict((oc) => oc.column("user_id").doNothing())
     .execute();
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
 
   // Seed set + card + printing (needed for restore-image-urls test)
   const [set] = await db
     .insertInto("sets")
     .values({
-      slug: "TEST",
-      name: "Test Set",
+      slug: "IMG",
+      name: "IMG Test Set",
       printed_total: 1,
-      sort_order: 1,
+      sort_order: 920,
     })
     .returning("id")
     .execute();
@@ -128,8 +85,8 @@ if (DATABASE_URL) {
   const [card] = await db
     .insertInto("cards")
     .values({
-      slug: "TEST-001",
-      name: "Test Card",
+      slug: "IMG-001",
+      name: "IMG Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -148,10 +105,10 @@ if (DATABASE_URL) {
   const [printing] = await db
     .insertInto("printings")
     .values({
-      slug: "TEST-001:common:normal:",
+      slug: "IMG-001:common:normal:",
       card_id: card.id,
       set_id: set.id,
-      source_id: "TEST-001",
+      source_id: "IMG-001",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -159,7 +116,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "IMG",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
@@ -173,8 +130,8 @@ if (DATABASE_URL) {
   const [cs] = await db
     .insertInto("card_sources")
     .values({
-      source: "test-source",
-      name: "Test Card",
+      source: "img-source",
+      name: "IMG Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -185,7 +142,7 @@ if (DATABASE_URL) {
       rules_text: null,
       effect_text: null,
       tags: [],
-      source_id: "TEST-001",
+      source_id: "IMG-001",
       source_entity_id: null,
       extra_data: null,
     })
@@ -197,9 +154,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: cs.id,
       printing_id: printingId,
-      source_id: "TEST-001",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "IMG-001",
+      set_id: "IMG",
+      set_name: "IMG Test Set",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -207,10 +164,10 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "IMG",
       printed_rules_text: null,
       printed_effect_text: null,
-      image_url: "https://example.com/test.png",
+      image_url: "https://example.com/img-test.png",
       flavor_text: null,
     })
     .execute();
@@ -220,14 +177,9 @@ if (DATABASE_URL) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Admin image routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Admin image routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
   // ── POST /admin/rehost-images ──────────────────────────────────────────
 
@@ -312,7 +264,7 @@ describe.skipIf(!DATABASE_URL)("Admin image routes (integration)", () => {
       expect(json.external).toBe(3);
       expect(json.sets).toBeArray();
       expect(json.sets).toHaveLength(1);
-      expect(json.sets[0].setId).toBe("TEST");
+      expect(json.sets[0].setId).toBe("IMG");
       expect(json.disk).toBeDefined();
       expect(json.disk.totalBytes).toBe(1024);
     });
@@ -323,13 +275,13 @@ describe.skipIf(!DATABASE_URL)("Admin image routes (integration)", () => {
   describe("POST /admin/restore-image-urls", () => {
     it("restores image URLs from printing sources and returns count", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/restore-image-urls", { source: "test-source" }),
+        req("POST", "/admin/restore-image-urls", { source: "img-source" }),
       );
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json.status).toBe("ok");
-      expect(json.result.source).toBe("test-source");
+      expect(json.result.source).toBe("img-source");
       expect(json.result.updated).toBeNumber();
 
       // Verify a printing_images row was created
@@ -337,11 +289,11 @@ describe.skipIf(!DATABASE_URL)("Admin image routes (integration)", () => {
         .selectFrom("printing_images")
         .select(["printing_id", "face", "source", "original_url", "is_active"])
         .where("printing_id", "=", printingId)
-        .where("source", "=", "test-source")
+        .where("source", "=", "img-source")
         .execute();
       expect(images).toHaveLength(1);
       expect(images[0].face).toBe("front");
-      expect(images[0].original_url).toBe("https://example.com/test.png");
+      expect(images[0].original_url).toBe("https://example.com/img-test.png");
       expect(images[0].is_active).toBe(true);
     });
 

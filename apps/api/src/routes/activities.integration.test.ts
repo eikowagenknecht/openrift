@@ -1,140 +1,24 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../app.js";
-import { createDb } from "../db/connect.js";
-import { migrate } from "../db/migrate.js";
-import { createTempDb, dropTempDb, noopLogger, replaceDbName } from "../test/integration-setup.js";
+import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
+import { createTestContext, req } from "../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Activities routes
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
+// Uses the shared integration database with pre-seeded OGS card data.
+// Only auth is mocked.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
-
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-const SET_ID = "b0000000-0000-4000-a000-000000000001";
-const CARD_ID = "c0000000-0000-4000-a000-000000000001";
-const PRINTING_1 = "d0000000-0000-4000-a000-000000000001";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "activities");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed test user + card data
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-
-  await db
-    .insertInto("sets")
-    .values({
-      id: SET_ID,
-      slug: "TEST-SET",
-      name: "Test Set",
-      printed_total: 10,
-      sort_order: 0,
-      released_at: null,
-    })
-    .execute();
-
-  await db
-    .insertInto("cards")
-    .values({
-      id: CARD_ID,
-      slug: "TST-001",
-      name: "Test Card",
-      type: "Unit",
-      super_types: [],
-      domains: ["Fury"],
-      might: 3,
-      energy: 2,
-      power: 4,
-      might_bonus: null,
-      keywords: [],
-      rules_text: "Rules",
-      effect_text: "Effect",
-      tags: [],
-    })
-    .execute();
-
-  await db
-    .insertInto("printings")
-    .values({
-      id: PRINTING_1,
-      slug: "TST-001:rare:normal",
-      card_id: CARD_ID,
-      set_id: SET_ID,
-      source_id: "TST-001",
-      collector_number: 1,
-      rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      finish: "normal",
-      artist: "Artist",
-      public_code: "ABCD",
-      printed_rules_text: "Rules",
-      printed_effect_text: "Effect",
-      flavor_text: null,
-      comment: null,
-    })
-    .execute();
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function req(method: string, path: string, body?: unknown): Request {
-  const opts: RequestInit = { method, headers: { "Content-Type": "application/json" } };
-  if (body) {
-    opts.body = JSON.stringify(body);
-  }
-  return new Request(`http://localhost/api${path}`, opts);
-}
+const ctx = createTestContext("a0000000-0004-4000-a000-000000000001");
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Activities routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Activities routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app } = ctx!;
 
   let activityId: string;
 
@@ -150,7 +34,7 @@ describe.skipIf(!DATABASE_URL)("Activities routes (integration)", () => {
 
     // Add copies → creates acquisition activity
     const addRes = await app.fetch(
-      req("POST", "/copies", { copies: [{ printingId: PRINTING_1, collectionId: col.id }] }),
+      req("POST", "/copies", { copies: [{ printingId: PRINTING_1.id, collectionId: col.id }] }),
     );
     const copies = (await addRes.json()) as { id: string }[];
 
@@ -217,7 +101,7 @@ describe.skipIf(!DATABASE_URL)("Activities routes (integration)", () => {
       const item = json.items[0];
       expect(item.printingId).toBeString();
       expect(item.action).toBeString();
-      expect(item.cardName).toBe("Test Card");
+      expect(item.cardName).toBe(CARD_FURY_UNIT.name);
     });
 
     it("returns 404 for non-existent activity", async () => {

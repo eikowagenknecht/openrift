@@ -1,95 +1,26 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
+import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Feature flags routes
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
+// Uses the shared integration database. Requires INTEGRATION_DB_URL.
+// Uses prefix ffl- for flag keys to avoid collisions.
+// This user is NOT pre-promoted to admin — tests non-admin access first.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const USER_ID = "a0000000-0016-4000-a000-000000000001";
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "feature_flags");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed the test user (not yet admin — admin is added after the 403 test)
-  await db
-    .insertInto("users")
-    .values({
-      id: USER_ID,
-      email: "a@test.com",
-      name: "User A",
-      email_verified: true,
-      image: null,
-    })
-    .execute();
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function req(method: string, path: string, body?: unknown): Request {
-  const opts: RequestInit = { method, headers: { "Content-Type": "application/json" } };
-  if (body) {
-    opts.body = JSON.stringify(body);
-  }
-  return new Request(`http://localhost/api${path}`, opts);
-}
+const ctx = createTestContext(USER_ID);
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
   // ── Admin-only access control (tested FIRST, before user is admin) ─────
   // The isAdmin cache only caches positive results, so a user who has never
@@ -113,12 +44,13 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
   // ── Public GET /feature-flags ────────────────────────────────────────────
 
   describe("GET /feature-flags (public)", () => {
-    it("returns empty map when no flags exist", async () => {
+    it("returns a map (may have flags from other tests)", async () => {
       const res = await app.fetch(req("GET", "/feature-flags"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({});
+      // No ffl- flags should exist yet
+      expect(json["ffl-deck-builder"]).toBeUndefined();
     });
   });
 
@@ -126,7 +58,7 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
 
   describe("POST /admin/feature-flags", () => {
     it("creates a flag with defaults", async () => {
-      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "deck-builder" }));
+      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "ffl-deck-builder" }));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -136,7 +68,7 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
     it("creates a flag with enabled and description", async () => {
       const res = await app.fetch(
         req("POST", "/admin/feature-flags", {
-          key: "dark-mode",
+          key: "ffl-dark-mode",
           enabled: true,
           description: "Toggle dark mode UI",
         }),
@@ -148,7 +80,7 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
     });
 
     it("rejects duplicate key with 409", async () => {
-      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "deck-builder" }));
+      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "ffl-deck-builder" }));
       expect(res.status).toBe(409);
     });
 
@@ -171,34 +103,36 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({
-        "deck-builder": false,
-        "dark-mode": true,
-      });
+      expect(json["ffl-deck-builder"]).toBe(false);
+      expect(json["ffl-dark-mode"]).toBe(true);
     });
   });
 
   // ── Admin GET /admin/feature-flags ───────────────────────────────────────
 
   describe("GET /admin/feature-flags", () => {
-    it("returns all flags with full shape, ordered by key", async () => {
+    it("returns ffl- flags with full shape", async () => {
       const res = await app.fetch(req("GET", "/admin/feature-flags"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json.flags).toBeArray();
-      expect(json.flags).toHaveLength(2);
 
-      // Ordered by key: dark-mode comes before deck-builder
-      expect(json.flags[0].key).toBe("dark-mode");
-      expect(json.flags[0].enabled).toBe(true);
-      expect(json.flags[0].description).toBe("Toggle dark mode UI");
-      expect(json.flags[0].created_at).toBeString();
-      expect(json.flags[0].updated_at).toBeString();
+      const fflFlags = json.flags.filter((f: { key: string }) => f.key.startsWith("ffl-"));
+      expect(fflFlags).toHaveLength(2);
 
-      expect(json.flags[1].key).toBe("deck-builder");
-      expect(json.flags[1].enabled).toBe(false);
-      expect(json.flags[1].description).toBeNull();
+      // Ordered by key: ffl-dark-mode comes before ffl-deck-builder
+      const darkMode = fflFlags.find((f: { key: string }) => f.key === "ffl-dark-mode");
+      expect(darkMode).toBeDefined();
+      expect(darkMode.enabled).toBe(true);
+      expect(darkMode.description).toBe("Toggle dark mode UI");
+      expect(darkMode.created_at).toBeString();
+      expect(darkMode.updated_at).toBeString();
+
+      const deckBuilder = fflFlags.find((f: { key: string }) => f.key === "ffl-deck-builder");
+      expect(deckBuilder).toBeDefined();
+      expect(deckBuilder.enabled).toBe(false);
+      expect(deckBuilder.description).toBeNull();
     });
   });
 
@@ -207,7 +141,7 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
   describe("PATCH /admin/feature-flags/:key", () => {
     it("updates enabled status", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/feature-flags/deck-builder", { enabled: true }),
+        req("PATCH", "/admin/feature-flags/ffl-deck-builder", { enabled: true }),
       );
       expect(res.status).toBe(200);
 
@@ -217,19 +151,19 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
       // Verify via public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
       const flags = await check.json();
-      expect(flags["deck-builder"]).toBe(true);
+      expect(flags["ffl-deck-builder"]).toBe(true);
     });
 
     it("updates description", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/feature-flags/deck-builder", { description: "Build your deck" }),
+        req("PATCH", "/admin/feature-flags/ffl-deck-builder", { description: "Build your deck" }),
       );
       expect(res.status).toBe(200);
 
       // Verify via admin endpoint
       const check = await app.fetch(req("GET", "/admin/feature-flags"));
       const json = await check.json();
-      const flag = json.flags.find((f: { key: string }) => f.key === "deck-builder");
+      const flag = json.flags.find((f: { key: string }) => f.key === "ffl-deck-builder");
       expect(flag.description).toBe("Build your deck");
     });
 
@@ -245,7 +179,7 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
 
   describe("DELETE /admin/feature-flags/:key", () => {
     it("deletes a flag", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/feature-flags/dark-mode"));
+      const res = await app.fetch(req("DELETE", "/admin/feature-flags/ffl-dark-mode"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -254,11 +188,11 @@ describe.skipIf(!DATABASE_URL)("Feature flags routes (integration)", () => {
       // Verify it's gone from public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
       const flags = await check.json();
-      expect(flags["dark-mode"]).toBeUndefined();
+      expect(flags["ffl-dark-mode"]).toBeUndefined();
     });
 
     it("returns 404 for non-existent key", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/feature-flags/dark-mode"));
+      const res = await app.fetch(req("DELETE", "/admin/feature-flags/ffl-dark-mode"));
       expect(res.status).toBe(404);
     });
   });
