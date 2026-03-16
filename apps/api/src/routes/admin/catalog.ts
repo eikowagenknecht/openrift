@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { slugParamSchema } from "@openrift/shared/schemas";
+import { setFieldRules, slugParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -15,15 +15,15 @@ const updateExpansionSchema = z.object({
 });
 
 const updateSetSchema = z.object({
-  name: z.string().min(1),
-  printedTotal: z.number().int().min(0),
+  name: setFieldRules.name,
+  printedTotal: setFieldRules.printedTotal,
   releasedAt: z.string().nullable(),
 });
 
 const createSetSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  printedTotal: z.number().int().min(0),
+  id: setFieldRules.slug,
+  name: setFieldRules.name,
+  printedTotal: setFieldRules.printedTotal,
   releasedAt: z.string().nullable().optional(),
 });
 

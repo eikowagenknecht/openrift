@@ -25,11 +25,13 @@ import {
   acceptFieldSchema,
   acceptNewCardSchema,
   acceptPrintingSchema,
+  cardFieldRules,
   checkAllPrintingSourcesSchema,
   copyPrintingSourceSchema,
   linkPrintingSourcesSchema,
   linkUnmatchedSchema,
   patchPrintingSourceSchema,
+  printingFieldRules,
   renameSchema,
   uploadCardSourcesSchema,
 } from "./schemas.js";
@@ -387,6 +389,18 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
     }
 
+    const validator = cardFieldRules[field as keyof typeof cardFieldRules];
+    if (validator) {
+      const parsed = validator.safeParse(value);
+      if (!parsed.success) {
+        throw new AppError(
+          400,
+          "VALIDATION_ERROR",
+          `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
+        );
+      }
+    }
+
     const updates: Record<string, unknown> = { [dbField]: value, updated_at: new Date() };
 
     // Recompute keywords when rules_text or effect_text changes
@@ -438,6 +452,19 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const dbField = allowedFields[field];
     if (!dbField) {
       throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
+    }
+
+    // Validate against printingFieldRules when a rule exists for this field
+    const validator = printingFieldRules[field as keyof typeof printingFieldRules];
+    if (validator) {
+      const parsed = validator.safeParse(value);
+      if (!parsed.success) {
+        throw new AppError(
+          400,
+          "VALIDATION_ERROR",
+          `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
+        );
+      }
     }
 
     // Normalize enum fields that have DB check constraints

@@ -22,17 +22,69 @@ export const decksQuerySchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Field rules — mirror DB CHECK constraints, single source of truth
+// ---------------------------------------------------------------------------
+
+/** Mirrors DB CHECK constraints on the collections table. */
+export const collectionFieldRules = {
+  name: z.string().min(1).max(200),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB CHECK constraints on the sets table. */
+export const setFieldRules = {
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  printedTotal: z.number().int().min(0),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB CHECK constraints on the decks table. */
+export const deckFieldRules = {
+  name: z.string().min(1).max(200),
+  format: z.enum(["standard", "freeform"]),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB CHECK constraints on the deck_cards table. */
+export const deckCardFieldRules = {
+  zone: z.enum(["main", "sideboard"]),
+  quantity: z.number().int().positive(),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB CHECK constraints on the wish_list_items table. */
+export const wishListItemFieldRules = {
+  quantityDesired: z.number().int().positive(),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB CHECK constraints on the marketplace_snapshots table. */
+export const marketplaceSnapshotFieldRules = {
+  marketCents: z.number().int().min(0),
+  lowCents: z.number().int().min(0).nullable(),
+  midCents: z.number().int().min(0).nullable(),
+  highCents: z.number().int().min(0).nullable(),
+  trendCents: z.number().int().min(0).nullable(),
+  avg1Cents: z.number().int().min(0).nullable(),
+  avg7Cents: z.number().int().min(0).nullable(),
+  avg30Cents: z.number().int().min(0).nullable(),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB CHECK constraints on the marketplace_sources table. */
+export const marketplaceSourceFieldRules = {
+  marketplace: z.string().min(1),
+  externalId: z.number().int().positive(),
+  productName: z.string().min(1),
+} satisfies Record<string, z.ZodType>;
+
+// ---------------------------------------------------------------------------
 // Collection tracking schemas
 // ---------------------------------------------------------------------------
 
 export const createCollectionSchema = z.object({
-  name: z.string().min(1).max(200),
+  name: collectionFieldRules.name,
   description: z.string().max(1000).nullish(),
   availableForDeckbuilding: z.boolean().optional(),
 });
 
 export const updateCollectionSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
+  name: collectionFieldRules.name.optional(),
   description: z.string().max(1000).nullish(),
   availableForDeckbuilding: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
@@ -70,21 +122,18 @@ export const disposeCopiesSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
 });
 
-const deckFormatSchema = z.enum(["standard", "freeform"]);
-const deckZoneSchema = z.enum(["main", "sideboard"]);
-
 export const createDeckSchema = z.object({
-  name: z.string().min(1).max(200),
+  name: deckFieldRules.name,
   description: z.string().max(2000).nullish(),
-  format: deckFormatSchema,
+  format: deckFieldRules.format,
   isWanted: z.boolean().optional(),
   isPublic: z.boolean().optional(),
 });
 
 export const updateDeckSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
+  name: deckFieldRules.name.optional(),
   description: z.string().max(2000).nullish(),
-  format: deckFormatSchema.optional(),
+  format: deckFieldRules.format.optional(),
   isWanted: z.boolean().optional(),
   isPublic: z.boolean().optional(),
 });
@@ -93,8 +142,8 @@ export const updateDeckCardsSchema = z.object({
   cards: z.array(
     z.object({
       cardId: z.string(),
-      zone: deckZoneSchema,
-      quantity: z.number().int().positive(),
+      zone: deckCardFieldRules.zone,
+      quantity: deckCardFieldRules.quantity,
     }),
   ),
 });
@@ -112,11 +161,11 @@ export const updateWishListSchema = z.object({
 export const createWishListItemSchema = z.object({
   cardId: z.string().optional(),
   printingId: z.string().optional(),
-  quantityDesired: z.number().int().positive().default(1),
+  quantityDesired: wishListItemFieldRules.quantityDesired.default(1),
 });
 
 export const updateWishListItemSchema = z.object({
-  quantityDesired: z.number().int().positive(),
+  quantityDesired: wishListItemFieldRules.quantityDesired,
 });
 
 export const createTradeListSchema = z.object({
