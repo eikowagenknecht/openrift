@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { centsToDollars, formatDateUTC } from "@openrift/shared";
-import type { PriceHistoryResponse, TimeRange } from "@openrift/shared";
+import type { PriceHistoryResponse, PricesData, TimeRange } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -43,7 +43,8 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
 
     c.header("ETag", etag);
     c.header("Cache-Control", "public, max-age=60");
-    return c.json({ prices });
+    c.header("Last-Modified", new Date(lastModified).toUTCString());
+    return c.json({ prices } satisfies PricesData);
   })
   /**
    * `GET /prices/:printingId/history` — Returns price history for a single printing.
@@ -82,7 +83,16 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
           printingId: param,
           tcgplayer: { available: false, currency: "USD", productId: null, snapshots: [] },
           cardmarket: { available: false, currency: "EUR", productId: null, snapshots: [] },
-        });
+        } satisfies PriceHistoryResponse);
+      }
+
+      // Cheap ETag check — one aggregate query instead of fetching all snapshots
+      const { latest } = await marketplace.latestSnapshotTimestamp(printing.id);
+      const latestTs = new Date(latest).getTime();
+      const etag = `"history-${printing.id}-${rangeParam}-${latestTs}"`;
+
+      if (c.req.header("If-None-Match") === etag) {
+        return c.body(null, 304);
       }
 
       const sources = await marketplace.sourcesForPrinting(printing.id);
@@ -112,18 +122,6 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
         avg30: centsToDollars(r.avg30Cents),
       }));
 
-      const latestTcg = tcgRows.at(-1)?.recordedAt;
-      const latestCm = cmRows.at(-1)?.recordedAt;
-      const latestTs = Math.max(
-        latestTcg ? new Date(latestTcg).getTime() : 0,
-        latestCm ? new Date(latestCm).getTime() : 0,
-      );
-      const etag = `"history-${printing.id}-${rangeParam}-${latestTs}"`;
-
-      if (c.req.header("If-None-Match") === etag) {
-        return c.body(null, 304);
-      }
-
       const response: PriceHistoryResponse = {
         printingId: printing.id,
         tcgplayer: {
@@ -142,6 +140,7 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
 
       c.header("ETag", etag);
       c.header("Cache-Control", "public, max-age=60");
+      c.header("Last-Modified", new Date(latest).toUTCString());
       return c.json(response);
     },
   );
