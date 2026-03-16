@@ -174,7 +174,7 @@ export function CardDetail({
               <p className="text-sm text-muted-foreground">
                 <CardText text={card.rulesText} onKeywordClick={onKeywordClick} />
               </p>
-              {printing.printedDescription && <PrintedTextWarning />}
+              {printing.printedRulesText && <PrintedTextWarning />}
             </div>
           )}
 
@@ -188,7 +188,7 @@ export function CardDetail({
                   <CardText text={card.effectText} onKeywordClick={onKeywordClick} />
                 </p>
               )}
-              {printing.printedEffect && <PrintedTextWarning />}
+              {printing.printedEffectText && <PrintedTextWarning />}
               {card.mightBonus !== null && card.mightBonus > 0 && (
                 <div className={cn(card.effectText && "mt-2")}>
                   <StatChip
