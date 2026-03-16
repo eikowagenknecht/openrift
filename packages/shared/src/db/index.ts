@@ -1,4 +1,18 @@
 export { buildDistinctWhere } from "./helpers.js";
+export {
+  cardFieldRules,
+  cardSourceFieldRules,
+  collectionFieldRules,
+  deckCardFieldRules,
+  deckFieldRules,
+  marketplaceSnapshotFieldRules,
+  marketplaceSourceFieldRules,
+  printingFieldRules,
+  printingImageFieldRules,
+  printingSourceFieldRules,
+  setFieldRules,
+  wishListItemFieldRules,
+} from "./schemas.js";
 export type {
   AccountsTable,
   CardsTable,
