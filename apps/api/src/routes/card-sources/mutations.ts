@@ -636,14 +636,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
           card_id: card.id,
           set_id: setUuid,
           source_id: printingFields.sourceId,
-          collector_number: printingFields.collectorNumber ?? 0,
+          collector_number: printingFields.collectorNumber,
           rarity: normalizedRarity as Rarity,
           art_variant: (printingFields.artVariant ?? "normal") as ArtVariant,
           is_signed: printingFields.isSigned ?? false,
           is_promo: printingFields.isPromo ?? false,
           finish: (printingFields.finish ?? "normal") as Finish,
-          artist: printingFields.artist ?? "",
-          public_code: printingFields.publicCode ?? "",
+          artist: printingFields.artist,
+          public_code: printingFields.publicCode,
           printed_rules_text: printingFields.printedRulesText ?? null,
           printed_effect_text: printingFields.printedEffectText ?? null,
           flavor_text: printingFields.flavorText ?? null,
@@ -730,11 +730,41 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Card source does not match any card");
     }
 
+    // Validate fields required by printings CHECK constraints
+    const normalizedRarity = RARITY_ORDER.find(
+      (r) => r.toLowerCase() === (ps.rarity ?? "").toLowerCase(),
+    );
+    if (!normalizedRarity) {
+      throw new AppError(
+        400,
+        "BAD_REQUEST",
+        `Cannot accept: invalid rarity "${ps.rarity ?? "(empty)"}". Must be one of: ${RARITY_ORDER.join(", ")}`,
+      );
+    }
+    const validatedFinish = printingFieldRules.finish.safeParse(ps.finish);
+    if (!validatedFinish.success) {
+      const finishDisplay = ps.finish ?? "(empty)";
+      throw new AppError(400, "BAD_REQUEST", `Cannot accept: invalid finish "${finishDisplay}"`);
+    }
+    if (!ps.collector_number || ps.collector_number <= 0) {
+      throw new AppError(
+        400,
+        "BAD_REQUEST",
+        "Cannot accept: collector_number must be a positive integer",
+      );
+    }
+    if (!ps.artist) {
+      throw new AppError(400, "BAD_REQUEST", "Cannot accept: artist is required");
+    }
+    if (!ps.public_code) {
+      throw new AppError(400, "BAD_REQUEST", "Cannot accept: public_code is required");
+    }
+
     const printingId = buildPrintingId(
       ps.source_id,
-      ps.rarity ?? "",
+      normalizedRarity,
       ps.is_promo ?? false,
-      ps.finish ?? "normal",
+      validatedFinish.data,
     );
 
     await db.transaction().execute(async (trx) => {
@@ -759,14 +789,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
           card_id: cardId,
           set_id: setUuid,
           source_id: ps.source_id,
-          collector_number: ps.collector_number ?? 0,
-          rarity: ps.rarity as Rarity,
+          collector_number: ps.collector_number,
+          rarity: normalizedRarity as Rarity,
           art_variant: (ps.art_variant ?? "normal") as ArtVariant,
           is_signed: ps.is_signed ?? false,
           is_promo: ps.is_promo ?? false,
-          finish: ps.finish as Finish,
-          artist: ps.artist ?? "",
-          public_code: ps.public_code ?? "",
+          finish: validatedFinish.data as Finish,
+          artist: ps.artist,
+          public_code: ps.public_code,
           printed_rules_text: ps.printed_rules_text ?? null,
           printed_effect_text: ps.printed_effect_text,
           flavor_text: ps.flavor_text,
