@@ -1,3 +1,3 @@
-import type { app } from "./app.js";
+import type { createApp } from "./app.js";
 
-export type AppType = typeof app;
+export type AppType = ReturnType<typeof createApp>;

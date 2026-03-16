@@ -1,13 +1,14 @@
+import type { Database } from "@openrift/shared/db";
 import type { MiddlewareHandler } from "hono";
+import type { Kysely } from "kysely";
 
-import { db } from "../db.js";
 import { AppError } from "../errors.js";
 import type { Variables } from "../types.js";
 
 const ADMIN_CACHE_TTL = 30_000; // 30 seconds
 const adminCache = new Map<string, number>(); // userId → expiresAt timestamp
 
-export async function isAdmin(userId: string): Promise<boolean> {
+export async function isAdmin(db: Kysely<Database>, userId: string): Promise<boolean> {
   const expiresAt = adminCache.get(userId);
   if (expiresAt !== undefined && Date.now() < expiresAt) {
     return true;
@@ -34,7 +35,7 @@ export const requireAdmin: MiddlewareHandler<{ Variables: Variables }> = async (
     throw new AppError(401, "UNAUTHORIZED", "Unauthorized");
   }
 
-  if (!(await isAdmin(user.id))) {
+  if (!(await isAdmin(c.get("db"), user.id))) {
     throw new AppError(403, "FORBIDDEN", "Forbidden");
   }
 

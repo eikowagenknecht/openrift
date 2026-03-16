@@ -1,8 +1,6 @@
 import type { Database } from "@openrift/shared/db";
-import type { Transaction } from "kysely";
+import type { Kysely, Transaction } from "kysely";
 import { sql } from "kysely";
-
-import { db } from "../../db.js";
 
 // ── Unified product-info shape consumed by the frontend ─────────────────────
 
@@ -181,60 +179,32 @@ function createMarketplaceConfig(opts: {
 
 // ── TCGPlayer config ────────────────────────────────────────────────────────
 
-export const tcgplayerConfig: MarketplaceConfig = createMarketplaceConfig({
-  marketplace: "tcgplayer",
+const tcgMapPrices = (row: PriceColumns) => ({
+  marketCents: row.market_cents,
+  lowCents: row.low_cents,
   currency: "USD",
-  mapPrices: (row) => ({
-    marketCents: row.market_cents,
-    lowCents: row.low_cents,
-    currency: "USD",
-    midCents: row.mid_cents,
-    highCents: row.high_cents,
-    trendCents: row.trend_cents,
-    avg1Cents: row.avg1_cents,
-    avg7Cents: row.avg7_cents,
-    avg30Cents: row.avg30_cents,
-  }),
-  snapshotQuery: (printingIds) =>
-    db
-      .selectFrom("marketplace_sources as ps")
-      .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
-      .select([
-        "ps.printing_id",
-        "ps.product_name",
-        "snap.market_cents",
-        "snap.low_cents",
-        "snap.mid_cents",
-        "snap.high_cents",
-        "snap.trend_cents",
-        "snap.avg1_cents",
-        "snap.avg7_cents",
-        "snap.avg30_cents",
-        "snap.recorded_at",
-      ])
-      .where("ps.marketplace", "=", "tcgplayer")
-      .where("ps.printing_id", "in", printingIds)
-      .orderBy("snap.recorded_at", "desc")
-      .execute(),
+  midCents: row.mid_cents,
+  highCents: row.high_cents,
+  trendCents: row.trend_cents,
+  avg1Cents: row.avg1_cents,
+  avg7Cents: row.avg7_cents,
+  avg30Cents: row.avg30_cents,
 });
 
-// ── Cardmarket config ───────────────────────────────────────────────────────
-
-export const cardmarketConfig: MarketplaceConfig = createMarketplaceConfig({
-  marketplace: "cardmarket",
+const cmMapPrices = (row: PriceColumns) => ({
+  marketCents: row.market_cents,
+  lowCents: row.low_cents,
   currency: "EUR",
-  mapPrices: (row) => ({
-    marketCents: row.market_cents,
-    lowCents: row.low_cents,
-    currency: "EUR",
-    midCents: row.mid_cents,
-    highCents: row.high_cents,
-    trendCents: row.trend_cents,
-    avg1Cents: row.avg1_cents,
-    avg7Cents: row.avg7_cents,
-    avg30Cents: row.avg30_cents,
-  }),
-  snapshotQuery: (printingIds) =>
+  midCents: row.mid_cents,
+  highCents: row.high_cents,
+  trendCents: row.trend_cents,
+  avg1Cents: row.avg1_cents,
+  avg7Cents: row.avg7_cents,
+  avg30Cents: row.avg30_cents,
+});
+
+function snapshotQueryFor(db: Kysely<Database>, marketplace: string) {
+  return (printingIds: string[]) =>
     db
       .selectFrom("marketplace_sources as ps")
       .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
@@ -251,8 +221,25 @@ export const cardmarketConfig: MarketplaceConfig = createMarketplaceConfig({
         "snap.avg30_cents",
         "snap.recorded_at",
       ])
-      .where("ps.marketplace", "=", "cardmarket")
+      .where("ps.marketplace", "=", marketplace)
       .where("ps.printing_id", "in", printingIds)
       .orderBy("snap.recorded_at", "desc")
-      .execute(),
-});
+      .execute();
+}
+
+export function createMarketplaceConfigs(db: Kysely<Database>) {
+  return {
+    tcgplayer: createMarketplaceConfig({
+      marketplace: "tcgplayer",
+      currency: "USD",
+      mapPrices: tcgMapPrices,
+      snapshotQuery: snapshotQueryFor(db, "tcgplayer"),
+    }),
+    cardmarket: createMarketplaceConfig({
+      marketplace: "cardmarket",
+      currency: "EUR",
+      mapPrices: cmMapPrices,
+      snapshotQuery: snapshotQueryFor(db, "cardmarket"),
+    }),
+  };
+}

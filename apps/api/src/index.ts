@@ -1,3 +1,4 @@
+import { createDb } from "@openrift/shared/db/connect";
 import { migrate } from "@openrift/shared/db/migrate";
 import { createLogger } from "@openrift/shared/logger";
 import {
@@ -6,14 +7,23 @@ import {
 } from "@openrift/shared/services/price-refresh";
 import { Cron } from "croner";
 
-import { config, validateConfig } from "./config.js";
+import { createApp } from "./app.js";
+import { createAuth } from "./auth.js";
+import { createConfig, validateConfig } from "./config.js";
 import { cronJobs } from "./cron-jobs.js";
-import { db } from "./db.js";
+import { createEmailSender } from "./email.js";
 
-validateConfig();
+// ── Composition root ──────────────────────────────────────────────────────────
+
+const env = process.env as Record<string, string | undefined>;
+validateConfig(env);
+const config = createConfig(env);
+
+const { db, dialect } = createDb(config.databaseUrl);
+const sendEmail = createEmailSender(config.smtp);
+const auth = createAuth({ config, db, dialect, sendEmail });
 
 const log = createLogger("api");
-
 log.info("Starting API server");
 
 // ── 1. Run migrations (blocks until complete) ───────────────────────────────
@@ -55,11 +65,9 @@ if (config.cron.enabled) {
 
 // ── 3. Start server ─────────────────────────────────────────────────────────
 
-const { app } = await import("./app.js");
+const app = createApp({ db, auth, config });
 
-const port = config.port;
-
-Bun.serve({ fetch: app.fetch, port });
-log.info(`API server listening on http://localhost:${port}`);
+Bun.serve({ fetch: app.fetch, port: config.port });
+log.info(`API server listening on http://localhost:${config.port}`);
 
 export { app };
