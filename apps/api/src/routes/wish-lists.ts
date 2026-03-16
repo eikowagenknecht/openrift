@@ -14,6 +14,7 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
+import { wishListsRepo } from "../repositories/wish-lists.js";
 import type { Variables } from "../types.js";
 import { toWishList, toWishListItem } from "../utils/dto.js";
 
@@ -28,56 +29,36 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/wish-lists", async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
-    const rows = await db
-      .selectFrom("wish_lists")
-      .selectAll()
-      .where("user_id", "=", userId)
-      .orderBy("name")
-      .execute();
+    const wishLists = wishListsRepo(c.get("db"));
+    const rows = await wishLists.listForUser(getUserId(c));
     return c.json(rows.map((row) => toWishList(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/wish-lists", zValidator("json", createWishListSchema), async (c) => {
-    const db = c.get("db");
+    const wishLists = wishListsRepo(c.get("db"));
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await db
-      .insertInto("wish_lists")
-      .values({
-        user_id: userId,
-        name: body.name,
-        rules: body.rules ? JSON.stringify(body.rules) : null,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    const row = await wishLists.create({
+      user_id: userId,
+      name: body.name,
+      rules: body.rules ? JSON.stringify(body.rules) : null,
+    });
     return c.json(toWishList(row as object), 201);
   })
 
   // ── GET ONE (custom: returns wish list with items) ──────────────────────────
   .get("/wish-lists/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
+    const wishLists = wishListsRepo(c.get("db"));
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const wishList = await db
-      .selectFrom("wish_lists")
-      .selectAll()
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
-
+    const wishList = await wishLists.getByIdForUser(id, userId);
     if (!wishList) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const itemRows = await db
-      .selectFrom("wish_list_items")
-      .selectAll()
-      .where("wish_list_id", "=", id)
-      .execute();
+    const itemRows = await wishLists.itemsForList(id);
 
     return c.json({
       wishList: toWishList(wishList),
@@ -91,18 +72,12 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateWishListSchema),
     async (c) => {
-      const db = c.get("db");
+      const wishLists = wishListsRepo(c.get("db"));
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
       const updates = buildPatchUpdates(body, patchFields);
-      const row = await db
-        .updateTable("wish_lists")
-        .set(updates)
-        .where("id", "=", id)
-        .where("user_id", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      const row = await wishLists.update(id, userId, updates);
       if (!row) {
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
@@ -112,14 +87,9 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
   .delete("/wish-lists/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
+    const wishLists = wishListsRepo(c.get("db"));
     const { id } = c.req.valid("param");
-    const result = await db
-      .deleteFrom("wish_lists")
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+    const result = await wishLists.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
@@ -132,7 +102,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", createWishListItemSchema),
     async (c) => {
-      const db = c.get("db");
+      const wishLists = wishListsRepo(c.get("db"));
       const userId = getUserId(c);
       const { id: wishListId } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -147,28 +117,18 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
       }
 
       // Verify wish list belongs to user
-      const wishList = await db
-        .selectFrom("wish_lists")
-        .select("id")
-        .where("id", "=", wishListId)
-        .where("user_id", "=", userId)
-        .executeTakeFirst();
-
+      const wishList = await wishLists.exists(wishListId, userId);
       if (!wishList) {
         throw new AppError(404, "NOT_FOUND", "Wish list not found");
       }
 
-      const row = await db
-        .insertInto("wish_list_items")
-        .values({
-          wish_list_id: wishListId,
-          user_id: userId,
-          card_id: body.cardId ?? null,
-          printing_id: body.printingId ?? null,
-          quantity_desired: body.quantityDesired,
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
+      const row = await wishLists.createItem({
+        wish_list_id: wishListId,
+        user_id: userId,
+        card_id: body.cardId ?? null,
+        printing_id: body.printingId ?? null,
+        quantity_desired: body.quantityDesired,
+      });
 
       return c.json(toWishListItem(row), 201);
     },
@@ -180,19 +140,14 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idAndItemIdParamSchema),
     zValidator("json", updateWishListItemSchema),
     async (c) => {
-      const db = c.get("db");
+      const wishLists = wishListsRepo(c.get("db"));
       const userId = getUserId(c);
       const { id: wishListId, itemId } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const row = await db
-        .updateTable("wish_list_items")
-        .set({ quantity_desired: body.quantityDesired })
-        .where("id", "=", itemId)
-        .where("wish_list_id", "=", wishListId)
-        .where("user_id", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      const row = await wishLists.updateItem(itemId, wishListId, userId, {
+        quantity_desired: body.quantityDesired,
+      });
 
       if (!row) {
         throw new AppError(404, "NOT_FOUND", "Not found");
@@ -207,16 +162,11 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     "/wish-lists/:id/items/:itemId",
     zValidator("param", idAndItemIdParamSchema),
     async (c) => {
-      const db = c.get("db");
+      const wishLists = wishListsRepo(c.get("db"));
       const userId = getUserId(c);
       const { id: wishListId, itemId } = c.req.valid("param");
 
-      const result = await db
-        .deleteFrom("wish_list_items")
-        .where("id", "=", itemId)
-        .where("wish_list_id", "=", wishListId)
-        .where("user_id", "=", userId)
-        .executeTakeFirst();
+      const result = await wishLists.deleteItem(itemId, wishListId, userId);
 
       if (result.numDeletedRows === 0n) {
         throw new AppError(404, "NOT_FOUND", "Not found");

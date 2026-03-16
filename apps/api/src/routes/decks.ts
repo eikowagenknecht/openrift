@@ -14,6 +14,7 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
+import { decksRepo } from "../repositories/decks.js";
 import type { Variables } from "../types.js";
 import { toDeck } from "../utils/dto.js";
 
@@ -31,76 +32,41 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/decks", zValidator("query", decksQuerySchema), async (c) => {
-    const db = c.get("db");
+    const decks = decksRepo(c.get("db"));
     const userId = getUserId(c);
     const { wanted } = c.req.valid("query");
-    let query = db.selectFrom("decks").selectAll().where("user_id", "=", userId).orderBy("name");
-
-    if (wanted === "true") {
-      query = query.where("is_wanted", "=", true);
-    }
-
-    const rows = await query.execute();
+    const rows = await decks.listForUser(userId, wanted === "true");
     return c.json(rows.map((row) => toDeck(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/decks", zValidator("json", createDeckSchema), async (c) => {
-    const db = c.get("db");
+    const decks = decksRepo(c.get("db"));
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await db
-      .insertInto("decks")
-      .values({
-        user_id: userId,
-        name: body.name,
-        description: body.description ?? null,
-        format: body.format,
-        is_wanted: body.isWanted ?? false,
-        is_public: body.isPublic ?? false,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    const row = await decks.create({
+      user_id: userId,
+      name: body.name,
+      description: body.description ?? null,
+      format: body.format,
+      is_wanted: body.isWanted ?? false,
+      is_public: body.isPublic ?? false,
+    });
     return c.json(toDeck(row), 201);
   })
 
   // ── GET ONE (custom: returns deck with deck_cards joined) ───────────────────
   .get("/decks/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
+    const decks = decksRepo(c.get("db"));
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const deck = await db
-      .selectFrom("decks")
-      .selectAll()
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
-
+    const deck = await decks.getByIdForUser(id, userId);
     if (!deck) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const cardRows = await db
-      .selectFrom("deck_cards as dc")
-      .innerJoin("cards as c", "c.id", "dc.card_id")
-      .select([
-        "dc.id",
-        "dc.deck_id",
-        "dc.card_id",
-        "dc.zone",
-        "dc.quantity",
-        "c.name as card_name",
-        "c.type as card_type",
-        "c.domains",
-        "c.energy",
-        "c.might",
-        "c.power",
-      ])
-      .where("dc.deck_id", "=", id)
-      .orderBy("dc.zone")
-      .orderBy("c.name")
-      .execute();
+    const cardRows = await decks.cardsWithDetails(id);
 
     return c.json({
       deck: toDeck(deck),
@@ -126,18 +92,12 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateDeckSchema),
     async (c) => {
-      const db = c.get("db");
+      const decks = decksRepo(c.get("db"));
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
       const updates = buildPatchUpdates(body, patchFields);
-      const row = await db
-        .updateTable("decks")
-        .set(updates)
-        .where("id", "=", id)
-        .where("user_id", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      const row = await decks.update(id, userId, updates);
       if (!row) {
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
@@ -147,14 +107,9 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
   .delete("/decks/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
+    const decks = decksRepo(c.get("db"));
     const { id } = c.req.valid("param");
-    const result = await db
-      .deleteFrom("decks")
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+    const result = await decks.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
@@ -169,18 +124,13 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     zValidator("json", updateDeckCardsSchema),
     async (c) => {
       const db = c.get("db");
+      const decks = decksRepo(db);
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
       // Verify deck belongs to user
-      const deck = await db
-        .selectFrom("decks")
-        .select(["id", "format"])
-        .where("id", "=", id)
-        .where("user_id", "=", userId)
-        .executeTakeFirst();
-
+      const deck = await decks.getIdAndFormat(id, userId);
       if (!deck) {
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
@@ -244,38 +194,19 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   // ── GET /decks/:id/availability ───────────────────────────────────────────
   // For a wanted deck, returns per-card availability from deckbuilding collections
   .get("/decks/:id/availability", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
+    const decks = decksRepo(c.get("db"));
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const deck = await db
-      .selectFrom("decks")
-      .select("id")
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
-
+    const deck = await decks.exists(id, userId);
     if (!deck) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    // Get deck card requirements
-    const deckCards = await db
-      .selectFrom("deck_cards")
-      .select(["card_id", "zone", "quantity"])
-      .where("deck_id", "=", id)
-      .execute();
-
-    // Get available copies per card (from deckbuilding-available collections)
-    const availableCopies = await db
-      .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collection_id")
-      .innerJoin("printings as p", "p.id", "cp.printing_id")
-      .select(["p.card_id", db.fn.countAll<number>().as("count")])
-      .where("cp.user_id", "=", userId)
-      .where("col.available_for_deckbuilding", "=", true)
-      .groupBy("p.card_id")
-      .execute();
+    const [deckCards, availableCopies] = await Promise.all([
+      decks.cardRequirements(id),
+      decks.availableCopiesByCard(userId),
+    ]);
 
     const ownedByCard = new Map<string, number>();
     for (const row of availableCopies) {
