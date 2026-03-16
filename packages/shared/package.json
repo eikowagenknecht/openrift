@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./schemas": "./src/schemas.ts",
     "./db": "./src/db/index.ts",
+    "./db/schemas": "./src/db/schemas.ts",
     "./db/connect": "./src/db/connect.ts",
     "./db/migrate": "./src/db/migrate.ts",
     "./utils": "./src/utils.ts",

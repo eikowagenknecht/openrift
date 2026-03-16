@@ -28,6 +28,7 @@ type UpdatedAt = ColumnType<Date, Date | undefined, Date>;
 
 // ─── Card data ───────────────────────────────────────────────────────────────
 
+/** @see setFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface SetsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
@@ -46,6 +47,7 @@ export interface SetsTable {
  * Game card — unique by game identity (name + rules).
  *
  * The `slug` is the base printing's source ID (e.g. "OGN-027").
+ * @see cardFieldRules in `schemas.ts` for Zod validation of CHECK constraints
  */
 export interface CardsTable {
   id: Generated<string>;
@@ -80,6 +82,7 @@ export interface CardsTable {
  * Physical printing of a game card.
  *
  * The `slug` is a composite key: "{source_id}:{rarity (lowercase)}:{finish}:{promo|}".
+ * @see printingFieldRules in `schemas.ts` for Zod validation of CHECK constraints
  */
 export interface PrintingsTable {
   id: Generated<string>;
@@ -124,6 +127,7 @@ export interface MarketplaceGroupsTable {
   updated_at: UpdatedAt;
 }
 
+/** @see marketplaceSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface MarketplaceSourcesTable {
   id: Generated<string>;
   /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
@@ -139,6 +143,7 @@ export interface MarketplaceSourcesTable {
   updated_at: UpdatedAt;
 }
 
+/** @see marketplaceSnapshotFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface MarketplaceSnapshotsTable {
   id: Generated<string>;
   source_id: string;
@@ -256,6 +261,7 @@ export interface VerificationsTable {
 
 // ─── Collection tracking (migration 009) ────────────────────────────────────
 
+/** @see collectionFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface CollectionsTable {
   id: Generated<string>;
   user_id: string;
@@ -323,6 +329,7 @@ export interface ActivityItemsTable {
   created_at: CreatedAt;
 }
 
+/** @see deckFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface DecksTable {
   id: Generated<string>;
   user_id: string;
@@ -337,6 +344,7 @@ export interface DecksTable {
   updated_at: UpdatedAt;
 }
 
+/** @see deckCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface DeckCardsTable {
   id: Generated<string>;
   deck_id: string;
@@ -356,7 +364,10 @@ export interface WishListsTable {
   updated_at: UpdatedAt;
 }
 
-/** CHECK: exactly one of card_id or printing_id must be set (XOR). */
+/**
+ * CHECK: exactly one of card_id or printing_id must be set (XOR).
+ * @see wishListItemFieldRules in `schemas.ts` for Zod validation of CHECK constraints
+ */
 export interface WishListItemsTable {
   id: Generated<string>;
   wish_list_id: string;
@@ -390,6 +401,7 @@ export interface TradeListItemsTable {
 
 // ─── Card sources (migration 018) ────────────────────────────────────────────
 
+/** @see cardSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface CardSourcesTable {
   id: Generated<string>;
   /** CHECK: <> '' */
@@ -425,6 +437,7 @@ export interface CardSourcesTable {
   updated_at: UpdatedAt;
 }
 
+/** @see printingSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface PrintingSourcesTable {
   id: Generated<string>;
   card_source_id: string;
@@ -466,7 +479,10 @@ export interface PrintingSourcesTable {
   updated_at: UpdatedAt;
 }
 
-/** CHECK: face IN ('front', 'back'); at least one URL must be non-NULL */
+/**
+ * CHECK: face IN ('front', 'back'); at least one URL must be non-NULL
+ * @see printingImageFieldRules in `schemas.ts` for Zod validation of CHECK constraints
+ */
 export interface PrintingImagesTable {
   id: Generated<string>;
   printing_id: string;

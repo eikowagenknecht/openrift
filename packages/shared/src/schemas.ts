@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+import {
+  collectionFieldRules,
+  deckCardFieldRules,
+  deckFieldRules,
+  wishListItemFieldRules,
+} from "./db/schemas.js";
+
 // ---------------------------------------------------------------------------
 // Common param & query schemas (used by zValidator("param"//"query"))
 // ---------------------------------------------------------------------------
@@ -20,58 +27,6 @@ export const activitiesQuerySchema = z.object({
 export const decksQuerySchema = z.object({
   wanted: z.string().optional(),
 });
-
-// ---------------------------------------------------------------------------
-// Field rules — mirror DB CHECK constraints, single source of truth
-// ---------------------------------------------------------------------------
-
-/** Mirrors DB CHECK constraints on the collections table. */
-export const collectionFieldRules = {
-  name: z.string().min(1).max(200),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the sets table. */
-export const setFieldRules = {
-  slug: z.string().min(1),
-  name: z.string().min(1),
-  printedTotal: z.number().int().min(0),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the decks table. */
-export const deckFieldRules = {
-  name: z.string().min(1).max(200),
-  format: z.enum(["standard", "freeform"]),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the deck_cards table. */
-export const deckCardFieldRules = {
-  zone: z.enum(["main", "sideboard"]),
-  quantity: z.number().int().positive(),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the wish_list_items table. */
-export const wishListItemFieldRules = {
-  quantityDesired: z.number().int().positive(),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the marketplace_snapshots table. */
-export const marketplaceSnapshotFieldRules = {
-  marketCents: z.number().int().min(0),
-  lowCents: z.number().int().min(0).nullable(),
-  midCents: z.number().int().min(0).nullable(),
-  highCents: z.number().int().min(0).nullable(),
-  trendCents: z.number().int().min(0).nullable(),
-  avg1Cents: z.number().int().min(0).nullable(),
-  avg7Cents: z.number().int().min(0).nullable(),
-  avg30Cents: z.number().int().min(0).nullable(),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the marketplace_sources table. */
-export const marketplaceSourceFieldRules = {
-  marketplace: z.string().min(1),
-  externalId: z.number().int().positive(),
-  productName: z.string().min(1),
-} satisfies Record<string, z.ZodType>;
 
 // ---------------------------------------------------------------------------
 // Collection tracking schemas
