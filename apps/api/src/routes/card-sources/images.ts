@@ -66,7 +66,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       );
     });
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── DELETE /printing-images/:imageId ──────────────────────────────────────
@@ -90,7 +90,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       await deleteRehostFiles(image.rehostedUrl);
     }
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing-images/:imageId/activate ──────────────────────────────
@@ -182,7 +182,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
         }
       });
 
-      return c.json({ ok: true });
+      return c.body(null, 204);
     },
   )
 
@@ -213,7 +213,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       .where("id", "=", imageId)
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing-images/:imageId/rehost ────────────────────────────────
@@ -259,7 +259,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       .where("id", "=", imageId)
       .execute();
 
-    return c.json({ ok: true, rehostedUrl });
+    return c.json({ rehostedUrl });
   })
 
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
@@ -288,7 +288,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       await insertPrintingImage(trx, printing.id, body.url.trim(), source, mode);
     });
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing/:printingId/upload-image ──────────────────────────────
@@ -361,6 +361,6 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
         .where("id", "=", imageRow.id)
         .execute();
 
-      return c.json({ ok: true, rehostedUrl });
+      return c.json({ rehostedUrl });
     },
   );

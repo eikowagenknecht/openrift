@@ -1,4 +1,9 @@
-import type { AdminPrintingImage, CardSource, PrintingSource, Rarity } from "@openrift/shared";
+import type {
+  AdminPrintingImageResponse,
+  CardSourceResponse,
+  PrintingSourceResponse,
+  Rarity,
+} from "@openrift/shared";
 import { buildPrintingId, comparePrintings } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -78,16 +83,16 @@ import { useFavoriteSources } from "@/hooks/use-favorite-sources";
 
 interface DetailData {
   card: Record<string, unknown>;
-  sources: CardSource[];
+  sources: CardSourceResponse[];
   printings: Record<string, unknown>[];
-  printingSources: PrintingSource[];
-  printingImages: AdminPrintingImage[];
+  printingSources: PrintingSourceResponse[];
+  printingImages: AdminPrintingImageResponse[];
 }
 
 interface UnmatchedData {
   name: string;
-  sources: CardSource[];
-  printingSources: PrintingSource[];
+  sources: CardSourceResponse[];
+  printingSources: PrintingSourceResponse[];
 }
 
 interface CardSourceDetailPageProps {
@@ -169,16 +174,16 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   const existingData = existingQuery.data;
   const unmatchedData = unmatchedQuery.data;
 
-  const sources: CardSource[] = isExisting
+  const sources: CardSourceResponse[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).sources
     : (unmatchedData as NonNullable<typeof unmatchedData>).sources;
-  const printingSources: PrintingSource[] = isExisting
+  const printingSources: PrintingSourceResponse[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).printingSources
     : (unmatchedData as NonNullable<typeof unmatchedData>).printingSources;
   const printings: Record<string, unknown>[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).printings
     : [];
-  const printingImages: AdminPrintingImage[] = isExisting
+  const printingImages: AdminPrintingImageResponse[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).printingImages
     : [];
   const cardId = isExisting ? identifier : "";
@@ -1206,7 +1211,7 @@ interface SourceImage {
   source: string;
 }
 
-function getDisplayUrl(img: AdminPrintingImage): string | null {
+function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   return img.rehostedUrl ? `${img.rehostedUrl}-full.webp` : img.originalUrl;
 }
 
@@ -1219,7 +1224,7 @@ function PrintingImageSwitcher({
 }: {
   printingId: string;
   printingSlug: string;
-  images: AdminPrintingImage[];
+  images: AdminPrintingImageResponse[];
   sourceImages: SourceImage[];
   favoriteSources: Set<string>;
 }) {

@@ -47,7 +47,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const body = c.req.valid("json");
     await moveCopies(db, userId, body.copyIds, body.toCollectionId);
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /copies/dispose ────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const body = c.req.valid("json");
     await disposeCopies(db, userId, body.copyIds);
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── GET /copies/count ───────────────────────────────────────────────────────

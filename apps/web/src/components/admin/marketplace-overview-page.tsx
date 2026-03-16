@@ -81,19 +81,12 @@ function PriceSection({
   const nextRun = cronStatus?.[cronKey]?.nextRun;
 
   const refreshMutation = useMutation({
-    mutationFn: async (): Promise<PriceResult | null> => {
-      const body = await rpc(refreshAction.post());
-      return body.result ?? null;
-    },
+    mutationFn: async (): Promise<PriceResult | null> => (await rpc(refreshAction.post())) ?? null,
   });
 
   const clearMutation = useMutation({
-    mutationFn: async (): Promise<ClearPriceResult> => {
-      const body = await rpc(
-        client.api.admin["clear-prices"].$post({ json: { source: clearAction.source } }),
-      );
-      return body.result;
-    },
+    mutationFn: (): Promise<ClearPriceResult> =>
+      rpc(client.api.admin["clear-prices"].$post({ json: { source: clearAction.source } })),
   });
 
   const anyPending = refreshMutation.isPending || clearMutation.isPending;

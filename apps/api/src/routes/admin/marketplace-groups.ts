@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { MarketplaceGroupResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -62,19 +63,18 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
       assignedCounts.map((r) => [`${r.marketplace}:${r.groupId}`, Number(r.count)]),
     );
 
-    return c.json({
-      groups: groups.map((g) => {
-        const key = `${g.marketplace}:${g.groupId}`;
-        return {
-          marketplace: g.marketplace,
-          groupId: g.groupId,
-          name: g.name,
-          abbreviation: g.abbreviation,
-          stagedCount: stagingMap.get(key) ?? 0,
-          assignedCount: assignedMap.get(key) ?? 0,
-        };
-      }),
+    const items: MarketplaceGroupResponse[] = groups.map((g) => {
+      const key = `${g.marketplace}:${g.groupId}`;
+      return {
+        marketplace: g.marketplace,
+        groupId: g.groupId,
+        name: g.name,
+        abbreviation: g.abbreviation,
+        stagedCount: stagingMap.get(key) ?? 0,
+        assignedCount: assignedMap.get(key) ?? 0,
+      };
     });
+    return c.json({ groups: items });
   })
 
   .patch(
@@ -93,6 +93,6 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
         .where("groupId", "=", groupId)
         .execute();
 
-      return c.json({ ok: true });
+      return c.body(null, 204);
     },
   );

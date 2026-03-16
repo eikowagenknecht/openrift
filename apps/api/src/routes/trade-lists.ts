@@ -103,7 +103,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
     if (result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /trade-lists/:id/items ───────────────────────────────────────────
@@ -154,6 +154,6 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
 
-      return c.json({ ok: true });
+      return c.body(null, 204);
     },
   );

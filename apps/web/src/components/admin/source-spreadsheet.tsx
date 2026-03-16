@@ -1,4 +1,4 @@
-import type { ArtVariant, CardSource, PrintingSource } from "@openrift/shared";
+import type { ArtVariant, CardSourceResponse, PrintingSourceResponse } from "@openrift/shared";
 import {
   ART_VARIANT_ORDER,
   CARD_TYPE_ORDER,
@@ -97,11 +97,11 @@ export interface PrintingGroup {
     rarity: string;
     finish: string;
   };
-  sources: PrintingSource[];
+  sources: PrintingSourceResponse[];
 }
 
-export function groupPrintingSources(printingSources: PrintingSource[]): PrintingGroup[] {
-  const groups = new Map<string, PrintingSource[]>();
+export function groupPrintingSources(printingSources: PrintingSourceResponse[]): PrintingGroup[] {
+  const groups = new Map<string, PrintingSourceResponse[]>();
   for (const ps of printingSources) {
     const variant = ps.artVariant || ("normal" satisfies ArtVariant);
     const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.isPromo}|${ps.rarity}|${ps.finish}`;
@@ -154,8 +154,8 @@ export function groupPrintingSources(printingSources: PrintingSource[]): Printin
 interface SourceSpreadsheetProps {
   fields: FieldDef[];
   activeRow: Record<string, unknown> | null;
-  sourceRows: (CardSource | PrintingSource)[];
-  /** Map from cardSourceId → source name, used to label PrintingSource columns. */
+  sourceRows: (CardSourceResponse | PrintingSourceResponse)[];
+  /** Map from cardSourceId → source name, used to label PrintingSourceResponse columns. */
   sourceLabels?: Record<string, string>;
   /** Source names to sort first (before alphabetical). */
   favoriteSources?: Set<string>;
@@ -166,9 +166,9 @@ interface SourceSpreadsheetProps {
   onActiveChange?: (field: string, value: unknown | null) => void;
   onCheck?: (sourceId: string) => void;
   /** Render extra action buttons in each source column header. */
-  columnActions?: (row: CardSource | PrintingSource) => React.ReactNode;
+  columnActions?: (row: CardSourceResponse | PrintingSourceResponse) => React.ReactNode;
   /** Extra CSS classes for a source column header `<th>`. */
-  columnClassName?: (row: CardSource | PrintingSource) => string | undefined;
+  columnClassName?: (row: CardSourceResponse | PrintingSourceResponse) => string | undefined;
 }
 
 /** Field keys where word-level diff highlighting is applied. */
@@ -230,7 +230,7 @@ function formatValue(value: unknown, suffix?: unknown): string {
 }
 
 function getSourceLabel(
-  row: CardSource | PrintingSource,
+  row: CardSourceResponse | PrintingSourceResponse,
   sourceLabels?: Record<string, string>,
 ): string {
   if ("source" in row) {
@@ -239,12 +239,12 @@ function getSourceLabel(
   return sourceLabels?.[row.cardSourceId] ?? `source-${row.id.slice(0, 8)}`;
 }
 
-function isChecked(row: CardSource | PrintingSource): boolean {
+function isChecked(row: CardSourceResponse | PrintingSourceResponse): boolean {
   return row.checkedAt !== null;
 }
 
 function isGallery(
-  row: CardSource | PrintingSource,
+  row: CardSourceResponse | PrintingSourceResponse,
   sourceLabels?: Record<string, string>,
 ): boolean {
   return getSourceLabel(row, sourceLabels) === "gallery";

@@ -54,14 +54,11 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
         .execute();
 
       return c.json({
-        status: "ok",
-        result: {
-          source,
-          deleted: {
-            snapshots: Number(snapshots[0].numDeletedRows),
-            sources: Number(sources[0].numDeletedRows),
-            staging: Number(staging[0].numDeletedRows),
-          },
+        source,
+        deleted: {
+          snapshots: Number(snapshots[0].numDeletedRows),
+          sources: Number(sources[0].numDeletedRows),
+          staging: Number(staging[0].numDeletedRows),
         },
       });
     } catch (error) {
@@ -77,7 +74,7 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
     const db = c.get("db");
     try {
       const result = await refreshTcgplayerPrices(db, log.child({ service: "tcgplayer" }));
-      return c.json({ status: "ok", result });
+      return c.json(result);
     } catch (error) {
       log.error(error, "refresh-tcgplayer-prices failed");
       throw new AppError(500, "INTERNAL_ERROR", "TCGPlayer price refresh failed");
@@ -89,7 +86,7 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
     const db = c.get("db");
     try {
       const result = await refreshCardmarketPrices(db, log.child({ service: "cardmarket" }));
-      return c.json({ status: "ok", result });
+      return c.json(result);
     } catch (error) {
       log.error(error, "refresh-cardmarket-prices failed");
       throw new AppError(500, "INTERNAL_ERROR", "Cardmarket price refresh failed");

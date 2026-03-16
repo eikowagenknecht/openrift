@@ -59,10 +59,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
   describe("POST /admin/feature-flags", () => {
     it("creates a flag with defaults", async () => {
       const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "ffl-deck-builder" }));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
     });
 
     it("creates a flag with enabled and description", async () => {
@@ -73,10 +70,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
           description: "Toggle dark mode UI",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
     });
 
     it("rejects duplicate key with 409", async () => {
@@ -143,10 +137,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       const res = await app.fetch(
         req("PATCH", "/admin/feature-flags/ffl-deck-builder", { enabled: true }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify via public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
@@ -180,10 +171,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
   describe("DELETE /admin/feature-flags/:key", () => {
     it("deletes a flag", async () => {
       const res = await app.fetch(req("DELETE", "/admin/feature-flags/ffl-dark-mode"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify it's gone from public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));

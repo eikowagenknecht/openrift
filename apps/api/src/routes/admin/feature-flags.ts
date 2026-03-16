@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { FeatureFlagResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
@@ -49,7 +50,14 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
 
   .get("/admin/feature-flags", async (c) => {
     const flagsRepo = featureFlagsRepo(c.get("db"));
-    const flags = await flagsRepo.listAll();
+    const rows = await flagsRepo.listAll();
+    const flags: FeatureFlagResponse[] = rows.map((r) => ({
+      key: r.key,
+      enabled: r.enabled,
+      description: r.description,
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+      updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
+    }));
     return c.json({ flags });
   })
 
@@ -70,7 +78,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
       description: description ?? null,
     });
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── Admin: PATCH /admin/feature-flags/:key ──────────────────────────────────
@@ -99,7 +107,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
 
       await flagsRepo.update(key, updates);
 
-      return c.json({ ok: true });
+      return c.body(null, 204);
     },
   )
 
@@ -114,5 +122,5 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
     }
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   });

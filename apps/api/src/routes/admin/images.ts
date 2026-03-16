@@ -41,7 +41,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const limit = c.req.valid("query").limit ?? 10;
       try {
         const result = await rehostImages(db, limit);
-        return c.json({ status: "ok", result });
+        return c.json(result);
       } catch (error) {
         log.error(error, "rehost-images failed");
         throw new AppError(500, "INTERNAL_ERROR", "Image rehosting failed");
@@ -57,7 +57,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const offset = c.req.valid("query").offset ?? 0;
       try {
         const result = await regenerateImages(offset);
-        return c.json({ status: "ok", result });
+        return c.json(result);
       } catch (error) {
         log.error(error, "regenerate-images failed");
         throw new AppError(500, "INTERNAL_ERROR", "Image regeneration failed");
@@ -70,7 +70,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const db = c.get("db");
     try {
       const result = await clearAllRehosted(db);
-      return c.json({ status: "ok", result });
+      return c.json(result);
     } catch (error) {
       log.error(error, "clear-rehosted failed");
       throw new AppError(500, "INTERNAL_ERROR", "Failed to clear rehosted images");
@@ -114,7 +114,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
         `.execute(db);
 
       const updated = Number(result.numAffectedRows ?? 0);
-      return c.json({ status: "ok", result: { source, updated } });
+      return c.json({ source, updated });
     } catch (error) {
       log.error(error, "restore-image-urls failed");
       throw new AppError(500, "INTERNAL_ERROR", "Failed to restore image URLs");

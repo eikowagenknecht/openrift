@@ -1,4 +1,4 @@
-import type { Collection } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared";
 import { InboxIcon, BookOpenIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 interface MoveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  collections: Collection[];
+  collections: CollectionResponse[];
   onMove: (toCollectionId: string) => void;
   isPending: boolean;
 }

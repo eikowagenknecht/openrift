@@ -1,4 +1,4 @@
-import type { SourceStats } from "@openrift/shared";
+import type { SourceStatsResponse } from "@openrift/shared";
 import {
   CheckIcon,
   ChevronsUpDownIcon,
@@ -370,7 +370,7 @@ function ManageSourcesCard({
   sourceStats,
 }: {
   sourceNames: string[];
-  sourceStats?: SourceStats[];
+  sourceStats?: SourceStatsResponse[];
 }) {
   const deleteSource = useDeleteSource();
   const { favorites, toggleFavorite } = useFavoriteSources();

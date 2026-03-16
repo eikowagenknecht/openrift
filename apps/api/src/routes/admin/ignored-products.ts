@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { IgnoredProductResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -46,15 +47,14 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
       .orderBy("ip.createdAt", "desc")
       .execute();
 
-    return c.json({
-      products: rows.map((r) => ({
-        marketplace: r.marketplace,
-        externalId: r.externalId,
-        finish: r.finish,
-        productName: r.productName,
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
-      })),
-    });
+    const products: IgnoredProductResponse[] = rows.map((r) => ({
+      marketplace: r.marketplace,
+      externalId: r.externalId,
+      finish: r.finish,
+      productName: r.productName,
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+    }));
+    return c.json({ products });
   })
 
   // ── POST /admin/ignored-products ────────────────────────────────────────────
@@ -97,7 +97,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
         .execute();
     }
 
-    return c.json({ ok: true, ignored: products.length });
+    return c.json({ ignored: products.length });
   })
 
   // ── DELETE /admin/ignored-products ──────────────────────────────────────────
@@ -115,7 +115,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
         .execute();
     }
 
-    return c.json({ ok: true, unignored: products.length });
+    return c.json({ unignored: products.length });
   })
 
   // ── Staging card overrides (manual product → card association) ───────────────
@@ -142,7 +142,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
         )
         .execute();
 
-      return c.json({ ok: true });
+      return c.body(null, 204);
     },
   )
 
@@ -157,5 +157,5 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
       .where("finish", "=", finish)
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   });

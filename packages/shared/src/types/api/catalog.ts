@@ -1,8 +1,16 @@
 import type { Card, PrintingImage } from "../catalog.js";
 import type { ArtVariant, Finish, Rarity } from "../enums.js";
 
+export interface CatalogSetResponse {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export type CatalogCardResponse = Card;
+
 /** Wire type returned by `GET /catalog` — references card by ID instead of embedding. */
-export interface CatalogPrinting {
+export interface CatalogPrintingResponse {
   id: string;
   slug: string;
   sourceId: string;
@@ -23,8 +31,8 @@ export interface CatalogPrinting {
   cardId: string;
 }
 
-export interface RiftboundCatalog {
-  sets: { id: string; slug: string; name: string }[];
-  cards: Record<string, Card>;
-  printings: CatalogPrinting[];
+export interface CatalogResponse {
+  sets: CatalogSetResponse[];
+  cards: Record<string, CatalogCardResponse>;
+  printings: CatalogPrintingResponse[];
 }

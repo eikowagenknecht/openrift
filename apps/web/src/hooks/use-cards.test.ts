@@ -1,4 +1,4 @@
-import type { Card, RiftboundCatalog, CatalogPrinting } from "@openrift/shared";
+import type { Card, CatalogResponse, CatalogPrintingResponse } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -24,7 +24,9 @@ const stubCard: Card = {
   effectText: "",
 };
 
-function stubCatalogPrinting(overrides: Partial<CatalogPrinting> = {}): CatalogPrinting {
+function stubCatalogPrintingResponse(
+  overrides: Partial<CatalogPrintingResponse> = {},
+): CatalogPrintingResponse {
   return {
     id: "00000000-0000-0000-0000-000000000011",
     slug: "RB1-001:common:normal:",
@@ -47,7 +49,7 @@ function stubCatalogPrinting(overrides: Partial<CatalogPrinting> = {}): CatalogP
   };
 }
 
-const CATALOG_RESPONSE: RiftboundCatalog = {
+const CATALOG_RESPONSE: CatalogResponse = {
   sets: [{ id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" }],
   cards: {
     "00000000-0000-0000-0000-000000000001": { ...stubCard, name: "Card A" },
@@ -59,12 +61,12 @@ const CATALOG_RESPONSE: RiftboundCatalog = {
     },
   },
   printings: [
-    stubCatalogPrinting({
+    stubCatalogPrintingResponse({
       id: "00000000-0000-0000-0000-000000000011",
       cardId: "00000000-0000-0000-0000-000000000001",
       marketPrice: 1,
     }),
-    stubCatalogPrinting({
+    stubCatalogPrintingResponse({
       id: "00000000-0000-0000-0000-000000000012",
       slug: "RB1-002:common:normal",
       sourceId: "RB1-002",

@@ -59,14 +59,14 @@ export const tcgplayerMappingsRoute = new Hono<{ Variables: Variables }>()
     const { tcgplayer: tcgplayerConfig } = createMarketplaceConfigs(db);
     const { printingId } = c.req.valid("json");
     await unmapPrinting(db, tcgplayerConfig, printingId);
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   .delete("/admin/tcgplayer-mappings/all", async (c) => {
     const db = c.get("db");
     const { tcgplayer: tcgplayerConfig } = createMarketplaceConfigs(db);
     const result = await unmapAll(db, tcgplayerConfig);
-    return c.json({ ok: true, unmapped: result.unmapped });
+    return c.json({ unmapped: result.unmapped });
   });
 
 // ── Cardmarket mappings ─────────────────────────────────────────────────────
@@ -99,12 +99,12 @@ export const cardmarketMappingsRoute = new Hono<{ Variables: Variables }>()
     const { cardmarket: cardmarketConfig } = createMarketplaceConfigs(db);
     const { printingId } = c.req.valid("json");
     await unmapPrinting(db, cardmarketConfig, printingId);
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   .delete("/admin/cardmarket-mappings/all", async (c) => {
     const db = c.get("db");
     const { cardmarket: cardmarketConfig } = createMarketplaceConfigs(db);
     const result = await unmapAll(db, cardmarketConfig);
-    return c.json({ ok: true, unmapped: result.unmapped });
+    return c.json({ unmapped: result.unmapped });
   });

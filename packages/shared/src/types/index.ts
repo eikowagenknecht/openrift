@@ -37,33 +37,38 @@ export type { Marketplace, TimeRange } from "./pricing.js";
 export { TIME_RANGE_DAYS } from "./pricing.js";
 
 export type {
-  AdminPrintingImage,
-  CardSource,
-  CardSourceSummary,
-  CardSourceUploadResult,
-  CatalogPrinting,
-  PrintingSource,
-  RiftboundCatalog,
-  SourceStats,
+  AdminPrintingImageResponse,
+  AdminSetResponse,
+  CardSourceResponse,
+  CardSourceSummaryResponse,
+  CardSourceUploadResponse,
+  CatalogCardResponse,
+  CatalogPrintingResponse,
+  CatalogResponse,
+  CatalogSetResponse,
+  FeatureFlagResponse,
+  IgnoredProductResponse,
+  MarketplaceGroupResponse,
+  PrintingSourceResponse,
+  SourceStatsResponse,
 } from "./api/index.js";
 
 export type {
-  Activity,
-  Collection,
-  Copy,
-  CopyRow,
-  Deck,
-  Source,
-  TradeList,
-  TradeListItem,
-  WishList,
-  WishListItem,
+  ActivityResponse,
+  CollectionResponse,
+  CopyResponse,
+  DeckResponse,
+  SourceResponse,
+  TradeListResponse,
+  TradeListItemResponse,
+  WishListResponse,
+  WishListItemResponse,
 } from "./api/index.js";
 
 export type {
   CardmarketSnapshot,
   PriceHistoryResponse,
-  PricesData,
+  PricesResponse,
   TcgplayerSnapshot,
 } from "./api/index.js";
 

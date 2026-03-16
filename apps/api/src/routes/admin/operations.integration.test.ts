@@ -161,12 +161,11 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result.source).toBe("tcgplayer");
+      expect(json.source).toBe("tcgplayer");
       // Counts include seed data + test-seeded data
-      expect(json.result.deleted.snapshots).toBeGreaterThanOrEqual(1);
-      expect(json.result.deleted.sources).toBeGreaterThanOrEqual(1);
-      expect(json.result.deleted.staging).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.sources).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for tcgplayer after clearing", async () => {
@@ -196,12 +195,11 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result.source).toBe("cardmarket");
+      expect(json.source).toBe("cardmarket");
       // Counts include seed data + test-seeded data
-      expect(json.result.deleted.snapshots).toBeGreaterThanOrEqual(1);
-      expect(json.result.deleted.sources).toBeGreaterThanOrEqual(1);
-      expect(json.result.deleted.staging).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.sources).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for cardmarket after clearing", async () => {
@@ -238,8 +236,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result).toEqual({ status: "ok", updated: 0 });
+      expect(json).toEqual({ status: "ok", updated: 0 });
     });
   });
 
@@ -251,8 +248,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result).toEqual({ status: "ok", updated: 0 });
+      expect(json).toEqual({ status: "ok", updated: 0 });
     });
   });
 });

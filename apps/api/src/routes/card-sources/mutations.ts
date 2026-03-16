@@ -91,7 +91,6 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     `.execute(db);
 
     return c.json({
-      ok: true,
       cardSourcesChecked: Number(cardResult.numAffectedRows),
       printingSourcesChecked: Number(printingResult.numAffectedRows),
     });
@@ -112,7 +111,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Card source not found");
     }
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing-sources/check-all ─────────────────────────────────────
@@ -139,7 +138,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         .execute();
 
       const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
-      return c.json({ ok: true, updated });
+      return c.json({ updated });
     },
   )
 
@@ -158,7 +157,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /:cardId/check-all ──────────────────────────────────────────────
@@ -193,7 +192,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       .execute();
 
     const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
-    return c.json({ ok: true, updated });
+    return c.json({ updated });
   })
 
   // ── PATCH /printing-sources/:id ───────────────────────────────────────────
@@ -236,7 +235,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── DELETE /printing-sources/:id ──────────────────────────────────────────
@@ -250,7 +249,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing-sources/:id/copy ───────────────────────────────────────
@@ -309,7 +308,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       })
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing-sources/link ───────────────────────────────────────────
@@ -342,7 +341,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       .where("id", "in", printingSourceIds)
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /:cardId/rename ──────────────────────────────────────────────────
@@ -356,7 +355,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     if (newId === cardSlug) {
-      return c.json({ ok: true });
+      return c.body(null, 204);
     }
 
     // UUID PK is immutable — only the slug changes
@@ -366,7 +365,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       .where("slug", "=", cardSlug)
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /:cardId/accept-field ────────────────────────────────────────────
@@ -428,7 +427,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     await db.updateTable("cards").set(updates).where("slug", "=", cardSlug).execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing/:printingId/accept-field ──────────────────────────────
@@ -487,7 +486,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       .where("slug", "=", printingSlug)
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /printing/:printingId/rename ────────────────────────────────────
@@ -501,7 +500,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     if (newId === printingSlug) {
-      return c.json({ ok: true });
+      return c.body(null, 204);
     }
 
     // UUID PK is immutable — only the slug changes
@@ -511,7 +510,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       .where("slug", "=", printingSlug)
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /new/:name/accept ────────────────────────────────────────────────
@@ -529,7 +528,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       await acceptNewCardFromSources(trx, cardFields, normalizedName);
     });
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /new/:name/link ──────────────────────────────────────────────────
@@ -557,7 +556,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       await createNameAliases(trx, normalizedName, card.id);
     });
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── POST /:cardId/accept-printing ─────────────────────────────────────────
@@ -676,7 +675,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         .execute();
     });
 
-    return c.json({ ok: true, printingId });
+    return c.json({ printingId });
   })
 
   // ── POST /printing-sources/:id/accept-new ────────────────────────────────
@@ -823,7 +822,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         .execute();
     });
 
-    return c.json({ ok: true, printingId });
+    return c.json({ printingId });
   })
 
   // ── POST /upload ──────────────────────────────────────────────────────────
@@ -900,5 +899,5 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const result = await db.deleteFrom("cardSources").where("source", "=", source.trim()).execute();
 
     const deleted = Number(result[0].numDeletedRows);
-    return c.json({ status: "ok", source, deleted });
+    return c.json({ source, deleted });
   });

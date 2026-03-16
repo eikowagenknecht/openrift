@@ -118,7 +118,7 @@ describe("GET /api/catalog", () => {
     mockState.tables = catalogTables();
   });
 
-  it("returns 200 with normalized RiftboundCatalog structure", async () => {
+  it("returns 200 with normalized CatalogResponse structure", async () => {
     const res = await app.request("/api/catalog");
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -146,7 +146,7 @@ describe("GET /api/catalog", () => {
     expect(card.power).toBe(6);
   });
 
-  it("omits null fields and empty arrays from cards", async () => {
+  it("preserves null fields and empty arrays on cards", async () => {
     mockState.tables = catalogTables({
       cards: [
         {
@@ -166,21 +166,20 @@ describe("GET /api/catalog", () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
     const card = json.cards["OGS-001"];
-    expect(card.might).toBeUndefined();
-    expect(card.energy).toBeUndefined();
-    expect(card.power).toBeUndefined();
-    expect(card.mightBonus).toBeUndefined();
-    expect(card.rulesText).toBeUndefined();
-    expect(card.effectText).toBeUndefined();
-    expect(card.superTypes).toBeUndefined();
-    expect(card.keywords).toBeUndefined();
-    expect(card.tags).toBeUndefined();
-    // Non-nullable fields are still present
+    expect(card.might).toBeNull();
+    expect(card.energy).toBeNull();
+    expect(card.power).toBeNull();
+    expect(card.mightBonus).toBeNull();
+    expect(card.rulesText).toBeNull();
+    expect(card.effectText).toBeNull();
+    expect(card.superTypes).toEqual([]);
+    expect(card.keywords).toEqual([]);
+    expect(card.tags).toEqual([]);
     expect(card.name).toBe("Fire Dragon");
     expect(card.domains).toEqual(["Fury"]);
   });
 
-  it("omits null fields and empty arrays from printings", async () => {
+  it("preserves null fields and empty arrays on printings", async () => {
     mockState.tables = catalogTables({
       printings: [{ ...dbPrintingRow, printedRulesText: null, printedEffectText: null }],
       printingImages: [],
@@ -188,11 +187,10 @@ describe("GET /api/catalog", () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
     const printing = json.printings[0];
-    expect(printing.printedRulesText).toBeUndefined();
-    expect(printing.printedEffectText).toBeUndefined();
-    expect(printing.flavorText).toBeUndefined();
-    expect(printing.images).toBeUndefined();
-    // Non-nullable fields still present
+    expect(printing.printedRulesText).toBeNull();
+    expect(printing.printedEffectText).toBeNull();
+    expect(printing.flavorText).toBeNull();
+    expect(printing.images).toEqual([]);
     expect(printing.artist).toBe("Alice");
   });
 

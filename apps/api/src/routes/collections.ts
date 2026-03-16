@@ -160,7 +160,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
         .execute();
     });
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────

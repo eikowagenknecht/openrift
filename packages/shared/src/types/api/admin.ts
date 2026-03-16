@@ -8,7 +8,7 @@ import type {
   SuperType,
 } from "../enums.js";
 
-export interface CardSource {
+export interface CardSourceResponse {
   id: string;
   source: string;
   name: string;
@@ -30,7 +30,7 @@ export interface CardSource {
   updatedAt: string;
 }
 
-export interface PrintingSource {
+export interface PrintingSourceResponse {
   id: string;
   cardSourceId: string;
   printingId: string | null;
@@ -56,7 +56,7 @@ export interface PrintingSource {
   updatedAt: string;
 }
 
-export interface AdminPrintingImage {
+export interface AdminPrintingImageResponse {
   id: string;
   printingId: string;
   face: CardFace;
@@ -68,7 +68,7 @@ export interface AdminPrintingImage {
   updatedAt: string;
 }
 
-export interface CardSourceSummary {
+export interface CardSourceSummaryResponse {
   cardId: string | null;
   cardSlug: string | null;
   name: string;
@@ -83,7 +83,7 @@ export interface CardSourceSummary {
   suggestedCard: { id: string; slug: string; name: string } | null;
 }
 
-export interface SourceStats {
+export interface SourceStatsResponse {
   source: string;
   cardCount: number;
   printingCount: number;
@@ -96,10 +96,48 @@ interface CardSourceUploadUpdatedCard {
   fields: { field: string; from: unknown; to: unknown }[];
 }
 
-export interface CardSourceUploadResult {
+export interface CardSourceUploadResponse {
   newCards: number;
   updates: number;
   unchanged: number;
   errors: string[];
   updatedCards: CardSourceUploadUpdatedCard[];
+}
+
+// ── Admin list response types ───────────────────────────────────────────────
+
+export interface AdminSetResponse {
+  id: string;
+  slug: string;
+  name: string;
+  printedTotal: number | null;
+  sortOrder: number;
+  releasedAt: string | null;
+  cardCount: number;
+  printingCount: number;
+}
+
+export interface MarketplaceGroupResponse {
+  marketplace: string;
+  groupId: number;
+  name: string | null;
+  abbreviation: string | null;
+  stagedCount: number;
+  assignedCount: number;
+}
+
+export interface FeatureFlagResponse {
+  key: string;
+  enabled: boolean;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IgnoredProductResponse {
+  marketplace: string;
+  externalId: number;
+  finish: string;
+  productName: string;
+  createdAt: string;
 }

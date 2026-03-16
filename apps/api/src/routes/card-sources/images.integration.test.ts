@@ -264,10 +264,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing-sources/${psId}/set-image`, { mode: "main" }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify printing_image was created
       const images = await db
@@ -342,10 +339,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           mode: "additional",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify additional image was created as inactive
       const images = await db
@@ -401,10 +395,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           active: true,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify the image is now active
       const image = await db
@@ -431,10 +422,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           active: false,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify the image is now inactive
       const image = await db
@@ -530,10 +518,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing-images/${mainImageId}/unrehost`),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify rehostedUrl was cleared
       const after = await db
@@ -572,10 +557,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(
         req("DELETE", `/admin/card-sources/printing-images/${additionalImageId}`),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify it's gone
       const image = await db
@@ -597,10 +579,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(
         req("DELETE", `/admin/card-sources/printing-images/${mainImageId}`),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify it's gone
       const image = await db
@@ -629,10 +608,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           mode: "main",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // Verify printing_image was created
       const images = await db
@@ -652,10 +628,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           url: "https://example.com/csi-another-image.png",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ ok: true });
+      expect(res.status).toBe(204);
 
       // The default source is "manual" and default mode is "main"
       const images = await db

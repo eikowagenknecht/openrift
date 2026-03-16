@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import type { Collection } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared";
 
 import { createTestContext, req } from "../test/integration-context.js";
 
@@ -32,7 +32,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("POST", "/collections", { name: "Test Collection" }));
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.id).toBeString();
       expect(json.name).toBe("Test Collection");
       expect(json.description).toBeNull();
@@ -50,7 +50,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.name).toBe("Described");
       expect(json.description).toBe("A fine collection");
       secondCollectionId = json.id;
@@ -62,7 +62,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.availableForDeckbuilding).toBe(false);
     });
 
@@ -89,7 +89,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", "/collections"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Collection[];
+      const json = (await res.json()) as CollectionResponse[];
       const inbox = json.find((c) => c.isInbox);
       expect(inbox).toBeDefined();
       // The expect above guarantees inbox is defined
@@ -100,7 +100,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", "/collections"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Collection[];
+      const json = (await res.json()) as CollectionResponse[];
       expect(Array.isArray(json)).toBe(true);
       // 3 created + 1 auto-inbox = 4
       expect(json.length).toBeGreaterThanOrEqual(4);
@@ -108,7 +108,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
     it("returns inbox first, then remaining collections sorted", async () => {
       const res = await app.fetch(req("GET", "/collections"));
-      const json = (await res.json()) as Collection[];
+      const json = (await res.json()) as CollectionResponse[];
       // Inbox should always come first
       expect(json[0].isInbox).toBe(true);
       // The rest should be sorted by sortOrder then name
@@ -125,7 +125,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", `/collections/${collectionId}`));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.id).toBe(collectionId);
       expect(json.name).toBe("Test Collection");
     });
@@ -146,7 +146,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.name).toBe("Renamed Collection");
     });
 
@@ -156,7 +156,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.description).toBe("Updated desc");
     });
 
@@ -166,7 +166,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.availableForDeckbuilding).toBe(false);
     });
 
@@ -174,7 +174,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("PATCH", `/collections/${collectionId}`, { sortOrder: 5 }));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Collection;
+      const json = (await res.json()) as CollectionResponse;
       expect(json.sortOrder).toBe(5);
     });
 

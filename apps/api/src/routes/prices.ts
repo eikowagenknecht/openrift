@@ -1,6 +1,11 @@
 import { zValidator } from "@hono/zod-validator";
 import { TIME_RANGE_DAYS, centsToDollars, formatDateUTC } from "@openrift/shared";
-import type { Marketplace, PriceHistoryResponse, PricesData, TimeRange } from "@openrift/shared";
+import type {
+  Marketplace,
+  PriceHistoryResponse,
+  PricesResponse,
+  TimeRange,
+} from "@openrift/shared";
 import { Hono } from "hono";
 import { etag } from "hono/etag";
 import { z } from "zod/v4";
@@ -28,7 +33,7 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
     }
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-    return c.json({ prices } satisfies PricesData);
+    return c.json({ prices } satisfies PricesResponse);
   })
   /**
    * `GET /prices/:printingId/history` — Returns price history for a single printing.

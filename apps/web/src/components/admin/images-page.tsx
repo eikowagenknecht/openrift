@@ -113,8 +113,7 @@ function RehostSection() {
     mutationFn: async (): Promise<RehostResult> => {
       const totals: RehostResult = { total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] };
       for (;;) {
-        const json = await rpc(client.api.admin["rehost-images"].$post({ query: {} }));
-        const batch = json.result;
+        const batch = await rpc(client.api.admin["rehost-images"].$post({ query: {} }));
         totals.total += batch.total;
         totals.rehosted += batch.rehosted;
         totals.skipped += batch.skipped;
@@ -135,12 +134,11 @@ function RehostSection() {
       const totals: RegenerateResult = { total: 0, regenerated: 0, failed: 0, errors: [] };
       let offset = 0;
       for (;;) {
-        const json = await rpc(
+        const batch = await rpc(
           client.api.admin["regenerate-images"].$post({
             query: { offset: String(offset) },
           }),
         );
-        const batch = json.result;
         totals.total += batch.total;
         totals.regenerated += batch.regenerated;
         totals.failed += batch.failed;
@@ -251,10 +249,8 @@ function RestoreUrlsSection() {
   const [selectedSource, setSelectedSource] = useState<string>("");
 
   const restoreMutation = useMutation({
-    mutationFn: async (source: string) => {
-      const json = await rpc(client.api.admin["restore-image-urls"].$post({ json: { source } }));
-      return json.result;
-    },
+    mutationFn: (source: string) =>
+      rpc(client.api.admin["restore-image-urls"].$post({ json: { source } })),
     onSuccess: () => refetch(),
   });
 

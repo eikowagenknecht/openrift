@@ -1,5 +1,4 @@
-import { hydrateCatalog } from "@openrift/shared";
-import type { Printing, RiftboundCatalog } from "@openrift/shared";
+import type { Printing, CatalogResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
@@ -42,13 +41,13 @@ async function checkHealth(): Promise<HealthStatus> {
   return null;
 }
 
-async function fetchCatalog(): Promise<RiftboundCatalog> {
+async function fetchCatalog(): Promise<CatalogResponse> {
   const res = await client.api.catalog.$get();
   if (!res.ok) {
     const healthStatus = await checkHealth();
     throw new ApiError(`Failed to fetch catalog: ${res.status}`, healthStatus);
   }
-  return hydrateCatalog((await res.json()) as RiftboundCatalog);
+  return (await res.json()) as CatalogResponse;
 }
 
 export function useCards(): UseCardsResult {

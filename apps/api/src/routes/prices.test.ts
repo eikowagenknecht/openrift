@@ -100,7 +100,7 @@ describe("GET /api/prices", () => {
     };
   });
 
-  it("returns 200 with PricesData structure", async () => {
+  it("returns 200 with PricesResponse structure", async () => {
     const res = await app.request("/api/prices");
     expect(res.status).toBe(200);
     const json = await res.json();

@@ -1,5 +1,9 @@
-import { centsToDollars, compactCatalog } from "@openrift/shared";
-import type { Card, CatalogPrinting, RiftboundCatalog } from "@openrift/shared";
+import { centsToDollars } from "@openrift/shared";
+import type {
+  CatalogCardResponse,
+  CatalogPrintingResponse,
+  CatalogResponse,
+} from "@openrift/shared";
 import { Hono } from "hono";
 import { etag } from "hono/etag";
 
@@ -9,7 +13,7 @@ import type { Variables } from "../types.js";
 
 export const catalogRoute = new Hono<{ Variables: Variables }>()
   /**
-   * `GET /catalog` — Returns the full card catalog as {@link RiftboundCatalog}.
+   * `GET /catalog` — Returns the full card catalog as {@link CatalogResponse}.
    *
    * Returns a normalized response with cards keyed by ID, a flat printings
    * array (referencing cards by `cardId`), and a simple sets list. Latest
@@ -32,24 +36,25 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       priceRows.map((r) => [r.printingId, centsToDollars(r.marketCents)]),
     );
 
-    // CamelCasePlugin returns keys matching the Card interface, so direct assignment works.
-    const cards: Record<string, Card> = Object.fromEntries(cardRows.map((r) => [r.id, r]));
+    const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
+      cardRows.map((r) => [r.id, r]),
+    );
 
     // Build images lookup (null URLs already filtered at the DB level)
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
     // Build flat printings array
-    const printings: CatalogPrinting[] = printingRows.map((row) => ({
+    const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
       ...row,
       images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
       ...(priceByPrinting.has(row.id) && { marketPrice: priceByPrinting.get(row.id) }),
     }));
 
-    const content: RiftboundCatalog = compactCatalog({
+    const content: CatalogResponse = {
       sets,
       cards,
       printings,
-    });
+    };
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     return c.json(content);

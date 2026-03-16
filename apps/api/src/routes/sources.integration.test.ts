@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import type { Source } from "@openrift/shared";
+import type { SourceResponse } from "@openrift/shared";
 
 import { createTestContext, req } from "../test/integration-context.js";
 
@@ -25,7 +25,7 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       const res = await app.fetch(req("POST", "/sources", { name: "LGS Pickup" }));
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as Source;
+      const json = (await res.json()) as SourceResponse;
       expect(json.id).toBeString();
       expect(json.name).toBe("LGS Pickup");
       expect(json.description).toBeNull();
@@ -40,7 +40,7 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as Source;
+      const json = (await res.json()) as SourceResponse;
       expect(json.description).toBe("TCGPlayer order");
     });
 
@@ -62,7 +62,7 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       const res = await app.fetch(req("GET", "/sources"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Source[];
+      const json = (await res.json()) as SourceResponse[];
       expect(json.length).toBe(2);
       // Should be sorted alphabetically by name
       expect(json[0].name).toBe("LGS Pickup");
@@ -77,7 +77,7 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       const res = await app.fetch(req("GET", `/sources/${sourceId}`));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Source;
+      const json = (await res.json()) as SourceResponse;
       expect(json.id).toBe(sourceId);
     });
 
@@ -95,7 +95,7 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       const res = await app.fetch(req("PATCH", `/sources/${sourceId}`, { name: "Renamed" }));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Source;
+      const json = (await res.json()) as SourceResponse;
       expect(json.name).toBe("Renamed");
     });
 
@@ -105,7 +105,7 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as Source;
+      const json = (await res.json()) as SourceResponse;
       expect(json.description).toBe("New desc");
     });
 

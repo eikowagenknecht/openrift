@@ -1,4 +1,4 @@
-export interface PricesData {
+export interface PricesResponse {
   prices: Record<string, number>;
 }
 

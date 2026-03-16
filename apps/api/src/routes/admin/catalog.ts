@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { AdminSetResponse, MarketplaceGroupResponse } from "@openrift/shared";
 import { slugParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
@@ -73,14 +74,15 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
 
     const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, Number(r.count)]));
 
-    return c.json({
-      expansions: expansions.map((e) => ({
-        expansionId: e.groupId,
-        name: e.name,
-        stagedCount: countMap.get(e.groupId) ?? 0,
-        assignedCount: assignedMap.get(e.groupId) ?? 0,
-      })),
-    });
+    const items: MarketplaceGroupResponse[] = expansions.map((e) => ({
+      marketplace: "cardmarket",
+      groupId: e.groupId,
+      name: e.name,
+      abbreviation: null,
+      stagedCount: countMap.get(e.groupId) ?? 0,
+      assignedCount: assignedMap.get(e.groupId) ?? 0,
+    }));
+    return c.json({ expansions: items });
   })
 
   .patch(
@@ -99,7 +101,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         .where("groupId", "=", expansionId)
         .execute();
 
-      return c.json({ ok: true });
+      return c.body(null, 204);
     },
   )
 
@@ -141,15 +143,15 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
 
     const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, Number(r.count)]));
 
-    return c.json({
-      groups: groups.map((g) => ({
-        groupId: g.groupId,
-        name: g.name,
-        abbreviation: g.abbreviation,
-        stagedCount: countMap.get(g.groupId) ?? 0,
-        assignedCount: assignedMap.get(g.groupId) ?? 0,
-      })),
-    });
+    const items: MarketplaceGroupResponse[] = groups.map((g) => ({
+      marketplace: "tcgplayer",
+      groupId: g.groupId,
+      name: g.name,
+      abbreviation: g.abbreviation,
+      stagedCount: countMap.get(g.groupId) ?? 0,
+      assignedCount: assignedMap.get(g.groupId) ?? 0,
+    }));
+    return c.json({ groups: items });
   })
 
   // ── Sets CRUD ─────────────────────────────────────────────────────────────────
@@ -175,21 +177,20 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     const cardCountMap = new Map(cardCounts.map((r) => [r.setId, Number(r.cardCount)]));
     const printingCountMap = new Map(printingCounts.map((r) => [r.setId, Number(r.printingCount)]));
 
-    return c.json({
-      sets: sets.map((s) => ({
-        id: s.id,
-        slug: s.slug,
-        name: s.name,
-        printedTotal: s.printedTotal,
-        sortOrder: s.sortOrder,
-        releasedAt:
-          (s.releasedAt as unknown) instanceof Date
-            ? (s.releasedAt as unknown as Date).toISOString().slice(0, 10)
-            : (s.releasedAt ?? null),
-        cardCount: cardCountMap.get(s.id) ?? 0,
-        printingCount: printingCountMap.get(s.id) ?? 0,
-      })),
-    });
+    const items: AdminSetResponse[] = sets.map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.name,
+      printedTotal: s.printedTotal,
+      sortOrder: s.sortOrder,
+      releasedAt:
+        (s.releasedAt as unknown) instanceof Date
+          ? (s.releasedAt as unknown as Date).toISOString().slice(0, 10)
+          : (s.releasedAt ?? null),
+      cardCount: cardCountMap.get(s.id) ?? 0,
+      printingCount: printingCountMap.get(s.id) ?? 0,
+    }));
+    return c.json({ sets: items });
   })
 
   .patch(
@@ -212,7 +213,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         .where("slug", "=", id)
         .execute();
 
-      return c.json({ ok: true });
+      return c.body(null, 204);
     },
   )
 
@@ -246,7 +247,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       })
       .execute();
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   })
 
   // ── Set reorder ───────────────────────────────────────────────────────────────
@@ -267,5 +268,5 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       }
     });
 
-    return c.json({ ok: true });
+    return c.body(null, 204);
   });
