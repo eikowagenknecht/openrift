@@ -84,7 +84,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     }
 
     const content: RiftboundCatalog = {
-      sets: sets.map((s) => ({ id: s.id, slug: s.slug, name: s.name })),
+      sets,
       cards,
       printings,
     };

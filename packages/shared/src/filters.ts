@@ -203,7 +203,7 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
     const { card } = printing;
     return (
       matchesSearch(printing, terms, hasPrefixes, filters.searchScope) &&
-      includes(filters.sets, printing.set) &&
+      includes(filters.sets, printing.setSlug) &&
       overlaps(filters.domains, card.domains) &&
       includes(filters.types, card.type) &&
       overlaps(filters.superTypes, card.superTypes) &&
@@ -252,7 +252,7 @@ export interface AvailableFilters {
  */
 export function getAvailableFilters(printings: Printing[]): AvailableFilters {
   // Sets are not sorted but shown in insertion order.
-  const sets = unique(printings.map((p) => p.set));
+  const sets = unique(printings.map((p) => p.setSlug));
   const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
     (a, b) => DOMAIN_ORDER.indexOf(a) - DOMAIN_ORDER.indexOf(b),
   );

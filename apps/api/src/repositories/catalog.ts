@@ -16,6 +16,9 @@ type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "u
 /** Printing columns returned by the catalog (excludes timestamps and comment). */
 type CatalogPrintingRow = Omit<Selectable<PrintingsTable>, "comment" | "createdAt" | "updatedAt">;
 
+/** Set columns returned by the catalog (id, slug, name only). */
+type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name">;
+
 /** Active printing image with resolved URL. */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
   url: string | null;
@@ -29,8 +32,8 @@ type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId
 export function catalogRepo(db: Kysely<Database>) {
   return {
     /** @returns All sets ordered by their display position. */
-    sets(): Promise<Selectable<SetsTable>[]> {
-      return db.selectFrom("sets").selectAll().orderBy("sortOrder").execute();
+    sets(): Promise<CatalogSetRow[]> {
+      return db.selectFrom("sets").select(["id", "slug", "name"]).orderBy("sortOrder").execute();
     },
 
     /** @returns All cards (no printings), for building a card lookup. */
@@ -53,6 +56,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "effectText",
           "tags",
         ])
+        .orderBy("name")
         .execute();
     },
 

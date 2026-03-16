@@ -85,7 +85,7 @@ function matchOcrText(rawText: string, printings: Printing[]): OcrMatch[] {
     // Try matching collector number with set code (e.g. "OGN 027" or "27/150")
     for (const line of lines) {
       const numStr = String(printing.collectorNumber);
-      const setPattern = `${printing.set}[\\s\\-#]*0*${numStr}`;
+      const setPattern = `${printing.setSlug}[\\s\\-#]*0*${numStr}`;
       const regex = new RegExp(setPattern, "i");
       if (regex.test(line)) {
         const match: OcrMatch = {

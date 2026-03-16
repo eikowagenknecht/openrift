@@ -104,8 +104,8 @@ export function useCardData({
   view,
   ownedCountByPrinting,
 }: UseCardDataParams) {
-  const setCodeToName = new Map(setInfoList.map((s) => [s.code, s.name]));
-  const setDisplayLabel = (code: string) => setCodeToName.get(code) ?? code;
+  const setSlugToName = new Map(setInfoList.map((s) => [s.slug, s.name]));
+  const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
   const availableFilters = getAvailableFilters(allCards);
   const filteredCards = filterCards(allCards, filters);

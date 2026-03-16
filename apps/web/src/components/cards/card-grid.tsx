@@ -407,7 +407,7 @@ export function CardGrid({
                   onClick={() => scrollToGroup(activeHeaderRow.set.name)}
                 >
                   <span className="text-sm font-medium text-muted-foreground">
-                    {activeHeaderRow.set.code}
+                    {activeHeaderRow.set.slug}
                   </span>
                   <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
@@ -447,7 +447,7 @@ export function CardGrid({
                         onClick={() => scrollToGroup(row.set.name)}
                       >
                         <span className="text-sm font-medium text-muted-foreground">
-                          {row.set.code}
+                          {row.set.slug}
                         </span>
                         <span className="text-sm font-semibold">{row.set.name}</span>
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
