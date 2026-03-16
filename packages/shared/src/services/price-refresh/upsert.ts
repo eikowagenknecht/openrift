@@ -8,15 +8,44 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { buildDistinctWhere, buildExcludedSet } from "../../db/helpers.js";
+import { buildDistinctWhere } from "../../db/helpers.js";
 import type { Database } from "../../db/types.js";
 import type { Logger } from "../../logger.js";
 import { groupIntoMap } from "../../utils.js";
-import type { GroupRow, PriceUpsertConfig, StagingRow, UpsertCounts } from "./types.js";
+import type {
+  GroupRow,
+  PriceColumns,
+  PriceUpsertConfig,
+  StagingRow,
+  UpsertCounts,
+} from "./types.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 export const BATCH_SIZE = 200;
+
+const PRICE_COL_NAMES = [
+  "market_cents",
+  "low_cents",
+  "mid_cents",
+  "high_cents",
+  "trend_cents",
+  "avg1_cents",
+  "avg7_cents",
+  "avg30_cents",
+] as const;
+
+/** Typed doUpdateSet for all 8 price columns using excluded.* references. */
+const PRICE_EXCLUDED_SET = {
+  market_cents: sql<number>`excluded.market_cents`,
+  low_cents: sql<number | null>`excluded.low_cents`,
+  mid_cents: sql<number | null>`excluded.mid_cents`,
+  high_cents: sql<number | null>`excluded.high_cents`,
+  trend_cents: sql<number | null>`excluded.trend_cents`,
+  avg1_cents: sql<number | null>`excluded.avg1_cents`,
+  avg7_cents: sql<number | null>`excluded.avg7_cents`,
+  avg30_cents: sql<number | null>`excluded.avg30_cents`,
+};
 
 // ── Ignored keys ───────────────────────────────────────────────────────────
 
@@ -70,7 +99,20 @@ export async function upsertMarketplaceGroups(
     .execute();
 }
 
-// ── Internal helpers ───────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function pickPrices(row: PriceColumns): PriceColumns {
+  return {
+    market_cents: row.market_cents,
+    low_cents: row.low_cents,
+    mid_cents: row.mid_cents,
+    high_cents: row.high_cents,
+    trend_cents: row.trend_cents,
+    avg1_cents: row.avg1_cents,
+    avg7_cents: row.avg7_cents,
+    avg30_cents: row.avg30_cents,
+  };
+}
 
 /**
  * Return the row count of a marketplace table, filtered by marketplace.
@@ -99,6 +141,11 @@ async function countRows(
 }
 
 // ── Main upsert ────────────────────────────────────────────────────────────
+
+interface SnapshotInsertRow extends PriceColumns {
+  source_id: string;
+  recorded_at: Date;
+}
 
 /**
  * Batch-upsert snapshots and staging rows for a single marketplace
@@ -138,7 +185,7 @@ export async function upsertPriceData(
     (src) => `${src.external_id}::${src.finish}`,
   );
 
-  const uniqueSnapshots = new Map<string, Record<string, unknown>>();
+  const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
   for (const staging of allStaging) {
     const key = `${staging.external_id}::${staging.finish}`;
     const sources = printingByExtIdFinish.get(key);
@@ -151,15 +198,11 @@ export async function upsertPriceData(
         continue;
       }
       const snapKey = `${sourceId}|${staging.recorded_at.toISOString()}`;
-      const row: Record<string, unknown> = {
+      uniqueSnapshots.set(snapKey, {
         source_id: sourceId,
         recorded_at: staging.recorded_at,
-      };
-      const stagingRecord = staging as unknown as Record<string, unknown>;
-      for (const col of config.priceColumns) {
-        row[col] = stagingRecord[col];
-      }
-      uniqueSnapshots.set(snapKey, row);
+        ...pickPrices(staging),
+      });
     }
   }
 
@@ -171,18 +214,17 @@ export async function upsertPriceData(
   const snapshotsBefore = await countRows(db, "marketplace_snapshots", marketplace);
   let snapshotsAffected = 0;
 
-  const snapshotUpdateSet = buildExcludedSet(config.priceColumns);
-  const snapshotDistinctWhere = buildDistinctWhere("marketplace_snapshots", config.priceColumns);
+  const snapshotDistinctWhere = buildDistinctWhere("marketplace_snapshots", PRICE_COL_NAMES);
 
   for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
     const batch = snapshotRows.slice(i, i + BATCH_SIZE);
     const rows = await db
       .insertInto("marketplace_snapshots")
-      .values(batch as never[])
+      .values(batch)
       .onConflict((oc) =>
         oc
           .columns(["source_id", "recorded_at"])
-          .doUpdateSet(snapshotUpdateSet as never)
+          .doUpdateSet(PRICE_EXCLUDED_SET)
           .where(snapshotDistinctWhere),
       )
       .returning(sql<number>`1`.as("_"))
@@ -207,23 +249,23 @@ export async function upsertPriceData(
 
   const stagingUpdateSet = {
     group_id: sql<number>`excluded.group_id`,
-    ...buildExcludedSet(config.priceColumns),
-    updated_at: sql`now()`,
+    ...PRICE_EXCLUDED_SET,
+    updated_at: sql<Date>`now()`,
   };
   const stagingDistinctWhere = buildDistinctWhere("marketplace_staging", [
     "group_id",
-    ...config.priceColumns,
+    ...PRICE_COL_NAMES,
   ]);
 
   for (let i = 0; i < stagingRows.length; i += BATCH_SIZE) {
     const batch = stagingRows.slice(i, i + BATCH_SIZE).map((r) => ({ ...r, marketplace }));
     const rows = await db
       .insertInto("marketplace_staging")
-      .values(batch as never[])
+      .values(batch)
       .onConflict((oc) =>
         oc
           .columns(["marketplace", "external_id", "finish", "recorded_at"])
-          .doUpdateSet(stagingUpdateSet as never)
+          .doUpdateSet(stagingUpdateSet)
           .where(stagingDistinctWhere),
       )
       .returning(sql<number>`1`.as("_"))

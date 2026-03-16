@@ -15,19 +15,13 @@ import type { Logger } from "../../logger.js";
 import { groupIntoMap, toCents } from "../../utils.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
-import type {
-  GroupRow,
-  PriceRefreshResult,
-  PriceUpsertConfig,
-  TcgplayerStagingRow,
-} from "./types.js";
+import type { GroupRow, PriceRefreshResult, PriceUpsertConfig, StagingRow } from "./types.js";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
 // ── Upsert config ─────────────────────────────────────────────────────────
 
 const UPSERT_CONFIG: PriceUpsertConfig = {
   marketplace: "tcgplayer",
-  priceColumns: ["market_cents", "low_cents", "mid_cents", "high_cents"],
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -117,8 +111,8 @@ async function fetchTcgplayerData(): Promise<TcgplayerFetchResult> {
 function buildTcgplayerStaging(
   { groups, groupProducts, groupPrices, groupRecordedAt }: TcgplayerFetchResult,
   ignoredKeys: Set<string>,
-): TcgplayerStagingRow[] {
-  const allStaging: TcgplayerStagingRow[] = [];
+): StagingRow[] {
+  const allStaging: StagingRow[] = [];
 
   for (const group of groups) {
     const products = groupProducts.get(group.groupId);
@@ -151,6 +145,10 @@ function buildTcgplayerStaging(
           low_cents: toCents(entry.lowPrice),
           mid_cents: toCents(entry.midPrice),
           high_cents: toCents(entry.highPrice),
+          trend_cents: null,
+          avg1_cents: null,
+          avg7_cents: null,
+          avg30_cents: null,
         });
       }
     }

@@ -25,8 +25,6 @@ export interface PriceRefreshResult {
 
 export interface PriceUpsertConfig {
   marketplace: string;
-  /** Price columns present in both snapshot and staging tables */
-  priceColumns: string[];
 }
 
 // ── Generic row types ───────────────────────────────────────────────────
@@ -37,34 +35,26 @@ export interface GroupRow {
   abbreviation?: string;
 }
 
-export interface StagingRow {
-  external_id: number;
-  group_id: number;
-  product_name: string;
-  finish: string;
-  recorded_at: Date;
-}
-
-// ── Marketplace-specific price columns ─────────────────────────────────
-
-export interface CardmarketPrices {
-  market_cents: number | null;
+/** All 8 price columns shared by marketplace_snapshots and marketplace_staging. */
+export interface PriceColumns {
+  market_cents: number;
   low_cents: number | null;
+  mid_cents: number | null;
+  high_cents: number | null;
   trend_cents: number | null;
   avg1_cents: number | null;
   avg7_cents: number | null;
   avg30_cents: number | null;
 }
 
-export interface TcgplayerPrices {
-  market_cents: number | null;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
+/** A staging row with all 8 price columns (unused ones are null). */
+export interface StagingRow extends PriceColumns {
+  external_id: number;
+  group_id: number;
+  product_name: string;
+  finish: string;
+  recorded_at: Date;
 }
-
-export type CardmarketStagingRow = StagingRow & CardmarketPrices;
-export type TcgplayerStagingRow = StagingRow & TcgplayerPrices;
 
 // ── Reference data ──────────────────────────────────────────────────────
 

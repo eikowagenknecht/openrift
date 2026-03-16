@@ -19,14 +19,6 @@ const noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unkno
 
 const CM_CONFIG: PriceUpsertConfig = {
   marketplace: "cardmarket",
-  priceColumns: [
-    "market_cents",
-    "low_cents",
-    "trend_cents",
-    "avg1_cents",
-    "avg7_cents",
-    "avg30_cents",
-  ],
 };
 
 describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
@@ -207,27 +199,39 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
   describe("upsertPriceData", () => {
     const recordedAt = new Date("2026-03-10T00:00:00Z");
 
-    function makeStagingRow(extId: number, finish: string): StagingRow {
+    function makeStagingRow(
+      extId: number,
+      finish: string,
+      prices: Partial<StagingRow> = {},
+    ): StagingRow {
       return {
         external_id: extId,
         group_id: 1,
         product_name: "Test Product",
         finish,
         recorded_at: recordedAt,
-      } as StagingRow;
+        market_cents: 0,
+        low_cents: null,
+        mid_cents: null,
+        high_cents: null,
+        trend_cents: null,
+        avg1_cents: null,
+        avg7_cents: null,
+        avg30_cents: null,
+        ...prices,
+      };
     }
 
     it("inserts new snapshots and staging rows", async () => {
       const staging: StagingRow[] = [
-        {
-          ...makeStagingRow(1001, "normal"),
+        makeStagingRow(1001, "normal", {
           market_cents: 100,
           low_cents: 50,
           trend_cents: 80,
           avg1_cents: 90,
           avg7_cents: 85,
           avg30_cents: 88,
-        } as unknown as StagingRow,
+        }),
       ];
 
       const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
@@ -243,15 +247,14 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
     it("reports unchanged when upserting identical data", async () => {
       // Same data as the first insert — should be unchanged
       const staging: StagingRow[] = [
-        {
-          ...makeStagingRow(1001, "normal"),
+        makeStagingRow(1001, "normal", {
           market_cents: 100,
           low_cents: 50,
           trend_cents: 80,
           avg1_cents: 90,
           avg7_cents: 85,
           avg30_cents: 88,
-        } as unknown as StagingRow,
+        }),
       ];
 
       const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
@@ -264,15 +267,14 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
     it("reports updated when prices change", async () => {
       const staging: StagingRow[] = [
-        {
-          ...makeStagingRow(1001, "normal"),
+        makeStagingRow(1001, "normal", {
           market_cents: 200,
           low_cents: 100,
           trend_cents: 180,
           avg1_cents: 190,
           avg7_cents: 185,
           avg30_cents: 188,
-        } as unknown as StagingRow,
+        }),
       ];
 
       const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
@@ -283,24 +285,22 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
     it("deduplicates staging by (external_id, finish, recorded_at)", async () => {
       const staging: StagingRow[] = [
-        {
-          ...makeStagingRow(9001, "normal"),
+        makeStagingRow(9001, "normal", {
           market_cents: 50,
           low_cents: 25,
           trend_cents: 40,
           avg1_cents: 45,
           avg7_cents: 42,
           avg30_cents: 44,
-        } as unknown as StagingRow,
-        {
-          ...makeStagingRow(9001, "normal"),
+        }),
+        makeStagingRow(9001, "normal", {
           market_cents: 60,
           low_cents: 30,
           trend_cents: 50,
           avg1_cents: 55,
           avg7_cents: 52,
           avg30_cents: 54,
-        } as unknown as StagingRow,
+        }),
       ];
 
       const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
@@ -310,15 +310,14 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
     it("builds no snapshots for staging with unmapped external_id", async () => {
       const staging: StagingRow[] = [
-        {
-          ...makeStagingRow(99_999, "normal"),
+        makeStagingRow(99_999, "normal", {
           market_cents: 100,
           low_cents: 50,
           trend_cents: 80,
           avg1_cents: 90,
           avg7_cents: 85,
           avg30_cents: 88,
-        } as unknown as StagingRow,
+        }),
       ];
 
       const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);

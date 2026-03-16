@@ -1,4 +1,4 @@
-export { buildDistinctWhere, buildExcludedSet } from "./helpers.js";
+export { buildDistinctWhere } from "./helpers.js";
 export type {
   AccountsTable,
   CardsTable,

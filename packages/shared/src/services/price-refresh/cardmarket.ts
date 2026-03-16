@@ -15,26 +15,13 @@ import type { Logger } from "../../logger.js";
 import { toCents } from "../../utils.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
-import type {
-  CardmarketStagingRow,
-  GroupRow,
-  PriceRefreshResult,
-  PriceUpsertConfig,
-} from "./types.js";
+import type { GroupRow, PriceRefreshResult, PriceUpsertConfig, StagingRow } from "./types.js";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
 // ── Upsert config ─────────────────────────────────────────────────────────
 
 const UPSERT_CONFIG: PriceUpsertConfig = {
   marketplace: "cardmarket",
-  priceColumns: [
-    "market_cents",
-    "low_cents",
-    "trend_cents",
-    "avg1_cents",
-    "avg7_cents",
-    "avg30_cents",
-  ],
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -110,13 +97,13 @@ async function fetchCardmarketData(): Promise<CardmarketFetchResult> {
 function buildCardmarketStaging(
   { singles, priceGuides, recordedAt }: CardmarketFetchResult,
   ignoredKeys: Set<string>,
-): CardmarketStagingRow[] {
+): StagingRow[] {
   const cmPriceById = new Map<number, CmPriceGuide>();
   for (const pg of priceGuides) {
     cmPriceById.set(pg.idProduct, pg);
   }
 
-  const allStaging: CardmarketStagingRow[] = [];
+  const allStaging: StagingRow[] = [];
 
   for (const product of singles) {
     const pg = cmPriceById.get(product.idProduct);
@@ -133,6 +120,8 @@ function buildCardmarketStaging(
         recorded_at: recordedAt,
         market_cents: normalMarket,
         low_cents: toCents(pg.low),
+        mid_cents: null,
+        high_cents: null,
         trend_cents: toCents(pg.trend),
         avg1_cents: toCents(pg.avg1),
         avg7_cents: toCents(pg.avg7),
@@ -149,6 +138,8 @@ function buildCardmarketStaging(
         recorded_at: recordedAt,
         market_cents: foilMarket,
         low_cents: toCents(pg["low-foil"]),
+        mid_cents: null,
+        high_cents: null,
         trend_cents: toCents(pg["trend-foil"]),
         avg1_cents: toCents(pg["avg1-foil"]),
         avg7_cents: toCents(pg["avg7-foil"]),

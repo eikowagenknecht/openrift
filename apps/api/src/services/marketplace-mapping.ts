@@ -1,5 +1,4 @@
 import type { Database } from "@openrift/shared/db";
-import { buildExcludedSet } from "@openrift/shared/db";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
@@ -537,19 +536,32 @@ export async function saveMappings(
     // 4. Batch-upsert sources (1 query instead of N)
     const sourceResults = await tx
       .insertInto("marketplace_sources")
-      .values(sourceValues as never[])
+      .values(sourceValues)
       .onConflict((oc) =>
         oc.columns(["marketplace", "printing_id"]).doUpdateSet({
-          ...buildExcludedSet(["external_id", "group_id", "product_name"]),
+          external_id: sql<number>`excluded.external_id`,
+          group_id: sql<number>`excluded.group_id`,
+          product_name: sql<string>`excluded.product_name`,
           updated_at: new Date(),
-        } as never),
+        }),
       )
       .returning(["id", "printing_id"])
       .execute();
     const sourceIdByPrinting = new Map(sourceResults.map((r) => [r.printing_id, r.id]));
 
     // 5. Batch-insert snapshots (1 query instead of N×M)
-    const snapshotRows: Record<string, unknown>[] = [];
+    const snapshotRows: {
+      source_id: string;
+      recorded_at: Date;
+      market_cents: number;
+      low_cents: number | null;
+      mid_cents: number | null;
+      high_cents: number | null;
+      trend_cents: number | null;
+      avg1_cents: number | null;
+      avg7_cents: number | null;
+      avg30_cents: number | null;
+    }[] = [];
     for (const sv of sourceValues) {
       const sourceId = sourceIdByPrinting.get(sv.printing_id);
       if (sourceId === undefined) {
@@ -561,25 +573,36 @@ export async function saveMappings(
       }
       const rows = stagingByKey.get(`${sv.external_id}::${finish}`) ?? [];
       for (const row of rows) {
-        const snap: Record<string, unknown> = {
+        snapshotRows.push({
           source_id: sourceId,
           recorded_at: row.recorded_at,
-        };
-        for (const c of config.priceColumns) {
-          snap[c] = (row as Record<string, unknown>)[c];
-        }
-        snapshotRows.push(snap);
+          market_cents: row.market_cents,
+          low_cents: row.low_cents,
+          mid_cents: row.mid_cents,
+          high_cents: row.high_cents,
+          trend_cents: row.trend_cents,
+          avg1_cents: row.avg1_cents,
+          avg7_cents: row.avg7_cents,
+          avg30_cents: row.avg30_cents,
+        });
       }
     }
 
     if (snapshotRows.length > 0) {
       await tx
         .insertInto("marketplace_snapshots")
-        .values(snapshotRows as never[])
+        .values(snapshotRows)
         .onConflict((oc) =>
-          oc
-            .columns(["source_id", "recorded_at"])
-            .doUpdateSet(buildExcludedSet(config.priceColumns) as never),
+          oc.columns(["source_id", "recorded_at"]).doUpdateSet({
+            market_cents: sql<number>`excluded.market_cents`,
+            low_cents: sql<number | null>`excluded.low_cents`,
+            mid_cents: sql<number | null>`excluded.mid_cents`,
+            high_cents: sql<number | null>`excluded.high_cents`,
+            trend_cents: sql<number | null>`excluded.trend_cents`,
+            avg1_cents: sql<number | null>`excluded.avg1_cents`,
+            avg7_cents: sql<number | null>`excluded.avg7_cents`,
+            avg30_cents: sql<number | null>`excluded.avg30_cents`,
+          }),
         )
         .execute();
     }

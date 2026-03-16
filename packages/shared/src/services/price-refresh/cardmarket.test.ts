@@ -7,7 +7,7 @@ import type { Logger } from "../../logger";
 import { refreshCardmarketPrices } from "./cardmarket";
 import * as fetchMod from "./fetch";
 import * as logMod from "./log";
-import type { CardmarketStagingRow, UpsertCounts } from "./types";
+import type { StagingRow, UpsertCounts } from "./types";
 import * as upsertMod from "./upsert";
 
 // ── Representative mock data (sampled from real Cardmarket API) ──────────
@@ -197,7 +197,7 @@ describe("refreshCardmarketPrices", () => {
   let upsertSpy: ReturnType<typeof spyOn>;
   let logUpsertSpy: ReturnType<typeof spyOn>;
 
-  function upsertStaging(): CardmarketStagingRow[] {
+  function upsertStaging(): StagingRow[] {
     return upsertSpy.mock.calls[0][3];
   }
 
@@ -260,7 +260,7 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       const normal = staging.find(
-        (r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "normal",
+        (r: StagingRow) => r.external_id === 845_712 && r.finish === "normal",
       );
       expect(normal).toBeDefined();
       expect(normal?.market_cents).toBe(4);
@@ -282,7 +282,7 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       const foil = staging.find(
-        (r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "foil",
+        (r: StagingRow) => r.external_id === 845_712 && r.finish === "foil",
       );
       expect(foil).toBeDefined();
       expect(foil?.market_cents).toBe(19);
@@ -302,7 +302,7 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       const foil = staging.find(
-        (r: CardmarketStagingRow) => r.external_id === 847_277 && r.finish === "foil",
+        (r: StagingRow) => r.external_id === 847_277 && r.finish === "foil",
       );
       expect(foil).toBeUndefined();
     });
@@ -316,7 +316,7 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       const normal = staging.find(
-        (r: CardmarketStagingRow) => r.external_id === 847_140 && r.finish === "normal",
+        (r: StagingRow) => r.external_id === 847_140 && r.finish === "normal",
       );
       expect(normal).toBeUndefined();
     });
@@ -330,7 +330,7 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       const foil = staging.find(
-        (r: CardmarketStagingRow) => r.external_id === 847_140 && r.finish === "foil",
+        (r: StagingRow) => r.external_id === 847_140 && r.finish === "foil",
       );
       expect(foil).toBeDefined();
       expect(foil?.market_cents).toBe(14);
@@ -359,12 +359,10 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       expect(
-        staging.find(
-          (r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "normal",
-        ),
+        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "normal"),
       ).toBeUndefined();
       expect(
-        staging.find((r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "foil"),
+        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "foil"),
       ).toBeDefined();
     });
 
@@ -379,12 +377,10 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       expect(
-        staging.find((r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "foil"),
+        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "foil"),
       ).toBeUndefined();
       expect(
-        staging.find(
-          (r: CardmarketStagingRow) => r.external_id === 845_712 && r.finish === "normal",
-        ),
+        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "normal"),
       ).toBeDefined();
     });
 

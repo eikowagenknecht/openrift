@@ -7,7 +7,7 @@ import type { Logger } from "../../logger";
 import * as fetchMod from "./fetch";
 import * as logMod from "./log";
 import { refreshTcgplayerPrices } from "./tcgplayer";
-import type { TcgplayerStagingRow, UpsertCounts } from "./types";
+import type { StagingRow, UpsertCounts } from "./types";
 import * as upsertMod from "./upsert";
 
 // ── Representative mock data (modelled on real TCGCSV responses) ─────────
@@ -214,7 +214,7 @@ function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiDat
   });
 }
 
-function upsertStaging(spy: ReturnType<typeof spyOn>): TcgplayerStagingRow[] {
+function upsertStaging(spy: ReturnType<typeof spyOn>): StagingRow[] {
   return spy.mock.calls[0][3];
 }
 
