@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { v7 as uuidv7 } from "uuid";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
@@ -322,7 +323,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
       // Pre-compute paths so rehostedUrl can be included in the INSERT
       // (chk_printing_images_has_url requires at least one URL at insert time)
-      const imageId = mode === "additional" ? crypto.randomUUID() : undefined;
+      const imageId = mode === "additional" ? uuidv7() : undefined;
       const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageId}`;
       const rehostedUrl = `/card-images/${printing.setSlug}/${fileBase}`;
 
