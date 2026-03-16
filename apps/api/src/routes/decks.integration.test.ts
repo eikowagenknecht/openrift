@@ -161,9 +161,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
           ],
         }),
       );
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("verifies cards were saved via GET", async () => {
@@ -202,7 +200,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
           cards: [{ cardId: CARD_FURY_UNIT.id, zone: "main", quantity: 40 }],
         }),
       );
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
 
       const getRes = await app.fetch(req("GET", `/decks/${deckId}`));
       const json = await getRes.json();
@@ -259,10 +257,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
   describe("DELETE /decks/:id", () => {
     it("deletes a deck", async () => {
       const res = await app.fetch(req("DELETE", `/decks/${wantedDeckId}`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 after deletion", async () => {

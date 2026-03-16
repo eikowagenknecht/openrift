@@ -78,11 +78,10 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.ignored).toBe(1);
     });
 
-    it("returns ok but does not insert for non-existent staging ID", async () => {
+    it("returns ignored count but does not insert for non-existent staging ID", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           source: "tcgplayer",
@@ -92,7 +91,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(json.ignored).toBe(1);
 
       // Verify it was not actually inserted
       const rows = await db
@@ -145,7 +144,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.unignored).toBe(1);
     });
 
@@ -171,10 +169,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
           cardId,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify the override exists in the database
       const row = await db
@@ -200,10 +195,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
           finish: "normal",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify the override is gone
       const row = await db

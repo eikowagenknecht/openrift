@@ -453,7 +453,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.rehostedUrl).toBeString();
 
       // Verify rehostedUrl was set in DB

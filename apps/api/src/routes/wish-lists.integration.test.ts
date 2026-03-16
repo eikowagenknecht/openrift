@@ -181,7 +181,7 @@ describe.skipIf(!ctx)("Wish Lists routes (integration)", () => {
   describe("DELETE /wish-lists/:id/items/:itemId", () => {
     it("deletes an item", async () => {
       const res = await app.fetch(req("DELETE", `/wish-lists/${wishListId}/items/${itemId}`));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 for non-existent item", async () => {
@@ -196,9 +196,7 @@ describe.skipIf(!ctx)("Wish Lists routes (integration)", () => {
   describe("DELETE /wish-lists/:id", () => {
     it("deletes a wish list", async () => {
       const res = await app.fetch(req("DELETE", `/wish-lists/${secondWishListId}`));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 after deletion", async () => {

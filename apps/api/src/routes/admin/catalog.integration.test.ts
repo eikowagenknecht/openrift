@@ -63,10 +63,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           releasedAt: "2025-01-15",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("creates a second set", async () => {
@@ -78,10 +75,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           releasedAt: null,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 409 for duplicate slug", async () => {
@@ -171,10 +165,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           releasedAt: "2025-02-01",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("reflects the updated values on GET", async () => {
@@ -206,10 +197,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           ids: reordered,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("reflects the new order on GET", async () => {
@@ -232,9 +220,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       const json = await res.json();
       expect(json.expansions).toBeArray();
 
-      const catExpansion = json.expansions.find(
-        (e: { expansionId: number }) => e.expansionId === 10_000,
-      );
+      const catExpansion = json.expansions.find((e: { groupId: number }) => e.groupId === 10_000);
       expect(catExpansion).toBeDefined();
       expect(catExpansion.name).toBe("CAT Test Expansion");
       expect(catExpansion.stagedCount).toBe(0);
@@ -251,19 +237,14 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           name: "CAT Renamed Expansion",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("reflects the updated name on GET", async () => {
       const res = await app.fetch(req("GET", "/admin/cardmarket-groups"));
       const json = await res.json();
 
-      const catExpansion = json.expansions.find(
-        (e: { expansionId: number }) => e.expansionId === 10_000,
-      );
+      const catExpansion = json.expansions.find((e: { groupId: number }) => e.groupId === 10_000);
       expect(catExpansion.name).toBe("CAT Renamed Expansion");
     });
   });

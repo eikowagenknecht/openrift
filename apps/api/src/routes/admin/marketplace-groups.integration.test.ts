@@ -99,10 +99,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
           name: "MKG Alpha Set Revised",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("clears a group name with null", async () => {
@@ -111,10 +108,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
           name: null,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("GET reflects the updated names", async () => {

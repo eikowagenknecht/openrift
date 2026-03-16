@@ -149,7 +149,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       const res = await app.fetch(
         req("PATCH", "/admin/feature-flags/ffl-deck-builder", { description: "Build your deck" }),
       );
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
 
       // Verify via admin endpoint
       const check = await app.fetch(req("GET", "/admin/feature-flags"));

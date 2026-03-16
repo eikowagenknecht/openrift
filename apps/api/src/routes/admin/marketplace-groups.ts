@@ -3,7 +3,6 @@ import type { MarketplaceGroupResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -20,9 +19,6 @@ const updateGroupSchema = z.object({
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
-
-  .use("/admin/marketplace-groups", requireAdmin)
-  .use("/admin/marketplace-groups/*", requireAdmin)
 
   .get("/admin/marketplace-groups", async (c) => {
     const db = c.get("db");

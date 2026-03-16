@@ -3,7 +3,6 @@ import type { IgnoredProductResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -34,8 +33,6 @@ const deleteOverrideSchema = z.object({
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
-
-  .use("/admin/ignored-products", requireAdmin)
 
   // ── GET /admin/ignored-products ─────────────────────────────────────────────
 
@@ -119,8 +116,6 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── Staging card overrides (manual product → card association) ───────────────
-
-  .use("/admin/staging-card-overrides", requireAdmin)
 
   .post(
     "/admin/staging-card-overrides",

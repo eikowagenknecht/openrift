@@ -189,8 +189,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result).toEqual({
+      expect(json).toEqual({
         total: 0,
         rehosted: 0,
         skipped: 0,
@@ -204,8 +203,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result.total).toBe(0);
+      expect(json.total).toBe(0);
     });
   });
 
@@ -217,8 +215,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result).toEqual({
+      expect(json).toEqual({
         total: 0,
         regenerated: 0,
         failed: 0,
@@ -233,8 +230,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result.total).toBe(0);
+      expect(json.total).toBe(0);
     });
   });
 
@@ -246,8 +242,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result).toEqual({ cleared: 0 });
+      expect(json).toEqual({ cleared: 0 });
     });
   });
 
@@ -280,9 +275,8 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
-      expect(json.result.source).toBe("img-source");
-      expect(json.result.updated).toBeNumber();
+      expect(json.source).toBe("img-source");
+      expect(json.updated).toBeNumber();
 
       // Verify a printing_images row was created
       const images = await db

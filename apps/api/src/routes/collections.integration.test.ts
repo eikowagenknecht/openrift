@@ -238,9 +238,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(
         req("DELETE", `/collections/${secondCollectionId}?move_copies_to=${inboxId}`),
       );
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 after deletion", async () => {

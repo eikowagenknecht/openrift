@@ -121,10 +121,7 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
   describe("DELETE /sources/:id", () => {
     it("deletes a source", async () => {
       const res = await app.fetch(req("DELETE", `/sources/${sourceId}`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 after deletion", async () => {
