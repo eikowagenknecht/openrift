@@ -15,13 +15,6 @@ import type { ColumnType, Generated } from "kysely";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
 
-/**
- * Postgres can't CHECK individual array elements, so array columns like
- * `domains`, `super_types`, `keywords`, and `tags` are unconstrained at the DB
- * level even though the app treats them as known sets (e.g. `Domain`).
- */
-type Unchecked<_AppType> = string;
-
 /** Timestamp column that defaults to NOW() on insert. */
 type CreatedAt = ColumnType<Date, Date | undefined, Date>;
 
@@ -59,9 +52,10 @@ export interface CardsTable {
   name: string;
   norm_name: Generated<string>;
   type: CardType;
-  super_types: Unchecked<SuperType>[];
-  /** CHECK: array_length > 0 */
-  domains: Unchecked<Domain>[];
+  /** CHECK: values in ('Basic','Champion','Signature','Token') */
+  super_types: SuperType[];
+  /** CHECK: array_length > 0; values in ('Fury','Calm','Mind','Body','Chaos','Order','Colorless') */
+  domains: Domain[];
   /** CHECK: >= 0 */
   might: number | null;
   /** CHECK: >= 0 */
@@ -70,12 +64,12 @@ export interface CardsTable {
   power: number | null;
   /** CHECK: >= 0 */
   might_bonus: number | null;
-  keywords: Unchecked<string>[];
+  keywords: string[];
   /** CHECK: <> '' */
   rules_text: string | null;
   /** CHECK: <> '' */
   effect_text: string | null;
-  tags: Unchecked<string>[];
+  tags: string[];
   created_at: CreatedAt;
   updated_at: UpdatedAt;
 }
@@ -413,8 +407,8 @@ export interface CardSourcesTable {
   norm_name: Generated<string>;
   /** CHECK: <> '' */
   type: string | null;
-  super_types: Unchecked<SuperType>[];
-  domains: Unchecked<Domain>[];
+  super_types: string[];
+  domains: string[];
   /** CHECK: >= 0 */
   might: number | null;
   /** CHECK: >= 0 */
@@ -427,7 +421,7 @@ export interface CardSourcesTable {
   rules_text: string | null;
   /** CHECK: <> '' */
   effect_text: string | null;
-  tags: Unchecked<string>[];
+  tags: string[];
   /** CHECK: <> '' */
   source_id: string | null;
   /** CHECK: <> '' */
