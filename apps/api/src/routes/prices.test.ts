@@ -136,10 +136,11 @@ describe("GET /api/prices", () => {
     expect(json.prices).toEqual({});
   });
 
-  it("returns ETag and Cache-Control headers", async () => {
+  it("returns ETag, Cache-Control, and Last-Modified headers", async () => {
     const res = await app.request("/api/prices");
     expect(res.headers.get("ETag")).toBe(`"prices-${PRICES_LAST_MODIFIED.getTime()}"`);
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(res.headers.get("Last-Modified")).toBe(PRICES_LAST_MODIFIED.toUTCString());
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
@@ -162,12 +163,15 @@ describe("GET /api/prices", () => {
 // GET /api/prices/:printingId/history
 // ---------------------------------------------------------------------------
 
+const SNAPSHOT_LATEST = new Date("2026-03-01T00:00:00Z");
+
 describe("GET /api/prices/:printingId/history", () => {
   beforeEach(() => {
     mockState.tables = {
       printings: [dbPrinting],
       marketplaceSources: [dbMarketplaceSource, dbMarketplaceSourceCM],
       marketplaceSnapshots: [dbSnapshot],
+      "marketplaceSnapshots as snap": [{ latest: SNAPSHOT_LATEST }],
     };
   });
 
@@ -236,6 +240,7 @@ describe("GET /api/prices/:printingId/history", () => {
       printings: [dbPrinting],
       marketplaceSources: [],
       marketplaceSnapshots: [],
+      "marketplaceSnapshots as snap": [{ latest: new Date("1970-01-01T00:00:00Z") }],
     };
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
@@ -243,6 +248,22 @@ describe("GET /api/prices/:printingId/history", () => {
     expect(json.tcgplayer.productId).toBeNull();
     expect(json.cardmarket.available).toBe(false);
     expect(json.cardmarket.productId).toBeNull();
+  });
+
+  it("returns ETag, Cache-Control, and Last-Modified headers", async () => {
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const etag = `"history-OGS-001:rare:normal-30d-${SNAPSHOT_LATEST.getTime()}"`;
+    expect(res.headers.get("ETag")).toBe(etag);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(res.headers.get("Last-Modified")).toBe(SNAPSHOT_LATEST.toUTCString());
+  });
+
+  it("returns 304 when If-None-Match matches current ETag", async () => {
+    const etag = `"history-OGS-001:rare:normal-30d-${SNAPSHOT_LATEST.getTime()}"`;
+    const res = await app.request("/api/prices/OGS-001:rare:normal/history", {
+      headers: { "If-None-Match": etag },
+    });
+    expect(res.status).toBe(304);
   });
 
   it("accepts range query parameter", async () => {

@@ -24,7 +24,6 @@ export type {
   ArtVariant,
   Finish,
   PriceHistoryResponse,
-  PriceSource,
   PricesData,
   Printing,
   PrintingImage,

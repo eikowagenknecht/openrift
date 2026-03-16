@@ -4,7 +4,6 @@ export interface PricesData {
 
 export type Marketplace = "tcgplayer" | "cardmarket";
 
-export type PriceSource = "tcgplayer" | "cardmarket";
 export type TimeRange = "7d" | "30d" | "90d" | "all";
 
 export interface TcgplayerSnapshot {

@@ -31,11 +31,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The most recent `recorded_at` across all marketplace snapshots. */
+    /** @returns The most recent `recorded_at` across all marketplace snapshots (epoch if none). */
     pricesLastModified(): Promise<{ lastModified: Date }> {
       return db
         .selectFrom("marketplaceSnapshots")
-        .select(sql<Date>`MAX(recorded_at)`.as("lastModified"))
+        .select(sql<Date>`COALESCE(MAX(recorded_at), '1970-01-01T00:00:00Z')`.as("lastModified"))
         .executeTakeFirstOrThrow();
     },
 
@@ -64,6 +64,16 @@ export function marketplaceRepo(db: Kysely<Database>) {
         query = query.where("recordedAt", ">=", cutoff);
       }
       return query.execute();
+    },
+
+    /** @returns The most recent snapshot timestamp for a printing's sources (epoch if none). */
+    latestSnapshotTimestamp(printingId: string): Promise<{ latest: Date }> {
+      return db
+        .selectFrom("marketplaceSnapshots as snap")
+        .innerJoin("marketplaceSources as src", "src.id", "snap.sourceId")
+        .where("src.printingId", "=", printingId)
+        .select(sql<Date>`COALESCE(MAX(snap.recorded_at), '1970-01-01T00:00:00Z')`.as("latest"))
+        .executeTakeFirstOrThrow();
     },
   };
 }
