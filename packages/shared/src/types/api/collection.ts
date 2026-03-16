@@ -1,4 +1,4 @@
-import type { ActivityType } from "./enums.js";
+import type { ActivityType } from "../enums.js";
 
 export interface Collection {
   id: string;

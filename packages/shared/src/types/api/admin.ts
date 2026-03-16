@@ -1,4 +1,12 @@
-import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
+import type {
+  ArtVariant,
+  CardFace,
+  CardType,
+  Domain,
+  Finish,
+  Rarity,
+  SuperType,
+} from "../enums.js";
 
 export interface CardSource {
   id: string;
