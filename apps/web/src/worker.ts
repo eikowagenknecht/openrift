@@ -43,7 +43,15 @@ const worker = {
       return res;
     }
 
-    return env.ASSETS.fetch(request);
+    // Serve static assets, with SPA fallback for client-side routes.
+    // We handle this manually instead of using Cloudflare's built-in
+    // not_found_handling: "single-page-application" because that intercepts
+    // navigation requests to /card-images/ and /api/ before the Worker runs.
+    const asset = await env.ASSETS.fetch(request);
+    if (asset.status === 404) {
+      return env.ASSETS.fetch(new Request(new URL("/index.html", request.url), request));
+    }
+    return asset;
   },
 };
 
