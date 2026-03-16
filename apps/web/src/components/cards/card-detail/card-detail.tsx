@@ -136,14 +136,14 @@ export function CardDetail({
         </div>
         {/* Stats */}
         <div className="flex flex-wrap items-center justify-center gap-1.5">
-          {card.stats.energy !== null && card.stats.energy > 0 && (
-            <StatChip label="Energy" value={card.stats.energy} />
+          {card.energy !== null && card.energy > 0 && (
+            <StatChip label="Energy" value={card.energy} />
           )}
-          {card.stats.power !== null && card.stats.power > 0 && (
-            <StatChip label="Power" value={card.stats.power} icon="/images/power.svg" />
+          {card.power !== null && card.power > 0 && (
+            <StatChip label="Power" value={card.power} icon="/images/power.svg" />
           )}
-          {card.stats.might !== null && (
-            <StatChip label="Might" value={card.stats.might} icon="/images/might.svg" />
+          {card.might !== null && (
+            <StatChip label="Might" value={card.might} icon="/images/might.svg" />
           )}
           {!card.domains.includes("Colorless") &&
             card.domains.map((d) => (
@@ -169,28 +169,28 @@ export function CardDetail({
 
         {/* Text */}
         <div className="space-y-3 pt-2">
-          {card.description && (
+          {card.rulesText && (
             <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
               <p className="text-sm text-muted-foreground">
-                <CardText text={card.description} onKeywordClick={onKeywordClick} />
+                <CardText text={card.rulesText} onKeywordClick={onKeywordClick} />
               </p>
               {printing.printedDescription && <PrintedTextWarning />}
             </div>
           )}
 
-          {(card.effect || (card.mightBonus !== null && card.mightBonus > 0)) && (
+          {(card.effectText || (card.mightBonus !== null && card.mightBonus > 0)) && (
             <div
               className="rounded-lg border border-border/50 px-3 py-2.5"
               style={getDomainGradientStyle(card.domains, "18")}
             >
-              {card.effect && (
+              {card.effectText && (
                 <p className="text-sm text-muted-foreground">
-                  <CardText text={card.effect} onKeywordClick={onKeywordClick} />
+                  <CardText text={card.effectText} onKeywordClick={onKeywordClick} />
                 </p>
               )}
               {printing.printedEffect && <PrintedTextWarning />}
               {card.mightBonus !== null && card.mightBonus > 0 && (
-                <div className={cn(card.effect && "mt-2")}>
+                <div className={cn(card.effectText && "mt-2")}>
                   <StatChip
                     label="Might Bonus"
                     value={`+${card.mightBonus}`}

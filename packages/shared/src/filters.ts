@@ -82,7 +82,8 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
   }
   if (field === "cardText") {
     return (
-      card.description.toLowerCase().includes(lower) || card.effect.toLowerCase().includes(lower)
+      (card.rulesText?.toLowerCase().includes(lower) ?? false) ||
+      (card.effectText?.toLowerCase().includes(lower) ?? false)
     );
   }
   if (field === "keywords") {
@@ -211,9 +212,9 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
       includes(filters.finishes, printing.finish) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
       matchesFlag(filters.isPromo, printing.isPromo) &&
-      matchesRange(card.stats.energy, filters.energy) &&
-      matchesRange(card.stats.might, filters.might) &&
-      matchesRange(card.stats.power, filters.power) &&
+      matchesRange(card.energy, filters.energy) &&
+      matchesRange(card.might, filters.might) &&
+      matchesRange(card.power, filters.power) &&
       matchesRange(printing.marketPrice ?? null, filters.price)
     );
   });
@@ -269,9 +270,9 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
     (a, b) => FINISH_ORDER.indexOf(a) - FINISH_ORDER.indexOf(b),
   );
 
-  const energies = printings.flatMap((p) => p.card.stats.energy ?? []);
-  const mights = printings.flatMap((p) => p.card.stats.might ?? []);
-  const powers = printings.flatMap((p) => p.card.stats.power ?? []);
+  const energies = printings.flatMap((p) => p.card.energy ?? []);
+  const mights = printings.flatMap((p) => p.card.might ?? []);
+  const powers = printings.flatMap((p) => p.card.power ?? []);
   const prices = printings.flatMap((p) => p.marketPrice ?? []);
 
   return {
@@ -311,7 +312,7 @@ export function sortCards(printings: Printing[], sortBy: SortOption): Printing[]
     return [...printings].sort((a, b) => a.sourceId.localeCompare(b.sourceId));
   }
   if (sortBy === "energy") {
-    return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.card.stats.energy));
+    return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.card.energy));
   }
   if (sortBy === "rarity") {
     return [...printings].sort(

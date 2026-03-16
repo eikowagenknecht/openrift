@@ -2,7 +2,6 @@ import { zValidator } from "@hono/zod-validator";
 import { centsToDollars, formatDateUTC } from "@openrift/shared";
 import type {
   Card,
-  CardStats,
   CatalogPrinting,
   PriceHistoryResponse,
   PrintingImage,
@@ -80,16 +79,14 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         type: row.type,
         superTypes: row.super_types,
         domains: row.domains,
-        stats: {
-          might: row.might,
-          energy: row.energy,
-          power: row.power,
-        } satisfies CardStats,
+        might: row.might,
+        energy: row.energy,
+        power: row.power,
         keywords: row.keywords,
         tags: row.tags,
         mightBonus: row.might_bonus,
-        description: row.rules_text ?? "",
-        effect: row.effect_text ?? "",
+        rulesText: row.rules_text,
+        effectText: row.effect_text,
       };
     }
 

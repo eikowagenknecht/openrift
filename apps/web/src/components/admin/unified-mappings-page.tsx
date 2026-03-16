@@ -113,12 +113,14 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
       type: group.cardType as CardType,
       superTypes: group.superTypes as SuperType[],
       domains: group.domains as Domain[],
-      stats: { energy: group.energy, might: group.might, power: 0 },
+      energy: group.energy,
+      might: group.might,
+      power: 0,
       keywords: [],
       tags: [],
       mightBonus: null,
-      description: "",
-      effect: "",
+      rulesText: "",
+      effectText: "",
     },
   };
 }

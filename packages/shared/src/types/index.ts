@@ -8,14 +8,7 @@ export {
   SUPER_TYPE_ORDER,
 } from "./enums.js";
 
-export type {
-  Card,
-  CardStats,
-  CatalogPrinting,
-  Printing,
-  PrintingImage,
-  RiftboundCatalog,
-} from "./cards.js";
+export type { Card, CatalogPrinting, Printing, PrintingImage, RiftboundCatalog } from "./cards.js";
 export { getOrientation } from "./cards.js";
 
 export type {

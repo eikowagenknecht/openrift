@@ -190,12 +190,12 @@ describe("GET /api/catalog", () => {
     expect(json.printings[0].set).toBe("OGS");
   });
 
-  it("uses rules_text as card.description", async () => {
+  it("uses rules_text as card.rulesText", async () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
     const card = json.cards["OGS-001"];
-    expect(card.description).toBe("A fiery beast");
-    expect(card.effect).toBe("Deal 3 damage");
+    expect(card.rulesText).toBe("A fiery beast");
+    expect(card.effectText).toBe("Deal 3 damage");
   });
 
   it("includes latest market price on printing", async () => {

@@ -199,8 +199,8 @@ export function CardThumbnail({
             <CardPlaceholderImage
               name={card.name}
               domain={card.domains}
-              energy={card.stats.energy}
-              might={card.stats.might}
+              energy={card.energy}
+              might={card.might}
               className={thumbnailUrl && imgLoaded ? "invisible" : undefined}
             />
             {thumbnailUrl &&

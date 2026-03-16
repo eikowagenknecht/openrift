@@ -66,8 +66,8 @@ export function CardImage({
         <CardPlaceholderImage
           name={card.name}
           domain={card.domains}
-          energy={card.stats.energy}
-          might={card.stats.might}
+          energy={card.energy}
+          might={card.might}
         />
       )}
       {showFoil && <FoilOverlay active={tiltActive} shimmer={showShimmer} />}

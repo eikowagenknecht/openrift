@@ -14,12 +14,14 @@ const stubCard: Card = {
   type: "Unit",
   superTypes: [],
   domains: [],
-  stats: { might: 1, energy: 1, power: 1 },
+  might: 1,
+  energy: 1,
+  power: 1,
   keywords: [],
   tags: [],
   mightBonus: 0,
-  description: "",
-  effect: "",
+  rulesText: "",
+  effectText: "",
 };
 
 function stubCatalogPrinting(overrides: Partial<CatalogPrinting> = {}): CatalogPrinting {

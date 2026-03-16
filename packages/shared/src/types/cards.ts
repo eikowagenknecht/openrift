@@ -1,11 +1,5 @@
 import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
 
-export interface CardStats {
-  might: number | null;
-  energy: number | null;
-  power: number | null;
-}
-
 export interface Card {
   id: string;
   slug: string;
@@ -13,12 +7,14 @@ export interface Card {
   type: CardType;
   superTypes: SuperType[];
   domains: Domain[];
-  stats: CardStats;
+  might: number | null;
+  energy: number | null;
+  power: number | null;
   keywords: string[];
   tags: string[];
   mightBonus: number | null;
-  description: string;
-  effect: string;
+  rulesText: string | null;
+  effectText: string | null;
 }
 
 export interface PrintingImage {

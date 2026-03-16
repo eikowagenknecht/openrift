@@ -8,7 +8,6 @@ export type {
   FilterRange,
   RangeKey,
   CardmarketSnapshot,
-  CardStats,
   CardFace,
   CardSource,
   CardSourceSummary,
