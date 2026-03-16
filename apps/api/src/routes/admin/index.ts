@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 
 import { cronJobs } from "../../cron-jobs.js";
-import { isAdmin, requireAdmin } from "../../middleware/require-admin.js";
+import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 import { cardSourcesRoute } from "../card-sources/index.js";
 import { catalogRoute } from "./catalog.js";
-import { featureFlagsRoute } from "./feature-flags.js";
+import { adminFeatureFlagsRoute } from "./feature-flags.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
 import { imagesRoute } from "./images.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
@@ -15,9 +15,16 @@ import { unifiedMappingsRoute } from "./unified-mappings.js";
 
 export const adminRoute = new Hono<{ Variables: Variables }>()
 
+  // ── Auth: all /admin/* routes require admin ───────────────────────────────
+
+  .use("/admin/*", requireAdmin)
+
+  // ── GET /admin/me ─────────────────────────────────────────────────────────
+
+  .get("/admin/me", (c) => c.json({ isAdmin: true }))
+
   // ── GET /admin/cron-status ────────────────────────────────────────────────
 
-  .use("/admin/cron-status", requireAdmin)
   .get("/admin/cron-status", (c) =>
     c.json({
       tcgplayer: cronJobs.tcgplayer
@@ -29,22 +36,11 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
     }),
   )
 
-  // ── GET /admin/me — any authenticated user ────────────────────────────────
-
-  .get("/admin/me", async (c) => {
-    const user = c.get("user");
-    if (!user) {
-      return c.json({ isAdmin: false });
-    }
-
-    return c.json({ isAdmin: await isAdmin(c.get("db"), user.id) });
-  })
-
   // ── Mount sub-routes ──────────────────────────────────────────────────────
 
   .route("/", tcgplayerMappingsRoute)
   .route("/", cardmarketMappingsRoute)
-  .route("/", featureFlagsRoute)
+  .route("/", adminFeatureFlagsRoute)
   .route("/", ignoredProductsRoute)
   .route("/", catalogRoute)
   .route("/", operationsRoute)
@@ -54,6 +50,4 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
 
   // ── Card source routes ────────────────────────────────────────────────────
 
-  .use("/admin/card-sources/*", requireAdmin)
-  .use("/admin/card-sources", requireAdmin)
   .route("/admin", cardSourcesRoute);

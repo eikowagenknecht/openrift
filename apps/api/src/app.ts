@@ -15,6 +15,7 @@ import { catalogRoute } from "./routes/catalog.js";
 import { collectionsRoute } from "./routes/collections.js";
 import { copiesRoute } from "./routes/copies.js";
 import { decksRoute } from "./routes/decks.js";
+import { featureFlagsRoute } from "./routes/feature-flags.js";
 import { pricesRoute } from "./routes/prices.js";
 import { shoppingListRoute } from "./routes/shopping-list.js";
 import { sourcesRoute } from "./routes/sources.js";
@@ -132,6 +133,7 @@ export function createApp(deps: AppDeps) {
 
     .route("/api", catalogRoute)
     .route("/api", pricesRoute)
+    .route("/api", featureFlagsRoute)
     .route("/api", adminRoute)
     .route("/api", collectionsRoute)
     .route("/api", sourcesRoute)

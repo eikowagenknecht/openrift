@@ -140,7 +140,7 @@ describe.skipIf(!ctx)("Trade Lists routes (integration)", () => {
   describe("DELETE /trade-lists/:id/items/:itemId", () => {
     it("removes an item from the trade list", async () => {
       const res = await app.fetch(req("DELETE", `/trade-lists/${tradeListId}/items/${itemId}`));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 for non-existent item", async () => {
@@ -155,9 +155,7 @@ describe.skipIf(!ctx)("Trade Lists routes (integration)", () => {
   describe("DELETE /trade-lists/:id", () => {
     it("deletes a trade list", async () => {
       const res = await app.fetch(req("DELETE", `/trade-lists/${secondTradeListId}`));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 after deletion", async () => {

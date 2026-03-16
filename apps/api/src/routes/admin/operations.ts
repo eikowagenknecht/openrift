@@ -4,7 +4,6 @@ import { Hono } from "hono";
 import { z } from "zod/v4";
 
 import { AppError } from "../../errors.js";
-import { requireAdmin } from "../../middleware/require-admin.js";
 import {
   refreshCardmarketPrices,
   refreshTcgplayerPrices,
@@ -27,7 +26,6 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── Clear price data ─────────────────────────────────────────────────────────
 
-  .use("/admin/clear-prices", requireAdmin)
   .post("/admin/clear-prices", zValidator("json", clearPricesSchema), async (c) => {
     const db = c.get("db");
     const { source } = c.req.valid("json");
@@ -69,7 +67,6 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── Manual refresh endpoints ────────────────────────────────────────────────
 
-  .use("/admin/refresh-tcgplayer-prices", requireAdmin)
   .post("/admin/refresh-tcgplayer-prices", async (c) => {
     const db = c.get("db");
     try {
@@ -81,7 +78,6 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
     }
   })
 
-  .use("/admin/refresh-cardmarket-prices", requireAdmin)
   .post("/admin/refresh-cardmarket-prices", async (c) => {
     const db = c.get("db");
     try {

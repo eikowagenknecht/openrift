@@ -230,7 +230,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.cardSourcesChecked).toBeGreaterThanOrEqual(1);
       expect(json.printingSourcesChecked).toBeGreaterThanOrEqual(1);
     });
@@ -253,10 +252,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db.updateTable("cardSources").set({ checkedAt: null }).where("id", "=", csId).execute();
 
       const res = await app.fetch(req("POST", `${P}/${csId}/check`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 for non-existent card source", async () => {
@@ -278,10 +274,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(req("POST", `${P}/printing-sources/${psId}/check`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 404 for non-existent printing source", async () => {
@@ -306,7 +299,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.updated).toBeGreaterThanOrEqual(1);
     });
   });
@@ -322,7 +314,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.updated).toBeGreaterThanOrEqual(1);
     });
   });
@@ -334,10 +325,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("PATCH", `${P}/printing-sources/${psId}`, { rarity: "Rare" }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify update persisted
       const row = await db
@@ -371,10 +359,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingId: "CSM-001:rare:foil:",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify a new printing_source was created linked to printing2
       const copies = await db
@@ -415,10 +400,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingId: "CSM-001:rare:foil:",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify link
       const row = await db
@@ -436,10 +418,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingId: null,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify unlinked
       const row = await db
@@ -458,10 +437,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/rename`, { newId: "CSM-001-RENAMED" }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify
       const row = await db
@@ -474,15 +450,12 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("rename back for subsequent tests", async () => {
       const res = await app.fetch(req("POST", `${P}/CSM-001-RENAMED/rename`, { newId: "CSM-001" }));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
     });
 
     it("same name is a no-op", async () => {
       const res = await app.fetch(req("POST", `${P}/${cardSlug}/rename`, { newId: cardSlug }));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
 
     it("returns 400 for empty newId", async () => {
@@ -501,10 +474,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           value: "CSM Test Card Updated",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify
       const row = await db
@@ -522,7 +492,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           value: "CSM Test Card",
         }),
       );
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
     });
 
     it("returns 400 for invalid field", async () => {
@@ -546,10 +516,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           value: "Artist B",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify
       const row = await db
@@ -580,10 +547,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           newId: "CSM-001:common:normal:v2",
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify
       const row = await db
@@ -600,7 +564,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           newId: "CSM-001:common:normal:",
         }),
       );
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
     });
 
     it("returns 400 for empty newId", async () => {
@@ -626,10 +590,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           },
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify card was created
       const card = await db
@@ -676,10 +637,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           cardId: cardSlug,
         }),
       );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify alias was created
       const alias = await db
@@ -782,10 +740,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("deletes a printing source", async () => {
       // Use the unlinked one to avoid FK issues
       const res = await app.fetch(req("DELETE", `${P}/printing-sources/${psUnlinkedId}`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify gone
       const row = await db
@@ -812,7 +767,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.status).toBe("ok");
       expect(json.source).toBe("csm-spreadsheet");
       expect(json.deleted).toBeGreaterThanOrEqual(1);
     });

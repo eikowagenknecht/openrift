@@ -5,7 +5,6 @@ import { Hono } from "hono";
 import { z } from "zod/v4";
 
 import { AppError } from "../../errors.js";
-import { requireAdmin } from "../../middleware/require-admin.js";
 import { featureFlagsRepo } from "../../repositories/feature-flags.js";
 import type { Variables } from "../../types.js";
 
@@ -27,26 +26,9 @@ const updateFlagSchema = z.object({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
+export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
 
-  // ── Public: GET /feature-flags ──────────────────────────────────────────────
-  // Returns { key: enabled } map for the client to consume at boot.
-
-  .get("/feature-flags", async (c) => {
-    const flagsRepo = featureFlagsRepo(c.get("db"));
-    const rows = await flagsRepo.listKeyEnabled();
-
-    const flags: Record<string, boolean> = {};
-    for (const row of rows) {
-      flags[row.key] = row.enabled;
-    }
-    return c.json(flags);
-  })
-
-  // ── Admin: GET /admin/feature-flags ─────────────────────────────────────────
-
-  .use("/admin/feature-flags", requireAdmin)
-  .use("/admin/feature-flags/*", requireAdmin)
+  // ── GET /admin/feature-flags ──────────────────────────────────────────────
 
   .get("/admin/feature-flags", async (c) => {
     const flagsRepo = featureFlagsRepo(c.get("db"));

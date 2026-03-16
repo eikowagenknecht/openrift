@@ -160,9 +160,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
           toCollectionId: secondCollectionId,
         }),
       );
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify the copy is now in the second collection
       const copyRes = await app.fetch(req("GET", `/copies/${copyIds[0]}`));
@@ -191,9 +189,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
   describe("POST /copies/dispose", () => {
     it("disposes (hard-deletes) copies", async () => {
       const res = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copyIds[2]] }));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Verify the copy is gone
       const copyRes = await app.fetch(req("GET", `/copies/${copyIds[2]}`));

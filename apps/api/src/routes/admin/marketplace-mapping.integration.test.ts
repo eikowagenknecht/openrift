@@ -293,10 +293,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/tcgplayer-mappings", () => {
     it("unmaps a single printing and restores staging rows", async () => {
       const res = await app.fetch(req("DELETE", "/admin/tcgplayer-mappings", { printingId }));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
 
       // Source should be deleted
       const sourceRow = await db
@@ -334,7 +331,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.unmapped).toBeGreaterThanOrEqual(1);
 
       // No more sources with external_id should exist for TCGPlayer for our printing
@@ -431,10 +427,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/cardmarket-mappings", () => {
     it("unmaps a single printing", async () => {
       const res = await app.fetch(req("DELETE", "/admin/cardmarket-mappings", { printingId }));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.ok).toBe(true);
+      expect(res.status).toBe(204);
     });
   });
 
@@ -477,7 +470,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ok).toBe(true);
       expect(json.unmapped).toBeGreaterThanOrEqual(1);
     });
   });

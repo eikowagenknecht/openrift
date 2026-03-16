@@ -6,7 +6,6 @@ import { z } from "zod/v4";
 
 import { setFieldRules } from "../../db/schemas.js";
 import { AppError } from "../../errors.js";
-import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -37,8 +36,6 @@ const reorderSetsSchema = z.object({
 export const catalogRoute = new Hono<{ Variables: Variables }>()
 
   // ── Cardmarket Expansions ────────────────────────────────────────────────────
-
-  .use("/admin/cardmarket-groups", requireAdmin)
 
   .get("/admin/cardmarket-groups", async (c) => {
     const db = c.get("db");
@@ -107,8 +104,6 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
 
   // ── TCGPlayer Groups ─────────────────────────────────────────────────────────
 
-  .use("/admin/tcgplayer-groups", requireAdmin)
-
   .get("/admin/tcgplayer-groups", async (c) => {
     const db = c.get("db");
     const groups = await db
@@ -155,8 +150,6 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── Sets CRUD ─────────────────────────────────────────────────────────────────
-
-  .use("/admin/sets", requireAdmin)
 
   .get("/admin/sets", async (c) => {
     const db = c.get("db");
@@ -251,8 +244,6 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── Set reorder ───────────────────────────────────────────────────────────────
-
-  .use("/admin/sets/reorder", requireAdmin)
 
   .put("/admin/sets/reorder", zValidator("json", reorderSetsSchema), async (c) => {
     const db = c.get("db");

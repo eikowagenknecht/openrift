@@ -26,12 +26,9 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
   // results for 30 seconds, and we share a single module import.
 
   describe("GET /admin/me (non-admin)", () => {
-    it("returns isAdmin: false when user is not in admins table", async () => {
+    it("returns 403 when user is not in admins table", async () => {
       const res = await app.fetch(req("GET", "/admin/me"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toEqual({ isAdmin: false });
+      expect(res.status).toBe(403);
     });
   });
 

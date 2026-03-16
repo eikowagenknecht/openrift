@@ -2,7 +2,6 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { requireAdmin } from "../../middleware/require-admin.js";
 import {
   getMappingOverview,
   saveMappings,
@@ -32,8 +31,6 @@ const unmapSchema = z.object({
 // ── TCGPlayer mappings ──────────────────────────────────────────────────────
 
 export const tcgplayerMappingsRoute = new Hono<{ Variables: Variables }>()
-  .use("/admin/tcgplayer-mappings", requireAdmin)
-  .use("/admin/tcgplayer-mappings/all", requireAdmin)
 
   .get("/admin/tcgplayer-mappings", zValidator("query", querySchema), async (c) => {
     const db = c.get("db");
@@ -72,8 +69,6 @@ export const tcgplayerMappingsRoute = new Hono<{ Variables: Variables }>()
 // ── Cardmarket mappings ─────────────────────────────────────────────────────
 
 export const cardmarketMappingsRoute = new Hono<{ Variables: Variables }>()
-  .use("/admin/cardmarket-mappings", requireAdmin)
-  .use("/admin/cardmarket-mappings/all", requireAdmin)
 
   .get("/admin/cardmarket-mappings", zValidator("query", querySchema), async (c) => {
     const db = c.get("db");
