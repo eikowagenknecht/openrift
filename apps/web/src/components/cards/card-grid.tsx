@@ -390,7 +390,7 @@ export function CardGrid({
                   <div
                     className={`whitespace-nowrap rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"}`}
                   >
-                    {pt.firstCardId || pt.setInfo.code}
+                    {pt.firstCardId || pt.setInfo.slug}
                   </div>
                   <div className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
                 </div>
