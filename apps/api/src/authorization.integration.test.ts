@@ -1,5 +1,7 @@
-import { afterAll, describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 
+import { createDb } from "@openrift/shared/db/connect";
+import { migrate } from "@openrift/shared/db/migrate";
 import {
   createTempDb,
   dropTempDb,
@@ -7,8 +9,7 @@ import {
   replaceDbName,
 } from "@openrift/shared/test/integration-setup";
 
-import type * as AppModule from "./app.js";
-import type * as DbModule from "./db.js";
+import { createApp } from "./app.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: CRUD factory user isolation
@@ -31,44 +32,39 @@ const TL_ID = "e1000000-0000-4000-a000-000000000e01";
 
 // ── Mock auth (the only mock needed — db/config/kysely are real) ───────
 
-mock.module("./auth.js", () => ({
-  auth: {
-    handler: () => new Response("ok"),
-    api: {
-      getSession: async () => ({
-        user: { id: USER_A_ID, email: "a@test.com", name: "User A" },
-        session: { id: "sess-a" },
-      }),
-    },
-    $Infer: { Session: { user: null, session: null } },
+const mockAuth = {
+  handler: () => new Response("ok"),
+  api: {
+    getSession: async () => ({
+      user: { id: USER_A_ID, email: "a@test.com", name: "User A" },
+      session: { id: "sess-a" },
+    }),
   },
-}));
+  $Infer: { Session: { user: null, session: null } },
+} as any;
+
+const mockConfig = {
+  port: 3000,
+  databaseUrl: "",
+  corsOrigin: undefined,
+  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
+  smtp: { configured: false },
+  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
+} as any;
 
 // ── Create temp database and load the app ──────────────────────────────
 
-let app: AppModule["app"];
-let db: DbModule["db"];
+let app: ReturnType<typeof createApp>;
+let db: ReturnType<typeof createDb>["db"];
 let tempDbName = "";
 
 if (DATABASE_URL) {
   tempDbName = await createTempDb(DATABASE_URL, "auth");
+  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
+  ({ db } = createDb(testUrl));
+  await migrate(db, noopLogger);
 
-  // Point all app modules to the temp database
-  process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
-
-  // Dynamic imports so modules see the updated DATABASE_URL.
-  // app.js triggers loading config.js → db.js → crud-factory.js — all real,
-  // all connected to the temp DB. auth.js is the only mocked module.
-  const [appModule, dbModule, migrateModule] = await Promise.all([
-    import("./app.js"),
-    import("./db.js"),
-    import("@openrift/shared/db/migrate"),
-  ]);
-  app = appModule.app;
-  db = dbModule.db;
-
-  // Run migrations on the temp database
-  await migrateModule.migrate(db, noopLogger);
+  app = createApp({ db, auth: mockAuth, config: mockConfig });
 }
 
 // ---------------------------------------------------------------------------
