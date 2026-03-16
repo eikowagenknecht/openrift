@@ -30,6 +30,20 @@ export async function addCopies(
 ): Promise<AddCopyResult[]> {
   const inboxId = await ensureInbox(db, userId);
 
+  // Verify all explicit collectionIds belong to this user
+  const explicitIds = [...new Set(copies.map((c) => c.collectionId).filter(Boolean))] as string[];
+  if (explicitIds.length > 0) {
+    const owned = await db
+      .selectFrom("collections")
+      .select("id")
+      .where("id", "in", explicitIds)
+      .where("userId", "=", userId)
+      .execute();
+    if (owned.length !== explicitIds.length) {
+      throw new AppError(403, "FORBIDDEN", "One or more collections do not belong to you");
+    }
+  }
+
   const created = await db.transaction().execute(async (trx) => {
     const copyValues = copies.map((item) => ({
       userId: userId,
@@ -109,8 +123,8 @@ export async function moveCopies(
       .where("cp.userId", "=", userId)
       .execute();
 
-    if (copies.length === 0) {
-      return;
+    if (copies.length !== copyIds.length) {
+      throw new AppError(404, "NOT_FOUND", "One or more copies not found");
     }
 
     // Update copies
@@ -168,8 +182,8 @@ export async function disposeCopies(
       .where("cp.userId", "=", userId)
       .execute();
 
-    if (copies.length === 0) {
-      return;
+    if (copies.length !== copyIds.length) {
+      throw new AppError(404, "NOT_FOUND", "One or more copies not found");
     }
 
     // Log disposal activity before deleting (so copy FK is still valid)

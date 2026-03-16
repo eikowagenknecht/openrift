@@ -205,10 +205,10 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
-    it("silently succeeds for non-existent copy IDs", async () => {
+    it("returns 404 for non-existent copy IDs", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(req("POST", "/copies/dispose", { copyIds: [fakeId] }));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(404);
     });
   });
 

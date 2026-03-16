@@ -1,5 +1,6 @@
 import type { CardType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
 import type { CopiesTable, Database, PrintingsTable } from "../db/index.js";
@@ -71,11 +72,22 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /** @returns Multiple copies by IDs scoped to a user, ordered by card name then collector number. */
+    listByIdsForUser(ids: string[], userId: string): Promise<CopyRow[]> {
+      return selectCopyWithCard(db)
+        .select([...COPY_SELECT])
+        .where("cp.id", "in", ids)
+        .where("cp.userId", "=", userId)
+        .orderBy("c.name")
+        .orderBy("p.collectorNumber")
+        .execute();
+    },
+
     /** @returns Owned count per printing for a user. */
     countByPrintingForUser(userId: string): Promise<{ printingId: string; count: number }[]> {
       return db
         .selectFrom("copies")
-        .select(["printingId", db.fn.count<number>("id").as("count")])
+        .select(["printingId", sql<number>`count(id)::int`.as("count")])
         .where("userId", "=", userId)
         .groupBy("printingId")
         .execute();

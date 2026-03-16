@@ -47,6 +47,7 @@ export type {
   TcgplayerSnapshot,
   TimeRange,
 } from "./pricing.js";
+export { TIME_RANGE_DAYS } from "./pricing.js";
 
 export type {
   Activity,

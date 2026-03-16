@@ -4,7 +4,15 @@ export interface PricesData {
 
 export type Marketplace = "tcgplayer" | "cardmarket";
 
-export type TimeRange = "7d" | "30d" | "90d" | "all";
+/** Maps each time range to its lookback window in days (`null` = no limit). */
+export const TIME_RANGE_DAYS = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  all: null,
+} as const;
+
+export type TimeRange = keyof typeof TIME_RANGE_DAYS;
 
 export interface TcgplayerSnapshot {
   date: string;

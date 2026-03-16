@@ -28,8 +28,6 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       marketplace.latestPrices(),
     ]);
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-
     const priceByPrinting = new Map(
       priceRows.map((r) => [r.printingId, centsToDollars(r.marketCents)]),
     );
@@ -37,29 +35,15 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     // CamelCasePlugin returns keys matching the Card interface, so direct assignment works.
     const cards: Record<string, Card> = Object.fromEntries(cardRows.map((r) => [r.id, r]));
 
-    // Build images lookup
-    const imagesByPrinting = Map.groupBy(
-      imageRows.filter((r): r is typeof r & { url: string } => r.url !== null),
-      (r) => r.printingId,
-    );
+    // Build images lookup (null URLs already filtered at the DB level)
+    const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
     // Build flat printings array
-    const printings: CatalogPrinting[] = [];
-    for (const row of printingRows) {
-      const card = cards[row.cardId];
-      if (!card) {
-        continue;
-      }
-      const printing: CatalogPrinting = {
-        ...row,
-        images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
-      };
-      const marketPrice = priceByPrinting.get(row.id);
-      if (marketPrice !== undefined) {
-        printing.marketPrice = marketPrice;
-      }
-      printings.push(printing);
-    }
+    const printings: CatalogPrinting[] = printingRows.map((row) => ({
+      ...row,
+      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+      ...(priceByPrinting.has(row.id) && { marketPrice: priceByPrinting.get(row.id) }),
+    }));
 
     const content: RiftboundCatalog = {
       sets,
@@ -67,5 +51,6 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       printings,
     };
 
+    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     return c.json(content);
   });
