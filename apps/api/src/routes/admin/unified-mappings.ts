@@ -2,11 +2,10 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { db } from "../../db.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import { getMappingOverview } from "../../services/marketplace-mapping.js";
 import type { Variables } from "../../types.js";
-import { cardmarketConfig, tcgplayerConfig } from "./marketplace-configs.js";
+import { createMarketplaceConfigs } from "./marketplace-configs.js";
 
 export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
 
@@ -16,6 +15,9 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
     "/admin/marketplace-mappings",
     zValidator("query", z.object({ all: z.string().optional() })),
     async (c) => {
+      const db = c.get("db");
+      const { tcgplayer: tcgplayerConfig, cardmarket: cardmarketConfig } =
+        createMarketplaceConfigs(db);
       const showAll = c.req.valid("query").all === "true";
 
       const [tcgResult, cmResult] = await Promise.all([

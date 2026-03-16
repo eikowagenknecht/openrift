@@ -2,7 +2,6 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { db } from "../../db.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import {
   getMappingOverview,
@@ -11,7 +10,7 @@ import {
   unmapPrinting,
 } from "../../services/marketplace-mapping.js";
 import type { Variables } from "../../types.js";
-import { cardmarketConfig, tcgplayerConfig } from "./marketplace-configs.js";
+import { createMarketplaceConfigs } from "./marketplace-configs.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -37,6 +36,8 @@ export const tcgplayerMappingsRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/tcgplayer-mappings/all", requireAdmin)
 
   .get("/admin/tcgplayer-mappings", zValidator("query", querySchema), async (c) => {
+    const db = c.get("db");
+    const { tcgplayer: tcgplayerConfig } = createMarketplaceConfigs(db);
     const showAll = c.req.valid("query").all === "true";
     const result = await getMappingOverview(db, tcgplayerConfig);
     if (!showAll) {
@@ -46,18 +47,24 @@ export const tcgplayerMappingsRoute = new Hono<{ Variables: Variables }>()
   })
 
   .post("/admin/tcgplayer-mappings", zValidator("json", saveMappingsSchema), async (c) => {
+    const db = c.get("db");
+    const { tcgplayer: tcgplayerConfig } = createMarketplaceConfigs(db);
     const { mappings } = c.req.valid("json");
     const result = await saveMappings(db, tcgplayerConfig, mappings);
     return c.json(result);
   })
 
   .delete("/admin/tcgplayer-mappings", zValidator("json", unmapSchema), async (c) => {
+    const db = c.get("db");
+    const { tcgplayer: tcgplayerConfig } = createMarketplaceConfigs(db);
     const { printingId } = c.req.valid("json");
     await unmapPrinting(db, tcgplayerConfig, printingId);
     return c.json({ ok: true });
   })
 
   .delete("/admin/tcgplayer-mappings/all", async (c) => {
+    const db = c.get("db");
+    const { tcgplayer: tcgplayerConfig } = createMarketplaceConfigs(db);
     const result = await unmapAll(db, tcgplayerConfig);
     return c.json({ ok: true, unmapped: result.unmapped });
   });
@@ -69,6 +76,8 @@ export const cardmarketMappingsRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/cardmarket-mappings/all", requireAdmin)
 
   .get("/admin/cardmarket-mappings", zValidator("query", querySchema), async (c) => {
+    const db = c.get("db");
+    const { cardmarket: cardmarketConfig } = createMarketplaceConfigs(db);
     const showAll = c.req.valid("query").all === "true";
     const result = await getMappingOverview(db, cardmarketConfig);
     if (!showAll) {
@@ -78,18 +87,24 @@ export const cardmarketMappingsRoute = new Hono<{ Variables: Variables }>()
   })
 
   .post("/admin/cardmarket-mappings", zValidator("json", saveMappingsSchema), async (c) => {
+    const db = c.get("db");
+    const { cardmarket: cardmarketConfig } = createMarketplaceConfigs(db);
     const { mappings } = c.req.valid("json");
     const result = await saveMappings(db, cardmarketConfig, mappings);
     return c.json(result);
   })
 
   .delete("/admin/cardmarket-mappings", zValidator("json", unmapSchema), async (c) => {
+    const db = c.get("db");
+    const { cardmarket: cardmarketConfig } = createMarketplaceConfigs(db);
     const { printingId } = c.req.valid("json");
     await unmapPrinting(db, cardmarketConfig, printingId);
     return c.json({ ok: true });
   })
 
   .delete("/admin/cardmarket-mappings/all", async (c) => {
+    const db = c.get("db");
+    const { cardmarket: cardmarketConfig } = createMarketplaceConfigs(db);
     const result = await unmapAll(db, cardmarketConfig);
     return c.json({ ok: true, unmapped: result.unmapped });
   });

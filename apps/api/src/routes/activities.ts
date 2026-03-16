@@ -4,7 +4,6 @@ import { activitiesQuerySchema, idParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
 import { imageUrl } from "../db-helpers.js";
-import { db } from "../db.js";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
@@ -17,6 +16,7 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /activities ───────────────────────────────────────────────────────────
 
   .get("/activities", zValidator("query", activitiesQuerySchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { cursor, limit: rawLimit } = c.req.valid("query");
     const limit = rawLimit ?? 50;
@@ -57,6 +57,7 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /activities/:id ───────────────────────────────────────────────────────
 
   .get("/activities/:id", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 

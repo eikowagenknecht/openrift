@@ -2,7 +2,6 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { db } from "../../db.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 
@@ -40,6 +39,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   // ── GET /admin/ignored-products ─────────────────────────────────────────────
 
   .get("/admin/ignored-products", async (c) => {
+    const db = c.get("db");
     const rows = await db
       .selectFrom("marketplace_ignored_products as ip")
       .select(["ip.marketplace", "ip.external_id", "ip.finish", "ip.product_name", "ip.created_at"])
@@ -60,6 +60,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /admin/ignored-products ────────────────────────────────────────────
 
   .post("/admin/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
+    const db = c.get("db");
     const { source, products } = c.req.valid("json");
 
     // Look up product names from staging
@@ -102,6 +103,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   // ── DELETE /admin/ignored-products ──────────────────────────────────────────
 
   .delete("/admin/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
+    const db = c.get("db");
     const { source, products } = c.req.valid("json");
 
     for (const p of products) {
@@ -124,6 +126,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
     "/admin/staging-card-overrides",
     zValidator("json", stagingCardOverrideSchema),
     async (c) => {
+      const db = c.get("db");
       const { source, externalId, finish, cardId } = c.req.valid("json");
 
       await db
@@ -144,6 +147,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   )
 
   .delete("/admin/staging-card-overrides", zValidator("json", deleteOverrideSchema), async (c) => {
+    const db = c.get("db");
     const { source, externalId, finish } = c.req.valid("json");
 
     await db

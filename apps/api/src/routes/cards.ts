@@ -17,11 +17,11 @@ import type {
 } from "@openrift/shared";
 import type { Database } from "@openrift/shared/db";
 import { Hono } from "hono";
-import type { Selectable } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 import { z } from "zod/v4";
 
 import { imageUrl, selectPrintingWithCard } from "../db-helpers.js";
-import { db } from "../db.js";
+import type { Variables } from "../types.js";
 
 // ─── Snapshot helpers ────────────────────────────────────────────────────────
 
@@ -35,6 +35,7 @@ function centsToDollars(cents: number | null): number | null {
 }
 
 async function fetchSnapshots<R>(
+  db: Kysely<Database>,
   sourceId: string,
   cutoff: Date | null,
   mapRow: (row: Selectable<Database["marketplace_snapshots"]>) => R,
@@ -58,8 +59,9 @@ const RANGE_DAYS: Record<TimeRange, number | null> = {
   all: null,
 };
 
-export const cardsRoute = new Hono()
+export const cardsRoute = new Hono<{ Variables: Variables }>()
   .get("/cards", async (c) => {
+    const db = c.get("db");
     const sets = await db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
 
     const rows = await selectPrintingWithCard(db)
@@ -170,6 +172,7 @@ export const cardsRoute = new Hono()
     return c.json(content);
   })
   .get("/prices", async (c) => {
+    const db = c.get("db");
     // Use DISTINCT ON to fetch only the most recent snapshot per source,
     // avoiding a full table scan of marketplace_snapshots.
     const rows = await db
@@ -198,6 +201,7 @@ export const cardsRoute = new Hono()
     zValidator("param", z.object({ printingId: z.string().min(1) })),
     zValidator("query", z.object({ range: z.string().optional() })),
     async (c) => {
+      const db = c.get("db");
       const { printingId: param } = c.req.valid("param");
       const rangeParam = c.req.valid("query").range ?? "30d";
       const days =
@@ -230,7 +234,7 @@ export const cardsRoute = new Hono()
       const cmSource = sources.find((s) => s.marketplace === "cardmarket");
 
       const tcgSnapshots = tcgSource
-        ? await fetchSnapshots(tcgSource.id, cutoff, (r) => ({
+        ? await fetchSnapshots(db, tcgSource.id, cutoff, (r) => ({
             date: formatSnapshotDate(r.recorded_at),
             market: r.market_cents / 100,
             low: centsToDollars(r.low_cents),
@@ -240,7 +244,7 @@ export const cardsRoute = new Hono()
         : [];
 
       const cmSnapshots = cmSource
-        ? await fetchSnapshots(cmSource.id, cutoff, (r) => ({
+        ? await fetchSnapshots(db, cmSource.id, cutoff, (r) => ({
             date: formatSnapshotDate(r.recorded_at),
             market: r.market_cents / 100,
             low: centsToDollars(r.low_cents),

@@ -4,7 +4,6 @@ import { slugParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { db } from "../../db.js";
 import { AppError } from "../../errors.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
@@ -41,6 +40,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/cardmarket-groups", requireAdmin)
 
   .get("/admin/cardmarket-groups", async (c) => {
+    const db = c.get("db");
     const expansions = await db
       .selectFrom("marketplace_groups")
       .select(["group_id", "name"])
@@ -88,6 +88,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", slugParamSchema),
     zValidator("json", updateExpansionSchema),
     async (c) => {
+      const db = c.get("db");
       const expansionId = Number(c.req.valid("param").id);
       const { name } = c.req.valid("json");
 
@@ -107,6 +108,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/tcgplayer-groups", requireAdmin)
 
   .get("/admin/tcgplayer-groups", async (c) => {
+    const db = c.get("db");
     const groups = await db
       .selectFrom("marketplace_groups")
       .select(["group_id", "name", "abbreviation"])
@@ -155,6 +157,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/sets", requireAdmin)
 
   .get("/admin/sets", async (c) => {
+    const db = c.get("db");
     const sets = await db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
 
     const cardCounts = await db
@@ -199,6 +202,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", slugParamSchema),
     zValidator("json", updateSetSchema),
     async (c) => {
+      const db = c.get("db");
       const { id } = c.req.valid("param");
       const { name, printedTotal, releasedAt } = c.req.valid("json");
 
@@ -218,6 +222,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   )
 
   .post("/admin/sets", zValidator("json", createSetSchema), async (c) => {
+    const db = c.get("db");
     const { id, name, printedTotal, releasedAt } = c.req.valid("json");
 
     const existing = await db
@@ -254,6 +259,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/sets/reorder", requireAdmin)
 
   .put("/admin/sets/reorder", zValidator("json", reorderSetsSchema), async (c) => {
+    const db = c.get("db");
     const { ids } = c.req.valid("json");
 
     await db.transaction().execute(async (tx) => {

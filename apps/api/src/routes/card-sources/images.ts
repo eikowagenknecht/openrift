@@ -5,8 +5,6 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { db } from "../../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import {
@@ -30,6 +28,7 @@ import {
 // ── POST /printing-sources/:id/set-image ────────────────────────────────────
 export const imagesRoute = new Hono<{ Variables: Variables }>()
   .post("/printing-sources/:id/set-image", zValidator("json", setImageSchema), async (c) => {
+    const db = c.get("db");
     const { id } = c.req.param();
     const { mode } = c.req.valid("json");
 
@@ -72,6 +71,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /printing-images/:imageId ──────────────────────────────────────
   .delete("/printing-images/:imageId", async (c) => {
+    const db = c.get("db");
     const { imageId } = c.req.param();
 
     const image = await db
@@ -98,6 +98,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     "/printing-images/:imageId/activate",
     zValidator("json", activateImageSchema),
     async (c) => {
+      const db = c.get("db");
       const { imageId } = c.req.param();
       const { active } = c.req.valid("json");
 
@@ -187,6 +188,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing-images/:imageId/unrehost ──────────────────────────────
   .post("/printing-images/:imageId/unrehost", async (c) => {
+    const db = c.get("db");
     const { imageId } = c.req.param();
 
     const image = await db
@@ -216,6 +218,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing-images/:imageId/rehost ────────────────────────────────
   .post("/printing-images/:imageId/rehost", async (c) => {
+    const db = c.get("db");
     const { imageId } = c.req.param();
 
     const image = await db
@@ -261,6 +264,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
   .post("/printing/:printingId/add-image-url", zValidator("json", addImageUrlSchema), async (c) => {
+    const db = c.get("db");
     const printingSlug = c.req.param("printingId");
     const body = c.req.valid("json");
 
@@ -292,6 +296,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     "/printing/:printingId/upload-image",
     zValidator("form", uploadImageFormSchema),
     async (c) => {
+      const db = c.get("db");
       const printingSlug = c.req.param("printingId");
 
       const printing = await db

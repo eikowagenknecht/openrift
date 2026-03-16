@@ -2,7 +2,6 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { db } from "../../db.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 
@@ -25,6 +24,7 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/marketplace-groups/*", requireAdmin)
 
   .get("/admin/marketplace-groups", async (c) => {
+    const db = c.get("db");
     const groups = await db
       .selectFrom("marketplace_groups")
       .select(["marketplace", "group_id", "name", "abbreviation"])
@@ -82,6 +82,7 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", marketplaceGroupParamSchema),
     zValidator("json", updateGroupSchema),
     async (c) => {
+      const db = c.get("db");
       const { marketplace, id: groupId } = c.req.valid("param");
       const { name } = c.req.valid("json");
 
