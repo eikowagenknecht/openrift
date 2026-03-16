@@ -1,28 +1,19 @@
-import { mock, describe, expect, it, beforeEach } from "bun:test";
+import { describe, expect, it, beforeEach } from "bun:test";
 
 import { Hono } from "hono";
 
+import { cardsRoute } from "./cards";
+
 // ---------------------------------------------------------------------------
-// Mock DB — must be before importing the route module
+// Mock DB
 // ---------------------------------------------------------------------------
 
 const mockState = {
   tables: {} as Record<string, unknown[]>,
 };
 
-mock.module("../config.js", () => ({
-  config: {
-    port: 3000,
-    databaseUrl: "postgres://mock",
-    corsOrigin: undefined,
-    auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
-    smtp: { configured: false },
-    cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-  },
-}));
-
-mock.module("../db.js", () => ({
-  db: {
+function createMockDb() {
+  return {
     selectFrom: (table: string) => {
       const data = mockState.tables[table] ?? [];
       const chain: Record<string, unknown> = {
@@ -40,15 +31,17 @@ mock.module("../db.js", () => ({
       };
       return chain;
     },
-  },
-  dialect: {},
-}));
+  };
+}
 
-// oxlint-disable-next-line import/first -- mock.module must come before imports
-import { cardsRoute } from "./cards";
+const mockDb = createMockDb();
 
-const app = new Hono();
-app.route("/api", cardsRoute);
+const app = new Hono()
+  .use("*", async (c, next) => {
+    c.set("db", mockDb);
+    await next();
+  })
+  .route("/api", cardsRoute);
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -56,7 +49,6 @@ app.route("/api", cardsRoute);
 
 const dbSet = { id: "OGS", slug: "OGS", name: "Original Set", printed_total: 100 };
 
-// Joined row from printings + cards
 const dbJoinedRow = {
   printing_id: "OGS-001:rare:normal:",
   printing_slug: "OGS-001:rare:normal:",
@@ -76,6 +68,8 @@ const dbJoinedRow = {
   public_code: "ABCD",
   printed_rules_text: "A fiery beast",
   printed_effect_text: "Deal 3 damage",
+  flavor_text: null,
+  comment: null,
   name: "Fire Dragon",
   type: "Unit",
   super_types: ["Elite"],
@@ -114,7 +108,6 @@ describe("GET /api/cards", () => {
   it("returns 200 with RiftboundContent structure", async () => {
     const res = await app.request("/api/cards");
     expect(res.status).toBe(200);
-
     const json = await res.json();
     expect(json.sets).toHaveLength(1);
   });
@@ -144,7 +137,6 @@ describe("GET /api/cards", () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
-
     expect(printing.card.stats).toEqual({ might: 4, energy: 5, power: 6 });
   });
 
@@ -152,7 +144,6 @@ describe("GET /api/cards", () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
-
     expect(printing.images).toEqual([{ face: "front", url: "https://example.com/thumb.jpg" }]);
   });
 
@@ -160,7 +151,6 @@ describe("GET /api/cards", () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
-
     expect(printing.set).toBe("OGS");
   });
 
@@ -168,7 +158,6 @@ describe("GET /api/cards", () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
-
     expect(printing.card.description).toBe("A fiery beast");
     expect(printing.card.effect).toBe("Deal 3 damage");
   });
@@ -192,7 +181,6 @@ describe("GET /api/cards", () => {
 
     const res = await app.request("/api/cards");
     const json = await res.json();
-
     expect(json.sets).toHaveLength(2);
     expect(json.sets[0].printings).toHaveLength(1);
     expect(json.sets[1].printings).toHaveLength(1);
@@ -205,7 +193,6 @@ describe("GET /api/cards", () => {
 
     const res = await app.request("/api/cards");
     const json = await res.json();
-
     expect(json.sets[0].printings).toEqual([]);
   });
 
@@ -213,7 +200,6 @@ describe("GET /api/cards", () => {
     const res = await app.request("/api/cards");
     const json = await res.json();
     const set = json.sets[0];
-
     expect(set.id).toBe("OGS");
     expect(set.name).toBe("Original Set");
     expect(set.printedTotal).toBe(100);
@@ -232,7 +218,6 @@ describe("GET /api/prices", () => {
   it("returns 200 with PricesData structure", async () => {
     const res = await app.request("/api/prices");
     expect(res.status).toBe(200);
-
     const json = await res.json();
     expect(json.prices).toBeDefined();
   });
@@ -240,24 +225,20 @@ describe("GET /api/prices", () => {
   it("converts market_cents to dollars", async () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
-
     expect(json.prices["OGS-001:rare:normal:"]).toBe(2.75);
   });
 
   it("returns one entry per printing", async () => {
     const res = await app.request("/api/prices");
     const json = await res.json();
-
     expect(json.prices["OGS-001:rare:normal:"]).toBe(2.75);
     expect(json.prices["OGS-001:rare:foil:"]).toBe(8);
   });
 
   it("returns empty prices when no rows exist", async () => {
     mockState.tables = { "marketplace_sources as ps": [] };
-
     const res = await app.request("/api/prices");
     const json = await res.json();
-
     expect(json.prices).toEqual({});
   });
 });
@@ -266,10 +247,7 @@ describe("GET /api/prices", () => {
 // GET /api/prices/:printingId/history
 // ---------------------------------------------------------------------------
 
-const dbPrinting = {
-  id: "OGS-001:rare:normal",
-  slug: "OGS-001:rare:normal",
-};
+const dbPrinting = { id: "OGS-001:rare:normal", slug: "OGS-001:rare:normal" };
 
 const dbMarketplaceSource = {
   id: "ms-tcg-1",
@@ -277,7 +255,6 @@ const dbMarketplaceSource = {
   marketplace: "tcgplayer",
   printing_id: "OGS-001:rare:normal",
 };
-
 const dbMarketplaceSourceCM = {
   id: "ms-cm-1",
   external_id: 67_890,
@@ -311,7 +288,6 @@ describe("GET /api/prices/:printingId/history", () => {
   it("returns 200 with PriceHistoryResponse structure", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     expect(res.status).toBe(200);
-
     const json = await res.json();
     expect(json.printingId).toBe("OGS-001:rare:normal");
     expect(json.tcgplayer).toBeDefined();
@@ -321,7 +297,6 @@ describe("GET /api/prices/:printingId/history", () => {
   it("returns tcgplayer data with correct currency", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
-
     expect(json.tcgplayer.available).toBe(true);
     expect(json.tcgplayer.currency).toBe("USD");
     expect(json.tcgplayer.productId).toBe(12_345);
@@ -330,7 +305,6 @@ describe("GET /api/prices/:printingId/history", () => {
   it("returns cardmarket data with correct currency", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
-
     expect(json.cardmarket.available).toBe(true);
     expect(json.cardmarket.currency).toBe("EUR");
     expect(json.cardmarket.productId).toBe(67_890);
@@ -339,8 +313,6 @@ describe("GET /api/prices/:printingId/history", () => {
   it("converts snapshot cents to dollars", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
-
-    // The mock returns all snapshots for both tcg and cm (mock doesn't filter)
     expect(json.tcgplayer.snapshots).toHaveLength(1);
     expect(json.tcgplayer.snapshots[0].market).toBe(2.75);
     expect(json.tcgplayer.snapshots[0].low).toBe(2);
@@ -351,8 +323,6 @@ describe("GET /api/prices/:printingId/history", () => {
   it("handles null cents values", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
-
-    // Snapshot has null trend/avg fields — cardmarket mapper uses these
     expect(json.cardmarket.snapshots[0].trend).toBeNull();
     expect(json.cardmarket.snapshots[0].avg1).toBeNull();
   });
@@ -360,16 +330,13 @@ describe("GET /api/prices/:printingId/history", () => {
   it("formats snapshot date as YYYY-MM-DD", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
-
     expect(json.tcgplayer.snapshots[0].date).toBe("2026-03-01");
   });
 
   it("returns unavailable sources for non-existent printing", async () => {
     mockState.tables = { printings: [] };
-
     const res = await app.request("/api/prices/nonexistent/history");
     expect(res.status).toBe(200);
-
     const json = await res.json();
     expect(json.printingId).toBe("nonexistent");
     expect(json.tcgplayer.available).toBe(false);
@@ -384,10 +351,8 @@ describe("GET /api/prices/:printingId/history", () => {
       marketplace_sources: [],
       marketplace_snapshots: [],
     };
-
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
-
     expect(json.tcgplayer.available).toBe(false);
     expect(json.tcgplayer.productId).toBeNull();
     expect(json.cardmarket.available).toBe(false);

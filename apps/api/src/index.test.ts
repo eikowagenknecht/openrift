@@ -1,7 +1,9 @@
-import { mock, describe, expect, it, beforeEach } from "bun:test";
+import { describe, expect, it, beforeEach } from "bun:test";
+
+import { createApp } from "./app.js";
 
 // ---------------------------------------------------------------------------
-// Shared mutable state for mocks
+// Mock deps
 // ---------------------------------------------------------------------------
 
 const mockState = {
@@ -10,43 +12,8 @@ const mockState = {
   sqlFails: false,
 };
 
-// ---------------------------------------------------------------------------
-// Module mocks — hoisted before imports by bun:test
-// ---------------------------------------------------------------------------
-
-mock.module("./config.js", () => ({
-  config: {
-    port: 3000,
-    databaseUrl: "postgres://mock",
-    corsOrigin: undefined,
-    auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
-    smtp: { configured: false },
-    cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-  },
-}));
-
-mock.module("kysely", () => {
-  const makeSql = (_strings: TemplateStringsArray, ..._values: unknown[]) => {
-    const obj: Record<string, unknown> = {
-      as: () => obj,
-      execute: () => {
-        if (mockState.sqlFails) {
-          throw new Error("connection refused");
-        }
-      },
-    };
-    return obj;
-  };
-  makeSql.ref = (ref: string) => ref;
+function createMockDb() {
   return {
-    sql: makeSql,
-    // oxlint-disable-next-line typescript/no-extraneous-class -- mock placeholder for Kysely class
-    Kysely: class {},
-  };
-});
-
-mock.module("./db.js", () => ({
-  db: {
     selectNoFrom: () => {
       const chain: Record<string, unknown> = {
         as: () => chain,
@@ -74,20 +41,31 @@ mock.module("./db.js", () => ({
       };
       return chain;
     },
-  },
-  dialect: {},
-}));
+  };
+}
 
-mock.module("./auth.js", () => ({
-  auth: {
-    handler: () => new Response("ok"),
-    api: { getSession: () => null },
-    $Infer: { Session: { user: null, session: null } },
-  },
-}));
+const mockAuth = {
+  handler: () => new Response("ok"),
+  api: { getSession: () => null },
+  $Infer: { Session: { user: null, session: null } },
+};
 
-// oxlint-disable-next-line import/first -- mock.module must come before imports
-import { app } from "./app";
+const mockConfig = {
+  port: 3000,
+  databaseUrl: "postgres://mock",
+  corsOrigin: undefined,
+  auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
+  smtp: { configured: false },
+  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
+};
+
+// oxlint-disable -- test mocks don't match full types
+const app = createApp({
+  db: createMockDb() as any,
+  auth: mockAuth as any,
+  config: mockConfig as any,
+});
+// oxlint-enable
 
 // ---------------------------------------------------------------------------
 // GET /api/health

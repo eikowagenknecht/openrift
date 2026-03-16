@@ -1,5 +1,7 @@
-import { afterAll, describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 
+import { createDb } from "@openrift/shared/db/connect";
+import { migrate } from "@openrift/shared/db/migrate";
 import {
   createTempDb,
   dropTempDb,
@@ -7,8 +9,7 @@ import {
   replaceDbName,
 } from "@openrift/shared/test/integration-setup";
 
-import type * as AppModule from "../app.js";
-import type * as DbModule from "../db.js";
+import { createApp } from "../app.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Decks routes
@@ -24,37 +25,37 @@ const CARD_ID = "c0000000-0000-4000-a000-000000000001";
 const CARD_2_ID = "c0000000-0000-4000-a000-000000000002";
 const PRINTING_1 = "d0000000-0000-4000-a000-000000000001";
 
-mock.module("../auth.js", () => ({
-  auth: {
-    handler: () => new Response("ok"),
-    api: {
-      getSession: async () => ({
-        user: { id: USER_ID, email: "a@test.com", name: "User A" },
-        session: { id: "sess-a" },
-      }),
-    },
-    $Infer: { Session: { user: null, session: null } },
+const mockAuth = {
+  handler: () => new Response("ok"),
+  api: {
+    getSession: async () => ({
+      user: { id: USER_ID, email: "a@test.com", name: "User A" },
+      session: { id: "sess-a" },
+    }),
   },
-}));
+  $Infer: { Session: { user: null, session: null } },
+} as any;
 
-let app: AppModule["app"];
-let db: DbModule["db"];
+const mockConfig = {
+  port: 3000,
+  databaseUrl: "",
+  corsOrigin: undefined,
+  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
+  smtp: { configured: false },
+  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
+} as any;
+
+let app: ReturnType<typeof createApp>;
+let db: ReturnType<typeof createDb>["db"];
 let tempDbName = "";
 
 if (DATABASE_URL) {
   tempDbName = await createTempDb(DATABASE_URL, "decks");
+  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
+  ({ db } = createDb(testUrl));
+  await migrate(db, noopLogger);
 
-  process.env.DATABASE_URL = replaceDbName(DATABASE_URL, tempDbName);
-
-  const [appModule, dbModule, migrateModule] = await Promise.all([
-    import("../app.js"),
-    import("../db.js"),
-    import("@openrift/shared/db/migrate"),
-  ]);
-  app = appModule.app;
-  db = dbModule.db;
-
-  await migrateModule.migrate(db, noopLogger);
+  app = createApp({ db, auth: mockAuth, config: mockConfig });
 
   // Seed test user
   await db
