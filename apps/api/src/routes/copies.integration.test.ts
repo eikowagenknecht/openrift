@@ -1,165 +1,24 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../app.js";
-import { createDb } from "../db/connect.js";
-import { migrate } from "../db/migrate.js";
-import { createTempDb, dropTempDb, noopLogger, replaceDbName } from "../test/integration-setup.js";
+import { CARD_FURY_UNIT, PRINTING_1, PRINTING_2 } from "../test/fixtures/constants.js";
+import { createTestContext, req } from "../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Copies routes
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
+// Uses the shared integration database with pre-seeded OGS card data.
+// Only auth is mocked.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
-
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-const SET_ID = "b0000000-0000-4000-a000-000000000001";
-const CARD_ID = "c0000000-0000-4000-a000-000000000001";
-const PRINTING_1 = "d0000000-0000-4000-a000-000000000001";
-const PRINTING_2 = "d0000000-0000-4000-a000-000000000002";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "copies");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed test user
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-
-  // Seed card data
-  await db
-    .insertInto("sets")
-    .values({
-      id: SET_ID,
-      slug: "TEST-SET",
-      name: "Test Set",
-      printed_total: 10,
-      sort_order: 0,
-      released_at: null,
-    })
-    .execute();
-
-  await db
-    .insertInto("cards")
-    .values({
-      id: CARD_ID,
-      slug: "TEST-CARD",
-      name: "Test Card",
-      type: "Unit",
-      super_types: [],
-      domains: ["Fury"],
-      might: 3,
-      energy: 2,
-      power: 4,
-      might_bonus: null,
-      keywords: [],
-      rules_text: "Test rules",
-      effect_text: "Test effect",
-      tags: [],
-    })
-    .execute();
-
-  await db
-    .insertInto("printings")
-    .values({
-      id: PRINTING_1,
-      slug: "TEST-001:rare:normal",
-      card_id: CARD_ID,
-      set_id: SET_ID,
-      source_id: "TEST-001",
-      collector_number: 1,
-      rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      finish: "normal",
-      artist: "Test Artist",
-      public_code: "ABCD",
-      printed_rules_text: "Test rules",
-      printed_effect_text: "Test effect",
-      flavor_text: null,
-      comment: null,
-    })
-    .execute();
-
-  await db
-    .insertInto("printings")
-    .values({
-      id: PRINTING_2,
-      slug: "TEST-002:common:normal",
-      card_id: CARD_ID,
-      set_id: SET_ID,
-      source_id: "TEST-002",
-      collector_number: 2,
-      rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      finish: "normal",
-      artist: "Test Artist",
-      public_code: "EFGH",
-      printed_rules_text: "Test rules",
-      printed_effect_text: "Test effect",
-      flavor_text: null,
-      comment: null,
-    })
-    .execute();
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function req(method: string, path: string, body?: unknown): Request {
-  const opts: RequestInit = { method, headers: { "Content-Type": "application/json" } };
-  if (body) {
-    opts.body = JSON.stringify(body);
-  }
-  return new Request(`http://localhost/api${path}`, opts);
-}
+const ctx = createTestContext("a0000000-0003-4000-a000-000000000001");
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Copies routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Copies routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app } = ctx!;
 
   let collectionId: string;
   let secondCollectionId: string;
@@ -185,9 +44,9 @@ describe.skipIf(!DATABASE_URL)("Copies routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/copies", {
           copies: [
-            { printingId: PRINTING_1, collectionId },
-            { printingId: PRINTING_1, collectionId },
-            { printingId: PRINTING_2, collectionId },
+            { printingId: PRINTING_1.id, collectionId },
+            { printingId: PRINTING_1.id, collectionId },
+            { printingId: PRINTING_2.id, collectionId },
           ],
         }),
       );
@@ -196,13 +55,15 @@ describe.skipIf(!DATABASE_URL)("Copies routes (integration)", () => {
       const json = (await res.json()) as { id: string; printingId: string; collectionId: string }[];
       expect(json).toHaveLength(3);
       expect(json[0].id).toBeString();
-      expect(json[0].printingId).toBe(PRINTING_1);
+      expect(json[0].printingId).toBe(PRINTING_1.id);
       expect(json[0].collectionId).toBe(collectionId);
       copyIds = json.map((c) => c.id);
     });
 
     it("defaults to inbox when collectionId is omitted", async () => {
-      const res = await app.fetch(req("POST", "/copies", { copies: [{ printingId: PRINTING_2 }] }));
+      const res = await app.fetch(
+        req("POST", "/copies", { copies: [{ printingId: PRINTING_2.id }] }),
+      );
       expect(res.status).toBe(201);
 
       const json = (await res.json()) as { collectionId: string }[];
@@ -245,8 +106,8 @@ describe.skipIf(!DATABASE_URL)("Copies routes (integration)", () => {
       expect(copy.id).toBeString();
       expect(copy.printingId).toBeString();
       expect(copy.collectionId).toBeString();
-      expect(copy.cardName).toBe("Test Card");
-      expect(copy.cardType).toBe("Unit");
+      expect(copy.cardName).toBe(CARD_FURY_UNIT.name);
+      expect(copy.cardType).toBe(CARD_FURY_UNIT.type);
     });
   });
 
@@ -259,8 +120,8 @@ describe.skipIf(!DATABASE_URL)("Copies routes (integration)", () => {
 
       const json = await res.json();
       // 2 of PRINTING_1, 2 of PRINTING_2 (1 explicit + 1 inbox)
-      expect(json[PRINTING_1]).toBe(2);
-      expect(json[PRINTING_2]).toBe(2);
+      expect(json[PRINTING_1.id]).toBe(2);
+      expect(json[PRINTING_2.id]).toBe(2);
     });
   });
 
@@ -274,12 +135,12 @@ describe.skipIf(!DATABASE_URL)("Copies routes (integration)", () => {
       const json = await res.json();
       expect(json.id).toBe(copyIds[0]);
       expect(json.collectionId).toBe(collectionId);
-      expect(json.cardName).toBe("Test Card");
+      expect(json.cardName).toBe(CARD_FURY_UNIT.name);
       // Should include the same fields as GET /copies
-      expect(json.artVariant).toBe("normal");
+      expect(json.artVariant).toBeString();
       expect(json.isSigned).toBe(false);
       expect(json.finish).toBe("normal");
-      expect(json.artist).toBe("Test Artist");
+      expect(json.artist).toBeString();
     });
 
     it("returns 404 for non-existent copy", async () => {

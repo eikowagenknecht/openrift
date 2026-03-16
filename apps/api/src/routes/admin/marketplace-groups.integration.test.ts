@@ -1,102 +1,27 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
+import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin marketplace-groups routes (unified)
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
+// Uses the shared integration database. Requires INTEGRATION_DB_URL.
+// Uses group_id range 10100-10199 to avoid collisions.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const USER_ID = "a0000000-0012-4000-a000-000000000001";
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "marketplace_groups");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed test user
-  await db
-    .insertInto("users")
-    .values({
-      id: USER_ID,
-      email: "a@test.com",
-      name: "User A",
-      email_verified: true,
-      image: null,
-    })
-    .execute();
-
-  // Seed admin
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
-}
+const ctx = createTestContext(USER_ID);
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Admin marketplace-groups routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
-  // ── GET /admin/marketplace-groups (empty) ─────────────────────────────────
-
-  describe("GET /admin/marketplace-groups", () => {
-    it("returns empty groups initially", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-groups"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.groups).toBeArray();
-      expect(json.groups).toHaveLength(0);
-    });
-  });
-
-  // ── Seed marketplace groups ───────────────────────────────────────────────
+  // ── Seed marketplace groups for this test file ──────────────────────────
 
   describe("GET /admin/marketplace-groups (after seeding)", () => {
     it("returns both tcgplayer and cardmarket groups", async () => {
@@ -105,14 +30,14 @@ describe.skipIf(!DATABASE_URL)("Admin marketplace-groups routes (integration)", 
         .values([
           {
             marketplace: "tcgplayer",
-            group_id: 1,
-            name: "Alpha Set",
-            abbreviation: "AS",
+            group_id: 10_100,
+            name: "MKG Alpha Set",
+            abbreviation: "MAS",
           },
           {
             marketplace: "cardmarket",
-            group_id: 2,
-            name: "Beta Set",
+            group_id: 10_101,
+            name: "MKG Beta Set",
             abbreviation: null,
           },
         ])
@@ -123,29 +48,29 @@ describe.skipIf(!DATABASE_URL)("Admin marketplace-groups routes (integration)", 
 
       const json = await res.json();
       expect(json.groups).toBeArray();
-      expect(json.groups).toHaveLength(2);
 
-      // Ordered by marketplace then name: cardmarket before tcgplayer
       const cardmarketGroup = json.groups.find(
-        (g: { marketplace: string }) => g.marketplace === "cardmarket",
+        (g: { marketplace: string; groupId: number }) =>
+          g.marketplace === "cardmarket" && g.groupId === 10_101,
       );
       const tcgplayerGroup = json.groups.find(
-        (g: { marketplace: string }) => g.marketplace === "tcgplayer",
+        (g: { marketplace: string; groupId: number }) =>
+          g.marketplace === "tcgplayer" && g.groupId === 10_100,
       );
 
       expect(cardmarketGroup).toBeDefined();
       expect(cardmarketGroup.marketplace).toBe("cardmarket");
-      expect(cardmarketGroup.groupId).toBe(2);
-      expect(cardmarketGroup.name).toBe("Beta Set");
+      expect(cardmarketGroup.groupId).toBe(10_101);
+      expect(cardmarketGroup.name).toBe("MKG Beta Set");
       expect(cardmarketGroup.abbreviation).toBeNull();
       expect(cardmarketGroup.stagedCount).toBe(0);
       expect(cardmarketGroup.assignedCount).toBe(0);
 
       expect(tcgplayerGroup).toBeDefined();
       expect(tcgplayerGroup.marketplace).toBe("tcgplayer");
-      expect(tcgplayerGroup.groupId).toBe(1);
-      expect(tcgplayerGroup.name).toBe("Alpha Set");
-      expect(tcgplayerGroup.abbreviation).toBe("AS");
+      expect(tcgplayerGroup.groupId).toBe(10_100);
+      expect(tcgplayerGroup.name).toBe("MKG Alpha Set");
+      expect(tcgplayerGroup.abbreviation).toBe("MAS");
       expect(tcgplayerGroup.stagedCount).toBe(0);
       expect(tcgplayerGroup.assignedCount).toBe(0);
     });
@@ -170,8 +95,8 @@ describe.skipIf(!DATABASE_URL)("Admin marketplace-groups routes (integration)", 
   describe("PATCH /admin/marketplace-groups/:marketplace/:id", () => {
     it("updates a group name", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/marketplace-groups/tcgplayer/1", {
-          name: "Alpha Set Revised",
+        req("PATCH", "/admin/marketplace-groups/tcgplayer/10100", {
+          name: "MKG Alpha Set Revised",
         }),
       );
       expect(res.status).toBe(200);
@@ -182,7 +107,7 @@ describe.skipIf(!DATABASE_URL)("Admin marketplace-groups routes (integration)", 
 
     it("clears a group name with null", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/marketplace-groups/cardmarket/2", {
+        req("PATCH", "/admin/marketplace-groups/cardmarket/10101", {
           name: null,
         }),
       );
@@ -197,12 +122,14 @@ describe.skipIf(!DATABASE_URL)("Admin marketplace-groups routes (integration)", 
       const json = await res.json();
 
       const tcgplayerGroup = json.groups.find(
-        (g: { marketplace: string }) => g.marketplace === "tcgplayer",
+        (g: { marketplace: string; groupId: number }) =>
+          g.marketplace === "tcgplayer" && g.groupId === 10_100,
       );
-      expect(tcgplayerGroup.name).toBe("Alpha Set Revised");
+      expect(tcgplayerGroup.name).toBe("MKG Alpha Set Revised");
 
       const cardmarketGroup = json.groups.find(
-        (g: { marketplace: string }) => g.marketplace === "cardmarket",
+        (g: { marketplace: string; groupId: number }) =>
+          g.marketplace === "cardmarket" && g.groupId === 10_101,
       );
       expect(cardmarketGroup.name).toBeNull();
     });

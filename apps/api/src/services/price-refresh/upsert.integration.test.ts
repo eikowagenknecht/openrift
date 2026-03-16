@@ -1,15 +1,21 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 
 import type { Logger } from "@openrift/shared/logger";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/types.js";
-import { setupTestDb } from "../../test/integration-setup.js";
+import { createTestContext } from "../../test/integration-context.js";
 import { loadReferenceData } from "./reference-data.js";
 import type { PriceUpsertConfig, StagingRow } from "./types.js";
 import { upsertPriceData } from "./upsert.js";
 
-const DATABASE_URL = process.env.DATABASE_URL;
+// ---------------------------------------------------------------------------
+// Integration tests: Price refresh upsert service
+//
+// Uses the shared integration database.
+// ---------------------------------------------------------------------------
+
+const USER_ID = "a0000000-0022-4000-a000-000000000001";
+
+const ctx = createTestContext(USER_ID);
 
 // oxlint-disable-next-line no-empty-function -- noop logger for tests
 const noop = () => {};
@@ -21,15 +27,15 @@ const CM_CONFIG: PriceUpsertConfig = {
   marketplace: "cardmarket",
 };
 
-describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
-  let db: Kysely<Database>;
-  let teardown: () => Promise<void>;
+describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { db } = ctx!;
 
   // Seed slugs (human-readable) — UUIDs are auto-generated
-  const setSlug = "INT";
-  const cardSlug = "INT-001";
-  const printingSlug = "INT-001:common:normal";
-  const printingSlug2 = "INT-001:common:foil";
+  const setSlug = "UPS";
+  const cardSlug = "UPS-001";
+  const printingSlug = "UPS-001:common:normal";
+  const printingSlug2 = "UPS-001:common:foil";
 
   // UUIDs populated by beforeAll after INSERT ... RETURNING
   let setId: string;
@@ -38,13 +44,10 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
   let printingId2: string;
 
   beforeAll(async () => {
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by describe.skipIf
-    ({ db, teardown } = await setupTestDb(DATABASE_URL!, "price_upsert"));
-
-    // Seed reference data: set → card → printings
+    // Seed reference data: set -> card -> printings
     const insertedSet = await db
       .insertInto("sets")
-      .values({ slug: setSlug, name: "Integration Set", printed_total: 100, sort_order: 1 })
+      .values({ slug: setSlug, name: "UPS Integration Set", printed_total: 100, sort_order: 940 })
       .returning("id")
       .executeTakeFirstOrThrow();
     setId = insertedSet.id;
@@ -53,7 +56,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
       .insertInto("cards")
       .values({
         slug: cardSlug,
-        name: "Test Card",
+        name: "UPS Test Card",
         type: "Unit",
         super_types: [],
         domains: ["Fury"],
@@ -73,7 +76,8 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
     // Seed group for cardmarket marketplace
     await db
       .insertInto("marketplace_groups")
-      .values({ marketplace: "cardmarket", group_id: 1, name: "Test Expansion" })
+      .values({ marketplace: "cardmarket", group_id: 94_001, name: "UPS Test Expansion" })
+      .onConflict((oc) => oc.columns(["marketplace", "group_id"]).doNothing())
       .execute();
 
     const insertedPrintings = await db
@@ -83,7 +87,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           slug: printingSlug,
           card_id: cardId,
           set_id: setId,
-          source_id: "INT-001",
+          source_id: "UPS-001",
           collector_number: 1,
           rarity: "Common",
           art_variant: "normal",
@@ -91,7 +95,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           is_promo: false,
           finish: "normal",
           artist: "Test Artist",
-          public_code: "INT-001/100",
+          public_code: "UPS-001/100",
           printed_rules_text: "Test rules",
           printed_effect_text: null,
           flavor_text: null,
@@ -100,7 +104,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           slug: printingSlug2,
           card_id: cardId,
           set_id: setId,
-          source_id: "INT-001",
+          source_id: "UPS-001",
           collector_number: 1,
           rarity: "Common",
           art_variant: "normal",
@@ -108,7 +112,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           is_promo: false,
           finish: "foil",
           artist: "Test Artist",
-          public_code: "INT-001/100",
+          public_code: "UPS-001/100",
           printed_rules_text: "Test rules",
           printed_effect_text: null,
           flavor_text: null,
@@ -126,23 +130,19 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
         {
           marketplace: "cardmarket",
           printing_id: printingId,
-          external_id: 1001,
-          group_id: 1,
-          product_name: "Test Product",
+          external_id: 94_101,
+          group_id: 94_001,
+          product_name: "UPS Test Product",
         },
         {
           marketplace: "cardmarket",
           printing_id: printingId2,
-          external_id: 2001,
-          group_id: 1,
-          product_name: "Test Product Foil",
+          external_id: 94_201,
+          group_id: 94_001,
+          product_name: "UPS Test Product Foil",
         },
       ])
       .execute();
-  });
-
-  afterAll(async () => {
-    await teardown();
   });
 
   // ── loadReferenceData ─────────────────────────────────────────────────
@@ -159,13 +159,13 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
     it("builds setNameById map", async () => {
       const ref = await loadReferenceData(db);
 
-      expect(ref.setNameById.get(setId)).toBe("Integration Set");
+      expect(ref.setNameById.get(setId)).toBe("UPS Integration Set");
     });
 
     it("builds cardNameById map", async () => {
       const ref = await loadReferenceData(db);
 
-      expect(ref.cardNameById.get(cardId)).toBe("Test Card");
+      expect(ref.cardNameById.get(cardId)).toBe("UPS Test Card");
     });
 
     it("builds namesBySet with normalized card names", async () => {
@@ -173,8 +173,8 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
       const setMap = ref.namesBySet.get(setId);
       expect(setMap).toBeDefined();
-      // "Test Card" normalizes to "testcard"
-      expect(setMap?.get("testcard")).toBe(cardId);
+      // "UPS Test Card" normalizes to "upstestcard"
+      expect(setMap?.get("upstestcard")).toBe(cardId);
     });
 
     it("builds printingsByCardSetFinish map", async () => {
@@ -206,8 +206,8 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
     ): StagingRow {
       return {
         external_id: extId,
-        group_id: 1,
-        product_name: "Test Product",
+        group_id: 94_001,
+        product_name: "UPS Test Product",
         finish,
         recorded_at: recordedAt,
         market_cents: 0,
@@ -224,7 +224,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
     it("inserts new snapshots and staging rows", async () => {
       const staging: StagingRow[] = [
-        makeStagingRow(1001, "normal", {
+        makeStagingRow(94_101, "normal", {
           market_cents: 100,
           low_cents: 50,
           trend_cents: 80,
@@ -236,7 +236,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
       const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
 
-      // Snapshot built internally from staging + mapped source for ext_id 1001
+      // Snapshot built internally from staging + mapped source for ext_id 94_101
       expect(counts.snapshots.total).toBe(1);
       expect(counts.snapshots.new).toBe(1);
 
@@ -247,7 +247,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
     it("reports unchanged when upserting identical data", async () => {
       // Same data as the first insert — should be unchanged
       const staging: StagingRow[] = [
-        makeStagingRow(1001, "normal", {
+        makeStagingRow(94_101, "normal", {
           market_cents: 100,
           low_cents: 50,
           trend_cents: 80,
@@ -267,7 +267,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
     it("reports updated when prices change", async () => {
       const staging: StagingRow[] = [
-        makeStagingRow(1001, "normal", {
+        makeStagingRow(94_101, "normal", {
           market_cents: 200,
           low_cents: 100,
           trend_cents: 180,
@@ -285,7 +285,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
 
     it("deduplicates staging by (external_id, finish, recorded_at)", async () => {
       const staging: StagingRow[] = [
-        makeStagingRow(9001, "normal", {
+        makeStagingRow(99_001, "normal", {
           market_cents: 50,
           low_cents: 25,
           trend_cents: 40,
@@ -293,7 +293,7 @@ describe.skipIf(!DATABASE_URL)("refresh-prices-shared integration", () => {
           avg7_cents: 42,
           avg30_cents: 44,
         }),
-        makeStagingRow(9001, "normal", {
+        makeStagingRow(99_001, "normal", {
           market_cents: 60,
           low_cents: 30,
           trend_cents: 50,

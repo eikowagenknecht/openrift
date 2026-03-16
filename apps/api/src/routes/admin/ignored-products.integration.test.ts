@@ -1,103 +1,44 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
+import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
+import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Ignored products & staging card overrides
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
+// Uses the shared integration database. Requires INTEGRATION_DB_URL.
+// Uses prefix IGP- for entities it creates, group_id range 10_400-10499.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const USER_ID = "a0000000-0015-4000-a000-000000000001";
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
+const ctx = createTestContext(USER_ID);
 
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
+// Use a seed card for FK references
+const cardId = CARD_FURY_UNIT.id;
 
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
+if (ctx) {
+  const { db } = ctx;
 
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-let cardId: string;
-
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "ignored_products");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed test user + admin
+  // Seed a marketplace group for the staging row
   await db
-    .insertInto("users")
+    .insertInto("marketplace_groups")
     .values({
-      id: USER_ID,
-      email: "a@test.com",
-      name: "User A",
-      email_verified: true,
-      image: null,
+      marketplace: "tcgplayer",
+      group_id: 10_400,
+      name: "IGP Test Group",
+      abbreviation: null,
     })
     .execute();
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
-
-  // Seed a card (needed for staging card overrides FK)
-  const [card] = await db
-    .insertInto("cards")
-    .values({
-      slug: "TEST-001",
-      name: "Test Card",
-      type: "Unit",
-      super_types: [],
-      domains: ["Arcane"],
-      might: null,
-      energy: 2,
-      power: null,
-      might_bonus: null,
-      keywords: [],
-      rules_text: null,
-      effect_text: null,
-      tags: [],
-    })
-    .returning("id")
-    .execute();
-  cardId = card.id;
 
   // Seed staging row (needed for POST /admin/ignored-products to find product names)
   await db
     .insertInto("marketplace_staging")
     .values({
       marketplace: "tcgplayer",
-      external_id: 1001,
-      group_id: 1,
-      product_name: "Stageable Product",
+      external_id: 10_401,
+      group_id: 10_400,
+      product_name: "IGP Stageable Product",
       finish: "normal",
       recorded_at: new Date(),
       market_cents: 100,
@@ -116,27 +57,13 @@ if (DATABASE_URL) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
   // ── GET /admin/ignored-products (empty) ─────────────────────────────────
-
-  describe("GET /admin/ignored-products (empty)", () => {
-    it("returns empty list initially", async () => {
-      const res = await app.fetch(req("GET", "/admin/ignored-products"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.products).toBeArray();
-      expect(json.products).toHaveLength(0);
-    });
-  });
+  // Note: other test files may have their own ignored products, but we only
+  // care about our IGP- scoped external IDs.
 
   // ── POST /admin/ignored-products ────────────────────────────────────────
 
@@ -145,7 +72,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           source: "tcgplayer",
-          products: [{ externalId: 1001, finish: "normal" }],
+          products: [{ externalId: 10_401, finish: "normal" }],
         }),
       );
       expect(res.status).toBe(200);
@@ -159,7 +86,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           source: "tcgplayer",
-          products: [{ externalId: 9999, finish: "normal" }],
+          products: [{ externalId: 99_999, finish: "normal" }],
         }),
       );
       expect(res.status).toBe(200);
@@ -171,7 +98,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       const rows = await db
         .selectFrom("marketplace_ignored_products")
         .select("external_id")
-        .where("external_id", "=", 9999)
+        .where("external_id", "=", 99_999)
         .execute();
       expect(rows).toHaveLength(0);
     });
@@ -180,7 +107,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           source: "invalid",
-          products: [{ externalId: 1001, finish: "normal" }],
+          products: [{ externalId: 10_401, finish: "normal" }],
         }),
       );
       expect(res.status).toBe(400);
@@ -195,12 +122,13 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.products).toHaveLength(1);
-      expect(json.products[0].marketplace).toBe("tcgplayer");
-      expect(json.products[0].externalId).toBe(1001);
-      expect(json.products[0].finish).toBe("normal");
-      expect(json.products[0].productName).toBe("Stageable Product");
-      expect(json.products[0].createdAt).toBeString();
+      const igpProduct = json.products.find((p: { externalId: number }) => p.externalId === 10_401);
+      expect(igpProduct).toBeDefined();
+      expect(igpProduct.marketplace).toBe("tcgplayer");
+      expect(igpProduct.externalId).toBe(10_401);
+      expect(igpProduct.finish).toBe("normal");
+      expect(igpProduct.productName).toBe("IGP Stageable Product");
+      expect(igpProduct.createdAt).toBeString();
     });
   });
 
@@ -211,7 +139,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("DELETE", "/admin/ignored-products", {
           source: "tcgplayer",
-          products: [{ externalId: 1001, finish: "normal" }],
+          products: [{ externalId: 10_401, finish: "normal" }],
         }),
       );
       expect(res.status).toBe(200);
@@ -221,12 +149,13 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       expect(json.unignored).toBe(1);
     });
 
-    it("returns empty list after un-ignoring", async () => {
+    it("returns empty list for our external_id after un-ignoring", async () => {
       const res = await app.fetch(req("GET", "/admin/ignored-products"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.products).toHaveLength(0);
+      const igpProduct = json.products.find((p: { externalId: number }) => p.externalId === 10_401);
+      expect(igpProduct).toBeUndefined();
     });
   });
 
@@ -237,7 +166,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/admin/staging-card-overrides", {
           source: "tcgplayer",
-          externalId: 1001,
+          externalId: 10_401,
           finish: "normal",
           cardId,
         }),
@@ -252,7 +181,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
         .selectFrom("marketplace_staging_card_overrides")
         .select(["marketplace", "external_id", "finish", "card_id"])
         .where("marketplace", "=", "tcgplayer")
-        .where("external_id", "=", 1001)
+        .where("external_id", "=", 10_401)
         .where("finish", "=", "normal")
         .executeTakeFirst();
       expect(row).toBeDefined();
@@ -267,7 +196,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("DELETE", "/admin/staging-card-overrides", {
           source: "tcgplayer",
-          externalId: 1001,
+          externalId: 10_401,
           finish: "normal",
         }),
       );
@@ -281,7 +210,7 @@ describe.skipIf(!DATABASE_URL)("Ignored products routes (integration)", () => {
         .selectFrom("marketplace_staging_card_overrides")
         .select("external_id")
         .where("marketplace", "=", "tcgplayer")
-        .where("external_id", "=", 1001)
+        .where("external_id", "=", 10_401)
         .where("finish", "=", "normal")
         .executeTakeFirst();
       expect(row).toBeUndefined();

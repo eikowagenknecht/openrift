@@ -1,49 +1,17 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
+import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: TCGPlayer & Cardmarket mapping routes
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
+// Uses the shared integration database. Requires INTEGRATION_DB_URL.
+// Uses prefix MKM- for entities it creates, group_id range distinct from others.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const USER_ID = "a0000000-0013-4000-a000-000000000001";
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
+const ctx = createTestContext(USER_ID);
 
 // Seed IDs populated during setup
 let setId: string;
@@ -51,25 +19,13 @@ let cardId: string;
 let printingId: string;
 let _secondPrintingId: string;
 
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "mktmapping");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed user + admin
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
+if (ctx) {
+  const { db } = ctx;
 
   // Seed set
   const [setRow] = await db
     .insertInto("sets")
-    .values({ slug: "TEST", name: "Test Set", printed_total: 2, sort_order: 1 })
+    .values({ slug: "MKM-TEST", name: "MKM Test Set", printed_total: 2, sort_order: 100 })
     .returning("id")
     .execute();
   setId = setRow.id;
@@ -78,8 +34,8 @@ if (DATABASE_URL) {
   const [cardRow] = await db
     .insertInto("cards")
     .values({
-      slug: "TEST-001",
-      name: "Test Card",
+      slug: "MKM-001",
+      name: "MKM Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -100,10 +56,10 @@ if (DATABASE_URL) {
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "TEST-001:common:normal:",
+      slug: "MKM-001:common:normal:",
       card_id: cardId,
       set_id: setId,
-      source_id: "TEST-001",
+      source_id: "MKM-001",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -111,7 +67,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "MKM",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
@@ -125,10 +81,10 @@ if (DATABASE_URL) {
   const [secondPrintingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "TEST-001:common:foil:",
+      slug: "MKM-001:common:foil:",
       card_id: cardId,
       set_id: setId,
-      source_id: "TEST-001",
+      source_id: "MKM-001",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -136,7 +92,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "foil",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "MKM",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
@@ -149,23 +105,23 @@ if (DATABASE_URL) {
   // Marketplace group for TCGPlayer
   await db
     .insertInto("marketplace_groups")
-    .values({ marketplace: "tcgplayer", group_id: 1, name: "Test Group" })
+    .values({ marketplace: "tcgplayer", group_id: 10_200, name: "MKM TCG Group" })
     .execute();
 
   // Marketplace group for Cardmarket
   await db
     .insertInto("marketplace_groups")
-    .values({ marketplace: "cardmarket", group_id: 100, name: "CM Test Group" })
+    .values({ marketplace: "cardmarket", group_id: 10_201, name: "MKM CM Group" })
     .execute();
 
-  // TCGPlayer staging row (matches "Test Card" by name prefix)
+  // TCGPlayer staging row (matches "MKM Test Card" by name prefix)
   await db
     .insertInto("marketplace_staging")
     .values({
       marketplace: "tcgplayer",
       external_id: 12_345,
-      group_id: 1,
-      product_name: "Test Card Normal",
+      group_id: 10_200,
+      product_name: "MKM Test Card Normal",
       finish: "normal",
       recorded_at: new Date("2026-01-15T12:00:00Z"),
       market_cents: 100,
@@ -185,8 +141,8 @@ if (DATABASE_URL) {
     .values({
       marketplace: "cardmarket",
       external_id: 67_890,
-      group_id: 100,
-      product_name: "Test Card Normal",
+      group_id: 10_201,
+      product_name: "MKM Test Card Normal",
       finish: "normal",
       recorded_at: new Date("2026-01-15T12:00:00Z"),
       market_cents: 80,
@@ -205,14 +161,9 @@ if (DATABASE_URL) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Marketplace mapping routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
   // ── TCGPlayer: GET ─────────────────────────────────────────────────────────
 
@@ -229,7 +180,9 @@ describe.skipIf(!DATABASE_URL)("Marketplace mapping routes (integration)", () =>
       expect(json.allCards).toBeArray();
 
       // Our seeded card should appear in groups
-      const testGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Test Card");
+      const testGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "MKM Test Card",
+      );
       expect(testGroup).toBeDefined();
       expect(testGroup.printings.length).toBeGreaterThanOrEqual(1);
       // Staged product matched by name prefix
@@ -322,7 +275,9 @@ describe.skipIf(!DATABASE_URL)("Marketplace mapping routes (integration)", () =>
       const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
       const json = await res.json();
 
-      const testGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Test Card");
+      const testGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "MKM Test Card",
+      );
       expect(testGroup).toBeDefined();
 
       const mappedPrinting = testGroup.printings.find(
@@ -382,11 +337,12 @@ describe.skipIf(!DATABASE_URL)("Marketplace mapping routes (integration)", () =>
       expect(json.ok).toBe(true);
       expect(json.unmapped).toBeGreaterThanOrEqual(1);
 
-      // No more sources with external_id should exist for TCGPlayer
+      // No more sources with external_id should exist for TCGPlayer for our printing
       const sources = await db
         .selectFrom("marketplace_sources")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
+        .where("printing_id", "=", printingId)
         .where("external_id", "is not", null)
         .execute();
       expect(sources).toHaveLength(0);
@@ -404,7 +360,9 @@ describe.skipIf(!DATABASE_URL)("Marketplace mapping routes (integration)", () =>
       expect(json.groups).toBeArray();
       expect(json.groups.length).toBeGreaterThanOrEqual(1);
 
-      const testGroup = json.groups.find((g: { cardName: string }) => g.cardName === "Test Card");
+      const testGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "MKM Test Card",
+      );
       expect(testGroup).toBeDefined();
       expect(testGroup.stagedProducts.length).toBeGreaterThanOrEqual(1);
       expect(testGroup.stagedProducts[0].externalId).toBe(67_890);
@@ -491,8 +449,8 @@ describe.skipIf(!DATABASE_URL)("Marketplace mapping routes (integration)", () =>
         .values({
           marketplace: "cardmarket",
           external_id: 67_890,
-          group_id: 100,
-          product_name: "Test Card Normal",
+          group_id: 10_201,
+          product_name: "MKM Test Card Normal",
           finish: "normal",
           recorded_at: new Date("2026-01-15T12:00:00Z"),
           market_cents: 80,

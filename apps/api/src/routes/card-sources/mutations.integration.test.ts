@@ -1,55 +1,22 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
+import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources mutation routes
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
+// Uses the shared integration database. Requires INTEGRATION_DB_URL.
+// Uses prefix CSM- for entities it creates.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const USER_ID = "a0000000-0018-4000-a000-000000000001";
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
+const ctx = createTestContext(USER_ID);
 
 // Seed IDs — assigned during setup
 let setId = "";
 let cardId = "";
-const cardSlug = "TEST-001";
+const cardSlug = "CSM-001";
 let printingId = "";
 let printing2Id = "";
 let csId = "";
@@ -57,25 +24,13 @@ let csUnmatchedId = "";
 let psId = "";
 let psUnlinkedId = "";
 
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "cs_mutations");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed user + admin
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
+if (ctx) {
+  const { db } = ctx;
 
   // Set
   const [setRow] = await db
     .insertInto("sets")
-    .values({ slug: "TEST", name: "Test Set", printed_total: 2, sort_order: 1 })
+    .values({ slug: "CSM-TEST", name: "CSM Test Set", printed_total: 2, sort_order: 103 })
     .returning("id")
     .execute();
   setId = setRow.id;
@@ -84,8 +39,8 @@ if (DATABASE_URL) {
   const [cardRow] = await db
     .insertInto("cards")
     .values({
-      slug: "TEST-001",
-      name: "Test Card",
+      slug: "CSM-001",
+      name: "CSM Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -106,10 +61,10 @@ if (DATABASE_URL) {
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "TEST-001:common:normal:",
+      slug: "CSM-001:common:normal:",
       card_id: cardId,
       set_id: setId,
-      source_id: "TEST-001",
+      source_id: "CSM-001",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -117,7 +72,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "TST",
+      public_code: "CSM",
       printed_rules_text: "Flash",
       printed_effect_text: null,
       flavor_text: null,
@@ -131,10 +86,10 @@ if (DATABASE_URL) {
   const [printing2Row] = await db
     .insertInto("printings")
     .values({
-      slug: "TEST-001:rare:foil:",
+      slug: "CSM-001:rare:foil:",
       card_id: cardId,
       set_id: setId,
-      source_id: "TEST-001",
+      source_id: "CSM-001",
       collector_number: 1,
       rarity: "Rare",
       art_variant: "normal",
@@ -142,7 +97,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "foil",
       artist: "Artist A",
-      public_code: "TST",
+      public_code: "CSM",
       printed_rules_text: null,
       printed_effect_text: null,
       flavor_text: null,
@@ -156,8 +111,8 @@ if (DATABASE_URL) {
   const [csRow] = await db
     .insertInto("card_sources")
     .values({
-      source: "spreadsheet",
-      name: "Test Card",
+      source: "csm-spreadsheet",
+      name: "CSM Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -168,7 +123,7 @@ if (DATABASE_URL) {
       rules_text: "Flash",
       effect_text: null,
       tags: [],
-      source_id: "TEST-001",
+      source_id: "CSM-001",
       source_entity_id: null,
       extra_data: null,
     })
@@ -180,8 +135,8 @@ if (DATABASE_URL) {
   const [csUnmatchedRow] = await db
     .insertInto("card_sources")
     .values({
-      source: "gallery",
-      name: "New Card",
+      source: "csm-gallery",
+      name: "CSM New Card",
       type: "Spell",
       super_types: [],
       domains: ["Nature"],
@@ -206,9 +161,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: csId,
       printing_id: printingId,
-      source_id: "TEST-001",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "CSM-001",
+      set_id: "CSM-TEST",
+      set_name: "CSM Test Set",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -216,10 +171,10 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "TST",
+      public_code: "CSM",
       printed_rules_text: "Flash",
       printed_effect_text: null,
-      image_url: "https://example.com/test.png",
+      image_url: "https://example.com/csm-test.png",
       flavor_text: null,
       source_entity_id: null,
       extra_data: null,
@@ -234,9 +189,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: csUnmatchedId,
       printing_id: null,
-      source_id: "NEW-001",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "CSM-NEW-001",
+      set_id: "CSM-TEST",
+      set_name: "CSM Test Set",
       collector_number: 99,
       rarity: "Rare",
       art_variant: "normal",
@@ -244,7 +199,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "CSM",
       printed_rules_text: null,
       printed_effect_text: null,
       image_url: null,
@@ -263,14 +218,9 @@ if (DATABASE_URL) {
 
 const P = "/admin/card-sources";
 
-describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
 
   // ── Auto-check ──────────────────────────────────────────────────────────
 
@@ -426,7 +376,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
     it("copies a printing source to another printing", async () => {
       const res = await app.fetch(
         req("POST", `${P}/printing-sources/${psId}/copy`, {
-          printingId: "TEST-001:rare:foil:",
+          printingId: "CSM-001:rare:foil:",
         }),
       );
       expect(res.status).toBe(200);
@@ -447,7 +397,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
         req("POST", `${P}/printing-sources/${fakeId}/copy`, {
-          printingId: "TEST-001:rare:foil:",
+          printingId: "CSM-001:rare:foil:",
         }),
       );
       expect(res.status).toBe(404);
@@ -470,7 +420,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
       const res = await app.fetch(
         req("POST", `${P}/printing-sources/link`, {
           printingSourceIds: [psUnlinkedId],
-          printingId: "TEST-001:rare:foil:",
+          printingId: "CSM-001:rare:foil:",
         }),
       );
       expect(res.status).toBe(200);
@@ -514,7 +464,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
   describe("POST /:cardId/rename", () => {
     it("renames a card slug", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/rename`, { newId: "TEST-001-RENAMED" }),
+        req("POST", `${P}/${cardSlug}/rename`, { newId: "CSM-001-RENAMED" }),
       );
       expect(res.status).toBe(200);
 
@@ -527,13 +477,11 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
         .select("slug")
         .where("id", "=", cardId)
         .executeTakeFirstOrThrow();
-      expect(row.slug).toBe("TEST-001-RENAMED");
+      expect(row.slug).toBe("CSM-001-RENAMED");
     });
 
     it("rename back for subsequent tests", async () => {
-      const res = await app.fetch(
-        req("POST", `${P}/TEST-001-RENAMED/rename`, { newId: "TEST-001" }),
-      );
+      const res = await app.fetch(req("POST", `${P}/CSM-001-RENAMED/rename`, { newId: "CSM-001" }));
       expect(res.status).toBe(200);
     });
 
@@ -558,7 +506,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-field`, {
           field: "name",
-          value: "Test Card Updated",
+          value: "CSM Test Card Updated",
         }),
       );
       expect(res.status).toBe(200);
@@ -572,14 +520,14 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
         .select("name")
         .where("slug", "=", cardSlug)
         .executeTakeFirstOrThrow();
-      expect(row.name).toBe("Test Card Updated");
+      expect(row.name).toBe("CSM Test Card Updated");
     });
 
     it("restore original name for subsequent tests", async () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-field`, {
           field: "name",
-          value: "Test Card",
+          value: "CSM Test Card",
         }),
       );
       expect(res.status).toBe(200);
@@ -601,7 +549,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
   describe("POST /printing/:printingId/accept-field", () => {
     it("updates artist on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/TEST-001:common:normal:/accept-field`, {
+        req("POST", `${P}/printing/CSM-001:common:normal:/accept-field`, {
           field: "artist",
           value: "Artist B",
         }),
@@ -615,14 +563,14 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
       const row = await db
         .selectFrom("printings")
         .select("artist")
-        .where("slug", "=", "TEST-001:common:normal:")
+        .where("slug", "=", "CSM-001:common:normal:")
         .executeTakeFirstOrThrow();
       expect(row.artist).toBe("Artist B");
     });
 
     it("returns 400 for invalid field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/TEST-001:common:normal:/accept-field`, {
+        req("POST", `${P}/printing/CSM-001:common:normal:/accept-field`, {
           field: "nonexistent",
           value: "foo",
         }),
@@ -636,8 +584,8 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
   describe("POST /printing/:printingId/rename", () => {
     it("renames a printing slug", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/TEST-001:common:normal:/rename`, {
-          newId: "TEST-001:common:normal:v2",
+        req("POST", `${P}/printing/CSM-001:common:normal:/rename`, {
+          newId: "CSM-001:common:normal:v2",
         }),
       );
       expect(res.status).toBe(200);
@@ -651,13 +599,13 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
         .select("slug")
         .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
-      expect(row.slug).toBe("TEST-001:common:normal:v2");
+      expect(row.slug).toBe("CSM-001:common:normal:v2");
     });
 
     it("rename back for subsequent tests", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/TEST-001:common:normal:v2/rename`, {
-          newId: "TEST-001:common:normal:",
+        req("POST", `${P}/printing/CSM-001:common:normal:v2/rename`, {
+          newId: "CSM-001:common:normal:",
         }),
       );
       expect(res.status).toBe(200);
@@ -665,7 +613,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
 
     it("returns 400 for empty newId", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/TEST-001:common:normal:/rename`, { newId: "" }),
+        req("POST", `${P}/printing/CSM-001:common:normal:/rename`, { newId: "" }),
       );
       expect(res.status).toBe(400);
     });
@@ -676,10 +624,10 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
   describe("POST /new/:name/accept", () => {
     it("creates a new card from unmatched source data", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/new/newcard/accept`, {
+        req("POST", `${P}/new/csmnewcard/accept`, {
           cardFields: {
-            id: "NEW-001",
-            name: "New Card",
+            id: "CSM-NEW-001",
+            name: "CSM New Card",
             type: "Spell",
             domains: ["Nature"],
             energy: 1,
@@ -695,11 +643,11 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
       const card = await db
         .selectFrom("cards")
         .select(["slug", "name", "type"])
-        .where("slug", "=", "NEW-001")
+        .where("slug", "=", "CSM-NEW-001")
         .executeTakeFirst();
       expect(card).toBeDefined();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(card!.name).toBe("New Card");
+      expect(card!.name).toBe("CSM New Card");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       expect(card!.type).toBe("Spell");
     });
@@ -713,8 +661,8 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
       await db
         .insertInto("card_sources")
         .values({
-          source: "gallery",
-          name: "Another Unmatched",
+          source: "csm-gallery",
+          name: "CSM Another Unmatched",
           type: "Rune",
           super_types: [],
           domains: ["Arcane"],
@@ -732,7 +680,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/new/anotherunmatched/link`, {
+        req("POST", `${P}/new/csmanotherunmatched/link`, {
           cardId: cardSlug,
         }),
       );
@@ -745,7 +693,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
       const alias = await db
         .selectFrom("card_name_aliases")
         .select("card_id")
-        .where("norm_name", "=", "anotherunmatched")
+        .where("norm_name", "=", "csmanotherunmatched")
         .executeTakeFirst();
       expect(alias).toBeDefined();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
@@ -754,7 +702,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
 
     it("returns 404 for non-existent target card", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/new/anotherunmatched/link`, {
+        req("POST", `${P}/new/csmanotherunmatched/link`, {
           cardId: "NONEXISTENT-SLUG",
         }),
       );
@@ -768,11 +716,11 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
     it("uploads card sources and returns counts", async () => {
       const res = await app.fetch(
         req("POST", `${P}/upload`, {
-          source: "test-upload",
+          source: "csm-test-upload",
           candidates: [
             {
               card: {
-                name: "Upload Card",
+                name: "CSM Upload Card",
                 type: "Unit",
                 super_types: [],
                 domains: ["Arcane"],
@@ -783,13 +731,13 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
                 rules_text: null,
                 effect_text: null,
                 tags: [],
-                source_id: "UPLOAD-001",
+                source_id: "CSM-UPLOAD-001",
               },
               printings: [
                 {
-                  source_id: "UPLOAD-001",
-                  set_id: "TEST",
-                  set_name: "Test Set",
+                  source_id: "CSM-UPLOAD-001",
+                  set_id: "CSM-TEST",
+                  set_name: "CSM Test Set",
                   collector_number: 10,
                   rarity: "Common",
                   art_variant: "normal",
@@ -797,7 +745,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
                   is_promo: false,
                   finish: "normal",
                   artist: "Upload Artist",
-                  public_code: "TST",
+                  public_code: "CSM",
                   printed_rules_text: "",
                   printed_effect_text: "",
                 },
@@ -827,7 +775,7 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
     it("returns 400 for empty candidates", async () => {
       const res = await app.fetch(
         req("POST", `${P}/upload`, {
-          source: "test-upload",
+          source: "csm-test-upload",
           candidates: [],
         }),
       );
@@ -868,17 +816,17 @@ describe.skipIf(!DATABASE_URL)("Card-sources mutation routes (integration)", () 
 
   describe("DELETE /by-source/:source", () => {
     it("deletes all card sources for a source name", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-source/spreadsheet`));
+      const res = await app.fetch(req("DELETE", `${P}/by-source/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json.status).toBe("ok");
-      expect(json.source).toBe("spreadsheet");
+      expect(json.source).toBe("csm-spreadsheet");
       expect(json.deleted).toBeGreaterThanOrEqual(1);
     });
 
     it("returns 0 deleted for already-cleaned source", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-source/spreadsheet`));
+      const res = await app.fetch(req("DELETE", `${P}/by-source/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
       const json = await res.json();

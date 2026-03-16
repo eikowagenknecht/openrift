@@ -1,50 +1,17 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../../app.js";
-import { createDb } from "../../db/connect.js";
-import { migrate } from "../../db/migrate.js";
-import { req } from "../../test/integration-helper.js";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "../../test/integration-setup.js";
+import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources query routes (/admin/card-sources/*)
 //
-// Uses a temp database — only auth is mocked. Requires DATABASE_URL.
-// Excluded from `bun run test` by filename convention (.integration.test.ts).
+// Uses the shared integration database. Requires INTEGRATION_DB_URL.
+// Uses prefix CSQ- for entities it creates.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const USER_ID = "a0000000-0017-4000-a000-000000000001";
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
+const ctx = createTestContext(USER_ID);
 
 // Track IDs assigned by the DB for assertions
 let card1Id: string;
@@ -54,27 +21,15 @@ let printing1Id: string;
 let cs1Id: string;
 let cs2Id: string;
 
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "card_sources_queries");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  // Seed user + admin
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-  await db.insertInto("admins").values({ user_id: USER_ID }).execute();
+if (ctx) {
+  const { db } = ctx;
 
   // ── Seed data ──────────────────────────────────────────────────────────────
 
   // Create a set
   const [set] = await db
     .insertInto("sets")
-    .values({ slug: "TEST", name: "Test Set", printed_total: 2, sort_order: 1 })
+    .values({ slug: "CSQ-TEST", name: "CSQ Test Set", printed_total: 2, sort_order: 102 })
     .returning("id")
     .execute();
   setId = set.id;
@@ -83,8 +38,8 @@ if (DATABASE_URL) {
   const [card1] = await db
     .insertInto("cards")
     .values({
-      slug: "TEST-001",
-      name: "Test Card",
+      slug: "CSQ-001",
+      name: "CSQ Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -104,8 +59,8 @@ if (DATABASE_URL) {
   const [card2] = await db
     .insertInto("cards")
     .values({
-      slug: "TEST-002",
-      name: "Another Card",
+      slug: "CSQ-002",
+      name: "CSQ Another Card",
       type: "Spell",
       super_types: [],
       domains: ["Nature"],
@@ -126,10 +81,10 @@ if (DATABASE_URL) {
   const [printing1] = await db
     .insertInto("printings")
     .values({
-      slug: "TEST-001:common:normal:",
+      slug: "CSQ-001:common:normal:",
       card_id: card1Id,
       set_id: setId,
-      source_id: "TEST-001",
+      source_id: "CSQ-001",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -137,7 +92,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "TST",
+      public_code: "CSQ",
       printed_rules_text: "Flash",
       printed_effect_text: null,
       flavor_text: null,
@@ -151,8 +106,8 @@ if (DATABASE_URL) {
   const [cs1] = await db
     .insertInto("card_sources")
     .values({
-      source: "spreadsheet",
-      name: "Test Card",
+      source: "csq-spreadsheet",
+      name: "CSQ Test Card",
       type: "Unit",
       super_types: [],
       domains: ["Arcane"],
@@ -163,7 +118,7 @@ if (DATABASE_URL) {
       rules_text: "Flash",
       effect_text: null,
       tags: [],
-      source_id: "TEST-001",
+      source_id: "CSQ-001",
       source_entity_id: null,
       extra_data: null,
     })
@@ -175,8 +130,8 @@ if (DATABASE_URL) {
   const [cs2] = await db
     .insertInto("card_sources")
     .values({
-      source: "gallery",
-      name: "Unknown Card",
+      source: "csq-gallery",
+      name: "CSQ Unknown Card",
       type: "Rune",
       super_types: [],
       domains: ["Shadow"],
@@ -201,9 +156,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: cs1Id,
       printing_id: printing1Id,
-      source_id: "TEST-001",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "CSQ-001",
+      set_id: "CSQ-TEST",
+      set_name: "CSQ Test Set",
       collector_number: 1,
       rarity: "Common",
       art_variant: "normal",
@@ -211,10 +166,10 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "TST",
+      public_code: "CSQ",
       printed_rules_text: "Flash",
       printed_effect_text: null,
-      image_url: "https://example.com/test.png",
+      image_url: "https://example.com/csq-test.png",
       flavor_text: null,
       source_entity_id: null,
       extra_data: null,
@@ -227,9 +182,9 @@ if (DATABASE_URL) {
     .values({
       card_source_id: cs2Id,
       printing_id: null,
-      source_id: "UNK-001",
-      set_id: "TEST",
-      set_name: "Test Set",
+      source_id: "CSQ-UNK-001",
+      set_id: "CSQ-TEST",
+      set_name: "CSQ Test Set",
       collector_number: 99,
       rarity: "Rare",
       art_variant: "normal",
@@ -237,7 +192,7 @@ if (DATABASE_URL) {
       is_promo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "TST",
+      public_code: "CSQ",
       printed_rules_text: null,
       printed_effect_text: null,
       image_url: null,
@@ -252,78 +207,78 @@ if (DATABASE_URL) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!DATABASE_URL)("Card-sources query routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app } = ctx!;
 
   // ── GET /admin/card-sources/all-cards ─────────────────────────────────────
 
   describe("GET /admin/card-sources/all-cards", () => {
-    it("returns all cards ordered by name", async () => {
+    it("returns all cards including CSQ cards", async () => {
       const res = await app.fetch(req("GET", "/admin/card-sources/all-cards"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json).toBeArray();
-      expect(json).toHaveLength(2);
-      // Ordered by name: "Another Card" before "Test Card"
-      expect(json[0].name).toBe("Another Card");
-      expect(json[1].name).toBe("Test Card");
+
+      // Our CSQ cards should be present
+      const csqCards = json.filter((c: { slug: string }) => c.slug.startsWith("CSQ-"));
+      expect(csqCards).toHaveLength(2);
+
+      // Ordered by name: "CSQ Another Card" before "CSQ Test Card"
+      const sorted = csqCards.sort((a: { name: string }, b: { name: string }) =>
+        a.name.localeCompare(b.name),
+      );
+      expect(sorted[0].name).toBe("CSQ Another Card");
+      expect(sorted[1].name).toBe("CSQ Test Card");
     });
 
     it("returns correct shape (id, slug, name, type)", async () => {
       const res = await app.fetch(req("GET", "/admin/card-sources/all-cards"));
       const json = await res.json();
 
-      for (const card of json) {
-        expect(card.id).toBeString();
-        expect(card.slug).toBeString();
-        expect(card.name).toBeString();
-        expect(card.type).toBeString();
-        // Should only have these four fields
-        expect(Object.keys(card).sort()).toEqual(["id", "name", "slug", "type"]);
-      }
+      const csqCard = json.find((c: { slug: string }) => c.slug === "CSQ-001");
+      expect(csqCard).toBeDefined();
+      expect(csqCard.id).toBeString();
+      expect(csqCard.slug).toBeString();
+      expect(csqCard.name).toBeString();
+      expect(csqCard.type).toBeString();
+      // Should only have these four fields
+      expect(Object.keys(csqCard).sort()).toEqual(["id", "name", "slug", "type"]);
     });
   });
 
   // ── GET /admin/card-sources/source-names ──────────────────────────────────
 
   describe("GET /admin/card-sources/source-names", () => {
-    it("returns distinct source names", async () => {
+    it("returns distinct source names including CSQ sources", async () => {
       const res = await app.fetch(req("GET", "/admin/card-sources/source-names"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json).toBeArray();
-      expect(json).toContain("gallery");
-      expect(json).toContain("spreadsheet");
-      expect(json).toHaveLength(2);
+      expect(json).toContain("csq-gallery");
+      expect(json).toContain("csq-spreadsheet");
     });
   });
 
   // ── GET /admin/card-sources/source-stats ──────────────────────────────────
 
   describe("GET /admin/card-sources/source-stats", () => {
-    it("returns per-source counts", async () => {
+    it("returns per-source counts for CSQ sources", async () => {
       const res = await app.fetch(req("GET", "/admin/card-sources/source-stats"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json).toBeArray();
-      expect(json).toHaveLength(2);
 
-      const gallery = json.find((s: { source: string }) => s.source === "gallery");
+      const gallery = json.find((s: { source: string }) => s.source === "csq-gallery");
       expect(gallery).toBeDefined();
       expect(gallery.cardCount).toBe(1);
       expect(gallery.printingCount).toBe(1);
       expect(gallery.lastUpdated).toBeString();
 
-      const spreadsheet = json.find((s: { source: string }) => s.source === "spreadsheet");
+      const spreadsheet = json.find((s: { source: string }) => s.source === "csq-spreadsheet");
       expect(spreadsheet).toBeDefined();
       expect(spreadsheet.cardCount).toBe(1);
       expect(spreadsheet.printingCount).toBe(1);
@@ -333,36 +288,34 @@ describe.skipIf(!DATABASE_URL)("Card-sources query routes (integration)", () => 
   // ── GET /admin/card-sources/ ──────────────────────────────────────────────
 
   describe("GET /admin/card-sources/", () => {
-    it("returns all cards and unmatched groups", async () => {
+    it("returns CSQ cards and unmatched groups", async () => {
       const res = await app.fetch(req("GET", "/admin/card-sources"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json).toBeArray();
-      // card1 (matched via source), card2 (orphan, no sources), unmatched "Unknown Card"
-      expect(json.length).toBeGreaterThanOrEqual(3);
 
-      // Find the matched card (Test Card)
-      const testCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "TEST-001");
+      // Find the matched card (CSQ Test Card)
+      const testCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-001");
       expect(testCard).toBeDefined();
       expect(testCard.cardId).toBe(card1Id);
-      expect(testCard.name).toBe("Test Card");
+      expect(testCard.name).toBe("CSQ Test Card");
       expect(testCard.sourceCount).toBeGreaterThanOrEqual(1);
 
-      // Find the orphan card (Another Card — has no card_sources)
-      const anotherCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "TEST-002");
+      // Find the orphan card (CSQ Another Card — has no card_sources)
+      const anotherCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-002");
       expect(anotherCard).toBeDefined();
       expect(anotherCard.cardId).toBe(card2Id);
       expect(anotherCard.sourceCount).toBe(0);
 
-      // Find the unmatched group (Unknown Card)
+      // Find the unmatched group (CSQ Unknown Card)
       const unmatched = json.find(
         (r: { cardId: string | null; name: string }) =>
-          r.cardId === null && r.name === "Unknown Card",
+          r.cardId === null && r.name === "CSQ Unknown Card",
       );
       expect(unmatched).toBeDefined();
-      expect(unmatched.normalizedName).toBe("unknowncard");
-      expect(unmatched.pendingSourceIds).toContain("UNK-001");
+      expect(unmatched.normalizedName).toBe("csqunknowncard");
+      expect(unmatched.pendingSourceIds).toContain("CSQ-UNK-001");
     });
 
     it("filter=unchecked returns items with unchecked sources plus orphan cards", async () => {
@@ -379,8 +332,8 @@ describe.skipIf(!DATABASE_URL)("Card-sources query routes (integration)", () => 
         const total = Number(item.uncheckedCardCount) + Number(item.uncheckedPrintingCount);
         expect(total).toBeGreaterThan(0);
       }
-      // Test Card with unchecked sources should be present
-      const testCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "TEST-001");
+      // CSQ Test Card with unchecked sources should be present
+      const testCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-001");
       expect(testCard).toBeDefined();
     });
 
@@ -394,45 +347,54 @@ describe.skipIf(!DATABASE_URL)("Card-sources query routes (integration)", () => 
       for (const item of json) {
         expect(item.cardId).toBeNull();
       }
-      // "Unknown Card" should be present
-      const unmatched = json.find((r: { name: string }) => r.name === "Unknown Card");
+      // "CSQ Unknown Card" should be present
+      const unmatched = json.find((r: { name: string }) => r.name === "CSQ Unknown Card");
       expect(unmatched).toBeDefined();
     });
 
-    it("source=spreadsheet filters by source", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources?source=spreadsheet"));
+    it("source=csq-spreadsheet filters by source", async () => {
+      const res = await app.fetch(req("GET", "/admin/card-sources?source=csq-spreadsheet"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json).toBeArray();
-      // Only "Test Card" has a spreadsheet source
+      // Only "CSQ Test Card" has a csq-spreadsheet source
       expect(json).toHaveLength(1);
-      expect(json[0].name).toBe("Test Card");
+      expect(json[0].name).toBe("CSQ Test Card");
     });
   });
 
   // ── GET /admin/card-sources/export ────────────────────────────────────────
 
   describe("GET /admin/card-sources/export", () => {
-    it("returns all cards with printings", async () => {
+    it("returns all cards including CSQ cards with printings", async () => {
       const res = await app.fetch(req("GET", "/admin/card-sources/export"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json).toBeArray();
-      expect(json).toHaveLength(2);
 
-      // Ordered by name: "Another Card" first, "Test Card" second
-      expect(json[0].card.name).toBe("Another Card");
-      expect(json[0].printings).toBeArray();
-      expect(json[0].printings).toHaveLength(0);
+      // Find CSQ cards in the export (export uses source_id which is the card slug)
+      const csqExport = json.filter((e: { card: { source_id: string } }) =>
+        e.card.source_id?.startsWith("CSQ-"),
+      );
+      expect(csqExport).toHaveLength(2);
 
-      expect(json[1].card.name).toBe("Test Card");
-      expect(json[1].printings).toBeArray();
-      expect(json[1].printings).toHaveLength(1);
-      expect(json[1].printings[0].source_id).toBe("TEST-001");
-      expect(json[1].printings[0].set_id).toBe("TEST");
-      expect(json[1].printings[0].rarity).toBe("Common");
+      // Ordered by name: "CSQ Another Card" first, "CSQ Test Card" second
+      const sorted = csqExport.sort(
+        (a: { card: { name: string } }, b: { card: { name: string } }) =>
+          a.card.name.localeCompare(b.card.name),
+      );
+      expect(sorted[0].card.name).toBe("CSQ Another Card");
+      expect(sorted[0].printings).toBeArray();
+      expect(sorted[0].printings).toHaveLength(0);
+
+      expect(sorted[1].card.name).toBe("CSQ Test Card");
+      expect(sorted[1].printings).toBeArray();
+      expect(sorted[1].printings).toHaveLength(1);
+      expect(sorted[1].printings[0].source_id).toBe("CSQ-001");
+      expect(sorted[1].printings[0].set_id).toBe("CSQ-TEST");
+      expect(sorted[1].printings[0].rarity).toBe("Common");
     });
   });
 
@@ -440,14 +402,14 @@ describe.skipIf(!DATABASE_URL)("Card-sources query routes (integration)", () => 
 
   describe("GET /admin/card-sources/:cardId", () => {
     it("returns card detail with sources and printings", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/TEST-001"));
+      const res = await app.fetch(req("GET", "/admin/card-sources/CSQ-001"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       // Card shape
       expect(json.card).toBeDefined();
-      expect(json.card.slug).toBe("TEST-001");
-      expect(json.card.name).toBe("Test Card");
+      expect(json.card.slug).toBe("CSQ-001");
+      expect(json.card.name).toBe("CSQ Test Card");
       expect(json.card.type).toBe("Unit");
       expect(json.card.domains).toEqual(["Arcane"]);
       expect(json.card.energy).toBe(2);
@@ -458,39 +420,39 @@ describe.skipIf(!DATABASE_URL)("Card-sources query routes (integration)", () => 
       expect(json.sources).toBeArray();
       expect(json.sources.length).toBeGreaterThanOrEqual(1);
       const spreadsheetSource = json.sources.find(
-        (s: { source: string }) => s.source === "spreadsheet",
+        (s: { source: string }) => s.source === "csq-spreadsheet",
       );
       expect(spreadsheetSource).toBeDefined();
-      expect(spreadsheetSource.name).toBe("Test Card");
-      expect(spreadsheetSource.sourceId).toBe("TEST-001");
+      expect(spreadsheetSource.name).toBe("CSQ Test Card");
+      expect(spreadsheetSource.sourceId).toBe("CSQ-001");
 
       // Printings
       expect(json.printings).toBeArray();
       expect(json.printings).toHaveLength(1);
-      expect(json.printings[0].sourceId).toBe("TEST-001");
+      expect(json.printings[0].sourceId).toBe("CSQ-001");
       expect(json.printings[0].rarity).toBe("Common");
-      expect(json.printings[0].setId).toBe("TEST");
+      expect(json.printings[0].setId).toBe("CSQ-TEST");
     });
 
     it("response includes printingSources", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/TEST-001"));
+      const res = await app.fetch(req("GET", "/admin/card-sources/CSQ-001"));
       const json = await res.json();
 
       expect(json.printingSources).toBeArray();
       expect(json.printingSources.length).toBeGreaterThanOrEqual(1);
 
       const ps = json.printingSources[0];
-      expect(ps.sourceId).toBe("TEST-001");
-      expect(ps.setId).toBe("TEST");
+      expect(ps.sourceId).toBe("CSQ-001");
+      expect(ps.setId).toBe("CSQ-TEST");
       expect(ps.rarity).toBe("Common");
-      expect(ps.imageUrl).toBe("https://example.com/test.png");
+      expect(ps.imageUrl).toBe("https://example.com/csq-test.png");
       expect(ps.cardSourceId).toBeString();
       expect(ps.createdAt).toBeString();
       expect(ps.updatedAt).toBeString();
     });
 
     it("returns printingImages array", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/TEST-001"));
+      const res = await app.fetch(req("GET", "/admin/card-sources/CSQ-001"));
       const json = await res.json();
 
       expect(json.printingImages).toBeArray();
@@ -506,24 +468,24 @@ describe.skipIf(!DATABASE_URL)("Card-sources query routes (integration)", () => 
 
   describe("GET /admin/card-sources/new/:name", () => {
     it("returns unmatched sources for a normalized name", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/new/unknowncard"));
+      const res = await app.fetch(req("GET", "/admin/card-sources/new/csqunknowncard"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.name).toBe("Unknown Card");
+      expect(json.name).toBe("CSQ Unknown Card");
 
       // Sources
       expect(json.sources).toBeArray();
       expect(json.sources).toHaveLength(1);
-      expect(json.sources[0].source).toBe("gallery");
-      expect(json.sources[0].name).toBe("Unknown Card");
+      expect(json.sources[0].source).toBe("csq-gallery");
+      expect(json.sources[0].name).toBe("CSQ Unknown Card");
       expect(json.sources[0].type).toBe("Rune");
       expect(json.sources[0].domains).toEqual(["Shadow"]);
 
       // Printing sources
       expect(json.printingSources).toBeArray();
       expect(json.printingSources).toHaveLength(1);
-      expect(json.printingSources[0].sourceId).toBe("UNK-001");
+      expect(json.printingSources[0].sourceId).toBe("CSQ-UNK-001");
       expect(json.printingSources[0].rarity).toBe("Rare");
       expect(json.printingSources[0].collectorNumber).toBe(99);
     });

@@ -1,129 +1,20 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import { createApp } from "../app.js";
-import { createDb } from "../db/connect.js";
-import { migrate } from "../db/migrate.js";
-import { createTempDb, dropTempDb, noopLogger, replaceDbName } from "../test/integration-setup.js";
+import { PRINTING_1 } from "../test/fixtures/constants.js";
+import { createTestContext, req } from "../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Trade Lists routes
+//
+// Uses the shared integration database with pre-seeded OGS card data.
+// Only auth is mocked.
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const ctx = createTestContext("a0000000-0006-4000-a000-000000000001");
 
-const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
-const SET_ID = "b0000000-0000-4000-a000-000000000001";
-const CARD_ID = "c0000000-0000-4000-a000-000000000001";
-const PRINTING_1 = "d0000000-0000-4000-a000-000000000001";
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: {
-    getSession: async () => ({
-      user: { id: USER_ID, email: "a@test.com", name: "User A" },
-      session: { id: "sess-a" },
-    }),
-  },
-  $Infer: { Session: { user: null, session: null } },
-} as any;
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "",
-  corsOrigin: undefined,
-  auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-} as any;
-
-let app: ReturnType<typeof createApp>;
-let db: ReturnType<typeof createDb>["db"];
-let tempDbName = "";
-
-if (DATABASE_URL) {
-  tempDbName = await createTempDb(DATABASE_URL, "tradelists");
-  const testUrl = replaceDbName(DATABASE_URL, tempDbName);
-  ({ db } = createDb(testUrl));
-  await migrate(db, noopLogger);
-
-  app = createApp({ db, auth: mockAuth, config: mockConfig });
-
-  await db
-    .insertInto("users")
-    .values({ id: USER_ID, email: "a@test.com", name: "User A", email_verified: true, image: null })
-    .execute();
-
-  await db
-    .insertInto("sets")
-    .values({
-      id: SET_ID,
-      slug: "TEST-SET",
-      name: "Test Set",
-      printed_total: 10,
-      sort_order: 0,
-      released_at: null,
-    })
-    .execute();
-
-  await db
-    .insertInto("cards")
-    .values({
-      id: CARD_ID,
-      slug: "TST-001",
-      name: "Test Card",
-      type: "Unit",
-      super_types: [],
-      domains: ["Fury"],
-      might: 3,
-      energy: 2,
-      power: 4,
-      might_bonus: null,
-      keywords: [],
-      rules_text: "Rules",
-      effect_text: "Effect",
-      tags: [],
-    })
-    .execute();
-
-  await db
-    .insertInto("printings")
-    .values({
-      id: PRINTING_1,
-      slug: "TST-001:rare:normal",
-      card_id: CARD_ID,
-      set_id: SET_ID,
-      source_id: "TST-001",
-      collector_number: 1,
-      rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      finish: "normal",
-      artist: "Artist",
-      public_code: "ABCD",
-      printed_rules_text: "Rules",
-      printed_effect_text: "Effect",
-      flavor_text: null,
-      comment: null,
-    })
-    .execute();
-}
-
-function req(method: string, path: string, body?: unknown): Request {
-  const opts: RequestInit = { method, headers: { "Content-Type": "application/json" } };
-  if (body) {
-    opts.body = JSON.stringify(body);
-  }
-  return new Request(`http://localhost/api${path}`, opts);
-}
-
-describe.skipIf(!DATABASE_URL)("Trade Lists routes (integration)", () => {
-  afterAll(async () => {
-    if (!DATABASE_URL) {
-      return;
-    }
-    await db.destroy();
-    await dropTempDb(DATABASE_URL, tempDbName);
-  });
+describe.skipIf(!ctx)("Trade Lists routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app } = ctx!;
 
   let tradeListId: string;
   let secondTradeListId: string;
@@ -138,7 +29,7 @@ describe.skipIf(!DATABASE_URL)("Trade Lists routes (integration)", () => {
     const col = (await colRes.json()) as { id: string };
 
     const copyRes = await app.fetch(
-      req("POST", "/copies", { copies: [{ printingId: PRINTING_1, collectionId: col.id }] }),
+      req("POST", "/copies", { copies: [{ printingId: PRINTING_1.id, collectionId: col.id }] }),
     );
     const copies = (await copyRes.json()) as { id: string }[];
     copyId = copies[0].id;
