@@ -28,6 +28,28 @@ const SUBTEXTS = [
   "No worries, the rest of the app is fine. Probably.",
 ];
 
+const NOT_FOUND_HEADINGS = [
+  "Nothing here but dust",
+  "This card was never printed",
+  "Lost in the Rift",
+  "Page not found",
+  "You've wandered off the map",
+  "This page doesn't exist",
+  "No card at this address",
+  "The Rift has no record of this",
+];
+
+const NOT_FOUND_SUBTEXTS = [
+  "Whatever was here, it's gone now.",
+  "Double-check the URL or head back to safety.",
+  "This page isn't in any set we know of.",
+  "Maybe it was here once, maybe it never was.",
+  "Even the best collectors come up empty sometimes.",
+  "The URL looks wrong — or the page was removed.",
+];
+
+const NOT_FOUND_EMOJIS = ["?", "404", "[MISSING]", String.raw`¯\_(ツ)_/¯`];
+
 const EMOJIS = [":(", String.raw`¯\_(ツ)_/¯`, "[MISPRINT]", "[DAMAGED]"];
 
 function pick<T>(arr: T[]): T {
@@ -64,6 +86,30 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
     }
     return this.props.children;
   }
+}
+
+// Router-level not-found component — uses a portal to break out of the layout.
+export function RouterNotFoundFallback() {
+  return createPortal(<NotFoundFallback />, document.body);
+}
+
+function NotFoundFallback() {
+  const heading = pick(NOT_FOUND_HEADINGS);
+  const subtext = pick(NOT_FOUND_SUBTEXTS);
+  const emoji = pick(NOT_FOUND_EMOJIS);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
+      <div className="text-muted-foreground select-none text-4xl font-medium">{emoji}</div>
+      <h1 className="text-xl font-semibold">{heading}</h1>
+      <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>
+      <div className="mt-2 flex gap-3">
+        <a href="/" className={buttonVariants()}>
+          Go home
+        </a>
+      </div>
+    </div>
+  );
 }
 
 function ErrorFallback({ error }: { error: Error }) {
