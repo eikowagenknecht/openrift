@@ -1,6 +1,7 @@
 import { centsToDollars } from "@openrift/shared";
 import type { Card, CatalogPrinting, RiftboundCatalog } from "@openrift/shared";
 import { Hono } from "hono";
+import { etag } from "hono/etag";
 
 import { catalogRepo } from "../repositories/catalog.js";
 import { marketplaceRepo } from "../repositories/marketplace.js";
@@ -14,21 +15,10 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
    * array (referencing cards by `cardId`), and a simple sets list. Latest
    * market prices are included directly on each printing.
    */
-  .get("/catalog", async (c) => {
+  .get("/catalog", etag(), async (c) => {
     const db = c.get("db");
     const catalog = catalogRepo(db);
     const marketplace = marketplaceRepo(db);
-
-    const [catalogTs, pricesTs] = await Promise.all([
-      catalog.catalogLastModified(),
-      marketplace.pricesLastModified(),
-    ]);
-    const combinedTs = Math.max(catalogTs.lastModified.getTime(), pricesTs.lastModified.getTime());
-    const etag = `"catalog-${combinedTs}"`;
-
-    if (c.req.header("If-None-Match") === etag) {
-      return c.body(null, 304);
-    }
 
     const [sets, cardRows, printingRows, imageRows, priceRows] = await Promise.all([
       catalog.sets(),
@@ -37,6 +27,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       catalog.printingImages(),
       marketplace.latestPrices(),
     ]);
+
+    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
 
     const priceByPrinting = new Map(
       priceRows.map((r) => [r.printingId, centsToDollars(r.marketCents)]),
@@ -58,12 +50,15 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       if (!card) {
         continue;
       }
-      const marketPrice = priceByPrinting.get(row.id);
-      printings.push({
+      const printing: CatalogPrinting = {
         ...row,
         images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
-        ...(marketPrice !== undefined && { marketPrice }),
-      });
+      };
+      const marketPrice = priceByPrinting.get(row.id);
+      if (marketPrice !== undefined) {
+        printing.marketPrice = marketPrice;
+      }
+      printings.push(printing);
     }
 
     const content: RiftboundCatalog = {
@@ -72,8 +67,5 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       printings,
     };
 
-    c.header("ETag", etag);
-    c.header("Last-Modified", new Date(combinedTs).toUTCString());
-    c.header("Cache-Control", "public, max-age=60");
     return c.json(content);
   });

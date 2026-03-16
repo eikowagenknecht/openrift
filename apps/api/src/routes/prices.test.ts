@@ -8,8 +8,6 @@ import { pricesRoute } from "./prices";
 // Mock DB
 // ---------------------------------------------------------------------------
 
-const PRICES_LAST_MODIFIED = new Date("2026-03-02T00:00:00Z");
-
 const mockState = {
   tables: {} as Record<string, unknown[]>,
 };
@@ -17,10 +15,7 @@ const mockState = {
 function createMockDb() {
   return {
     selectFrom: (table: string) => {
-      const isSubquery = typeof table !== "string";
-      const data = isSubquery
-        ? [{ lastModified: PRICES_LAST_MODIFIED }]
-        : (mockState.tables[table] ?? []);
+      const data = mockState.tables[table] ?? [];
       const chain: Record<string, unknown> = {
         selectAll: () => chain,
         select: () => chain,
@@ -102,7 +97,6 @@ describe("GET /api/prices", () => {
   beforeEach(() => {
     mockState.tables = {
       "marketplaceSources as ps": [dbPrice, dbPriceFoil],
-      marketplaceSnapshots: [{ lastModified: PRICES_LAST_MODIFIED }],
     };
   });
 
@@ -129,22 +123,22 @@ describe("GET /api/prices", () => {
   it("returns empty prices when no rows exist", async () => {
     mockState.tables = {
       "marketplaceSources as ps": [],
-      marketplaceSnapshots: [{ lastModified: PRICES_LAST_MODIFIED }],
     };
     const res = await app.request("/api/prices");
     const json = await res.json();
     expect(json.prices).toEqual({});
   });
 
-  it("returns ETag, Cache-Control, and Last-Modified headers", async () => {
+  it("returns ETag and Cache-Control headers", async () => {
     const res = await app.request("/api/prices");
-    expect(res.headers.get("ETag")).toBe(`"prices-${PRICES_LAST_MODIFIED.getTime()}"`);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
-    expect(res.headers.get("Last-Modified")).toBe(PRICES_LAST_MODIFIED.toUTCString());
+    expect(res.headers.get("ETag")).toBeTruthy();
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
-    const etag = `"prices-${PRICES_LAST_MODIFIED.getTime()}"`;
+    const first = await app.request("/api/prices");
+    const etag = first.headers.get("ETag") ?? "";
+
     const res = await app.request("/api/prices", {
       headers: { "If-None-Match": etag },
     });
@@ -153,7 +147,7 @@ describe("GET /api/prices", () => {
 
   it("returns 200 when If-None-Match does not match", async () => {
     const res = await app.request("/api/prices", {
-      headers: { "If-None-Match": '"prices-0"' },
+      headers: { "If-None-Match": '"stale"' },
     });
     expect(res.status).toBe(200);
   });
@@ -163,15 +157,12 @@ describe("GET /api/prices", () => {
 // GET /api/prices/:printingId/history
 // ---------------------------------------------------------------------------
 
-const SNAPSHOT_LATEST = new Date("2026-03-01T00:00:00Z");
-
 describe("GET /api/prices/:printingId/history", () => {
   beforeEach(() => {
     mockState.tables = {
       printings: [dbPrinting],
       marketplaceSources: [dbMarketplaceSource, dbMarketplaceSourceCM],
       marketplaceSnapshots: [dbSnapshot],
-      "marketplaceSnapshots as snap": [{ latest: SNAPSHOT_LATEST }],
     };
   });
 
@@ -240,7 +231,6 @@ describe("GET /api/prices/:printingId/history", () => {
       printings: [dbPrinting],
       marketplaceSources: [],
       marketplaceSnapshots: [],
-      "marketplaceSnapshots as snap": [{ latest: new Date("1970-01-01T00:00:00Z") }],
     };
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
@@ -250,16 +240,16 @@ describe("GET /api/prices/:printingId/history", () => {
     expect(json.cardmarket.productId).toBeNull();
   });
 
-  it("returns ETag, Cache-Control, and Last-Modified headers", async () => {
+  it("returns ETag and Cache-Control headers", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
-    const etag = `"history-OGS-001:rare:normal-30d-${SNAPSHOT_LATEST.getTime()}"`;
-    expect(res.headers.get("ETag")).toBe(etag);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
-    expect(res.headers.get("Last-Modified")).toBe(SNAPSHOT_LATEST.toUTCString());
+    expect(res.headers.get("ETag")).toBeTruthy();
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
-    const etag = `"history-OGS-001:rare:normal-30d-${SNAPSHOT_LATEST.getTime()}"`;
+    const first = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const etag = first.headers.get("ETag") ?? "";
+
     const res = await app.request("/api/prices/OGS-001:rare:normal/history", {
       headers: { "If-None-Match": etag },
     });

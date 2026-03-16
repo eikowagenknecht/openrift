@@ -8,9 +8,6 @@ import { catalogRoute } from "./catalog";
 // Mock DB
 // ---------------------------------------------------------------------------
 
-const CATALOG_LAST_MODIFIED = new Date("2026-03-01T00:00:00Z");
-const PRICES_LAST_MODIFIED = new Date("2026-03-02T00:00:00Z");
-
 const mockState = {
   tables: {} as Record<string, unknown[]>,
 };
@@ -18,10 +15,7 @@ const mockState = {
 function createMockDb() {
   return {
     selectFrom: (table: string) => {
-      const isSubquery = typeof table !== "string";
-      const data = isSubquery
-        ? [{ lastModified: CATALOG_LAST_MODIFIED }]
-        : (mockState.tables[table] ?? []);
+      const data = mockState.tables[table] ?? [];
       const chain: Record<string, unknown> = {
         selectAll: () => chain,
         select: () => chain,
@@ -111,7 +105,6 @@ function catalogTables(overrides?: Record<string, unknown[]>) {
     printings: [dbPrintingRow],
     printingImages: [dbImage],
     "marketplaceSources as ps": [dbPrice],
-    marketplaceSnapshots: [{ lastModified: PRICES_LAST_MODIFIED }],
     ...overrides,
   };
 }
@@ -246,16 +239,16 @@ describe("GET /api/catalog", () => {
     expect(json.sets).toEqual([]);
   });
 
-  it("returns ETag based on max of catalog and prices timestamps", async () => {
+  it("returns ETag and Cache-Control headers", async () => {
     const res = await app.request("/api/catalog");
-    const expectedTs = Math.max(CATALOG_LAST_MODIFIED.getTime(), PRICES_LAST_MODIFIED.getTime());
-    expect(res.headers.get("ETag")).toBe(`"catalog-${expectedTs}"`);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(res.headers.get("ETag")).toBeTruthy();
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
-    const expectedTs = Math.max(CATALOG_LAST_MODIFIED.getTime(), PRICES_LAST_MODIFIED.getTime());
-    const etag = `"catalog-${expectedTs}"`;
+    const first = await app.request("/api/catalog");
+    const etag = first.headers.get("ETag") ?? "";
+
     const res = await app.request("/api/catalog", {
       headers: { "If-None-Match": etag },
     });
@@ -264,7 +257,7 @@ describe("GET /api/catalog", () => {
 
   it("returns 200 when If-None-Match does not match", async () => {
     const res = await app.request("/api/catalog", {
-      headers: { "If-None-Match": '"catalog-0"' },
+      headers: { "If-None-Match": '"stale"' },
     });
     expect(res.status).toBe(200);
   });

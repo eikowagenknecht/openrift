@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { centsToDollars, formatDateUTC } from "@openrift/shared";
 import type { PriceHistoryResponse, PricesData, TimeRange } from "@openrift/shared";
 import { Hono } from "hono";
+import { etag } from "hono/etag";
 import { z } from "zod/v4";
 
 import { catalogRepo } from "../repositories/catalog.js";
@@ -24,26 +25,18 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
    * marketplace source without scanning the full `marketplace_snapshots` table.
    * Prices are returned as a `{ [printingId]: dollars }` map.
    */
-  .get("/prices", async (c) => {
+  .get("/prices", etag(), async (c) => {
     const marketplace = marketplaceRepo(c.get("db"));
 
-    const { lastModified } = await marketplace.pricesLastModified();
-    const etag = `"prices-${new Date(lastModified).getTime()}"`;
-
-    if (c.req.header("If-None-Match") === etag) {
-      return c.body(null, 304);
-    }
-
     const rows = await marketplace.latestPrices();
+
+    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
 
     const prices: Record<string, number> = {};
     for (const row of rows) {
       prices[row.printingId] = centsToDollars(row.marketCents);
     }
 
-    c.header("ETag", etag);
-    c.header("Cache-Control", "public, max-age=60");
-    c.header("Last-Modified", new Date(lastModified).toUTCString());
     return c.json({ prices } satisfies PricesData);
   })
   /**
@@ -66,38 +59,33 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
         range: z.enum(Object.keys(RANGE_DAYS) as [TimeRange, ...TimeRange[]]).default("30d"),
       }),
     ),
+    etag(),
     async (c) => {
       const db = c.get("db");
       const catalog = catalogRepo(db);
       const marketplace = marketplaceRepo(db);
 
-      const { printingId: param } = c.req.valid("param");
+      const { printingId } = c.req.valid("param");
       const rangeParam = c.req.valid("query").range;
       const days = RANGE_DAYS[rangeParam];
       const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
-      const printing = await catalog.printingById(param);
+      const printing = await catalog.printingById(printingId);
 
       if (!printing) {
         return c.json({
-          printingId: param,
+          printingId,
           tcgplayer: { available: false, currency: "USD", productId: null, snapshots: [] },
           cardmarket: { available: false, currency: "EUR", productId: null, snapshots: [] },
         } satisfies PriceHistoryResponse);
       }
 
-      // Cheap ETag check — one aggregate query instead of fetching all snapshots
-      const { latest } = await marketplace.latestSnapshotTimestamp(printing.id);
-      const latestTs = new Date(latest).getTime();
-      const etag = `"history-${printing.id}-${rangeParam}-${latestTs}"`;
-
-      if (c.req.header("If-None-Match") === etag) {
-        return c.body(null, 304);
-      }
-
       const sources = await marketplace.sourcesForPrinting(printing.id);
+
       const tcgSource = sources.find((s) => s.marketplace === "tcgplayer");
       const cmSource = sources.find((s) => s.marketplace === "cardmarket");
+
+      c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
 
       const [tcgRows, cmRows] = await Promise.all([
         tcgSource ? marketplace.snapshots(tcgSource.id, cutoff) : [],
@@ -138,9 +126,6 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
         },
       };
 
-      c.header("ETag", etag);
-      c.header("Cache-Control", "public, max-age=60");
-      c.header("Last-Modified", new Date(latest).toUTCString());
       return c.json(response);
     },
   );
