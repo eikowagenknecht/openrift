@@ -29,7 +29,7 @@ function stubCatalogPrinting(overrides: Partial<CatalogPrinting> = {}): CatalogP
     id: "00000000-0000-0000-0000-000000000011",
     slug: "RB1-001:common:normal:",
     sourceId: "RB1-001",
-    set: "RB1",
+    setId: "00000000-0000-0000-0000-000000000099",
     collectorNumber: 1,
     rarity: "Common",
     artVariant: "normal",
@@ -39,13 +39,16 @@ function stubCatalogPrinting(overrides: Partial<CatalogPrinting> = {}): CatalogP
     images: [],
     artist: "Artist",
     publicCode: "rb1-001",
+    printedRulesText: null,
+    printedEffectText: null,
+    flavorText: null,
     cardId: "00000000-0000-0000-0000-000000000001",
     ...overrides,
   };
 }
 
 const CATALOG_RESPONSE: RiftboundCatalog = {
-  sets: [{ slug: "RB1", name: "First Set" }],
+  sets: [{ id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" }],
   cards: {
     "00000000-0000-0000-0000-000000000001": { ...stubCard, name: "Card A" },
     "00000000-0000-0000-0000-000000000002": {
@@ -113,7 +116,9 @@ describe("useCards", () => {
 
     expect(result.current.allCards).toHaveLength(2);
     expect(result.current.error).toBeNull();
-    expect(result.current.setInfoList).toEqual([{ name: "First Set", code: "RB1" }]);
+    expect(result.current.setInfoList).toEqual([
+      { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
+    ]);
   });
 
   it("joins card data onto printings and includes market price", async () => {

@@ -62,19 +62,20 @@ export function useCards(): UseCardsResult {
   const isLoading = !isEmpty && catalogQuery.isLoading;
   const error = isEmpty ? new ApiError("No cards available", "db_empty") : catalogQuery.error;
 
-  const allCards: Printing[] = catalogQuery.data
-    ? catalogQuery.data.printings.map((p) => ({
-        ...p,
-        card: catalogQuery.data.cards[p.cardId],
-      }))
+  const catalog = catalogQuery.data;
+
+  const allCards: Printing[] = catalog
+    ? (() => {
+        const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
+        return catalog.printings.map((p) => ({
+          ...p,
+          setSlug: slugById.get(p.setId) ?? "",
+          card: catalog.cards[p.cardId],
+        }));
+      })()
     : [];
 
-  const setInfoList: SetInfo[] = catalogQuery.data
-    ? catalogQuery.data.sets.map((s) => ({
-        name: s.name,
-        code: s.slug,
-      }))
-    : [];
+  const setInfoList: SetInfo[] = catalog ? catalog.sets : [];
 
   return { allCards, setInfoList, isLoading, error: error as Error | null };
 }

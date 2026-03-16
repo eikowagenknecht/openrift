@@ -27,7 +27,8 @@ export interface Printing {
   id: string;
   slug: string;
   sourceId: string;
-  set: string;
+  setId: string;
+  setSlug: string;
   collectorNumber: number;
   rarity: Rarity;
   artVariant: ArtVariant;

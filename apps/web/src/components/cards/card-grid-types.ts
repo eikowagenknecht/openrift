@@ -1,8 +1,9 @@
 import type { Printing } from "@openrift/shared";
 
 export interface SetInfo {
+  id: string;
+  slug: string;
   name: string;
-  code: string;
 }
 
 interface CardGroup {
@@ -32,17 +33,17 @@ export interface SnapPoint {
 export function groupCardsBySet(cards: Printing[], setOrder: SetInfo[]): CardGroup[] {
   const bySet = new Map<string, Printing[]>();
   for (const printing of cards) {
-    let group = bySet.get(printing.set);
+    let group = bySet.get(printing.setId);
     if (!group) {
       group = [];
-      bySet.set(printing.set, group);
+      bySet.set(printing.setId, group);
     }
     group.push(printing);
   }
 
   const groups: CardGroup[] = [];
   for (const setInfo of setOrder) {
-    const setCards = bySet.get(setInfo.code);
+    const setCards = bySet.get(setInfo.id);
     if (setCards) {
       groups.push({ set: setInfo, cards: setCards });
     }

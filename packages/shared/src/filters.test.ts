@@ -17,7 +17,8 @@ function makePrinting(
     id: "00000000-0000-0000-0000-000000000001",
     slug: "SET1-001:common:normal:",
     sourceId: "SET1-001",
-    set: "Set Alpha",
+    setId: "00000000-0000-0000-0000-0000000000a1",
+    setSlug: "Set Alpha",
     collectorNumber: 1,
     rarity: "Common",
     artVariant: "normal",
@@ -160,7 +161,7 @@ describe("filterCards", () => {
     makePrinting({
       id: "SET1-001:rare:normal:",
       sourceId: "SET1-001",
-      set: "Set Alpha",
+      setSlug: "Set Alpha",
       rarity: "Rare",
       artVariant: "normal",
       finish: "normal",
@@ -185,7 +186,7 @@ describe("filterCards", () => {
     makePrinting({
       id: "SET1-002:common:foil:",
       sourceId: "SET1-002",
-      set: "Set Alpha",
+      setSlug: "Set Alpha",
       rarity: "Common",
       artVariant: "normal",
       finish: "foil",
@@ -210,7 +211,7 @@ describe("filterCards", () => {
     makePrinting({
       id: "SET2-001:epic:normal:",
       sourceId: "SET2-001a",
-      set: "Set Beta",
+      setSlug: "Set Beta",
       rarity: "Epic",
       artVariant: "altart",
       finish: "normal",
@@ -637,7 +638,7 @@ describe("getAvailableFilters", () => {
   const printings = [
     makePrinting({
       rarity: "Epic",
-      set: "Set Alpha",
+      setSlug: "Set Alpha",
       artVariant: "altart",
       finish: "normal",
       card: {
@@ -658,7 +659,7 @@ describe("getAvailableFilters", () => {
     }),
     makePrinting({
       rarity: "Common",
-      set: "Set Beta",
+      setSlug: "Set Beta",
       artVariant: "normal",
       finish: "normal",
       card: {
@@ -679,7 +680,7 @@ describe("getAvailableFilters", () => {
     }),
     makePrinting({
       rarity: "Rare",
-      set: "Set Alpha",
+      setSlug: "Set Alpha",
       artVariant: "normal",
       finish: "foil",
       card: {

@@ -75,7 +75,7 @@ export function AddCardPopover({
                   {formatCardId(p)}
                 </span>
                 <span className="min-w-0 flex-1 truncate">
-                  {formatPrintingLabel(p, allPrintings) || p.set}
+                  {formatPrintingLabel(p, allPrintings) || p.setSlug}
                 </span>
                 {hasMixedRarities && (
                   <img
