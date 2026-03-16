@@ -20,8 +20,14 @@ export {
   SUPER_TYPE_ORDER,
 } from "./enums.js";
 
-export type { Card, CatalogPrinting, Printing, PrintingImage, RiftboundCatalog } from "./cards.js";
-export { getOrientation } from "./cards.js";
+export type {
+  Card,
+  CatalogPrinting,
+  Printing,
+  PrintingImage,
+  RiftboundCatalog,
+} from "./catalog.js";
+export { getOrientation } from "./catalog.js";
 
 export type {
   CardFilters,
@@ -37,7 +43,6 @@ export type {
   CardmarketSnapshot,
   Marketplace,
   PriceHistoryResponse,
-  PriceSource,
   PricesData,
   TcgplayerSnapshot,
   TimeRange,
