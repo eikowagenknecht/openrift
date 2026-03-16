@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { centsToDollars, formatDateUTC } from "@openrift/shared";
 import type {
   ArtVariant,
   Card,
@@ -25,15 +26,14 @@ import type { Variables } from "../types.js";
 
 // ─── Snapshot helpers ────────────────────────────────────────────────────────
 
-function formatSnapshotDate(recordedAt: Date | string): string {
-  const d = recordedAt instanceof Date ? recordedAt : new Date(recordedAt);
-  return d.toISOString().split("T")[0];
-}
-
-function centsToDollars(cents: number | null): number | null {
-  return cents === null ? null : cents / 100;
-}
-
+/**
+ * Fetches marketplace snapshots for a single source, ordered chronologically.
+ *
+ * @param sourceId - The `marketplace_sources.id` to filter on.
+ * @param cutoff - Only return snapshots recorded on or after this date. Pass `null` for all history.
+ * @param mapRow - Transform each DB row into the desired response shape (TCGPlayer vs Cardmarket).
+ * @returns The mapped snapshots, ordered chronologically.
+ */
 async function fetchSnapshots<R>(
   db: Kysely<Database>,
   sourceId: string,
@@ -52,6 +52,7 @@ async function fetchSnapshots<R>(
   return rows.map((row) => mapRow(row));
 }
 
+/** Maps each {@link TimeRange} to its lookback window in days (`null` = no limit). */
 const RANGE_DAYS: Record<TimeRange, number | null> = {
   "7d": 7,
   "30d": 30,
@@ -60,6 +61,15 @@ const RANGE_DAYS: Record<TimeRange, number | null> = {
 };
 
 export const cardsRoute = new Hono<{ Variables: Variables }>()
+  /**
+   * `GET /cards` — Returns the full card catalog as {@link RiftboundContent}.
+   *
+   * Joins printings → cards → front-face images → sets, then groups printings
+   * by set slug. Empty sets are included with an empty `printings` array.
+   *
+   * Printed text fields (`printedDescription`, `printedEffect`) are only
+   * included when they differ from the oracle text, keeping the payload smaller.
+   */
   .get("/cards", async (c) => {
     const db = c.get("db");
     const sets = await db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
@@ -171,10 +181,15 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
 
     return c.json(content);
   })
+  /**
+   * `GET /prices` — Returns the latest TCGPlayer market price for every printing.
+   *
+   * Uses `DISTINCT ON` to efficiently pick only the most recent snapshot per
+   * marketplace source without scanning the full `marketplace_snapshots` table.
+   * Prices are returned as a `{ [printingId]: dollars }` map.
+   */
   .get("/prices", async (c) => {
     const db = c.get("db");
-    // Use DISTINCT ON to fetch only the most recent snapshot per source,
-    // avoiding a full table scan of marketplace_snapshots.
     const rows = await db
       .selectFrom("marketplace_sources as ps")
       .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
@@ -196,6 +211,17 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
       prices,
     });
   })
+  /**
+   * `GET /prices/:printingId/history` — Returns price history for a single printing.
+   *
+   * Accepts a printing UUID or slug. Returns snapshots for both TCGPlayer (USD)
+   * and Cardmarket (EUR) when available. The `range` query param controls the
+   * lookback window (`7d`, `30d`, `90d`, `all`); defaults to `30d`.
+   *
+   * Returns `available: false` (not a 404) when the printing or marketplace
+   * source doesn't exist, so the frontend can render an empty state without
+   * special error handling.
+   */
   .get(
     "/prices/:printingId/history",
     zValidator("param", z.object({ printingId: z.string().min(1) })),
@@ -235,7 +261,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
 
       const tcgSnapshots = tcgSource
         ? await fetchSnapshots(db, tcgSource.id, cutoff, (r) => ({
-            date: formatSnapshotDate(r.recorded_at),
+            date: formatDateUTC(r.recorded_at),
             market: r.market_cents / 100,
             low: centsToDollars(r.low_cents),
             mid: centsToDollars(r.mid_cents),
@@ -245,7 +271,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
 
       const cmSnapshots = cmSource
         ? await fetchSnapshots(db, cmSource.id, cutoff, (r) => ({
-            date: formatSnapshotDate(r.recorded_at),
+            date: formatDateUTC(r.recorded_at),
             market: r.market_cents / 100,
             low: centsToDollars(r.low_cents),
             trend: centsToDollars(r.trend_cents),
