@@ -1,4 +1,5 @@
 import type {
+  Activity,
   Collection,
   CopyRow,
   Deck,
@@ -8,6 +9,11 @@ import type {
   WishList,
   WishListItem,
 } from "@openrift/shared";
+import { formatDateUTC } from "@openrift/shared";
+import { activityTypeSchema } from "@openrift/shared/schemas";
+import type { Selectable } from "kysely";
+
+import type { ActivitiesTable } from "../db/index.js";
 
 /**
  * Serialize Date fields to ISO strings. Keys are already camelCase (CamelCasePlugin).
@@ -48,3 +54,16 @@ export const toWishListItem = (row: object): WishListItem =>
 
 export const toCopy = (row: object): CopyRow =>
   serializeDates<CopyRow>(row as Record<string, unknown>, TIMESTAMPS);
+
+export function toActivity(row: Selectable<ActivitiesTable>): Activity {
+  return {
+    id: row.id,
+    type: activityTypeSchema.parse(row.type),
+    name: row.name,
+    date: formatDateUTC(row.date),
+    description: row.description,
+    isAuto: row.isAuto,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}

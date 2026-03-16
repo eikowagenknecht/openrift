@@ -45,10 +45,33 @@ export function marketplaceRepo(db: Kysely<Database>) {
     snapshots(
       sourceId: string,
       cutoff: Date | null,
-    ): Promise<Selectable<MarketplaceSnapshotsTable>[]> {
+    ): Promise<
+      Pick<
+        Selectable<MarketplaceSnapshotsTable>,
+        | "recordedAt"
+        | "marketCents"
+        | "lowCents"
+        | "midCents"
+        | "highCents"
+        | "trendCents"
+        | "avg1Cents"
+        | "avg7Cents"
+        | "avg30Cents"
+      >[]
+    > {
       let query = db
         .selectFrom("marketplaceSnapshots")
-        .selectAll()
+        .select([
+          "recordedAt",
+          "marketCents",
+          "lowCents",
+          "midCents",
+          "highCents",
+          "trendCents",
+          "avg1Cents",
+          "avg7Cents",
+          "avg30Cents",
+        ])
         .where("sourceId", "=", sourceId)
         .orderBy("recordedAt", "asc");
       if (cutoff) {

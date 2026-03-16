@@ -61,10 +61,11 @@ export function activitiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Activity items joined with printing, card, and image details. */
-    itemsWithDetails(activityId: string): Promise<ActivityItemRow[]> {
+    /** @returns Activity items joined with printing, card, and image details. Scoped to the owning user for defense-in-depth. */
+    itemsWithDetails(activityId: string, userId: string): Promise<ActivityItemRow[]> {
       return db
         .selectFrom("activityItems as ai")
+        .innerJoin("activities as a", "a.id", "ai.activityId")
         .innerJoin("printings as p", "p.id", "ai.printingId")
         .innerJoin("cards as card", "card.id", "p.cardId")
         .leftJoin("printingImages as pi", (join) =>
@@ -94,7 +95,9 @@ export function activitiesRepo(db: Kysely<Database>) {
           "card.type as cardType",
         ])
         .where("ai.activityId", "=", activityId)
+        .where("a.userId", "=", userId)
         .orderBy("ai.createdAt")
+        .orderBy("ai.id")
         .execute();
     },
   };

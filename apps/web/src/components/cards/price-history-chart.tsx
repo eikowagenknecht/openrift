@@ -1,6 +1,6 @@
 import type {
   CardmarketSnapshot,
-  PriceSource,
+  Marketplace,
   TcgplayerSnapshot,
   TimeRange,
 } from "@openrift/shared";
@@ -43,7 +43,7 @@ export function PriceHistoryChart({
   const [internalRange, setInternalRange] = useState<TimeRange>("30d");
   const range = controlledRange ?? internalRange;
   const setRange = onRangeChange ?? setInternalRange;
-  const [source, setSource] = useState<PriceSource>("tcgplayer");
+  const [source, setSource] = useState<Marketplace>("tcgplayer");
 
   const { data: allData } = usePriceHistory(printingId, "all");
 

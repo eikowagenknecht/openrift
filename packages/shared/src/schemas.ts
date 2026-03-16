@@ -29,8 +29,10 @@ export const slugParamSchema = z.object({ id: z.string().min(1) });
 
 export const keyParamSchema = z.object({ key: z.string().min(1) });
 
+export const activityTypeSchema = z.enum(["acquisition", "disposal", "trade", "reorganization"]);
+
 export const activitiesQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: z.string().datetime().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 

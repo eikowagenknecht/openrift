@@ -16,13 +16,13 @@ import type { Variables } from "../types.js";
 import { toCopy } from "../utils/dto.js";
 
 export const copiesRoute = new Hono<{ Variables: Variables }>()
-  .use("/copies/*", requireAuth)
-  .use("/copies", requireAuth)
+  .basePath("/copies")
+  .use(requireAuth)
 
   // ── GET /copies ─────────────────────────────────────────────────────────────
   // All copies for the authenticated user (combined view)
 
-  .get("/copies", async (c) => {
+  .get("/", async (c) => {
     const copies = copiesRepo(c.get("db"));
     const rows = await copies.listForUser(getUserId(c));
     return c.json(rows.map((row) => toCopy(row)));
@@ -31,18 +31,18 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // ── POST /copies ────────────────────────────────────────────────────────────
   // Batch add copies (acquisition)
 
-  .post("/copies", zValidator("json", addCopiesSchema), async (c) => {
+  .post("/", zValidator("json", addCopiesSchema), async (c) => {
     const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const result = await addCopies(db, userId, body.copies);
-    return c.json(result, 201);
+    const created = await addCopies(db, userId, body.copies);
+    return c.json(created, 201);
   })
 
   // ── POST /copies/move ───────────────────────────────────────────────────────
   // Move copies between collections (reorganization)
 
-  .post("/copies/move", zValidator("json", moveCopiesSchema), async (c) => {
+  .post("/move", zValidator("json", moveCopiesSchema), async (c) => {
     const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -53,7 +53,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // ── POST /copies/dispose ────────────────────────────────────────────────────
   // Dispose copies (disposal) — hard-deletes with metadata snapshot
 
-  .post("/copies/dispose", zValidator("json", disposeCopiesSchema), async (c) => {
+  .post("/dispose", zValidator("json", disposeCopiesSchema), async (c) => {
     const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -64,20 +64,19 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /copies/count ───────────────────────────────────────────────────────
   // Returns owned count per printing for the authenticated user
 
-  .get("/copies/count", async (c) => {
+  .get("/count", async (c) => {
     const copies = copiesRepo(c.get("db"));
     const rows = await copies.countByPrintingForUser(getUserId(c));
 
-    const counts: Record<string, number> = {};
-    for (const row of rows) {
-      counts[row.printingId] = Number(row.count);
-    }
+    const counts: Record<string, number> = Object.fromEntries(
+      rows.map((row) => [row.printingId, row.count]),
+    );
     return c.json(counts);
   })
 
   // ── GET /copies/:id ─────────────────────────────────────────────────────────
 
-  .get("/copies/:id", zValidator("param", idParamSchema), async (c) => {
+  .get("/:id", zValidator("param", idParamSchema), async (c) => {
     const copies = copiesRepo(c.get("db"));
     const { id } = c.req.valid("param");
     const copy = await copies.getByIdForUser(id, getUserId(c));

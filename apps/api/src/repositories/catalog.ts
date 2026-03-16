@@ -1,4 +1,5 @@
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import { imageUrl } from "../db-helpers.js";
 import type {
@@ -18,13 +19,17 @@ type CatalogPrintingRow = Omit<Selectable<PrintingsTable>, "comment" | "createdA
 /** Set columns returned by the catalog (id, slug, name only). */
 type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name">;
 
-/** Active printing image with resolved URL. */
+/** Active printing image with resolved URL (null URLs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
-  url: string | null;
+  url: string;
 };
 
 /**
  * Read-only queries for the card catalog (sets + printings + cards).
+ *
+ * The `.select()` columns in each method define the public API contract —
+ * the catalog route spreads these rows directly into the response. Only
+ * select columns that are safe to expose to clients.
  *
  * @returns An object with catalog query methods bound to the given `db`.
  */
@@ -93,9 +98,10 @@ export function catalogRepo(db: Kysely<Database>) {
         .selectFrom("printingImages")
         .select(["printingId", "face", imageUrl("printingImages").as("url")])
         .where("isActive", "=", true)
+        .where(sql`${imageUrl("printingImages")}`, "is not", null)
         .orderBy("printingId")
         .orderBy("face")
-        .execute();
+        .execute() as Promise<CatalogPrintingImageRow[]>;
     },
 
     /** @returns The printing's `id`, or `undefined` if not found. */

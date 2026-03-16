@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
-import { centsToDollars, formatDateUTC } from "@openrift/shared";
-import type { PriceHistoryResponse, PricesData, TimeRange } from "@openrift/shared";
+import { TIME_RANGE_DAYS, centsToDollars, formatDateUTC } from "@openrift/shared";
+import type { Marketplace, PriceHistoryResponse, PricesData, TimeRange } from "@openrift/shared";
 import { Hono } from "hono";
 import { etag } from "hono/etag";
 import { z } from "zod/v4";
@@ -8,14 +8,6 @@ import { z } from "zod/v4";
 import { catalogRepo } from "../repositories/catalog.js";
 import { marketplaceRepo } from "../repositories/marketplace.js";
 import type { Variables } from "../types.js";
-
-/** Maps each {@link TimeRange} to its lookback window in days (`null` = no limit). */
-const RANGE_DAYS: Record<TimeRange, number | null> = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90,
-  all: null,
-};
 
 export const pricesRoute = new Hono<{ Variables: Variables }>()
   /**
@@ -30,13 +22,12 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
 
     const rows = await marketplace.latestPrices();
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-
     const prices: Record<string, number> = {};
     for (const row of rows) {
       prices[row.printingId] = centsToDollars(row.marketCents);
     }
 
+    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     return c.json({ prices } satisfies PricesData);
   })
   /**
@@ -56,7 +47,7 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
     zValidator(
       "query",
       z.object({
-        range: z.enum(Object.keys(RANGE_DAYS) as [TimeRange, ...TimeRange[]]).default("30d"),
+        range: z.enum(Object.keys(TIME_RANGE_DAYS) as [TimeRange, ...TimeRange[]]).default("30d"),
       }),
     ),
     etag(),
@@ -67,10 +58,13 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
 
       const { printingId } = c.req.valid("param");
       const rangeParam = c.req.valid("query").range;
-      const days = RANGE_DAYS[rangeParam];
+      const days = TIME_RANGE_DAYS[rangeParam];
       const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
-      const printing = await catalog.printingById(printingId);
+      const [printing, sources] = await Promise.all([
+        catalog.printingById(printingId),
+        marketplace.sourcesForPrinting(printingId),
+      ]);
 
       if (!printing) {
         return c.json({
@@ -80,12 +74,8 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
         } satisfies PriceHistoryResponse);
       }
 
-      const sources = await marketplace.sourcesForPrinting(printing.id);
-
-      const tcgSource = sources.find((s) => s.marketplace === "tcgplayer");
-      const cmSource = sources.find((s) => s.marketplace === "cardmarket");
-
-      c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+      const tcgSource = sources.find((s) => s.marketplace === ("tcgplayer" satisfies Marketplace));
+      const cmSource = sources.find((s) => s.marketplace === ("cardmarket" satisfies Marketplace));
 
       const [tcgRows, cmRows] = await Promise.all([
         tcgSource ? marketplace.snapshots(tcgSource.id, cutoff) : [],
@@ -126,6 +116,7 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
         },
       };
 
+      c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
       return c.json(response);
     },
   );
