@@ -39,34 +39,32 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings with set slug, ordered by set, collector number, finish. */
+    /** @returns All printings ordered by set, collector number, finish. */
     printings() {
       return db
-        .selectFrom("printings as p")
-        .innerJoin("sets as s", "s.id", "p.set_id")
+        .selectFrom("printings")
         .select([
-          "p.id",
-          "p.slug",
-          "p.card_id",
-          "p.set_id",
-          "p.source_id",
-          "p.collector_number",
-          "p.rarity",
-          "p.art_variant",
-          "p.is_signed",
-          "p.is_promo",
-          "p.finish",
-          "p.artist",
-          "p.public_code",
-          "p.printed_rules_text",
-          "p.printed_effect_text",
-          "p.flavor_text",
-          "p.comment",
-          "s.slug as set_slug",
+          "id",
+          "slug",
+          "card_id",
+          "set_id",
+          "source_id",
+          "collector_number",
+          "rarity",
+          "art_variant",
+          "is_signed",
+          "is_promo",
+          "finish",
+          "artist",
+          "public_code",
+          "printed_rules_text",
+          "printed_effect_text",
+          "flavor_text",
+          "comment",
         ])
-        .orderBy("p.set_id")
-        .orderBy("p.collector_number")
-        .orderBy("p.finish", "desc")
+        .orderBy("set_id")
+        .orderBy("collector_number")
+        .orderBy("finish", "desc")
         .execute();
     },
 
