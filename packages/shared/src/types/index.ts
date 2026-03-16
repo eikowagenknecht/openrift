@@ -11,7 +11,7 @@ export {
 export type {
   Card,
   CardStats,
-  ContentSet,
+  CatalogPrinting,
   Printing,
   PrintingImage,
   RiftboundCatalog,

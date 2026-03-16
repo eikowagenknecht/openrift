@@ -52,14 +52,31 @@ export function getOrientation(type: CardType): "portrait" | "landscape" {
   return type === "Battlefield" ? "landscape" : "portrait";
 }
 
-export interface ContentSet {
+/** Wire type returned by `GET /catalog` — references card by ID instead of embedding. */
+export interface CatalogPrinting {
   id: string;
   slug: string;
-  name: string;
-  printedTotal: number | null;
-  printings: Printing[];
+  sourceId: string;
+  set: string;
+  collectorNumber: number;
+  rarity: Rarity;
+  artVariant: ArtVariant;
+  isSigned: boolean;
+  isPromo: boolean;
+  finish: Finish;
+  images: PrintingImage[];
+  artist: string;
+  publicCode: string;
+  printedDescription?: string;
+  printedEffect?: string;
+  flavorText?: string;
+  comment?: string;
+  marketPrice?: number;
+  cardId: string;
 }
 
 export interface RiftboundCatalog {
-  sets: ContentSet[];
+  sets: { slug: string; name: string }[];
+  cards: Record<string, Card>;
+  printings: CatalogPrinting[];
 }

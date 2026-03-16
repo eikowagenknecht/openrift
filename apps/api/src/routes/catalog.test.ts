@@ -78,7 +78,6 @@ const dbPrintingRow = {
   slug: "OGS-001:rare:normal:",
   card_id: "OGS-001",
   set_id: "OGS",
-  set_slug: "OGS",
   source_id: "OGS-001",
   collector_number: 1,
   rarity: "Rare",
@@ -86,13 +85,18 @@ const dbPrintingRow = {
   is_signed: false,
   is_promo: false,
   finish: "normal",
-  image_url: "https://example.com/thumb.jpg",
   artist: "Alice",
   public_code: "ABCD",
   printed_rules_text: "A fiery beast",
   printed_effect_text: "Deal 3 damage",
   flavor_text: null,
   comment: null,
+};
+
+const dbImage = {
+  printing_id: "OGS-001:rare:normal:",
+  face: "front",
+  url: "https://example.com/thumb.jpg",
 };
 
 const dbPrice = {
@@ -107,37 +111,57 @@ const dbPriceFoil = {
   recorded_at: new Date("2026-03-01"),
 };
 
+function catalogTables(overrides?: Record<string, unknown[]>) {
+  return {
+    sets: [dbSet],
+    cards: [dbCard],
+    printings: [dbPrintingRow],
+    printing_images: [dbImage],
+    "marketplace_sources as ps": [dbPrice],
+    marketplace_snapshots: [{ last_modified: PRICES_LAST_MODIFIED }],
+    ...overrides,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/catalog
 // ---------------------------------------------------------------------------
 
 describe("GET /api/catalog", () => {
   beforeEach(() => {
-    mockState.tables = {
-      sets: [dbSet],
-      cards: [dbCard],
-      "printings as p": [dbPrintingRow],
-      printing_images: [
-        {
-          printing_id: "OGS-001:rare:normal:",
-          face: "front",
-          url: "https://example.com/thumb.jpg",
-        },
-      ],
-    };
+    mockState.tables = catalogTables();
   });
 
-  it("returns 200 with RiftboundCatalog structure", async () => {
+  it("returns 200 with normalized RiftboundCatalog structure", async () => {
     const res = await app.request("/api/catalog");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.sets).toHaveLength(1);
+    expect(json.printings).toHaveLength(1);
+    expect(Object.keys(json.cards)).toHaveLength(1);
   });
 
-  it("maps joined row fields to Printing shape with nested card", async () => {
+  it("returns sets as simple { slug, name } objects", async () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
-    const printing = json.sets[0].printings[0];
+    expect(json.sets[0]).toEqual({ slug: "OGS", name: "Original Set" });
+  });
+
+  it("returns cards keyed by card ID", async () => {
+    const res = await app.request("/api/catalog");
+    const json = await res.json();
+    const card = json.cards["OGS-001"];
+    expect(card).toBeDefined();
+    expect(card.name).toBe("Fire Dragon");
+    expect(card.superTypes).toEqual(["Elite"]);
+    expect(card.mightBonus).toBe(1);
+    expect(card.stats).toEqual({ might: 4, energy: 5, power: 6 });
+  });
+
+  it("maps printing fields with cardId reference instead of nested card", async () => {
+    const res = await app.request("/api/catalog");
+    const json = await res.json();
+    const printing = json.printings[0];
 
     expect(printing.id).toBe("OGS-001:rare:normal:");
     expect(printing.sourceId).toBe("OGS-001");
@@ -148,43 +172,46 @@ describe("GET /api/catalog", () => {
     expect(printing.isPromo).toBe(false);
     expect(printing.finish).toBe("normal");
     expect(printing.artist).toBe("Alice");
-
-    expect(printing.card.id).toBe("OGS-001");
-    expect(printing.card.name).toBe("Fire Dragon");
-    expect(printing.card.superTypes).toEqual(["Elite"]);
-    expect(printing.card.mightBonus).toBe(1);
-  });
-
-  it("maps DB fields into nested stats object on card", async () => {
-    const res = await app.request("/api/catalog");
-    const json = await res.json();
-    const printing = json.sets[0].printings[0];
-    expect(printing.card.stats).toEqual({ might: 4, energy: 5, power: 6 });
+    expect(printing.cardId).toBe("OGS-001");
+    expect(printing.card).toBeUndefined();
   });
 
   it("maps image URL into images array", async () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
-    const printing = json.sets[0].printings[0];
-    expect(printing.images).toEqual([{ face: "front", url: "https://example.com/thumb.jpg" }]);
+    expect(json.printings[0].images).toEqual([
+      { face: "front", url: "https://example.com/thumb.jpg" },
+    ]);
   });
 
-  it("maps set_id to printing.set", async () => {
+  it("maps set_id to printing.set via slug lookup", async () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
-    const printing = json.sets[0].printings[0];
-    expect(printing.set).toBe("OGS");
+    expect(json.printings[0].set).toBe("OGS");
   });
 
   it("uses rules_text as card.description", async () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
-    const printing = json.sets[0].printings[0];
-    expect(printing.card.description).toBe("A fiery beast");
-    expect(printing.card.effect).toBe("Deal 3 damage");
+    const card = json.cards["OGS-001"];
+    expect(card.description).toBe("A fiery beast");
+    expect(card.effect).toBe("Deal 3 damage");
   });
 
-  it("groups printings by set", async () => {
+  it("includes latest market price on printing", async () => {
+    const res = await app.request("/api/catalog");
+    const json = await res.json();
+    expect(json.printings[0].marketPrice).toBe(2.75);
+  });
+
+  it("omits marketPrice when no price exists", async () => {
+    mockState.tables = catalogTables({ "marketplace_sources as ps": [] });
+    const res = await app.request("/api/catalog");
+    const json = await res.json();
+    expect(json.printings[0].marketPrice).toBeUndefined();
+  });
+
+  it("returns printings from multiple sets as flat array", async () => {
     const secondSet = { id: "S2", slug: "S2", name: "Set Two", printed_total: 50 };
     const secondCard = { ...dbCard, id: "S2-001", slug: "S2-001" };
     const secondRow = {
@@ -194,49 +221,46 @@ describe("GET /api/catalog", () => {
       card_id: "S2-001",
       source_id: "S2-001",
       set_id: "S2",
-      set_slug: "S2",
     };
-    mockState.tables = {
+    mockState.tables = catalogTables({
       sets: [dbSet, secondSet],
       cards: [dbCard, secondCard],
-      "printings as p": [dbPrintingRow, secondRow],
+      printings: [dbPrintingRow, secondRow],
       printing_images: [],
-    };
+    });
 
     const res = await app.request("/api/catalog");
     const json = await res.json();
     expect(json.sets).toHaveLength(2);
-    expect(json.sets[0].printings).toHaveLength(1);
-    expect(json.sets[1].printings).toHaveLength(1);
-    expect(json.sets[1].printings[0].card.id).toBe("S2-001");
+    expect(json.printings).toHaveLength(2);
+    expect(Object.keys(json.cards)).toHaveLength(2);
   });
 
-  it("returns empty printings array for sets with no printings", async () => {
-    const emptySet = { id: "EMPTY", slug: "EMPTY", name: "Empty Set", printed_total: 0 };
-    mockState.tables = { sets: [emptySet], cards: [], "printings as p": [], printing_images: [] };
-
+  it("returns empty printings when catalog is empty", async () => {
+    mockState.tables = catalogTables({
+      sets: [],
+      cards: [],
+      printings: [],
+      printing_images: [],
+      "marketplace_sources as ps": [],
+    });
     const res = await app.request("/api/catalog");
     const json = await res.json();
-    expect(json.sets[0].printings).toEqual([]);
+    expect(json.printings).toEqual([]);
+    expect(json.cards).toEqual({});
+    expect(json.sets).toEqual([]);
   });
 
-  it("maps set fields correctly", async () => {
+  it("returns ETag based on max of catalog and prices timestamps", async () => {
     const res = await app.request("/api/catalog");
-    const json = await res.json();
-    const set = json.sets[0];
-    expect(set.id).toBe("OGS");
-    expect(set.name).toBe("Original Set");
-    expect(set.printedTotal).toBe(100);
-  });
-
-  it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/catalog");
-    expect(res.headers.get("ETag")).toBe(`"catalog-${CATALOG_LAST_MODIFIED.getTime()}"`);
+    const expectedTs = Math.max(CATALOG_LAST_MODIFIED.getTime(), PRICES_LAST_MODIFIED.getTime());
+    expect(res.headers.get("ETag")).toBe(`"catalog-${expectedTs}"`);
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
-    const etag = `"catalog-${CATALOG_LAST_MODIFIED.getTime()}"`;
+    const expectedTs = Math.max(CATALOG_LAST_MODIFIED.getTime(), PRICES_LAST_MODIFIED.getTime());
+    const etag = `"catalog-${expectedTs}"`;
     const res = await app.request("/api/catalog", {
       headers: { "If-None-Match": etag },
     });
@@ -252,7 +276,7 @@ describe("GET /api/catalog", () => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/prices
+// GET /api/prices (latest prices — kept for non-browser consumers)
 // ---------------------------------------------------------------------------
 
 describe("GET /api/prices", () => {

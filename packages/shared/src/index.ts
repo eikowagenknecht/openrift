@@ -16,7 +16,7 @@ export type {
   SourceStats,
   CardType,
   Collection,
-  ContentSet,
+  CatalogPrinting,
   Copy,
   CopyRow,
   Deck,

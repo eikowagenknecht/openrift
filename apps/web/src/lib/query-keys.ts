@@ -5,7 +5,6 @@ import type { SourceMappingConfig } from "@/components/admin/price-mappings-type
 export const queryKeys = {
   catalog: {
     all: ["catalog"] as const,
-    prices: ["prices"] as const,
   },
   collections: {
     all: ["collections"] as const,

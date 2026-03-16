@@ -1,4 +1,4 @@
-import type { Printing, PricesData, RiftboundCatalog } from "@openrift/shared";
+import type { Printing, RiftboundCatalog } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
@@ -50,15 +50,6 @@ async function fetchCatalog(): Promise<RiftboundCatalog> {
   return (await res.json()) as RiftboundCatalog;
 }
 
-async function fetchPrices(): Promise<PricesData> {
-  const res = await client.api.prices.$get();
-  if (!res.ok) {
-    const healthStatus = await checkHealth();
-    throw new ApiError(`Failed to fetch prices: ${res.status}`, healthStatus);
-  }
-  return res.json() as Promise<PricesData>;
-}
-
 export function useCards(): UseCardsResult {
   const catalogQuery = useQuery({
     queryKey: queryKeys.catalog.all,
@@ -67,26 +58,15 @@ export function useCards(): UseCardsResult {
     refetchOnWindowFocus: false,
   });
 
-  const pricesQuery = useQuery({
-    queryKey: queryKeys.catalog.prices,
-    queryFn: fetchPrices,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+  const isEmpty = catalogQuery.data !== undefined && catalogQuery.data.printings.length === 0;
+  const isLoading = !isEmpty && catalogQuery.isLoading;
+  const error = isEmpty ? new ApiError("No cards available", "db_empty") : catalogQuery.error;
 
-  const isEmpty = catalogQuery.data !== undefined && catalogQuery.data.sets.length === 0;
-  const isLoading = !isEmpty && (catalogQuery.isLoading || pricesQuery.isLoading);
-  const error = isEmpty
-    ? new ApiError("No cards available", "db_empty")
-    : (catalogQuery.error ?? pricesQuery.error);
-
-  const allCards = catalogQuery.data
-    ? catalogQuery.data.sets.flatMap((set) =>
-        set.printings.map((printing) => {
-          const marketPrice = pricesQuery.data?.prices[printing.id];
-          return marketPrice === undefined ? printing : { ...printing, marketPrice };
-        }),
-      )
+  const allCards: Printing[] = catalogQuery.data
+    ? catalogQuery.data.printings.map((p) => ({
+        ...p,
+        card: catalogQuery.data.cards[p.cardId],
+      }))
     : [];
 
   const setInfoList: SetInfo[] = catalogQuery.data

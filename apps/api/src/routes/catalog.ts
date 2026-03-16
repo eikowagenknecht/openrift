@@ -3,10 +3,9 @@ import { centsToDollars, formatDateUTC } from "@openrift/shared";
 import type {
   Card,
   CardStats,
-  ContentSet,
+  CatalogPrinting,
   Domain,
   PriceHistoryResponse,
-  Printing,
   PrintingImage,
   SuperType,
   RiftboundCatalog,
@@ -31,31 +30,71 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   /**
    * `GET /catalog` — Returns the full card catalog as {@link RiftboundCatalog}.
    *
-   * Fetches cards and printings separately, then assembles each printing with
-   * its card data and groups by set. Empty sets get an empty `printings` array.
+   * Returns a normalized response with cards keyed by ID, a flat printings
+   * array (referencing cards by `cardId`), and a simple sets list. Latest
+   * market prices are included directly on each printing.
    *
    * Printed text fields (`printedDescription`, `printedEffect`) are only
    * included when they differ from the oracle text, keeping the payload smaller.
    */
   .get("/catalog", async (c) => {
-    const catalog = catalogRepo(c.get("db"));
+    const db = c.get("db");
+    const catalog = catalogRepo(db);
+    const marketplace = marketplaceRepo(db);
 
-    const { last_modified } = await catalog.catalogLastModified();
-    const etag = `"catalog-${new Date(last_modified).getTime()}"`;
+    const [catalogTs, pricesTs] = await Promise.all([
+      catalog.catalogLastModified(),
+      marketplace.pricesLastModified(),
+    ]);
+    const combinedTs = Math.max(
+      new Date(catalogTs.last_modified).getTime(),
+      new Date(pricesTs.last_modified).getTime(),
+    );
+    const etag = `"catalog-${combinedTs}"`;
 
     if (c.req.header("If-None-Match") === etag) {
       return c.body(null, 304);
     }
 
-    const [sets, cardRows, printingRows, imageRows] = await Promise.all([
+    const [sets, cardRows, printingRows, imageRows, priceRows] = await Promise.all([
       catalog.sets(),
       catalog.cards(),
       catalog.printings(),
       catalog.printingImages(),
+      marketplace.latestPrices(),
     ]);
 
-    const cardById = new Map(cardRows.map((row) => [row.id, row]));
+    // Build price lookup
+    const priceByPrinting = new Map<string, number>();
+    for (const row of priceRows) {
+      priceByPrinting.set(row.printing_id, centsToDollars(row.market_cents));
+    }
 
+    // Build cards map
+    const cards: Record<string, Card> = {};
+    const cardRowById = new Map(cardRows.map((row) => [row.id, row]));
+    for (const row of cardRows) {
+      cards[row.id] = {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        type: row.type,
+        superTypes: row.super_types as SuperType[],
+        domains: row.domains as Domain[],
+        stats: {
+          might: row.might,
+          energy: row.energy,
+          power: row.power,
+        } satisfies CardStats,
+        keywords: row.keywords,
+        tags: row.tags,
+        mightBonus: row.might_bonus,
+        description: row.rules_text ?? "",
+        effect: row.effect_text ?? "",
+      };
+    }
+
+    // Build images lookup
     const imagesByPrinting = new Map<string, PrintingImage[]>();
     for (const row of imageRows) {
       if (!row.url) {
@@ -69,43 +108,29 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       list.push({ face: row.face, url: row.url });
     }
 
-    const printingsBySet = new Map<string, Printing[]>();
+    // Build set slug lookup (sets are already fetched above)
+    const setSlugById = new Map(sets.map((s) => [s.id, s.slug]));
+
+    // Build flat printings array
+    const printings: CatalogPrinting[] = [];
     for (const row of printingRows) {
-      const cardRow = cardById.get(row.card_id);
-      if (!cardRow) {
+      const cardRow = cardRowById.get(row.card_id);
+      const setSlug = setSlugById.get(row.set_id);
+      if (!cardRow || !setSlug) {
         continue;
       }
-      const images = imagesByPrinting.get(row.id) ?? [];
-      const card: Card = {
-        id: cardRow.id,
-        slug: cardRow.slug,
-        name: cardRow.name,
-        type: cardRow.type,
-        superTypes: cardRow.super_types as SuperType[],
-        domains: cardRow.domains as Domain[],
-        stats: {
-          might: cardRow.might,
-          energy: cardRow.energy,
-          power: cardRow.power,
-        } satisfies CardStats,
-        keywords: cardRow.keywords,
-        tags: cardRow.tags,
-        mightBonus: cardRow.might_bonus,
-        description: cardRow.rules_text ?? "",
-        effect: cardRow.effect_text ?? "",
-      };
-      const printing: Printing = {
+      const printing: CatalogPrinting = {
         id: row.id,
         slug: row.slug,
         sourceId: row.source_id,
-        set: row.set_slug,
+        set: setSlug,
         collectorNumber: row.collector_number,
         rarity: row.rarity,
         artVariant: row.art_variant,
         isSigned: row.is_signed,
         isPromo: row.is_promo,
         finish: row.finish,
-        images,
+        images: imagesByPrinting.get(row.id) ?? [],
         artist: row.artist,
         publicCode: row.public_code,
         ...(row.printed_rules_text !== null &&
@@ -118,23 +143,16 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
           }),
         ...(row.flavor_text && { flavorText: row.flavor_text }),
         ...(row.comment && { comment: row.comment }),
-        card,
+        ...(priceByPrinting.has(row.id) && { marketPrice: priceByPrinting.get(row.id) }),
+        cardId: row.card_id,
       };
-      const list = printingsBySet.get(row.set_slug) ?? [];
-      list.push(printing);
-      printingsBySet.set(row.set_slug, list);
+      printings.push(printing);
     }
 
-    const contentSets: ContentSet[] = sets.map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      printedTotal: s.printed_total,
-      printings: printingsBySet.get(s.slug) ?? [],
-    }));
-
     const content: RiftboundCatalog = {
-      sets: contentSets,
+      sets: sets.map((s) => ({ slug: s.slug, name: s.name })),
+      cards,
+      printings,
     };
 
     c.header("ETag", etag);
