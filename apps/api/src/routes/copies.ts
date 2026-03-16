@@ -7,10 +7,10 @@ import {
 } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
-import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
+import { copiesRepo } from "../repositories/copies.js";
 import { addCopies, disposeCopies, moveCopies } from "../services/copies.js";
 import type { Variables } from "../types.js";
 import { toCopy } from "../utils/dto.js";
@@ -23,35 +23,9 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // All copies for the authenticated user (combined view)
 
   .get("/copies", async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
-
-    const copies = await selectCopyWithCard(db)
-      .select([
-        "cp.id",
-        "cp.printing_id",
-        "cp.collection_id",
-        "cp.source_id",
-        "cp.created_at",
-        "cp.updated_at",
-        "p.card_id",
-        "p.set_id",
-        "p.collector_number",
-        "p.rarity",
-        "p.art_variant",
-        "p.is_signed",
-        "p.finish",
-        imageUrl("pi").as("image_url"),
-        "p.artist",
-        "c.name as card_name",
-        "c.type as card_type",
-      ])
-      .where("cp.user_id", "=", userId)
-      .orderBy("c.name")
-      .orderBy("p.collector_number")
-      .execute();
-
-    return c.json(copies.map((row) => toCopy(row)));
+    const copies = copiesRepo(c.get("db"));
+    const rows = await copies.listForUser(getUserId(c));
+    return c.json(rows.map((row) => toCopy(row)));
   })
 
   // ── POST /copies ────────────────────────────────────────────────────────────
@@ -91,58 +65,24 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // Returns owned count per printing for the authenticated user
 
   .get("/copies/count", async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
-
-    const rows = await db
-      .selectFrom("copies")
-      .select(["printing_id", db.fn.count<number>("id").as("count")])
-      .where("user_id", "=", userId)
-      .groupBy("printing_id")
-      .execute();
+    const copies = copiesRepo(c.get("db"));
+    const rows = await copies.countByPrintingForUser(getUserId(c));
 
     const counts: Record<string, number> = {};
     for (const row of rows) {
       counts[row.printing_id] = Number(row.count);
     }
-
     return c.json(counts);
   })
 
   // ── GET /copies/:id ─────────────────────────────────────────────────────────
 
   .get("/copies/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
+    const copies = copiesRepo(c.get("db"));
     const { id } = c.req.valid("param");
-
-    const copy = await selectCopyWithCard(db)
-      .select([
-        "cp.id",
-        "cp.printing_id",
-        "cp.collection_id",
-        "cp.source_id",
-        "cp.created_at",
-        "cp.updated_at",
-        "p.card_id",
-        "p.set_id",
-        "p.collector_number",
-        "p.rarity",
-        "p.art_variant",
-        "p.is_signed",
-        "p.finish",
-        imageUrl("pi").as("image_url"),
-        "p.artist",
-        "c.name as card_name",
-        "c.type as card_type",
-      ])
-      .where("cp.id", "=", id)
-      .where("cp.user_id", "=", userId)
-      .executeTakeFirst();
-
+    const copy = await copies.getByIdForUser(id, getUserId(c));
     if (!copy) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
-
     return c.json(toCopy(copy));
   });

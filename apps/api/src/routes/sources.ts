@@ -7,6 +7,7 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
+import { sourcesRepo } from "../repositories/sources.js";
 import type { Variables } from "../types.js";
 import { toSource } from "../utils/dto.js";
 
@@ -18,45 +19,29 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/sources", async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
-    const rows = await db
-      .selectFrom("sources")
-      .selectAll()
-      .where("user_id", "=", userId)
-      .orderBy("name")
-      .execute();
+    const sources = sourcesRepo(c.get("db"));
+    const rows = await sources.listForUser(getUserId(c));
     return c.json(rows.map((row) => toSource(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/sources", zValidator("json", createSourceSchema), async (c) => {
-    const db = c.get("db");
+    const sources = sourcesRepo(c.get("db"));
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await db
-      .insertInto("sources")
-      .values({
-        user_id: userId,
-        name: body.name,
-        description: body.description ?? null,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    const row = await sources.create({
+      user_id: userId,
+      name: body.name,
+      description: body.description ?? null,
+    });
     return c.json(toSource(row), 201);
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   .get("/sources/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
+    const sources = sourcesRepo(c.get("db"));
     const { id } = c.req.valid("param");
-    const row = await db
-      .selectFrom("sources")
-      .selectAll()
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+    const row = await sources.getByIdForUser(id, getUserId(c));
     if (!row) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
@@ -69,18 +54,12 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateSourceSchema),
     async (c) => {
-      const db = c.get("db");
+      const sources = sourcesRepo(c.get("db"));
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
       const updates = buildPatchUpdates(body, patchFields);
-      const row = await db
-        .updateTable("sources")
-        .set(updates)
-        .where("id", "=", id)
-        .where("user_id", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      const row = await sources.update(id, userId, updates);
       if (!row) {
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
@@ -90,14 +69,9 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
   .delete("/sources/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
+    const sources = sourcesRepo(c.get("db"));
     const { id } = c.req.valid("param");
-    const result = await db
-      .deleteFrom("sources")
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+    const result = await sources.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }

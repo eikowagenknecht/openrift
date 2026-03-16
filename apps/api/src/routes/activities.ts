@@ -4,10 +4,10 @@ import type { Activity, ActivityType } from "@openrift/shared";
 import { activitiesQuerySchema, idParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
-import { imageUrl } from "../db-helpers.js";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
+import { activitiesRepo } from "../repositories/activities.js";
 import type { Variables } from "../types.js";
 
 export const activitiesRoute = new Hono<{ Variables: Variables }>()
@@ -17,28 +17,17 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /activities ───────────────────────────────────────────────────────────
 
   .get("/activities", zValidator("query", activitiesQuerySchema), async (c) => {
-    const db = c.get("db");
+    const activities = activitiesRepo(c.get("db"));
     const userId = getUserId(c);
     const { cursor, limit: rawLimit } = c.req.valid("query");
     const limit = rawLimit ?? 50;
 
-    let query = db
-      .selectFrom("activities")
-      .selectAll()
-      .where("user_id", "=", userId)
-      .orderBy("created_at", "desc")
-      .limit(limit + 1);
-
-    if (cursor) {
-      query = query.where("created_at", "<", new Date(cursor));
-    }
-
-    const rows = await query.execute();
+    const rows = await activities.listForUser(userId, limit, cursor);
 
     const hasMore = rows.length > limit;
     const items = rows.slice(0, limit);
 
-    const activities: Activity[] = items.map((row) => ({
+    const mapped: Activity[] = items.map((row) => ({
       id: row.id,
       type: row.type as ActivityType,
       name: row.name,
@@ -50,7 +39,7 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
     }));
 
     return c.json({
-      activities,
+      activities: mapped,
       nextCursor: hasMore ? (items.at(-1)?.created_at.toISOString() ?? null) : null,
     });
   })
@@ -58,54 +47,16 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /activities/:id ───────────────────────────────────────────────────────
 
   .get("/activities/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
+    const repo = activitiesRepo(c.get("db"));
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const activity = await db
-      .selectFrom("activities")
-      .selectAll()
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
-
+    const activity = await repo.getByIdForUser(id, userId);
     if (!activity) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const itemRows = await db
-      .selectFrom("activity_items as ai")
-      .innerJoin("printings as p", "p.id", "ai.printing_id")
-      .innerJoin("cards as card", "card.id", "p.card_id")
-      .leftJoin("printing_images as pi", (join) =>
-        join
-          .onRef("pi.printing_id", "=", "p.id")
-          .on("pi.face", "=", "front")
-          .on("pi.is_active", "=", true),
-      )
-      .select([
-        "ai.id",
-        "ai.activity_id",
-        "ai.activity_type",
-        "ai.copy_id",
-        "ai.printing_id",
-        "ai.action",
-        "ai.from_collection_id",
-        "ai.from_collection_name",
-        "ai.to_collection_id",
-        "ai.to_collection_name",
-        "ai.metadata_snapshot",
-        "ai.created_at",
-        imageUrl("pi").as("image_url"),
-        "p.set_id",
-        "p.collector_number",
-        "p.rarity",
-        "card.name as card_name",
-        "card.type as card_type",
-      ])
-      .where("ai.activity_id", "=", id)
-      .orderBy("ai.created_at")
-      .execute();
+    const itemRows = await repo.itemsWithDetails(id);
 
     const items = itemRows.map((row) => ({
       id: row.id,

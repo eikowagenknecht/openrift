@@ -6,12 +6,13 @@ import {
 } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
-import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
+import { collectionsRepo } from "../repositories/collections.js";
+import { copiesRepo } from "../repositories/copies.js";
 import { createActivity } from "../services/activity-logger.js";
 import { ensureInbox } from "../services/inbox.js";
 import type { Variables } from "../types.js";
@@ -31,50 +32,33 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/collections", async (c) => {
     const db = c.get("db");
-    await ensureInbox(db, getUserId(c));
     const userId = getUserId(c);
-    const rows = await db
-      .selectFrom("collections")
-      .selectAll()
-      .where("user_id", "=", userId)
-      .orderBy("is_inbox", "desc")
-      .orderBy("sort_order")
-      .orderBy("name")
-      .execute();
+    await ensureInbox(db, userId);
+    const rows = await collectionsRepo(db).listForUser(userId);
     return c.json(rows.map((row) => toCollection(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/collections", zValidator("json", createCollectionSchema), async (c) => {
-    const db = c.get("db");
+    const collections = collectionsRepo(c.get("db"));
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await db
-      .insertInto("collections")
-      .values({
-        user_id: userId,
-        name: body.name,
-        description: body.description ?? null,
-        available_for_deckbuilding: body.availableForDeckbuilding ?? true,
-        is_inbox: false,
-        sort_order: 0,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    const row = await collections.create({
+      user_id: userId,
+      name: body.name,
+      description: body.description ?? null,
+      available_for_deckbuilding: body.availableForDeckbuilding ?? true,
+      is_inbox: false,
+      sort_order: 0,
+    });
     return c.json(toCollection(row), 201);
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   .get("/collections/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
-    const userId = getUserId(c);
+    const collections = collectionsRepo(c.get("db"));
     const { id } = c.req.valid("param");
-    const row = await db
-      .selectFrom("collections")
-      .selectAll()
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+    const row = await collections.getByIdForUser(id, getUserId(c));
     if (!row) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
@@ -87,18 +71,12 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateCollectionSchema),
     async (c) => {
-      const db = c.get("db");
+      const collections = collectionsRepo(c.get("db"));
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
       const updates = buildPatchUpdates(body, patchFields);
-      const row = await db
-        .updateTable("collections")
-        .set(updates)
-        .where("id", "=", id)
-        .where("user_id", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      const row = await collections.update(id, userId, updates);
       if (!row) {
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
@@ -110,16 +88,12 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   // Complex: validates inbox, relocates copies, logs activity
   .delete("/collections/:id", zValidator("param", idParamSchema), async (c) => {
     const db = c.get("db");
+    const collections = collectionsRepo(db);
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const moveCopiesTo = c.req.query("move_copies_to");
 
-    const collection = await db
-      .selectFrom("collections")
-      .selectAll()
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+    const collection = await collections.getByIdForUser(id, userId);
 
     if (!collection) {
       throw new AppError(404, "NOT_FOUND", "Not found");
@@ -138,12 +112,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     }
 
     // Verify target collection exists and belongs to user
-    const target = await db
-      .selectFrom("collections")
-      .select(["id", "name"])
-      .where("id", "=", moveCopiesTo)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
+    const target = await collections.getIdAndName(moveCopiesTo, userId);
 
     if (!target) {
       throw new AppError(404, "NOT_FOUND", "Target collection not found");
@@ -201,41 +170,11 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     const { id } = c.req.valid("param");
 
     // Verify collection belongs to user
-    const collection = await db
-      .selectFrom("collections")
-      .select("id")
-      .where("id", "=", id)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
-
+    const collection = await collectionsRepo(db).exists(id, userId);
     if (!collection) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const copies = await selectCopyWithCard(db)
-      .select([
-        "cp.id",
-        "cp.printing_id",
-        "cp.collection_id",
-        "cp.source_id",
-        "cp.created_at",
-        "cp.updated_at",
-        "p.card_id",
-        "p.set_id",
-        "p.collector_number",
-        "p.rarity",
-        "p.art_variant",
-        "p.is_signed",
-        "p.finish",
-        imageUrl("pi").as("image_url"),
-        "p.artist",
-        "c.name as card_name",
-        "c.type as card_type",
-      ])
-      .where("cp.collection_id", "=", id)
-      .orderBy("c.name")
-      .orderBy("p.collector_number")
-      .execute();
-
-    return c.json(copies.map((row) => toCopy(row)));
+    const rows = await copiesRepo(db).listForCollection(id);
+    return c.json(rows.map((row) => toCopy(row)));
   });

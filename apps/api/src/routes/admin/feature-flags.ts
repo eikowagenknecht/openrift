@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import { AppError } from "../../errors.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
+import { featureFlagsRepo } from "../../repositories/feature-flags.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -31,8 +32,8 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
   // Returns { key: enabled } map for the client to consume at boot.
 
   .get("/feature-flags", async (c) => {
-    const db = c.get("db");
-    const rows = await db.selectFrom("feature_flags").select(["key", "enabled"]).execute();
+    const flagsRepo = featureFlagsRepo(c.get("db"));
+    const rows = await flagsRepo.listKeyEnabled();
 
     const flags: Record<string, boolean> = {};
     for (const row of rows) {
@@ -47,36 +48,27 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/feature-flags/*", requireAdmin)
 
   .get("/admin/feature-flags", async (c) => {
-    const db = c.get("db");
-    const flags = await db.selectFrom("feature_flags").selectAll().orderBy("key").execute();
-
+    const flagsRepo = featureFlagsRepo(c.get("db"));
+    const flags = await flagsRepo.listAll();
     return c.json({ flags });
   })
 
   // ── Admin: POST /admin/feature-flags ────────────────────────────────────────
 
   .post("/admin/feature-flags", zValidator("json", createFlagSchema), async (c) => {
-    const db = c.get("db");
+    const flagsRepo = featureFlagsRepo(c.get("db"));
     const { key, description, enabled } = c.req.valid("json");
 
-    const existing = await db
-      .selectFrom("feature_flags")
-      .select("key")
-      .where("key", "=", key)
-      .executeTakeFirst();
-
+    const existing = await flagsRepo.getByKey(key);
     if (existing) {
       throw new AppError(409, "CONFLICT", `Flag "${key}" already exists`);
     }
 
-    await db
-      .insertInto("feature_flags")
-      .values({
-        key,
-        enabled: enabled ?? false,
-        description: description ?? null,
-      })
-      .execute();
+    await flagsRepo.create({
+      key,
+      enabled: enabled ?? false,
+      description: description ?? null,
+    });
 
     return c.json({ ok: true });
   })
@@ -88,16 +80,11 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", keyParamSchema),
     zValidator("json", updateFlagSchema),
     async (c) => {
-      const db = c.get("db");
+      const flagsRepo = featureFlagsRepo(c.get("db"));
       const { key } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const existing = await db
-        .selectFrom("feature_flags")
-        .select("key")
-        .where("key", "=", key)
-        .executeTakeFirst();
-
+      const existing = await flagsRepo.getByKey(key);
       if (!existing) {
         throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
       }
@@ -110,7 +97,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
         updates.description = body.description;
       }
 
-      await db.updateTable("feature_flags").set(updates).where("key", "=", key).execute();
+      await flagsRepo.update(key, updates);
 
       return c.json({ ok: true });
     },
@@ -119,11 +106,10 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
   // ── Admin: DELETE /admin/feature-flags/:key ─────────────────────────────────
 
   .delete("/admin/feature-flags/:key", zValidator("param", keyParamSchema), async (c) => {
-    const db = c.get("db");
+    const flagsRepo = featureFlagsRepo(c.get("db"));
     const { key } = c.req.valid("param");
 
-    const result = await db.deleteFrom("feature_flags").where("key", "=", key).executeTakeFirst();
-
+    const result = await flagsRepo.deleteByKey(key);
     if (result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
     }
