@@ -37,4 +37,4 @@ pre-push:
     test:
       run: bun run test
     # test-integration:
-      # run: bun run test:integration
+    # run: bun run test:integration

@@ -36,12 +36,12 @@ Chosen option: "Keep client-side filtering with full-dataset fetch", because the
 
 Re-evaluate this decision when **any** of these hold:
 
-| Signal | Threshold | How to measure |
-|---|---|---|
-| Card count | > 5,000 printings | `SELECT count(*) FROM printings` |
-| JSON payload size | > 1 MB gzipped | Check `Content-Length` / network tab |
-| Client filter time | > 50 ms per pass | `performance.mark` around `filterCards()` |
-| Initial load (3G) | > 3 s for cards request | Lighthouse / WebPageTest on throttled connection |
+| Signal             | Threshold               | How to measure                                   |
+| ------------------ | ----------------------- | ------------------------------------------------ |
+| Card count         | > 5,000 printings       | `SELECT count(*) FROM printings`                 |
+| JSON payload size  | > 1 MB gzipped          | Check `Content-Length` / network tab             |
+| Client filter time | > 50 ms per pass        | `performance.mark` around `filterCards()`        |
+| Initial load (3G)  | > 3 s for cards request | Lighthouse / WebPageTest on throttled connection |
 
 ## Migration Path (When Thresholds Are Crossed)
 
