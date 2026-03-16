@@ -106,8 +106,8 @@ export function toCents(amount: number | null | undefined): number | null {
  * Convert a nullable cent value to dollars. Inverse of {@link toCents}.
  * @returns The amount in dollars, or `null` if the input is `null`.
  */
-export function centsToDollars(cents: number | null): number | null {
-  return cents === null ? null : cents / 100;
+export function centsToDollars<T extends number | null>(cents: T): T extends null ? null : number {
+  return (cents === null ? null : cents / 100) as T extends null ? null : number;
 }
 
 /**
