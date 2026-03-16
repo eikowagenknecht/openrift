@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
-import { imageUrl, selectPrintingWithCard } from "../db-helpers.js";
+import { imageUrl } from "../db-helpers.js";
 import type { Database } from "../db/index.js";
 
 /**
@@ -15,13 +16,44 @@ export function catalogRepo(db: Kysely<Database>) {
       return db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
     },
 
-    /** @returns All printings joined with their card and front-face image, ordered by set, collector number, finish. */
-    printingsWithCards() {
-      return selectPrintingWithCard(db)
+    /** @returns All cards (no printings), for building a card lookup. */
+    cards() {
+      return db
+        .selectFrom("cards")
+        .select([
+          "id",
+          "slug",
+          "name",
+          "type",
+          "super_types",
+          "domains",
+          "might",
+          "energy",
+          "power",
+          "might_bonus",
+          "keywords",
+          "rules_text",
+          "effect_text",
+          "tags",
+        ])
+        .execute();
+    },
+
+    /** @returns All printings with front-face image and set slug, ordered by set, collector number, finish. */
+    printings() {
+      return db
+        .selectFrom("printings as p")
+        .leftJoin("printing_images as pi", (join) =>
+          join
+            .onRef("pi.printing_id", "=", "p.id")
+            .on("pi.face", "=", "front")
+            .on("pi.is_active", "=", true),
+        )
         .innerJoin("sets as s", "s.id", "p.set_id")
         .select([
-          "p.id as printing_id",
-          "p.slug as printing_slug",
+          "p.id",
+          "p.slug",
+          "p.card_id",
           "p.set_id",
           "p.source_id",
           "p.collector_number",
@@ -37,26 +69,28 @@ export function catalogRepo(db: Kysely<Database>) {
           "p.printed_effect_text",
           "p.flavor_text",
           "p.comment",
-          "c.id as card_id",
-          "c.slug as card_slug",
-          "c.name",
-          "c.type",
-          "c.super_types",
-          "c.domains",
-          "c.might",
-          "c.energy",
-          "c.power",
-          "c.might_bonus",
-          "c.keywords",
-          "c.rules_text",
-          "c.effect_text",
-          "c.tags",
           "s.slug as set_slug",
         ])
         .orderBy("p.set_id")
         .orderBy("p.collector_number")
         .orderBy("p.finish", "desc")
         .execute();
+    },
+
+    /** @returns The most recent `updated_at` across sets, cards, and printings. */
+    catalogLastModified() {
+      return db
+        .selectFrom(
+          sql<{ last_modified: Date }>`(
+            SELECT MAX(updated_at) AS last_modified FROM sets
+            UNION ALL
+            SELECT MAX(updated_at) FROM cards
+            UNION ALL
+            SELECT MAX(updated_at) FROM printings
+          )`.as("t"),
+        )
+        .select(sql<Date>`MAX(t.last_modified)`.as("last_modified"))
+        .executeTakeFirstOrThrow();
     },
 
     /** @returns The printing's `id`, or `undefined` if not found. Accepts UUID or slug. */

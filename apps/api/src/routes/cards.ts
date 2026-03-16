@@ -1,17 +1,13 @@
 import { zValidator } from "@hono/zod-validator";
 import { centsToDollars, formatDateUTC } from "@openrift/shared";
 import type {
-  ArtVariant,
   Card,
   CardStats,
-  CardType,
   ContentSet,
   Domain,
-  Finish,
   PriceHistoryResponse,
   Printing,
   PrintingImage,
-  Rarity,
   SuperType,
   RiftboundContent,
   TimeRange,
@@ -35,57 +31,75 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
   /**
    * `GET /cards` — Returns the full card catalog as {@link RiftboundContent}.
    *
-   * Joins printings → cards → front-face images → sets, then groups printings
-   * by set slug. Empty sets are included with an empty `printings` array.
+   * Fetches cards and printings separately, then assembles each printing with
+   * its card data and groups by set. Empty sets get an empty `printings` array.
    *
    * Printed text fields (`printedDescription`, `printedEffect`) are only
    * included when they differ from the oracle text, keeping the payload smaller.
    */
   .get("/cards", async (c) => {
     const catalog = catalogRepo(c.get("db"));
-    const [sets, rows] = await Promise.all([catalog.sets(), catalog.printingsWithCards()]);
+
+    const { last_modified } = await catalog.catalogLastModified();
+    const etag = `"catalog-${new Date(last_modified).getTime()}"`;
+
+    if (c.req.header("If-None-Match") === etag) {
+      return c.body(null, 304);
+    }
+
+    const [sets, cardRows, printingRows] = await Promise.all([
+      catalog.sets(),
+      catalog.cards(),
+      catalog.printings(),
+    ]);
+
+    const cardById = new Map(cardRows.map((row) => [row.id, row]));
 
     const printingsBySet = new Map<string, Printing[]>();
-    for (const row of rows) {
+    for (const row of printingRows) {
+      const cardRow = cardById.get(row.card_id);
+      if (!cardRow) {
+        continue;
+      }
       const images: PrintingImage[] = row.image_url ? [{ face: "front", url: row.image_url }] : [];
       const card: Card = {
-        id: row.card_id,
-        slug: row.card_slug,
-        name: row.name,
-        type: row.type as CardType,
-        superTypes: row.super_types as SuperType[],
-        domains: row.domains as Domain[],
+        id: cardRow.id,
+        slug: cardRow.slug,
+        name: cardRow.name,
+        type: cardRow.type,
+        superTypes: cardRow.super_types as SuperType[],
+        domains: cardRow.domains as Domain[],
         stats: {
-          might: row.might,
-          energy: row.energy,
-          power: row.power,
+          might: cardRow.might,
+          energy: cardRow.energy,
+          power: cardRow.power,
         } satisfies CardStats,
-        keywords: row.keywords as string[],
-        tags: row.tags as string[],
-        mightBonus: row.might_bonus,
-        description: row.rules_text ?? "",
-        effect: row.effect_text ?? "",
+        keywords: cardRow.keywords,
+        tags: cardRow.tags,
+        mightBonus: cardRow.might_bonus,
+        description: cardRow.rules_text ?? "",
+        effect: cardRow.effect_text ?? "",
       };
       const printing: Printing = {
-        id: row.printing_id,
-        slug: row.printing_slug,
+        id: row.id,
+        slug: row.slug,
         sourceId: row.source_id,
         set: row.set_slug,
         collectorNumber: row.collector_number,
-        rarity: row.rarity as Rarity,
-        artVariant: row.art_variant as ArtVariant,
+        rarity: row.rarity,
+        artVariant: row.art_variant,
         isSigned: row.is_signed,
         isPromo: row.is_promo,
-        finish: row.finish as Finish,
+        finish: row.finish,
         images,
         artist: row.artist,
         publicCode: row.public_code,
         ...(row.printed_rules_text !== null &&
-          row.printed_rules_text !== row.rules_text && {
+          row.printed_rules_text !== cardRow.rules_text && {
             printedDescription: row.printed_rules_text,
           }),
         ...(row.printed_effect_text !== null &&
-          row.printed_effect_text !== row.effect_text && {
+          row.printed_effect_text !== cardRow.effect_text && {
             printedEffect: row.printed_effect_text,
           }),
         ...(row.flavor_text && { flavorText: row.flavor_text }),
@@ -124,7 +138,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
 
     const prices: Record<string, number> = {};
     for (const row of rows) {
-      prices[row.printing_id] = row.market_cents / 100;
+      prices[row.printing_id] = centsToDollars(row.market_cents);
     }
 
     return c.json({ prices });
@@ -176,7 +190,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
 
       const tcgSnapshots = tcgRows.map((r) => ({
         date: formatDateUTC(r.recorded_at),
-        market: r.market_cents / 100,
+        market: centsToDollars(r.market_cents),
         low: centsToDollars(r.low_cents),
         mid: centsToDollars(r.mid_cents),
         high: centsToDollars(r.high_cents),
@@ -184,7 +198,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
 
       const cmSnapshots = cmRows.map((r) => ({
         date: formatDateUTC(r.recorded_at),
-        market: r.market_cents / 100,
+        market: centsToDollars(r.market_cents),
         low: centsToDollars(r.low_cents),
         trend: centsToDollars(r.trend_cents),
         avg1: centsToDollars(r.avg1_cents),
