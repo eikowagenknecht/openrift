@@ -105,7 +105,9 @@ if (!DATABASE_URL) {
   process.exit(0);
 }
 
-const coverageArgs = process.env.COVERAGE ? ["--coverage", "--coverage-reporter=lcov"] : [];
+const coverageArgs = process.env.COVERAGE
+  ? ["--coverage", "--coverage-reporter=text", "--coverage-reporter=lcov"]
+  : [];
 
 let tempDbName = "";
 
