@@ -27,6 +27,9 @@ function makePrinting(
     images: [{ face: "front", url: "thumb.jpg" }],
     artist: "Jane Doe",
     publicCode: "ABCD",
+    printedRulesText: null,
+    printedEffectText: null,
+    flavorText: null,
     card: {
       id: cardId,
       slug: cardSlug,
