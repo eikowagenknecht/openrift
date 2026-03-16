@@ -7,7 +7,6 @@ import {
 import { Hono } from "hono";
 
 import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
-import { db } from "../db.js";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
@@ -31,6 +30,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/collections", async (c) => {
+    const db = c.get("db");
     await ensureInbox(db, getUserId(c));
     const userId = getUserId(c);
     const rows = await db
@@ -46,6 +46,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/collections", zValidator("json", createCollectionSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await db
@@ -65,6 +66,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   .get("/collections/:id", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const row = await db
@@ -85,6 +87,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateCollectionSchema),
     async (c) => {
+      const db = c.get("db");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -106,6 +109,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
   // Complex: validates inbox, relocates copies, logs activity
   .delete("/collections/:id", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const moveCopiesTo = c.req.query("move_copies_to");
@@ -192,6 +196,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
   .get("/collections/:id/copies", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 

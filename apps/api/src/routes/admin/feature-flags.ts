@@ -3,7 +3,6 @@ import { keyParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { db } from "../../db.js";
 import { AppError } from "../../errors.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
@@ -32,6 +31,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
   // Returns { key: enabled } map for the client to consume at boot.
 
   .get("/feature-flags", async (c) => {
+    const db = c.get("db");
     const rows = await db.selectFrom("feature_flags").select(["key", "enabled"]).execute();
 
     const flags: Record<string, boolean> = {};
@@ -47,6 +47,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
   .use("/admin/feature-flags/*", requireAdmin)
 
   .get("/admin/feature-flags", async (c) => {
+    const db = c.get("db");
     const flags = await db.selectFrom("feature_flags").selectAll().orderBy("key").execute();
 
     return c.json({ flags });
@@ -55,6 +56,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
   // ── Admin: POST /admin/feature-flags ────────────────────────────────────────
 
   .post("/admin/feature-flags", zValidator("json", createFlagSchema), async (c) => {
+    const db = c.get("db");
     const { key, description, enabled } = c.req.valid("json");
 
     const existing = await db
@@ -86,6 +88,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", keyParamSchema),
     zValidator("json", updateFlagSchema),
     async (c) => {
+      const db = c.get("db");
       const { key } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -116,6 +119,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>()
   // ── Admin: DELETE /admin/feature-flags/:key ─────────────────────────────────
 
   .delete("/admin/feature-flags/:key", zValidator("param", keyParamSchema), async (c) => {
+    const db = c.get("db");
     const { key } = c.req.valid("param");
 
     const result = await db.deleteFrom("feature_flags").where("key", "=", key).executeTakeFirst();

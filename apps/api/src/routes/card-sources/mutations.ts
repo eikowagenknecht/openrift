@@ -7,8 +7,6 @@ import { Hono } from "hono";
 import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { db } from "../../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { ingestCardSources } from "../../services/ingest-card-sources.js";
@@ -42,6 +40,7 @@ import {
 // wildcard doesn't swallow "auto-check".
 export const mutationsRoute = new Hono<{ Variables: Variables }>()
   .post("/auto-check", async (c) => {
+    const db = c.get("db");
     const now = new Date();
     const rcid = resolveCardId("cs");
 
@@ -100,6 +99,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /:cardSourceId/check ──────────────────────────────────────────────
   .post("/:cardSourceId/check", async (c) => {
+    const db = c.get("db");
     const { cardSourceId } = c.req.param();
 
     const result = await db
@@ -123,6 +123,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     "/printing-sources/check-all",
     zValidator("json", checkAllPrintingSourcesSchema),
     async (c) => {
+      const db = c.get("db");
       const { printingId, extraIds } = c.req.valid("json");
 
       const results = await db
@@ -144,6 +145,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing-sources/:id/check ─────────────────────────────────────
   .post("/printing-sources/:id/check", async (c) => {
+    const db = c.get("db");
     const { id } = c.req.param();
 
     const result = await db
@@ -162,6 +164,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /:cardId/check-all ──────────────────────────────────────────────
   // Mark all card_sources for a given card as checked
   .post("/:cardId/check-all", async (c) => {
+    const db = c.get("db");
     const cardSlug = c.req.param("cardId");
 
     // Resolve slug → card, then find sources by name/alias
@@ -196,6 +199,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── PATCH /printing-sources/:id ───────────────────────────────────────────
   // Update differentiator fields on a printing_source (e.g. fix wrong art_variant)
   .patch("/printing-sources/:id", zValidator("json", patchPrintingSourceSchema), async (c) => {
+    const db = c.get("db");
     const { id } = c.req.param();
     const body = c.req.valid("json");
 
@@ -237,6 +241,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /printing-sources/:id ──────────────────────────────────────────
   .delete("/printing-sources/:id", async (c) => {
+    const db = c.get("db");
     const { id } = c.req.param();
 
     const result = await db.deleteFrom("printing_sources").where("id", "=", id).executeTakeFirst();
@@ -251,6 +256,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /printing-sources/:id/copy ───────────────────────────────────────
   // Duplicate a printing_source and link the copy to a different printing
   .post("/printing-sources/:id/copy", zValidator("json", copyPrintingSourceSchema), async (c) => {
+    const db = c.get("db");
     const { id } = c.req.param();
     const { printingId } = c.req.valid("json");
 
@@ -309,6 +315,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /printing-sources/link ───────────────────────────────────────────
   // Bulk-link (or unlink) printing sources to a printing
   .post("/printing-sources/link", zValidator("json", linkPrintingSourcesSchema), async (c) => {
+    const db = c.get("db");
     const { printingSourceIds, printingId } = c.req.valid("json");
 
     if (!Array.isArray(printingSourceIds) || printingSourceIds.length === 0) {
@@ -340,6 +347,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /:cardId/rename ──────────────────────────────────────────────────
   .post("/:cardId/rename", zValidator("json", renameSchema), async (c) => {
+    const db = c.get("db");
     const cardSlug = c.req.param("cardId");
     const { newId } = c.req.valid("json");
 
@@ -363,6 +371,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /:cardId/accept-field ────────────────────────────────────────────
   .post("/:cardId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
+    const db = c.get("db");
     const cardSlug = c.req.param("cardId");
     const { field, value } = c.req.valid("json");
 
@@ -425,6 +434,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/accept-field ──────────────────────────────
   .post("/printing/:printingId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
+    const db = c.get("db");
     const printingSlug = c.req.param("printingId");
     const { field, value } = c.req.valid("json");
 
@@ -484,6 +494,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/rename ────────────────────────────────────
   .post("/printing/:printingId/rename", zValidator("json", renameSchema), async (c) => {
+    const db = c.get("db");
     const printingSlug = c.req.param("printingId");
     const { newId } = c.req.valid("json");
 
@@ -508,6 +519,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /new/:name/accept ────────────────────────────────────────────────
   // Create new card from source data and link card_sources
   .post("/new/:name/accept", zValidator("json", acceptNewCardSchema), async (c) => {
+    const db = c.get("db");
     const normalizedName = decodeURIComponent(c.req.param("name"));
     const { cardFields } = c.req.valid("json");
 
@@ -525,6 +537,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /new/:name/link ──────────────────────────────────────────────────
   // Link unmatched sources to an existing card
   .post("/new/:name/link", zValidator("json", linkUnmatchedSchema), async (c) => {
+    const db = c.get("db");
     const normalizedName = decodeURIComponent(c.req.param("name"));
     const { cardId: cardSlug } = c.req.valid("json");
 
@@ -552,6 +565,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /:cardId/accept-printing ─────────────────────────────────────────
   // Create a new printing from admin-selected fields, link all sources in the group
   .post("/:cardId/accept-printing", zValidator("json", acceptPrintingSchema), async (c) => {
+    const db = c.get("db");
     const cardSlug = c.req.param("cardId");
     const { printingFields, printingSourceIds } = c.req.valid("json");
 
@@ -670,6 +684,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /printing-sources/:id/accept-new ────────────────────────────────
   // Create a new printing from a printing_source row (legacy, single source)
   .post("/printing-sources/:id/accept-new", async (c) => {
+    const db = c.get("db");
     const { id } = c.req.param();
 
     const ps = await db
@@ -782,6 +797,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /upload ──────────────────────────────────────────────────────────
   .post("/upload", zValidator("json", uploadCardSourcesSchema), async (c) => {
+    const db = c.get("db");
     const { source, candidates } = c.req.valid("json");
 
     if (!source || typeof source !== "string" || source.trim() === "") {
@@ -844,6 +860,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── DELETE /by-source/:source ─────────────────────────────────────────────
   // Delete all card_sources (and cascaded printing_sources) for a given source name
   .delete("/by-source/:source", async (c) => {
+    const db = c.get("db");
     const source = decodeURIComponent(c.req.param("source"));
     if (!source.trim()) {
       throw new AppError(400, "BAD_REQUEST", "Source name is required");

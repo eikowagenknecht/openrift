@@ -5,8 +5,6 @@ import { sql } from "kysely";
 import { z } from "zod/v4";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { db } from "../../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { requireAdmin } from "../../middleware/require-admin.js";
@@ -39,6 +37,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     "/admin/rehost-images",
     zValidator("query", z.object({ limit: z.coerce.number().int().min(1).optional() })),
     async (c) => {
+      const db = c.get("db");
       const limit = c.req.valid("query").limit ?? 10;
       try {
         const result = await rehostImages(db, limit);
@@ -68,6 +67,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   .use("/admin/clear-rehosted", requireAdmin)
   .post("/admin/clear-rehosted", async (c) => {
+    const db = c.get("db");
     try {
       const result = await clearAllRehosted(db);
       return c.json({ status: "ok", result });
@@ -79,6 +79,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   .use("/admin/rehost-status", requireAdmin)
   .get("/admin/rehost-status", async (c) => {
+    const db = c.get("db");
     try {
       const result = await getRehostStatus(db);
       return c.json(result);
@@ -92,6 +93,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   .use("/admin/restore-image-urls", requireAdmin)
   .post("/admin/restore-image-urls", zValidator("json", restoreImageUrlsSchema), async (c) => {
+    const db = c.get("db");
     const { source } = c.req.valid("json");
 
     try {

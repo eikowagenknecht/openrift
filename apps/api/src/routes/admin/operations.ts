@@ -7,7 +7,6 @@ import {
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { db } from "../../db.js";
 import { AppError } from "../../errors.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
@@ -30,6 +29,7 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   .use("/admin/clear-prices", requireAdmin)
   .post("/admin/clear-prices", zValidator("json", clearPricesSchema), async (c) => {
+    const db = c.get("db");
     const { source } = c.req.valid("json");
 
     try {
@@ -74,6 +74,7 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   .use("/admin/refresh-tcgplayer-prices", requireAdmin)
   .post("/admin/refresh-tcgplayer-prices", async (c) => {
+    const db = c.get("db");
     try {
       const result = await refreshTcgplayerPrices(db, log.child({ service: "tcgplayer" }));
       return c.json({ status: "ok", result });
@@ -85,6 +86,7 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   .use("/admin/refresh-cardmarket-prices", requireAdmin)
   .post("/admin/refresh-cardmarket-prices", async (c) => {
+    const db = c.get("db");
     try {
       const result = await refreshCardmarketPrices(db, log.child({ service: "cardmarket" }));
       return c.json({ status: "ok", result });

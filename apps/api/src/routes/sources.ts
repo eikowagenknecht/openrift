@@ -2,7 +2,6 @@ import { zValidator } from "@hono/zod-validator";
 import { createSourceSchema, idParamSchema, updateSourceSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
-import { db } from "../db.js";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
@@ -19,6 +18,7 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/sources", async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const rows = await db
       .selectFrom("sources")
@@ -31,6 +31,7 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/sources", zValidator("json", createSourceSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await db
@@ -47,6 +48,7 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   .get("/sources/:id", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const row = await db
@@ -67,6 +69,7 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateSourceSchema),
     async (c) => {
+      const db = c.get("db");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -87,6 +90,7 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
   .delete("/sources/:id", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const result = await db

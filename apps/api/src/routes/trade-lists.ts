@@ -9,7 +9,6 @@ import {
 import { Hono } from "hono";
 
 import { imageUrl } from "../db-helpers.js";
-import { db } from "../db.js";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
@@ -29,6 +28,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/trade-lists", async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const rows = await db
       .selectFrom("trade_lists")
@@ -41,6 +41,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/trade-lists", zValidator("json", createTradeListSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await db
@@ -57,6 +58,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET ONE (custom: returns trade list with enriched items) ────────────────
   .get("/trade-lists/:id", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
@@ -123,6 +125,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateTradeListSchema),
     async (c) => {
+      const db = c.get("db");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -143,6 +146,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
   .delete("/trade-lists/:id", zValidator("param", idParamSchema), async (c) => {
+    const db = c.get("db");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const result = await db
@@ -162,6 +166,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", createTradeListItemSchema),
     async (c) => {
+      const db = c.get("db");
       const userId = getUserId(c);
       const { id: tradeListId } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -209,6 +214,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
     "/trade-lists/:id/items/:itemId",
     zValidator("param", idAndItemIdParamSchema),
     async (c) => {
+      const db = c.get("db");
       const userId = getUserId(c);
       const { id: tradeListId, itemId } = c.req.valid("param");
 

@@ -6,8 +6,6 @@ import type { SqlBool } from "kysely";
 import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { db } from "../../db.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
@@ -18,6 +16,7 @@ import { cardSourcesQuerySchema } from "./schemas.js";
 // Lightweight list of all cards for client-side search (link combobox etc.)
 export const queriesRoute = new Hono<{ Variables: Variables }>()
   .get("/all-cards", async (c) => {
+    const db = c.get("db");
     const rows = await db
       .selectFrom("cards")
       .select(["id", "slug", "name", "type"])
@@ -30,6 +29,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /source-names ──────────────────────────────────────────────────────
   // List distinct source names for the combobox on the upload page
   .get("/source-names", async (c) => {
+    const db = c.get("db");
     const rows = await db
       .selectFrom("card_sources")
       .select("source")
@@ -43,6 +43,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /source-stats ───────────────────────────────────────────────────────
   // Per-source card and printing counts
   .get("/source-stats", async (c) => {
+    const db = c.get("db");
     const rows = await db
       .selectFrom("card_sources as cs")
       .leftJoin("printing_sources as ps", "ps.card_source_id", "cs.id")
@@ -71,6 +72,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   // ── GET / ───────────────────────────────────────────────────────────────────
   // List all cards + unmatched groups with source/unchecked counts
   .get("/", zValidator("query", cardSourcesQuerySchema), async (c) => {
+    const db = c.get("db");
     const queryParams = c.req.valid("query");
     const filter = queryParams.filter ?? "all";
     const source = queryParams.source;
@@ -391,6 +393,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /export ────────────────────────────────────────────────────────────
   // Export all active cards + printings in the same JSON format the upload endpoint accepts
   .get("/export", async (c) => {
+    const db = c.get("db");
     const cards = await db.selectFrom("cards").selectAll().orderBy("name").execute();
 
     const printings = await db
@@ -465,6 +468,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /:cardId ──────────────────────────────────────────────────────────
   // Detail: active card + all card_sources + printings + printing_sources
   .get("/:cardId", async (c) => {
+    const db = c.get("db");
     const cardSlug = c.req.param("cardId");
 
     const card = await db
@@ -668,6 +672,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /new/:name ────────────────────────────────────────────────────────
   // Unmatched detail: card_sources grouped by normalized name (no matching card)
   .get("/new/:name", async (c) => {
+    const db = c.get("db");
     const name = decodeURIComponent(c.req.param("name"));
 
     const sources = await db

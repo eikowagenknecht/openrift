@@ -37,7 +37,7 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
       return c.json({ isAdmin: false });
     }
 
-    return c.json({ isAdmin: await isAdmin(user.id) });
+    return c.json({ isAdmin: await isAdmin(c.get("db"), user.id) });
   })
 
   // ── Mount sub-routes ──────────────────────────────────────────────────────
