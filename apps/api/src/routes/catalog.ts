@@ -68,10 +68,11 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       priceByPrinting.set(row.printing_id, centsToDollars(row.market_cents));
     }
 
-    // Build cards map
+    // Build cards map + raw-row lookup in a single pass
     const cards: Record<string, Card> = {};
-    const cardRowById = new Map(cardRows.map((row) => [row.id, row]));
+    const cardRowById = new Map<string, (typeof cardRows)[number]>();
     for (const row of cardRows) {
+      cardRowById.set(row.id, row);
       cards[row.id] = {
         id: row.id,
         slug: row.slug,
@@ -188,7 +189,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   /**
    * `GET /prices/:printingId/history` — Returns price history for a single printing.
    *
-   * Accepts a printing UUID or slug. Returns snapshots for both TCGPlayer (USD)
+   * Accepts a printing UUID. Returns snapshots for both TCGPlayer (USD)
    * and Cardmarket (EUR) when available. The `range` query param controls the
    * lookback window (`7d`, `30d`, `90d`, `all`); defaults to `30d`.
    *
@@ -199,16 +200,20 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   .get(
     "/prices/:printingId/history",
     zValidator("param", z.object({ printingId: z.string().min(1) })),
-    zValidator("query", z.object({ range: z.string().optional() })),
+    zValidator(
+      "query",
+      z.object({
+        range: z.enum(Object.keys(RANGE_DAYS) as [TimeRange, ...TimeRange[]]).default("30d"),
+      }),
+    ),
     async (c) => {
       const db = c.get("db");
       const catalog = catalogRepo(db);
       const marketplace = marketplaceRepo(db);
 
       const { printingId: param } = c.req.valid("param");
-      const rangeParam = c.req.valid("query").range ?? "30d";
-      const days =
-        rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam as TimeRange] : RANGE_DAYS["30d"];
+      const rangeParam = c.req.valid("query").range;
+      const days = RANGE_DAYS[rangeParam];
       const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
       const printing = await catalog.printingById(param);
@@ -248,6 +253,18 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         avg30: centsToDollars(r.avg30_cents),
       }));
 
+      const latestTcg = tcgRows.at(-1)?.recorded_at;
+      const latestCm = cmRows.at(-1)?.recorded_at;
+      const latestTs = Math.max(
+        latestTcg ? new Date(latestTcg).getTime() : 0,
+        latestCm ? new Date(latestCm).getTime() : 0,
+      );
+      const etag = `"history-${printing.id}-${rangeParam}-${latestTs}"`;
+
+      if (c.req.header("If-None-Match") === etag) {
+        return c.body(null, 304);
+      }
+
       const response: PriceHistoryResponse = {
         printingId: printing.id,
         tcgplayer: {
@@ -264,6 +281,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         },
       };
 
+      c.header("ETag", etag);
+      c.header("Cache-Control", "public, max-age=60");
       return c.json(response);
     },
   );
