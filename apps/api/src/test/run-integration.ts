@@ -56,6 +56,9 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0021-4000-a000-000000000001", email: "admin-0021@test.com", isAdmin: true },
   // Service tests
   { id: "a0000000-0022-4000-a000-000000000001", email: "svc-0022@test.com", isAdmin: false },
+  // Public read-endpoint tests (prices + catalog)
+  { id: "a0000000-0023-4000-a000-000000000001", email: "user-0023@test.com", isAdmin: false },
+  { id: "a0000000-0024-4000-a000-000000000001", email: "user-0024@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -84,6 +87,8 @@ const PARALLEL_FILES = [
   "src/routes/card-sources/mutations.integration.test.ts",
   "src/services/price-refresh/upsert.integration.test.ts",
   "src/services/ingest-card-sources.integration.test.ts",
+  "src/routes/prices.integration.test.ts",
+  "src/routes/catalog.integration.test.ts",
 ];
 
 /** Files using mock.module() — must run in separate processes */

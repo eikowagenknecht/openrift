@@ -320,8 +320,15 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const baseFileBase = printingIdToFileBase(printingSlug);
       const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
 
-      // Insert the DB row first so we have the ID for non-main file paths
-      const imageRow = await db.transaction().execute(async (trx) => {
+      // Pre-compute paths so rehostedUrl can be included in the INSERT
+      // (chk_printing_images_has_url requires at least one URL at insert time)
+      const imageId = mode === "additional" ? crypto.randomUUID() : undefined;
+      const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageId}`;
+      const rehostedUrl = `/card-images/${printing.setSlug}/${fileBase}`;
+
+      await processAndSave(buffer, ext, outputDir, fileBase);
+
+      await db.transaction().execute(async (trx) => {
         if (mode === "main") {
           await trx
             .updateTable("printingImages")
@@ -332,34 +339,25 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
             .execute();
         }
 
-        return trx
+        await trx
           .insertInto("printingImages")
           .values({
+            ...(imageId ? { id: imageId } : {}),
             printingId: printing.id,
             face: "front",
             source,
             isActive: mode === "main",
+            rehostedUrl,
           })
           .onConflict((oc) =>
             oc.columns(["printingId", "face", "source"]).doUpdateSet({
               isActive: mode === "main",
+              rehostedUrl,
               updatedAt: new Date(),
             }),
           )
-          .returning("id")
-          .executeTakeFirstOrThrow();
+          .execute();
       });
-
-      const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageRow.id}`;
-      await processAndSave(buffer, ext, outputDir, fileBase);
-
-      const rehostedUrl = `/card-images/${printing.setSlug}/${fileBase}`;
-
-      await db
-        .updateTable("printingImages")
-        .set({ rehostedUrl: rehostedUrl, updatedAt: new Date() })
-        .where("id", "=", imageRow.id)
-        .execute();
 
       return c.json({ rehostedUrl });
     },

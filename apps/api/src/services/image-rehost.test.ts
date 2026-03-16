@@ -140,6 +140,14 @@ describe("printingIdToFileBase", () => {
   it("converts without promo (missing segment)", () => {
     expect(printingIdToFileBase("SET-001:mythic:normal")).toBe("SET-001-mythic-normal-n");
   });
+
+  it("handles source IDs with dots and hyphens", () => {
+    expect(printingIdToFileBase("A.B-C:rare:foil:promo")).toBe("A.B-C-rare-foil-y");
+  });
+
+  it("handles numeric source IDs", () => {
+    expect(printingIdToFileBase("12345:common:normal:")).toBe("12345-common-normal-n");
+  });
 });
 
 describe("downloadImage", () => {
@@ -176,6 +184,19 @@ describe("downloadImage", () => {
   it("throws on non-ok response", async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 404 }));
     await expect(downloadImage("https://example.com/x")).rejects.toThrow("Download failed (404)");
+  });
+
+  it("handles content-type with extra params (charset)", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(Buffer.from("d"), { headers: { "content-type": "image/png; charset=utf-8" } }),
+    );
+    const { ext } = await downloadImage("https://example.com/img");
+    expect(ext).toBe(".png");
+  });
+
+  it("throws on 500 server error", async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+    await expect(downloadImage("https://example.com/x")).rejects.toThrow("Download failed (500)");
   });
 });
 
@@ -299,6 +320,57 @@ describe("rehostImages", () => {
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("string-error");
   });
+
+  it("processes a mixed batch of success, skip, and failure", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(
+        new Response(Buffer.from("ok"), { headers: { "content-type": "image/png" } }),
+      )
+      .mockRejectedValueOnce(new Error("timeout"));
+
+    const db = makeMockDb({
+      selectResult: [
+        {
+          imageId: 1,
+          printingSlug: "A:a:a:",
+          originalUrl: "https://example.com/ok.png",
+          setSlug: "s1",
+        },
+        { imageId: 2, printingSlug: "B:b:b:", originalUrl: null, setSlug: "s2" },
+        {
+          imageId: 3,
+          printingSlug: "C:c:c:",
+          originalUrl: "https://example.com/fail.png",
+          setSlug: "s3",
+        },
+      ],
+      updateResult: [{ numUpdatedRows: 1n }],
+    });
+
+    const result = await rehostImages(db);
+    expect(result.total).toBe(3);
+    expect(result.rehosted).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.failed).toBe(1);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("timeout");
+  });
+
+  it("respects a custom limit parameter", async () => {
+    const db = makeMockDb({
+      selectResult: [
+        {
+          imageId: 1,
+          printingSlug: "X:a:b:",
+          originalUrl: "https://example.com/img.png",
+          setSlug: "s",
+        },
+      ],
+      updateResult: [{ numUpdatedRows: 1n }],
+    });
+    const result = await rehostImages(db, 5);
+    expect(result.rehosted).toBe(1);
+  });
 });
 
 describe("regenerateImages", () => {
@@ -367,6 +439,50 @@ describe("regenerateImages", () => {
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("read error");
   });
+
+  it("paginates with offset > 0", async () => {
+    const files = Array.from({ length: 15 }, (_, i) => `card-${i}-orig.png`);
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("set1", true)];
+      }
+      return files;
+    });
+    const result = await regenerateImages(10);
+    expect(result.totalFiles).toBe(15);
+    expect(result.total).toBe(5);
+    expect(result.hasMore).toBe(false);
+    expect(result.regenerated).toBe(5);
+  });
+
+  it("handles non-Error thrown values in regeneration", async () => {
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("set1", true)];
+      }
+      return ["card-001-orig.png"];
+    });
+    mockReadFile.mockRejectedValue("raw-string-error");
+    const result = await regenerateImages(0);
+    expect(result.failed).toBe(1);
+    expect(result.errors[0]).toContain("raw-string-error");
+  });
+
+  it("collects orig files across multiple set directories", async () => {
+    let callIndex = 0;
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("alpha", true), dirent("beta", true)];
+      }
+      callIndex++;
+      // alpha has 1 orig, beta has 1 orig
+      return callIndex === 1 ? ["card-a-orig.png"] : ["card-b-orig.jpg"];
+    });
+    const result = await regenerateImages(0);
+    expect(result.totalFiles).toBe(2);
+    expect(result.regenerated).toBe(2);
+    expect(mockReadFile).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("clearAllRehosted", () => {
@@ -389,6 +505,22 @@ describe("clearAllRehosted", () => {
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
     const result = await clearAllRehosted(db);
     expect(result).toEqual({ cleared: 3 });
+  });
+
+  it("deletes across multiple set directories", async () => {
+    const db = makeMockDb({ updateResult: [{ numUpdatedRows: 10n }] });
+    let setCall = 0;
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("set1", true), dirent("set2", true)];
+      }
+      setCall++;
+      return setCall === 1 ? ["f1.webp", "f2.webp"] : ["f3.webp"];
+    });
+
+    const result = await clearAllRehosted(db);
+    expect(result).toEqual({ cleared: 10 });
+    expect(mockUnlink).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -427,5 +559,56 @@ describe("getRehostStatus", () => {
       sets: [],
       disk: { totalBytes: 0, sets: [] },
     });
+  });
+
+  it("computes disk stats across multiple set directories", async () => {
+    const db = makeMockDb({
+      selectResult: [{ setId: "s1", setName: "S1", total: 3, rehosted: 3 }],
+    });
+    let dirCall = 0;
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("set-a", true), dirent("set-b", true)];
+      }
+      dirCall++;
+      return dirCall === 1 ? ["a1.webp", "a2.webp"] : ["b1.webp"];
+    });
+    mockStat.mockResolvedValue({ size: 500 });
+
+    const result = await getRehostStatus(db);
+    expect(result.disk.totalBytes).toBe(1500);
+    expect(result.disk.sets).toEqual([
+      { setId: "set-a", bytes: 1000, fileCount: 2 },
+      { setId: "set-b", bytes: 500, fileCount: 1 },
+    ]);
+  });
+
+  it("correctly computes external = total - rehosted per set", async () => {
+    const db = makeMockDb({
+      selectResult: [
+        { setId: "a", setName: "Alpha", total: 10, rehosted: 3 },
+        { setId: "b", setName: "Beta", total: 5, rehosted: 5 },
+      ],
+    });
+    mockReaddir.mockRejectedValue(new Error("ENOENT"));
+
+    const result = await getRehostStatus(db);
+    expect(result.sets[0]).toEqual({
+      setId: "a",
+      setName: "Alpha",
+      total: 10,
+      rehosted: 3,
+      external: 7,
+    });
+    expect(result.sets[1]).toEqual({
+      setId: "b",
+      setName: "Beta",
+      total: 5,
+      rehosted: 5,
+      external: 0,
+    });
+    expect(result.total).toBe(15);
+    expect(result.rehosted).toBe(8);
+    expect(result.external).toBe(7);
   });
 });

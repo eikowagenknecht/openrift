@@ -275,9 +275,6 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
 
   const seenStagingKeys = new Set<string>();
   const uniqueStaged = staged.filter((row) => {
-    if (row.externalId === null) {
-      return false;
-    }
     const key = `${row.externalId}::${row.finish}`;
     if (ignoredKeys.has(key) || seenStagingKeys.has(key)) {
       return false;

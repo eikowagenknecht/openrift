@@ -1368,6 +1368,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         req("POST", `${P}/NONEXISTENT-CARD/accept-printing`, {
           printingFields: {
             sourceId: "CSM-AP-X",
+            setId: "CSM",
             collectorNumber: 70,
             artist: "X",
             publicCode: "X",

@@ -4,7 +4,10 @@ import { describe, expect, it, mock } from "bun:test";
 mock.module("../../services/image-rehost.js", () => ({
   CARD_IMAGES_DIR: "/tmp/test-card-images",
   downloadImage: async () => ({ buffer: Buffer.from("fake-image-data"), ext: ".png" }),
-  printingIdToFileBase: (id: string) => id.replaceAll(":", "-"),
+  printingIdToFileBase: (id: string) => {
+    const [sourceId, rarity, finish, promo] = id.split(":");
+    return `${sourceId}-${rarity}-${finish}-${promo ? "y" : "n"}`;
+  },
   // oxlint-disable-next-line no-empty-function -- noop mock
   processAndSave: async () => {},
   // oxlint-disable-next-line no-empty-function -- noop mock
@@ -443,6 +446,115 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
   });
 
+  // ── POST /printing-images/:imageId/activate (rehosted paths) ────────────
+
+  describe("POST /admin/card-sources/printing-images/:imageId/activate (rehosted)", () => {
+    it("renames rehosted files when swapping active images", async () => {
+      // Give both images a rehostedUrl to exercise the rename branches
+      await db
+        .updateTable("printingImages")
+        .set({ rehostedUrl: "/card-images/CSI/CSI-001-common-normal-n", isActive: true })
+        .where("id", "=", mainImageId)
+        .execute();
+      await db
+        .updateTable("printingImages")
+        .set({
+          rehostedUrl: `/card-images/CSI/CSI-001-common-normal-n-${additionalImageId}`,
+          isActive: false,
+        })
+        .where("id", "=", additionalImageId)
+        .execute();
+
+      // Activate the additional image → should deactivate main and rename files
+      const res = await app.fetch(
+        req("POST", `/admin/card-sources/printing-images/${additionalImageId}/activate`, {
+          active: true,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // The newly active image should get the main path
+      const newActive = await db
+        .selectFrom("printingImages")
+        .select(["isActive", "rehostedUrl"])
+        .where("id", "=", additionalImageId)
+        .executeTakeFirst();
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(newActive!.isActive).toBe(true);
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(newActive!.rehostedUrl).toBe("/card-images/CSI/CSI-001-common-normal-n");
+
+      // The demoted image should get an ID-suffixed path
+      const demoted = await db
+        .selectFrom("printingImages")
+        .select(["isActive", "rehostedUrl"])
+        .where("id", "=", mainImageId)
+        .executeTakeFirst();
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(demoted!.isActive).toBe(false);
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(demoted!.rehostedUrl).toBe(`/card-images/CSI/CSI-001-common-normal-n-${mainImageId}`);
+    });
+
+    it("renames rehosted files when deactivating an image", async () => {
+      // additionalImageId is currently active with the main path from the previous test
+      const res = await app.fetch(
+        req("POST", `/admin/card-sources/printing-images/${additionalImageId}/activate`, {
+          active: false,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // The deactivated image should get an ID-suffixed path
+      const image = await db
+        .selectFrom("printingImages")
+        .select(["isActive", "rehostedUrl"])
+        .where("id", "=", additionalImageId)
+        .executeTakeFirst();
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(image!.isActive).toBe(false);
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(image!.rehostedUrl).toBe(
+        `/card-images/CSI/CSI-001-common-normal-n-${additionalImageId}`,
+      );
+    });
+
+    it("activates an image without rehostedUrl (no rename)", async () => {
+      // Clear rehostedUrl on mainImageId to test the non-rehosted activation path
+      await db
+        .updateTable("printingImages")
+        .set({ rehostedUrl: null, originalUrl: "https://example.com/csi-test.png" })
+        .where("id", "=", mainImageId)
+        .execute();
+
+      // Also ensure no currently-active image for this face
+      await db
+        .updateTable("printingImages")
+        .set({ isActive: false })
+        .where("printingId", "=", printingId)
+        .where("face", "=", "front")
+        .execute();
+
+      const res = await app.fetch(
+        req("POST", `/admin/card-sources/printing-images/${mainImageId}/activate`, {
+          active: true,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const image = await db
+        .selectFrom("printingImages")
+        .select(["isActive", "rehostedUrl"])
+        .where("id", "=", mainImageId)
+        .executeTakeFirst();
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(image!.isActive).toBe(true);
+      // rehostedUrl should remain null (no rename happened)
+      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
+      expect(image!.rehostedUrl).toBeNull();
+    });
+  });
+
   // ── POST /printing-images/:imageId/rehost ────────────────────────────────
 
   describe("POST /admin/card-sources/printing-images/:imageId/rehost", () => {
@@ -658,12 +770,146 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
+    it("adds an image URL in additional mode", async () => {
+      const res = await app.fetch(
+        req("POST", `/admin/card-sources/printing/${printingSlug}/add-image-url`, {
+          url: "https://example.com/csi-additional-image.png",
+          source: "csi-additional-test",
+          mode: "additional",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // Verify the image was created as inactive
+      const images = await db
+        .selectFrom("printingImages")
+        .selectAll()
+        .where("printingId", "=", printingId)
+        .where("source", "=", "csi-additional-test")
+        .execute();
+      expect(images.length).toBe(1);
+      expect(images[0].originalUrl).toBe("https://example.com/csi-additional-image.png");
+      expect(images[0].isActive).toBe(false);
+    });
+
     it("returns 404 for non-existent printing", async () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing/FAKE-SLUG:rare:foil:/add-image-url`, {
           url: "https://example.com/nope.png",
         }),
       );
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── POST /printing/:printingId/upload-image ─────────────────────────────
+
+  describe("POST /admin/card-sources/printing/:printingId/upload-image", () => {
+    it("uploads an image as main", async () => {
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([new Uint8Array([137, 80, 78, 71])], "test.png", { type: "image/png" }),
+      );
+      formData.append("source", "csi-upload-test");
+      formData.append("mode", "main");
+
+      const request = new Request(
+        `http://localhost/api/admin/card-sources/printing/${printingSlug}/upload-image`,
+        { method: "POST", body: formData },
+      );
+      const res = await app.fetch(request);
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.rehostedUrl).toBeString();
+      expect(json.rehostedUrl).toContain("/card-images/CSI/");
+
+      // Verify DB state: should be active with rehostedUrl
+      const images = await db
+        .selectFrom("printingImages")
+        .selectAll()
+        .where("printingId", "=", printingId)
+        .where("source", "=", "csi-upload-test")
+        .execute();
+      expect(images.length).toBe(1);
+      expect(images[0].isActive).toBe(true);
+      expect(images[0].rehostedUrl).toBe(json.rehostedUrl);
+    });
+
+    it("uploads an image as additional", async () => {
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([new Uint8Array([137, 80, 78, 71])], "extra.png", { type: "image/png" }),
+      );
+      formData.append("source", "csi-upload-additional");
+      formData.append("mode", "additional");
+
+      const request = new Request(
+        `http://localhost/api/admin/card-sources/printing/${printingSlug}/upload-image`,
+        { method: "POST", body: formData },
+      );
+      const res = await app.fetch(request);
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.rehostedUrl).toBeString();
+
+      // Verify DB state: should be inactive
+      const images = await db
+        .selectFrom("printingImages")
+        .selectAll()
+        .where("printingId", "=", printingId)
+        .where("source", "=", "csi-upload-additional")
+        .execute();
+      expect(images.length).toBe(1);
+      expect(images[0].isActive).toBe(false);
+      expect(images[0].rehostedUrl).toBe(json.rehostedUrl);
+      // The rehostedUrl for additional should include the image ID suffix
+      expect(json.rehostedUrl).toContain(images[0].id);
+    });
+
+    it("uploads with default mode (main) and source (upload)", async () => {
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([new Uint8Array([137, 80, 78, 71])], "default.png", { type: "image/png" }),
+      );
+
+      const request = new Request(
+        `http://localhost/api/admin/card-sources/printing/${printingSlug}/upload-image`,
+        { method: "POST", body: formData },
+      );
+      const res = await app.fetch(request);
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.rehostedUrl).toBeString();
+
+      // Verify default source is "upload" and default mode is "main" (active)
+      const images = await db
+        .selectFrom("printingImages")
+        .selectAll()
+        .where("printingId", "=", printingId)
+        .where("source", "=", "upload")
+        .execute();
+      expect(images.length).toBe(1);
+      expect(images[0].isActive).toBe(true);
+    });
+
+    it("returns 404 for non-existent printing", async () => {
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([new Uint8Array([137, 80, 78, 71])], "nope.png", { type: "image/png" }),
+      );
+
+      const request = new Request(
+        `http://localhost/api/admin/card-sources/printing/FAKE-SLUG:rare:foil:/upload-image`,
+        { method: "POST", body: formData },
+      );
+      const res = await app.fetch(request);
       expect(res.status).toBe(404);
     });
   });

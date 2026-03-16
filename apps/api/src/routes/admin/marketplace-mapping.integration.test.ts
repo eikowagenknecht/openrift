@@ -473,4 +473,215 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(json.unmapped).toBeGreaterThanOrEqual(1);
     });
   });
+
+  // ── Coverage: line 283 (ignored/duplicate filter), lines 419-436 ──────────
+  //
+  // Note: line 279 (`row.externalId === null`) is unreachable because the
+  // `external_id` column in `marketplace_staging` has a NOT NULL constraint.
+  // It's a defensive TypeScript guard only.
+
+  describe("staging row filtering edge cases", () => {
+    it("excludes ignored products from staging and lists them separately (lines 283, 419-436)", async () => {
+      // Ensure we have a staging row to ignore
+      await db
+        .insertInto("marketplaceStaging")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 99_001,
+          groupId: 10_200,
+          productName: "MKM Ignored Product",
+          finish: "normal",
+          recordedAt: new Date("2026-01-17T12:00:00Z"),
+          marketCents: 200,
+          lowCents: 100,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+        )
+        .execute();
+
+      // Insert an ignored-product record for this external_id + finish
+      await db
+        .insertInto("marketplaceIgnoredProducts")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 99_001,
+          finish: "normal",
+          productName: "MKM Ignored Product",
+        })
+        .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
+        .execute();
+
+      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+
+      // Should NOT appear in staged or unmatched products
+      const allStaged = json.groups.flatMap(
+        (g: { stagedProducts: { externalId: number }[] }) => g.stagedProducts,
+      );
+      expect(
+        allStaged.find((p: { externalId: number }) => p.externalId === 99_001),
+      ).toBeUndefined();
+      expect(
+        json.unmatchedProducts.find((p: { externalId: number }) => p.externalId === 99_001),
+      ).toBeUndefined();
+
+      // Should appear in ignoredProducts with correct shape
+      const ignored = json.ignoredProducts.find(
+        (p: { externalId: number }) => p.externalId === 99_001,
+      );
+      expect(ignored).toBeDefined();
+      expect(ignored.productName).toBe("MKM Ignored Product");
+      expect(ignored.finish).toBe("normal");
+      expect(ignored.currency).toBe("USD");
+      expect(ignored.groupId).toBe(10_200);
+      expect(ignored.groupName).toBe("MKM TCG Group");
+    });
+  });
+
+  // ── Coverage: lines 147-154, 355-357 (manual card overrides) ──────────────
+
+  describe("manual card overrides", () => {
+    it("matches staged product via override instead of name prefix (lines 147-154, 355-357)", async () => {
+      // Insert a staging row that does NOT name-match any card
+      await db
+        .insertInto("marketplaceStaging")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 99_002,
+          groupId: 10_200,
+          productName: "ZZZ Totally Unrelated Product Name",
+          finish: "normal",
+          recordedAt: new Date("2026-01-18T12:00:00Z"),
+          marketCents: 300,
+          lowCents: 150,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+        )
+        .execute();
+
+      // Insert an override that maps this product to our test card
+      await db
+        .insertInto("marketplaceStagingCardOverrides")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 99_002,
+          finish: "normal",
+          cardId: cardId,
+        })
+        .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
+        .execute();
+
+      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      const testGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "MKM Test Card",
+      );
+      expect(testGroup).toBeDefined();
+
+      // The override-matched product should appear as staged under our card
+      const overrideStaged = testGroup.stagedProducts.find(
+        (p: { externalId: number }) => p.externalId === 99_002,
+      );
+      expect(overrideStaged).toBeDefined();
+      expect(overrideStaged.productName).toBe("ZZZ Totally Unrelated Product Name");
+      expect(overrideStaged.isOverride).toBe(true);
+
+      // It should NOT appear in unmatchedProducts
+      const unmatched = json.unmatchedProducts.find(
+        (p: { externalId: number }) => p.externalId === 99_002,
+      );
+      expect(unmatched).toBeUndefined();
+    });
+  });
+
+  // ── Coverage: lines 177-189 (containment matching second pass) ────────────
+
+  describe("containment matching", () => {
+    it("matches staged product via containment when prefix fails (lines 177-189)", async () => {
+      // "Annie, Fiery" is a seeded OGS card. The normalized name is long
+      // enough (>= 5 chars). Insert a staging product whose name doesn't
+      // start with "Annie, Fiery" but contains it.
+      await db
+        .insertInto("marketplaceStaging")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 99_003,
+          groupId: 10_200,
+          productName: "Champion Annie, Fiery Special",
+          finish: "normal",
+          recordedAt: new Date("2026-01-19T12:00:00Z"),
+          marketCents: 400,
+          lowCents: 200,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+        )
+        .execute();
+
+      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+
+      // Find the group for "Annie, Fiery"
+      const annieGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "Annie, Fiery",
+      );
+      expect(annieGroup).toBeDefined();
+
+      // The containment-matched product should be staged under Annie's group
+      const containmentStaged = annieGroup.stagedProducts.find(
+        (p: { externalId: number }) => p.externalId === 99_003,
+      );
+      expect(containmentStaged).toBeDefined();
+      expect(containmentStaged.productName).toBe("Champion Annie, Fiery Special");
+
+      // Should NOT appear in unmatchedProducts
+      const unmatched = json.unmatchedProducts.find(
+        (p: { externalId: number }) => p.externalId === 99_003,
+      );
+      expect(unmatched).toBeUndefined();
+    });
+  });
+
+  // ── Coverage: line 533 (saveMappings early return when no staging data) ───
+
+  describe("saveMappings edge cases", () => {
+    it("returns saved: 0 when mapping references non-existent staging data (line 533)", async () => {
+      // Use a valid printing but an externalId with no matching staging row
+      const res = await app.fetch(
+        req("POST", "/admin/tcgplayer-mappings", {
+          mappings: [{ printingId, externalId: 999_999 }],
+        }),
+      );
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.saved).toBe(0);
+    });
+  });
 });

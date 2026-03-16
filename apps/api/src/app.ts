@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Kysely } from "kysely";
 import { z } from "zod/v4";
@@ -74,6 +75,10 @@ export function createApp(deps: AppDeps) {
           { error: "Invalid request body", code: "VALIDATION_ERROR", details: err.issues },
           400,
         );
+      }
+
+      if (err instanceof HTTPException) {
+        return err.getResponse();
       }
 
       if (err instanceof SyntaxError) {
