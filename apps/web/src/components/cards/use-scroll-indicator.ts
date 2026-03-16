@@ -49,7 +49,8 @@ export function useScrollIndicator({
     dragging: false,
   });
 
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>();
+  // oxlint-disable-next-line unicorn/no-useless-undefined -- required by useRef overload signature
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isDraggingRef = useRef(false);
   const isHoveredRef = useRef(false);
   const postDragCooldownRef = useRef(false);
