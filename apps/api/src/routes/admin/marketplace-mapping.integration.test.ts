@@ -38,7 +38,7 @@ if (ctx) {
       name: "MKM Test Card",
       type: "Unit",
       super_types: [],
-      domains: ["Arcane"],
+      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,

@@ -42,7 +42,7 @@ if (ctx) {
       name: "CSQ Test Card",
       type: "Unit",
       super_types: [],
-      domains: ["Arcane"],
+      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
@@ -63,7 +63,7 @@ if (ctx) {
       name: "CSQ Another Card",
       type: "Spell",
       super_types: [],
-      domains: ["Nature"],
+      domains: ["Calm"],
       might: null,
       energy: 1,
       power: null,
@@ -110,7 +110,7 @@ if (ctx) {
       name: "CSQ Test Card",
       type: "Unit",
       super_types: [],
-      domains: ["Arcane"],
+      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
@@ -134,7 +134,7 @@ if (ctx) {
       name: "CSQ Unknown Card",
       type: "Rune",
       super_types: [],
-      domains: ["Shadow"],
+      domains: ["Chaos"],
       might: null,
       energy: 3,
       power: null,
@@ -411,7 +411,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.card.slug).toBe("CSQ-001");
       expect(json.card.name).toBe("CSQ Test Card");
       expect(json.card.type).toBe("Unit");
-      expect(json.card.domains).toEqual(["Arcane"]);
+      expect(json.card.domains).toEqual(["Mind"]);
       expect(json.card.energy).toBe(2);
       expect(json.card.keywords).toEqual(["Flash"]);
       expect(json.card.rulesText).toBe("Flash");
@@ -480,7 +480,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.sources[0].source).toBe("csq-gallery");
       expect(json.sources[0].name).toBe("CSQ Unknown Card");
       expect(json.sources[0].type).toBe("Rune");
-      expect(json.sources[0].domains).toEqual(["Shadow"]);
+      expect(json.sources[0].domains).toEqual(["Chaos"]);
 
       // Printing sources
       expect(json.printingSources).toBeArray();

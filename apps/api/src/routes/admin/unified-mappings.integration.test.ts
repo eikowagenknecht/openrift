@@ -40,7 +40,7 @@ if (ctx) {
       name: "UNM Alpha Card",
       type: "Unit",
       super_types: [],
-      domains: ["Arcane"],
+      domains: ["Mind"],
       might: null,
       energy: 3,
       power: null,
@@ -87,7 +87,7 @@ if (ctx) {
       name: "UNM Beta Card",
       type: "Spell",
       super_types: [],
-      domains: ["Shadow"],
+      domains: ["Chaos"],
       might: null,
       energy: 1,
       power: null,
@@ -285,7 +285,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaGroup.cardId).toBeString();
       expect(alphaGroup.cardSlug).toBe("UNM-001");
       expect(alphaGroup.cardType).toBe("Unit");
-      expect(alphaGroup.domains).toContain("Arcane");
+      expect(alphaGroup.domains).toContain("Mind");
       expect(alphaGroup.energy).toBe(3);
       expect(alphaGroup.setName).toBe("UNM Unified Test Set");
     });
