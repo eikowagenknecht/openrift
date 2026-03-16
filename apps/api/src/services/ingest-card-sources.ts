@@ -1,6 +1,8 @@
 import type { Database } from "@openrift/shared/db";
+import { cardSourceFieldRules, printingSourceFieldRules } from "@openrift/shared/db/schemas";
 import { buildPrintingId, emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
+import { z } from "zod";
 
 interface IngestCard {
   name: string;
@@ -98,6 +100,37 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
+// Validation schemas built from DB field rules — validates values as they'll be written
+const cardSourceValidator = z.object({
+  name: cardSourceFieldRules.name,
+  type: cardSourceFieldRules.type,
+  might: cardSourceFieldRules.might,
+  energy: cardSourceFieldRules.energy,
+  power: cardSourceFieldRules.power,
+  might_bonus: cardSourceFieldRules.mightBonus,
+  rules_text: cardSourceFieldRules.rulesText,
+  effect_text: cardSourceFieldRules.effectText,
+  source_id: cardSourceFieldRules.sourceId,
+  source_entity_id: cardSourceFieldRules.sourceEntityId,
+});
+
+const printingSourceValidator = z.object({
+  source_id: printingSourceFieldRules.sourceId,
+  set_id: printingSourceFieldRules.setId,
+  set_name: printingSourceFieldRules.setName,
+  collector_number: printingSourceFieldRules.collectorNumber,
+  rarity: printingSourceFieldRules.rarity,
+  art_variant: printingSourceFieldRules.artVariant,
+  finish: printingSourceFieldRules.finish,
+  artist: printingSourceFieldRules.artist,
+  public_code: printingSourceFieldRules.publicCode,
+  printed_rules_text: printingSourceFieldRules.printedRulesText,
+  printed_effect_text: printingSourceFieldRules.printedEffectText,
+  image_url: printingSourceFieldRules.imageUrl,
+  flavor_text: printingSourceFieldRules.flavorText,
+  source_entity_id: printingSourceFieldRules.sourceEntityId,
+});
+
 function getChangedFields(
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
@@ -143,6 +176,7 @@ export async function ingestCardSources(
   let newCards = 0;
   let updates = 0;
   let unchanged = 0;
+  const errors: string[] = [];
   const updatedCards: UpdatedCardDetail[] = [];
 
   await db.transaction().execute(async (trx) => {
@@ -221,6 +255,26 @@ export async function ingestCardSources(
     // ── Phase 2: Process each card (writes only) ───────────────────────────
 
     for (const card of cards) {
+      // Validate card data against DB CHECK constraints (using normalized values)
+      const cardValidation = cardSourceValidator.safeParse({
+        name: card.name,
+        type: card.type,
+        might: card.might,
+        energy: card.energy,
+        power: card.power,
+        might_bonus: card.might_bonus,
+        rules_text: emptyToNull(card.rules_text),
+        effect_text: emptyToNull(card.effect_text),
+        source_id: card.source_id ?? null,
+        source_entity_id: card.source_entity_id ?? null,
+      });
+      if (!cardValidation.success) {
+        errors.push(
+          `Card "${card.name}": ${cardValidation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+        );
+        continue;
+      }
+
       // Look up existing card_source from pre-fetched data
       const existingCardSource = card.source_id
         ? csBySid.get(card.source_id)
@@ -303,6 +357,30 @@ export async function ingestCardSources(
       const effectiveCardId = cardByNorm.get(normName) ?? aliasByNorm.get(normName) ?? null;
 
       for (const p of card.printings) {
+        // Validate printing data against DB CHECK constraints (using normalized values)
+        const printingValidation = printingSourceValidator.safeParse({
+          source_id: p.source_id,
+          set_id: p.set_id,
+          set_name: p.set_name ?? null,
+          collector_number: p.collector_number,
+          rarity: p.rarity,
+          art_variant: p.art_variant,
+          finish: p.finish,
+          artist: p.artist,
+          public_code: p.public_code,
+          printed_rules_text: emptyToNull(p.printed_rules_text),
+          printed_effect_text: emptyToNull(p.printed_effect_text),
+          image_url: p.image_url ?? null,
+          flavor_text: p.flavor_text ?? null,
+          source_entity_id: p.source_entity_id ?? null,
+        });
+        if (!printingValidation.success) {
+          errors.push(
+            `Printing "${p.source_id}" for card "${card.name}": ${printingValidation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+          );
+          continue;
+        }
+
         const printingSlug = effectiveCardId
           ? buildPrintingId(p.source_id, p.rarity, p.is_promo, p.finish)
           : null;
@@ -377,5 +455,5 @@ export async function ingestCardSources(
     }
   });
 
-  return { newCards, updates, unchanged, errors: [], updatedCards };
+  return { newCards, updates, unchanged, errors, updatedCards };
 }
