@@ -155,7 +155,9 @@ describe("GET /api/catalog", () => {
     expect(card.name).toBe("Fire Dragon");
     expect(card.superTypes).toEqual(["Elite"]);
     expect(card.mightBonus).toBe(1);
-    expect(card.stats).toEqual({ might: 4, energy: 5, power: 6 });
+    expect(card.might).toBe(4);
+    expect(card.energy).toBe(5);
+    expect(card.power).toBe(6);
   });
 
   it("maps printing fields with cardId reference instead of nested card", async () => {
@@ -460,8 +462,8 @@ describe("GET /api/prices/:printingId/history", () => {
     expect(res.status).toBe(200);
   });
 
-  it("defaults to 30d range for invalid range parameter", async () => {
+  it("rejects invalid range parameter with 400", async () => {
     const res = await app.request("/api/prices/OGS-001:rare:normal/history?range=invalid");
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
   });
 });
