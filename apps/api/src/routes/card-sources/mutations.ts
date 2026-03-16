@@ -461,10 +461,17 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
     }
 
+    // Normalize enum fields that have DB check constraints (before validation
+    // so that case-insensitive input like "common" is accepted)
+    let normalizedValue = value;
+    if (field === "rarity" && typeof value === "string") {
+      normalizedValue = RARITY_ORDER.find((r) => r.toLowerCase() === value.toLowerCase()) || value;
+    }
+
     // Validate against printingFieldRules when a rule exists for this field
     const validator = printingFieldRules[field as keyof typeof printingFieldRules];
     if (validator) {
-      const parsed = validator.safeParse(value);
+      const parsed = validator.safeParse(normalizedValue);
       if (!parsed.success) {
         throw new AppError(
           400,
@@ -472,12 +479,6 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
           `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
         );
       }
-    }
-
-    // Normalize enum fields that have DB check constraints
-    let normalizedValue = value;
-    if (field === "rarity" && typeof value === "string") {
-      normalizedValue = RARITY_ORDER.find((r) => r.toLowerCase() === value.toLowerCase()) || value;
     }
 
     await db
@@ -568,6 +569,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     if (printingSourceIds.length === 0) {
       throw new AppError(400, "BAD_REQUEST", "printingFields and printingSourceIds[] required");
+    }
+    if (!printingFields.setId) {
+      throw new AppError(400, "BAD_REQUEST", "printingFields.setId is required");
     }
 
     // Verify card exists (resolve slug → uuid)

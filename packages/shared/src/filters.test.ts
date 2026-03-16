@@ -150,6 +150,35 @@ describe("parseSearchTerms", () => {
       { field: "keywords", text: "shield" },
     ]);
   });
+
+  it("ignores a bare prefix with no value (n: alone)", () => {
+    // "n:" followed by nothing — the regex captures empty match[3]
+    expect(parseSearchTerms("n:")).toEqual([]);
+  });
+
+  it("parses prefix followed by whitespace as empty (ignored)", () => {
+    // "n: dragon" — "n:" captures empty, "dragon" becomes bare term
+    const result = parseSearchTerms("n: dragon");
+    expect(result).toEqual([{ field: null, text: "dragon" }]);
+  });
+
+  it("parses mixed quoted and unquoted terms", () => {
+    const result = parseSearchTerms('"fire dragon" ice');
+    expect(result).toEqual([
+      { field: null, text: "fire dragon" },
+      { field: null, text: "ice" },
+    ]);
+  });
+
+  it("parses multiple prefix types in one query", () => {
+    const result = parseSearchTerms('n:dragon t:warrior d:"fiery beast" a:jane');
+    expect(result).toEqual([
+      { field: "name", text: "dragon" },
+      { field: "tags", text: "warrior" },
+      { field: "cardText", text: "fiery beast" },
+      { field: "artist", text: "jane" },
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -628,6 +657,232 @@ describe("filterCards", () => {
     );
     expect(result).toHaveLength(0);
   });
+
+  // -- Edge cases: null artVariant defaults to "normal" --
+
+  it("treats null artVariant as normal when filtering", () => {
+    const nullArtVariant = [
+      makePrinting({
+        artVariant: null as unknown as "normal",
+        card: { id: "nav", name: "Null Art Card" },
+      }),
+    ];
+    const result = filterCards(nullArtVariant, emptyFilters({ artVariants: ["normal"] }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Null Art Card");
+  });
+
+  // -- Edge cases: card text search with null rulesText/effectText --
+
+  it("card text search handles null rulesText and effectText", () => {
+    const nullTextCard = [
+      makePrinting({
+        card: {
+          id: "nt",
+          name: "No Text Card",
+          type: "Unit",
+          superTypes: [],
+          domains: [],
+          energy: null,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+        },
+      }),
+    ];
+    const result = filterCards(nullTextCard, emptyFilters({ search: "d:something" }));
+    expect(result).toHaveLength(0);
+  });
+
+  // -- Edge cases: isSigned filter set to false --
+
+  it("filters by isSigned=false excludes signed cards", () => {
+    const cards = [
+      makePrinting({
+        isSigned: true,
+        card: { id: "s1", name: "Signed Card" },
+      }),
+      makePrinting({
+        isSigned: false,
+        card: { id: "s2", name: "Unsigned Card" },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ isSigned: false }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Unsigned Card");
+  });
+
+  // -- Edge cases: isPromo filter set to false --
+
+  it("filters by isPromo=false excludes promo cards", () => {
+    const cards = [
+      makePrinting({
+        isPromo: true,
+        card: { id: "p1", name: "Promo Card" },
+      }),
+      makePrinting({
+        isPromo: false,
+        card: { id: "p2", name: "Regular Card" },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ isPromo: false }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Regular Card");
+  });
+
+  // -- Edge cases: range boundary exactness --
+
+  it("includes values exactly at range boundaries", () => {
+    const result = filterCards(printings, emptyFilters({ energy: { min: 5, max: 5 } }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Fire Dragon");
+  });
+
+  // -- Edge cases: stat filters with null stats --
+
+  it("excludes cards with null energy when energy filter is active", () => {
+    const cards = [
+      makePrinting({
+        card: {
+          id: "ne",
+          name: "No Energy Card",
+          type: "Spell",
+          superTypes: [],
+          domains: [],
+          energy: null,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ energy: { min: 0, max: 10 } }));
+    expect(result).toHaveLength(0);
+  });
+
+  it("excludes cards with null might when might filter is active", () => {
+    const cards = [
+      makePrinting({
+        card: {
+          id: "nm",
+          name: "No Might Card",
+          type: "Spell",
+          superTypes: [],
+          domains: [],
+          energy: 3,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ might: { min: 0, max: 10 } }));
+    expect(result).toHaveLength(0);
+  });
+
+  it("excludes cards with null power when power filter is active", () => {
+    const cards = [
+      makePrinting({
+        card: {
+          id: "np",
+          name: "No Power Card",
+          type: "Spell",
+          superTypes: [],
+          domains: [],
+          energy: 3,
+          might: 2,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ power: { min: 0, max: 10 } }));
+    expect(result).toHaveLength(0);
+  });
+
+  // -- Edge case: search with no search string returns all --
+
+  it("returns all printings when search is empty string", () => {
+    const result = filterCards(printings, emptyFilters({ search: "" }));
+    expect(result).toHaveLength(3);
+  });
+
+  // -- Edge case: empty arrays for enum filters pass everything --
+
+  it("empty sets/rarities/types arrays pass all values through", () => {
+    const result = filterCards(
+      printings,
+      emptyFilters({
+        sets: [],
+        rarities: [],
+        types: [],
+        domains: [],
+        superTypes: [],
+        artVariants: [],
+        finishes: [],
+      }),
+    );
+    expect(result).toHaveLength(3);
+  });
+
+  // -- Edge case: search with effect text match only --
+
+  it("card text search matches effectText only (not rulesText)", () => {
+    const cards = [
+      makePrinting({
+        card: {
+          id: "et",
+          name: "Effect Only",
+          type: "Unit",
+          superTypes: [],
+          domains: [],
+          energy: null,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: null,
+          effectText: "Unique effect text here",
+        },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ search: "d:unique" }));
+    expect(result).toHaveLength(1);
+  });
+
+  // -- Edge case: multiple search scopes without prefixes --
+
+  it("bare search respects searchScope when no prefixes are used", () => {
+    // search for "alice" with scope ["name"] — should NOT match artist
+    const result = filterCards(printings, emptyFilters({ search: "alice", searchScope: ["name"] }));
+    expect(result).toHaveLength(0);
+  });
+
+  it("bare search with artist in scope matches artist field", () => {
+    const result = filterCards(
+      printings,
+      emptyFilters({ search: "alice", searchScope: ["artist"] }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Fire Dragon");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -786,6 +1041,91 @@ describe("getAvailableFilters", () => {
     expect(result.energy).toEqual({ min: 0, max: 0 });
     expect(result.price).toEqual({ min: 0, max: 0 });
     expect(result.hasSigned).toBe(false);
+  });
+
+  it("computes hasPromo true when promo printings exist", () => {
+    const result = getAvailableFilters([
+      makePrinting({ isPromo: true }),
+      makePrinting({ isPromo: false }),
+    ]);
+    expect(result.hasPromo).toBe(true);
+  });
+
+  it("computes hasPromo false when no promo printings", () => {
+    const result = getAvailableFilters([makePrinting({ isPromo: false })]);
+    expect(result.hasPromo).toBe(false);
+  });
+
+  it("handles printings with null energy/might/power", () => {
+    const result = getAvailableFilters([
+      makePrinting({
+        card: {
+          id: "null-stats",
+          name: "Null Stats",
+          type: "Spell",
+          superTypes: [],
+          domains: [],
+          energy: null,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ]);
+    expect(result.energy).toEqual({ min: 0, max: 0 });
+    expect(result.might).toEqual({ min: 0, max: 0 });
+    expect(result.power).toEqual({ min: 0, max: 0 });
+  });
+
+  it("handles null artVariant by treating it as normal", () => {
+    const result = getAvailableFilters([makePrinting({ artVariant: null as unknown as "normal" })]);
+    expect(result.artVariants).toContain("normal");
+  });
+
+  it("deduplicates domains from multiple printings", () => {
+    const result = getAvailableFilters([
+      makePrinting({
+        card: {
+          id: "1",
+          name: "A",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Fury", "Mind"],
+          energy: null,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+      makePrinting({
+        card: {
+          id: "2",
+          name: "B",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Mind", "Chaos"],
+          energy: null,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ]);
+    // Mind appears in both, but should only be listed once
+    const mindCount = result.domains.filter((d) => d === "Mind").length;
+    expect(mindCount).toBe(1);
   });
 });
 
@@ -1029,5 +1369,123 @@ describe("sortCards", () => {
       const result = sortCards(nullPrintings, "price");
       expect(result.map((p) => p.card.name)).toEqual(["Amy", "Zed"]);
     });
+  });
+
+  describe("energy sort with null values", () => {
+    it("pushes null energy to the end", () => {
+      const energyPrintings = [
+        makePrinting({
+          card: {
+            id: "n",
+            name: "No Energy",
+            type: "Spell",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          card: {
+            id: "l",
+            name: "Low Energy",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: 1,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+      ];
+      const result = sortCards(energyPrintings, "energy");
+      expect(result.map((p) => p.card.name)).toEqual(["Low Energy", "No Energy"]);
+    });
+
+    it("sorts non-null energy before null, null by name", () => {
+      const energyPrintings = [
+        makePrinting({
+          card: {
+            id: "z",
+            name: "Zeta Null",
+            type: "Spell",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          card: {
+            id: "a",
+            name: "Alpha Null",
+            type: "Spell",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          card: {
+            id: "h",
+            name: "High Energy",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: 8,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+      ];
+      const result = sortCards(energyPrintings, "energy");
+      expect(result.map((p) => p.card.name)).toEqual(["High Energy", "Alpha Null", "Zeta Null"]);
+    });
+  });
+
+  it("returns empty array when given empty input", () => {
+    expect(sortCards([], "name")).toEqual([]);
+    expect(sortCards([], "id")).toEqual([]);
+    expect(sortCards([], "energy")).toEqual([]);
+    expect(sortCards([], "rarity")).toEqual([]);
+    expect(sortCards([], "price")).toEqual([]);
+  });
+
+  it("handles single-element array for all sort modes", () => {
+    const single = [makePrinting({ card: { id: "x", name: "Solo" } })];
+    expect(sortCards(single, "name")).toHaveLength(1);
+    expect(sortCards(single, "id")).toHaveLength(1);
+    expect(sortCards(single, "energy")).toHaveLength(1);
+    expect(sortCards(single, "rarity")).toHaveLength(1);
+    expect(sortCards(single, "price")).toHaveLength(1);
   });
 });

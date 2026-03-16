@@ -23,7 +23,7 @@
     "routes:generate": "bun run --cwd apps/web routes:generate",
     "preview": "turbo run build && (bun run --cwd apps/api start & bun run --cwd apps/web preview & wait)",
     "test": "turbo run test",
-    "test:coverage": "turbo run test:coverage && mkdir -p coverage && lcov-result-merger '{apps,packages}/*/coverage/**/lcov.info' coverage/lcov.info",
+    "test:coverage": "turbo run test:coverage && mkdir -p coverage && bun scripts/normalize-lcov.ts $(find apps packages -name 'lcov.info' -path '*/coverage/*') && lcov-result-merger '{apps,packages}/*/coverage/**/lcov.info' coverage/lcov.info",
     "test:watch:web": "bun run --cwd apps/web test:watch",
     "test:watch:api": "bun run --cwd apps/api test:watch",
     "test:watch:shared": "bun run --cwd packages/shared test:watch",

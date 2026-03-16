@@ -23,6 +23,14 @@ let csId = "";
 let csUnmatchedId = "";
 let psId = "";
 let psUnlinkedId = "";
+let psForAcceptNewId = "";
+let psForAcceptNewBadRarityId = "";
+let psForAcceptNewNoFinishId = "";
+let psForAcceptNewNoCnId = "";
+let psForAcceptNewNoArtistId = "";
+let psForAcceptNewNoPublicCodeId = "";
+let psForAcceptNewAlreadyLinkedId = "";
+let csForAcceptNewId = "";
 
 if (ctx) {
   const { db } = ctx;
@@ -210,6 +218,226 @@ if (ctx) {
     .returning("id")
     .execute();
   psUnlinkedId = psUnlinkedRow.id;
+
+  // Card source for accept-new tests (matched to existing card by name)
+  const [csForAcceptNew] = await db
+    .insertInto("cardSources")
+    .values({
+      source: "csm-accept-new-src",
+      name: "CSM Test Card",
+      type: "Unit",
+      superTypes: [],
+      domains: ["Mind"],
+      might: null,
+      energy: 2,
+      power: null,
+      mightBonus: null,
+      rulesText: "Flash",
+      effectText: null,
+      tags: [],
+      sourceId: "CSM-ACCEPT-001",
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  csForAcceptNewId = csForAcceptNew.id;
+
+  // Printing source for accept-new: valid, unlinked
+  const [psAcceptNew] = await db
+    .insertInto("printingSources")
+    .values({
+      cardSourceId: csForAcceptNewId,
+      printingId: null,
+      sourceId: "CSM-ACCEPT-001",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 50,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
+      finish: "normal",
+      artist: "Accept Artist",
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: "https://example.com/accept-new.png",
+      flavorText: "Some flavor",
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  psForAcceptNewId = psAcceptNew.id;
+
+  // Printing source: invalid rarity
+  const [psAcceptBadRarity] = await db
+    .insertInto("printingSources")
+    .values({
+      cardSourceId: csForAcceptNewId,
+      printingId: null,
+      sourceId: "CSM-ACCEPT-BAD-R",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 51,
+      rarity: "InvalidRarity",
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
+      finish: "normal",
+      artist: "Accept Artist",
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  psForAcceptNewBadRarityId = psAcceptBadRarity.id;
+
+  // Printing source: invalid finish
+  const [psAcceptNoFinish] = await db
+    .insertInto("printingSources")
+    .values({
+      cardSourceId: csForAcceptNewId,
+      printingId: null,
+      sourceId: "CSM-ACCEPT-BAD-F",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 52,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
+      finish: "badfinish",
+      artist: "Accept Artist",
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  psForAcceptNewNoFinishId = psAcceptNoFinish.id;
+
+  // Printing source: no collector_number
+  const [psAcceptNoCn] = await db
+    .insertInto("printingSources")
+    .values({
+      cardSourceId: csForAcceptNewId,
+      printingId: null,
+      sourceId: "CSM-ACCEPT-NO-CN",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: null,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
+      finish: "normal",
+      artist: "Accept Artist",
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  psForAcceptNewNoCnId = psAcceptNoCn.id;
+
+  // Printing source: no artist
+  const [psAcceptNoArtist] = await db
+    .insertInto("printingSources")
+    .values({
+      cardSourceId: csForAcceptNewId,
+      printingId: null,
+      sourceId: "CSM-ACCEPT-NO-ART",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 53,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
+      finish: "normal",
+      artist: null,
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  psForAcceptNewNoArtistId = psAcceptNoArtist.id;
+
+  // Printing source: no public_code
+  const [psAcceptNoPc] = await db
+    .insertInto("printingSources")
+    .values({
+      cardSourceId: csForAcceptNewId,
+      printingId: null,
+      sourceId: "CSM-ACCEPT-NO-PC",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 54,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
+      finish: "normal",
+      artist: "Accept Artist",
+      publicCode: null,
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  psForAcceptNewNoPublicCodeId = psAcceptNoPc.id;
+
+  // Printing source: already linked (for "already linked" error)
+  const [psAcceptAlreadyLinked] = await db
+    .insertInto("printingSources")
+    .values({
+      cardSourceId: csForAcceptNewId,
+      printingId: printingId,
+      sourceId: "CSM-ACCEPT-LINKED",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 55,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
+      finish: "normal",
+      artist: "Accept Artist",
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
+    })
+    .returning("id")
+    .execute();
+  psForAcceptNewAlreadyLinkedId = psAcceptAlreadyLinked.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -301,6 +529,31 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const json = await res.json();
       expect(json.updated).toBeGreaterThanOrEqual(1);
     });
+
+    it("marks extra IDs alongside the printing", async () => {
+      // Reset both the printing-linked and an extra source
+      await db
+        .updateTable("printingSources")
+        .set({ checkedAt: null })
+        .where("printingId", "=", printingId)
+        .execute();
+      await db
+        .updateTable("printingSources")
+        .set({ checkedAt: null })
+        .where("id", "=", psForAcceptNewId)
+        .execute();
+
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/check-all`, {
+          printingId,
+          extraIds: [psForAcceptNewId],
+        }),
+      );
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.updated).toBeGreaterThanOrEqual(2);
+    });
   });
 
   // ── Card check-all by slug ──────────────────────────────────────────────
@@ -315,6 +568,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       const json = await res.json();
       expect(json.updated).toBeGreaterThanOrEqual(1);
+    });
+
+    it("returns 404 for non-existent card slug", async () => {
+      const res = await app.fetch(req("POST", `${P}/NONEXISTENT-SLUG/check-all`));
+      expect(res.status).toBe(404);
     });
   });
 
@@ -334,6 +592,45 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", psId)
         .executeTakeFirstOrThrow();
       expect(row.rarity).toBe("Rare");
+    });
+
+    it("updates multiple fields at once", async () => {
+      const res = await app.fetch(
+        req("PATCH", `${P}/printing-sources/${psId}`, {
+          artVariant: "altart",
+          finish: "foil",
+          isSigned: true,
+          collectorNumber: 42,
+          setId: "CSM-TEST",
+          sourceId: "CSM-PATCHED",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("printingSources")
+        .select(["artVariant", "finish", "isSigned", "collectorNumber", "setId", "sourceId"])
+        .where("id", "=", psId)
+        .executeTakeFirstOrThrow();
+      expect(row.artVariant).toBe("altart");
+      expect(row.finish).toBe("foil");
+      expect(row.isSigned).toBe(true);
+      expect(row.collectorNumber).toBe(42);
+      expect(row.sourceId).toBe("CSM-PATCHED");
+
+      // Restore for subsequent tests
+      await db
+        .updateTable("printingSources")
+        .set({
+          artVariant: "normal",
+          finish: "normal",
+          isSigned: false,
+          collectorNumber: 1,
+          sourceId: "CSM-001",
+          rarity: "Common",
+        })
+        .where("id", "=", psId)
+        .execute();
     });
 
     it("returns 400 for empty update", async () => {
@@ -428,6 +725,16 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(row.printingId).toBeNull();
     });
+
+    it("returns 404 for non-existent target printing slug", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/link`, {
+          printingSourceIds: [psUnlinkedId],
+          printingId: "NONEXISTENT:slug:",
+        }),
+      );
+      expect(res.status).toBe(404);
+    });
   });
 
   // ── Rename card slug ────────────────────────────────────────────────────
@@ -495,6 +802,103 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(204);
     });
 
+    it("updates rulesText and recomputes keywords", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "rulesText",
+          value: "[Shield]. [Tank]",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("cards")
+        .select(["rulesText", "keywords"])
+        .where("slug", "=", cardSlug)
+        .executeTakeFirstOrThrow();
+      expect(row.rulesText).toBe("[Shield]. [Tank]");
+      expect(row.keywords).toContain("Shield");
+      expect(row.keywords).toContain("Tank");
+    });
+
+    it("updates effectText and recomputes keywords", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "effectText",
+          value: "[Vision]",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("cards")
+        .select(["effectText", "keywords"])
+        .where("slug", "=", cardSlug)
+        .executeTakeFirstOrThrow();
+      expect(row.effectText).toBe("[Vision]");
+      expect(row.keywords).toContain("Vision");
+      // rulesText keywords should also be preserved
+      expect(row.keywords).toContain("Shield");
+      expect(row.keywords).toContain("Tank");
+
+      // Restore
+      await db
+        .updateTable("cards")
+        .set({ rulesText: "Flash", effectText: null, keywords: ["Flash"] })
+        .where("slug", "=", cardSlug)
+        .execute();
+    });
+
+    it("updates energy field", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "energy",
+          value: 5,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("cards")
+        .select("energy")
+        .where("slug", "=", cardSlug)
+        .executeTakeFirstOrThrow();
+      expect(row.energy).toBe(5);
+
+      // Restore
+      await db.updateTable("cards").set({ energy: 2 }).where("slug", "=", cardSlug).execute();
+    });
+
+    it("updates type field", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "type",
+          value: "Spell",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("cards")
+        .select("type")
+        .where("slug", "=", cardSlug)
+        .executeTakeFirstOrThrow();
+      expect(row.type).toBe("Spell");
+
+      // Restore
+      await db.updateTable("cards").set({ type: "Unit" }).where("slug", "=", cardSlug).execute();
+    });
+
+    it("returns 400 for validation error on type", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "type",
+          value: "InvalidType",
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
     it("returns 400 for invalid field", async () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-field`, {
@@ -525,6 +929,98 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("slug", "=", "CSM-001:common:normal:")
         .executeTakeFirstOrThrow();
       expect(row.artist).toBe("Artist B");
+    });
+
+    it("updates rarity on a printing", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:common:normal:/accept-field`, {
+          field: "rarity",
+          value: "Rare",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("printings")
+        .select("rarity")
+        .where("slug", "=", "CSM-001:common:normal:")
+        .executeTakeFirstOrThrow();
+      expect(row.rarity).toBe("Rare");
+
+      // Restore
+      await db
+        .updateTable("printings")
+        .set({ rarity: "Common" })
+        .where("slug", "=", "CSM-001:common:normal:")
+        .execute();
+    });
+
+    it("returns 400 for validation error on rarity", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:common:normal:/accept-field`, {
+          field: "rarity",
+          value: "InvalidRarity",
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("updates finish on a printing", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:common:normal:/accept-field`, {
+          field: "finish",
+          value: "foil",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("printings")
+        .select("finish")
+        .where("slug", "=", "CSM-001:common:normal:")
+        .executeTakeFirstOrThrow();
+      expect(row.finish).toBe("foil");
+
+      // Restore
+      await db
+        .updateTable("printings")
+        .set({ finish: "normal" })
+        .where("slug", "=", "CSM-001:common:normal:")
+        .execute();
+    });
+
+    it("returns 400 for validation error on finish", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:common:normal:/accept-field`, {
+          field: "finish",
+          value: "invalid-finish",
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("updates comment on a printing", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:common:normal:/accept-field`, {
+          field: "comment",
+          value: "Test comment",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("printings")
+        .select("comment")
+        .where("slug", "=", "CSM-001:common:normal:")
+        .executeTakeFirstOrThrow();
+      expect(row.comment).toBe("Test comment");
+
+      // Clear
+      await db
+        .updateTable("printings")
+        .set({ comment: null })
+        .where("slug", "=", "CSM-001:common:normal:")
+        .execute();
     });
 
     it("returns 400 for invalid field", async () => {
@@ -561,6 +1057,15 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("rename back for subsequent tests", async () => {
       const res = await app.fetch(
         req("POST", `${P}/printing/CSM-001:common:normal:v2/rename`, {
+          newId: "CSM-001:common:normal:",
+        }),
+      );
+      expect(res.status).toBe(204);
+    });
+
+    it("same name is a no-op", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:common:normal:/rename`, {
           newId: "CSM-001:common:normal:",
         }),
       );
@@ -657,6 +1162,360 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Accept printing (create new printing from admin-selected fields) ────
+
+  describe("POST /:cardId/accept-printing", () => {
+    it("creates a new printing and links sources", async () => {
+      // Create a dedicated printing source for this test
+      const [apPs] = await db
+        .insertInto("printingSources")
+        .values({
+          cardSourceId: csForAcceptNewId,
+          printingId: null,
+          sourceId: "CSM-AP-001",
+          setId: "CSM-TEST",
+          setName: "CSM Test Set",
+          collectorNumber: 60,
+          rarity: "Uncommon",
+          artVariant: "normal",
+          isSigned: false,
+          isPromo: false,
+          finish: "normal",
+          artist: "AP Artist",
+          publicCode: "CSM",
+          printedRulesText: "Some rules",
+          printedEffectText: null,
+          imageUrl: "https://example.com/ap.png",
+          flavorText: "AP Flavor",
+          sourceEntityId: null,
+          extraData: null,
+        })
+        .returning("id")
+        .execute();
+
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-printing`, {
+          printingFields: {
+            sourceId: "CSM-AP-001",
+            setId: "CSM-TEST",
+            setName: "CSM Test Set",
+            collectorNumber: 60,
+            rarity: "Uncommon",
+            artVariant: "normal",
+            finish: "normal",
+            artist: "AP Artist",
+            publicCode: "CSM",
+            printedRulesText: "Some rules",
+            printedEffectText: null,
+            flavorText: "AP Flavor",
+            imageUrl: "https://example.com/ap.png",
+          },
+          printingSourceIds: [apPs.id],
+        }),
+      );
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.printingId).toBe("CSM-AP-001:uncommon:normal:");
+
+      // Verify the printing was created
+      const printing = await db
+        .selectFrom("printings")
+        .select(["slug", "rarity", "artist"])
+        .where("slug", "=", "CSM-AP-001:uncommon:normal:")
+        .executeTakeFirst();
+      expect(printing).toBeDefined();
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
+      expect(printing!.rarity).toBe("Uncommon");
+
+      // Verify the printing source was linked and checked
+      const ps = await db
+        .selectFrom("printingSources")
+        .select(["printingId", "checkedAt"])
+        .where("id", "=", apPs.id)
+        .executeTakeFirstOrThrow();
+      expect(ps.printingId).toBeTruthy();
+      expect(ps.checkedAt).toBeTruthy();
+    });
+
+    it("accepts a printing with custom id override", async () => {
+      const [apPs2] = await db
+        .insertInto("printingSources")
+        .values({
+          cardSourceId: csForAcceptNewId,
+          printingId: null,
+          sourceId: "CSM-AP-CUSTOM",
+          setId: "CSM-TEST",
+          setName: "CSM Test Set",
+          collectorNumber: 61,
+          rarity: "Epic",
+          artVariant: "normal",
+          isSigned: false,
+          isPromo: false,
+          finish: "foil",
+          artist: "Custom Artist",
+          publicCode: "CSM",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          sourceEntityId: null,
+          extraData: null,
+        })
+        .returning("id")
+        .execute();
+
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-printing`, {
+          printingFields: {
+            id: "CSM-CUSTOM-ID",
+            sourceId: "CSM-AP-CUSTOM",
+            setId: "CSM-TEST",
+            collectorNumber: 61,
+            rarity: "Epic",
+            finish: "foil",
+            artist: "Custom Artist",
+            publicCode: "CSM",
+          },
+          printingSourceIds: [apPs2.id],
+        }),
+      );
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.printingId).toBe("CSM-CUSTOM-ID");
+    });
+
+    it("accepts a printing with promo and signed flags", async () => {
+      const [apPs3] = await db
+        .insertInto("printingSources")
+        .values({
+          cardSourceId: csForAcceptNewId,
+          printingId: null,
+          sourceId: "CSM-AP-PROMO",
+          setId: "CSM-TEST",
+          setName: "CSM Test Set",
+          collectorNumber: 62,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: true,
+          isPromo: true,
+          finish: "foil",
+          artist: "Promo Artist",
+          publicCode: "CSM",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          sourceEntityId: null,
+          extraData: null,
+        })
+        .returning("id")
+        .execute();
+
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-printing`, {
+          printingFields: {
+            sourceId: "CSM-AP-PROMO",
+            setId: "CSM-TEST",
+            collectorNumber: 62,
+            rarity: "Common",
+            finish: "foil",
+            isSigned: true,
+            isPromo: true,
+            artist: "Promo Artist",
+            publicCode: "CSM",
+          },
+          printingSourceIds: [apPs3.id],
+        }),
+      );
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      // promo flag results in a "promo" suffix in the slug
+      expect(json.printingId).toBe("CSM-AP-PROMO:common:foil:promo");
+
+      // Verify isSigned/isPromo on the printing
+      const p = await db
+        .selectFrom("printings")
+        .select(["isSigned", "isPromo"])
+        .where("slug", "=", json.printingId)
+        .executeTakeFirstOrThrow();
+      expect(p.isSigned).toBe(true);
+      expect(p.isPromo).toBe(true);
+    });
+
+    it("returns 400 for empty printingSourceIds", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-printing`, {
+          printingFields: {
+            sourceId: "CSM-AP-X",
+            collectorNumber: 70,
+            artist: "X",
+            publicCode: "X",
+          },
+          printingSourceIds: [],
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 for non-existent card", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/NONEXISTENT-CARD/accept-printing`, {
+          printingFields: {
+            sourceId: "CSM-AP-X",
+            collectorNumber: 70,
+            artist: "X",
+            publicCode: "X",
+          },
+          printingSourceIds: [psId],
+        }),
+      );
+      expect(res.status).toBe(404);
+    });
+
+    it("upserts set when setId is a new slug", async () => {
+      const [apPs4] = await db
+        .insertInto("printingSources")
+        .values({
+          cardSourceId: csForAcceptNewId,
+          printingId: null,
+          sourceId: "CSM-AP-NEWSET",
+          setId: "CSM-TEST",
+          setName: "CSM Test Set",
+          collectorNumber: 71,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          isPromo: false,
+          finish: "normal",
+          artist: "A",
+          publicCode: "X",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          sourceEntityId: null,
+          extraData: null,
+        })
+        .returning("id")
+        .execute();
+
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-printing`, {
+          printingFields: {
+            sourceId: "CSM-AP-NEWSET",
+            setId: "CSM-NEW-SET",
+            setName: "CSM Brand New Set",
+            collectorNumber: 71,
+            rarity: "Common",
+            finish: "normal",
+            artist: "A",
+            publicCode: "X",
+          },
+          printingSourceIds: [apPs4.id],
+        }),
+      );
+      expect(res.status).toBe(200);
+
+      // Verify the new set was created
+      const setRow = await db
+        .selectFrom("sets")
+        .select("name")
+        .where("slug", "=", "CSM-NEW-SET")
+        .executeTakeFirst();
+      expect(setRow).toBeDefined();
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
+      expect(setRow!.name).toBe("CSM Brand New Set");
+    });
+  });
+
+  // ── Accept new printing from single source ─────────────────────────────
+
+  describe("POST /printing-sources/:id/accept-new", () => {
+    it("creates a new printing from an unlinked source", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/${psForAcceptNewId}/accept-new`),
+      );
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.printingId).toBe("CSM-ACCEPT-001:common:normal:");
+
+      // Verify printing was created
+      const p = await db
+        .selectFrom("printings")
+        .select(["slug", "rarity", "artist", "flavorText"])
+        .where("slug", "=", "CSM-ACCEPT-001:common:normal:")
+        .executeTakeFirst();
+      expect(p).toBeDefined();
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
+      expect(p!.rarity).toBe("Common");
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
+      expect(p!.artist).toBe("Accept Artist");
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
+      expect(p!.flavorText).toBe("Some flavor");
+
+      // Verify printing source was linked
+      const ps = await db
+        .selectFrom("printingSources")
+        .select(["printingId", "checkedAt"])
+        .where("id", "=", psForAcceptNewId)
+        .executeTakeFirstOrThrow();
+      expect(ps.printingId).toBeTruthy();
+      expect(ps.checkedAt).toBeTruthy();
+    });
+
+    it("returns 404 for non-existent printing source", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(req("POST", `${P}/printing-sources/${fakeId}/accept-new`));
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 400 for already-linked printing source", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/${psForAcceptNewAlreadyLinkedId}/accept-new`),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for invalid rarity", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/${psForAcceptNewBadRarityId}/accept-new`),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for invalid finish", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/${psForAcceptNewNoFinishId}/accept-new`),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for missing collector_number", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/${psForAcceptNewNoCnId}/accept-new`),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for missing artist", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/${psForAcceptNewNoArtistId}/accept-new`),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for missing public_code", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing-sources/${psForAcceptNewNoPublicCodeId}/accept-new`),
+      );
+      expect(res.status).toBe(400);
     });
   });
 

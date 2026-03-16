@@ -11,12 +11,10 @@ import sharp from "sharp";
 import type { Database } from "../db/index.js";
 
 function findProjectRoot(): string {
-  let dir = import.meta.dir;
-  while (dir !== dirname(dir)) {
+  for (let dir = import.meta.dir; dir !== dirname(dir); dir = dirname(dir)) {
     if (existsSync(join(dir, "bun.lock"))) {
       return dir;
     }
-    dir = dirname(dir);
   }
   throw new Error("Could not find project root (no bun.lock found)");
 }

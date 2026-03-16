@@ -67,22 +67,25 @@ function jsonOrNull(value: unknown): unknown {
   return value;
 }
 
-const CARD_FIELDS = [
-  "name",
-  "type",
-  "superTypes",
-  "domains",
-  "might",
-  "energy",
-  "power",
-  "mightBonus",
-  "rulesText",
-  "effectText",
-  "tags",
-  "sourceId",
-  "sourceEntityId",
-  "extraData",
-] as const;
+/** Maps camelCase DB column names to snake_case IngestCard field names. */
+const CARD_FIELD_MAP: Record<string, string> = {
+  name: "name",
+  type: "type",
+  superTypes: "super_types",
+  domains: "domains",
+  might: "might",
+  energy: "energy",
+  power: "power",
+  mightBonus: "might_bonus",
+  rulesText: "rules_text",
+  effectText: "effect_text",
+  tags: "tags",
+  sourceId: "source_id",
+  sourceEntityId: "source_entity_id",
+  extraData: "extra_data",
+};
+
+const CARD_FIELDS = Object.keys(CARD_FIELD_MAP);
 
 function normalize(value: unknown): unknown {
   if (value === null || value === undefined || value === "") {
@@ -136,14 +139,16 @@ function getChangedFields(
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
   fields: readonly string[],
+  fieldMap?: Record<string, string>,
 ): { field: string; from: unknown; to: unknown }[] {
   const diffs: { field: string; from: unknown; to: unknown }[] = [];
   for (const f of fields) {
-    if (!(f in incoming)) {
+    const incomingKey = fieldMap?.[f] ?? f;
+    if (!(incomingKey in incoming)) {
       continue;
     }
     const a = normalize(existing[f]);
-    const b = normalize(incoming[f]);
+    const b = normalize(incoming[incomingKey]);
     if (!Bun.deepEquals(a, b)) {
       diffs.push({ field: f, from: a, to: b });
     }
@@ -288,6 +293,7 @@ export async function ingestCardSources(
           existingCardSource as unknown as Record<string, unknown>,
           card as unknown as Record<string, unknown>,
           CARD_FIELDS,
+          CARD_FIELD_MAP,
         );
 
         if (changedFields.length > 0) {

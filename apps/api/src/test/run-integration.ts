@@ -83,6 +83,7 @@ const PARALLEL_FILES = [
   "src/routes/card-sources/queries.integration.test.ts",
   "src/routes/card-sources/mutations.integration.test.ts",
   "src/services/price-refresh/upsert.integration.test.ts",
+  "src/services/ingest-card-sources.integration.test.ts",
 ];
 
 /** Files using mock.module() — must run in separate processes */
