@@ -23,10 +23,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       catalog.catalogLastModified(),
       marketplace.pricesLastModified(),
     ]);
-    const combinedTs = Math.max(
-      new Date(catalogTs.lastModified).getTime(),
-      new Date(pricesTs.lastModified).getTime(),
-    );
+    const combinedTs = Math.max(catalogTs.lastModified.getTime(), pricesTs.lastModified.getTime());
     const etag = `"catalog-${combinedTs}"`;
 
     if (c.req.header("If-None-Match") === etag) {
@@ -41,18 +38,12 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       marketplace.latestPrices(),
     ]);
 
-    // Build price lookup
-    const priceByPrinting = new Map<string, number>();
-    for (const row of priceRows) {
-      priceByPrinting.set(row.printingId, centsToDollars(row.marketCents));
-    }
+    const priceByPrinting = new Map(
+      priceRows.map((r) => [r.printingId, centsToDollars(r.marketCents)]),
+    );
 
-    // Build API Card objects from DB CardsTable objects in a single pass.
     // CamelCasePlugin returns keys matching the Card interface, so direct assignment works.
-    const cards: Record<string, Card> = {};
-    for (const row of cardRows) {
-      cards[row.id] = row;
-    }
+    const cards: Record<string, Card> = Object.fromEntries(cardRows.map((r) => [r.id, r]));
 
     // Build images lookup
     const imagesByPrinting = Map.groupBy(
