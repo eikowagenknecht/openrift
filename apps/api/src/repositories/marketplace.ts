@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
@@ -28,6 +29,14 @@ export function marketplaceRepo(db: Kysely<Database>) {
         .orderBy("ps.id")
         .orderBy("snap.recorded_at", "desc")
         .execute();
+    },
+
+    /** @returns The most recent `recorded_at` across all marketplace snapshots. */
+    pricesLastModified() {
+      return db
+        .selectFrom("marketplace_snapshots")
+        .select(sql<Date>`MAX(recorded_at)`.as("last_modified"))
+        .executeTakeFirstOrThrow();
     },
 
     /** @returns Marketplace sources (TCGPlayer / Cardmarket) linked to a printing. */

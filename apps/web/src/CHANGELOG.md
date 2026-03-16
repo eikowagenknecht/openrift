@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-16
+
+- feat: Price data now loads faster thanks to browser caching
+
 ## 2026-03-13
 
 - feat: Route errors now show a friendly fallback page instead of a blank screen

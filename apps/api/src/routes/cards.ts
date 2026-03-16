@@ -136,6 +136,14 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
    */
   .get("/prices", async (c) => {
     const marketplace = marketplaceRepo(c.get("db"));
+
+    const { last_modified } = await marketplace.pricesLastModified();
+    const etag = `"prices-${new Date(last_modified).getTime()}"`;
+
+    if (c.req.header("If-None-Match") === etag) {
+      return c.body(null, 304);
+    }
+
     const rows = await marketplace.latestPrices();
 
     const prices: Record<string, number> = {};
@@ -143,6 +151,8 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
       prices[row.printing_id] = centsToDollars(row.market_cents);
     }
 
+    c.header("ETag", etag);
+    c.header("Cache-Control", "public, max-age=60");
     return c.json({ prices });
   })
   /**

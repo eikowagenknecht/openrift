@@ -9,6 +9,7 @@ import { cardsRoute } from "./cards";
 // ---------------------------------------------------------------------------
 
 const CATALOG_LAST_MODIFIED = new Date("2026-03-01T00:00:00Z");
+const PRICES_LAST_MODIFIED = new Date("2026-03-02T00:00:00Z");
 
 const mockState = {
   tables: {} as Record<string, unknown[]>,
@@ -244,7 +245,10 @@ describe("GET /api/cards", () => {
 
 describe("GET /api/prices", () => {
   beforeEach(() => {
-    mockState.tables = { "marketplace_sources as ps": [dbPrice, dbPriceFoil] };
+    mockState.tables = {
+      "marketplace_sources as ps": [dbPrice, dbPriceFoil],
+      marketplace_snapshots: [{ last_modified: PRICES_LAST_MODIFIED }],
+    };
   });
 
   it("returns 200 with PricesData structure", async () => {
@@ -268,10 +272,34 @@ describe("GET /api/prices", () => {
   });
 
   it("returns empty prices when no rows exist", async () => {
-    mockState.tables = { "marketplace_sources as ps": [] };
+    mockState.tables = {
+      "marketplace_sources as ps": [],
+      marketplace_snapshots: [{ last_modified: PRICES_LAST_MODIFIED }],
+    };
     const res = await app.request("/api/prices");
     const json = await res.json();
     expect(json.prices).toEqual({});
+  });
+
+  it("returns ETag and Cache-Control headers", async () => {
+    const res = await app.request("/api/prices");
+    expect(res.headers.get("ETag")).toBe(`"prices-${PRICES_LAST_MODIFIED.getTime()}"`);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+  });
+
+  it("returns 304 when If-None-Match matches current ETag", async () => {
+    const etag = `"prices-${PRICES_LAST_MODIFIED.getTime()}"`;
+    const res = await app.request("/api/prices", {
+      headers: { "If-None-Match": etag },
+    });
+    expect(res.status).toBe(304);
+  });
+
+  it("returns 200 when If-None-Match does not match", async () => {
+    const res = await app.request("/api/prices", {
+      headers: { "If-None-Match": '"prices-0"' },
+    });
+    expect(res.status).toBe(200);
   });
 });
 
