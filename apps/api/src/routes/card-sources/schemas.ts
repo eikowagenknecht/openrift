@@ -26,61 +26,6 @@ export const printingFieldRules = {
   comment: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
-/** Reusable rule: DB rejects '{}' and 'null'::jsonb but allows SQL NULL. */
-const noEmptyJsonb = z
-  .unknown()
-  .nullable()
-  .refine(
-    (v) =>
-      v === null ||
-      v === undefined ||
-      (typeof v === "object" && !Array.isArray(v) && Object.keys(v as object).length > 0),
-    "Must be null or a non-empty object",
-  );
-
-/** Mirrors DB CHECK constraints on the card_sources table — single source of truth. */
-export const cardSourceFieldRules = {
-  source: z.string().min(1),
-  name: z.string().min(1),
-  type: z.string().min(1).nullable(),
-  might: z.number().min(0).nullable(),
-  energy: z.number().min(0).nullable(),
-  power: z.number().min(0).nullable(),
-  mightBonus: z.number().min(0).nullable(),
-  rulesText: z.string().min(1).nullable(),
-  effectText: z.string().min(1).nullable(),
-  sourceId: z.string().min(1).nullable(),
-  sourceEntityId: z.string().min(1).nullable(),
-  extraData: noEmptyJsonb,
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the printing_sources table — single source of truth. */
-export const printingSourceFieldRules = {
-  sourceId: z.string().min(1),
-  setId: z.string().min(1).nullable(),
-  setName: z.string().min(1).nullable(),
-  collectorNumber: z.number().int().positive().nullable(),
-  rarity: z.string().min(1).nullable(),
-  artVariant: z.string().min(1).nullable(),
-  finish: z.string().min(1).nullable(),
-  artist: z.string().min(1).nullable(),
-  publicCode: z.string().min(1).nullable(),
-  printedRulesText: z.string().min(1).nullable(),
-  printedEffectText: z.string().min(1).nullable(),
-  imageUrl: z.string().min(1).nullable(),
-  flavorText: z.string().min(1).nullable(),
-  sourceEntityId: z.string().min(1).nullable(),
-  extraData: noEmptyJsonb,
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the printing_images table — single source of truth. */
-export const printingImageFieldRules = {
-  face: z.enum(["front", "back"]),
-  source: z.string().min(1),
-  originalUrl: z.string().min(1).nullable(),
-  rehostedUrl: z.string().min(1).nullable(),
-} satisfies Record<string, z.ZodType>;
-
 export const patchPrintingSourceSchema = z.object({
   artVariant: z.string().min(1).optional(),
   isSigned: z.boolean().optional(),
