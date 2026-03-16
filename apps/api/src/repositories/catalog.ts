@@ -39,16 +39,10 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings with front-face image and set slug, ordered by set, collector number, finish. */
+    /** @returns All printings with set slug, ordered by set, collector number, finish. */
     printings() {
       return db
         .selectFrom("printings as p")
-        .leftJoin("printing_images as pi", (join) =>
-          join
-            .onRef("pi.printing_id", "=", "p.id")
-            .on("pi.face", "=", "front")
-            .on("pi.is_active", "=", true),
-        )
         .innerJoin("sets as s", "s.id", "p.set_id")
         .select([
           "p.id",
@@ -62,7 +56,6 @@ export function catalogRepo(db: Kysely<Database>) {
           "p.is_signed",
           "p.is_promo",
           "p.finish",
-          imageUrl("pi").as("image_url"),
           "p.artist",
           "p.public_code",
           "p.printed_rules_text",
@@ -74,6 +67,17 @@ export function catalogRepo(db: Kysely<Database>) {
         .orderBy("p.set_id")
         .orderBy("p.collector_number")
         .orderBy("p.finish", "desc")
+        .execute();
+    },
+
+    /** @returns All active printing images (front and back), ordered by printing then face. */
+    printingImages() {
+      return db
+        .selectFrom("printing_images")
+        .select(["printing_id", "face", imageUrl("printing_images").as("url")])
+        .where("is_active", "=", true)
+        .orderBy("printing_id")
+        .orderBy("face")
         .execute();
     },
 
