@@ -1,7 +1,29 @@
-import type { Kysely } from "kysely";
+import type { CardType } from "@openrift/shared/types";
+import type { Kysely, Selectable } from "kysely";
 
 import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
-import type { Database } from "../db/index.js";
+import type { CopiesTable, Database, PrintingsTable } from "../db/index.js";
+
+/** Denormalized copy row with printing, card, and image details. */
+type CopyRow = Pick<
+  Selectable<CopiesTable>,
+  "id" | "printing_id" | "collection_id" | "source_id" | "created_at" | "updated_at"
+> &
+  Pick<
+    Selectable<PrintingsTable>,
+    | "card_id"
+    | "set_id"
+    | "collector_number"
+    | "rarity"
+    | "art_variant"
+    | "is_signed"
+    | "finish"
+    | "artist"
+  > & {
+    image_url: string | null;
+    card_name: string;
+    card_type: CardType;
+  };
 
 const COPY_SELECT = [
   "cp.id",
@@ -31,7 +53,7 @@ const COPY_SELECT = [
 export function copiesRepo(db: Kysely<Database>) {
   return {
     /** @returns All copies for a user, ordered by card name then collector number. */
-    listForUser(userId: string) {
+    listForUser(userId: string): Promise<CopyRow[]> {
       return selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.user_id", "=", userId)
@@ -41,7 +63,7 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /** @returns A single copy by ID scoped to a user, or `undefined`. */
-    getByIdForUser(id: string, userId: string) {
+    getByIdForUser(id: string, userId: string): Promise<CopyRow | undefined> {
       return selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.id", "=", id)
@@ -50,7 +72,7 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /** @returns Owned count per printing for a user. */
-    countByPrintingForUser(userId: string) {
+    countByPrintingForUser(userId: string): Promise<{ printing_id: string; count: number }[]> {
       return db
         .selectFrom("copies")
         .select(["printing_id", db.fn.count<number>("id").as("count")])
@@ -60,7 +82,7 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /** @returns All copies in a specific collection, ordered by card name then collector number. */
-    listForCollection(collectionId: string) {
+    listForCollection(collectionId: string): Promise<CopyRow[]> {
       return selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.collection_id", "=", collectionId)

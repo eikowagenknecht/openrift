@@ -15,9 +15,15 @@ export {
 } from "./schemas.js";
 export type {
   AccountsTable,
+  ActivitiesTable,
+  ActivityItemsTable,
   CardsTable,
+  CollectionsTable,
   CopiesTable,
   Database,
+  DeckCardsTable,
+  DecksTable,
+  FeatureFlagsTable,
   MarketplaceGroupsTable,
   MarketplaceIgnoredProductsTable,
   MarketplaceSnapshotsTable,
@@ -28,6 +34,11 @@ export type {
   PrintingsTable,
   SessionsTable,
   SetsTable,
+  SourcesTable,
+  TradeListItemsTable,
+  TradeListsTable,
   UsersTable,
   VerificationsTable,
+  WishListItemsTable,
+  WishListsTable,
 } from "./types.js";

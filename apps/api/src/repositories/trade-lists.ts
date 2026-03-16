@@ -1,7 +1,23 @@
-import type { Kysely } from "kysely";
+import type { CardType } from "@openrift/shared/types";
+import type { DeleteResult, Kysely, Selectable } from "kysely";
 
 import { imageUrl } from "../db-helpers.js";
-import type { Database } from "../db/index.js";
+import type {
+  CopiesTable,
+  Database,
+  PrintingsTable,
+  TradeListItemsTable,
+  TradeListsTable,
+} from "../db/index.js";
+
+/** Trade list item row with copy, printing, card, and image details. */
+type TradeListItemRow = Pick<Selectable<TradeListItemsTable>, "id" | "trade_list_id" | "copy_id"> &
+  Pick<Selectable<CopiesTable>, "printing_id" | "collection_id"> &
+  Pick<Selectable<PrintingsTable>, "set_id" | "collector_number" | "rarity" | "finish"> & {
+    image_url: string | null;
+    card_name: string;
+    card_type: CardType;
+  };
 
 /**
  * Queries for user trade lists and their items.
@@ -11,7 +27,7 @@ import type { Database } from "../db/index.js";
 export function tradeListsRepo(db: Kysely<Database>) {
   return {
     /** @returns All trade lists for a user, ordered by name. */
-    listForUser(userId: string) {
+    listForUser(userId: string): Promise<Selectable<TradeListsTable>[]> {
       return db
         .selectFrom("trade_lists")
         .selectAll()
@@ -21,7 +37,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns A single trade list by ID scoped to a user, or `undefined`. */
-    getByIdForUser(id: string, userId: string) {
+    getByIdForUser(id: string, userId: string): Promise<Selectable<TradeListsTable> | undefined> {
       return db
         .selectFrom("trade_lists")
         .selectAll()
@@ -31,7 +47,10 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Whether the trade list exists for the given user. */
-    exists(id: string, userId: string) {
+    exists(
+      id: string,
+      userId: string,
+    ): Promise<Pick<Selectable<TradeListsTable>, "id"> | undefined> {
       return db
         .selectFrom("trade_lists")
         .select("id")
@@ -41,12 +60,20 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns The newly created trade list row. */
-    create(values: { user_id: string; name: string; rules: string | null }) {
+    create(values: {
+      user_id: string;
+      name: string;
+      rules: string | null;
+    }): Promise<Selectable<TradeListsTable>> {
       return db.insertInto("trade_lists").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     /** @returns The updated trade list row, or `undefined` if not found. */
-    update(id: string, userId: string, updates: Record<string, unknown>) {
+    update(
+      id: string,
+      userId: string,
+      updates: Record<string, unknown>,
+    ): Promise<Selectable<TradeListsTable> | undefined> {
       return db
         .updateTable("trade_lists")
         .set(updates)
@@ -57,7 +84,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
-    deleteByIdForUser(id: string, userId: string) {
+    deleteByIdForUser(id: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("trade_lists")
         .where("id", "=", id)
@@ -66,7 +93,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Trade list items joined with copy, printing, card, and image details. */
-    itemsWithDetails(tradeListId: string) {
+    itemsWithDetails(tradeListId: string): Promise<TradeListItemRow[]> {
       return db
         .selectFrom("trade_list_items as tli")
         .innerJoin("copies as cp", "cp.id", "tli.copy_id")
@@ -98,7 +125,11 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns The newly created trade list item row. */
-    createItem(values: { trade_list_id: string; user_id: string; copy_id: string }) {
+    createItem(values: {
+      trade_list_id: string;
+      user_id: string;
+      copy_id: string;
+    }): Promise<Selectable<TradeListItemsTable>> {
       return db
         .insertInto("trade_list_items")
         .values(values)
@@ -107,7 +138,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Delete result — check `numDeletedRows` to verify the item existed. */
-    deleteItem(itemId: string, tradeListId: string, userId: string) {
+    deleteItem(itemId: string, tradeListId: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("trade_list_items")
         .where("id", "=", itemId)
@@ -117,7 +148,10 @@ export function tradeListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns A copy by ID scoped to a user (for ownership verification), or `undefined`. */
-    copyExistsForUser(copyId: string, userId: string) {
+    copyExistsForUser(
+      copyId: string,
+      userId: string,
+    ): Promise<Pick<Selectable<CopiesTable>, "id"> | undefined> {
       return db
         .selectFrom("copies")
         .select("id")

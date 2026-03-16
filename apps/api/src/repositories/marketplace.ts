@@ -1,7 +1,7 @@
-import type { Kysely } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../db/index.js";
+import type { Database, MarketplaceSnapshotsTable, MarketplaceSourcesTable } from "../db/index.js";
 
 /**
  * Read-only queries for marketplace prices and snapshots.
@@ -18,7 +18,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
      *
      * @returns Rows with `printing_id` and `market_cents`.
      */
-    latestPrices() {
+    latestPrices(): Promise<{ printing_id: string; market_cents: number }[]> {
       return db
         .selectFrom("marketplace_sources as ps")
         .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
@@ -32,7 +32,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /** @returns The most recent `recorded_at` across all marketplace snapshots. */
-    pricesLastModified() {
+    pricesLastModified(): Promise<{ last_modified: Date }> {
       return db
         .selectFrom("marketplace_snapshots")
         .select(sql<Date>`MAX(recorded_at)`.as("last_modified"))
@@ -40,7 +40,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /** @returns Marketplace sources (TCGPlayer / Cardmarket) linked to a printing. */
-    sourcesForPrinting(printingId: string) {
+    sourcesForPrinting(
+      printingId: string,
+    ): Promise<Pick<Selectable<MarketplaceSourcesTable>, "id" | "external_id" | "marketplace">[]> {
       return db
         .selectFrom("marketplace_sources")
         .select(["id", "external_id", "marketplace"])
@@ -49,7 +51,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /** @returns Snapshots for a single source, optionally filtered by a cutoff date, ordered chronologically. */
-    snapshots(sourceId: string, cutoff: Date | null) {
+    snapshots(
+      sourceId: string,
+      cutoff: Date | null,
+    ): Promise<Selectable<MarketplaceSnapshotsTable>[]> {
       let query = db
         .selectFrom("marketplace_snapshots")
         .selectAll()

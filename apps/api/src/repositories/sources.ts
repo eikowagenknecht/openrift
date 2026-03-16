@@ -1,6 +1,6 @@
-import type { Kysely } from "kysely";
+import type { DeleteResult, Kysely, Selectable } from "kysely";
 
-import type { Database } from "../db/index.js";
+import type { Database, SourcesTable } from "../db/index.js";
 
 /**
  * Queries for user acquisition sources.
@@ -10,7 +10,7 @@ import type { Database } from "../db/index.js";
 export function sourcesRepo(db: Kysely<Database>) {
   return {
     /** @returns All sources for a user, ordered by name. */
-    listForUser(userId: string) {
+    listForUser(userId: string): Promise<Selectable<SourcesTable>[]> {
       return db
         .selectFrom("sources")
         .selectAll()
@@ -20,7 +20,7 @@ export function sourcesRepo(db: Kysely<Database>) {
     },
 
     /** @returns A single source by ID scoped to a user, or `undefined`. */
-    getByIdForUser(id: string, userId: string) {
+    getByIdForUser(id: string, userId: string): Promise<Selectable<SourcesTable> | undefined> {
       return db
         .selectFrom("sources")
         .selectAll()
@@ -30,12 +30,20 @@ export function sourcesRepo(db: Kysely<Database>) {
     },
 
     /** @returns The newly created source row. */
-    create(values: { user_id: string; name: string; description: string | null }) {
+    create(values: {
+      user_id: string;
+      name: string;
+      description: string | null;
+    }): Promise<Selectable<SourcesTable>> {
       return db.insertInto("sources").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     /** @returns The updated source row, or `undefined` if not found. */
-    update(id: string, userId: string, updates: Record<string, unknown>) {
+    update(
+      id: string,
+      userId: string,
+      updates: Record<string, unknown>,
+    ): Promise<Selectable<SourcesTable> | undefined> {
       return db
         .updateTable("sources")
         .set(updates)
@@ -46,7 +54,7 @@ export function sourcesRepo(db: Kysely<Database>) {
     },
 
     /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
-    deleteByIdForUser(id: string, userId: string) {
+    deleteByIdForUser(id: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("sources")
         .where("id", "=", id)

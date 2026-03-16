@@ -1,7 +1,30 @@
-import type { Kysely } from "kysely";
+import type { CardType } from "@openrift/shared/types";
+import type { Kysely, Selectable } from "kysely";
 
 import { imageUrl } from "../db-helpers.js";
-import type { Database } from "../db/index.js";
+import type { ActivitiesTable, ActivityItemsTable, Database, PrintingsTable } from "../db/index.js";
+
+/** Activity item row with printing, card, and image details. */
+type ActivityItemRow = Pick<
+  Selectable<ActivityItemsTable>,
+  | "id"
+  | "activity_id"
+  | "activity_type"
+  | "copy_id"
+  | "printing_id"
+  | "action"
+  | "from_collection_id"
+  | "from_collection_name"
+  | "to_collection_id"
+  | "to_collection_name"
+  | "metadata_snapshot"
+  | "created_at"
+> &
+  Pick<Selectable<PrintingsTable>, "set_id" | "collector_number" | "rarity"> & {
+    image_url: string | null;
+    card_name: string;
+    card_type: CardType;
+  };
 
 /**
  * Queries for user activity history.
@@ -11,7 +34,11 @@ import type { Database } from "../db/index.js";
 export function activitiesRepo(db: Kysely<Database>) {
   return {
     /** @returns A cursor-paginated list of activities for a user (newest first). Fetches `limit + 1` rows to detect `hasMore`. */
-    listForUser(userId: string, limit: number, cursor?: string) {
+    listForUser(
+      userId: string,
+      limit: number,
+      cursor?: string,
+    ): Promise<Selectable<ActivitiesTable>[]> {
       let query = db
         .selectFrom("activities")
         .selectAll()
@@ -25,7 +52,7 @@ export function activitiesRepo(db: Kysely<Database>) {
     },
 
     /** @returns A single activity by ID scoped to a user, or `undefined`. */
-    getByIdForUser(id: string, userId: string) {
+    getByIdForUser(id: string, userId: string): Promise<Selectable<ActivitiesTable> | undefined> {
       return db
         .selectFrom("activities")
         .selectAll()
@@ -35,7 +62,7 @@ export function activitiesRepo(db: Kysely<Database>) {
     },
 
     /** @returns Activity items joined with printing, card, and image details. */
-    itemsWithDetails(activityId: string) {
+    itemsWithDetails(activityId: string): Promise<ActivityItemRow[]> {
       return db
         .selectFrom("activity_items as ai")
         .innerJoin("printings as p", "p.id", "ai.printing_id")

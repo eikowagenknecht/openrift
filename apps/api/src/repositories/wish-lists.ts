@@ -1,6 +1,6 @@
-import type { Kysely } from "kysely";
+import type { DeleteResult, Kysely, Selectable } from "kysely";
 
-import type { Database } from "../db/index.js";
+import type { Database, WishListItemsTable, WishListsTable } from "../db/index.js";
 
 /**
  * Queries for user wish lists and their items.
@@ -10,7 +10,7 @@ import type { Database } from "../db/index.js";
 export function wishListsRepo(db: Kysely<Database>) {
   return {
     /** @returns All wish lists for a user, ordered by name. */
-    listForUser(userId: string) {
+    listForUser(userId: string): Promise<Selectable<WishListsTable>[]> {
       return db
         .selectFrom("wish_lists")
         .selectAll()
@@ -20,7 +20,7 @@ export function wishListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns A single wish list by ID scoped to a user, or `undefined`. */
-    getByIdForUser(id: string, userId: string) {
+    getByIdForUser(id: string, userId: string): Promise<Selectable<WishListsTable> | undefined> {
       return db
         .selectFrom("wish_lists")
         .selectAll()
@@ -30,7 +30,10 @@ export function wishListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Whether the wish list exists for the given user. */
-    exists(id: string, userId: string) {
+    exists(
+      id: string,
+      userId: string,
+    ): Promise<Pick<Selectable<WishListsTable>, "id"> | undefined> {
       return db
         .selectFrom("wish_lists")
         .select("id")
@@ -40,12 +43,20 @@ export function wishListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns The newly created wish list row. */
-    create(values: { user_id: string; name: string; rules: string | null }) {
+    create(values: {
+      user_id: string;
+      name: string;
+      rules: string | null;
+    }): Promise<Selectable<WishListsTable>> {
       return db.insertInto("wish_lists").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     /** @returns The updated wish list row, or `undefined` if not found. */
-    update(id: string, userId: string, updates: Record<string, unknown>) {
+    update(
+      id: string,
+      userId: string,
+      updates: Record<string, unknown>,
+    ): Promise<Selectable<WishListsTable> | undefined> {
       return db
         .updateTable("wish_lists")
         .set(updates)
@@ -56,7 +67,7 @@ export function wishListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
-    deleteByIdForUser(id: string, userId: string) {
+    deleteByIdForUser(id: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("wish_lists")
         .where("id", "=", id)
@@ -65,7 +76,7 @@ export function wishListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns All items for a wish list. */
-    itemsForList(wishListId: string) {
+    itemsForList(wishListId: string): Promise<Selectable<WishListItemsTable>[]> {
       return db
         .selectFrom("wish_list_items")
         .selectAll()
@@ -80,7 +91,7 @@ export function wishListsRepo(db: Kysely<Database>) {
       card_id: string | null;
       printing_id: string | null;
       quantity_desired: number;
-    }) {
+    }): Promise<Selectable<WishListItemsTable>> {
       return db
         .insertInto("wish_list_items")
         .values(values)
@@ -94,7 +105,7 @@ export function wishListsRepo(db: Kysely<Database>) {
       wishListId: string,
       userId: string,
       updates: Record<string, unknown>,
-    ) {
+    ): Promise<Selectable<WishListItemsTable> | undefined> {
       return db
         .updateTable("wish_list_items")
         .set(updates)
@@ -106,7 +117,7 @@ export function wishListsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Delete result — check `numDeletedRows` to verify the item existed. */
-    deleteItem(itemId: string, wishListId: string, userId: string) {
+    deleteItem(itemId: string, wishListId: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("wish_list_items")
         .where("id", "=", itemId)
