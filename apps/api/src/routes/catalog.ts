@@ -1,5 +1,5 @@
 import { centsToDollars } from "@openrift/shared";
-import type { Card, CatalogPrinting, PrintingImage, RiftboundCatalog } from "@openrift/shared";
+import type { Card, CatalogPrinting, RiftboundCatalog } from "@openrift/shared";
 import { Hono } from "hono";
 
 import { catalogRepo } from "../repositories/catalog.js";
@@ -55,18 +55,10 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     }
 
     // Build images lookup
-    const imagesByPrinting = new Map<string, PrintingImage[]>();
-    for (const row of imageRows) {
-      if (!row.url) {
-        continue;
-      }
-      let list = imagesByPrinting.get(row.printingId);
-      if (!list) {
-        list = [];
-        imagesByPrinting.set(row.printingId, list);
-      }
-      list.push({ face: row.face, url: row.url });
-    }
+    const imagesByPrinting = Map.groupBy(
+      imageRows.filter((r): r is typeof r & { url: string } => r.url !== null),
+      (r) => r.printingId,
+    );
 
     // Build flat printings array
     const printings: CatalogPrinting[] = [];
@@ -78,7 +70,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       const marketPrice = priceByPrinting.get(row.id);
       printings.push({
         ...row,
-        images: imagesByPrinting.get(row.id) ?? [],
+        images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
         ...(marketPrice !== undefined && { marketPrice }),
       });
     }
@@ -90,6 +82,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     };
 
     c.header("ETag", etag);
+    c.header("Last-Modified", new Date(combinedTs).toUTCString());
     c.header("Cache-Control", "public, max-age=60");
     return c.json(content);
   });

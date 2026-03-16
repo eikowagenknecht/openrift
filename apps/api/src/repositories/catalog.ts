@@ -99,7 +99,7 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The most recent `updated_at` across sets, cards, and printings. */
+    /** @returns The most recent `updated_at` across sets, cards, and printings (epoch 0 if all empty). */
     catalogLastModified(): Promise<{ lastModified: Date }> {
       return db
         .selectFrom(
@@ -111,7 +111,9 @@ export function catalogRepo(db: Kysely<Database>) {
             SELECT MAX(updated_at) FROM printings
           )`.as("t"),
         )
-        .select(sql<Date>`MAX(t.last_modified)`.as("lastModified"))
+        .select(
+          sql<Date>`COALESCE(MAX(t.last_modified), '1970-01-01T00:00:00Z')`.as("lastModified"),
+        )
         .executeTakeFirstOrThrow();
     },
 
