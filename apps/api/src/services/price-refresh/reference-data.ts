@@ -2,7 +2,26 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types.js";
-import type { ReferenceData } from "./types.js";
+
+interface ReferenceData {
+  sets: { id: string; name: string }[];
+  cards: { id: string; name: string }[];
+  printings: {
+    id: string;
+    cardId: string;
+    setId: string;
+    sourceId: string;
+    publicCode: string;
+    finish: string;
+    artVariant: string;
+    isSigned: boolean;
+  }[];
+  setNameById: Map<string, string>;
+  cardNameById: Map<string, string>;
+  namesBySet: Map<string, Map<string, string>>;
+  printingsByCardSetFinish: Map<string, string[]>;
+  printingByFullKey: Map<string, string>;
+}
 
 /**
  * Load sets, cards, and printings from the DB and build lookup maps used by

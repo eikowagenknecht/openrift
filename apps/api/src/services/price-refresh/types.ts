@@ -55,25 +55,3 @@ export interface StagingRow extends PriceColumns {
   finish: string;
   recordedAt: Date;
 }
-
-// ── Reference data ──────────────────────────────────────────────────────
-
-export interface ReferenceData {
-  sets: { id: string; name: string }[];
-  cards: { id: string; name: string }[];
-  printings: {
-    id: string;
-    cardId: string;
-    setId: string;
-    sourceId: string;
-    publicCode: string;
-    finish: string;
-    artVariant: string;
-    isSigned: boolean;
-  }[];
-  setNameById: Map<string, string>;
-  cardNameById: Map<string, string>;
-  namesBySet: Map<string, Map<string, string>>;
-  printingsByCardSetFinish: Map<string, string[]>;
-  printingByFullKey: Map<string, string>;
-}

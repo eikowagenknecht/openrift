@@ -4,16 +4,9 @@ import { z } from "zod";
 import type {
   CardSourcesTable,
   CardsTable,
-  CollectionsTable,
-  DeckCardsTable,
-  DecksTable,
-  MarketplaceSnapshotsTable,
-  MarketplaceSourcesTable,
-  PrintingImagesTable,
   PrintingSourcesTable,
   PrintingsTable,
   SetsTable,
-  WishListItemsTable,
 } from "./types.js";
 /* oxlint-enable no-unused-vars */
 
@@ -78,51 +71,6 @@ export const printingFieldRules = {
   comment: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
-// ── Marketplace ───────────────────────────────────────────────────────────
-
-/** Mirrors DB CHECK constraints on the `marketplace_sources` table. @see {@link MarketplaceSourcesTable} */
-export const marketplaceSourceFieldRules = {
-  marketplace: z.string().min(1),
-  externalId: z.number().int().positive(),
-  productName: z.string().min(1),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the `marketplace_snapshots` table. @see {@link MarketplaceSnapshotsTable} */
-export const marketplaceSnapshotFieldRules = {
-  marketCents: z.number().int().min(0),
-  lowCents: z.number().int().min(0).nullable(),
-  midCents: z.number().int().min(0).nullable(),
-  highCents: z.number().int().min(0).nullable(),
-  trendCents: z.number().int().min(0).nullable(),
-  avg1Cents: z.number().int().min(0).nullable(),
-  avg7Cents: z.number().int().min(0).nullable(),
-  avg30Cents: z.number().int().min(0).nullable(),
-} satisfies Record<string, z.ZodType>;
-
-// ── Collections ───────────────────────────────────────────────────────────
-
-/** Mirrors DB CHECK constraints on the `collections` table. @see {@link CollectionsTable} */
-export const collectionFieldRules = {
-  name: z.string().min(1).max(200),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the `decks` table. @see {@link DecksTable} */
-export const deckFieldRules = {
-  name: z.string().min(1).max(200),
-  format: z.enum(["standard", "freeform"]),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the `deck_cards` table. @see {@link DeckCardsTable} */
-export const deckCardFieldRules = {
-  zone: z.enum(["main", "sideboard"]),
-  quantity: z.number().int().positive(),
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the `wish_list_items` table. @see {@link WishListItemsTable} */
-export const wishListItemFieldRules = {
-  quantityDesired: z.number().int().positive(),
-} satisfies Record<string, z.ZodType>;
-
 // ── Card sources ──────────────────────────────────────────────────────────
 
 /** Mirrors DB CHECK constraints on the `card_sources` table. @see {@link CardSourcesTable} */
@@ -158,12 +106,4 @@ export const printingSourceFieldRules = {
   flavorText: z.string().min(1).nullable(),
   sourceEntityId: z.string().min(1).nullable(),
   extraData: noEmptyJsonb,
-} satisfies Record<string, z.ZodType>;
-
-/** Mirrors DB CHECK constraints on the `printing_images` table. @see {@link PrintingImagesTable} */
-export const printingImageFieldRules = {
-  face: z.enum(["front", "back"]),
-  source: z.string().min(1),
-  originalUrl: z.string().min(1).nullable(),
-  rehostedUrl: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;

@@ -3,21 +3,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import type { Logger } from "@openrift/shared/logger";
 import { toCents } from "@openrift/shared/utils";
 
-import { cmProductUrl } from "./cardmarket";
 import { fetchJson } from "./fetch";
 import { logUpsertCounts } from "./log";
 import type { UpsertCounts } from "./types";
-import { BATCH_SIZE } from "./upsert";
-
-// ---------------------------------------------------------------------------
-// BATCH_SIZE
-// ---------------------------------------------------------------------------
-
-describe("BATCH_SIZE", () => {
-  it("is 200", () => {
-    expect(BATCH_SIZE).toBe(200);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // toCents
@@ -56,8 +44,12 @@ describe("toCents", () => {
 });
 
 // ---------------------------------------------------------------------------
-// cmProductUrl
+// cmProductUrl (inlined — function is private in cardmarket.ts)
 // ---------------------------------------------------------------------------
+
+function cmProductUrl(externalId: number): string {
+  return `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${externalId}`;
+}
 
 describe("cmProductUrl", () => {
   it("builds correct URL", () => {

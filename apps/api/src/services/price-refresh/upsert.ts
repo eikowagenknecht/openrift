@@ -22,7 +22,7 @@ import type {
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-export const BATCH_SIZE = 200;
+const BATCH_SIZE = 200;
 
 const PRICE_COL_NAMES = [
   "market_cents",
