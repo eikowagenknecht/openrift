@@ -9,7 +9,7 @@ import type {
   Printing,
   PrintingImage,
   SuperType,
-  RiftboundContent,
+  RiftboundCatalog,
   TimeRange,
 } from "@openrift/shared";
 import { Hono } from "hono";
@@ -27,9 +27,9 @@ const RANGE_DAYS: Record<TimeRange, number | null> = {
   all: null,
 };
 
-export const cardsRoute = new Hono<{ Variables: Variables }>()
+export const catalogRoute = new Hono<{ Variables: Variables }>()
   /**
-   * `GET /cards` — Returns the full card catalog as {@link RiftboundContent}.
+   * `GET /catalog` — Returns the full card catalog as {@link RiftboundCatalog}.
    *
    * Fetches cards and printings separately, then assembles each printing with
    * its card data and groups by set. Empty sets get an empty `printings` array.
@@ -37,7 +37,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
    * Printed text fields (`printedDescription`, `printedEffect`) are only
    * included when they differ from the oracle text, keeping the payload smaller.
    */
-  .get("/cards", async (c) => {
+  .get("/catalog", async (c) => {
     const catalog = catalogRepo(c.get("db"));
 
     const { last_modified } = await catalog.catalogLastModified();
@@ -47,13 +47,27 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
       return c.body(null, 304);
     }
 
-    const [sets, cardRows, printingRows] = await Promise.all([
+    const [sets, cardRows, printingRows, imageRows] = await Promise.all([
       catalog.sets(),
       catalog.cards(),
       catalog.printings(),
+      catalog.printingImages(),
     ]);
 
     const cardById = new Map(cardRows.map((row) => [row.id, row]));
+
+    const imagesByPrinting = new Map<string, PrintingImage[]>();
+    for (const row of imageRows) {
+      if (!row.url) {
+        continue;
+      }
+      let list = imagesByPrinting.get(row.printing_id);
+      if (!list) {
+        list = [];
+        imagesByPrinting.set(row.printing_id, list);
+      }
+      list.push({ face: row.face, url: row.url });
+    }
 
     const printingsBySet = new Map<string, Printing[]>();
     for (const row of printingRows) {
@@ -61,7 +75,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
       if (!cardRow) {
         continue;
       }
-      const images: PrintingImage[] = row.image_url ? [{ face: "front", url: row.image_url }] : [];
+      const images = imagesByPrinting.get(row.id) ?? [];
       const card: Card = {
         id: cardRow.id,
         slug: cardRow.slug,
@@ -119,7 +133,7 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
       printings: printingsBySet.get(s.slug) ?? [],
     }));
 
-    const content: RiftboundContent = {
+    const content: RiftboundCatalog = {
       sets: contentSets,
     };
 

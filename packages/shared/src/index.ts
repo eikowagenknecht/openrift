@@ -31,7 +31,7 @@ export type {
   PrintingImage,
   PrintingSource,
   Rarity,
-  RiftboundContent,
+  RiftboundCatalog,
   SearchField,
   SortDirection,
   SortOption,

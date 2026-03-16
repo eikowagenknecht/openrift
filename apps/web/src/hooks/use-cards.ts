@@ -1,4 +1,4 @@
-import type { Printing, PricesData, RiftboundContent } from "@openrift/shared";
+import type { Printing, PricesData, RiftboundCatalog } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
@@ -41,13 +41,13 @@ async function checkHealth(): Promise<HealthStatus> {
   return null;
 }
 
-async function fetchCards(): Promise<RiftboundContent> {
-  const res = await client.api.cards.$get();
+async function fetchCatalog(): Promise<RiftboundCatalog> {
+  const res = await client.api.catalog.$get();
   if (!res.ok) {
     const healthStatus = await checkHealth();
-    throw new ApiError(`Failed to fetch cards: ${res.status}`, healthStatus);
+    throw new ApiError(`Failed to fetch catalog: ${res.status}`, healthStatus);
   }
-  return (await res.json()) as RiftboundContent;
+  return (await res.json()) as RiftboundCatalog;
 }
 
 async function fetchPrices(): Promise<PricesData> {
@@ -60,28 +60,28 @@ async function fetchPrices(): Promise<PricesData> {
 }
 
 export function useCards(): UseCardsResult {
-  const cardsQuery = useQuery({
-    queryKey: queryKeys.cards.all,
-    queryFn: fetchCards,
+  const catalogQuery = useQuery({
+    queryKey: queryKeys.catalog.all,
+    queryFn: fetchCatalog,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
   const pricesQuery = useQuery({
-    queryKey: queryKeys.cards.prices,
+    queryKey: queryKeys.catalog.prices,
     queryFn: fetchPrices,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  const isEmpty = cardsQuery.data !== undefined && cardsQuery.data.sets.length === 0;
-  const isLoading = !isEmpty && (cardsQuery.isLoading || pricesQuery.isLoading);
+  const isEmpty = catalogQuery.data !== undefined && catalogQuery.data.sets.length === 0;
+  const isLoading = !isEmpty && (catalogQuery.isLoading || pricesQuery.isLoading);
   const error = isEmpty
     ? new ApiError("No cards available", "db_empty")
-    : (cardsQuery.error ?? pricesQuery.error);
+    : (catalogQuery.error ?? pricesQuery.error);
 
-  const allCards = cardsQuery.data
-    ? cardsQuery.data.sets.flatMap((set) =>
+  const allCards = catalogQuery.data
+    ? catalogQuery.data.sets.flatMap((set) =>
         set.printings.map((printing) => {
           const marketPrice = pricesQuery.data?.prices[printing.id];
           return marketPrice === undefined ? printing : { ...printing, marketPrice };
@@ -89,8 +89,8 @@ export function useCards(): UseCardsResult {
       )
     : [];
 
-  const setInfoList: SetInfo[] = cardsQuery.data
-    ? cardsQuery.data.sets.map((s) => ({
+  const setInfoList: SetInfo[] = catalogQuery.data
+    ? catalogQuery.data.sets.map((s) => ({
         name: s.name,
         code: s.slug,
       }))

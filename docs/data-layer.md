@@ -250,7 +250,7 @@ Source-specific secondary price columns:
 | Method   | Path                                   | Description                                                                                        |
 | -------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | GET/POST | `/api/auth/**`                         | Auth handler — delegated to better-auth (sign-up, login, email OTP, sessions, etc.)                |
-| GET      | `/api/cards`                           | All sets with their cards/printings, grouped by set. Joins cards + printings tables.               |
+| GET      | `/api/catalog`                         | All sets with their cards/printings, grouped by set. Joins cards + printings tables.               |
 | GET      | `/api/prices`                          | Price data keyed by printing ID. Joins price_sources + price_snapshots, converts cents to dollars. |
 | GET      | `/api/health`                          | Health check — validates DB connectivity, migration status, and seed data presence.                |
 | POST     | `/api/admin/refresh-catalog`           | Re-fetch card catalog from the Riftbound gallery. Requires admin auth.                             |
