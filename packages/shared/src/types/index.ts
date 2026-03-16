@@ -20,13 +20,7 @@ export {
   SUPER_TYPE_ORDER,
 } from "./enums.js";
 
-export type {
-  Card,
-  CatalogPrinting,
-  Printing,
-  PrintingImage,
-  RiftboundCatalog,
-} from "./catalog.js";
+export type { Card, Printing, PrintingImage } from "./catalog.js";
 export { getOrientation } from "./catalog.js";
 
 export type {
@@ -39,15 +33,19 @@ export type {
 } from "./search.js";
 export { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE, SEARCH_PREFIX_MAP } from "./search.js";
 
-export type {
-  CardmarketSnapshot,
-  Marketplace,
-  PriceHistoryResponse,
-  PricesData,
-  TcgplayerSnapshot,
-  TimeRange,
-} from "./pricing.js";
+export type { Marketplace, TimeRange } from "./pricing.js";
 export { TIME_RANGE_DAYS } from "./pricing.js";
+
+export type {
+  AdminPrintingImage,
+  CardSource,
+  CardSourceSummary,
+  CardSourceUploadResult,
+  CatalogPrinting,
+  PrintingSource,
+  RiftboundCatalog,
+  SourceStats,
+} from "./api/index.js";
 
 export type {
   Activity,
@@ -60,16 +58,14 @@ export type {
   TradeListItem,
   WishList,
   WishListItem,
-} from "./collection.js";
+} from "./api/index.js";
 
 export type {
-  AdminPrintingImage,
-  CardSource,
-  CardSourceSummary,
-  CardSourceUploadResult,
-  PrintingSource,
-  SourceStats,
-} from "./admin.js";
+  CardmarketSnapshot,
+  PriceHistoryResponse,
+  PricesData,
+  TcgplayerSnapshot,
+} from "./api/index.js";
 
 export type { Readable } from "./tables.js";
 export type {
