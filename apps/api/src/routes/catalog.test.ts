@@ -54,7 +54,7 @@ const app = new Hono()
 // Test data
 // ---------------------------------------------------------------------------
 
-const dbSet = { id: "OGS", slug: "OGS", name: "Original Set", printedTotal: 100 };
+const dbSet = { id: "OGS", slug: "OGS", name: "Original Set" };
 
 const dbCard = {
   id: "OGS-001",
@@ -207,7 +207,7 @@ describe("GET /api/catalog", () => {
   });
 
   it("returns printings from multiple sets as flat array", async () => {
-    const secondSet = { id: "S2", slug: "S2", name: "Set Two", printedTotal: 50 };
+    const secondSet = { id: "S2", slug: "S2", name: "Set Two" };
     const secondCard = { ...dbCard, id: "S2-001", slug: "S2-001" };
     const secondRow = {
       ...dbPrintingRow,
