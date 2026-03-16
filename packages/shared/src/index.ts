@@ -60,6 +60,12 @@ export {
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
 
-export { buildPrintingId, comparePrintings, normalizeNameForMatching } from "./utils.js";
+export {
+  buildPrintingId,
+  centsToDollars,
+  comparePrintings,
+  formatDateUTC,
+  normalizeNameForMatching,
+} from "./utils.js";
 
 export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";

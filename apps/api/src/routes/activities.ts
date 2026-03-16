@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { formatDateUTC } from "@openrift/shared";
 import type { Activity, ActivityType } from "@openrift/shared";
 import { activitiesQuerySchema, idParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
@@ -41,7 +42,7 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
       id: row.id,
       type: row.type as ActivityType,
       name: row.name,
-      date: row.date instanceof Date ? row.date.toISOString().split("T")[0] : String(row.date),
+      date: formatDateUTC(row.date),
       description: row.description,
       isAuto: row.is_auto,
       createdAt: row.created_at.toISOString(),
@@ -132,10 +133,7 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
         id: activity.id,
         type: activity.type,
         name: activity.name,
-        date:
-          activity.date instanceof Date
-            ? activity.date.toISOString().split("T")[0]
-            : String(activity.date),
+        date: formatDateUTC(activity.date),
         description: activity.description,
         isAuto: activity.is_auto,
         createdAt: activity.created_at.toISOString(),

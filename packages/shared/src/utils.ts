@@ -103,6 +103,25 @@ export function toCents(amount: number | null | undefined): number | null {
 }
 
 /**
+ * Convert a nullable cent value to dollars. Inverse of {@link toCents}.
+ * @returns The amount in dollars, or `null` if the input is `null`.
+ */
+export function centsToDollars(cents: number | null): number | null {
+  return cents === null ? null : cents / 100;
+}
+
+/**
+ * Formats a `Date` or ISO string as a UTC `YYYY-MM-DD` date string.
+ * Useful for API responses where only the calendar date matters.
+ *
+ * @returns A `YYYY-MM-DD` string in UTC.
+ */
+export function formatDateUTC(date: Date | string): string {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toISOString().split("T")[0];
+}
+
+/**
  * Converts empty strings to `null`, passing through non-empty strings and nullish values as-is.
  *
  * @returns The original string if non-empty, otherwise `null`.
