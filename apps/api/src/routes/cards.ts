@@ -123,6 +123,8 @@ export const cardsRoute = new Hono<{ Variables: Variables }>()
       sets: contentSets,
     };
 
+    c.header("ETag", etag);
+    c.header("Cache-Control", "public, max-age=60");
     return c.json(content);
   })
   /**

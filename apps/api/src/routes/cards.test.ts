@@ -8,6 +8,8 @@ import { cardsRoute } from "./cards";
 // Mock DB
 // ---------------------------------------------------------------------------
 
+const CATALOG_LAST_MODIFIED = new Date("2026-03-01T00:00:00Z");
+
 const mockState = {
   tables: {} as Record<string, unknown[]>,
 };
@@ -15,7 +17,10 @@ const mockState = {
 function createMockDb() {
   return {
     selectFrom: (table: string) => {
-      const data = mockState.tables[table] ?? [];
+      const isSubquery = typeof table !== "string";
+      const data = isSubquery
+        ? [{ last_modified: CATALOG_LAST_MODIFIED }]
+        : (mockState.tables[table] ?? []);
       const chain: Record<string, unknown> = {
         selectAll: () => chain,
         select: () => chain,
@@ -28,6 +33,7 @@ function createMockDb() {
         limit: () => chain,
         execute: () => data,
         executeTakeFirst: () => data[0] ?? undefined,
+        executeTakeFirstOrThrow: () => data[0],
       };
       return chain;
     },
@@ -208,6 +214,27 @@ describe("GET /api/cards", () => {
     expect(set.id).toBe("OGS");
     expect(set.name).toBe("Original Set");
     expect(set.printedTotal).toBe(100);
+  });
+
+  it("returns ETag and Cache-Control headers", async () => {
+    const res = await app.request("/api/cards");
+    expect(res.headers.get("ETag")).toBe(`"catalog-${CATALOG_LAST_MODIFIED.getTime()}"`);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+  });
+
+  it("returns 304 when If-None-Match matches current ETag", async () => {
+    const etag = `"catalog-${CATALOG_LAST_MODIFIED.getTime()}"`;
+    const res = await app.request("/api/cards", {
+      headers: { "If-None-Match": etag },
+    });
+    expect(res.status).toBe(304);
+  });
+
+  it("returns 200 when If-None-Match does not match", async () => {
+    const res = await app.request("/api/cards", {
+      headers: { "If-None-Match": '"catalog-0"' },
+    });
+    expect(res.status).toBe(200);
   });
 });
 
