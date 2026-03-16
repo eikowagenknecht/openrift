@@ -49,11 +49,27 @@ const app = new Hono()
 
 const dbSet = { id: "OGS", slug: "OGS", name: "Original Set", printed_total: 100 };
 
-const dbJoinedRow = {
-  printing_id: "OGS-001:rare:normal:",
-  printing_slug: "OGS-001:rare:normal:",
+const dbCard = {
+  id: "OGS-001",
+  slug: "OGS-001",
+  name: "Fire Dragon",
+  type: "Unit",
+  super_types: ["Elite"],
+  domains: ["Fury"],
+  might: 4,
+  energy: 5,
+  power: 6,
+  might_bonus: 1,
+  keywords: ["Shield"],
+  rules_text: "A fiery beast",
+  effect_text: "Deal 3 damage",
+  tags: ["Dragon"],
+};
+
+const dbPrintingRow = {
+  id: "OGS-001:rare:normal:",
+  slug: "OGS-001:rare:normal:",
   card_id: "OGS-001",
-  card_slug: "OGS-001",
   set_id: "OGS",
   set_slug: "OGS",
   source_id: "OGS-001",
@@ -70,18 +86,6 @@ const dbJoinedRow = {
   printed_effect_text: "Deal 3 damage",
   flavor_text: null,
   comment: null,
-  name: "Fire Dragon",
-  type: "Unit",
-  super_types: ["Elite"],
-  domains: ["Fury"],
-  might: 4,
-  energy: 5,
-  power: 6,
-  might_bonus: 1,
-  keywords: ["Shield"],
-  rules_text: "A fiery beast",
-  effect_text: "Deal 3 damage",
-  tags: ["Dragon"],
 };
 
 const dbPrice = {
@@ -102,7 +106,7 @@ const dbPriceFoil = {
 
 describe("GET /api/cards", () => {
   beforeEach(() => {
-    mockState.tables = { sets: [dbSet], "printings as p": [dbJoinedRow] };
+    mockState.tables = { sets: [dbSet], cards: [dbCard], "printings as p": [dbPrintingRow] };
   });
 
   it("returns 200 with RiftboundContent structure", async () => {
@@ -164,19 +168,20 @@ describe("GET /api/cards", () => {
 
   it("groups printings by set", async () => {
     const secondSet = { id: "S2", slug: "S2", name: "Set Two", printed_total: 50 };
+    const secondCard = { ...dbCard, id: "S2-001", slug: "S2-001" };
     const secondRow = {
-      ...dbJoinedRow,
-      printing_id: "S2-001:rare:normal",
-      printing_slug: "S2-001:rare:normal",
+      ...dbPrintingRow,
+      id: "S2-001:rare:normal",
+      slug: "S2-001:rare:normal",
       card_id: "S2-001",
-      card_slug: "S2-001",
       source_id: "S2-001",
       set_id: "S2",
       set_slug: "S2",
     };
     mockState.tables = {
       sets: [dbSet, secondSet],
-      "printings as p": [dbJoinedRow, secondRow],
+      cards: [dbCard, secondCard],
+      "printings as p": [dbPrintingRow, secondRow],
     };
 
     const res = await app.request("/api/cards");
@@ -189,7 +194,7 @@ describe("GET /api/cards", () => {
 
   it("returns empty printings array for sets with no printings", async () => {
     const emptySet = { id: "EMPTY", slug: "EMPTY", name: "Empty Set", printed_total: 0 };
-    mockState.tables = { sets: [emptySet], "printings as p": [] };
+    mockState.tables = { sets: [emptySet], cards: [], "printings as p": [] };
 
     const res = await app.request("/api/cards");
     const json = await res.json();
