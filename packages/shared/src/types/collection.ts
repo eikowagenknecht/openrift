@@ -1,18 +1,4 @@
-// If you add a value here, also update the CHECK constraint in a new migration
-// (see 009-collection-tracking.ts — chk_activities_type).
-export type ActivityType = "acquisition" | "disposal" | "trade" | "reorganization";
-
-// If you add a value here, also update the CHECK constraint in a new migration
-// (see 009-collection-tracking.ts — chk_activity_items_action).
-export type ActivityAction = "added" | "removed" | "moved";
-
-// If you add a value here, also update the CHECK constraint in a new migration
-// (see 009-collection-tracking.ts — chk_decks_format).
-export type DeckFormat = "standard" | "freeform";
-
-// If you add a value here, also update the CHECK constraint in a new migration
-// (see 009-collection-tracking.ts — chk_deck_cards_zone).
-export type DeckZone = "main" | "sideboard";
+import type { ActivityType } from "./enums.js";
 
 export interface Collection {
   id: string;

@@ -23,6 +23,7 @@
     "make-admin": "bun --env-file=../../.env ../../scripts/make-admin.ts"
   },
   "dependencies": {
+    "kysely": "0.28.11",
     "pino": "10.3.1",
     "zod": "4.3.6"
   },

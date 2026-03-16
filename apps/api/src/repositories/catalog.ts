@@ -25,16 +25,18 @@ export function catalogRepo(db: Kysely<Database>) {
           "slug",
           "name",
           "type",
-          "super_types",
           "domains",
           "might",
           "energy",
           "power",
-          "might_bonus",
           "keywords",
-          "rules_text",
-          "effect_text",
           "tags",
+        ])
+        .select((eb) => [
+          eb.ref("super_types").as("superTypes"),
+          eb.ref("might_bonus").as("mightBonus"),
+          eb.ref("rules_text").as("rulesText"),
+          eb.ref("effect_text").as("effectText"),
         ])
         .execute();
     },

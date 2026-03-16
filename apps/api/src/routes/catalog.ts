@@ -72,22 +72,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     const cardRowById = new Map<string, (typeof cardRows)[number]>();
     for (const row of cardRows) {
       cardRowById.set(row.id, row);
-      cards[row.id] = {
-        id: row.id,
-        slug: row.slug,
-        name: row.name,
-        type: row.type,
-        superTypes: row.super_types,
-        domains: row.domains,
-        might: row.might,
-        energy: row.energy,
-        power: row.power,
-        keywords: row.keywords,
-        tags: row.tags,
-        mightBonus: row.might_bonus,
-        rulesText: row.rules_text,
-        effectText: row.effect_text,
-      };
+      cards[row.id] = row;
     }
 
     // Build images lookup
@@ -130,11 +115,11 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         artist: row.artist,
         publicCode: row.public_code,
         ...(row.printed_rules_text !== null &&
-          row.printed_rules_text !== cardRow.rules_text && {
+          row.printed_rules_text !== cardRow.rulesText && {
             printedDescription: row.printed_rules_text,
           }),
         ...(row.printed_effect_text !== null &&
-          row.printed_effect_text !== cardRow.effect_text && {
+          row.printed_effect_text !== cardRow.effectText && {
             printedEffect: row.printed_effect_text,
           }),
         ...(row.flavor_text && { flavorText: row.flavor_text }),

@@ -1,20 +1,21 @@
-import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
+import type { ArtVariant, CardFace, CardType, Finish, Rarity } from "./enums.js";
+import type { CardsTable, Readable } from "./tables.js";
 
 export interface Card {
-  id: string;
-  slug: string;
-  name: string;
-  type: CardType;
-  superTypes: SuperType[];
-  domains: Domain[];
-  might: number | null;
-  energy: number | null;
-  power: number | null;
-  keywords: string[];
-  tags: string[];
-  mightBonus: number | null;
-  rulesText: string | null;
-  effectText: string | null;
+  id: Readable<CardsTable["id"]>;
+  slug: CardsTable["slug"];
+  name: CardsTable["name"];
+  type: CardsTable["type"];
+  superTypes: CardsTable["super_types"];
+  domains: CardsTable["domains"];
+  might: CardsTable["might"];
+  energy: CardsTable["energy"];
+  power: CardsTable["power"];
+  keywords: CardsTable["keywords"];
+  tags: CardsTable["tags"];
+  mightBonus: CardsTable["might_bonus"];
+  rulesText: CardsTable["rules_text"];
+  effectText: CardsTable["effect_text"];
 }
 
 export interface PrintingImage {

@@ -1,4 +1,16 @@
-export type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
+export type {
+  ActivityAction,
+  ActivityType,
+  ArtVariant,
+  CardFace,
+  CardType,
+  DeckFormat,
+  DeckZone,
+  Domain,
+  Finish,
+  Rarity,
+  SuperType,
+} from "./enums.js";
 export {
   ART_VARIANT_ORDER,
   CARD_TYPE_ORDER,
@@ -33,14 +45,10 @@ export type {
 
 export type {
   Activity,
-  ActivityAction,
-  ActivityType,
   Collection,
   Copy,
   CopyRow,
   Deck,
-  DeckFormat,
-  DeckZone,
   Source,
   TradeList,
   TradeListItem,
@@ -56,3 +64,38 @@ export type {
   PrintingSource,
   SourceStats,
 } from "./admin.js";
+
+export type { Readable } from "./tables.js";
+export type {
+  AccountsTable,
+  ActivitiesTable,
+  ActivityItemsTable,
+  AdminsTable,
+  CardNameAliasesTable,
+  CardSourcesTable,
+  CardsTable,
+  CollectionsTable,
+  CopiesTable,
+  Database,
+  DeckCardsTable,
+  DecksTable,
+  FeatureFlagsTable,
+  MarketplaceGroupsTable,
+  MarketplaceIgnoredProductsTable,
+  MarketplaceSnapshotsTable,
+  MarketplaceSourcesTable,
+  MarketplaceStagingCardOverridesTable,
+  MarketplaceStagingTable,
+  PrintingImagesTable,
+  PrintingSourcesTable,
+  PrintingsTable,
+  SessionsTable,
+  SetsTable,
+  SourcesTable,
+  TradeListItemsTable,
+  TradeListsTable,
+  UsersTable,
+  VerificationsTable,
+  WishListItemsTable,
+  WishListsTable,
+} from "./tables.js";
