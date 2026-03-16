@@ -7,7 +7,7 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { activitiesRepo } from "../repositories/activities.js";
 import type { Variables } from "../types.js";
-import { toActivity } from "../utils/dto.js";
+import { toActivity } from "../utils/mappers.js";
 
 export const activitiesRoute = new Hono<{ Variables: Variables }>()
   .basePath("/activities")

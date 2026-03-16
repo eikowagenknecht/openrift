@@ -1,3 +1,4 @@
+import { hydrateCatalog } from "@openrift/shared";
 import type { Printing, RiftboundCatalog } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
@@ -47,7 +48,7 @@ async function fetchCatalog(): Promise<RiftboundCatalog> {
     const healthStatus = await checkHealth();
     throw new ApiError(`Failed to fetch catalog: ${res.status}`, healthStatus);
   }
-  return (await res.json()) as RiftboundCatalog;
+  return hydrateCatalog((await res.json()) as RiftboundCatalog);
 }
 
 export function useCards(): UseCardsResult {

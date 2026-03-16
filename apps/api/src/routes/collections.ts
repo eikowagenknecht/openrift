@@ -16,7 +16,7 @@ import { copiesRepo } from "../repositories/copies.js";
 import { createActivity } from "../services/activity-logger.js";
 import { ensureInbox } from "../services/inbox.js";
 import type { Variables } from "../types.js";
-import { toCollection, toCopy } from "../utils/dto.js";
+import { toCollection, toCopy } from "../utils/mappers.js";
 
 const patchFields: FieldMapping = {
   name: "name",

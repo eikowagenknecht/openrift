@@ -13,7 +13,7 @@ import { requireAuth } from "../middleware/require-auth.js";
 import { copiesRepo } from "../repositories/copies.js";
 import { addCopies, disposeCopies, moveCopies } from "../services/copies.js";
 import type { Variables } from "../types.js";
-import { toCopy } from "../utils/dto.js";
+import { toCopy } from "../utils/mappers.js";
 
 export const copiesRoute = new Hono<{ Variables: Variables }>()
   .basePath("/copies")

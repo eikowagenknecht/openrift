@@ -9,7 +9,7 @@ import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
 import { sourcesRepo } from "../repositories/sources.js";
 import type { Variables } from "../types.js";
-import { toSource } from "../utils/dto.js";
+import { toSource } from "../utils/mappers.js";
 
 const patchFields: FieldMapping = { name: "name", description: "description" };
 

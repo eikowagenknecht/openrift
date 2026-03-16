@@ -16,7 +16,7 @@ import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
 import { decksRepo } from "../repositories/decks.js";
 import type { Variables } from "../types.js";
-import { toDeck } from "../utils/dto.js";
+import { toDeck } from "../utils/mappers.js";
 
 const patchFields: FieldMapping = {
   name: "name",

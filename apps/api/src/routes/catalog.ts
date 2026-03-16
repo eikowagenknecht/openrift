@@ -1,4 +1,4 @@
-import { centsToDollars } from "@openrift/shared";
+import { centsToDollars, compactCatalog } from "@openrift/shared";
 import type { Card, CatalogPrinting, RiftboundCatalog } from "@openrift/shared";
 import { Hono } from "hono";
 import { etag } from "hono/etag";
@@ -45,11 +45,11 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       ...(priceByPrinting.has(row.id) && { marketPrice: priceByPrinting.get(row.id) }),
     }));
 
-    const content: RiftboundCatalog = {
+    const content: RiftboundCatalog = compactCatalog({
       sets,
       cards,
       printings,
-    };
+    });
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     return c.json(content);

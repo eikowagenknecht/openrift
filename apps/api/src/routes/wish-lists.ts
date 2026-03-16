@@ -16,7 +16,7 @@ import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
 import { wishListsRepo } from "../repositories/wish-lists.js";
 import type { Variables } from "../types.js";
-import { toWishList, toWishListItem } from "../utils/dto.js";
+import { toWishList, toWishListItem } from "../utils/mappers.js";
 
 const patchFields: FieldMapping = {
   name: "name",

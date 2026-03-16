@@ -133,7 +133,7 @@ describe("GET /api/catalog", () => {
     expect(json.sets[0]).toEqual({ id: "OGS", slug: "OGS", name: "Original Set" });
   });
 
-  it("returns cards keyed by card ID", async () => {
+  it("returns cards keyed by card ID with non-null fields preserved", async () => {
     const res = await app.request("/api/catalog");
     const json = await res.json();
     const card = json.cards["OGS-001"];
@@ -144,6 +144,56 @@ describe("GET /api/catalog", () => {
     expect(card.might).toBe(4);
     expect(card.energy).toBe(5);
     expect(card.power).toBe(6);
+  });
+
+  it("omits null fields and empty arrays from cards", async () => {
+    mockState.tables = catalogTables({
+      cards: [
+        {
+          ...dbCard,
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          superTypes: [],
+          keywords: [],
+          tags: [],
+        },
+      ],
+    });
+    const res = await app.request("/api/catalog");
+    const json = await res.json();
+    const card = json.cards["OGS-001"];
+    expect(card.might).toBeUndefined();
+    expect(card.energy).toBeUndefined();
+    expect(card.power).toBeUndefined();
+    expect(card.mightBonus).toBeUndefined();
+    expect(card.rulesText).toBeUndefined();
+    expect(card.effectText).toBeUndefined();
+    expect(card.superTypes).toBeUndefined();
+    expect(card.keywords).toBeUndefined();
+    expect(card.tags).toBeUndefined();
+    // Non-nullable fields are still present
+    expect(card.name).toBe("Fire Dragon");
+    expect(card.domains).toEqual(["Fury"]);
+  });
+
+  it("omits null fields and empty arrays from printings", async () => {
+    mockState.tables = catalogTables({
+      printings: [{ ...dbPrintingRow, printedRulesText: null, printedEffectText: null }],
+      printingImages: [],
+    });
+    const res = await app.request("/api/catalog");
+    const json = await res.json();
+    const printing = json.printings[0];
+    expect(printing.printedRulesText).toBeUndefined();
+    expect(printing.printedEffectText).toBeUndefined();
+    expect(printing.flavorText).toBeUndefined();
+    expect(printing.images).toBeUndefined();
+    // Non-nullable fields still present
+    expect(printing.artist).toBe("Alice");
   });
 
   it("maps printing fields with cardId reference instead of nested card", async () => {

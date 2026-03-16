@@ -68,4 +68,6 @@ export {
   normalizeNameForMatching,
 } from "./utils.js";
 
+export { compactCatalog, hydrateCatalog } from "./compact.js";
+
 export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";

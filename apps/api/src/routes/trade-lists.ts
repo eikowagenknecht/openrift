@@ -15,7 +15,7 @@ import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
 import { tradeListsRepo } from "../repositories/trade-lists.js";
 import type { Variables } from "../types.js";
-import { toTradeList, toTradeListItem } from "../utils/dto.js";
+import { toTradeList, toTradeListItem } from "../utils/mappers.js";
 
 const patchFields: FieldMapping = {
   name: "name",
