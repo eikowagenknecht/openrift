@@ -27,6 +27,6 @@ export function buildPatchUpdates(
     throw new AppError(400, "BAD_REQUEST", "No fields to update");
   }
 
-  updates.updated_at = new Date();
+  updates.updatedAt = new Date();
   return updates;
 }

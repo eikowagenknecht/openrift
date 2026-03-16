@@ -62,8 +62,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         AND cs.energy      IS NOT DISTINCT FROM c.energy
         AND cs.power       IS NOT DISTINCT FROM c.power
         AND cs.might_bonus IS NOT DISTINCT FROM c.might_bonus
-        AND ${n("cs.rules_text")}  IS NOT DISTINCT FROM ${n("c.rules_text")}
-        AND ${n("cs.effect_text")} IS NOT DISTINCT FROM ${n("c.effect_text")}
+        AND ${n("cs.rulesText")}  IS NOT DISTINCT FROM ${n("c.rulesText")}
+        AND ${n("cs.effectText")} IS NOT DISTINCT FROM ${n("c.effectText")}
         AND cs.tags        IS NOT DISTINCT FROM c.tags
     `.execute(db);
 
@@ -79,15 +79,15 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         AND ps.set_id            IS NOT DISTINCT FROM s.slug
         AND ps.collector_number  IS NOT DISTINCT FROM p.collector_number
         AND LOWER(ps.rarity)     IS NOT DISTINCT FROM LOWER(p.rarity)
-        AND ${n("ps.art_variant")}  IS NOT DISTINCT FROM ${n("p.art_variant")}
+        AND ${n("ps.artVariant")}  IS NOT DISTINCT FROM ${n("p.artVariant")}
         AND ps.is_signed         IS NOT DISTINCT FROM p.is_signed
         AND ps.is_promo          IS NOT DISTINCT FROM p.is_promo
         AND ps.finish            IS NOT DISTINCT FROM p.finish
         AND COALESCE(ps.artist, '') IS NOT DISTINCT FROM p.artist
         AND ps.public_code       IS NOT DISTINCT FROM p.public_code
-        AND ${n("ps.printed_rules_text")}  IS NOT DISTINCT FROM ${n("p.printed_rules_text")}
-        AND ${n("ps.printed_effect_text")} IS NOT DISTINCT FROM ${n("p.printed_effect_text")}
-        AND ${n("ps.flavor_text")}         IS NOT DISTINCT FROM ${n("p.flavor_text")}
+        AND ${n("ps.printedRulesText")}  IS NOT DISTINCT FROM ${n("p.printedRulesText")}
+        AND ${n("ps.printedEffectText")} IS NOT DISTINCT FROM ${n("p.printedEffectText")}
+        AND ${n("ps.flavorText")}         IS NOT DISTINCT FROM ${n("p.flavorText")}
     `.execute(db);
 
     return c.json({
@@ -103,8 +103,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { cardSourceId } = c.req.param();
 
     const result = await db
-      .updateTable("card_sources")
-      .set({ checked_at: new Date(), updated_at: new Date() })
+      .updateTable("cardSources")
+      .set({ checkedAt: new Date(), updatedAt: new Date() })
       .where("id", "=", cardSourceId)
       .executeTakeFirst();
 
@@ -127,15 +127,15 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       const { printingId, extraIds } = c.req.valid("json");
 
       const results = await db
-        .updateTable("printing_sources")
-        .set({ checked_at: new Date(), updated_at: new Date() })
+        .updateTable("printingSources")
+        .set({ checkedAt: new Date(), updatedAt: new Date() })
         .where((eb) =>
           eb.or([
-            eb("printing_id", "=", printingId),
+            eb("printingId", "=", printingId),
             ...(extraIds?.length ? [eb("id", "in", extraIds)] : []),
           ]),
         )
-        .where("checked_at", "is", null)
+        .where("checkedAt", "is", null)
         .execute();
 
       const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
@@ -149,8 +149,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { id } = c.req.param();
 
     const result = await db
-      .updateTable("printing_sources")
-      .set({ checked_at: new Date(), updated_at: new Date() })
+      .updateTable("printingSources")
+      .set({ checkedAt: new Date(), updatedAt: new Date() })
       .where("id", "=", id)
       .executeTakeFirst();
 
@@ -179,17 +179,17 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     const cardNormName = normalizeNameForMatching(card.name);
     const aliasRows = await db
-      .selectFrom("card_name_aliases")
-      .select("norm_name")
-      .where("card_id", "=", card.id)
+      .selectFrom("cardNameAliases")
+      .select("normName")
+      .where("cardId", "=", card.id)
       .execute();
-    const uniqueVariants = [...new Set([cardNormName, ...aliasRows.map((a) => a.norm_name)])];
+    const uniqueVariants = [...new Set([cardNormName, ...aliasRows.map((a) => a.normName)])];
 
     const results = await db
-      .updateTable("card_sources")
-      .set({ checked_at: new Date(), updated_at: new Date() })
-      .where("card_sources.norm_name", "in", uniqueVariants)
-      .where("checked_at", "is", null)
+      .updateTable("cardSources")
+      .set({ checkedAt: new Date(), updatedAt: new Date() })
+      .where("cardSources.normName", "in", uniqueVariants)
+      .where("checkedAt", "is", null)
       .execute();
 
     const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
@@ -203,22 +203,22 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { id } = c.req.param();
     const body = c.req.valid("json");
 
-    const allowedFields: Record<string, string> = {
-      artVariant: "art_variant",
-      isSigned: "is_signed",
-      isPromo: "is_promo",
-      finish: "finish",
-      collectorNumber: "collector_number",
-      setId: "set_id",
-      sourceId: "source_id",
-      rarity: "rarity",
-    };
+    const allowedFields = [
+      "artVariant",
+      "isSigned",
+      "isPromo",
+      "finish",
+      "collectorNumber",
+      "setId",
+      "sourceId",
+      "rarity",
+    ];
 
-    const updates: Record<string, unknown> = { updated_at: new Date() };
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
     const bodyRecord = body as Record<string, unknown>;
-    for (const [camel, col] of Object.entries(allowedFields)) {
-      if (camel in body) {
-        updates[col] = bodyRecord[camel];
+    for (const field of allowedFields) {
+      if (field in body) {
+        updates[field] = bodyRecord[field];
       }
     }
 
@@ -227,7 +227,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     const result = await db
-      .updateTable("printing_sources")
+      .updateTable("printingSources")
       .set(updates)
       .where("id", "=", id)
       .executeTakeFirst();
@@ -244,7 +244,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const db = c.get("db");
     const { id } = c.req.param();
 
-    const result = await db.deleteFrom("printing_sources").where("id", "=", id).executeTakeFirst();
+    const result = await db.deleteFrom("printingSources").where("id", "=", id).executeTakeFirst();
 
     if (!result || result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
@@ -265,7 +265,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     const ps = await db
-      .selectFrom("printing_sources")
+      .selectFrom("printingSources")
       .selectAll()
       .where("id", "=", id)
       .executeTakeFirst();
@@ -276,7 +276,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     const target = await db
       .selectFrom("printings")
-      .select(["id", "finish", "art_variant", "is_signed", "is_promo", "rarity"])
+      .select(["id", "finish", "artVariant", "isSigned", "isPromo", "rarity"])
       .where("slug", "=", printingId)
       .executeTakeFirst();
 
@@ -285,27 +285,27 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     await db
-      .insertInto("printing_sources")
+      .insertInto("printingSources")
       .values({
-        card_source_id: ps.card_source_id,
-        printing_id: target.id,
-        source_id: ps.source_id,
-        set_id: ps.set_id,
-        set_name: ps.set_name,
-        collector_number: ps.collector_number,
+        cardSourceId: ps.cardSourceId,
+        printingId: target.id,
+        sourceId: ps.sourceId,
+        setId: ps.setId,
+        setName: ps.setName,
+        collectorNumber: ps.collectorNumber,
         rarity: target.rarity,
-        art_variant: target.art_variant,
-        is_signed: target.is_signed,
-        is_promo: target.is_promo,
+        artVariant: target.artVariant,
+        isSigned: target.isSigned,
+        isPromo: target.isPromo,
         finish: target.finish,
         artist: ps.artist,
-        public_code: ps.public_code,
-        printed_rules_text: ps.printed_rules_text,
-        printed_effect_text: ps.printed_effect_text,
-        image_url: ps.image_url,
-        flavor_text: ps.flavor_text,
-        source_entity_id: ps.source_entity_id,
-        extra_data: ps.extra_data,
+        publicCode: ps.publicCode,
+        printedRulesText: ps.printedRulesText,
+        printedEffectText: ps.printedEffectText,
+        imageUrl: ps.imageUrl,
+        flavorText: ps.flavorText,
+        sourceEntityId: ps.sourceEntityId,
+        extraData: ps.extraData,
       })
       .execute();
 
@@ -337,8 +337,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     await db
-      .updateTable("printing_sources")
-      .set({ printing_id: printingUuid, updated_at: new Date() })
+      .updateTable("printingSources")
+      .set({ printingId: printingUuid, updatedAt: new Date() })
       .where("id", "in", printingSourceIds)
       .execute();
 
@@ -362,7 +362,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     // UUID PK is immutable — only the slug changes
     await db
       .updateTable("cards")
-      .set({ slug: newId.trim(), updated_at: new Date() })
+      .set({ slug: newId.trim(), updatedAt: new Date() })
       .where("slug", "=", cardSlug)
       .execute();
 
@@ -379,22 +379,21 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "field is required");
     }
 
-    const allowedFields: Record<string, string> = {
-      name: "name",
-      type: "type",
-      superTypes: "super_types",
-      domains: "domains",
-      might: "might",
-      energy: "energy",
-      power: "power",
-      mightBonus: "might_bonus",
-      rulesText: "rules_text",
-      effectText: "effect_text",
-      tags: "tags",
-    };
+    const allowedFields = new Set([
+      "name",
+      "type",
+      "superTypes",
+      "domains",
+      "might",
+      "energy",
+      "power",
+      "mightBonus",
+      "rulesText",
+      "effectText",
+      "tags",
+    ]);
 
-    const dbField = allowedFields[field];
-    if (!dbField) {
+    if (!allowedFields.has(field)) {
       throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
     }
 
@@ -410,17 +409,17 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    const updates: Record<string, unknown> = { [dbField]: value, updated_at: new Date() };
+    const updates: Record<string, unknown> = { [field]: value, updatedAt: new Date() };
 
-    // Recompute keywords when rules_text or effect_text changes
-    if (dbField === "rules_text" || dbField === "effect_text") {
+    // Recompute keywords when rulesText or effectText changes
+    if (field === "rulesText" || field === "effectText") {
       const card = await db
         .selectFrom("cards")
-        .select(["rules_text", "effect_text"])
+        .select(["rulesText", "effectText"])
         .where("slug", "=", cardSlug)
         .executeTakeFirstOrThrow();
-      const rulesText = dbField === "rules_text" ? (value as string) : card.rules_text;
-      const effectText = dbField === "effect_text" ? (value as string) : card.effect_text;
+      const rulesText = field === "rulesText" ? (value as string) : card.rulesText;
+      const effectText = field === "effectText" ? (value as string) : card.effectText;
       updates.keywords = [
         ...extractKeywords(rulesText ?? ""),
         ...extractKeywords(effectText ?? ""),
@@ -442,25 +441,24 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "field is required");
     }
 
-    const allowedFields: Record<string, string> = {
-      sourceId: "source_id",
-      setId: "set_id",
-      collectorNumber: "collector_number",
-      rarity: "rarity",
-      artVariant: "art_variant",
-      isSigned: "is_signed",
-      isPromo: "is_promo",
-      finish: "finish",
-      artist: "artist",
-      publicCode: "public_code",
-      printedRulesText: "printed_rules_text",
-      printedEffectText: "printed_effect_text",
-      flavorText: "flavor_text",
-      comment: "comment",
-    };
+    const allowedFields = new Set([
+      "sourceId",
+      "setId",
+      "collectorNumber",
+      "rarity",
+      "artVariant",
+      "isSigned",
+      "isPromo",
+      "finish",
+      "artist",
+      "publicCode",
+      "printedRulesText",
+      "printedEffectText",
+      "flavorText",
+      "comment",
+    ]);
 
-    const dbField = allowedFields[field];
-    if (!dbField) {
+    if (!allowedFields.has(field)) {
       throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
     }
 
@@ -485,7 +483,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     await db
       .updateTable("printings")
-      .set({ [dbField]: normalizedValue, updated_at: new Date() })
+      .set({ [field]: normalizedValue, updatedAt: new Date() })
       .where("slug", "=", printingSlug)
       .execute();
 
@@ -509,7 +507,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     // UUID PK is immutable — only the slug changes
     await db
       .updateTable("printings")
-      .set({ slug: newId.trim(), updated_at: new Date() })
+      .set({ slug: newId.trim(), updatedAt: new Date() })
       .where("slug", "=", printingSlug)
       .execute();
 
@@ -595,10 +593,10 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     // Get source name from the first printing_source's card_source
     const firstPs = await db
-      .selectFrom("printing_sources")
-      .innerJoin("card_sources", "card_sources.id", "printing_sources.card_source_id")
-      .select("card_sources.source")
-      .where("printing_sources.id", "=", printingSourceIds[0])
+      .selectFrom("printingSources")
+      .innerJoin("cardSources", "cardSources.id", "printingSources.cardSourceId")
+      .select("cardSources.source")
+      .where("printingSources.id", "=", printingSourceIds[0])
       .executeTakeFirst();
 
     await db.transaction().execute(async (trx) => {
@@ -633,28 +631,28 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         .insertInto("printings")
         .values({
           slug: printingId,
-          card_id: card.id,
-          set_id: setUuid,
-          source_id: printingFields.sourceId,
-          collector_number: printingFields.collectorNumber,
+          cardId: card.id,
+          setId: setUuid,
+          sourceId: printingFields.sourceId,
+          collectorNumber: printingFields.collectorNumber,
           rarity: normalizedRarity as Rarity,
-          art_variant: (printingFields.artVariant ?? "normal") as ArtVariant,
-          is_signed: printingFields.isSigned ?? false,
-          is_promo: printingFields.isPromo ?? false,
+          artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
+          isSigned: printingFields.isSigned ?? false,
+          isPromo: printingFields.isPromo ?? false,
           finish: (printingFields.finish ?? "normal") as Finish,
           artist: printingFields.artist,
-          public_code: printingFields.publicCode,
-          printed_rules_text: printingFields.printedRulesText ?? null,
-          printed_effect_text: printingFields.printedEffectText ?? null,
-          flavor_text: printingFields.flavorText ?? null,
+          publicCode: printingFields.publicCode,
+          printedRulesText: printingFields.printedRulesText ?? null,
+          printedEffectText: printingFields.printedEffectText ?? null,
+          flavorText: printingFields.flavorText ?? null,
         })
         .onConflict((oc) =>
           oc.column("slug").doUpdateSet((eb) => ({
             artist: eb.ref("excluded.artist"),
-            public_code: eb.ref("excluded.public_code"),
-            printed_rules_text: eb.ref("excluded.printed_rules_text"),
-            printed_effect_text: eb.ref("excluded.printed_effect_text"),
-            flavor_text: eb.ref("excluded.flavor_text"),
+            publicCode: eb.ref("excluded.publicCode"),
+            printedRulesText: eb.ref("excluded.printedRulesText"),
+            printedEffectText: eb.ref("excluded.printedEffectText"),
+            flavorText: eb.ref("excluded.flavorText"),
           })),
         )
         .returning("id")
@@ -672,8 +670,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
       // Link all printing_sources in the group
       await trx
-        .updateTable("printing_sources")
-        .set({ printing_id: inserted.id, checked_at: new Date(), updated_at: new Date() })
+        .updateTable("printingSources")
+        .set({ printingId: inserted.id, checkedAt: new Date(), updatedAt: new Date() })
         .where("id", "in", printingSourceIds)
         .execute();
     });
@@ -688,7 +686,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { id } = c.req.param();
 
     const ps = await db
-      .selectFrom("printing_sources")
+      .selectFrom("printingSources")
       .selectAll()
       .where("id", "=", id)
       .executeTakeFirst();
@@ -697,15 +695,15 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
-    if (ps.printing_id) {
+    if (ps.printingId) {
       throw new AppError(400, "BAD_REQUEST", "Printing source already linked to a printing");
     }
 
     // Get the parent card_source to resolve card dynamically
     const cs = await db
-      .selectFrom("card_sources")
+      .selectFrom("cardSources")
       .select(["name", "source"])
-      .where("id", "=", ps.card_source_id)
+      .where("id", "=", ps.cardSourceId)
       .executeTakeFirst();
 
     if (!cs) {
@@ -717,14 +715,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const resolvedCard = await db
       .selectFrom("cards")
       .select("id")
-      .where("cards.norm_name", "=", normName)
+      .where("cards.normName", "=", normName)
       .executeTakeFirst();
     const aliasMatch = await db
-      .selectFrom("card_name_aliases")
-      .select("card_id")
-      .where("card_name_aliases.norm_name", "=", normName)
+      .selectFrom("cardNameAliases")
+      .select("cardId")
+      .where("cardNameAliases.normName", "=", normName)
       .executeTakeFirst();
-    const cardId = resolvedCard?.id ?? aliasMatch?.card_id;
+    const cardId = resolvedCard?.id ?? aliasMatch?.cardId;
 
     if (!cardId) {
       throw new AppError(400, "BAD_REQUEST", "Card source does not match any card");
@@ -746,7 +744,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       const finishDisplay = ps.finish ?? "(empty)";
       throw new AppError(400, "BAD_REQUEST", `Cannot accept: invalid finish "${finishDisplay}"`);
     }
-    if (!ps.collector_number || ps.collector_number <= 0) {
+    if (!ps.collectorNumber || ps.collectorNumber <= 0) {
       throw new AppError(
         400,
         "BAD_REQUEST",
@@ -756,31 +754,31 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     if (!ps.artist) {
       throw new AppError(400, "BAD_REQUEST", "Cannot accept: artist is required");
     }
-    if (!ps.public_code) {
+    if (!ps.publicCode) {
       throw new AppError(400, "BAD_REQUEST", "Cannot accept: public_code is required");
     }
-    const collectorNumber = ps.collector_number;
+    const collectorNumber = ps.collectorNumber;
     const { artist } = ps;
-    const publicCode = ps.public_code;
+    const publicCode = ps.publicCode;
 
     const printingId = buildPrintingId(
-      ps.source_id,
+      ps.sourceId,
       normalizedRarity,
-      ps.is_promo ?? false,
+      ps.isPromo ?? false,
       validatedFinish.data,
     );
 
     await db.transaction().execute(async (trx) => {
-      if (ps.set_id) {
-        await upsertSet(trx, ps.set_id, ps.set_name ?? ps.set_id);
+      if (ps.setId) {
+        await upsertSet(trx, ps.setId, ps.setName ?? ps.setId);
       }
 
       let setUuid = "";
-      if (ps.set_id) {
+      if (ps.setId) {
         const setRow = await trx
           .selectFrom("sets")
           .select("id")
-          .where("slug", "=", ps.set_id)
+          .where("slug", "=", ps.setId)
           .executeTakeFirst();
         setUuid = setRow?.id ?? "";
       }
@@ -789,38 +787,38 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         .insertInto("printings")
         .values({
           slug: printingId,
-          card_id: cardId,
-          set_id: setUuid,
-          source_id: ps.source_id,
-          collector_number: collectorNumber,
+          cardId: cardId,
+          setId: setUuid,
+          sourceId: ps.sourceId,
+          collectorNumber: collectorNumber,
           rarity: normalizedRarity as Rarity,
-          art_variant: (ps.art_variant ?? "normal") as ArtVariant,
-          is_signed: ps.is_signed ?? false,
-          is_promo: ps.is_promo ?? false,
+          artVariant: (ps.artVariant ?? "normal") as ArtVariant,
+          isSigned: ps.isSigned ?? false,
+          isPromo: ps.isPromo ?? false,
           finish: validatedFinish.data as Finish,
           artist,
-          public_code: publicCode,
-          printed_rules_text: ps.printed_rules_text ?? null,
-          printed_effect_text: ps.printed_effect_text,
-          flavor_text: ps.flavor_text,
+          publicCode: publicCode,
+          printedRulesText: ps.printedRulesText ?? null,
+          printedEffectText: ps.printedEffectText,
+          flavorText: ps.flavorText,
         })
         .onConflict((oc) =>
           oc.column("slug").doUpdateSet((eb) => ({
             artist: eb.ref("excluded.artist"),
-            public_code: eb.ref("excluded.public_code"),
-            printed_rules_text: eb.ref("excluded.printed_rules_text"),
-            printed_effect_text: eb.ref("excluded.printed_effect_text"),
-            flavor_text: eb.ref("excluded.flavor_text"),
+            publicCode: eb.ref("excluded.publicCode"),
+            printedRulesText: eb.ref("excluded.printedRulesText"),
+            printedEffectText: eb.ref("excluded.printedEffectText"),
+            flavorText: eb.ref("excluded.flavorText"),
           })),
         )
         .returning("id")
         .executeTakeFirstOrThrow();
 
-      await insertPrintingImage(trx, inserted.id, ps.image_url, cs.source);
+      await insertPrintingImage(trx, inserted.id, ps.imageUrl, cs.source);
 
       await trx
-        .updateTable("printing_sources")
-        .set({ printing_id: inserted.id, checked_at: new Date(), updated_at: new Date() })
+        .updateTable("printingSources")
+        .set({ printingId: inserted.id, checkedAt: new Date(), updatedAt: new Date() })
         .where("id", "=", id)
         .execute();
     });
@@ -899,10 +897,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Source name is required");
     }
 
-    const result = await db
-      .deleteFrom("card_sources")
-      .where("source", "=", source.trim())
-      .execute();
+    const result = await db.deleteFrom("cardSources").where("source", "=", source.trim()).execute();
 
     const deleted = Number(result[0].numDeletedRows);
     return c.json({ status: "ok", source, deleted });

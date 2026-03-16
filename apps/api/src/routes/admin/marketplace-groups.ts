@@ -26,48 +26,48 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
   .get("/admin/marketplace-groups", async (c) => {
     const db = c.get("db");
     const groups = await db
-      .selectFrom("marketplace_groups")
-      .select(["marketplace", "group_id", "name", "abbreviation"])
+      .selectFrom("marketplaceGroups")
+      .select(["marketplace", "groupId", "name", "abbreviation"])
       .orderBy("marketplace")
       .orderBy("name")
       .execute();
 
     const stagingCounts = await db
-      .selectFrom("marketplace_staging")
+      .selectFrom("marketplaceStaging")
       .select((eb) => [
         "marketplace" as const,
-        "group_id" as const,
-        eb.fn.count<number>("external_id").distinct().as("count"),
+        "groupId" as const,
+        eb.fn.count<number>("externalId").distinct().as("count"),
       ])
-      .where("group_id", "is not", null)
-      .groupBy(["marketplace", "group_id"])
+      .where("groupId", "is not", null)
+      .groupBy(["marketplace", "groupId"])
       .execute();
 
     const stagingMap = new Map(
-      stagingCounts.map((r) => [`${r.marketplace}:${r.group_id}`, Number(r.count)]),
+      stagingCounts.map((r) => [`${r.marketplace}:${r.groupId}`, Number(r.count)]),
     );
 
     const assignedCounts = await db
-      .selectFrom("marketplace_sources")
+      .selectFrom("marketplaceSources")
       .select((eb) => [
         "marketplace" as const,
-        "group_id" as const,
+        "groupId" as const,
         eb.fn.countAll<number>().as("count"),
       ])
-      .where("group_id", "is not", null)
-      .groupBy(["marketplace", "group_id"])
+      .where("groupId", "is not", null)
+      .groupBy(["marketplace", "groupId"])
       .execute();
 
     const assignedMap = new Map(
-      assignedCounts.map((r) => [`${r.marketplace}:${r.group_id}`, Number(r.count)]),
+      assignedCounts.map((r) => [`${r.marketplace}:${r.groupId}`, Number(r.count)]),
     );
 
     return c.json({
       groups: groups.map((g) => {
-        const key = `${g.marketplace}:${g.group_id}`;
+        const key = `${g.marketplace}:${g.groupId}`;
         return {
           marketplace: g.marketplace,
-          groupId: g.group_id,
+          groupId: g.groupId,
           name: g.name,
           abbreviation: g.abbreviation,
           stagedCount: stagingMap.get(key) ?? 0,
@@ -87,10 +87,10 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
       const { name } = c.req.valid("json");
 
       await db
-        .updateTable("marketplace_groups")
-        .set({ name, updated_at: new Date() })
+        .updateTable("marketplaceGroups")
+        .set({ name, updatedAt: new Date() })
         .where("marketplace", "=", marketplace)
-        .where("group_id", "=", groupId)
+        .where("groupId", "=", groupId)
         .execute();
 
       return c.json({ ok: true });

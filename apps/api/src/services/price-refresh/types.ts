@@ -30,30 +30,30 @@ export interface PriceUpsertConfig {
 // ── Generic row types ───────────────────────────────────────────────────
 
 export interface GroupRow {
-  group_id: number;
+  groupId: number;
   name?: string;
   abbreviation?: string;
 }
 
 /** All 8 price columns shared by marketplace_snapshots and marketplace_staging. */
 export interface PriceColumns {
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-  trend_cents: number | null;
-  avg1_cents: number | null;
-  avg7_cents: number | null;
-  avg30_cents: number | null;
+  marketCents: number;
+  lowCents: number | null;
+  midCents: number | null;
+  highCents: number | null;
+  trendCents: number | null;
+  avg1Cents: number | null;
+  avg7Cents: number | null;
+  avg30Cents: number | null;
 }
 
 /** A staging row with all 8 price columns (unused ones are null). */
 export interface StagingRow extends PriceColumns {
-  external_id: number;
-  group_id: number;
-  product_name: string;
+  externalId: number;
+  groupId: number;
+  productName: string;
   finish: string;
-  recorded_at: Date;
+  recordedAt: Date;
 }
 
 // ── Reference data ──────────────────────────────────────────────────────
@@ -63,13 +63,13 @@ export interface ReferenceData {
   cards: { id: string; name: string }[];
   printings: {
     id: string;
-    card_id: string;
-    set_id: string;
-    source_id: string;
-    public_code: string;
+    cardId: string;
+    setId: string;
+    sourceId: string;
+    publicCode: string;
     finish: string;
-    art_variant: string;
-    is_signed: boolean;
+    artVariant: string;
+    isSigned: boolean;
   }[];
   setNameById: Map<string, string>;
   cardNameById: Map<string, string>;

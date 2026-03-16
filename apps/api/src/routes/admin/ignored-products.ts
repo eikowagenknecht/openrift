@@ -41,18 +41,18 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   .get("/admin/ignored-products", async (c) => {
     const db = c.get("db");
     const rows = await db
-      .selectFrom("marketplace_ignored_products as ip")
-      .select(["ip.marketplace", "ip.external_id", "ip.finish", "ip.product_name", "ip.created_at"])
-      .orderBy("ip.created_at", "desc")
+      .selectFrom("marketplaceIgnoredProducts as ip")
+      .select(["ip.marketplace", "ip.externalId", "ip.finish", "ip.productName", "ip.createdAt"])
+      .orderBy("ip.createdAt", "desc")
       .execute();
 
     return c.json({
       products: rows.map((r) => ({
         marketplace: r.marketplace,
-        externalId: r.external_id,
+        externalId: r.externalId,
         finish: r.finish,
-        productName: r.product_name,
-        createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+        productName: r.productName,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
       })),
     });
   })
@@ -66,16 +66,16 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
     // Look up product names from staging
     const externalIds = products.map((p) => p.externalId);
     const stagingRows = await db
-      .selectFrom("marketplace_staging")
-      .select(["external_id", "product_name"])
+      .selectFrom("marketplaceStaging")
+      .select(["externalId", "productName"])
       .where("marketplace", "=", source)
-      .where("external_id", "in", externalIds)
+      .where("externalId", "in", externalIds)
       .execute();
 
     const nameMap = new Map<number, string>();
     for (const row of stagingRows) {
-      if (!nameMap.has(row.external_id)) {
-        nameMap.set(row.external_id, row.product_name);
+      if (!nameMap.has(row.externalId)) {
+        nameMap.set(row.externalId, row.productName);
       }
     }
 
@@ -84,16 +84,16 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
       .filter((p) => nameMap.has(p.externalId))
       .map((p) => ({
         marketplace: source,
-        external_id: p.externalId,
+        externalId: p.externalId,
         finish: p.finish,
-        product_name: nameMap.get(p.externalId) ?? "",
+        productName: nameMap.get(p.externalId) ?? "",
       }));
 
     if (values.length > 0) {
       await db
-        .insertInto("marketplace_ignored_products")
+        .insertInto("marketplaceIgnoredProducts")
         .values(values)
-        .onConflict((oc) => oc.columns(["marketplace", "external_id", "finish"]).doNothing())
+        .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
         .execute();
     }
 
@@ -108,9 +108,9 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
     for (const p of products) {
       await db
-        .deleteFrom("marketplace_ignored_products")
+        .deleteFrom("marketplaceIgnoredProducts")
         .where("marketplace", "=", source)
-        .where("external_id", "=", p.externalId)
+        .where("externalId", "=", p.externalId)
         .where("finish", "=", p.finish)
         .execute();
     }
@@ -130,15 +130,15 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
       const { source, externalId, finish, cardId } = c.req.valid("json");
 
       await db
-        .insertInto("marketplace_staging_card_overrides")
+        .insertInto("marketplaceStagingCardOverrides")
         .values({
           marketplace: source,
-          external_id: externalId,
+          externalId,
           finish,
-          card_id: cardId,
+          cardId,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "external_id", "finish"]).doUpdateSet({ card_id: cardId }),
+          oc.columns(["marketplace", "externalId", "finish"]).doUpdateSet({ cardId }),
         )
         .execute();
 
@@ -151,9 +151,9 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
     const { source, externalId, finish } = c.req.valid("json");
 
     await db
-      .deleteFrom("marketplace_staging_card_overrides")
+      .deleteFrom("marketplaceStagingCardOverrides")
       .where("marketplace", "=", source)
-      .where("external_id", "=", externalId)
+      .where("externalId", "=", externalId)
       .where("finish", "=", finish)
       .execute();
 

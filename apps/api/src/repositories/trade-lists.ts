@@ -11,12 +11,12 @@ import type {
 } from "../db/index.js";
 
 /** Trade list item row with copy, printing, card, and image details. */
-type TradeListItemRow = Pick<Selectable<TradeListItemsTable>, "id" | "trade_list_id" | "copy_id"> &
-  Pick<Selectable<CopiesTable>, "printing_id" | "collection_id"> &
-  Pick<Selectable<PrintingsTable>, "set_id" | "collector_number" | "rarity" | "finish"> & {
-    image_url: string | null;
-    card_name: string;
-    card_type: CardType;
+type TradeListItemRow = Pick<Selectable<TradeListItemsTable>, "id" | "tradeListId" | "copyId"> &
+  Pick<Selectable<CopiesTable>, "printingId" | "collectionId"> &
+  Pick<Selectable<PrintingsTable>, "setId" | "collectorNumber" | "rarity" | "finish"> & {
+    imageUrl: string | null;
+    cardName: string;
+    cardType: CardType;
   };
 
 /**
@@ -29,9 +29,9 @@ export function tradeListsRepo(db: Kysely<Database>) {
     /** @returns All trade lists for a user, ordered by name. */
     listForUser(userId: string): Promise<Selectable<TradeListsTable>[]> {
       return db
-        .selectFrom("trade_lists")
+        .selectFrom("tradeLists")
         .selectAll()
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .orderBy("name")
         .execute();
     },
@@ -39,10 +39,10 @@ export function tradeListsRepo(db: Kysely<Database>) {
     /** @returns A single trade list by ID scoped to a user, or `undefined`. */
     getByIdForUser(id: string, userId: string): Promise<Selectable<TradeListsTable> | undefined> {
       return db
-        .selectFrom("trade_lists")
+        .selectFrom("tradeLists")
         .selectAll()
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
@@ -52,20 +52,20 @@ export function tradeListsRepo(db: Kysely<Database>) {
       userId: string,
     ): Promise<Pick<Selectable<TradeListsTable>, "id"> | undefined> {
       return db
-        .selectFrom("trade_lists")
+        .selectFrom("tradeLists")
         .select("id")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns The newly created trade list row. */
     create(values: {
-      user_id: string;
+      userId: string;
       name: string;
       rules: string | null;
     }): Promise<Selectable<TradeListsTable>> {
-      return db.insertInto("trade_lists").values(values).returningAll().executeTakeFirstOrThrow();
+      return db.insertInto("tradeLists").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     /** @returns The updated trade list row, or `undefined` if not found. */
@@ -75,10 +75,10 @@ export function tradeListsRepo(db: Kysely<Database>) {
       updates: Record<string, unknown>,
     ): Promise<Selectable<TradeListsTable> | undefined> {
       return db
-        .updateTable("trade_lists")
+        .updateTable("tradeLists")
         .set(updates)
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
     },
@@ -86,52 +86,52 @@ export function tradeListsRepo(db: Kysely<Database>) {
     /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
     deleteByIdForUser(id: string, userId: string): Promise<DeleteResult> {
       return db
-        .deleteFrom("trade_lists")
+        .deleteFrom("tradeLists")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns Trade list items joined with copy, printing, card, and image details. */
     itemsWithDetails(tradeListId: string): Promise<TradeListItemRow[]> {
       return db
-        .selectFrom("trade_list_items as tli")
-        .innerJoin("copies as cp", "cp.id", "tli.copy_id")
-        .innerJoin("printings as p", "p.id", "cp.printing_id")
-        .innerJoin("cards as card", "card.id", "p.card_id")
-        .leftJoin("printing_images as pi", (join) =>
+        .selectFrom("tradeListItems as tli")
+        .innerJoin("copies as cp", "cp.id", "tli.copyId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .innerJoin("cards as card", "card.id", "p.cardId")
+        .leftJoin("printingImages as pi", (join) =>
           join
-            .onRef("pi.printing_id", "=", "p.id")
+            .onRef("pi.printingId", "=", "p.id")
             .on("pi.face", "=", "front")
-            .on("pi.is_active", "=", true),
+            .on("pi.isActive", "=", true),
         )
         .select([
           "tli.id",
-          "tli.trade_list_id",
-          "tli.copy_id",
-          "cp.printing_id",
-          "cp.collection_id",
-          imageUrl("pi").as("image_url"),
-          "p.set_id",
-          "p.collector_number",
+          "tli.tradeListId",
+          "tli.copyId",
+          "cp.printingId",
+          "cp.collectionId",
+          imageUrl("pi").as("imageUrl"),
+          "p.setId",
+          "p.collectorNumber",
           "p.rarity",
           "p.finish",
-          "card.name as card_name",
-          "card.type as card_type",
+          "card.name as cardName",
+          "card.type as cardType",
         ])
-        .where("tli.trade_list_id", "=", tradeListId)
+        .where("tli.tradeListId", "=", tradeListId)
         .orderBy("card.name")
         .execute();
     },
 
     /** @returns The newly created trade list item row. */
     createItem(values: {
-      trade_list_id: string;
-      user_id: string;
-      copy_id: string;
+      tradeListId: string;
+      userId: string;
+      copyId: string;
     }): Promise<Selectable<TradeListItemsTable>> {
       return db
-        .insertInto("trade_list_items")
+        .insertInto("tradeListItems")
         .values(values)
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -140,10 +140,10 @@ export function tradeListsRepo(db: Kysely<Database>) {
     /** @returns Delete result — check `numDeletedRows` to verify the item existed. */
     deleteItem(itemId: string, tradeListId: string, userId: string): Promise<DeleteResult> {
       return db
-        .deleteFrom("trade_list_items")
+        .deleteFrom("tradeListItems")
         .where("id", "=", itemId)
-        .where("trade_list_id", "=", tradeListId)
-        .where("user_id", "=", userId)
+        .where("tradeListId", "=", tradeListId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
@@ -156,7 +156,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
         .selectFrom("copies")
         .select("id")
         .where("id", "=", copyId)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
   };

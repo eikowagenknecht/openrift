@@ -37,14 +37,14 @@ const PRICE_COL_NAMES = [
 
 /** Typed doUpdateSet for all 8 price columns using excluded.* references. */
 const PRICE_EXCLUDED_SET = {
-  market_cents: sql<number>`excluded.market_cents`,
-  low_cents: sql<number | null>`excluded.low_cents`,
-  mid_cents: sql<number | null>`excluded.mid_cents`,
-  high_cents: sql<number | null>`excluded.high_cents`,
-  trend_cents: sql<number | null>`excluded.trend_cents`,
-  avg1_cents: sql<number | null>`excluded.avg1_cents`,
-  avg7_cents: sql<number | null>`excluded.avg7_cents`,
-  avg30_cents: sql<number | null>`excluded.avg30_cents`,
+  marketCents: sql<number>`excluded.market_cents`,
+  lowCents: sql<number | null>`excluded.low_cents`,
+  midCents: sql<number | null>`excluded.mid_cents`,
+  highCents: sql<number | null>`excluded.high_cents`,
+  trendCents: sql<number | null>`excluded.trend_cents`,
+  avg1Cents: sql<number | null>`excluded.avg1_cents`,
+  avg7Cents: sql<number | null>`excluded.avg7_cents`,
+  avg30Cents: sql<number | null>`excluded.avg30_cents`,
 };
 
 // ── Ignored keys ───────────────────────────────────────────────────────────
@@ -58,11 +58,11 @@ export async function loadIgnoredKeys(
   marketplace: string,
 ): Promise<Set<string>> {
   const rows = await db
-    .selectFrom("marketplace_ignored_products")
-    .select(["external_id", "finish"])
+    .selectFrom("marketplaceIgnoredProducts")
+    .select(["externalId", "finish"])
     .where("marketplace", "=", marketplace)
     .execute();
-  return new Set(rows.map((r) => `${r.external_id}::${r.finish}`));
+  return new Set(rows.map((r) => `${r.externalId}::${r.finish}`));
 }
 
 // ── Group upsert ────────────────────────────────────────────────────────────
@@ -80,20 +80,20 @@ export async function upsertMarketplaceGroups(
     return;
   }
   await db
-    .insertInto("marketplace_groups")
+    .insertInto("marketplaceGroups")
     .values(
       groups.map((g) => ({
         marketplace,
-        group_id: g.group_id,
+        groupId: g.groupId,
         name: g.name ?? null,
         abbreviation: g.abbreviation ?? null,
       })),
     )
     .onConflict((oc) =>
-      oc.columns(["marketplace", "group_id"]).doUpdateSet({
+      oc.columns(["marketplace", "groupId"]).doUpdateSet({
         name: sql<string>`coalesce(excluded.name, marketplace_groups.name)`,
         abbreviation: sql<string>`coalesce(excluded.abbreviation, marketplace_groups.abbreviation)`,
-        updated_at: sql<Date>`now()`,
+        updatedAt: sql<Date>`now()`,
       }),
     )
     .execute();
@@ -103,14 +103,14 @@ export async function upsertMarketplaceGroups(
 
 function pickPrices(row: PriceColumns): PriceColumns {
   return {
-    market_cents: row.market_cents,
-    low_cents: row.low_cents,
-    mid_cents: row.mid_cents,
-    high_cents: row.high_cents,
-    trend_cents: row.trend_cents,
-    avg1_cents: row.avg1_cents,
-    avg7_cents: row.avg7_cents,
-    avg30_cents: row.avg30_cents,
+    marketCents: row.marketCents,
+    lowCents: row.lowCents,
+    midCents: row.midCents,
+    highCents: row.highCents,
+    trendCents: row.trendCents,
+    avg1Cents: row.avg1Cents,
+    avg7Cents: row.avg7Cents,
+    avg30Cents: row.avg30Cents,
   };
 }
 
@@ -120,13 +120,13 @@ function pickPrices(row: PriceColumns): PriceColumns {
  */
 async function countRows(
   db: Kysely<Database>,
-  table: "marketplace_snapshots" | "marketplace_staging",
+  table: "marketplaceSnapshots" | "marketplaceStaging",
   marketplace: string,
 ): Promise<number> {
-  if (table === "marketplace_snapshots") {
+  if (table === "marketplaceSnapshots") {
     const result = await db
-      .selectFrom("marketplace_snapshots as snap")
-      .innerJoin("marketplace_sources as src", "src.id", "snap.source_id")
+      .selectFrom("marketplaceSnapshots as snap")
+      .innerJoin("marketplaceSources as src", "src.id", "snap.sourceId")
       .select(db.fn.countAll<number>().as("count"))
       .where("src.marketplace", "=", marketplace)
       .executeTakeFirstOrThrow();
@@ -143,8 +143,8 @@ async function countRows(
 // ── Main upsert ────────────────────────────────────────────────────────────
 
 interface SnapshotInsertRow extends PriceColumns {
-  source_id: string;
-  recorded_at: Date;
+  sourceId: string;
+  recordedAt: Date;
 }
 
 /**
@@ -167,40 +167,40 @@ export async function upsertPriceData(
   // ── Source lookup (single query for both snapshot building & ID mapping) ─
 
   const dbSources = await db
-    .selectFrom("marketplace_sources as src")
-    .innerJoin("printings as p", "p.id", "src.printing_id")
-    .select(["src.id", "src.printing_id", "src.external_id", "p.finish"])
+    .selectFrom("marketplaceSources as src")
+    .innerJoin("printings as p", "p.id", "src.printingId")
+    .select(["src.id", "src.printingId", "src.externalId", "p.finish"])
     .where("src.marketplace", "=", marketplace)
     .execute();
 
   const sourceIdLookup = new Map<string, string>();
   for (const row of dbSources) {
-    sourceIdLookup.set(row.printing_id, row.id);
+    sourceIdLookup.set(row.printingId, row.id);
   }
 
   // ── Build snapshots from staging + source mappings ─────────────────────
 
   const printingByExtIdFinish = groupIntoMap(
     dbSources,
-    (src) => `${src.external_id}::${src.finish}`,
+    (src) => `${src.externalId}::${src.finish}`,
   );
 
   const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
   for (const staging of allStaging) {
-    const key = `${staging.external_id}::${staging.finish}`;
+    const key = `${staging.externalId}::${staging.finish}`;
     const sources = printingByExtIdFinish.get(key);
     if (!sources) {
       continue;
     }
     for (const src of sources) {
-      const sourceId = sourceIdLookup.get(src.printing_id);
+      const sourceId = sourceIdLookup.get(src.printingId);
       if (sourceId === undefined) {
         continue;
       }
-      const snapKey = `${sourceId}|${staging.recorded_at.toISOString()}`;
+      const snapKey = `${sourceId}|${staging.recordedAt.toISOString()}`;
       uniqueSnapshots.set(snapKey, {
-        source_id: sourceId,
-        recorded_at: staging.recorded_at,
+        sourceId: sourceId,
+        recordedAt: staging.recordedAt,
         ...pickPrices(staging),
       });
     }
@@ -211,7 +211,7 @@ export async function upsertPriceData(
   }
 
   const snapshotRows = [...uniqueSnapshots.values()];
-  const snapshotsBefore = await countRows(db, "marketplace_snapshots", marketplace);
+  const snapshotsBefore = await countRows(db, "marketplaceSnapshots", marketplace);
   let snapshotsAffected = 0;
 
   const snapshotDistinctWhere = buildDistinctWhere("marketplace_snapshots", PRICE_COL_NAMES);
@@ -219,11 +219,11 @@ export async function upsertPriceData(
   for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
     const batch = snapshotRows.slice(i, i + BATCH_SIZE);
     const rows = await db
-      .insertInto("marketplace_snapshots")
+      .insertInto("marketplaceSnapshots")
       .values(batch)
       .onConflict((oc) =>
         oc
-          .columns(["source_id", "recorded_at"])
+          .columns(["sourceId", "recordedAt"])
           .doUpdateSet(PRICE_EXCLUDED_SET)
           .where(snapshotDistinctWhere),
       )
@@ -232,25 +232,25 @@ export async function upsertPriceData(
     snapshotsAffected += rows.length;
   }
 
-  const snapshotsAfter = await countRows(db, "marketplace_snapshots", marketplace);
+  const snapshotsAfter = await countRows(db, "marketplaceSnapshots", marketplace);
   const newSnapshots = snapshotsAfter - snapshotsBefore;
 
   // ── Staging ────────────────────────────────────────────────────────────
 
-  // Deduplicate staging: keep last entry per (external_id, finish, recorded_at)
+  // Deduplicate staging: keep last entry per (externalId, finish, recordedAt)
   const uniqueStaging = new Map<string, StagingRow>();
   for (const row of allStaging) {
-    uniqueStaging.set(`${row.external_id}|${row.finish}|${row.recorded_at.toISOString()}`, row);
+    uniqueStaging.set(`${row.externalId}|${row.finish}|${row.recordedAt.toISOString()}`, row);
   }
 
   const stagingRows = [...uniqueStaging.values()];
-  const stagingBefore = await countRows(db, "marketplace_staging", marketplace);
+  const stagingBefore = await countRows(db, "marketplaceStaging", marketplace);
   let stagingAffected = 0;
 
   const stagingUpdateSet = {
-    group_id: sql<number>`excluded.group_id`,
+    groupId: sql<number>`excluded.group_id`,
     ...PRICE_EXCLUDED_SET,
-    updated_at: sql<Date>`now()`,
+    updatedAt: sql<Date>`now()`,
   };
   const stagingDistinctWhere = buildDistinctWhere("marketplace_staging", [
     "group_id",
@@ -260,11 +260,11 @@ export async function upsertPriceData(
   for (let i = 0; i < stagingRows.length; i += BATCH_SIZE) {
     const batch = stagingRows.slice(i, i + BATCH_SIZE).map((r) => ({ ...r, marketplace }));
     const rows = await db
-      .insertInto("marketplace_staging")
+      .insertInto("marketplaceStaging")
       .values(batch)
       .onConflict((oc) =>
         oc
-          .columns(["marketplace", "external_id", "finish", "recorded_at"])
+          .columns(["marketplace", "externalId", "finish", "recordedAt"])
           .doUpdateSet(stagingUpdateSet)
           .where(stagingDistinctWhere),
       )
@@ -273,7 +273,7 @@ export async function upsertPriceData(
     stagingAffected += rows.length;
   }
 
-  const stagingAfter = await countRows(db, "marketplace_staging", marketplace);
+  const stagingAfter = await countRows(db, "marketplaceStaging", marketplace);
   const newStaging = stagingAfter - stagingBefore;
   const updatedStaging = stagingAffected - newStaging;
 

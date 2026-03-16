@@ -27,7 +27,7 @@ if (ctx) {
   // Seed set
   const [setRow] = await db
     .insertInto("sets")
-    .values({ slug: "UNM-TEST", name: "UNM Unified Test Set", printed_total: 2, sort_order: 101 })
+    .values({ slug: "UNM-TEST", name: "UNM Unified Test Set", printedTotal: 2, sortOrder: 101 })
     .returning("id")
     .execute();
   setId = setRow.id;
@@ -39,15 +39,15 @@ if (ctx) {
       slug: "UNM-001",
       name: "UNM Alpha Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 3,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: [],
-      rules_text: null,
-      effect_text: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -59,20 +59,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "UNM-001:common:normal:",
-      card_id: cardId,
-      set_id: setId,
-      source_id: "UNM-001",
-      collector_number: 1,
+      cardId: cardId,
+      setId: setId,
+      sourceId: "UNM-001",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "UNM",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "UNM",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -86,15 +86,15 @@ if (ctx) {
       slug: "UNM-002",
       name: "UNM Beta Card",
       type: "Spell",
-      super_types: [],
+      superTypes: [],
       domains: ["Chaos"],
       might: null,
       energy: 1,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: [],
-      rules_text: null,
-      effect_text: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -106,20 +106,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "UNM-002:rare:normal:",
-      card_id: secondCardId,
-      set_id: setId,
-      source_id: "UNM-002",
-      collector_number: 2,
+      cardId: secondCardId,
+      setId: setId,
+      sourceId: "UNM-002",
+      collectorNumber: 2,
       rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "UNM",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "UNM",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -128,74 +128,74 @@ if (ctx) {
 
   // Marketplace groups
   await db
-    .insertInto("marketplace_groups")
-    .values({ marketplace: "tcgplayer", group_id: 10_300, name: "UNM TCG Group" })
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "tcgplayer", groupId: 10_300, name: "UNM TCG Group" })
     .execute();
   await db
-    .insertInto("marketplace_groups")
-    .values({ marketplace: "cardmarket", group_id: 10_301, name: "UNM CM Group" })
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "cardmarket", groupId: 10_301, name: "UNM CM Group" })
     .execute();
 
   // TCGPlayer staging row for Alpha Card
   await db
-    .insertInto("marketplace_staging")
+    .insertInto("marketplaceStaging")
     .values({
       marketplace: "tcgplayer",
-      external_id: 11_111,
-      group_id: 10_300,
-      product_name: "UNM Alpha Card Normal",
+      externalId: 11_111,
+      groupId: 10_300,
+      productName: "UNM Alpha Card Normal",
       finish: "normal",
-      recorded_at: new Date("2026-02-01T10:00:00Z"),
-      market_cents: 200,
-      low_cents: 120,
-      mid_cents: 160,
-      high_cents: 300,
-      trend_cents: null,
-      avg1_cents: null,
-      avg7_cents: null,
-      avg30_cents: null,
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 200,
+      lowCents: 120,
+      midCents: 160,
+      highCents: 300,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
     })
     .execute();
 
   // Cardmarket staging row for Alpha Card
   await db
-    .insertInto("marketplace_staging")
+    .insertInto("marketplaceStaging")
     .values({
       marketplace: "cardmarket",
-      external_id: 22_222,
-      group_id: 10_301,
-      product_name: "UNM Alpha Card Normal",
+      externalId: 22_222,
+      groupId: 10_301,
+      productName: "UNM Alpha Card Normal",
       finish: "normal",
-      recorded_at: new Date("2026-02-01T10:00:00Z"),
-      market_cents: 180,
-      low_cents: 100,
-      mid_cents: null,
-      high_cents: null,
-      trend_cents: 150,
-      avg1_cents: 140,
-      avg7_cents: 145,
-      avg30_cents: 160,
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 180,
+      lowCents: 100,
+      midCents: null,
+      highCents: null,
+      trendCents: 150,
+      avg1Cents: 140,
+      avg7Cents: 145,
+      avg30Cents: 160,
     })
     .execute();
 
   // TCGPlayer staging row for Beta Card
   await db
-    .insertInto("marketplace_staging")
+    .insertInto("marketplaceStaging")
     .values({
       marketplace: "tcgplayer",
-      external_id: 33_333,
-      group_id: 10_300,
-      product_name: "UNM Beta Card Normal",
+      externalId: 33_333,
+      groupId: 10_300,
+      productName: "UNM Beta Card Normal",
       finish: "normal",
-      recorded_at: new Date("2026-02-01T10:00:00Z"),
-      market_cents: 500,
-      low_cents: 400,
-      mid_cents: 450,
-      high_cents: 600,
-      trend_cents: null,
-      avg1_cents: null,
-      avg7_cents: null,
-      avg30_cents: null,
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 500,
+      lowCents: 400,
+      midCents: 450,
+      highCents: 600,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
     })
     .execute();
 }
@@ -383,25 +383,25 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     it("printings reflect tcgExternalId after TCGPlayer mapping", async () => {
       // Re-seed TCGPlayer staging (may have been restored by unmap all above)
       await db
-        .insertInto("marketplace_staging")
+        .insertInto("marketplaceStaging")
         .values({
           marketplace: "tcgplayer",
-          external_id: 11_111,
-          group_id: 10_300,
-          product_name: "UNM Alpha Card Normal",
+          externalId: 11_111,
+          groupId: 10_300,
+          productName: "UNM Alpha Card Normal",
           finish: "normal",
-          recorded_at: new Date("2026-02-01T10:00:00Z"),
-          market_cents: 200,
-          low_cents: 120,
-          mid_cents: 160,
-          high_cents: 300,
-          trend_cents: null,
-          avg1_cents: null,
-          avg7_cents: null,
-          avg30_cents: null,
+          recordedAt: new Date("2026-02-01T10:00:00Z"),
+          marketCents: 200,
+          lowCents: 120,
+          midCents: 160,
+          highCents: 300,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "external_id", "finish", "recorded_at"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
         )
         .execute();
 

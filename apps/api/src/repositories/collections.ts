@@ -14,9 +14,9 @@ export function collectionsRepo(db: Kysely<Database>) {
       return db
         .selectFrom("collections")
         .selectAll()
-        .where("user_id", "=", userId)
-        .orderBy("is_inbox", "desc")
-        .orderBy("sort_order")
+        .where("userId", "=", userId)
+        .orderBy("isInbox", "desc")
+        .orderBy("sortOrder")
         .orderBy("name")
         .execute();
     },
@@ -27,18 +27,18 @@ export function collectionsRepo(db: Kysely<Database>) {
         .selectFrom("collections")
         .selectAll()
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns The newly created collection row. */
     create(values: {
-      user_id: string;
+      userId: string;
       name: string;
       description: string | null;
-      available_for_deckbuilding: boolean;
-      is_inbox: boolean;
-      sort_order: number;
+      availableForDeckbuilding: boolean;
+      isInbox: boolean;
+      sortOrder: number;
     }): Promise<Selectable<CollectionsTable>> {
       return db.insertInto("collections").values(values).returningAll().executeTakeFirstOrThrow();
     },
@@ -53,7 +53,7 @@ export function collectionsRepo(db: Kysely<Database>) {
         .updateTable("collections")
         .set(updates)
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
     },
@@ -67,7 +67,7 @@ export function collectionsRepo(db: Kysely<Database>) {
         .selectFrom("collections")
         .select(["id", "name"])
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
@@ -80,7 +80,7 @@ export function collectionsRepo(db: Kysely<Database>) {
         .selectFrom("collections")
         .select("id")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
   };

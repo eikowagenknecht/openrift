@@ -128,8 +128,8 @@ export function createAuth(deps: {
             if (adminEmail && user.email === adminEmail) {
               await db
                 .insertInto("admins")
-                .values({ user_id: user.id })
-                .onConflict((oc) => oc.column("user_id").doNothing())
+                .values({ userId: user.id })
+                .onConflict((oc) => oc.column("userId").doNothing())
                 .execute();
             }
           },

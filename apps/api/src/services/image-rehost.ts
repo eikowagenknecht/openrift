@@ -165,19 +165,14 @@ export async function rehostImages(
 ): Promise<RehostProgress> {
   // Find active front images that haven't been rehosted yet
   const images = await db
-    .selectFrom("printing_images as pi")
-    .innerJoin("printings as p", "p.id", "pi.printing_id")
-    .innerJoin("sets as s", "s.id", "p.set_id")
-    .select([
-      "pi.id as image_id",
-      "p.slug as printing_slug",
-      "pi.original_url",
-      "s.slug as set_slug",
-    ])
-    .where("pi.is_active", "=", true)
+    .selectFrom("printingImages as pi")
+    .innerJoin("printings as p", "p.id", "pi.printingId")
+    .innerJoin("sets as s", "s.id", "p.setId")
+    .select(["pi.id as imageId", "p.slug as printingSlug", "pi.originalUrl", "s.slug as setSlug"])
+    .where("pi.isActive", "=", true)
     .where("pi.face", "=", "front")
-    .where("pi.rehosted_url", "is", null)
-    .where("pi.original_url", "is not", null)
+    .where("pi.rehostedUrl", "is", null)
+    .where("pi.originalUrl", "is not", null)
     .limit(limit)
     .execute();
 
@@ -190,32 +185,32 @@ export async function rehostImages(
   };
 
   for (const img of images) {
-    if (!img.original_url) {
+    if (!img.originalUrl) {
       progress.skipped++;
       continue;
     }
 
     try {
-      const { buffer, ext } = await downloadImage(img.original_url);
-      const fileBase = printingIdToFileBase(img.printing_slug);
-      const outputDir = join(CARD_IMAGES_DIR, img.set_slug);
+      const { buffer, ext } = await downloadImage(img.originalUrl);
+      const fileBase = printingIdToFileBase(img.printingSlug);
+      const outputDir = join(CARD_IMAGES_DIR, img.setSlug);
 
       await processAndSave(buffer, ext, outputDir, fileBase);
 
-      const selfHostedPath = `/card-images/${img.set_slug}/${fileBase}`;
+      const selfHostedPath = `/card-images/${img.setSlug}/${fileBase}`;
 
       await db
-        .updateTable("printing_images")
-        .set({ rehosted_url: selfHostedPath, updated_at: new Date() })
-        .where("id", "=", img.image_id)
+        .updateTable("printingImages")
+        .set({ rehostedUrl: selfHostedPath, updatedAt: new Date() })
+        .where("id", "=", img.imageId)
         .execute();
 
       progress.rehosted++;
     } catch (error) {
       progress.failed++;
       const message = error instanceof Error ? error.message : String(error);
-      progress.errors.push(`${img.printing_slug}: ${message}`);
-      console.error(`[rehost] Failed for ${img.printing_slug}:`, message);
+      progress.errors.push(`${img.printingSlug}: ${message}`);
+      console.error(`[rehost] Failed for ${img.printingSlug}:`, message);
     }
   }
 
@@ -287,9 +282,9 @@ export async function regenerateImages(
 export async function clearAllRehosted(db: Kysely<Database>): Promise<{ cleared: number }> {
   // Null out all rehosted_url values
   const result = await db
-    .updateTable("printing_images")
-    .set({ rehosted_url: null, updated_at: new Date() })
-    .where("rehosted_url", "is not", null)
+    .updateTable("printingImages")
+    .set({ rehostedUrl: null, updatedAt: new Date() })
+    .where("rehostedUrl", "is not", null)
     .execute();
 
   const cleared = Number(result[0].numUpdatedRows);
@@ -364,12 +359,12 @@ export async function getRehostStatus(db: Kysely<Database>): Promise<{
   const [perSet, disk] = await Promise.all([
     db
       .selectFrom("printings")
-      .innerJoin("sets", "sets.id", "printings.set_id")
-      .leftJoin("printing_images as pi", (jb) =>
+      .innerJoin("sets", "sets.id", "printings.setId")
+      .leftJoin("printingImages as pi", (jb) =>
         jb
-          .onRef("pi.printing_id", "=", "printings.id")
+          .onRef("pi.printingId", "=", "printings.id")
           .on("pi.face", "=", "front")
-          .on("pi.is_active", "=", true),
+          .on("pi.isActive", "=", true),
       )
       .select([
         "sets.slug as setId",
@@ -378,11 +373,11 @@ export async function getRehostStatus(db: Kysely<Database>): Promise<{
           fn
             .count<number>("pi.id")
             .filterWhere((wb) =>
-              wb.or([wb("pi.original_url", "is not", null), wb("pi.rehosted_url", "is not", null)]),
+              wb.or([wb("pi.originalUrl", "is not", null), wb("pi.rehostedUrl", "is not", null)]),
             )
             .as("total"),
         ({ fn }) =>
-          fn.count<number>("pi.id").filterWhere("pi.rehosted_url", "is not", null).as("rehosted"),
+          fn.count<number>("pi.id").filterWhere("pi.rehostedUrl", "is not", null).as("rehosted"),
       ])
       .groupBy(["sets.slug", "sets.name"])
       .orderBy("sets.name")

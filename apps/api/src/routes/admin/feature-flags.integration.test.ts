@@ -37,7 +37,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
   describe("promote user to admin", () => {
     it("inserts user into admins table", async () => {
-      await db.insertInto("admins").values({ user_id: USER_ID }).execute();
+      await db.insertInto("admins").values({ userId: USER_ID }).execute();
     });
   });
 
@@ -126,8 +126,8 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       expect(darkMode).toBeDefined();
       expect(darkMode.enabled).toBe(true);
       expect(darkMode.description).toBe("Toggle dark mode UI");
-      expect(darkMode.created_at).toBeString();
-      expect(darkMode.updated_at).toBeString();
+      expect(darkMode.createdAt).toBeString();
+      expect(darkMode.updatedAt).toBeString();
 
       const deckBuilder = fflFlags.find((f: { key: string }) => f.key === "ffl-deck-builder");
       expect(deckBuilder).toBeDefined();

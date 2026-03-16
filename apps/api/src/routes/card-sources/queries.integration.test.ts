@@ -29,7 +29,7 @@ if (ctx) {
   // Create a set
   const [set] = await db
     .insertInto("sets")
-    .values({ slug: "CSQ-TEST", name: "CSQ Test Set", printed_total: 2, sort_order: 102 })
+    .values({ slug: "CSQ-TEST", name: "CSQ Test Set", printedTotal: 2, sortOrder: 102 })
     .returning("id")
     .execute();
   setId = set.id;
@@ -41,15 +41,15 @@ if (ctx) {
       slug: "CSQ-001",
       name: "CSQ Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: ["Flash"],
-      rules_text: "Flash",
-      effect_text: null,
+      rulesText: "Flash",
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -62,15 +62,15 @@ if (ctx) {
       slug: "CSQ-002",
       name: "CSQ Another Card",
       type: "Spell",
-      super_types: [],
+      superTypes: [],
       domains: ["Calm"],
       might: null,
       energy: 1,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: [],
-      rules_text: null,
-      effect_text: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -82,20 +82,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "CSQ-001:common:normal:",
-      card_id: card1Id,
-      set_id: setId,
-      source_id: "CSQ-001",
-      collector_number: 1,
+      cardId: card1Id,
+      setId: setId,
+      sourceId: "CSQ-001",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "CSQ",
-      printed_rules_text: "Flash",
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "CSQ",
+      printedRulesText: "Flash",
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -104,23 +104,23 @@ if (ctx) {
 
   // Create card sources (matched — name matches card1 via norm_name trigger)
   const [cs1] = await db
-    .insertInto("card_sources")
+    .insertInto("cardSources")
     .values({
       source: "csq-spreadsheet",
       name: "CSQ Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
-      rules_text: "Flash",
-      effect_text: null,
+      mightBonus: null,
+      rulesText: "Flash",
+      effectText: null,
       tags: [],
-      source_id: "CSQ-001",
-      source_entity_id: null,
-      extra_data: null,
+      sourceId: "CSQ-001",
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -128,23 +128,23 @@ if (ctx) {
 
   // Create card source (unmatched — no card with this name)
   const [cs2] = await db
-    .insertInto("card_sources")
+    .insertInto("cardSources")
     .values({
       source: "csq-gallery",
       name: "CSQ Unknown Card",
       type: "Rune",
-      super_types: [],
+      superTypes: [],
       domains: ["Chaos"],
       might: null,
       energy: 3,
       power: null,
-      might_bonus: null,
-      rules_text: null,
-      effect_text: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
-      source_id: null,
-      source_entity_id: null,
-      extra_data: null,
+      sourceId: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -152,53 +152,53 @@ if (ctx) {
 
   // Create printing sources (matched)
   await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: cs1Id,
-      printing_id: printing1Id,
-      source_id: "CSQ-001",
-      set_id: "CSQ-TEST",
-      set_name: "CSQ Test Set",
-      collector_number: 1,
+      cardSourceId: cs1Id,
+      printingId: printing1Id,
+      sourceId: "CSQ-001",
+      setId: "CSQ-TEST",
+      setName: "CSQ Test Set",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "CSQ",
-      printed_rules_text: "Flash",
-      printed_effect_text: null,
-      image_url: "https://example.com/csq-test.png",
-      flavor_text: null,
-      source_entity_id: null,
-      extra_data: null,
+      publicCode: "CSQ",
+      printedRulesText: "Flash",
+      printedEffectText: null,
+      imageUrl: "https://example.com/csq-test.png",
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .execute();
 
   // Printing source for unmatched card
   await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: cs2Id,
-      printing_id: null,
-      source_id: "CSQ-UNK-001",
-      set_id: "CSQ-TEST",
-      set_name: "CSQ Test Set",
-      collector_number: 99,
+      cardSourceId: cs2Id,
+      printingId: null,
+      sourceId: "CSQ-UNK-001",
+      setId: "CSQ-TEST",
+      setName: "CSQ Test Set",
+      collectorNumber: 99,
       rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "CSQ",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      image_url: null,
-      flavor_text: null,
-      source_entity_id: null,
-      extra_data: null,
+      publicCode: "CSQ",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .execute();
 }

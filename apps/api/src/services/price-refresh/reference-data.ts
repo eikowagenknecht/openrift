@@ -23,13 +23,13 @@ export async function loadReferenceData(db: Kysely<Database>): Promise<Reference
       .selectFrom("printings")
       .select([
         "id",
-        "card_id",
-        "set_id",
-        "source_id",
-        "public_code",
+        "cardId",
+        "setId",
+        "sourceId",
+        "publicCode",
         "finish",
-        "art_variant",
-        "is_signed",
+        "artVariant",
+        "isSigned",
       ])
       .execute(),
   ]);
@@ -37,29 +37,29 @@ export async function loadReferenceData(db: Kysely<Database>): Promise<Reference
   const setNameById = new Map(sets.map((s) => [s.id, s.name]));
   const cardNameById = new Map(cards.map((c) => [c.id, c.name]));
 
-  // namesBySet: set_id -> Map<lowercaseName, card_id>
+  // namesBySet: setId -> Map<lowercaseName, cardId>
   const namesBySet = new Map<string, Map<string, string>>();
   for (const p of printings) {
-    let setMap = namesBySet.get(p.set_id);
+    let setMap = namesBySet.get(p.setId);
     if (!setMap) {
       setMap = new Map();
-      namesBySet.set(p.set_id, setMap);
+      namesBySet.set(p.setId, setMap);
     }
-    const name = cardNameById.get(p.card_id);
+    const name = cardNameById.get(p.cardId);
     if (name) {
       const key = normalizeNameForMatching(name);
       if (!setMap.has(key)) {
-        setMap.set(key, p.card_id);
+        setMap.set(key, p.cardId);
       }
     }
   }
 
-  // printingsByCardSetFinish: "card_id|set_id|finish" -> printing_id[]
+  // printingsByCardSetFinish: "cardId|setId|finish" -> printingId[]
   const printingsByCardSetFinish = new Map<string, string[]>();
-  // printingByFullKey: "card_id|set_id|finish|art_variant|is_signed" -> printing_id
+  // printingByFullKey: "cardId|setId|finish|artVariant|isSigned" -> printingId
   const printingByFullKey = new Map<string, string>();
   for (const p of printings) {
-    const key = `${p.card_id}|${p.set_id}|${p.finish}`;
+    const key = `${p.cardId}|${p.setId}|${p.finish}`;
     let arr = printingsByCardSetFinish.get(key);
     if (!arr) {
       arr = [];
@@ -67,7 +67,7 @@ export async function loadReferenceData(db: Kysely<Database>): Promise<Reference
     }
     arr.push(p.id);
 
-    const fullKey = `${key}|${p.art_variant}|${p.is_signed}`;
+    const fullKey = `${key}|${p.artVariant}|${p.isSigned}`;
     printingByFullKey.set(fullKey, p.id);
   }
 

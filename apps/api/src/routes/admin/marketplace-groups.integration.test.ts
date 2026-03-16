@@ -26,17 +26,17 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
   describe("GET /admin/marketplace-groups (after seeding)", () => {
     it("returns both tcgplayer and cardmarket groups", async () => {
       await db
-        .insertInto("marketplace_groups")
+        .insertInto("marketplaceGroups")
         .values([
           {
             marketplace: "tcgplayer",
-            group_id: 10_100,
+            groupId: 10_100,
             name: "MKG Alpha Set",
             abbreviation: "MAS",
           },
           {
             marketplace: "cardmarket",
-            group_id: 10_101,
+            groupId: 10_101,
             name: "MKG Beta Set",
             abbreviation: null,
           },

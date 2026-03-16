@@ -49,78 +49,78 @@ interface CardIndex {
 
 function buildCardIndex(
   matchedCards: {
-    card_id: string;
-    card_slug: string;
-    card_name: string;
-    card_type: string;
-    super_types: unknown;
+    cardId: string;
+    cardSlug: string;
+    cardName: string;
+    cardType: string;
+    superTypes: unknown;
     domains: unknown;
     energy: number | null;
     might: number | null;
-    printing_id: string;
-    set_id: string;
-    source_id: string;
+    printingId: string;
+    setId: string;
+    sourceId: string;
     rarity: string;
-    set_name: string;
-    art_variant: string;
-    is_signed: boolean;
-    is_promo: boolean;
+    setName: string;
+    artVariant: string;
+    isSigned: boolean;
+    isPromo: boolean;
     finish: string;
-    collector_number: number;
-    image_url: string | null;
-    external_id: number | null;
-    source_group_id: number | null;
+    collectorNumber: number;
+    imageUrl: string | null;
+    externalId: number | null;
+    sourceGroupId: number | null;
   }[],
 ): CardIndex {
   const cardGroups = new Map<string, CardGroup>();
 
   for (const row of matchedCards) {
-    const key = row.card_id;
+    const key = row.cardId;
     let group = cardGroups.get(key);
     if (!group) {
       group = {
-        cardId: row.card_id,
-        cardSlug: row.card_slug,
-        cardName: row.card_name,
-        cardType: row.card_type,
-        superTypes: row.super_types as string[],
+        cardId: row.cardId,
+        cardSlug: row.cardSlug,
+        cardName: row.cardName,
+        cardType: row.cardType,
+        superTypes: row.superTypes as string[],
         domains: row.domains as string[],
         energy: row.energy,
         might: row.might,
-        setId: row.set_id,
-        setName: row.set_name,
+        setId: row.setId,
+        setName: row.setName,
         printings: [],
       };
       cardGroups.set(key, group);
     }
     group.printings.push({
-      printingId: row.printing_id,
-      sourceId: row.source_id,
+      printingId: row.printingId,
+      sourceId: row.sourceId,
       rarity: row.rarity,
-      artVariant: row.art_variant,
-      isSigned: row.is_signed,
-      isPromo: row.is_promo,
+      artVariant: row.artVariant,
+      isSigned: row.isSigned,
+      isPromo: row.isPromo,
       finish: row.finish,
-      collectorNumber: row.collector_number,
-      imageUrl: row.image_url,
-      externalId: row.external_id,
-      sourceGroupId: row.source_group_id,
+      collectorNumber: row.collectorNumber,
+      imageUrl: row.imageUrl,
+      externalId: row.externalId,
+      sourceGroupId: row.sourceGroupId,
     });
   }
 
-  // Global name index (deduplicated by card_id)
+  // Global name index (deduplicated by cardId)
   const seenCards = new Set<string>();
   const cardNames: CardIndex["cardNames"] = [];
   for (const row of matchedCards) {
-    if (seenCards.has(row.card_id)) {
+    if (seenCards.has(row.cardId)) {
       continue;
     }
-    seenCards.add(row.card_id);
-    const normName = normalizeNameForMatching(row.card_name);
-    const dashIdx = row.card_name.indexOf(" - ");
+    seenCards.add(row.cardId);
+    const normName = normalizeNameForMatching(row.cardName);
+    const dashIdx = row.cardName.indexOf(" - ");
     const baseName =
-      dashIdx === -1 ? null : normalizeNameForMatching(row.card_name.slice(0, dashIdx));
-    cardNames.push({ normName, baseName, groupKey: row.card_id });
+      dashIdx === -1 ? null : normalizeNameForMatching(row.cardName.slice(0, dashIdx));
+    cardNames.push({ normName, baseName, groupKey: row.cardId });
   }
   cardNames.sort((a, b) => b.normName.length - a.normName.length);
 
@@ -139,7 +139,7 @@ function matchStagedProducts(
   const matchedStagingKeys = new Set<string>();
 
   for (const row of uniqueStaged) {
-    const stagingKey = `${row.external_id}::${row.finish}`;
+    const stagingKey = `${row.externalId}::${row.finish}`;
 
     // Check manual override first
     const override = overrideMap.get(stagingKey);
@@ -155,7 +155,7 @@ function matchStagedProducts(
     }
 
     // Fall back to prefix matching against all card names
-    const normProduct = normalizeNameForMatching(row.product_name);
+    const normProduct = normalizeNameForMatching(row.productName);
     for (const { normName, groupKey } of cardNames) {
       if (normProduct.startsWith(normName)) {
         const list = stagedByCard.get(groupKey) ?? [];
@@ -172,11 +172,11 @@ function matchStagedProducts(
   // "Daughter of the Void", or "Master Yi Wuju Bladesman" contains the base
   // of "Wuju Bladesman - Starter" (baseName strips the " - Starter" suffix).
   for (const row of uniqueStaged) {
-    const stagingKey = `${row.external_id}::${row.finish}`;
+    const stagingKey = `${row.externalId}::${row.finish}`;
     if (matchedStagingKeys.has(stagingKey)) {
       continue;
     }
-    const normProduct = normalizeNameForMatching(row.product_name);
+    const normProduct = normalizeNameForMatching(row.productName);
     for (const { normName, baseName, groupKey } of cardNames) {
       const nameToMatch = baseName ?? normName;
       if (nameToMatch.length >= 5 && normProduct.includes(nameToMatch)) {
@@ -205,7 +205,7 @@ function buildResponseGroups(
   return [...cardGroups.values()].map((group) => {
     const key = group.cardId;
     const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
-      mapStagedRow(row, { isOverride: overrideMap.has(`${row.external_id}::${row.finish}`) }),
+      mapStagedRow(row, { isOverride: overrideMap.has(`${row.externalId}::${row.finish}`) }),
     );
 
     const seenAssigned = new Set<string>();
@@ -259,26 +259,26 @@ function buildResponseGroups(
 export async function getMappingOverview(db: Kysely<Database>, config: MarketplaceConfig) {
   // 1. Load ignored products
   const ignoredRows = await db
-    .selectFrom("marketplace_ignored_products")
-    .select(["external_id", "finish", "product_name", "created_at"])
+    .selectFrom("marketplaceIgnoredProducts")
+    .select(["externalId", "finish", "productName", "createdAt"])
     .where("marketplace", "=", config.marketplace)
     .execute();
-  const ignoredKeys = new Set(ignoredRows.map((r) => `${r.external_id}::${r.finish}`));
+  const ignoredKeys = new Set(ignoredRows.map((r) => `${r.externalId}::${r.finish}`));
 
   // 2. Fetch & deduplicate staged products
   const staged = await db
-    .selectFrom("marketplace_staging")
+    .selectFrom("marketplaceStaging")
     .selectAll()
     .where("marketplace", "=", config.marketplace)
-    .orderBy("recorded_at", "desc")
+    .orderBy("recordedAt", "desc")
     .execute();
 
   const seenStagingKeys = new Set<string>();
   const uniqueStaged = staged.filter((row) => {
-    if (row.external_id === null) {
+    if (row.externalId === null) {
       return false;
     }
-    const key = `${row.external_id}::${row.finish}`;
+    const key = `${row.externalId}::${row.finish}`;
     if (ignoredKeys.has(key) || seenStagingKeys.has(key)) {
       return false;
     }
@@ -288,8 +288,8 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
 
   // 3. Build group display name lookup
   const groupRows = await db
-    .selectFrom("marketplace_groups")
-    .select(["group_id as gid", "name"])
+    .selectFrom("marketplaceGroups")
+    .select(["groupId as gid", "name"])
     .where("marketplace", "=", config.marketplace)
     .execute();
   const groupNameMap = new Map<number, string>();
@@ -300,43 +300,43 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
   // 4. Build card query — fetch all cards
   const query = db
     .selectFrom("cards as c")
-    .innerJoin("printings as p", "p.card_id", "c.id")
-    .innerJoin("sets as s", "s.id", "p.set_id")
-    .leftJoin("marketplace_sources as ps", (join) =>
-      join.onRef("ps.printing_id", "=", "p.id").on("ps.marketplace", "=", config.marketplace),
+    .innerJoin("printings as p", "p.cardId", "c.id")
+    .innerJoin("sets as s", "s.id", "p.setId")
+    .leftJoin("marketplaceSources as ps", (join) =>
+      join.onRef("ps.printingId", "=", "p.id").on("ps.marketplace", "=", config.marketplace),
     )
-    .leftJoin("printing_images as pi", (join) =>
+    .leftJoin("printingImages as pi", (join) =>
       join
-        .onRef("pi.printing_id", "=", "p.id")
+        .onRef("pi.printingId", "=", "p.id")
         .on("pi.face", "=", "front")
-        .on("pi.is_active", "=", true),
+        .on("pi.isActive", "=", true),
     )
     .select([
-      "c.id as card_id",
-      "c.slug as card_slug",
-      "c.name as card_name",
-      "c.type as card_type",
-      "c.super_types",
+      "c.id as cardId",
+      "c.slug as cardSlug",
+      "c.name as cardName",
+      "c.type as cardType",
+      "c.superTypes",
       "c.domains",
       "c.energy",
       "c.might",
-      "p.id as printing_id",
-      "s.slug as set_id",
-      "p.source_id",
+      "p.id as printingId",
+      "s.slug as setId",
+      "p.sourceId",
       "p.rarity",
-      "s.name as set_name",
-      "p.art_variant",
-      "p.is_signed",
-      "p.is_promo",
+      "s.name as setName",
+      "p.artVariant",
+      "p.isSigned",
+      "p.isPromo",
       "p.finish",
-      "p.collector_number",
-      imageUrl("pi").as("image_url"),
-      "ps.external_id",
-      "ps.group_id as source_group_id",
+      "p.collectorNumber",
+      imageUrl("pi").as("imageUrl"),
+      "ps.externalId",
+      "ps.groupId as sourceGroupId",
     ])
     .orderBy("s.slug")
     .orderBy("c.name")
-    .orderBy("p.source_id")
+    .orderBy("p.sourceId")
     .orderBy("p.finish", "desc");
 
   const matchedCards = await query.execute();
@@ -346,14 +346,14 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
 
   // 5c. Load manual card overrides
   const overrideRows = await db
-    .selectFrom("marketplace_staging_card_overrides")
-    .select(["external_id", "finish", "card_id"])
+    .selectFrom("marketplaceStagingCardOverrides")
+    .select(["externalId", "finish", "cardId"])
     .where("marketplace", "=", config.marketplace)
     .execute();
   const overrideMap = new Map<string, { cardId: string }>();
   for (const row of overrideRows) {
-    overrideMap.set(`${row.external_id}::${row.finish}`, {
-      cardId: row.card_id,
+    overrideMap.set(`${row.externalId}::${row.finish}`, {
+      cardId: row.cardId,
     });
   }
 
@@ -379,53 +379,53 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
   if (mappedPrintingIds.size > 0) {
     const mappedRows = await config.snapshotQuery([...mappedPrintingIds]);
     for (const row of mappedRows) {
-      if (!mappedProductInfo.has(row.printing_id)) {
-        mappedProductInfo.set(row.printing_id, config.mapSnapshotPrices(row));
+      if (!mappedProductInfo.has(row.printingId)) {
+        mappedProductInfo.set(row.printingId, config.mapSnapshotPrices(row));
       }
     }
   }
 
   // 7. Map staged rows to product format
   const mapStagedRow = (row: StagingRow, extra?: { isOverride?: boolean }) => ({
-    externalId: row.external_id ?? "",
-    productName: row.product_name,
+    externalId: row.externalId ?? "",
+    productName: row.productName,
     finish: row.finish,
     ...config.mapStagingPrices(row),
-    recordedAt: row.recorded_at.toISOString(),
+    recordedAt: row.recordedAt.toISOString(),
     ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
-    groupId: row.group_id,
-    groupName: groupNameMap.get(row.group_id) ?? `Group #${row.group_id}`,
+    groupId: row.groupId,
+    groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
   });
 
   // Unmatched products (excluding ignored)
   const unmatchedProducts = uniqueStaged
     .filter(
       (row) =>
-        !matchedStagingKeys.has(`${row.external_id}::${row.finish}`) &&
-        !ignoredKeys.has(`${row.external_id}::${row.finish}`),
+        !matchedStagingKeys.has(`${row.externalId}::${row.finish}`) &&
+        !ignoredKeys.has(`${row.externalId}::${row.finish}`),
     )
     .map((row) => mapStagedRow(row));
 
   // Ignored products — look up group from staging data
   const groupByExternal = new Map<string, number>();
   for (const row of staged) {
-    if (row.external_id !== null) {
-      const key = `${row.external_id}::${row.finish}`;
+    if (row.externalId !== null) {
+      const key = `${row.externalId}::${row.finish}`;
       if (!groupByExternal.has(key)) {
-        groupByExternal.set(key, row.group_id);
+        groupByExternal.set(key, row.groupId);
       }
     }
   }
   const ignoredProducts = ignoredRows.map((r) => {
-    const gid = groupByExternal.get(`${r.external_id}::${r.finish}`);
+    const gid = groupByExternal.get(`${r.externalId}::${r.finish}`);
     return {
-      externalId: r.external_id,
-      productName: r.product_name,
+      externalId: r.externalId,
+      productName: r.productName,
       finish: r.finish,
       marketCents: 0,
       lowCents: null as number | null,
       currency: config.currency,
-      recordedAt: r.created_at.toISOString(),
+      recordedAt: r.createdAt.toISOString(),
       midCents: null as number | null,
       highCents: null as number | null,
       trendCents: null as number | null,
@@ -485,19 +485,19 @@ export async function saveMappings(
       .select(["id", "finish"])
       .where("id", "in", printingIds)
       .execute();
-    const finishByPrinting = new Map(printingRows.map((p) => [p.id, p.finish]));
+    const finishByPrinting = new Map(printingRows.map((row) => [row.id, row.finish]));
 
     // 2. Batch-fetch staging rows (1 query instead of N)
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const allStagingRows = await tx
-      .selectFrom("marketplace_staging")
+      .selectFrom("marketplaceStaging")
       .selectAll()
       .where("marketplace", "=", config.marketplace)
-      .where("external_id", "in", externalIds)
+      .where("externalId", "in", externalIds)
       .execute();
     const stagingByKey = new Map<string, typeof allStagingRows>();
     for (const row of allStagingRows) {
-      const key = `${row.external_id}::${row.finish}`;
+      const key = `${row.externalId}::${row.finish}`;
       const list = stagingByKey.get(key) ?? [];
       list.push(row);
       stagingByKey.set(key, list);
@@ -506,10 +506,10 @@ export async function saveMappings(
     // 3. Build source upsert values, filtering out mappings with no staging data
     const sourceValues: {
       marketplace: string;
-      printing_id: string;
-      external_id: number;
-      group_id: number;
-      product_name: string;
+      printingId: string;
+      externalId: number;
+      groupId: number;
+      productName: string;
     }[] = [];
     for (const m of mappings) {
       const finish = finishByPrinting.get(m.printingId);
@@ -522,10 +522,10 @@ export async function saveMappings(
       }
       sourceValues.push({
         marketplace: config.marketplace,
-        printing_id: m.printingId,
-        external_id: m.externalId,
-        group_id: first.group_id,
-        product_name: first.product_name,
+        printingId: m.printingId,
+        externalId: m.externalId,
+        groupId: first.groupId,
+        productName: first.productName,
       });
     }
 
@@ -535,73 +535,73 @@ export async function saveMappings(
 
     // 4. Batch-upsert sources (1 query instead of N)
     const sourceResults = await tx
-      .insertInto("marketplace_sources")
+      .insertInto("marketplaceSources")
       .values(sourceValues)
       .onConflict((oc) =>
-        oc.columns(["marketplace", "printing_id"]).doUpdateSet({
-          external_id: sql<number>`excluded.external_id`,
-          group_id: sql<number>`excluded.group_id`,
-          product_name: sql<string>`excluded.product_name`,
-          updated_at: new Date(),
+        oc.columns(["marketplace", "printingId"]).doUpdateSet({
+          externalId: sql<number>`excluded.external_id`,
+          groupId: sql<number>`excluded.group_id`,
+          productName: sql<string>`excluded.product_name`,
+          updatedAt: new Date(),
         }),
       )
-      .returning(["id", "printing_id"])
+      .returning(["id", "printingId"])
       .execute();
-    const sourceIdByPrinting = new Map(sourceResults.map((r) => [r.printing_id, r.id]));
+    const sourceIdByPrinting = new Map(sourceResults.map((r) => [r.printingId, r.id]));
 
     // 5. Batch-insert snapshots (1 query instead of N×M)
     const snapshotRows: {
-      source_id: string;
-      recorded_at: Date;
-      market_cents: number;
-      low_cents: number | null;
-      mid_cents: number | null;
-      high_cents: number | null;
-      trend_cents: number | null;
-      avg1_cents: number | null;
-      avg7_cents: number | null;
-      avg30_cents: number | null;
+      sourceId: string;
+      recordedAt: Date;
+      marketCents: number;
+      lowCents: number | null;
+      midCents: number | null;
+      highCents: number | null;
+      trendCents: number | null;
+      avg1Cents: number | null;
+      avg7Cents: number | null;
+      avg30Cents: number | null;
     }[] = [];
     for (const sv of sourceValues) {
-      const sourceId = sourceIdByPrinting.get(sv.printing_id);
+      const sourceId = sourceIdByPrinting.get(sv.printingId);
       if (sourceId === undefined) {
         continue;
       }
-      const finish = finishByPrinting.get(sv.printing_id);
+      const finish = finishByPrinting.get(sv.printingId);
       if (!finish) {
         continue;
       }
-      const rows = stagingByKey.get(`${sv.external_id}::${finish}`) ?? [];
+      const rows = stagingByKey.get(`${sv.externalId}::${finish}`) ?? [];
       for (const row of rows) {
         snapshotRows.push({
-          source_id: sourceId,
-          recorded_at: row.recorded_at,
-          market_cents: row.market_cents,
-          low_cents: row.low_cents,
-          mid_cents: row.mid_cents,
-          high_cents: row.high_cents,
-          trend_cents: row.trend_cents,
-          avg1_cents: row.avg1_cents,
-          avg7_cents: row.avg7_cents,
-          avg30_cents: row.avg30_cents,
+          sourceId: sourceId,
+          recordedAt: row.recordedAt,
+          marketCents: row.marketCents,
+          lowCents: row.lowCents,
+          midCents: row.midCents,
+          highCents: row.highCents,
+          trendCents: row.trendCents,
+          avg1Cents: row.avg1Cents,
+          avg7Cents: row.avg7Cents,
+          avg30Cents: row.avg30Cents,
         });
       }
     }
 
     if (snapshotRows.length > 0) {
       await tx
-        .insertInto("marketplace_snapshots")
+        .insertInto("marketplaceSnapshots")
         .values(snapshotRows)
         .onConflict((oc) =>
-          oc.columns(["source_id", "recorded_at"]).doUpdateSet({
-            market_cents: sql<number>`excluded.market_cents`,
-            low_cents: sql<number | null>`excluded.low_cents`,
-            mid_cents: sql<number | null>`excluded.mid_cents`,
-            high_cents: sql<number | null>`excluded.high_cents`,
-            trend_cents: sql<number | null>`excluded.trend_cents`,
-            avg1_cents: sql<number | null>`excluded.avg1_cents`,
-            avg7_cents: sql<number | null>`excluded.avg7_cents`,
-            avg30_cents: sql<number | null>`excluded.avg30_cents`,
+          oc.columns(["sourceId", "recordedAt"]).doUpdateSet({
+            marketCents: sql<number>`excluded.market_cents`,
+            lowCents: sql<number | null>`excluded.low_cents`,
+            midCents: sql<number | null>`excluded.mid_cents`,
+            highCents: sql<number | null>`excluded.high_cents`,
+            trendCents: sql<number | null>`excluded.trend_cents`,
+            avg1Cents: sql<number | null>`excluded.avg1_cents`,
+            avg7Cents: sql<number | null>`excluded.avg7_cents`,
+            avg30Cents: sql<number | null>`excluded.avg30_cents`,
           }),
         )
         .execute();
@@ -610,9 +610,9 @@ export async function saveMappings(
     // 6. Batch-delete staging rows (1 query instead of N)
     const deletePairs: ReturnType<typeof sql>[] = [];
     for (const sv of sourceValues) {
-      const finish = finishByPrinting.get(sv.printing_id);
+      const finish = finishByPrinting.get(sv.printingId);
       if (finish) {
-        deletePairs.push(sql`(${sv.external_id}::integer, ${finish})`);
+        deletePairs.push(sql`(${sv.externalId}::integer, ${finish})`);
       }
     }
 
@@ -638,13 +638,13 @@ export async function unmapPrinting(
 ): Promise<void> {
   await db.transaction().execute(async (tx) => {
     const ps = await tx
-      .selectFrom("marketplace_sources")
+      .selectFrom("marketplaceSources")
       .selectAll()
       .where("marketplace", "=", config.marketplace)
-      .where("printing_id", "=", printingId)
+      .where("printingId", "=", printingId)
       .executeTakeFirst();
 
-    if (!ps || ps.external_id === null) {
+    if (!ps || ps.externalId === null) {
       return;
     }
 
@@ -655,17 +655,17 @@ export async function unmapPrinting(
       .executeTakeFirstOrThrow();
 
     const snapshots = await tx
-      .selectFrom("marketplace_snapshots")
+      .selectFrom("marketplaceSnapshots")
       .selectAll()
-      .where("source_id", "=", ps.id)
+      .where("sourceId", "=", ps.id)
       .execute();
 
     for (const snap of snapshots) {
       await config.insertStagingFromSnapshot(tx, ps, printing.finish, snap);
     }
 
-    await tx.deleteFrom("marketplace_snapshots").where("source_id", "=", ps.id).execute();
-    await tx.deleteFrom("marketplace_sources").where("id", "=", ps.id).execute();
+    await tx.deleteFrom("marketplaceSnapshots").where("sourceId", "=", ps.id).execute();
+    await tx.deleteFrom("marketplaceSources").where("id", "=", ps.id).execute();
   });
 }
 
@@ -679,10 +679,10 @@ export async function unmapAll(
     await config.bulkUnmapSql(tx);
 
     const countResult = await tx
-      .selectFrom("marketplace_sources")
+      .selectFrom("marketplaceSources")
       .select(sql<number>`count(*)`.as("count"))
       .where("marketplace", "=", config.marketplace)
-      .where("external_id", "is not", null)
+      .where("externalId", "is not", null)
       .executeTakeFirstOrThrow();
 
     await sql`
@@ -694,9 +694,9 @@ export async function unmapAll(
     `.execute(tx);
 
     await tx
-      .deleteFrom("marketplace_sources")
+      .deleteFrom("marketplaceSources")
       .where("marketplace", "=", config.marketplace)
-      .where("external_id", "is not", null)
+      .where("externalId", "is not", null)
       .execute();
 
     return Number(countResult.count);

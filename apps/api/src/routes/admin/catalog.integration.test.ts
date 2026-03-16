@@ -19,20 +19,20 @@ if (ctx) {
 
   // Seed a marketplace group for the cardmarket/tcgplayer tests
   await db
-    .insertInto("marketplace_groups")
+    .insertInto("marketplaceGroups")
     .values({
       marketplace: "cardmarket",
-      group_id: 10_000,
+      groupId: 10_000,
       name: "CAT Test Expansion",
       abbreviation: null,
     })
     .execute();
 
   await db
-    .insertInto("marketplace_groups")
+    .insertInto("marketplaceGroups")
     .values({
       marketplace: "tcgplayer",
-      group_id: 10_001,
+      groupId: 10_001,
       name: "CAT TCG Group",
       abbreviation: "CTG",
     })

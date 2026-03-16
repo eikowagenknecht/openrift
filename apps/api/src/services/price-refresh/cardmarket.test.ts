@@ -116,7 +116,7 @@ function makeChain(value: unknown): any {
 }
 
 interface MockDbConfig {
-  ignoredProducts?: { external_id: number; finish: string }[];
+  ignoredProducts?: { externalId: number; finish: string }[];
 }
 
 function createMockDb(config: MockDbConfig = {}) {
@@ -128,10 +128,10 @@ function createMockDb(config: MockDbConfig = {}) {
     {
       get(_, prop) {
         if (prop === "values") {
-          return (vals: { group_id?: number }[]) => {
+          return (vals: { groupId?: number }[]) => {
             for (const v of vals) {
-              if (v.group_id !== undefined) {
-                insertedExpansionIds.push(v.group_id);
+              if (v.groupId !== undefined) {
+                insertedExpansionIds.push(v.groupId);
               }
             }
             return makeChain([]);
@@ -151,7 +151,7 @@ function createMockDb(config: MockDbConfig = {}) {
 
   const db = {
     selectFrom(table: string) {
-      if (table === "marketplace_ignored_products") {
+      if (table === "marketplaceIgnoredProducts") {
         return makeChain(config.ignoredProducts ?? []);
       }
       return makeChain([]);
@@ -260,17 +260,17 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       const normal = staging.find(
-        (r: StagingRow) => r.external_id === 845_712 && r.finish === "normal",
+        (r: StagingRow) => r.externalId === 845_712 && r.finish === "normal",
       );
       expect(normal).toBeDefined();
-      expect(normal?.market_cents).toBe(4);
-      expect(normal?.low_cents).toBe(2);
-      expect(normal?.trend_cents).toBe(2);
-      expect(normal?.avg1_cents).toBe(6);
-      expect(normal?.avg7_cents).toBe(4);
-      expect(normal?.avg30_cents).toBe(5);
-      expect(normal?.product_name).toBe("Blazing Scorcher");
-      expect(normal?.group_id).toBe(6286);
+      expect(normal?.marketCents).toBe(4);
+      expect(normal?.lowCents).toBe(2);
+      expect(normal?.trendCents).toBe(2);
+      expect(normal?.avg1Cents).toBe(6);
+      expect(normal?.avg7Cents).toBe(4);
+      expect(normal?.avg30Cents).toBe(5);
+      expect(normal?.productName).toBe("Blazing Scorcher");
+      expect(normal?.groupId).toBe(6286);
     });
 
     it("creates foil staging row with correct cents from non-zero avg-foil", async () => {
@@ -281,16 +281,14 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(db, log);
 
       const staging = upsertStaging();
-      const foil = staging.find(
-        (r: StagingRow) => r.external_id === 845_712 && r.finish === "foil",
-      );
+      const foil = staging.find((r: StagingRow) => r.externalId === 845_712 && r.finish === "foil");
       expect(foil).toBeDefined();
-      expect(foil?.market_cents).toBe(19);
-      expect(foil?.low_cents).toBe(2);
-      expect(foil?.trend_cents).toBe(23);
-      expect(foil?.avg1_cents).toBe(12);
-      expect(foil?.avg7_cents).toBe(19);
-      expect(foil?.avg30_cents).toBe(19);
+      expect(foil?.marketCents).toBe(19);
+      expect(foil?.lowCents).toBe(2);
+      expect(foil?.trendCents).toBe(23);
+      expect(foil?.avg1Cents).toBe(12);
+      expect(foil?.avg7Cents).toBe(19);
+      expect(foil?.avg30Cents).toBe(19);
     });
 
     it("skips foil staging when avg-foil is 0", async () => {
@@ -301,9 +299,7 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(db, log);
 
       const staging = upsertStaging();
-      const foil = staging.find(
-        (r: StagingRow) => r.external_id === 847_277 && r.finish === "foil",
-      );
+      const foil = staging.find((r: StagingRow) => r.externalId === 847_277 && r.finish === "foil");
       expect(foil).toBeUndefined();
     });
 
@@ -316,7 +312,7 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       const normal = staging.find(
-        (r: StagingRow) => r.external_id === 847_140 && r.finish === "normal",
+        (r: StagingRow) => r.externalId === 847_140 && r.finish === "normal",
       );
       expect(normal).toBeUndefined();
     });
@@ -329,11 +325,9 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(db, log);
 
       const staging = upsertStaging();
-      const foil = staging.find(
-        (r: StagingRow) => r.external_id === 847_140 && r.finish === "foil",
-      );
+      const foil = staging.find((r: StagingRow) => r.externalId === 847_140 && r.finish === "foil");
       expect(foil).toBeDefined();
-      expect(foil?.market_cents).toBe(14);
+      expect(foil?.marketCents).toBe(14);
     });
 
     it("skips products with no matching price guide", async () => {
@@ -350,7 +344,7 @@ describe("refreshCardmarketPrices", () => {
 
     it("skips ignored normal products but keeps foil", async () => {
       const { db } = createMockDb({
-        ignoredProducts: [{ external_id: 845_712, finish: "normal" }],
+        ignoredProducts: [{ externalId: 845_712, finish: "normal" }],
       });
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
@@ -359,16 +353,16 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       expect(
-        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "normal"),
+        staging.find((r: StagingRow) => r.externalId === 845_712 && r.finish === "normal"),
       ).toBeUndefined();
       expect(
-        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "foil"),
+        staging.find((r: StagingRow) => r.externalId === 845_712 && r.finish === "foil"),
       ).toBeDefined();
     });
 
     it("skips ignored foil products but keeps normal", async () => {
       const { db } = createMockDb({
-        ignoredProducts: [{ external_id: 845_712, finish: "foil" }],
+        ignoredProducts: [{ externalId: 845_712, finish: "foil" }],
       });
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
@@ -377,10 +371,10 @@ describe("refreshCardmarketPrices", () => {
 
       const staging = upsertStaging();
       expect(
-        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "foil"),
+        staging.find((r: StagingRow) => r.externalId === 845_712 && r.finish === "foil"),
       ).toBeUndefined();
       expect(
-        staging.find((r: StagingRow) => r.external_id === 845_712 && r.finish === "normal"),
+        staging.find((r: StagingRow) => r.externalId === 845_712 && r.finish === "normal"),
       ).toBeDefined();
     });
 
@@ -432,9 +426,9 @@ describe("refreshCardmarketPrices", () => {
     });
   });
 
-  // ── recorded_at ───────────────────────────────────────────────────────
+  // ── recordedAt ────────────────────────────────────────────────────────
 
-  describe("recorded_at", () => {
+  describe("recordedAt", () => {
     it("uses createdAt from response body when available", async () => {
       const { db } = createMockDb();
       const { log } = makeMockLogger();
@@ -445,7 +439,7 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(db, log);
 
       const staging = upsertStaging();
-      expect(staging[0].recorded_at).toEqual(new Date("2026-03-10T02:49:27+0100"));
+      expect(staging[0].recordedAt).toEqual(new Date("2026-03-10T02:49:27+0100"));
     });
 
     it("falls back to lastModified when createdAt is absent", async () => {
@@ -460,7 +454,7 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(db, log);
 
       const staging = upsertStaging();
-      expect(staging[0].recorded_at).toEqual(lastMod);
+      expect(staging[0].recordedAt).toEqual(lastMod);
     });
 
     it("falls back to current time when neither createdAt nor lastModified exist", async () => {
@@ -475,7 +469,7 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(db, log);
 
       const staging = upsertStaging();
-      const ts = staging[0].recorded_at.getTime();
+      const ts = staging[0].recordedAt.getTime();
       expect(ts).toBeGreaterThanOrEqual(before);
       expect(ts).toBeLessThanOrEqual(Date.now());
     });
@@ -553,8 +547,8 @@ describe("refreshCardmarketPrices", () => {
     it("includes ignored count in summary when products are ignored", async () => {
       const { db } = createMockDb({
         ignoredProducts: [
-          { external_id: 845_712, finish: "normal" },
-          { external_id: 845_712, finish: "foil" },
+          { externalId: 845_712, finish: "normal" },
+          { externalId: 845_712, finish: "foil" },
         ],
       });
       const { log, messages } = makeMockLogger();

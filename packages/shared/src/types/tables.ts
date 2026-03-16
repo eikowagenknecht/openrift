@@ -35,11 +35,11 @@ export interface SetsTable {
   /** CHECK: <> '' */
   name: string;
   /** CHECK: >= 0 */
-  printed_total: number | null;
-  sort_order: number;
-  released_at: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  printedTotal: number | null;
+  sortOrder: number;
+  releasedAt: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /**
@@ -54,10 +54,10 @@ export interface CardsTable {
   slug: string;
   /** CHECK: <> '' */
   name: string;
-  norm_name: Generated<string>;
+  normName: Generated<string>;
   type: CardType;
   /** CHECK: values in ('Basic','Champion','Signature','Token') */
-  super_types: SuperType[];
+  superTypes: SuperType[];
   /** CHECK: array_length > 0; values in ('Fury','Calm','Mind','Body','Chaos','Order','Colorless') */
   domains: Domain[];
   /** CHECK: >= 0 */
@@ -67,15 +67,15 @@ export interface CardsTable {
   /** CHECK: >= 0 */
   power: number | null;
   /** CHECK: >= 0 */
-  might_bonus: number | null;
+  mightBonus: number | null;
   keywords: string[];
   /** CHECK: <> '' */
-  rules_text: string | null;
+  rulesText: string | null;
   /** CHECK: <> '' */
-  effect_text: string | null;
+  effectText: string | null;
   tags: string[];
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /**
@@ -88,31 +88,31 @@ export interface PrintingsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
   slug: string;
-  card_id: string;
-  set_id: string;
+  cardId: string;
+  setId: string;
   /** CHECK: <> '' */
-  source_id: string;
+  sourceId: string;
   /** CHECK: > 0 */
-  collector_number: number;
+  collectorNumber: number;
   rarity: Rarity;
-  art_variant: ArtVariant;
-  is_signed: boolean;
-  is_promo: boolean;
+  artVariant: ArtVariant;
+  isSigned: boolean;
+  isPromo: boolean;
   finish: Finish;
   /** CHECK: <> '' */
   artist: string;
   /** CHECK: <> '' */
-  public_code: string;
+  publicCode: string;
   /** CHECK: <> '' */
-  printed_rules_text: string | null;
+  printedRulesText: string | null;
   /** CHECK: <> '' */
-  printed_effect_text: string | null;
+  printedEffectText: string | null;
   /** CHECK: <> '' */
-  flavor_text: string | null;
+  flavorText: string | null;
   /** CHECK: <> '' */
   comment: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 // ─── Unified marketplace pricing (migration 022) ────────────────────────────
@@ -120,11 +120,11 @@ export interface PrintingsTable {
 export interface MarketplaceGroupsTable {
   id: Generated<string>;
   marketplace: string;
-  group_id: number;
+  groupId: number;
   name: string | null;
   abbreviation: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /** @see marketplaceSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
@@ -132,83 +132,83 @@ export interface MarketplaceSourcesTable {
   id: Generated<string>;
   /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
   marketplace: string;
-  printing_id: string;
+  printingId: string;
   /** CHECK: > 0 */
-  external_id: number;
+  externalId: number;
   /** FK composite → marketplace_groups(marketplace, group_id) */
-  group_id: number;
+  groupId: number;
   /** CHECK: <> '' */
-  product_name: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  productName: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /** @see marketplaceSnapshotFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface MarketplaceSnapshotsTable {
   id: Generated<string>;
-  source_id: string;
-  recorded_at: CreatedAt;
+  sourceId: string;
+  recordedAt: CreatedAt;
   /** CHECK: >= 0 */
-  market_cents: number;
+  marketCents: number;
   /** CHECK: >= 0 */
-  low_cents: number | null;
+  lowCents: number | null;
   /** CHECK: >= 0 */
-  mid_cents: number | null;
+  midCents: number | null;
   /** CHECK: >= 0 */
-  high_cents: number | null;
+  highCents: number | null;
   /** CHECK: >= 0 */
-  trend_cents: number | null;
+  trendCents: number | null;
   /** CHECK: >= 0 */
-  avg1_cents: number | null;
+  avg1Cents: number | null;
   /** CHECK: >= 0 */
-  avg7_cents: number | null;
+  avg7Cents: number | null;
   /** CHECK: >= 0 */
-  avg30_cents: number | null;
+  avg30Cents: number | null;
 }
 
 export interface MarketplaceStagingTable {
   id: Generated<string>;
   marketplace: string;
-  external_id: number;
-  group_id: number;
-  product_name: string;
+  externalId: number;
+  groupId: number;
+  productName: string;
   finish: string;
-  recorded_at: Date;
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-  trend_cents: number | null;
-  avg1_cents: number | null;
-  avg7_cents: number | null;
-  avg30_cents: number | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  recordedAt: Date;
+  marketCents: number;
+  lowCents: number | null;
+  midCents: number | null;
+  highCents: number | null;
+  trendCents: number | null;
+  avg1Cents: number | null;
+  avg7Cents: number | null;
+  avg30Cents: number | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface MarketplaceIgnoredProductsTable {
   marketplace: string;
-  external_id: number;
+  externalId: number;
   finish: string;
-  product_name: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  productName: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface MarketplaceStagingCardOverridesTable {
   marketplace: string;
-  external_id: number;
+  externalId: number;
   finish: string;
-  card_id: string;
-  created_at: CreatedAt;
+  cardId: string;
+  createdAt: CreatedAt;
 }
 
 // ─── Admin (migration 012) ────────────────────────────────────────────────
 
 export interface AdminsTable {
-  user_id: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  userId: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 // ─── Auth (migration 003) ─────────────────────────────────────────────────
@@ -217,46 +217,46 @@ export interface UsersTable {
   id: string;
   email: string;
   name: string | null;
-  email_verified: boolean;
+  emailVerified: boolean;
   image: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface SessionsTable {
   id: string;
-  user_id: string;
+  userId: string;
   token: string;
-  expires_at: Date;
-  ip_address: string | null;
-  user_agent: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  expiresAt: Date;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface AccountsTable {
   id: string;
-  user_id: string;
-  account_id: string;
-  provider_id: string;
-  access_token: string | null;
-  refresh_token: string | null;
-  access_token_expires_at: Date | null;
-  refresh_token_expires_at: Date | null;
+  userId: string;
+  accountId: string;
+  providerId: string;
+  accessToken: string | null;
+  refreshToken: string | null;
+  accessTokenExpiresAt: Date | null;
+  refreshTokenExpiresAt: Date | null;
   scope: string | null;
-  id_token: string | null;
+  idToken: string | null;
   password: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface VerificationsTable {
   id: string;
   identifier: string;
   value: string;
-  expires_at: Date;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  expiresAt: Date;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 // ─── Collection tracking (migration 009) ────────────────────────────────────
@@ -264,47 +264,47 @@ export interface VerificationsTable {
 /** @see collectionFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface CollectionsTable {
   id: Generated<string>;
-  user_id: string;
+  userId: string;
   /** CHECK: <> '' */
   name: string;
   description: string | null;
-  available_for_deckbuilding: boolean;
-  is_inbox: boolean;
-  sort_order: number;
-  share_token: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  availableForDeckbuilding: boolean;
+  isInbox: boolean;
+  sortOrder: number;
+  shareToken: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface SourcesTable {
   id: Generated<string>;
-  user_id: string;
+  userId: string;
   name: string;
   description: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface CopiesTable {
   id: Generated<string>;
-  user_id: string;
-  printing_id: string;
-  collection_id: string;
-  source_id: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  userId: string;
+  printingId: string;
+  collectionId: string;
+  sourceId: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface ActivitiesTable {
   id: Generated<string>;
-  user_id: string;
+  userId: string;
   type: ActivityType;
   name: string | null;
   date: Date;
   description: string | null;
-  is_auto: boolean;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  isAuto: boolean;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /**
@@ -315,40 +315,40 @@ export interface ActivitiesTable {
  */
 export interface ActivityItemsTable {
   id: Generated<string>;
-  activity_id: string;
-  user_id: string;
-  activity_type: ActivityType;
-  copy_id: string | null;
-  printing_id: string;
+  activityId: string;
+  userId: string;
+  activityType: ActivityType;
+  copyId: string | null;
+  printingId: string;
   action: ActivityAction;
-  from_collection_id: string | null;
-  from_collection_name: string | null;
-  to_collection_id: string | null;
-  to_collection_name: string | null;
-  metadata_snapshot: unknown;
-  created_at: CreatedAt;
+  fromCollectionId: string | null;
+  fromCollectionName: string | null;
+  toCollectionId: string | null;
+  toCollectionName: string | null;
+  metadataSnapshot: unknown;
+  createdAt: CreatedAt;
 }
 
 /** @see deckFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface DecksTable {
   id: Generated<string>;
-  user_id: string;
+  userId: string;
   /** CHECK: <> '' */
   name: string;
   description: string | null;
   format: DeckFormat;
-  is_wanted: boolean;
-  is_public: boolean;
-  share_token: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  isWanted: boolean;
+  isPublic: boolean;
+  shareToken: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /** @see deckCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface DeckCardsTable {
   id: Generated<string>;
-  deck_id: string;
-  card_id: string;
+  deckId: string;
+  cardId: string;
   zone: DeckZone;
   /** CHECK: > 0 */
   quantity: number;
@@ -356,12 +356,12 @@ export interface DeckCardsTable {
 
 export interface WishListsTable {
   id: Generated<string>;
-  user_id: string;
+  userId: string;
   name: string;
   rules: unknown;
-  share_token: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  shareToken: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /**
@@ -370,33 +370,33 @@ export interface WishListsTable {
  */
 export interface WishListItemsTable {
   id: Generated<string>;
-  wish_list_id: string;
-  user_id: string;
-  card_id: string | null;
-  printing_id: string | null;
+  wishListId: string;
+  userId: string;
+  cardId: string | null;
+  printingId: string | null;
   /** CHECK: > 0 */
-  quantity_desired: number;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  quantityDesired: number;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface TradeListsTable {
   id: Generated<string>;
-  user_id: string;
+  userId: string;
   name: string;
   rules: unknown;
-  share_token: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  shareToken: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface TradeListItemsTable {
   id: Generated<string>;
-  trade_list_id: string;
-  user_id: string;
-  copy_id: string;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  tradeListId: string;
+  userId: string;
+  copyId: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 // ─── Card sources (migration 018) ────────────────────────────────────────────
@@ -408,10 +408,10 @@ export interface CardSourcesTable {
   source: string;
   /** CHECK: <> '' */
   name: string;
-  norm_name: Generated<string>;
+  normName: Generated<string>;
   /** CHECK: <> '' */
   type: string | null;
-  super_types: string[];
+  superTypes: string[];
   domains: string[];
   /** CHECK: >= 0 */
   might: number | null;
@@ -420,63 +420,63 @@ export interface CardSourcesTable {
   /** CHECK: >= 0 */
   power: number | null;
   /** CHECK: >= 0 */
-  might_bonus: number | null;
+  mightBonus: number | null;
   /** CHECK: <> '' */
-  rules_text: string | null;
+  rulesText: string | null;
   /** CHECK: <> '' */
-  effect_text: string | null;
+  effectText: string | null;
   tags: string[];
   /** CHECK: <> '' */
-  source_id: string | null;
+  sourceId: string | null;
   /** CHECK: <> '' */
-  source_entity_id: string | null;
+  sourceEntityId: string | null;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
-  extra_data: unknown | null;
-  checked_at: Date | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  extraData: unknown | null;
+  checkedAt: Date | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /** @see printingSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface PrintingSourcesTable {
   id: Generated<string>;
-  card_source_id: string;
-  printing_id: string | null;
+  cardSourceId: string;
+  printingId: string | null;
   /** CHECK: <> '' */
-  source_id: string;
+  sourceId: string;
   /** CHECK: <> '' */
-  set_id: string | null;
+  setId: string | null;
   /** CHECK: <> '' */
-  set_name: string | null;
+  setName: string | null;
   /** CHECK: > 0 */
-  collector_number: number | null;
+  collectorNumber: number | null;
   /** CHECK: <> '' */
   rarity: string | null;
   /** CHECK: <> '' */
-  art_variant: string | null;
-  is_signed: boolean | null;
-  is_promo: boolean | null;
+  artVariant: string | null;
+  isSigned: boolean | null;
+  isPromo: boolean | null;
   /** CHECK: <> '' */
   finish: string | null;
   /** CHECK: <> '' */
   artist: string | null;
   /** CHECK: <> '' */
-  public_code: string | null;
+  publicCode: string | null;
   /** CHECK: <> '' */
-  printed_rules_text: string | null;
+  printedRulesText: string | null;
   /** CHECK: <> '' */
-  printed_effect_text: string | null;
+  printedEffectText: string | null;
   /** CHECK: <> '' */
-  image_url: string | null;
+  imageUrl: string | null;
   /** CHECK: <> '' */
-  flavor_text: string | null;
+  flavorText: string | null;
   /** CHECK: <> '' */
-  source_entity_id: string | null;
+  sourceEntityId: string | null;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
-  extra_data: unknown | null;
-  checked_at: Date | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  extraData: unknown | null;
+  checkedAt: Date | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /**
@@ -485,23 +485,23 @@ export interface PrintingSourcesTable {
  */
 export interface PrintingImagesTable {
   id: Generated<string>;
-  printing_id: string;
+  printingId: string;
   face: CardFace;
   /** CHECK: <> '' */
   source: string;
   /** CHECK: <> '' */
-  original_url: string | null;
+  originalUrl: string | null;
   /** CHECK: <> '' */
-  rehosted_url: string | null;
-  is_active: boolean;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  rehostedUrl: string | null;
+  isActive: boolean;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 export interface CardNameAliasesTable {
-  norm_name: string;
+  normName: string;
   /** FK: ON DELETE CASCADE */
-  card_id: string;
+  cardId: string;
 }
 
 // ─── Feature flags (migration 014) ───────────────────────────────────────────
@@ -510,8 +510,8 @@ export interface FeatureFlagsTable {
   key: string;
   enabled: boolean;
   description: string | null;
-  created_at: CreatedAt;
-  updated_at: UpdatedAt;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 // ─── Database ────────────────────────────────────────────────────────────────
@@ -523,12 +523,12 @@ export interface Database {
   printings: PrintingsTable;
 
   // Unified marketplace pricing (migration 022)
-  marketplace_groups: MarketplaceGroupsTable;
-  marketplace_sources: MarketplaceSourcesTable;
-  marketplace_snapshots: MarketplaceSnapshotsTable;
-  marketplace_staging: MarketplaceStagingTable;
-  marketplace_ignored_products: MarketplaceIgnoredProductsTable;
-  marketplace_staging_card_overrides: MarketplaceStagingCardOverridesTable;
+  marketplaceGroups: MarketplaceGroupsTable;
+  marketplaceSources: MarketplaceSourcesTable;
+  marketplaceSnapshots: MarketplaceSnapshotsTable;
+  marketplaceStaging: MarketplaceStagingTable;
+  marketplaceIgnoredProducts: MarketplaceIgnoredProductsTable;
+  marketplaceStagingCardOverrides: MarketplaceStagingCardOverridesTable;
 
   // Admin (migration 012)
   admins: AdminsTable;
@@ -544,22 +544,22 @@ export interface Database {
   sources: SourcesTable;
   copies: CopiesTable;
   activities: ActivitiesTable;
-  activity_items: ActivityItemsTable;
+  activityItems: ActivityItemsTable;
   decks: DecksTable;
-  deck_cards: DeckCardsTable;
-  wish_lists: WishListsTable;
-  wish_list_items: WishListItemsTable;
-  trade_lists: TradeListsTable;
-  trade_list_items: TradeListItemsTable;
+  deckCards: DeckCardsTable;
+  wishLists: WishListsTable;
+  wishListItems: WishListItemsTable;
+  tradeLists: TradeListsTable;
+  tradeListItems: TradeListItemsTable;
 
   // Card sources (migration 018)
-  card_sources: CardSourcesTable;
-  printing_sources: PrintingSourcesTable;
-  card_name_aliases: CardNameAliasesTable;
+  cardSources: CardSourcesTable;
+  printingSources: PrintingSourcesTable;
+  cardNameAliases: CardNameAliasesTable;
 
   // Image archive (migration 013)
-  printing_images: PrintingImagesTable;
+  printingImages: PrintingImagesTable;
 
   // Feature flags (migration 014)
-  feature_flags: FeatureFlagsTable;
+  featureFlags: FeatureFlagsTable;
 }

@@ -12,9 +12,9 @@ export function wishListsRepo(db: Kysely<Database>) {
     /** @returns All wish lists for a user, ordered by name. */
     listForUser(userId: string): Promise<Selectable<WishListsTable>[]> {
       return db
-        .selectFrom("wish_lists")
+        .selectFrom("wishLists")
         .selectAll()
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .orderBy("name")
         .execute();
     },
@@ -22,10 +22,10 @@ export function wishListsRepo(db: Kysely<Database>) {
     /** @returns A single wish list by ID scoped to a user, or `undefined`. */
     getByIdForUser(id: string, userId: string): Promise<Selectable<WishListsTable> | undefined> {
       return db
-        .selectFrom("wish_lists")
+        .selectFrom("wishLists")
         .selectAll()
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
@@ -35,20 +35,20 @@ export function wishListsRepo(db: Kysely<Database>) {
       userId: string,
     ): Promise<Pick<Selectable<WishListsTable>, "id"> | undefined> {
       return db
-        .selectFrom("wish_lists")
+        .selectFrom("wishLists")
         .select("id")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns The newly created wish list row. */
     create(values: {
-      user_id: string;
+      userId: string;
       name: string;
       rules: string | null;
     }): Promise<Selectable<WishListsTable>> {
-      return db.insertInto("wish_lists").values(values).returningAll().executeTakeFirstOrThrow();
+      return db.insertInto("wishLists").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     /** @returns The updated wish list row, or `undefined` if not found. */
@@ -58,10 +58,10 @@ export function wishListsRepo(db: Kysely<Database>) {
       updates: Record<string, unknown>,
     ): Promise<Selectable<WishListsTable> | undefined> {
       return db
-        .updateTable("wish_lists")
+        .updateTable("wishLists")
         .set(updates)
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
     },
@@ -69,34 +69,30 @@ export function wishListsRepo(db: Kysely<Database>) {
     /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
     deleteByIdForUser(id: string, userId: string): Promise<DeleteResult> {
       return db
-        .deleteFrom("wish_lists")
+        .deleteFrom("wishLists")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns All items for a wish list. */
     itemsForList(wishListId: string): Promise<Selectable<WishListItemsTable>[]> {
       return db
-        .selectFrom("wish_list_items")
+        .selectFrom("wishListItems")
         .selectAll()
-        .where("wish_list_id", "=", wishListId)
+        .where("wishListId", "=", wishListId)
         .execute();
     },
 
     /** @returns The newly created wish list item row. */
     createItem(values: {
-      wish_list_id: string;
-      user_id: string;
-      card_id: string | null;
-      printing_id: string | null;
-      quantity_desired: number;
+      wishListId: string;
+      userId: string;
+      cardId: string | null;
+      printingId: string | null;
+      quantityDesired: number;
     }): Promise<Selectable<WishListItemsTable>> {
-      return db
-        .insertInto("wish_list_items")
-        .values(values)
-        .returningAll()
-        .executeTakeFirstOrThrow();
+      return db.insertInto("wishListItems").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     /** @returns The updated wish list item row, or `undefined` if not found. */
@@ -107,11 +103,11 @@ export function wishListsRepo(db: Kysely<Database>) {
       updates: Record<string, unknown>,
     ): Promise<Selectable<WishListItemsTable> | undefined> {
       return db
-        .updateTable("wish_list_items")
+        .updateTable("wishListItems")
         .set(updates)
         .where("id", "=", itemId)
-        .where("wish_list_id", "=", wishListId)
-        .where("user_id", "=", userId)
+        .where("wishListId", "=", wishListId)
+        .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
     },
@@ -119,10 +115,10 @@ export function wishListsRepo(db: Kysely<Database>) {
     /** @returns Delete result — check `numDeletedRows` to verify the item existed. */
     deleteItem(itemId: string, wishListId: string, userId: string): Promise<DeleteResult> {
       return db
-        .deleteFrom("wish_list_items")
+        .deleteFrom("wishListItems")
         .where("id", "=", itemId)
-        .where("wish_list_id", "=", wishListId)
-        .where("user_id", "=", userId)
+        .where("wishListId", "=", wishListId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
   };

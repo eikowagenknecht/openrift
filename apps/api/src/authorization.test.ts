@@ -26,98 +26,98 @@ const now = new Date();
 const dbRows = {
   collection: {
     id: COL_ID,
-    user_id: USER_B_ID,
+    userId: USER_B_ID,
     name: "B's Collection",
     description: null,
-    is_inbox: false,
-    available_for_deckbuilding: true,
-    sort_order: 0,
-    created_at: now,
-    updated_at: now,
+    isInbox: false,
+    availableForDeckbuilding: true,
+    sortOrder: 0,
+    createdAt: now,
+    updatedAt: now,
   },
   copy: {
     id: COPY_ID,
-    user_id: USER_B_ID,
-    printing_id: "p-1",
-    collection_id: COL_ID,
-    source_id: null,
-    card_id: "card-1",
-    set_id: "set-1",
-    collector_number: 1,
+    userId: USER_B_ID,
+    printingId: "p-1",
+    collectionId: COL_ID,
+    sourceId: null,
+    cardId: "card-1",
+    setId: "set-1",
+    collectorNumber: 1,
     rarity: "Rare",
-    art_variant: "normal",
-    is_signed: false,
+    artVariant: "normal",
+    isSigned: false,
     finish: "normal",
-    image_url: null,
+    imageUrl: null,
     artist: null,
-    card_name: "Test Card",
-    card_type: "Unit",
-    created_at: now,
-    updated_at: now,
+    cardName: "Test Card",
+    cardType: "Unit",
+    createdAt: now,
+    updatedAt: now,
   },
   deck: {
     id: DECK_ID,
-    user_id: USER_B_ID,
+    userId: USER_B_ID,
     name: "B's Deck",
     description: null,
     format: "standard",
-    is_wanted: false,
-    is_public: false,
-    created_at: now,
-    updated_at: now,
+    isWanted: false,
+    isPublic: false,
+    createdAt: now,
+    updatedAt: now,
   },
   source: {
     id: SRC_ID,
-    user_id: USER_B_ID,
+    userId: USER_B_ID,
     name: "B's Source",
     description: null,
-    created_at: now,
-    updated_at: now,
+    createdAt: now,
+    updatedAt: now,
   },
   activity: {
     id: ACT_ID,
-    user_id: USER_B_ID,
+    userId: USER_B_ID,
     type: "acquisition",
     name: "B's Activity",
     date: now,
     description: null,
-    is_auto: false,
-    created_at: now,
-    updated_at: now,
+    isAuto: false,
+    createdAt: now,
+    updatedAt: now,
   },
   wishList: {
     id: WL_ID,
-    user_id: USER_B_ID,
+    userId: USER_B_ID,
     name: "B's Wish List",
     rules: null,
-    created_at: now,
-    updated_at: now,
+    createdAt: now,
+    updatedAt: now,
   },
   wishListItem: {
     id: WLI_ID,
-    wish_list_id: WL_ID,
-    user_id: USER_B_ID,
-    card_id: "card-1",
-    printing_id: null,
-    quantity_desired: 2,
-    created_at: now,
-    updated_at: now,
+    wishListId: WL_ID,
+    userId: USER_B_ID,
+    cardId: "card-1",
+    printingId: null,
+    quantityDesired: 2,
+    createdAt: now,
+    updatedAt: now,
   },
   tradeList: {
     id: TL_ID,
-    user_id: USER_B_ID,
+    userId: USER_B_ID,
     name: "B's Trade List",
     rules: null,
-    created_at: now,
-    updated_at: now,
+    createdAt: now,
+    updatedAt: now,
   },
   tradeListItem: {
     id: TLI_ID,
-    trade_list_id: TL_ID,
-    user_id: USER_B_ID,
-    copy_id: COPY_ID,
-    created_at: now,
-    updated_at: now,
+    tradeListId: TL_ID,
+    userId: USER_B_ID,
+    copyId: COPY_ID,
+    createdAt: now,
+    updatedAt: now,
   },
 };
 
@@ -386,43 +386,43 @@ describe("Authorization: user isolation", () => {
     });
   });
 
-  describe("user_id is in WHERE clause (custom handlers)", () => {
-    it("GET /copies/:id filters by user_id", async () => {
+  describe("userId is in WHERE clause (custom handlers)", () => {
+    it("GET /copies/:id filters by userId", async () => {
       mockState.whereCalls = [];
       await app.fetch(req("GET", `/copies/${COPY_ID}`));
       const f = mockState.whereCalls.filter(
-        (w) => w.field.endsWith("user_id") && w.value === USER_A_ID,
+        (w) => w.field.endsWith("userId") && w.value === USER_A_ID,
       );
       expect(f.length).toBeGreaterThanOrEqual(1);
     });
-    it("GET /activities/:id filters by user_id", async () => {
+    it("GET /activities/:id filters by userId", async () => {
       mockState.whereCalls = [];
       await app.fetch(req("GET", `/activities/${ACT_ID}`));
-      const f = mockState.whereCalls.filter((w) => w.field === "user_id" && w.value === USER_A_ID);
+      const f = mockState.whereCalls.filter((w) => w.field === "userId" && w.value === USER_A_ID);
       expect(f.length).toBeGreaterThanOrEqual(1);
     });
-    it("DELETE /wish-lists/:id/items/:itemId filters by user_id", async () => {
+    it("DELETE /wish-lists/:id/items/:itemId filters by userId", async () => {
       mockState.whereCalls = [];
       await app.fetch(req("DELETE", `/wish-lists/${WL_ID}/items/${WLI_ID}`));
-      const f = mockState.whereCalls.filter((w) => w.field === "user_id" && w.value === USER_A_ID);
+      const f = mockState.whereCalls.filter((w) => w.field === "userId" && w.value === USER_A_ID);
       expect(f.length).toBeGreaterThanOrEqual(1);
     });
-    it("DELETE /trade-lists/:id/items/:itemId filters by user_id", async () => {
+    it("DELETE /trade-lists/:id/items/:itemId filters by userId", async () => {
       mockState.whereCalls = [];
       await app.fetch(req("DELETE", `/trade-lists/${TL_ID}/items/${TLI_ID}`));
-      const f = mockState.whereCalls.filter((w) => w.field === "user_id" && w.value === USER_A_ID);
+      const f = mockState.whereCalls.filter((w) => w.field === "userId" && w.value === USER_A_ID);
       expect(f.length).toBeGreaterThanOrEqual(1);
     });
-    it("GET /collections/:id/copies filters by user_id", async () => {
+    it("GET /collections/:id/copies filters by userId", async () => {
       mockState.whereCalls = [];
       await app.fetch(req("GET", `/collections/${COL_ID}/copies`));
-      const f = mockState.whereCalls.filter((w) => w.field === "user_id" && w.value === USER_A_ID);
+      const f = mockState.whereCalls.filter((w) => w.field === "userId" && w.value === USER_A_ID);
       expect(f.length).toBeGreaterThanOrEqual(1);
     });
-    it("GET /decks/:id filters by user_id", async () => {
+    it("GET /decks/:id filters by userId", async () => {
       mockState.whereCalls = [];
       await app.fetch(req("GET", `/decks/${DECK_ID}`));
-      const f = mockState.whereCalls.filter((w) => w.field === "user_id" && w.value === USER_A_ID);
+      const f = mockState.whereCalls.filter((w) => w.field === "userId" && w.value === USER_A_ID);
       expect(f.length).toBeGreaterThanOrEqual(1);
     });
   });

@@ -1,4 +1,4 @@
-import { Kysely } from "kysely";
+import { CamelCasePlugin, Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 
@@ -14,5 +14,5 @@ export function createDb(connectionString: string) {
     postgres: postgres(connectionString),
   });
 
-  return { db: new Kysely<Database>({ dialect }), dialect };
+  return { db: new Kysely<Database>({ dialect, plugins: [new CamelCasePlugin()] }), dialect };
 }

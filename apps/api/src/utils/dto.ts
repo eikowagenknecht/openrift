@@ -9,34 +9,42 @@ import type {
   WishListItem,
 } from "@openrift/shared";
 
-function snakeToCamel(s: string): string {
-  return s.replaceAll(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
-const TIMESTAMPS = ["created_at", "updated_at"];
-
-function rowToDto<T>(row: object, dateFields: string[] = []): T {
-  const dateSet = new Set(dateFields);
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    const camelKey = snakeToCamel(key);
-    result[camelKey] = dateSet.has(key) ? (value as Date).toISOString() : value;
+/**
+ * Serialize Date fields to ISO strings. Keys are already camelCase (CamelCasePlugin).
+ * @returns The row with Date fields converted to ISO strings.
+ */
+function serializeDates<T>(row: Record<string, unknown>, dateFields: string[]): T {
+  const result = { ...row };
+  for (const key of dateFields) {
+    if (result[key] instanceof Date) {
+      result[key] = (result[key] as Date).toISOString();
+    }
   }
   return result as T;
 }
 
-export const toCollection = (row: object): Collection => rowToDto<Collection>(row, TIMESTAMPS);
+const TIMESTAMPS = ["createdAt", "updatedAt"];
 
-export const toDeck = (row: object): Deck => rowToDto<Deck>(row, TIMESTAMPS);
+export const toCollection = (row: object): Collection =>
+  serializeDates<Collection>(row as Record<string, unknown>, TIMESTAMPS);
 
-export const toSource = (row: object): Source => rowToDto<Source>(row, TIMESTAMPS);
+export const toDeck = (row: object): Deck =>
+  serializeDates<Deck>(row as Record<string, unknown>, TIMESTAMPS);
 
-export const toTradeList = (row: object): TradeList => rowToDto<TradeList>(row, TIMESTAMPS);
+export const toSource = (row: object): Source =>
+  serializeDates<Source>(row as Record<string, unknown>, TIMESTAMPS);
 
-export const toTradeListItem = (row: object): TradeListItem => rowToDto<TradeListItem>(row);
+export const toTradeList = (row: object): TradeList =>
+  serializeDates<TradeList>(row as Record<string, unknown>, TIMESTAMPS);
 
-export const toWishList = (row: object): WishList => rowToDto<WishList>(row, TIMESTAMPS);
+export const toTradeListItem = (row: object): TradeListItem =>
+  serializeDates<TradeListItem>(row as Record<string, unknown>, TIMESTAMPS);
 
-export const toWishListItem = (row: object): WishListItem => rowToDto<WishListItem>(row);
+export const toWishList = (row: object): WishList =>
+  serializeDates<WishList>(row as Record<string, unknown>, TIMESTAMPS);
 
-export const toCopy = (row: object): CopyRow => rowToDto<CopyRow>(row, TIMESTAMPS);
+export const toWishListItem = (row: object): WishListItem =>
+  serializeDates<WishListItem>(row as Record<string, unknown>, TIMESTAMPS);
+
+export const toCopy = (row: object): CopyRow =>
+  serializeDates<CopyRow>(row as Record<string, unknown>, TIMESTAMPS);

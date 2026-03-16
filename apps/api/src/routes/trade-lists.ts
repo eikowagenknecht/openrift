@@ -39,7 +39,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await tradeLists.create({
-      user_id: userId,
+      userId: userId,
       name: body.name,
       rules: body.rules ? JSON.stringify(body.rules) : null,
     });
@@ -63,15 +63,15 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
       tradeList: toTradeList(tradeList),
       items: itemRows.map((row) => ({
         ...toTradeListItem(row),
-        printingId: row.printing_id,
-        collectionId: row.collection_id,
-        imageUrl: row.image_url,
-        setId: row.set_id,
-        collectorNumber: row.collector_number,
+        printingId: row.printingId,
+        collectionId: row.collectionId,
+        imageUrl: row.imageUrl,
+        setId: row.setId,
+        collectorNumber: row.collectorNumber,
         rarity: row.rarity,
         finish: row.finish,
-        cardName: row.card_name,
-        cardType: row.card_type,
+        cardName: row.cardName,
+        cardType: row.cardType,
       })),
     });
   })
@@ -130,9 +130,9 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
       }
 
       const row = await tradeLists.createItem({
-        trade_list_id: tradeListId,
-        user_id: userId,
-        copy_id: body.copyId,
+        tradeListId: tradeListId,
+        userId: userId,
+        copyId: body.copyId,
       });
 
       return c.json(toTradeListItem(row), 201);

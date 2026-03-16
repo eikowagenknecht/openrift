@@ -7,42 +7,42 @@ import type { CopiesTable, Database, PrintingsTable } from "../db/index.js";
 /** Denormalized copy row with printing, card, and image details. */
 type CopyRow = Pick<
   Selectable<CopiesTable>,
-  "id" | "printing_id" | "collection_id" | "source_id" | "created_at" | "updated_at"
+  "id" | "printingId" | "collectionId" | "sourceId" | "createdAt" | "updatedAt"
 > &
   Pick<
     Selectable<PrintingsTable>,
-    | "card_id"
-    | "set_id"
-    | "collector_number"
+    | "cardId"
+    | "setId"
+    | "collectorNumber"
     | "rarity"
-    | "art_variant"
-    | "is_signed"
+    | "artVariant"
+    | "isSigned"
     | "finish"
     | "artist"
   > & {
-    image_url: string | null;
-    card_name: string;
-    card_type: CardType;
+    imageUrl: string | null;
+    cardName: string;
+    cardType: CardType;
   };
 
 const COPY_SELECT = [
   "cp.id",
-  "cp.printing_id",
-  "cp.collection_id",
-  "cp.source_id",
-  "cp.created_at",
-  "cp.updated_at",
-  "p.card_id",
-  "p.set_id",
-  "p.collector_number",
+  "cp.printingId",
+  "cp.collectionId",
+  "cp.sourceId",
+  "cp.createdAt",
+  "cp.updatedAt",
+  "p.cardId",
+  "p.setId",
+  "p.collectorNumber",
   "p.rarity",
-  "p.art_variant",
-  "p.is_signed",
+  "p.artVariant",
+  "p.isSigned",
   "p.finish",
-  imageUrl("pi").as("image_url"),
+  imageUrl("pi").as("imageUrl"),
   "p.artist",
-  "c.name as card_name",
-  "c.type as card_type",
+  "c.name as cardName",
+  "c.type as cardType",
 ] as const;
 
 /**
@@ -56,9 +56,9 @@ export function copiesRepo(db: Kysely<Database>) {
     listForUser(userId: string): Promise<CopyRow[]> {
       return selectCopyWithCard(db)
         .select([...COPY_SELECT])
-        .where("cp.user_id", "=", userId)
+        .where("cp.userId", "=", userId)
         .orderBy("c.name")
-        .orderBy("p.collector_number")
+        .orderBy("p.collectorNumber")
         .execute();
     },
 
@@ -67,17 +67,17 @@ export function copiesRepo(db: Kysely<Database>) {
       return selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.id", "=", id)
-        .where("cp.user_id", "=", userId)
+        .where("cp.userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns Owned count per printing for a user. */
-    countByPrintingForUser(userId: string): Promise<{ printing_id: string; count: number }[]> {
+    countByPrintingForUser(userId: string): Promise<{ printingId: string; count: number }[]> {
       return db
         .selectFrom("copies")
-        .select(["printing_id", db.fn.count<number>("id").as("count")])
-        .where("user_id", "=", userId)
-        .groupBy("printing_id")
+        .select(["printingId", db.fn.count<number>("id").as("count")])
+        .where("userId", "=", userId)
+        .groupBy("printingId")
         .execute();
     },
 
@@ -85,9 +85,9 @@ export function copiesRepo(db: Kysely<Database>) {
     listForCollection(collectionId: string): Promise<CopyRow[]> {
       return selectCopyWithCard(db)
         .select([...COPY_SELECT])
-        .where("cp.collection_id", "=", collectionId)
+        .where("cp.collectionId", "=", collectionId)
         .orderBy("c.name")
-        .orderBy("p.collector_number")
+        .orderBy("p.collectorNumber")
         .execute();
     },
   };

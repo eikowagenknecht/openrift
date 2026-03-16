@@ -30,7 +30,7 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await sources.create({
-      user_id: userId,
+      userId: userId,
       name: body.name,
       description: body.description ?? null,
     });

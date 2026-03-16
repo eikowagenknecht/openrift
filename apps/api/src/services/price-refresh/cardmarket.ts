@@ -113,37 +113,37 @@ function buildCardmarketStaging(
     const normalMarket = toCents(pg.avg);
     if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal`)) {
       allStaging.push({
-        external_id: product.idProduct,
-        group_id: product.idExpansion,
-        product_name: product.name,
+        externalId: product.idProduct,
+        groupId: product.idExpansion,
+        productName: product.name,
         finish: "normal",
-        recorded_at: recordedAt,
-        market_cents: normalMarket,
-        low_cents: toCents(pg.low),
-        mid_cents: null,
-        high_cents: null,
-        trend_cents: toCents(pg.trend),
-        avg1_cents: toCents(pg.avg1),
-        avg7_cents: toCents(pg.avg7),
-        avg30_cents: toCents(pg.avg30),
+        recordedAt: recordedAt,
+        marketCents: normalMarket,
+        lowCents: toCents(pg.low),
+        midCents: null,
+        highCents: null,
+        trendCents: toCents(pg.trend),
+        avg1Cents: toCents(pg.avg1),
+        avg7Cents: toCents(pg.avg7),
+        avg30Cents: toCents(pg.avg30),
       });
     }
     const foilMarket = toCents(pg["avg-foil"]);
     if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil`)) {
       allStaging.push({
-        external_id: product.idProduct,
-        group_id: product.idExpansion,
-        product_name: product.name,
+        externalId: product.idProduct,
+        groupId: product.idExpansion,
+        productName: product.name,
         finish: "foil",
-        recorded_at: recordedAt,
-        market_cents: foilMarket,
-        low_cents: toCents(pg["low-foil"]),
-        mid_cents: null,
-        high_cents: null,
-        trend_cents: toCents(pg["trend-foil"]),
-        avg1_cents: toCents(pg["avg1-foil"]),
-        avg7_cents: toCents(pg["avg7-foil"]),
-        avg30_cents: toCents(pg["avg30-foil"]),
+        recordedAt: recordedAt,
+        marketCents: foilMarket,
+        lowCents: toCents(pg["low-foil"]),
+        midCents: null,
+        highCents: null,
+        trendCents: toCents(pg["trend-foil"]),
+        avg1Cents: toCents(pg["avg1-foil"]),
+        avg7Cents: toCents(pg["avg7-foil"]),
+        avg30Cents: toCents(pg["avg30-foil"]),
       });
     }
   }
@@ -153,7 +153,7 @@ function buildCardmarketStaging(
 
 function buildCardmarketGroups(singles: CmProduct[]): GroupRow[] {
   return [...new Set(singles.map((p) => p.idExpansion))].map((id) => ({
-    group_id: id,
+    groupId: id,
   }));
 }
 

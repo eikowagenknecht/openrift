@@ -10,7 +10,7 @@ import type { Database } from "./db/index.js";
 export function imageUrl(alias: string): RawBuilder<string | null> {
   return sql<
     string | null
-  >`COALESCE(${sql.ref(`${alias}.rehosted_url`)}, ${sql.ref(`${alias}.original_url`)})`;
+  >`COALESCE(${sql.ref(`${alias}.rehostedUrl`)}, ${sql.ref(`${alias}.originalUrl`)})`;
 }
 
 /**
@@ -20,12 +20,12 @@ export function imageUrl(alias: string): RawBuilder<string | null> {
 export function selectCopyWithCard(db: Kysely<Database>) {
   return db
     .selectFrom("copies as cp")
-    .innerJoin("printings as p", "p.id", "cp.printing_id")
-    .innerJoin("cards as c", "c.id", "p.card_id")
-    .leftJoin("printing_images as pi", (join) =>
+    .innerJoin("printings as p", "p.id", "cp.printingId")
+    .innerJoin("cards as c", "c.id", "p.cardId")
+    .leftJoin("printingImages as pi", (join) =>
       join
-        .onRef("pi.printing_id", "=", "p.id")
+        .onRef("pi.printingId", "=", "p.id")
         .on("pi.face", "=", "front")
-        .on("pi.is_active", "=", true),
+        .on("pi.isActive", "=", true),
     );
 }

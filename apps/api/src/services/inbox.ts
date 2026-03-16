@@ -10,8 +10,8 @@ export async function ensureInbox(db: Kysely<Database>, userId: string): Promise
   const existing = await db
     .selectFrom("collections")
     .select("id")
-    .where("user_id", "=", userId)
-    .where("is_inbox", "=", true)
+    .where("userId", "=", userId)
+    .where("isInbox", "=", true)
     .executeTakeFirst();
 
   if (existing) {
@@ -21,11 +21,11 @@ export async function ensureInbox(db: Kysely<Database>, userId: string): Promise
   await db
     .insertInto("collections")
     .values({
-      user_id: userId,
+      userId: userId,
       name: "Inbox",
-      is_inbox: true,
-      available_for_deckbuilding: true,
-      sort_order: 0,
+      isInbox: true,
+      availableForDeckbuilding: true,
+      sortOrder: 0,
     })
     .onConflict((oc) => oc.doNothing())
     .execute();
@@ -34,8 +34,8 @@ export async function ensureInbox(db: Kysely<Database>, userId: string): Promise
   const row = await db
     .selectFrom("collections")
     .select("id")
-    .where("user_id", "=", userId)
-    .where("is_inbox", "=", true)
+    .where("userId", "=", userId)
+    .where("isInbox", "=", true)
     .executeTakeFirst();
 
   if (!row) {

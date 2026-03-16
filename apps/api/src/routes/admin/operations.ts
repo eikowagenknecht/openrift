@@ -35,21 +35,21 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
     try {
       // Delete snapshots for this marketplace (via source_id join)
       const snapshots = await db
-        .deleteFrom("marketplace_snapshots")
+        .deleteFrom("marketplaceSnapshots")
         .where(
-          "source_id",
+          "sourceId",
           "in",
-          db.selectFrom("marketplace_sources").select("id").where("marketplace", "=", source),
+          db.selectFrom("marketplaceSources").select("id").where("marketplace", "=", source),
         )
         .execute();
 
       const sources = await db
-        .deleteFrom("marketplace_sources")
+        .deleteFrom("marketplaceSources")
         .where("marketplace", "=", source)
         .execute();
 
       const staging = await db
-        .deleteFrom("marketplace_staging")
+        .deleteFrom("marketplaceStaging")
         .where("marketplace", "=", source)
         .execute();
 

@@ -21,8 +21,8 @@ import { toCollection, toCopy } from "../utils/dto.js";
 const patchFields: FieldMapping = {
   name: "name",
   description: "description",
-  availableForDeckbuilding: "available_for_deckbuilding",
-  sortOrder: "sort_order",
+  availableForDeckbuilding: "availableForDeckbuilding",
+  sortOrder: "sortOrder",
 };
 
 export const collectionsRoute = new Hono<{ Variables: Variables }>()
@@ -44,12 +44,12 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await collections.create({
-      user_id: userId,
+      userId,
       name: body.name,
       description: body.description ?? null,
-      available_for_deckbuilding: body.availableForDeckbuilding ?? true,
-      is_inbox: false,
-      sort_order: 0,
+      availableForDeckbuilding: body.availableForDeckbuilding ?? true,
+      isInbox: false,
+      sortOrder: 0,
     });
     return c.json(toCollection(row), 201);
   })
@@ -99,7 +99,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    if (collection.is_inbox) {
+    if (collection.isInbox) {
       throw new AppError(400, "BAD_REQUEST", "Cannot delete inbox collection");
     }
 
@@ -122,16 +122,16 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       // Get copies to move
       const copies = await trx
         .selectFrom("copies")
-        .select(["id", "printing_id"])
-        .where("collection_id", "=", id)
+        .select(["id", "printingId"])
+        .where("collectionId", "=", id)
         .execute();
 
       if (copies.length > 0) {
         // Move all copies to target
         await trx
           .updateTable("copies")
-          .set({ collection_id: moveCopiesTo, updated_at: new Date() })
-          .where("collection_id", "=", id)
+          .set({ collectionId: moveCopiesTo, updatedAt: new Date() })
+          .where("collectionId", "=", id)
           .execute();
 
         // Log reorganization activity
@@ -142,7 +142,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
           isAuto: true,
           items: copies.map((copy) => ({
             copyId: copy.id,
-            printingId: copy.printing_id,
+            printingId: copy.printingId,
             action: "moved" as const,
             fromCollectionId: id,
             fromCollectionName: collection.name,
@@ -156,7 +156,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       await trx
         .deleteFrom("collections")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .execute();
     });
 

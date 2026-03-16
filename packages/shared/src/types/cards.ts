@@ -6,16 +6,16 @@ export interface Card {
   slug: CardsTable["slug"];
   name: CardsTable["name"];
   type: CardsTable["type"];
-  superTypes: CardsTable["super_types"];
+  superTypes: CardsTable["superTypes"];
   domains: CardsTable["domains"];
   might: CardsTable["might"];
   energy: CardsTable["energy"];
   power: CardsTable["power"];
   keywords: CardsTable["keywords"];
   tags: CardsTable["tags"];
-  mightBonus: CardsTable["might_bonus"];
-  rulesText: CardsTable["rules_text"];
-  effectText: CardsTable["effect_text"];
+  mightBonus: CardsTable["mightBonus"];
+  rulesText: CardsTable["rulesText"];
+  effectText: CardsTable["effectText"];
 }
 
 export interface PrintingImage {
@@ -37,10 +37,9 @@ export interface Printing {
   images: PrintingImage[];
   artist: string;
   publicCode: string;
-  printedDescription?: string;
-  printedEffect?: string;
-  flavorText?: string;
-  comment?: string;
+  printedRulesText: string | null;
+  printedEffectText: string | null;
+  flavorText: string | null;
   marketPrice?: number;
   card: Card;
 }
@@ -54,7 +53,7 @@ export interface CatalogPrinting {
   id: string;
   slug: string;
   sourceId: string;
-  set: string;
+  setId: string;
   collectorNumber: number;
   rarity: Rarity;
   artVariant: ArtVariant;
@@ -64,16 +63,15 @@ export interface CatalogPrinting {
   images: PrintingImage[];
   artist: string;
   publicCode: string;
-  printedDescription?: string;
-  printedEffect?: string;
-  flavorText?: string;
-  comment?: string;
+  printedRulesText: string | null;
+  printedEffectText: string | null;
+  flavorText: string | null;
   marketPrice?: number;
   cardId: string;
 }
 
 export interface RiftboundCatalog {
-  sets: { slug: string; name: string }[];
+  sets: { id: string; slug: string; name: string }[];
   cards: Record<string, Card>;
   printings: CatalogPrinting[];
 }

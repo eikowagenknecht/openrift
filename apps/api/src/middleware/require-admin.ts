@@ -16,8 +16,8 @@ export async function isAdmin(db: Kysely<Database>, userId: string): Promise<boo
 
   const row = await db
     .selectFrom("admins")
-    .select("user_id")
-    .where("user_id", "=", userId)
+    .select("userId")
+    .where("userId", "=", userId)
     .executeTakeFirst();
 
   if (row) {

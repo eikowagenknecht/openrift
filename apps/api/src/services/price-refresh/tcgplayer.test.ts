@@ -147,7 +147,7 @@ function makeChain(value: unknown): any {
 }
 
 interface MockDbConfig {
-  ignoredProducts?: { external_id: number; finish: string }[];
+  ignoredProducts?: { externalId: number; finish: string }[];
 }
 
 function createMockDb(config: MockDbConfig = {}) {
@@ -155,7 +155,7 @@ function createMockDb(config: MockDbConfig = {}) {
 
   const db = {
     selectFrom(table: string) {
-      if (table === "marketplace_ignored_products") {
+      if (table === "marketplaceIgnoredProducts") {
         return makeChain(config.ignoredProducts ?? []);
       }
       return makeChain([]);
@@ -315,14 +315,14 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(db, log);
 
       const staging = upsertStaging(upsertSpy);
-      const normal = staging.find((r) => r.external_id === 5001 && r.finish === "normal");
+      const normal = staging.find((r) => r.externalId === 5001 && r.finish === "normal");
       expect(normal).toBeDefined();
-      expect(normal?.market_cents).toBe(75);
-      expect(normal?.low_cents).toBe(50);
-      expect(normal?.mid_cents).toBe(100);
-      expect(normal?.high_cents).toBe(200);
-      expect(normal?.product_name).toBe("Flame Striker");
-      expect(normal?.group_id).toBe(101);
+      expect(normal?.marketCents).toBe(75);
+      expect(normal?.lowCents).toBe(50);
+      expect(normal?.midCents).toBe(100);
+      expect(normal?.highCents).toBe(200);
+      expect(normal?.productName).toBe("Flame Striker");
+      expect(normal?.groupId).toBe(101);
     });
 
     it("creates foil staging row when subTypeName is Foil", async () => {
@@ -338,12 +338,12 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(db, log);
 
       const staging = upsertStaging(upsertSpy);
-      const foil = staging.find((r) => r.external_id === 5001 && r.finish === "foil");
+      const foil = staging.find((r) => r.externalId === 5001 && r.finish === "foil");
       expect(foil).toBeDefined();
-      expect(foil?.market_cents).toBe(150);
-      expect(foil?.low_cents).toBe(100);
-      expect(foil?.mid_cents).toBe(200);
-      expect(foil?.high_cents).toBe(400);
+      expect(foil?.marketCents).toBe(150);
+      expect(foil?.lowCents).toBe(100);
+      expect(foil?.midCents).toBe(200);
+      expect(foil?.highCents).toBe(400);
     });
 
     it("creates both normal and foil staging rows for same product", async () => {
@@ -410,7 +410,7 @@ describe("refreshTcgplayerPrices", () => {
 
     it("skips ignored normal products but keeps foil", async () => {
       const { db } = createMockDb({
-        ignoredProducts: [{ external_id: 5001, finish: "normal" }],
+        ignoredProducts: [{ externalId: 5001, finish: "normal" }],
       });
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
@@ -422,13 +422,13 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(db, log);
 
       const staging = upsertStaging(upsertSpy);
-      expect(staging.find((r) => r.external_id === 5001 && r.finish === "normal")).toBeUndefined();
-      expect(staging.find((r) => r.external_id === 5001 && r.finish === "foil")).toBeDefined();
+      expect(staging.find((r) => r.externalId === 5001 && r.finish === "normal")).toBeUndefined();
+      expect(staging.find((r) => r.externalId === 5001 && r.finish === "foil")).toBeDefined();
     });
 
     it("skips ignored foil products but keeps normal", async () => {
       const { db } = createMockDb({
-        ignoredProducts: [{ external_id: 5001, finish: "foil" }],
+        ignoredProducts: [{ externalId: 5001, finish: "foil" }],
       });
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
@@ -440,8 +440,8 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(db, log);
 
       const staging = upsertStaging(upsertSpy);
-      expect(staging.find((r) => r.external_id === 5001 && r.finish === "foil")).toBeUndefined();
-      expect(staging.find((r) => r.external_id === 5001 && r.finish === "normal")).toBeDefined();
+      expect(staging.find((r) => r.externalId === 5001 && r.finish === "foil")).toBeUndefined();
+      expect(staging.find((r) => r.externalId === 5001 && r.finish === "normal")).toBeDefined();
     });
 
     it("stages products across multiple groups", async () => {
@@ -463,8 +463,8 @@ describe("refreshTcgplayerPrices", () => {
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(2);
-      expect(staging.find((r) => r.group_id === 101)).toBeDefined();
-      expect(staging.find((r) => r.group_id === 102)).toBeDefined();
+      expect(staging.find((r) => r.groupId === 101)).toBeDefined();
+      expect(staging.find((r) => r.groupId === 102)).toBeDefined();
     });
 
     it("handles group with products but no prices data", async () => {
@@ -513,9 +513,9 @@ describe("refreshTcgplayerPrices", () => {
     });
   });
 
-  // ── recorded_at ───────────────────────────────────────────────────────
+  // ── recordedAt ────────────────────────────────────────────────────────
 
-  describe("recorded_at", () => {
+  describe("recordedAt", () => {
     it("uses Last-Modified header from prices response", async () => {
       const { db } = createMockDb();
       const { log } = makeMockLogger();
@@ -529,7 +529,7 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(db, log);
 
       const staging = upsertStaging(upsertSpy);
-      expect(staging[0].recorded_at).toEqual(LAST_MODIFIED);
+      expect(staging[0].recordedAt).toEqual(LAST_MODIFIED);
     });
 
     it("uses per-group Last-Modified timestamps", async () => {
@@ -556,10 +556,10 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(db, log);
 
       const staging = upsertStaging(upsertSpy);
-      const flameRow = staging.find((r) => r.external_id === 5001);
-      const boltRow = staging.find((r) => r.external_id === 5003);
-      expect(flameRow?.recorded_at).toEqual(groupATime);
-      expect(boltRow?.recorded_at).toEqual(groupBTime);
+      const flameRow = staging.find((r) => r.externalId === 5001);
+      const boltRow = staging.find((r) => r.externalId === 5003);
+      expect(flameRow?.recordedAt).toEqual(groupATime);
+      expect(boltRow?.recordedAt).toEqual(groupBTime);
     });
 
     it("falls back to current time when no Last-Modified header", async () => {
@@ -576,7 +576,7 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(db, log);
 
       const staging = upsertStaging(upsertSpy);
-      const ts = staging[0].recorded_at.getTime();
+      const ts = staging[0].recordedAt.getTime();
       expect(ts).toBeGreaterThanOrEqual(before);
       expect(ts).toBeLessThanOrEqual(Date.now());
     });
@@ -668,8 +668,8 @@ describe("refreshTcgplayerPrices", () => {
     it("includes ignored count in summary when products are ignored", async () => {
       const { db } = createMockDb({
         ignoredProducts: [
-          { external_id: 5001, finish: "normal" },
-          { external_id: 5001, finish: "foil" },
+          { externalId: 5001, finish: "normal" },
+          { externalId: 5001, finish: "foil" },
         ],
       });
       const { log, messages } = makeMockLogger();

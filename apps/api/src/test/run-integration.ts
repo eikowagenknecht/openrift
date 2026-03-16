@@ -135,12 +135,12 @@ try {
         id: user.id,
         email: user.email,
         name: "Test User",
-        email_verified: true,
+        emailVerified: true,
         image: null,
       })
       .execute();
     if (user.isAdmin) {
-      await db.insertInto("admins").values({ user_id: user.id }).execute();
+      await db.insertInto("admins").values({ userId: user.id }).execute();
     }
   }
 

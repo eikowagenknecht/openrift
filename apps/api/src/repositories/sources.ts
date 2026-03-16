@@ -14,7 +14,7 @@ export function sourcesRepo(db: Kysely<Database>) {
       return db
         .selectFrom("sources")
         .selectAll()
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .orderBy("name")
         .execute();
     },
@@ -25,13 +25,13 @@ export function sourcesRepo(db: Kysely<Database>) {
         .selectFrom("sources")
         .selectAll()
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns The newly created source row. */
     create(values: {
-      user_id: string;
+      userId: string;
       name: string;
       description: string | null;
     }): Promise<Selectable<SourcesTable>> {
@@ -48,7 +48,7 @@ export function sourcesRepo(db: Kysely<Database>) {
         .updateTable("sources")
         .set(updates)
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
     },
@@ -58,7 +58,7 @@ export function sourcesRepo(db: Kysely<Database>) {
       return db
         .deleteFrom("sources")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
   };

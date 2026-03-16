@@ -35,12 +35,12 @@ export async function createActivity(
   const activity = await trx
     .insertInto("activities")
     .values({
-      user_id: input.userId,
+      userId: input.userId,
       type: input.type,
       name: input.name ?? null,
       date: input.date ? new Date(input.date) : new Date(),
       description: input.description ?? null,
-      is_auto: input.isAuto ?? false,
+      isAuto: input.isAuto ?? false,
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -49,20 +49,20 @@ export async function createActivity(
 
   if (input.items.length > 0) {
     await trx
-      .insertInto("activity_items")
+      .insertInto("activityItems")
       .values(
         input.items.map((item) => ({
-          activity_id: activityId,
-          user_id: input.userId,
-          activity_type: input.type,
-          copy_id: item.copyId ?? null,
-          printing_id: item.printingId,
+          activityId: activityId,
+          userId: input.userId,
+          activityType: input.type,
+          copyId: item.copyId ?? null,
+          printingId: item.printingId,
           action: item.action,
-          from_collection_id: item.fromCollectionId ?? null,
-          from_collection_name: item.fromCollectionName ?? null,
-          to_collection_id: item.toCollectionId ?? null,
-          to_collection_name: item.toCollectionName ?? null,
-          metadata_snapshot: item.metadataSnapshot ? JSON.stringify(item.metadataSnapshot) : null,
+          fromCollectionId: item.fromCollectionId ?? null,
+          fromCollectionName: item.fromCollectionName ?? null,
+          toCollectionId: item.toCollectionId ?? null,
+          toCollectionName: item.toCollectionName ?? null,
+          metadataSnapshot: item.metadataSnapshot ? JSON.stringify(item.metadataSnapshot) : null,
         })),
       )
       .execute();

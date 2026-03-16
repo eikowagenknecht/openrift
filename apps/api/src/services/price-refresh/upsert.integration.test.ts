@@ -47,7 +47,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     // Seed reference data: set -> card -> printings
     const insertedSet = await db
       .insertInto("sets")
-      .values({ slug: setSlug, name: "UPS Integration Set", printed_total: 100, sort_order: 940 })
+      .values({ slug: setSlug, name: "UPS Integration Set", printedTotal: 100, sortOrder: 940 })
       .returning("id")
       .executeTakeFirstOrThrow();
     setId = insertedSet.id;
@@ -58,15 +58,15 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         slug: cardSlug,
         name: "UPS Test Card",
         type: "Unit",
-        super_types: [],
+        superTypes: [],
         domains: ["Fury"],
         might: 2,
         energy: 3,
         power: 4,
-        might_bonus: null,
+        mightBonus: null,
         keywords: [],
-        rules_text: "Test rules",
-        effect_text: null,
+        rulesText: "Test rules",
+        effectText: null,
         tags: [],
       })
       .returning("id")
@@ -75,9 +75,9 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
     // Seed group for cardmarket marketplace
     await db
-      .insertInto("marketplace_groups")
-      .values({ marketplace: "cardmarket", group_id: 94_001, name: "UPS Test Expansion" })
-      .onConflict((oc) => oc.columns(["marketplace", "group_id"]).doNothing())
+      .insertInto("marketplaceGroups")
+      .values({ marketplace: "cardmarket", groupId: 94_001, name: "UPS Test Expansion" })
+      .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
       .execute();
 
     const insertedPrintings = await db
@@ -85,37 +85,37 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       .values([
         {
           slug: printingSlug,
-          card_id: cardId,
-          set_id: setId,
-          source_id: "UPS-001",
-          collector_number: 1,
+          cardId,
+          setId,
+          sourceId: "UPS-001",
+          collectorNumber: 1,
           rarity: "Common",
-          art_variant: "normal",
-          is_signed: false,
-          is_promo: false,
+          artVariant: "normal",
+          isSigned: false,
+          isPromo: false,
           finish: "normal",
           artist: "Test Artist",
-          public_code: "UPS-001/100",
-          printed_rules_text: "Test rules",
-          printed_effect_text: null,
-          flavor_text: null,
+          publicCode: "UPS-001/100",
+          printedRulesText: "Test rules",
+          printedEffectText: null,
+          flavorText: null,
         },
         {
           slug: printingSlug2,
-          card_id: cardId,
-          set_id: setId,
-          source_id: "UPS-001",
-          collector_number: 1,
+          cardId,
+          setId,
+          sourceId: "UPS-001",
+          collectorNumber: 1,
           rarity: "Common",
-          art_variant: "normal",
-          is_signed: false,
-          is_promo: false,
+          artVariant: "normal",
+          isSigned: false,
+          isPromo: false,
           finish: "foil",
           artist: "Test Artist",
-          public_code: "UPS-001/100",
-          printed_rules_text: "Test rules",
-          printed_effect_text: null,
-          flavor_text: null,
+          publicCode: "UPS-001/100",
+          printedRulesText: "Test rules",
+          printedEffectText: null,
+          flavorText: null,
         },
       ])
       .returning("id")
@@ -125,21 +125,21 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
     // Seed marketplace sources (created via admin mapping in production)
     await db
-      .insertInto("marketplace_sources")
+      .insertInto("marketplaceSources")
       .values([
         {
           marketplace: "cardmarket",
-          printing_id: printingId,
-          external_id: 94_101,
-          group_id: 94_001,
-          product_name: "UPS Test Product",
+          printingId,
+          externalId: 94_101,
+          groupId: 94_001,
+          productName: "UPS Test Product",
         },
         {
           marketplace: "cardmarket",
-          printing_id: printingId2,
-          external_id: 94_201,
-          group_id: 94_001,
-          product_name: "UPS Test Product Foil",
+          printingId: printingId2,
+          externalId: 94_201,
+          groupId: 94_001,
+          productName: "UPS Test Product Foil",
         },
       ])
       .execute();
@@ -205,19 +205,19 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       prices: Partial<StagingRow> = {},
     ): StagingRow {
       return {
-        external_id: extId,
-        group_id: 94_001,
-        product_name: "UPS Test Product",
+        externalId: extId,
+        groupId: 94_001,
+        productName: "UPS Test Product",
         finish,
-        recorded_at: recordedAt,
-        market_cents: 0,
-        low_cents: null,
-        mid_cents: null,
-        high_cents: null,
-        trend_cents: null,
-        avg1_cents: null,
-        avg7_cents: null,
-        avg30_cents: null,
+        recordedAt: recordedAt,
+        marketCents: 0,
+        lowCents: null,
+        midCents: null,
+        highCents: null,
+        trendCents: null,
+        avg1Cents: null,
+        avg7Cents: null,
+        avg30Cents: null,
         ...prices,
       };
     }
@@ -225,12 +225,12 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     it("inserts new snapshots and staging rows", async () => {
       const staging: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
-          market_cents: 100,
-          low_cents: 50,
-          trend_cents: 80,
-          avg1_cents: 90,
-          avg7_cents: 85,
-          avg30_cents: 88,
+          marketCents: 100,
+          lowCents: 50,
+          trendCents: 80,
+          avg1Cents: 90,
+          avg7Cents: 85,
+          avg30Cents: 88,
         }),
       ];
 
@@ -248,12 +248,12 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       // Same data as the first insert — should be unchanged
       const staging: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
-          market_cents: 100,
-          low_cents: 50,
-          trend_cents: 80,
-          avg1_cents: 90,
-          avg7_cents: 85,
-          avg30_cents: 88,
+          marketCents: 100,
+          lowCents: 50,
+          trendCents: 80,
+          avg1Cents: 90,
+          avg7Cents: 85,
+          avg30Cents: 88,
         }),
       ];
 
@@ -268,12 +268,12 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     it("reports updated when prices change", async () => {
       const staging: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
-          market_cents: 200,
-          low_cents: 100,
-          trend_cents: 180,
-          avg1_cents: 190,
-          avg7_cents: 185,
-          avg30_cents: 188,
+          marketCents: 200,
+          lowCents: 100,
+          trendCents: 180,
+          avg1Cents: 190,
+          avg7Cents: 185,
+          avg30Cents: 188,
         }),
       ];
 
@@ -286,20 +286,20 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     it("deduplicates staging by (external_id, finish, recorded_at)", async () => {
       const staging: StagingRow[] = [
         makeStagingRow(99_001, "normal", {
-          market_cents: 50,
-          low_cents: 25,
-          trend_cents: 40,
-          avg1_cents: 45,
-          avg7_cents: 42,
-          avg30_cents: 44,
+          marketCents: 50,
+          lowCents: 25,
+          trendCents: 40,
+          avg1Cents: 45,
+          avg7Cents: 42,
+          avg30Cents: 44,
         }),
         makeStagingRow(99_001, "normal", {
-          market_cents: 60,
-          low_cents: 30,
-          trend_cents: 50,
-          avg1_cents: 55,
-          avg7_cents: 52,
-          avg30_cents: 54,
+          marketCents: 60,
+          lowCents: 30,
+          trendCents: 50,
+          avg1Cents: 55,
+          avg7Cents: 52,
+          avg30Cents: 54,
         }),
       ];
 
@@ -311,12 +311,12 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     it("builds no snapshots for staging with unmapped external_id", async () => {
       const staging: StagingRow[] = [
         makeStagingRow(99_999, "normal", {
-          market_cents: 100,
-          low_cents: 50,
-          trend_cents: 80,
-          avg1_cents: 90,
-          avg7_cents: 85,
-          avg30_cents: 88,
+          marketCents: 100,
+          lowCents: 50,
+          trendCents: 80,
+          avg1Cents: 90,
+          avg7Cents: 85,
+          avg30Cents: 88,
         }),
       ];
 

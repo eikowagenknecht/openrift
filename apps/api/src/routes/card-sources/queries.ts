@@ -31,7 +31,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   .get("/source-names", async (c) => {
     const db = c.get("db");
     const rows = await db
-      .selectFrom("card_sources")
+      .selectFrom("cardSources")
       .select("source")
       .distinct()
       .orderBy("source")
@@ -45,8 +45,8 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
   .get("/source-stats", async (c) => {
     const db = c.get("db");
     const rows = await db
-      .selectFrom("card_sources as cs")
-      .leftJoin("printing_sources as ps", "ps.card_source_id", "cs.id")
+      .selectFrom("cardSources as cs")
+      .leftJoin("printingSources as ps", "ps.cardSourceId", "cs.id")
       .select((eb) => [
         "cs.source" as const,
         eb.fn.count<number>("cs.name").distinct().as("cardCount"),
@@ -82,15 +82,15 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     // card_sources.card_id is NULL, so re-uploaded sources auto-merge.
     const rcid = resolveCardId("cs");
     let query = db
-      .selectFrom("card_sources as cs")
-      .leftJoin("printing_sources as ps", "ps.card_source_id", "cs.id")
-      .leftJoin("sets as s", "s.slug", "ps.set_id")
+      .selectFrom("cardSources as cs")
+      .leftJoin("printingSources as ps", "ps.cardSourceId", "cs.id")
+      .leftJoin("sets as s", "s.slug", "ps.setId")
       .leftJoin("cards as c", (jb) => jb.on(sql`c.id = (${rcid})`))
       // raw sql: could use fn.count(eb.case()...).distinct() but the sql`` form is
       // much more readable for these multi-condition conditional aggregates
       .select([
-        sql<string | null>`max((${rcid})::text)`.as("card_id"),
-        sql<string | null>`max(c.slug)`.as("card_slug"),
+        sql<string | null>`max((${rcid})::text)`.as("cardId"),
+        sql<string | null>`max(c.slug)`.as("cardSlug"),
         sql<string>`COALESCE(max(c.name), min(cs.name))`.as("name"),
         sql<string>`COALESCE((${rcid})::text, cs.norm_name)`.as("groupKey"),
         sql<number>`count(DISTINCT cs.source)`.as("sourceCount"),
@@ -120,7 +120,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
       query = query.where((eb) =>
         eb.exists(
           eb
-            .selectFrom("card_sources as cs2")
+            .selectFrom("cardSources as cs2")
             .select(sql.lit(1).as("x"))
             .where("cs2.source", "=", source)
             .where(
@@ -151,7 +151,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
 
     if (filter !== "unmatched" && !source) {
       const cardIdsWithSources = new Set(
-        rows.filter((r) => r.card_id).map((r) => r.card_id as string),
+        rows.filter((r) => r.cardId).map((r) => r.cardId as string),
       );
       let orphanQuery = db.selectFrom("cards as c").select(["c.id", "c.slug", "c.name"]);
       if (cardIdsWithSources.size > 0) {
@@ -161,8 +161,8 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
 
       for (const oc of orphanCards) {
         allRows.push({
-          card_id: oc.id,
-          card_slug: oc.slug,
+          cardId: oc.id,
+          cardSlug: oc.slug,
           name: oc.name,
           groupKey: oc.id,
           sourceCount: 0 as unknown as number,
@@ -182,19 +182,19 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
       if (orphanIds.length > 0) {
         const orphanPrintings = await db
           .selectFrom("printings as p")
-          .innerJoin("sets as s", "s.id", "p.set_id")
-          .select(["p.card_id", "s.slug", "s.released_at"])
-          .where("p.card_id", "in", orphanIds)
+          .innerJoin("sets as s", "s.id", "p.setId")
+          .select(["p.cardId", "s.slug", "s.releasedAt"])
+          .where("p.cardId", "in", orphanIds)
           .execute();
         for (const op of orphanPrintings) {
-          const row = allRows.find((r) => r.card_id === op.card_id && r._fromCard);
+          const row = allRows.find((r) => r.cardId === op.cardId && r._fromCard);
           if (!row) {
             continue;
           }
           const relDate =
-            (op.released_at as unknown) instanceof Date
-              ? (op.released_at as unknown as Date).toISOString().slice(0, 10)
-              : (op.released_at ?? null);
+            (op.releasedAt as unknown) instanceof Date
+              ? (op.releasedAt as unknown as Date).toISOString().slice(0, 10)
+              : (op.releasedAt ?? null);
           if (relDate) {
             if (!row.minReleasedAt || relDate < row.minReleasedAt) {
               row.minReleasedAt = relDate as string | null;
@@ -213,14 +213,14 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     }
 
     // Compute dynamic match suggestions for unmatched groups
-    const unmatchedNormNames = allRows.filter((r) => !r.card_id).map((r) => r.groupKey as string);
+    const unmatchedNormNames = allRows.filter((r) => !r.cardId).map((r) => r.groupKey as string);
 
     const suggestionMap = new Map<string, { id: string; slug: string; name: string }>();
     if (unmatchedNormNames.length > 0) {
       const suggestions = await db
         .selectFrom("cards as c")
-        .select(["c.id", "c.slug", "c.name", "c.norm_name as norm"])
-        .where("c.norm_name", "in", unmatchedNormNames)
+        .select(["c.id", "c.slug", "c.name", "c.normName as norm"])
+        .where("c.normName", "in", unmatchedNormNames)
         .execute();
       for (const s of suggestions) {
         suggestionMap.set(s.norm as string, { id: s.id, slug: s.slug, name: s.name });
@@ -230,10 +230,10 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
       const missingNorms = unmatchedNormNames.filter((n) => !suggestionMap.has(n));
       if (missingNorms.length > 0) {
         const aliasSuggestions = await db
-          .selectFrom("card_name_aliases as cna")
-          .innerJoin("cards as c", "c.id", "cna.card_id")
-          .select(["c.id", "c.slug", "c.name", "cna.norm_name as norm"])
-          .where("cna.norm_name", "in", missingNorms)
+          .selectFrom("cardNameAliases as cna")
+          .innerJoin("cards as c", "c.id", "cna.cardId")
+          .select(["c.id", "c.slug", "c.name", "cna.normName as norm"])
+          .where("cna.normName", "in", missingNorms)
           .execute();
         for (const s of aliasSuggestions) {
           if (!suggestionMap.has(s.norm as string)) {
@@ -244,21 +244,21 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     }
 
     // Load printing source IDs for matched cards (like marketplace shows OGN-042, OGN-042a)
-    const matchedCardIds = allRows.filter((r) => r.card_id).map((r) => r.card_id as string);
+    const matchedCardIds = allRows.filter((r) => r.cardId).map((r) => r.cardId as string);
     const printingSourceIdsMap = new Map<string, string[]>();
     if (matchedCardIds.length > 0) {
       const printingRows = await db
         .selectFrom("printings")
-        .select(["card_id", "source_id"])
-        .where("card_id", "in", matchedCardIds)
-        .orderBy("source_id")
+        .select(["cardId", "sourceId"])
+        .where("cardId", "in", matchedCardIds)
+        .orderBy("sourceId")
         .execute();
       for (const pr of printingRows) {
-        const existing = printingSourceIdsMap.get(pr.card_id);
+        const existing = printingSourceIdsMap.get(pr.cardId);
         if (existing) {
-          existing.push(pr.source_id);
+          existing.push(pr.sourceId);
         } else {
-          printingSourceIdsMap.set(pr.card_id, [pr.source_id]);
+          printingSourceIdsMap.set(pr.cardId, [pr.sourceId]);
         }
       }
     }
@@ -267,52 +267,52 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     const candidateSourceIdsMap = new Map<string, string[]>();
     if (matchedCardIds.length > 0) {
       const matchedNormNames = allRows
-        .filter((r) => r.card_id)
+        .filter((r) => r.cardId)
         .map((r) => normalizeNameForMatching(String(r.name)));
       const candidateRows = await db
-        .selectFrom("printing_sources as ps")
-        .innerJoin("card_sources as cs", "cs.id", "ps.card_source_id")
-        .select([resolveCardId("cs").as("card_id"), "ps.source_id"])
-        .where("cs.norm_name", "in", matchedNormNames)
-        .where("ps.printing_id", "is", null)
-        .orderBy("ps.source_id")
+        .selectFrom("printingSources as ps")
+        .innerJoin("cardSources as cs", "cs.id", "ps.cardSourceId")
+        .select([resolveCardId("cs").as("cardId"), "ps.sourceId"])
+        .where("cs.normName", "in", matchedNormNames)
+        .where("ps.printingId", "is", null)
+        .orderBy("ps.sourceId")
         .execute();
       for (const cr of candidateRows) {
-        const cardId = cr.card_id as string | null;
+        const cardId = cr.cardId as string | null;
         if (!cardId) {
           continue;
         }
         const existing = candidateSourceIdsMap.get(cardId);
         if (existing) {
-          if (!existing.includes(cr.source_id)) {
-            existing.push(cr.source_id);
+          if (!existing.includes(cr.sourceId)) {
+            existing.push(cr.sourceId);
           }
         } else {
-          candidateSourceIdsMap.set(cardId, [cr.source_id]);
+          candidateSourceIdsMap.set(cardId, [cr.sourceId]);
         }
       }
     }
 
     // Load printing source IDs for unmatched cards (from printing_sources via card_sources)
-    const unmatchedGroupKeys = allRows.filter((r) => !r.card_id).map((r) => r.groupKey as string);
+    const unmatchedGroupKeys = allRows.filter((r) => !r.cardId).map((r) => r.groupKey as string);
     const pendingSourceIdsMap = new Map<string, string[]>();
     if (unmatchedGroupKeys.length > 0) {
       const pendingRows = await db
-        .selectFrom("printing_sources as ps")
-        .innerJoin("card_sources as cs", "cs.id", "ps.card_source_id")
-        .select(["cs.norm_name as norm", "ps.source_id"])
-        .where("cs.norm_name", "in", unmatchedGroupKeys)
-        .orderBy("ps.source_id")
+        .selectFrom("printingSources as ps")
+        .innerJoin("cardSources as cs", "cs.id", "ps.cardSourceId")
+        .select(["cs.normName as norm", "ps.sourceId"])
+        .where("cs.normName", "in", unmatchedGroupKeys)
+        .orderBy("ps.sourceId")
         .execute();
       for (const pr of pendingRows) {
         const norm = pr.norm as string;
         const existing = pendingSourceIdsMap.get(norm);
         if (existing) {
-          if (!existing.includes(pr.source_id)) {
-            existing.push(pr.source_id);
+          if (!existing.includes(pr.sourceId)) {
+            existing.push(pr.sourceId);
           }
         } else {
-          pendingSourceIdsMap.set(norm, [pr.source_id]);
+          pendingSourceIdsMap.set(norm, [pr.sourceId]);
         }
       }
     }
@@ -320,7 +320,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     // Sort by tier (released → known set → unknown set → no printings), then release date, then card slug
     // For candidates without a slug, derive a suggested ID from the first pending source ID
     const suggestedCardIdFor = (r: (typeof allRows)[number]): string | null => {
-      if (r.card_slug) {
+      if (r.cardSlug) {
         return null;
       }
       const pending = pendingSourceIdsMap.get(r.groupKey as string);
@@ -360,8 +360,8 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
         return setA.localeCompare(setB);
       }
       // Cards with a slug first (by slug), then candidates (by suggested ID), then rest (by name)
-      const keyA = a.card_slug ?? suggestedCardIdFor(a);
-      const keyB = b.card_slug ?? suggestedCardIdFor(b);
+      const keyA = a.cardSlug ?? suggestedCardIdFor(a);
+      const keyB = b.cardSlug ?? suggestedCardIdFor(b);
       const hasKeyA = keyA ? 0 : 1;
       const hasKeyB = keyB ? 0 : 1;
       if (hasKeyA !== hasKeyB) {
@@ -374,18 +374,18 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
 
     return c.json(
       allRows.map((r) => ({
-        cardId: r.card_id ?? null,
-        cardSlug: r.card_slug ?? null,
+        cardId: r.cardId ?? null,
+        cardSlug: r.cardSlug ?? null,
         name: r.name,
-        normalizedName: r.card_id ? normalizeNameForMatching(String(r.name)) : r.groupKey,
-        sourceIds: r.card_id ? (printingSourceIdsMap.get(r.card_id as string) ?? []) : [],
-        pendingSourceIds: r.card_id ? [] : (pendingSourceIdsMap.get(r.groupKey as string) ?? []),
-        candidateSourceIds: r.card_id ? (candidateSourceIdsMap.get(r.card_id as string) ?? []) : [],
+        normalizedName: r.cardId ? normalizeNameForMatching(String(r.name)) : r.groupKey,
+        sourceIds: r.cardId ? (printingSourceIdsMap.get(r.cardId as string) ?? []) : [],
+        pendingSourceIds: r.cardId ? [] : (pendingSourceIdsMap.get(r.groupKey as string) ?? []),
+        candidateSourceIds: r.cardId ? (candidateSourceIdsMap.get(r.cardId as string) ?? []) : [],
         sourceCount: Number(r.sourceCount),
         uncheckedCardCount: Number(r.uncheckedCardCount),
         uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
         hasGallery: Boolean(r.hasGallery),
-        suggestedCard: r.card_id ? null : (suggestionMap.get(r.groupKey as string) ?? null),
+        suggestedCard: r.cardId ? null : (suggestionMap.get(r.groupKey as string) ?? null),
       })),
     );
   })
@@ -398,65 +398,65 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
 
     const printings = await db
       .selectFrom("printings")
-      .innerJoin("sets", "sets.id", "printings.set_id")
-      .leftJoin("printing_images", (jb) =>
+      .innerJoin("sets", "sets.id", "printings.setId")
+      .leftJoin("printingImages", (jb) =>
         jb
-          .onRef("printing_images.printing_id", "=", "printings.id")
-          .on("printing_images.face", "=", "front")
-          .on("printing_images.is_active", "=", true),
+          .onRef("printingImages.printingId", "=", "printings.id")
+          .on("printingImages.face", "=", "front")
+          .on("printingImages.isActive", "=", true),
       )
       .selectAll("printings")
       .select([
-        "sets.slug as set_slug",
-        "sets.name as set_name",
-        "printing_images.rehosted_url",
-        "printing_images.original_url",
+        "sets.slug as setSlug",
+        "sets.name as setName",
+        "printingImages.rehostedUrl",
+        "printingImages.originalUrl",
       ])
-      .orderBy("printings.set_id")
-      .orderBy("printings.collector_number")
-      .orderBy("printings.art_variant")
+      .orderBy("printings.setId")
+      .orderBy("printings.collectorNumber")
+      .orderBy("printings.artVariant")
       .orderBy("printings.finish")
       .execute();
 
     const printingsByCardId = new Map<string, typeof printings>();
     for (const p of printings) {
-      const list = printingsByCardId.get(p.card_id) ?? [];
+      const list = printingsByCardId.get(p.cardId) ?? [];
       list.push(p);
-      printingsByCardId.set(p.card_id, list);
+      printingsByCardId.set(p.cardId, list);
     }
 
     const candidates = cards.map((card) => ({
       card: {
         name: card.name,
         type: card.type,
-        super_types: card.super_types,
+        super_types: card.superTypes,
         domains: card.domains,
         might: card.might,
         energy: card.energy,
         power: card.power,
-        might_bonus: card.might_bonus,
-        rules_text: card.rules_text ?? null,
-        effect_text: card.effect_text ?? null,
+        might_bonus: card.mightBonus,
+        rules_text: card.rulesText ?? null,
+        effect_text: card.effectText ?? null,
         tags: card.tags,
         source_id: card.slug,
         source_entity_id: card.id,
         extra_data: null,
       },
       printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
-        source_id: p.source_id,
-        set_id: p.set_slug,
-        set_name: p.set_name,
-        collector_number: p.collector_number,
+        source_id: p.sourceId,
+        set_id: p.setSlug,
+        set_name: p.setName,
+        collector_number: p.collectorNumber,
         rarity: p.rarity,
-        art_variant: p.art_variant,
-        is_signed: p.is_signed,
+        art_variant: p.artVariant,
+        is_signed: p.isSigned,
         finish: p.finish,
         artist: p.artist,
-        public_code: p.public_code,
-        printed_rules_text: p.printed_rules_text,
-        printed_effect_text: p.printed_effect_text,
-        image_url: p.original_url ?? p.rehosted_url ?? null,
-        flavor_text: p.flavor_text,
+        public_code: p.publicCode,
+        printed_rules_text: p.printedRulesText,
+        printed_effect_text: p.printedEffectText,
+        image_url: p.originalUrl ?? p.rehostedUrl ?? null,
+        flavor_text: p.flavorText,
         source_entity_id: p.id,
         extra_data: null,
       })),
@@ -484,39 +484,39 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     // Find sources matched by card name or alias
     const cardNormName = normalizeNameForMatching(card.name);
     const aliasRows = await db
-      .selectFrom("card_name_aliases")
-      .select("norm_name")
-      .where("card_id", "=", card.id)
+      .selectFrom("cardNameAliases")
+      .select("normName")
+      .where("cardId", "=", card.id)
       .execute();
-    const nameVariants = [cardNormName, ...aliasRows.map((a) => a.norm_name)];
+    const nameVariants = [cardNormName, ...aliasRows.map((a) => a.normName)];
     const uniqueVariants = [...new Set(nameVariants)];
 
     // Find sources by name/alias OR by printing source_id match (same fallback as resolveCardId)
     const printingSourceIds = await db
       .selectFrom("printings")
-      .select("source_id")
-      .where("card_id", "=", card.id)
+      .select("sourceId")
+      .where("cardId", "=", card.id)
       .execute();
-    const matchingSourceIds = printingSourceIds.map((p) => p.source_id);
+    const matchingSourceIds = printingSourceIds.map((p) => p.sourceId);
 
     let sourcesQuery = db
-      .selectFrom("card_sources")
+      .selectFrom("cardSources")
       .selectAll()
-      .where("card_sources.norm_name", "in", uniqueVariants);
+      .where("cardSources.normName", "in", uniqueVariants);
 
     if (matchingSourceIds.length > 0) {
       sourcesQuery = db
-        .selectFrom("card_sources")
+        .selectFrom("cardSources")
         .selectAll()
         .where((eb) =>
           eb.or([
-            eb("card_sources.norm_name", "in", uniqueVariants),
+            eb("cardSources.normName", "in", uniqueVariants),
             eb.exists(
               eb
-                .selectFrom("printing_sources as ps_match")
+                .selectFrom("printingSources as ps_match")
                 .select(sql.lit(1).as("x"))
-                .whereRef("ps_match.card_source_id", "=", "card_sources.id")
-                .where("ps_match.source_id", "in", matchingSourceIds),
+                .whereRef("ps_match.cardSourceId", "=", "cardSources.id")
+                .where("ps_match.sourceId", "in", matchingSourceIds),
             ),
           ]),
         );
@@ -527,20 +527,20 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     const printings = await db
       .selectFrom("printings")
       .selectAll()
-      .where("card_id", "=", card.id)
+      .where("cardId", "=", card.id)
       .execute();
 
     const sourceIds = sources.map((s) => s.id);
     const printingSources =
       sourceIds.length > 0
         ? await db
-            .selectFrom("printing_sources")
+            .selectFrom("printingSources")
             .selectAll()
-            .where("card_source_id", "in", sourceIds)
-            .orderBy("set_id")
+            .where("cardSourceId", "in", sourceIds)
+            .orderBy("setId")
             .orderBy("finish")
-            .orderBy("is_signed")
-            .orderBy("source_id")
+            .orderBy("isSigned")
+            .orderBy("sourceId")
             .execute()
         : [];
 
@@ -548,15 +548,15 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     const printingImages =
       printingIds.length > 0
         ? await db
-            .selectFrom("printing_images")
+            .selectFrom("printingImages")
             .selectAll()
-            .where("printing_id", "in", printingIds)
-            .orderBy("created_at", "asc")
+            .where("printingId", "in", printingIds)
+            .orderBy("createdAt", "asc")
             .execute()
         : [];
 
     // Build set UUID → slug map for printings response
-    const setIds = [...new Set(printings.map((p) => p.set_id))];
+    const setIds = [...new Set(printings.map((p) => p.setId))];
     const setSlugMap = new Map<string, string>();
     if (setIds.length > 0) {
       const setRows = await db
@@ -575,15 +575,15 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
         slug: card.slug,
         name: card.name,
         type: card.type,
-        superTypes: card.super_types,
+        superTypes: card.superTypes,
         domains: card.domains,
         might: card.might,
         energy: card.energy,
         power: card.power,
-        mightBonus: card.might_bonus,
+        mightBonus: card.mightBonus,
         keywords: card.keywords,
-        rulesText: card.rules_text,
-        effectText: card.effect_text,
+        rulesText: card.rulesText,
+        effectText: card.effectText,
         tags: card.tags,
       },
       sources: sources.map((s) => ({
@@ -591,80 +591,80 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
         source: s.source,
         name: s.name,
         type: s.type,
-        superTypes: s.super_types,
+        superTypes: s.superTypes,
         domains: s.domains,
         might: s.might,
         energy: s.energy,
         power: s.power,
-        mightBonus: s.might_bonus,
+        mightBonus: s.mightBonus,
         keywords: [
-          ...extractKeywords(s.rules_text ?? ""),
-          ...extractKeywords(s.effect_text ?? ""),
+          ...extractKeywords(s.rulesText ?? ""),
+          ...extractKeywords(s.effectText ?? ""),
         ].filter((v, i, a) => a.indexOf(v) === i),
-        rulesText: s.rules_text,
-        effectText: s.effect_text,
+        rulesText: s.rulesText,
+        effectText: s.effectText,
         tags: s.tags,
-        sourceId: s.source_id,
-        sourceEntityId: s.source_entity_id,
-        extraData: s.extra_data,
-        checkedAt: s.checked_at?.toISOString() ?? null,
-        createdAt: s.created_at.toISOString(),
-        updatedAt: s.updated_at.toISOString(),
+        sourceId: s.sourceId,
+        sourceEntityId: s.sourceEntityId,
+        extraData: s.extraData,
+        checkedAt: s.checkedAt?.toISOString() ?? null,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
       })),
       printings: printings.map((p) => ({
         id: p.id,
         slug: p.slug,
         cardId: card.id,
-        setId: setSlugMap.get(p.set_id) ?? p.set_id,
-        sourceId: p.source_id,
-        collectorNumber: p.collector_number,
+        setId: setSlugMap.get(p.setId) ?? p.setId,
+        sourceId: p.sourceId,
+        collectorNumber: p.collectorNumber,
         rarity: p.rarity,
-        artVariant: p.art_variant,
-        isSigned: p.is_signed,
-        isPromo: p.is_promo,
+        artVariant: p.artVariant,
+        isSigned: p.isSigned,
+        isPromo: p.isPromo,
         finish: p.finish,
         artist: p.artist,
-        publicCode: p.public_code,
-        printedRulesText: p.printed_rules_text,
-        printedEffectText: p.printed_effect_text,
-        flavorText: p.flavor_text,
+        publicCode: p.publicCode,
+        printedRulesText: p.printedRulesText,
+        printedEffectText: p.printedEffectText,
+        flavorText: p.flavorText,
         comment: p.comment,
       })),
       printingSources: printingSources.map((ps) => ({
         id: ps.id,
-        cardSourceId: ps.card_source_id,
-        printingId: ps.printing_id,
-        sourceId: ps.source_id,
-        setId: ps.set_id,
-        setName: ps.set_name,
-        collectorNumber: ps.collector_number,
+        cardSourceId: ps.cardSourceId,
+        printingId: ps.printingId,
+        sourceId: ps.sourceId,
+        setId: ps.setId,
+        setName: ps.setName,
+        collectorNumber: ps.collectorNumber,
         rarity: ps.rarity,
-        artVariant: ps.art_variant,
-        isSigned: ps.is_signed,
-        isPromo: ps.is_promo,
+        artVariant: ps.artVariant,
+        isSigned: ps.isSigned,
+        isPromo: ps.isPromo,
         finish: ps.finish,
         artist: ps.artist,
-        publicCode: ps.public_code,
-        printedRulesText: ps.printed_rules_text,
-        printedEffectText: ps.printed_effect_text,
-        imageUrl: ps.image_url,
-        flavorText: ps.flavor_text,
-        sourceEntityId: ps.source_entity_id,
-        extraData: ps.extra_data,
-        checkedAt: ps.checked_at?.toISOString() ?? null,
-        createdAt: ps.created_at.toISOString(),
-        updatedAt: ps.updated_at.toISOString(),
+        publicCode: ps.publicCode,
+        printedRulesText: ps.printedRulesText,
+        printedEffectText: ps.printedEffectText,
+        imageUrl: ps.imageUrl,
+        flavorText: ps.flavorText,
+        sourceEntityId: ps.sourceEntityId,
+        extraData: ps.extraData,
+        checkedAt: ps.checkedAt?.toISOString() ?? null,
+        createdAt: ps.createdAt.toISOString(),
+        updatedAt: ps.updatedAt.toISOString(),
       })),
       printingImages: printingImages.map((pi) => ({
         id: pi.id,
-        printingId: pi.printing_id,
+        printingId: pi.printingId,
         face: pi.face,
         source: pi.source,
-        originalUrl: pi.original_url,
-        rehostedUrl: pi.rehosted_url,
-        isActive: pi.is_active,
-        createdAt: pi.created_at.toISOString(),
-        updatedAt: pi.updated_at.toISOString(),
+        originalUrl: pi.originalUrl,
+        rehostedUrl: pi.rehostedUrl,
+        isActive: pi.isActive,
+        createdAt: pi.createdAt.toISOString(),
+        updatedAt: pi.updatedAt.toISOString(),
       })),
     });
   })
@@ -676,9 +676,9 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     const name = decodeURIComponent(c.req.param("name"));
 
     const sources = await db
-      .selectFrom("card_sources")
+      .selectFrom("cardSources")
       .selectAll()
-      .where("card_sources.norm_name", "=", name)
+      .where("cardSources.normName", "=", name)
       .orderBy("source")
       .execute();
 
@@ -688,11 +688,11 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
 
     const sourceIds = sources.map((s) => s.id);
     const printingSources = await db
-      .selectFrom("printing_sources")
+      .selectFrom("printingSources")
       .selectAll()
-      .where("card_source_id", "in", sourceIds)
-      .orderBy("collector_number")
-      .orderBy("source_id")
+      .where("cardSourceId", "in", sourceIds)
+      .orderBy("collectorNumber")
+      .orderBy("sourceId")
       .execute();
 
     // Use the shortest raw name from the group as the display name
@@ -708,50 +708,50 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
         source: s.source,
         name: s.name,
         type: s.type,
-        superTypes: s.super_types,
+        superTypes: s.superTypes,
         domains: s.domains,
         might: s.might,
         energy: s.energy,
         power: s.power,
-        mightBonus: s.might_bonus,
+        mightBonus: s.mightBonus,
         keywords: [
-          ...extractKeywords(s.rules_text ?? ""),
-          ...extractKeywords(s.effect_text ?? ""),
+          ...extractKeywords(s.rulesText ?? ""),
+          ...extractKeywords(s.effectText ?? ""),
         ].filter((v, i, a) => a.indexOf(v) === i),
-        rulesText: s.rules_text,
-        effectText: s.effect_text,
+        rulesText: s.rulesText,
+        effectText: s.effectText,
         tags: s.tags,
-        sourceId: s.source_id,
-        sourceEntityId: s.source_entity_id,
-        extraData: s.extra_data,
-        checkedAt: s.checked_at?.toISOString() ?? null,
-        createdAt: s.created_at.toISOString(),
-        updatedAt: s.updated_at.toISOString(),
+        sourceId: s.sourceId,
+        sourceEntityId: s.sourceEntityId,
+        extraData: s.extraData,
+        checkedAt: s.checkedAt?.toISOString() ?? null,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
       })),
       printingSources: printingSources.map((ps) => ({
         id: ps.id,
-        cardSourceId: ps.card_source_id,
-        printingId: ps.printing_id,
-        sourceId: ps.source_id,
-        setId: ps.set_id,
-        setName: ps.set_name,
-        collectorNumber: ps.collector_number,
+        cardSourceId: ps.cardSourceId,
+        printingId: ps.printingId,
+        sourceId: ps.sourceId,
+        setId: ps.setId,
+        setName: ps.setName,
+        collectorNumber: ps.collectorNumber,
         rarity: ps.rarity,
-        artVariant: ps.art_variant,
-        isSigned: ps.is_signed,
-        isPromo: ps.is_promo,
+        artVariant: ps.artVariant,
+        isSigned: ps.isSigned,
+        isPromo: ps.isPromo,
         finish: ps.finish,
         artist: ps.artist,
-        publicCode: ps.public_code,
-        printedRulesText: ps.printed_rules_text,
-        printedEffectText: ps.printed_effect_text,
-        imageUrl: ps.image_url,
-        flavorText: ps.flavor_text,
-        sourceEntityId: ps.source_entity_id,
-        extraData: ps.extra_data,
-        checkedAt: ps.checked_at?.toISOString() ?? null,
-        createdAt: ps.created_at.toISOString(),
-        updatedAt: ps.updated_at.toISOString(),
+        publicCode: ps.publicCode,
+        printedRulesText: ps.printedRulesText,
+        printedEffectText: ps.printedEffectText,
+        imageUrl: ps.imageUrl,
+        flavorText: ps.flavorText,
+        sourceEntityId: ps.sourceEntityId,
+        extraData: ps.extraData,
+        checkedAt: ps.checkedAt?.toISOString() ?? null,
+        createdAt: ps.createdAt.toISOString(),
+        updatedAt: ps.updatedAt.toISOString(),
       })),
     });
   });

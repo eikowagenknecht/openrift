@@ -8,22 +8,22 @@ import type { ActivitiesTable, ActivityItemsTable, Database, PrintingsTable } fr
 type ActivityItemRow = Pick<
   Selectable<ActivityItemsTable>,
   | "id"
-  | "activity_id"
-  | "activity_type"
-  | "copy_id"
-  | "printing_id"
+  | "activityId"
+  | "activityType"
+  | "copyId"
+  | "printingId"
   | "action"
-  | "from_collection_id"
-  | "from_collection_name"
-  | "to_collection_id"
-  | "to_collection_name"
-  | "metadata_snapshot"
-  | "created_at"
+  | "fromCollectionId"
+  | "fromCollectionName"
+  | "toCollectionId"
+  | "toCollectionName"
+  | "metadataSnapshot"
+  | "createdAt"
 > &
-  Pick<Selectable<PrintingsTable>, "set_id" | "collector_number" | "rarity"> & {
-    image_url: string | null;
-    card_name: string;
-    card_type: CardType;
+  Pick<Selectable<PrintingsTable>, "setId" | "collectorNumber" | "rarity"> & {
+    imageUrl: string | null;
+    cardName: string;
+    cardType: CardType;
   };
 
 /**
@@ -42,11 +42,11 @@ export function activitiesRepo(db: Kysely<Database>) {
       let query = db
         .selectFrom("activities")
         .selectAll()
-        .where("user_id", "=", userId)
-        .orderBy("created_at", "desc")
+        .where("userId", "=", userId)
+        .orderBy("createdAt", "desc")
         .limit(limit + 1);
       if (cursor) {
-        query = query.where("created_at", "<", new Date(cursor));
+        query = query.where("createdAt", "<", new Date(cursor));
       }
       return query.execute();
     },
@@ -57,44 +57,44 @@ export function activitiesRepo(db: Kysely<Database>) {
         .selectFrom("activities")
         .selectAll()
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns Activity items joined with printing, card, and image details. */
     itemsWithDetails(activityId: string): Promise<ActivityItemRow[]> {
       return db
-        .selectFrom("activity_items as ai")
-        .innerJoin("printings as p", "p.id", "ai.printing_id")
-        .innerJoin("cards as card", "card.id", "p.card_id")
-        .leftJoin("printing_images as pi", (join) =>
+        .selectFrom("activityItems as ai")
+        .innerJoin("printings as p", "p.id", "ai.printingId")
+        .innerJoin("cards as card", "card.id", "p.cardId")
+        .leftJoin("printingImages as pi", (join) =>
           join
-            .onRef("pi.printing_id", "=", "p.id")
+            .onRef("pi.printingId", "=", "p.id")
             .on("pi.face", "=", "front")
-            .on("pi.is_active", "=", true),
+            .on("pi.isActive", "=", true),
         )
         .select([
           "ai.id",
-          "ai.activity_id",
-          "ai.activity_type",
-          "ai.copy_id",
-          "ai.printing_id",
+          "ai.activityId",
+          "ai.activityType",
+          "ai.copyId",
+          "ai.printingId",
           "ai.action",
-          "ai.from_collection_id",
-          "ai.from_collection_name",
-          "ai.to_collection_id",
-          "ai.to_collection_name",
-          "ai.metadata_snapshot",
-          "ai.created_at",
-          imageUrl("pi").as("image_url"),
-          "p.set_id",
-          "p.collector_number",
+          "ai.fromCollectionId",
+          "ai.fromCollectionName",
+          "ai.toCollectionId",
+          "ai.toCollectionName",
+          "ai.metadataSnapshot",
+          "ai.createdAt",
+          imageUrl("pi").as("imageUrl"),
+          "p.setId",
+          "p.collectorNumber",
           "p.rarity",
-          "card.name as card_name",
-          "card.type as card_type",
+          "card.name as cardName",
+          "card.type as cardType",
         ])
-        .where("ai.activity_id", "=", activityId)
-        .orderBy("ai.created_at")
+        .where("ai.activityId", "=", activityId)
+        .orderBy("ai.createdAt")
         .execute();
     },
   };

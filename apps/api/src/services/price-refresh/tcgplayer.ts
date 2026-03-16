@@ -136,19 +136,19 @@ function buildTcgplayerStaging(
           continue;
         }
         allStaging.push({
-          external_id: product.productId,
-          group_id: group.groupId,
-          product_name: product.cleanName,
+          externalId: product.productId,
+          groupId: group.groupId,
+          productName: product.cleanName,
           finish,
-          recorded_at: recordedAt,
-          market_cents: marketCents,
-          low_cents: toCents(entry.lowPrice),
-          mid_cents: toCents(entry.midPrice),
-          high_cents: toCents(entry.highPrice),
-          trend_cents: null,
-          avg1_cents: null,
-          avg7_cents: null,
-          avg30_cents: null,
+          recordedAt: recordedAt,
+          marketCents: marketCents,
+          lowCents: toCents(entry.lowPrice),
+          midCents: toCents(entry.midPrice),
+          highCents: toCents(entry.highPrice),
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
         });
       }
     }
@@ -159,7 +159,7 @@ function buildTcgplayerStaging(
 
 function buildTcgplayerGroups(groups: TcgcsvGroup[]): GroupRow[] {
   return groups.map((g) => ({
-    group_id: g.groupId,
+    groupId: g.groupId,
     name: g.name,
     abbreviation: g.abbreviation,
   }));

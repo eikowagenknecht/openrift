@@ -40,7 +40,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await wishLists.create({
-      user_id: userId,
+      userId: userId,
       name: body.name,
       rules: body.rules ? JSON.stringify(body.rules) : null,
     });
@@ -123,11 +123,11 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
       }
 
       const row = await wishLists.createItem({
-        wish_list_id: wishListId,
-        user_id: userId,
-        card_id: body.cardId ?? null,
-        printing_id: body.printingId ?? null,
-        quantity_desired: body.quantityDesired,
+        wishListId: wishListId,
+        userId: userId,
+        cardId: body.cardId ?? null,
+        printingId: body.printingId ?? null,
+        quantityDesired: body.quantityDesired,
       });
 
       return c.json(toWishListItem(row), 201);
@@ -146,7 +146,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
       const body = c.req.valid("json");
 
       const row = await wishLists.updateItem(itemId, wishListId, userId, {
-        quantity_desired: body.quantityDesired,
+        quantityDesired: body.quantityDesired,
       });
 
       if (!row) {

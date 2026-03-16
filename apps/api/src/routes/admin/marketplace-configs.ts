@@ -23,35 +23,35 @@ export interface ProductInfo {
 
 /** All 8 price columns shared by marketplace_snapshots and marketplace_staging. */
 interface PriceColumns {
-  market_cents: number;
-  low_cents: number | null;
-  mid_cents: number | null;
-  high_cents: number | null;
-  trend_cents: number | null;
-  avg1_cents: number | null;
-  avg7_cents: number | null;
-  avg30_cents: number | null;
+  marketCents: number;
+  lowCents: number | null;
+  midCents: number | null;
+  highCents: number | null;
+  trendCents: number | null;
+  avg1Cents: number | null;
+  avg7Cents: number | null;
+  avg30Cents: number | null;
 }
 
 /** Common fields on staging rows (shared by both marketplaces). */
 export interface StagingRow extends PriceColumns {
-  external_id: number;
-  group_id: number;
-  product_name: string;
+  externalId: number;
+  groupId: number;
+  productName: string;
   finish: string;
-  recorded_at: Date;
+  recordedAt: Date;
 }
 
 /** Snapshot row (all 8 price columns + recorded_at). */
 interface SnapshotRow extends PriceColumns {
-  recorded_at: Date;
+  recordedAt: Date;
 }
 
 /** Mapped snapshot query result (sources JOIN snapshots). */
 interface MappedSnapshotRow extends PriceColumns {
-  printing_id: string;
-  product_name: string;
-  recorded_at: Date;
+  printingId: string;
+  productName: string;
+  recordedAt: Date;
 }
 
 // ── Marketplace-specific config ─────────────────────────────────────────────
@@ -70,7 +70,7 @@ export interface MarketplaceConfig {
   /** Insert a staging row from a snapshot during the DELETE (unmap) operation */
   insertStagingFromSnapshot(
     tx: Transaction<Database>,
-    ps: { external_id: number; group_id: number; product_name: string },
+    ps: { externalId: number; groupId: number; productName: string },
     finish: string,
     snap: SnapshotRow,
   ): Promise<void>;
@@ -81,14 +81,14 @@ export interface MarketplaceConfig {
 // ── Typed doUpdateSet for all 8 price columns ───────────────────────────────
 
 const PRICE_EXCLUDED_SET = {
-  market_cents: sql<number>`excluded.market_cents`,
-  low_cents: sql<number | null>`excluded.low_cents`,
-  mid_cents: sql<number | null>`excluded.mid_cents`,
-  high_cents: sql<number | null>`excluded.high_cents`,
-  trend_cents: sql<number | null>`excluded.trend_cents`,
-  avg1_cents: sql<number | null>`excluded.avg1_cents`,
-  avg7_cents: sql<number | null>`excluded.avg7_cents`,
-  avg30_cents: sql<number | null>`excluded.avg30_cents`,
+  marketCents: sql<number>`excluded.market_cents`,
+  lowCents: sql<number | null>`excluded.low_cents`,
+  midCents: sql<number | null>`excluded.mid_cents`,
+  highCents: sql<number | null>`excluded.high_cents`,
+  trendCents: sql<number | null>`excluded.trend_cents`,
+  avg1Cents: sql<number | null>`excluded.avg1_cents`,
+  avg7Cents: sql<number | null>`excluded.avg7_cents`,
+  avg30Cents: sql<number | null>`excluded.avg30_cents`,
 };
 
 // ── Factory helper ──────────────────────────────────────────────────────────
@@ -110,53 +110,51 @@ function createMarketplaceConfig(opts: {
     snapshotQuery,
 
     mapSnapshotPrices: (row) => ({
-      productName: row.product_name,
-      recordedAt: row.recorded_at.toISOString(),
+      productName: row.productName,
+      recordedAt: row.recordedAt.toISOString(),
       ...mapPrices(row),
     }),
 
     insertSnapshot: async (tx, sourceId, row) => {
       await tx
-        .insertInto("marketplace_snapshots")
+        .insertInto("marketplaceSnapshots")
         .values({
-          source_id: sourceId,
-          recorded_at: row.recorded_at,
-          market_cents: row.market_cents,
-          low_cents: row.low_cents,
-          mid_cents: row.mid_cents,
-          high_cents: row.high_cents,
-          trend_cents: row.trend_cents,
-          avg1_cents: row.avg1_cents,
-          avg7_cents: row.avg7_cents,
-          avg30_cents: row.avg30_cents,
+          sourceId,
+          recordedAt: row.recordedAt,
+          marketCents: row.marketCents,
+          lowCents: row.lowCents,
+          midCents: row.midCents,
+          highCents: row.highCents,
+          trendCents: row.trendCents,
+          avg1Cents: row.avg1Cents,
+          avg7Cents: row.avg7Cents,
+          avg30Cents: row.avg30Cents,
         })
-        .onConflict((oc) =>
-          oc.columns(["source_id", "recorded_at"]).doUpdateSet(PRICE_EXCLUDED_SET),
-        )
+        .onConflict((oc) => oc.columns(["sourceId", "recordedAt"]).doUpdateSet(PRICE_EXCLUDED_SET))
         .execute();
     },
 
     insertStagingFromSnapshot: async (tx, ps, finish, snap) => {
       await tx
-        .insertInto("marketplace_staging")
+        .insertInto("marketplaceStaging")
         .values({
           marketplace,
-          external_id: ps.external_id,
-          group_id: ps.group_id,
-          product_name: ps.product_name,
+          externalId: ps.externalId,
+          groupId: ps.groupId,
+          productName: ps.productName,
           finish,
-          recorded_at: snap.recorded_at,
-          market_cents: snap.market_cents,
-          low_cents: snap.low_cents,
-          mid_cents: snap.mid_cents,
-          high_cents: snap.high_cents,
-          trend_cents: snap.trend_cents,
-          avg1_cents: snap.avg1_cents,
-          avg7_cents: snap.avg7_cents,
-          avg30_cents: snap.avg30_cents,
+          recordedAt: snap.recordedAt,
+          marketCents: snap.marketCents,
+          lowCents: snap.lowCents,
+          midCents: snap.midCents,
+          highCents: snap.highCents,
+          trendCents: snap.trendCents,
+          avg1Cents: snap.avg1Cents,
+          avg7Cents: snap.avg7Cents,
+          avg30Cents: snap.avg30Cents,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "external_id", "finish", "recorded_at"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
         )
         .execute();
     },
@@ -181,50 +179,50 @@ function createMarketplaceConfig(opts: {
 // ── TCGPlayer config ────────────────────────────────────────────────────────
 
 const tcgMapPrices = (row: PriceColumns) => ({
-  marketCents: row.market_cents,
-  lowCents: row.low_cents,
+  marketCents: row.marketCents,
+  lowCents: row.lowCents,
   currency: "USD",
-  midCents: row.mid_cents,
-  highCents: row.high_cents,
-  trendCents: row.trend_cents,
-  avg1Cents: row.avg1_cents,
-  avg7Cents: row.avg7_cents,
-  avg30Cents: row.avg30_cents,
+  midCents: row.midCents,
+  highCents: row.highCents,
+  trendCents: row.trendCents,
+  avg1Cents: row.avg1Cents,
+  avg7Cents: row.avg7Cents,
+  avg30Cents: row.avg30Cents,
 });
 
 const cmMapPrices = (row: PriceColumns) => ({
-  marketCents: row.market_cents,
-  lowCents: row.low_cents,
+  marketCents: row.marketCents,
+  lowCents: row.lowCents,
   currency: "EUR",
-  midCents: row.mid_cents,
-  highCents: row.high_cents,
-  trendCents: row.trend_cents,
-  avg1Cents: row.avg1_cents,
-  avg7Cents: row.avg7_cents,
-  avg30Cents: row.avg30_cents,
+  midCents: row.midCents,
+  highCents: row.highCents,
+  trendCents: row.trendCents,
+  avg1Cents: row.avg1Cents,
+  avg7Cents: row.avg7Cents,
+  avg30Cents: row.avg30Cents,
 });
 
 function snapshotQueryFor(db: Kysely<Database>, marketplace: string) {
   return (printingIds: string[]) =>
     db
-      .selectFrom("marketplace_sources as ps")
-      .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
+      .selectFrom("marketplaceSources as ps")
+      .innerJoin("marketplaceSnapshots as snap", "snap.sourceId", "ps.id")
       .select([
-        "ps.printing_id",
-        "ps.product_name",
-        "snap.market_cents",
-        "snap.low_cents",
-        "snap.mid_cents",
-        "snap.high_cents",
-        "snap.trend_cents",
-        "snap.avg1_cents",
-        "snap.avg7_cents",
-        "snap.avg30_cents",
-        "snap.recorded_at",
+        "ps.printingId",
+        "ps.productName",
+        "snap.marketCents",
+        "snap.lowCents",
+        "snap.midCents",
+        "snap.highCents",
+        "snap.trendCents",
+        "snap.avg1Cents",
+        "snap.avg7Cents",
+        "snap.avg30Cents",
+        "snap.recordedAt",
       ])
       .where("ps.marketplace", "=", marketplace)
-      .where("ps.printing_id", "in", printingIds)
-      .orderBy("snap.recorded_at", "desc")
+      .where("ps.printingId", "in", printingIds)
+      .orderBy("snap.recordedAt", "desc")
       .execute();
 }
 

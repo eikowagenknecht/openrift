@@ -30,7 +30,7 @@ if (ctx) {
   // Set
   const [setRow] = await db
     .insertInto("sets")
-    .values({ slug: "CSM-TEST", name: "CSM Test Set", printed_total: 2, sort_order: 103 })
+    .values({ slug: "CSM-TEST", name: "CSM Test Set", printedTotal: 2, sortOrder: 103 })
     .returning("id")
     .execute();
   setId = setRow.id;
@@ -42,15 +42,15 @@ if (ctx) {
       slug: "CSM-001",
       name: "CSM Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: ["Flash"],
-      rules_text: "Flash",
-      effect_text: null,
+      rulesText: "Flash",
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -62,20 +62,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "CSM-001:common:normal:",
-      card_id: cardId,
-      set_id: setId,
-      source_id: "CSM-001",
-      collector_number: 1,
+      cardId: cardId,
+      setId: setId,
+      sourceId: "CSM-001",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "CSM",
-      printed_rules_text: "Flash",
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "CSM",
+      printedRulesText: "Flash",
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -87,20 +87,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "CSM-001:rare:foil:",
-      card_id: cardId,
-      set_id: setId,
-      source_id: "CSM-001",
-      collector_number: 1,
+      cardId: cardId,
+      setId: setId,
+      sourceId: "CSM-001",
+      collectorNumber: 1,
       rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "foil",
       artist: "Artist A",
-      public_code: "CSM",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -109,23 +109,23 @@ if (ctx) {
 
   // Card source (matched to card by name)
   const [csRow] = await db
-    .insertInto("card_sources")
+    .insertInto("cardSources")
     .values({
       source: "csm-spreadsheet",
       name: "CSM Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
-      rules_text: "Flash",
-      effect_text: null,
+      mightBonus: null,
+      rulesText: "Flash",
+      effectText: null,
       tags: [],
-      source_id: "CSM-001",
-      source_entity_id: null,
-      extra_data: null,
+      sourceId: "CSM-001",
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -133,23 +133,23 @@ if (ctx) {
 
   // Card source (unmatched)
   const [csUnmatchedRow] = await db
-    .insertInto("card_sources")
+    .insertInto("cardSources")
     .values({
       source: "csm-gallery",
       name: "CSM New Card",
       type: "Spell",
-      super_types: [],
+      superTypes: [],
       domains: ["Calm"],
       might: null,
       energy: 1,
       power: null,
-      might_bonus: null,
-      rules_text: null,
-      effect_text: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
-      source_id: null,
-      source_entity_id: null,
-      extra_data: null,
+      sourceId: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -157,27 +157,27 @@ if (ctx) {
 
   // Printing source (linked to printing)
   const [psRow] = await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: csId,
-      printing_id: printingId,
-      source_id: "CSM-001",
-      set_id: "CSM-TEST",
-      set_name: "CSM Test Set",
-      collector_number: 1,
+      cardSourceId: csId,
+      printingId: printingId,
+      sourceId: "CSM-001",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Artist A",
-      public_code: "CSM",
-      printed_rules_text: "Flash",
-      printed_effect_text: null,
-      image_url: "https://example.com/csm-test.png",
-      flavor_text: null,
-      source_entity_id: null,
-      extra_data: null,
+      publicCode: "CSM",
+      printedRulesText: "Flash",
+      printedEffectText: null,
+      imageUrl: "https://example.com/csm-test.png",
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -185,27 +185,27 @@ if (ctx) {
 
   // Printing source (unlinked)
   const [psUnlinkedRow] = await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: csUnmatchedId,
-      printing_id: null,
-      source_id: "CSM-NEW-001",
-      set_id: "CSM-TEST",
-      set_name: "CSM Test Set",
-      collector_number: 99,
+      cardSourceId: csUnmatchedId,
+      printingId: null,
+      sourceId: "CSM-NEW-001",
+      setId: "CSM-TEST",
+      setName: "CSM Test Set",
+      collectorNumber: 99,
       rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "CSM",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      image_url: null,
-      flavor_text: null,
-      source_entity_id: null,
-      extra_data: null,
+      publicCode: "CSM",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -249,12 +249,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
   describe("POST /:cardSourceId/check", () => {
     it("marks a card source as checked", async () => {
-      // Reset checked_at so the test is meaningful
-      await db
-        .updateTable("card_sources")
-        .set({ checked_at: null })
-        .where("id", "=", csId)
-        .execute();
+      // Reset checkedAt so the test is meaningful
+      await db.updateTable("cardSources").set({ checkedAt: null }).where("id", "=", csId).execute();
 
       const res = await app.fetch(req("POST", `${P}/${csId}/check`));
       expect(res.status).toBe(200);
@@ -274,10 +270,10 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
   describe("POST /printing-sources/:id/check", () => {
     it("marks a printing source as checked", async () => {
-      // Reset checked_at
+      // Reset checkedAt
       await db
-        .updateTable("printing_sources")
-        .set({ checked_at: null })
+        .updateTable("printingSources")
+        .set({ checkedAt: null })
         .where("id", "=", psId)
         .execute();
 
@@ -301,9 +297,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("marks all printing sources for a printing as checked", async () => {
       // Reset
       await db
-        .updateTable("printing_sources")
-        .set({ checked_at: null })
-        .where("printing_id", "=", printingId)
+        .updateTable("printingSources")
+        .set({ checkedAt: null })
+        .where("printingId", "=", printingId)
         .execute();
 
       const res = await app.fetch(req("POST", `${P}/printing-sources/check-all`, { printingId }));
@@ -320,11 +316,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/check-all", () => {
     it("marks all card sources for a card slug as checked", async () => {
       // Reset
-      await db
-        .updateTable("card_sources")
-        .set({ checked_at: null })
-        .where("id", "=", csId)
-        .execute();
+      await db.updateTable("cardSources").set({ checkedAt: null }).where("id", "=", csId).execute();
 
       const res = await app.fetch(req("POST", `${P}/${cardSlug}/check-all`));
       expect(res.status).toBe(200);
@@ -349,7 +341,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify update persisted
       const row = await db
-        .selectFrom("printing_sources")
+        .selectFrom("printingSources")
         .select("rarity")
         .where("id", "=", psId)
         .executeTakeFirstOrThrow();
@@ -386,9 +378,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify a new printing_source was created linked to printing2
       const copies = await db
-        .selectFrom("printing_sources")
+        .selectFrom("printingSources")
         .select("id")
-        .where("printing_id", "=", printing2Id)
+        .where("printingId", "=", printing2Id)
         .execute();
       expect(copies.length).toBeGreaterThanOrEqual(1);
     });
@@ -430,11 +422,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify link
       const row = await db
-        .selectFrom("printing_sources")
-        .select("printing_id")
+        .selectFrom("printingSources")
+        .select("printingId")
         .where("id", "=", psUnlinkedId)
         .executeTakeFirstOrThrow();
-      expect(row.printing_id).toBe(printing2Id);
+      expect(row.printingId).toBe(printing2Id);
     });
 
     it("unlinks printing sources (printingId=null)", async () => {
@@ -451,11 +443,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify unlinked
       const row = await db
-        .selectFrom("printing_sources")
-        .select("printing_id")
+        .selectFrom("printingSources")
+        .select("printingId")
         .where("id", "=", psUnlinkedId)
         .executeTakeFirstOrThrow();
-      expect(row.printing_id).toBeNull();
+      expect(row.printingId).toBeNull();
     });
   });
 
@@ -659,23 +651,23 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("links unmatched sources to an existing card", async () => {
       // Create another unmatched card source for this test
       await db
-        .insertInto("card_sources")
+        .insertInto("cardSources")
         .values({
           source: "csm-gallery",
           name: "CSM Another Unmatched",
           type: "Rune",
-          super_types: [],
+          superTypes: [],
           domains: ["Mind"],
           might: null,
           energy: null,
           power: null,
-          might_bonus: null,
-          rules_text: null,
-          effect_text: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
           tags: [],
-          source_id: null,
-          source_entity_id: null,
-          extra_data: null,
+          sourceId: null,
+          sourceEntityId: null,
+          extraData: null,
         })
         .execute();
 
@@ -691,13 +683,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify alias was created
       const alias = await db
-        .selectFrom("card_name_aliases")
-        .select("card_id")
-        .where("norm_name", "=", "csmanotherunmatched")
+        .selectFrom("cardNameAliases")
+        .select("cardId")
+        .where("normName", "=", "csmanotherunmatched")
         .executeTakeFirst();
       expect(alias).toBeDefined();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(alias!.card_id).toBe(cardId);
+      expect(alias!.cardId).toBe(cardId);
     });
 
     it("returns 404 for non-existent target card", async () => {
@@ -797,7 +789,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify gone
       const row = await db
-        .selectFrom("printing_sources")
+        .selectFrom("printingSources")
         .select("id")
         .where("id", "=", psUnlinkedId)
         .executeTakeFirst();

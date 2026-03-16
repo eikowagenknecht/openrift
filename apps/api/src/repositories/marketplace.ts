@@ -16,37 +16,37 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * Uses `DISTINCT ON` to efficiently pick only the most recent snapshot
      * per source without scanning the full `marketplace_snapshots` table.
      *
-     * @returns Rows with `printing_id` and `market_cents`.
+     * @returns Rows with `printingId` and `marketCents`.
      */
-    latestPrices(): Promise<{ printing_id: string; market_cents: number }[]> {
+    latestPrices(): Promise<{ printingId: string; marketCents: number }[]> {
       return db
-        .selectFrom("marketplace_sources as ps")
-        .innerJoin("marketplace_snapshots as snap", "snap.source_id", "ps.id")
-        .innerJoin("printings as p", "p.id", "ps.printing_id")
+        .selectFrom("marketplaceSources as ps")
+        .innerJoin("marketplaceSnapshots as snap", "snap.sourceId", "ps.id")
+        .innerJoin("printings as p", "p.id", "ps.printingId")
         .where("ps.marketplace", "=", "tcgplayer")
         .distinctOn("ps.id")
-        .select(["p.id as printing_id", "snap.market_cents"])
+        .select(["p.id as printingId", "snap.marketCents"])
         .orderBy("ps.id")
-        .orderBy("snap.recorded_at", "desc")
+        .orderBy("snap.recordedAt", "desc")
         .execute();
     },
 
     /** @returns The most recent `recorded_at` across all marketplace snapshots. */
-    pricesLastModified(): Promise<{ last_modified: Date }> {
+    pricesLastModified(): Promise<{ lastModified: Date }> {
       return db
-        .selectFrom("marketplace_snapshots")
-        .select(sql<Date>`MAX(recorded_at)`.as("last_modified"))
+        .selectFrom("marketplaceSnapshots")
+        .select(sql<Date>`MAX(recorded_at)`.as("lastModified"))
         .executeTakeFirstOrThrow();
     },
 
     /** @returns Marketplace sources (TCGPlayer / Cardmarket) linked to a printing. */
     sourcesForPrinting(
       printingId: string,
-    ): Promise<Pick<Selectable<MarketplaceSourcesTable>, "id" | "external_id" | "marketplace">[]> {
+    ): Promise<Pick<Selectable<MarketplaceSourcesTable>, "id" | "externalId" | "marketplace">[]> {
       return db
-        .selectFrom("marketplace_sources")
-        .select(["id", "external_id", "marketplace"])
-        .where("printing_id", "=", printingId)
+        .selectFrom("marketplaceSources")
+        .select(["id", "externalId", "marketplace"])
+        .where("printingId", "=", printingId)
         .execute();
     },
 
@@ -56,12 +56,12 @@ export function marketplaceRepo(db: Kysely<Database>) {
       cutoff: Date | null,
     ): Promise<Selectable<MarketplaceSnapshotsTable>[]> {
       let query = db
-        .selectFrom("marketplace_snapshots")
+        .selectFrom("marketplaceSnapshots")
         .selectAll()
-        .where("source_id", "=", sourceId)
-        .orderBy("recorded_at", "asc");
+        .where("sourceId", "=", sourceId)
+        .orderBy("recordedAt", "asc");
       if (cutoff) {
-        query = query.where("recorded_at", ">=", cutoff);
+        query = query.where("recordedAt", ">=", cutoff);
       }
       return query.execute();
     },

@@ -66,8 +66,8 @@ if (ctx) {
   // Ensure user is an admin
   await db
     .insertInto("admins")
-    .values({ user_id: USER_ID })
-    .onConflict((oc) => oc.column("user_id").doNothing())
+    .values({ userId: USER_ID })
+    .onConflict((oc) => oc.column("userId").doNothing())
     .execute();
 
   // Seed set + card + printing (needed for restore-image-urls test)
@@ -76,8 +76,8 @@ if (ctx) {
     .values({
       slug: "IMG",
       name: "IMG Test Set",
-      printed_total: 1,
-      sort_order: 920,
+      printedTotal: 1,
+      sortOrder: 920,
     })
     .returning("id")
     .execute();
@@ -88,15 +88,15 @@ if (ctx) {
       slug: "IMG-001",
       name: "IMG Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: [],
-      rules_text: null,
-      effect_text: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -106,20 +106,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "IMG-001:common:normal:",
-      card_id: card.id,
-      set_id: set.id,
-      source_id: "IMG-001",
-      collector_number: 1,
+      cardId: card.id,
+      setId: set.id,
+      sourceId: "IMG-001",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "IMG",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "IMG",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -128,47 +128,47 @@ if (ctx) {
 
   // Seed card_sources + printing_sources with image URLs
   const [cs] = await db
-    .insertInto("card_sources")
+    .insertInto("cardSources")
     .values({
       source: "img-source",
       name: "IMG Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
-      rules_text: null,
-      effect_text: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
-      source_id: "IMG-001",
-      source_entity_id: null,
-      extra_data: null,
+      sourceId: "IMG-001",
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
 
   await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: cs.id,
-      printing_id: printingId,
-      source_id: "IMG-001",
-      set_id: "IMG",
-      set_name: "IMG Test Set",
-      collector_number: 1,
+      cardSourceId: cs.id,
+      printingId: printingId,
+      sourceId: "IMG-001",
+      setId: "IMG",
+      setName: "IMG Test Set",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "IMG",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      image_url: "https://example.com/img-test.png",
-      flavor_text: null,
+      publicCode: "IMG",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: "https://example.com/img-test.png",
+      flavorText: null,
     })
     .execute();
 }
@@ -286,15 +286,15 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
       // Verify a printing_images row was created
       const images = await db
-        .selectFrom("printing_images")
-        .select(["printing_id", "face", "source", "original_url", "is_active"])
-        .where("printing_id", "=", printingId)
+        .selectFrom("printingImages")
+        .select(["printingId", "face", "source", "originalUrl", "isActive"])
+        .where("printingId", "=", printingId)
         .where("source", "=", "img-source")
         .execute();
       expect(images).toHaveLength(1);
       expect(images[0].face).toBe("front");
-      expect(images[0].original_url).toBe("https://example.com/img-test.png");
-      expect(images[0].is_active).toBe(true);
+      expect(images[0].originalUrl).toBe("https://example.com/img-test.png");
+      expect(images[0].isActive).toBe(true);
     });
 
     it("returns 400 with empty source", async () => {

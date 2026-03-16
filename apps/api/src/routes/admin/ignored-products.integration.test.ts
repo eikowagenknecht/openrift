@@ -22,10 +22,10 @@ if (ctx) {
 
   // Seed a marketplace group for the staging row
   await db
-    .insertInto("marketplace_groups")
+    .insertInto("marketplaceGroups")
     .values({
       marketplace: "tcgplayer",
-      group_id: 10_400,
+      groupId: 10_400,
       name: "IGP Test Group",
       abbreviation: null,
     })
@@ -33,22 +33,22 @@ if (ctx) {
 
   // Seed staging row (needed for POST /admin/ignored-products to find product names)
   await db
-    .insertInto("marketplace_staging")
+    .insertInto("marketplaceStaging")
     .values({
       marketplace: "tcgplayer",
-      external_id: 10_401,
-      group_id: 10_400,
-      product_name: "IGP Stageable Product",
+      externalId: 10_401,
+      groupId: 10_400,
+      productName: "IGP Stageable Product",
       finish: "normal",
-      recorded_at: new Date(),
-      market_cents: 100,
-      low_cents: 50,
-      mid_cents: null,
-      high_cents: null,
-      trend_cents: null,
-      avg1_cents: null,
-      avg7_cents: null,
-      avg30_cents: null,
+      recordedAt: new Date(),
+      marketCents: 100,
+      lowCents: 50,
+      midCents: null,
+      highCents: null,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
     })
     .execute();
 }
@@ -96,9 +96,9 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
 
       // Verify it was not actually inserted
       const rows = await db
-        .selectFrom("marketplace_ignored_products")
-        .select("external_id")
-        .where("external_id", "=", 99_999)
+        .selectFrom("marketplaceIgnoredProducts")
+        .select("externalId")
+        .where("externalId", "=", 99_999)
         .execute();
       expect(rows).toHaveLength(0);
     });
@@ -178,14 +178,14 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
 
       // Verify the override exists in the database
       const row = await db
-        .selectFrom("marketplace_staging_card_overrides")
-        .select(["marketplace", "external_id", "finish", "card_id"])
+        .selectFrom("marketplaceStagingCardOverrides")
+        .select(["marketplace", "externalId", "finish", "cardId"])
         .where("marketplace", "=", "tcgplayer")
-        .where("external_id", "=", 10_401)
+        .where("externalId", "=", 10_401)
         .where("finish", "=", "normal")
         .executeTakeFirst();
       expect(row).toBeDefined();
-      expect(row?.card_id).toBe(cardId);
+      expect(row?.cardId).toBe(cardId);
     });
   });
 
@@ -207,10 +207,10 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
 
       // Verify the override is gone
       const row = await db
-        .selectFrom("marketplace_staging_card_overrides")
-        .select("external_id")
+        .selectFrom("marketplaceStagingCardOverrides")
+        .select("externalId")
         .where("marketplace", "=", "tcgplayer")
-        .where("external_id", "=", 10_401)
+        .where("externalId", "=", 10_401)
         .where("finish", "=", "normal")
         .executeTakeFirst();
       expect(row).toBeUndefined();

@@ -10,14 +10,14 @@ import type {
   SetsTable,
 } from "../db/index.js";
 
-/** Card columns returned by the catalog (excludes norm_name and timestamps). */
-type CatalogCard = Omit<Selectable<CardsTable>, "norm_name" | "created_at" | "updated_at">;
+/** Card columns returned by the catalog (excludes normName and timestamps). */
+type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt">;
 
-/** Printing columns returned by the catalog (excludes timestamps). */
-type CatalogPrinting = Omit<Selectable<PrintingsTable>, "created_at" | "updated_at">;
+/** Printing columns returned by the catalog (excludes timestamps and comment). */
+type CatalogPrintingRow = Omit<Selectable<PrintingsTable>, "comment" | "createdAt" | "updatedAt">;
 
 /** Active printing image with resolved URL. */
-type CatalogPrintingImage = Pick<Selectable<PrintingImagesTable>, "printing_id" | "face"> & {
+type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
   url: string | null;
 };
 
@@ -30,11 +30,11 @@ export function catalogRepo(db: Kysely<Database>) {
   return {
     /** @returns All sets ordered by their display position. */
     sets(): Promise<Selectable<SetsTable>[]> {
-      return db.selectFrom("sets").selectAll().orderBy("sort_order").execute();
+      return db.selectFrom("sets").selectAll().orderBy("sortOrder").execute();
     },
 
     /** @returns All cards (no printings), for building a card lookup. */
-    cards(): Promise<CatalogCard[]> {
+    cards(): Promise<CatalogCardRow[]> {
       return db
         .selectFrom("cards")
         .select([
@@ -42,65 +42,64 @@ export function catalogRepo(db: Kysely<Database>) {
           "slug",
           "name",
           "type",
-          "super_types",
+          "superTypes",
           "domains",
           "might",
           "energy",
           "power",
-          "might_bonus",
+          "mightBonus",
           "keywords",
-          "rules_text",
-          "effect_text",
+          "rulesText",
+          "effectText",
           "tags",
         ])
         .execute();
     },
 
     /** @returns All printings ordered by set, collector number, finish. */
-    printings(): Promise<CatalogPrinting[]> {
+    printings(): Promise<CatalogPrintingRow[]> {
       return db
         .selectFrom("printings")
         .select([
           "id",
           "slug",
-          "card_id",
-          "set_id",
-          "source_id",
-          "collector_number",
+          "cardId",
+          "setId",
+          "sourceId",
+          "collectorNumber",
           "rarity",
-          "art_variant",
-          "is_signed",
-          "is_promo",
+          "artVariant",
+          "isSigned",
+          "isPromo",
           "finish",
           "artist",
-          "public_code",
-          "printed_rules_text",
-          "printed_effect_text",
-          "flavor_text",
-          "comment",
+          "publicCode",
+          "printedRulesText",
+          "printedEffectText",
+          "flavorText",
         ])
-        .orderBy("set_id")
-        .orderBy("collector_number")
+        .orderBy("setId")
+        .orderBy("collectorNumber")
         .orderBy("finish", "desc")
         .execute();
     },
 
     /** @returns All active printing images (front and back), ordered by printing then face. */
-    printingImages(): Promise<CatalogPrintingImage[]> {
+    printingImages(): Promise<CatalogPrintingImageRow[]> {
       return db
-        .selectFrom("printing_images")
-        .select(["printing_id", "face", imageUrl("printing_images").as("url")])
-        .where("is_active", "=", true)
-        .orderBy("printing_id")
+        .selectFrom("printingImages")
+        .select(["printingId", "face", imageUrl("printingImages").as("url")])
+        .where("isActive", "=", true)
+        .orderBy("printingId")
         .orderBy("face")
         .execute();
     },
 
     /** @returns The most recent `updated_at` across sets, cards, and printings. */
-    catalogLastModified(): Promise<{ last_modified: Date }> {
+    catalogLastModified(): Promise<{ lastModified: Date }> {
       return db
         .selectFrom(
-          sql<{ last_modified: Date }>`(
+          sql<{ lastModified: Date }>`(
             SELECT MAX(updated_at) AS last_modified FROM sets
             UNION ALL
             SELECT MAX(updated_at) FROM cards
@@ -108,7 +107,7 @@ export function catalogRepo(db: Kysely<Database>) {
             SELECT MAX(updated_at) FROM printings
           )`.as("t"),
         )
-        .select(sql<Date>`MAX(t.last_modified)`.as("last_modified"))
+        .select(sql<Date>`MAX(t.last_modified)`.as("lastModified"))
         .executeTakeFirstOrThrow();
     },
 

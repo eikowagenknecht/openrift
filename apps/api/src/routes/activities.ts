@@ -33,14 +33,14 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
       name: row.name,
       date: formatDateUTC(row.date),
       description: row.description,
-      isAuto: row.is_auto,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
+      isAuto: row.isAuto,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
     }));
 
     return c.json({
       activities: mapped,
-      nextCursor: hasMore ? (items.at(-1)?.created_at.toISOString() ?? null) : null,
+      nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
     });
   })
 
@@ -60,22 +60,22 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
 
     const items = itemRows.map((row) => ({
       id: row.id,
-      activityId: row.activity_id,
-      activityType: row.activity_type,
-      copyId: row.copy_id,
-      printingId: row.printing_id,
+      activityId: row.activityId,
+      activityType: row.activityType,
+      copyId: row.copyId,
+      printingId: row.printingId,
       action: row.action,
-      fromCollectionId: row.from_collection_id,
-      fromCollectionName: row.from_collection_name,
-      toCollectionId: row.to_collection_id,
-      toCollectionName: row.to_collection_name,
-      metadataSnapshot: row.metadata_snapshot,
-      createdAt: row.created_at.toISOString(),
-      cardName: row.card_name,
-      cardType: row.card_type,
-      imageUrl: row.image_url,
-      setId: row.set_id,
-      collectorNumber: row.collector_number,
+      fromCollectionId: row.fromCollectionId,
+      fromCollectionName: row.fromCollectionName,
+      toCollectionId: row.toCollectionId,
+      toCollectionName: row.toCollectionName,
+      metadataSnapshot: row.metadataSnapshot,
+      createdAt: row.createdAt.toISOString(),
+      cardName: row.cardName,
+      cardType: row.cardType,
+      imageUrl: row.imageUrl,
+      setId: row.setId,
+      collectorNumber: row.collectorNumber,
       rarity: row.rarity,
     }));
 
@@ -86,9 +86,9 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
         name: activity.name,
         date: formatDateUTC(activity.date),
         description: activity.description,
-        isAuto: activity.is_auto,
-        createdAt: activity.created_at.toISOString(),
-        updatedAt: activity.updated_at.toISOString(),
+        isAuto: activity.isAuto,
+        createdAt: activity.createdAt.toISOString(),
+        updatedAt: activity.updatedAt.toISOString(),
       },
       items,
     });

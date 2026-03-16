@@ -32,20 +32,20 @@ export async function addCopies(
 
   const created = await db.transaction().execute(async (trx) => {
     const copyValues = copies.map((item) => ({
-      user_id: userId,
-      printing_id: item.printingId,
-      collection_id: item.collectionId ?? inboxId,
-      source_id: item.sourceId ?? null,
+      userId: userId,
+      printingId: item.printingId,
+      collectionId: item.collectionId ?? inboxId,
+      sourceId: item.sourceId ?? null,
     }));
 
     const copyRows = await trx
       .insertInto("copies")
       .values(copyValues)
-      .returning(["id", "printing_id", "collection_id", "source_id"])
+      .returning(["id", "printingId", "collectionId", "sourceId"])
       .execute();
 
     // Look up collection names for activity items
-    const collectionIds = [...new Set(copyRows.map((r) => r.collection_id))];
+    const collectionIds = [...new Set(copyRows.map((r) => r.collectionId))];
     const collections = await trx
       .selectFrom("collections")
       .select(["id", "name"])
@@ -59,10 +59,10 @@ export async function addCopies(
       isAuto: true,
       items: copyRows.map((row) => ({
         copyId: row.id,
-        printingId: row.printing_id,
+        printingId: row.printingId,
         action: "added" as const,
-        toCollectionId: row.collection_id,
-        toCollectionName: collectionNames.get(row.collection_id) ?? null,
+        toCollectionId: row.collectionId,
+        toCollectionName: collectionNames.get(row.collectionId) ?? null,
       })),
     });
 
@@ -71,9 +71,9 @@ export async function addCopies(
 
   return created.map((r) => ({
     id: r.id,
-    printingId: r.printing_id,
-    collectionId: r.collection_id,
-    sourceId: r.source_id ?? null,
+    printingId: r.printingId,
+    collectionId: r.collectionId,
+    sourceId: r.sourceId ?? null,
   }));
 }
 
@@ -92,7 +92,7 @@ export async function moveCopies(
     .selectFrom("collections")
     .select(["id", "name"])
     .where("id", "=", toCollectionId)
-    .where("user_id", "=", userId)
+    .where("userId", "=", userId)
     .executeTakeFirst();
 
   if (!target) {
@@ -103,10 +103,10 @@ export async function moveCopies(
     // Fetch copies with their current collection info
     const copies = await trx
       .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collection_id")
-      .select(["cp.id", "cp.printing_id", "cp.collection_id", "col.name as collection_name"])
+      .innerJoin("collections as col", "col.id", "cp.collectionId")
+      .select(["cp.id", "cp.printingId", "cp.collectionId", "col.name as collectionName"])
       .where("cp.id", "in", copyIds)
-      .where("cp.user_id", "=", userId)
+      .where("cp.userId", "=", userId)
       .execute();
 
     if (copies.length === 0) {
@@ -116,13 +116,13 @@ export async function moveCopies(
     // Update copies
     await trx
       .updateTable("copies")
-      .set({ collection_id: toCollectionId, updated_at: new Date() })
+      .set({ collectionId: toCollectionId, updatedAt: new Date() })
       .where(
         "id",
         "in",
         copies.map((row) => row.id),
       )
-      .where("user_id", "=", userId)
+      .where("userId", "=", userId)
       .execute();
 
     // Log reorganization activity
@@ -132,10 +132,10 @@ export async function moveCopies(
       isAuto: true,
       items: copies.map((copy) => ({
         copyId: copy.id,
-        printingId: copy.printing_id,
+        printingId: copy.printingId,
         action: "moved" as const,
-        fromCollectionId: copy.collection_id,
-        fromCollectionName: copy.collection_name,
+        fromCollectionId: copy.collectionId,
+        fromCollectionName: copy.collectionName,
         toCollectionId: target.id,
         toCollectionName: target.name,
       })),
@@ -156,16 +156,16 @@ export async function disposeCopies(
     // Fetch copies with collection info for snapshots
     const copies = await trx
       .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collection_id")
+      .innerJoin("collections as col", "col.id", "cp.collectionId")
       .select([
         "cp.id",
-        "cp.printing_id",
-        "cp.collection_id",
-        "cp.source_id",
-        "col.name as collection_name",
+        "cp.printingId",
+        "cp.collectionId",
+        "cp.sourceId",
+        "col.name as collectionName",
       ])
       .where("cp.id", "in", copyIds)
-      .where("cp.user_id", "=", userId)
+      .where("cp.userId", "=", userId)
       .execute();
 
     if (copies.length === 0) {
@@ -179,13 +179,13 @@ export async function disposeCopies(
       isAuto: true,
       items: copies.map((copy) => ({
         copyId: copy.id,
-        printingId: copy.printing_id,
+        printingId: copy.printingId,
         action: "removed" as const,
-        fromCollectionId: copy.collection_id,
-        fromCollectionName: copy.collection_name,
+        fromCollectionId: copy.collectionId,
+        fromCollectionName: copy.collectionName,
         metadataSnapshot: {
           copyId: copy.id,
-          sourceId: copy.source_id,
+          sourceId: copy.sourceId,
         },
       })),
     });
@@ -198,7 +198,7 @@ export async function disposeCopies(
         "in",
         copies.map((row) => row.id),
       )
-      .where("user_id", "=", userId)
+      .where("userId", "=", userId)
       .execute();
   });
 }

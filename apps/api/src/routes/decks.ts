@@ -22,8 +22,8 @@ const patchFields: FieldMapping = {
   name: "name",
   description: "description",
   format: "format",
-  isWanted: "is_wanted",
-  isPublic: "is_public",
+  isWanted: "isWanted",
+  isPublic: "isPublic",
 };
 
 export const decksRoute = new Hono<{ Variables: Variables }>()
@@ -45,12 +45,12 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await decks.create({
-      user_id: userId,
+      userId,
       name: body.name,
       description: body.description ?? null,
       format: body.format,
-      is_wanted: body.isWanted ?? false,
-      is_public: body.isPublic ?? false,
+      isWanted: body.isWanted ?? false,
+      isPublic: body.isPublic ?? false,
     });
     return c.json(toDeck(row), 201);
   })
@@ -72,12 +72,12 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
       deck: toDeck(deck),
       cards: cardRows.map((r) => ({
         id: r.id,
-        deckId: r.deck_id,
-        cardId: r.card_id,
+        deckId: r.deckId,
+        cardId: r.cardId,
         zone: r.zone as DeckZone,
         quantity: r.quantity,
-        cardName: r.card_name,
-        cardType: r.card_type,
+        cardName: r.cardName,
+        cardType: r.cardType,
         domains: r.domains,
         energy: r.energy,
         might: r.might,
@@ -162,16 +162,16 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
       await db.transaction().execute(async (trx) => {
         // Delete existing cards
-        await trx.deleteFrom("deck_cards").where("deck_id", "=", id).execute();
+        await trx.deleteFrom("deckCards").where("deckId", "=", id).execute();
 
         // Insert new cards
         if (body.cards.length > 0) {
           await trx
-            .insertInto("deck_cards")
+            .insertInto("deckCards")
             .values(
               body.cards.map((card) => ({
-                deck_id: id,
-                card_id: card.cardId,
+                deckId: id,
+                cardId: card.cardId,
                 zone: card.zone,
                 quantity: card.quantity,
               })),
@@ -182,7 +182,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
         // Touch deck updated_at
         await trx
           .updateTable("decks")
-          .set({ updated_at: new Date() })
+          .set({ updatedAt: new Date() })
           .where("id", "=", id)
           .execute();
       });
@@ -210,15 +210,15 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
     const ownedByCard = new Map<string, number>();
     for (const row of availableCopies) {
-      ownedByCard.set(row.card_id, Number(row.count));
+      ownedByCard.set(row.cardId, Number(row.count));
     }
 
     const availability = deckCards.map((dc) => ({
-      cardId: dc.card_id,
+      cardId: dc.cardId,
       zone: dc.zone,
       needed: dc.quantity,
-      owned: ownedByCard.get(dc.card_id) ?? 0,
-      shortfall: Math.max(0, dc.quantity - (ownedByCard.get(dc.card_id) ?? 0)),
+      owned: ownedByCard.get(dc.cardId) ?? 0,
+      shortfall: Math.max(0, dc.quantity - (ownedByCard.get(dc.cardId) ?? 0)),
     }));
 
     return c.json(availability);

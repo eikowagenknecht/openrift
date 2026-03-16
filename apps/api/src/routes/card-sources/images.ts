@@ -33,7 +33,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const { mode } = c.req.valid("json");
 
     const ps = await db
-      .selectFrom("printing_sources")
+      .selectFrom("printingSources")
       .selectAll()
       .where("id", "=", id)
       .executeTakeFirst();
@@ -42,25 +42,25 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
-    if (!ps.printing_id) {
+    if (!ps.printingId) {
       throw new AppError(400, "BAD_REQUEST", "Printing source not linked to a printing");
     }
 
-    if (!ps.image_url) {
+    if (!ps.imageUrl) {
       throw new AppError(400, "BAD_REQUEST", "Printing source has no image URL");
     }
 
     const cs = await db
-      .selectFrom("card_sources")
+      .selectFrom("cardSources")
       .select("source")
-      .where("id", "=", ps.card_source_id)
+      .where("id", "=", ps.cardSourceId)
       .executeTakeFirst();
 
     await db.transaction().execute(async (trx) => {
       await insertPrintingImage(
         trx,
-        ps.printing_id as string,
-        ps.image_url,
+        ps.printingId as string,
+        ps.imageUrl,
         cs?.source ?? "import",
         mode,
       );
@@ -75,8 +75,8 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const { imageId } = c.req.param();
 
     const image = await db
-      .selectFrom("printing_images")
-      .select(["id", "rehosted_url"])
+      .selectFrom("printingImages")
+      .select(["id", "rehostedUrl"])
       .where("id", "=", imageId)
       .executeTakeFirst();
 
@@ -84,10 +84,10 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
     }
 
-    await db.deleteFrom("printing_images").where("id", "=", imageId).execute();
+    await db.deleteFrom("printingImages").where("id", "=", imageId).execute();
 
-    if (image.rehosted_url) {
-      await deleteRehostFiles(image.rehosted_url);
+    if (image.rehostedUrl) {
+      await deleteRehostFiles(image.rehostedUrl);
     }
 
     return c.json({ ok: true });
@@ -103,35 +103,35 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const { active } = c.req.valid("json");
 
       const image = await db
-        .selectFrom("printing_images")
-        .innerJoin("printings", "printings.id", "printing_images.printing_id")
-        .innerJoin("sets", "sets.id", "printings.set_id")
+        .selectFrom("printingImages")
+        .innerJoin("printings", "printings.id", "printingImages.printingId")
+        .innerJoin("sets", "sets.id", "printings.setId")
         .select([
-          "printing_images.id",
-          "printing_images.printing_id",
-          "printing_images.face",
-          "printing_images.rehosted_url",
-          "printings.slug as printing_slug",
-          "sets.slug as set_slug",
+          "printingImages.id",
+          "printingImages.printingId",
+          "printingImages.face",
+          "printingImages.rehostedUrl",
+          "printings.slug as printingSlug",
+          "sets.slug as setSlug",
         ])
-        .where("printing_images.id", "=", imageId)
+        .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
 
       if (!image) {
         throw new AppError(404, "NOT_FOUND", "Printing image not found");
       }
 
-      const baseFileBase = printingIdToFileBase(image.printing_slug);
-      const mainPath = `/card-images/${image.set_slug}/${baseFileBase}`;
+      const baseFileBase = printingIdToFileBase(image.printingSlug);
+      const mainPath = `/card-images/${image.setSlug}/${baseFileBase}`;
 
       // Find the currently active image (if any) for file rename purposes
       const currentActive = active
         ? await db
-            .selectFrom("printing_images")
-            .select(["id", "rehosted_url"])
-            .where("printing_id", "=", image.printing_id)
+            .selectFrom("printingImages")
+            .select(["id", "rehostedUrl"])
+            .where("printingId", "=", image.printingId)
             .where("face", "=", image.face)
-            .where("is_active", "=", true)
+            .where("isActive", "=", true)
             .executeTakeFirst()
         : null;
 
@@ -139,44 +139,44 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
         if (active && currentActive) {
           // Deactivate the current active image
           await trx
-            .updateTable("printing_images")
-            .set({ is_active: false, updated_at: new Date() })
+            .updateTable("printingImages")
+            .set({ isActive: false, updatedAt: new Date() })
             .where("id", "=", currentActive.id)
             .execute();
 
           // Rename current active's files: main path → ID-suffixed path
-          if (currentActive.rehosted_url) {
+          if (currentActive.rehostedUrl) {
             const demotedPath = `${mainPath}-${currentActive.id}`;
-            await renameRehostFiles(currentActive.rehosted_url, demotedPath);
+            await renameRehostFiles(currentActive.rehostedUrl, demotedPath);
             await trx
-              .updateTable("printing_images")
-              .set({ rehosted_url: demotedPath, updated_at: new Date() })
+              .updateTable("printingImages")
+              .set({ rehostedUrl: demotedPath, updatedAt: new Date() })
               .where("id", "=", currentActive.id)
               .execute();
           }
         }
 
         await trx
-          .updateTable("printing_images")
-          .set({ is_active: active, updated_at: new Date() })
+          .updateTable("printingImages")
+          .set({ isActive: active, updatedAt: new Date() })
           .where("id", "=", imageId)
           .execute();
 
-        if (active && image.rehosted_url) {
+        if (active && image.rehostedUrl) {
           // Rename newly active image's files: ID-suffixed path → main path
-          await renameRehostFiles(image.rehosted_url, mainPath);
+          await renameRehostFiles(image.rehostedUrl, mainPath);
           await trx
-            .updateTable("printing_images")
-            .set({ rehosted_url: mainPath, updated_at: new Date() })
+            .updateTable("printingImages")
+            .set({ rehostedUrl: mainPath, updatedAt: new Date() })
             .where("id", "=", imageId)
             .execute();
-        } else if (!active && image.rehosted_url) {
+        } else if (!active && image.rehostedUrl) {
           // Demoting: rename from main path → ID-suffixed path
           const demotedPath = `${mainPath}-${image.id}`;
-          await renameRehostFiles(image.rehosted_url, demotedPath);
+          await renameRehostFiles(image.rehostedUrl, demotedPath);
           await trx
-            .updateTable("printing_images")
-            .set({ rehosted_url: demotedPath, updated_at: new Date() })
+            .updateTable("printingImages")
+            .set({ rehostedUrl: demotedPath, updatedAt: new Date() })
             .where("id", "=", imageId)
             .execute();
         }
@@ -192,8 +192,8 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const { imageId } = c.req.param();
 
     const image = await db
-      .selectFrom("printing_images")
-      .select(["id", "rehosted_url", "original_url"])
+      .selectFrom("printingImages")
+      .select(["id", "rehostedUrl", "originalUrl"])
       .where("id", "=", imageId)
       .executeTakeFirst();
 
@@ -201,15 +201,15 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
     }
 
-    if (!image.rehosted_url) {
+    if (!image.rehostedUrl) {
       throw new AppError(400, "BAD_REQUEST", "Image is not rehosted");
     }
 
-    await deleteRehostFiles(image.rehosted_url);
+    await deleteRehostFiles(image.rehostedUrl);
 
     await db
-      .updateTable("printing_images")
-      .set({ rehosted_url: null, updated_at: new Date() })
+      .updateTable("printingImages")
+      .set({ rehostedUrl: null, updatedAt: new Date() })
       .where("id", "=", imageId)
       .execute();
 
@@ -222,40 +222,40 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const { imageId } = c.req.param();
 
     const image = await db
-      .selectFrom("printing_images")
-      .innerJoin("printings", "printings.id", "printing_images.printing_id")
-      .innerJoin("sets", "sets.id", "printings.set_id")
+      .selectFrom("printingImages")
+      .innerJoin("printings", "printings.id", "printingImages.printingId")
+      .innerJoin("sets", "sets.id", "printings.setId")
       .select([
-        "printing_images.id",
-        "printing_images.printing_id",
-        "printing_images.original_url",
-        "printing_images.is_active",
-        "printings.slug as printing_slug",
-        "sets.slug as set_slug",
+        "printingImages.id",
+        "printingImages.printingId",
+        "printingImages.originalUrl",
+        "printingImages.isActive",
+        "printings.slug as printingSlug",
+        "sets.slug as setSlug",
       ])
-      .where("printing_images.id", "=", imageId)
+      .where("printingImages.id", "=", imageId)
       .executeTakeFirst();
 
     if (!image) {
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
     }
 
-    if (!image.original_url) {
+    if (!image.originalUrl) {
       throw new AppError(400, "BAD_REQUEST", "Image has no original URL to rehost");
     }
 
-    const { buffer, ext } = await downloadImage(image.original_url);
-    const baseFileBase = printingIdToFileBase(image.printing_slug);
-    const fileBase = image.is_active ? baseFileBase : `${baseFileBase}-${image.id}`;
-    const outputDir = join(CARD_IMAGES_DIR, image.set_slug);
+    const { buffer, ext } = await downloadImage(image.originalUrl);
+    const baseFileBase = printingIdToFileBase(image.printingSlug);
+    const fileBase = image.isActive ? baseFileBase : `${baseFileBase}-${image.id}`;
+    const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
 
     await processAndSave(buffer, ext, outputDir, fileBase);
 
-    const rehostedUrl = `/card-images/${image.set_slug}/${fileBase}`;
+    const rehostedUrl = `/card-images/${image.setSlug}/${fileBase}`;
 
     await db
-      .updateTable("printing_images")
-      .set({ rehosted_url: rehostedUrl, updated_at: new Date() })
+      .updateTable("printingImages")
+      .set({ rehostedUrl: rehostedUrl, updatedAt: new Date() })
       .where("id", "=", imageId)
       .execute();
 
@@ -301,8 +301,8 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
       const printing = await db
         .selectFrom("printings")
-        .innerJoin("sets", "sets.id", "printings.set_id")
-        .select(["printings.id", "sets.slug as set_slug"])
+        .innerJoin("sets", "sets.id", "printings.setId")
+        .select(["printings.id", "sets.slug as setSlug"])
         .where("printings.slug", "=", printingSlug)
         .executeTakeFirst();
 
@@ -318,32 +318,32 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const buffer = Buffer.from(await file.arrayBuffer());
       const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
       const baseFileBase = printingIdToFileBase(printingSlug);
-      const outputDir = join(CARD_IMAGES_DIR, printing.set_slug);
+      const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
 
       // Insert the DB row first so we have the ID for non-main file paths
       const imageRow = await db.transaction().execute(async (trx) => {
         if (mode === "main") {
           await trx
-            .updateTable("printing_images")
-            .set({ is_active: false, updated_at: new Date() })
-            .where("printing_id", "=", printing.id)
+            .updateTable("printingImages")
+            .set({ isActive: false, updatedAt: new Date() })
+            .where("printingId", "=", printing.id)
             .where("face", "=", "front")
-            .where("is_active", "=", true)
+            .where("isActive", "=", true)
             .execute();
         }
 
         return trx
-          .insertInto("printing_images")
+          .insertInto("printingImages")
           .values({
-            printing_id: printing.id,
+            printingId: printing.id,
             face: "front",
             source,
-            is_active: mode === "main",
+            isActive: mode === "main",
           })
           .onConflict((oc) =>
-            oc.columns(["printing_id", "face", "source"]).doUpdateSet({
-              is_active: mode === "main",
-              updated_at: new Date(),
+            oc.columns(["printingId", "face", "source"]).doUpdateSet({
+              isActive: mode === "main",
+              updatedAt: new Date(),
             }),
           )
           .returning("id")
@@ -353,11 +353,11 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageRow.id}`;
       await processAndSave(buffer, ext, outputDir, fileBase);
 
-      const rehostedUrl = `/card-images/${printing.set_slug}/${fileBase}`;
+      const rehostedUrl = `/card-images/${printing.setSlug}/${fileBase}`;
 
       await db
-        .updateTable("printing_images")
-        .set({ rehosted_url: rehostedUrl, updated_at: new Date() })
+        .updateTable("printingImages")
+        .set({ rehostedUrl: rehostedUrl, updatedAt: new Date() })
         .where("id", "=", imageRow.id)
         .execute();
 

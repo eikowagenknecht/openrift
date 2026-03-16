@@ -70,7 +70,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
 
     const counts: Record<string, number> = {};
     for (const row of rows) {
-      counts[row.printing_id] = Number(row.count);
+      counts[row.printingId] = Number(row.count);
     }
     return c.json(counts);
   })

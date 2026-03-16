@@ -6,11 +6,11 @@ import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/ind
 /** Deck card row with card details. */
 type DeckCardRow = Pick<
   Selectable<DeckCardsTable>,
-  "id" | "deck_id" | "card_id" | "zone" | "quantity"
+  "id" | "deckId" | "cardId" | "zone" | "quantity"
 > &
   Pick<Selectable<CardsTable>, "domains" | "energy" | "might" | "power"> & {
-    card_name: string;
-    card_type: CardType;
+    cardName: string;
+    cardType: CardType;
   };
 
 /**
@@ -22,9 +22,9 @@ export function decksRepo(db: Kysely<Database>) {
   return {
     /** @returns All decks for a user, optionally filtered to wanted-only, ordered by name. */
     listForUser(userId: string, wantedOnly?: boolean): Promise<Selectable<DecksTable>[]> {
-      let query = db.selectFrom("decks").selectAll().where("user_id", "=", userId).orderBy("name");
+      let query = db.selectFrom("decks").selectAll().where("userId", "=", userId).orderBy("name");
       if (wantedOnly) {
-        query = query.where("is_wanted", "=", true);
+        query = query.where("isWanted", "=", true);
       }
       return query.execute();
     },
@@ -35,7 +35,7 @@ export function decksRepo(db: Kysely<Database>) {
         .selectFrom("decks")
         .selectAll()
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
@@ -48,7 +48,7 @@ export function decksRepo(db: Kysely<Database>) {
         .selectFrom("decks")
         .select(["id", "format"])
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
@@ -58,18 +58,18 @@ export function decksRepo(db: Kysely<Database>) {
         .selectFrom("decks")
         .select("id")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns The newly created deck row. */
     create(values: {
-      user_id: string;
+      userId: string;
       name: string;
       description: string | null;
       format: DeckFormat;
-      is_wanted: boolean;
-      is_public: boolean;
+      isWanted: boolean;
+      isPublic: boolean;
     }): Promise<Selectable<DecksTable>> {
       return db.insertInto("decks").values(values).returningAll().executeTakeFirstOrThrow();
     },
@@ -84,65 +84,65 @@ export function decksRepo(db: Kysely<Database>) {
         .updateTable("decks")
         .set(updates)
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
+    /** @returns Delete result -- check `numDeletedRows` to verify the row existed. */
     deleteByIdForUser(id: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("decks")
         .where("id", "=", id)
-        .where("user_id", "=", userId)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
     /** @returns Deck cards joined with card details, ordered by zone then name. */
     cardsWithDetails(deckId: string): Promise<DeckCardRow[]> {
       return db
-        .selectFrom("deck_cards as dc")
-        .innerJoin("cards as c", "c.id", "dc.card_id")
+        .selectFrom("deckCards as dc")
+        .innerJoin("cards as c", "c.id", "dc.cardId")
         .select([
           "dc.id",
-          "dc.deck_id",
-          "dc.card_id",
+          "dc.deckId",
+          "dc.cardId",
           "dc.zone",
           "dc.quantity",
-          "c.name as card_name",
-          "c.type as card_type",
+          "c.name as cardName",
+          "c.type as cardType",
           "c.domains",
           "c.energy",
           "c.might",
           "c.power",
         ])
-        .where("dc.deck_id", "=", deckId)
+        .where("dc.deckId", "=", deckId)
         .orderBy("dc.zone")
         .orderBy("c.name")
         .execute();
     },
 
-    /** @returns Card requirements for a deck (card_id, zone, quantity). */
+    /** @returns Card requirements for a deck (cardId, zone, quantity). */
     cardRequirements(
       deckId: string,
-    ): Promise<Pick<Selectable<DeckCardsTable>, "card_id" | "zone" | "quantity">[]> {
+    ): Promise<Pick<Selectable<DeckCardsTable>, "cardId" | "zone" | "quantity">[]> {
       return db
-        .selectFrom("deck_cards")
-        .select(["card_id", "zone", "quantity"])
-        .where("deck_id", "=", deckId)
+        .selectFrom("deckCards")
+        .select(["cardId", "zone", "quantity"])
+        .where("deckId", "=", deckId)
         .execute();
     },
 
     /** @returns Owned copy count per card from deckbuilding-available collections. */
-    availableCopiesByCard(userId: string): Promise<{ card_id: string; count: number }[]> {
+    availableCopiesByCard(userId: string): Promise<{ cardId: string; count: number }[]> {
       return db
         .selectFrom("copies as cp")
-        .innerJoin("collections as col", "col.id", "cp.collection_id")
-        .innerJoin("printings as p", "p.id", "cp.printing_id")
-        .select(["p.card_id", db.fn.countAll<number>().as("count")])
-        .where("cp.user_id", "=", userId)
-        .where("col.available_for_deckbuilding", "=", true)
-        .groupBy("p.card_id")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .select(["p.cardId", db.fn.countAll<number>().as("count")])
+        .where("cp.userId", "=", userId)
+        .where("col.availableForDeckbuilding", "=", true)
+        .groupBy("p.cardId")
         .execute();
     },
   };

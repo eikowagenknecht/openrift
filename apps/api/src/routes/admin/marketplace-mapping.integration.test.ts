@@ -6,7 +6,7 @@ import { createTestContext, req } from "../../test/integration-context.js";
 // Integration tests: TCGPlayer & Cardmarket mapping routes
 //
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix MKM- for entities it creates, group_id range distinct from others.
+// Uses prefix MKM- for entities it creates, groupId range distinct from others.
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0013-4000-a000-000000000001";
@@ -25,7 +25,7 @@ if (ctx) {
   // Seed set
   const [setRow] = await db
     .insertInto("sets")
-    .values({ slug: "MKM-TEST", name: "MKM Test Set", printed_total: 2, sort_order: 100 })
+    .values({ slug: "MKM-TEST", name: "MKM Test Set", printedTotal: 2, sortOrder: 100 })
     .returning("id")
     .execute();
   setId = setRow.id;
@@ -37,15 +37,15 @@ if (ctx) {
       slug: "MKM-001",
       name: "MKM Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: [],
-      rules_text: null,
-      effect_text: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -57,20 +57,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "MKM-001:common:normal:",
-      card_id: cardId,
-      set_id: setId,
-      source_id: "MKM-001",
-      collector_number: 1,
+      cardId: cardId,
+      setId: setId,
+      sourceId: "MKM-001",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "MKM",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "MKM",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -82,20 +82,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: "MKM-001:common:foil:",
-      card_id: cardId,
-      set_id: setId,
-      source_id: "MKM-001",
-      collector_number: 1,
+      cardId: cardId,
+      setId: setId,
+      sourceId: "MKM-001",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "foil",
       artist: "Test Artist",
-      public_code: "MKM",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "MKM",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -104,55 +104,55 @@ if (ctx) {
 
   // Marketplace group for TCGPlayer
   await db
-    .insertInto("marketplace_groups")
-    .values({ marketplace: "tcgplayer", group_id: 10_200, name: "MKM TCG Group" })
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "tcgplayer", groupId: 10_200, name: "MKM TCG Group" })
     .execute();
 
   // Marketplace group for Cardmarket
   await db
-    .insertInto("marketplace_groups")
-    .values({ marketplace: "cardmarket", group_id: 10_201, name: "MKM CM Group" })
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "cardmarket", groupId: 10_201, name: "MKM CM Group" })
     .execute();
 
   // TCGPlayer staging row (matches "MKM Test Card" by name prefix)
   await db
-    .insertInto("marketplace_staging")
+    .insertInto("marketplaceStaging")
     .values({
       marketplace: "tcgplayer",
-      external_id: 12_345,
-      group_id: 10_200,
-      product_name: "MKM Test Card Normal",
+      externalId: 12_345,
+      groupId: 10_200,
+      productName: "MKM Test Card Normal",
       finish: "normal",
-      recorded_at: new Date("2026-01-15T12:00:00Z"),
-      market_cents: 100,
-      low_cents: 50,
-      mid_cents: 75,
-      high_cents: 150,
-      trend_cents: null,
-      avg1_cents: null,
-      avg7_cents: null,
-      avg30_cents: null,
+      recordedAt: new Date("2026-01-15T12:00:00Z"),
+      marketCents: 100,
+      lowCents: 50,
+      midCents: 75,
+      highCents: 150,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
     })
     .execute();
 
   // Cardmarket staging row
   await db
-    .insertInto("marketplace_staging")
+    .insertInto("marketplaceStaging")
     .values({
       marketplace: "cardmarket",
-      external_id: 67_890,
-      group_id: 10_201,
-      product_name: "MKM Test Card Normal",
+      externalId: 67_890,
+      groupId: 10_201,
+      productName: "MKM Test Card Normal",
       finish: "normal",
-      recorded_at: new Date("2026-01-15T12:00:00Z"),
-      market_cents: 80,
-      low_cents: 40,
-      mid_cents: null,
-      high_cents: null,
-      trend_cents: 70,
-      avg1_cents: 60,
-      avg7_cents: 65,
-      avg30_cents: 75,
+      recordedAt: new Date("2026-01-15T12:00:00Z"),
+      marketCents: 80,
+      lowCents: 40,
+      midCents: null,
+      highCents: null,
+      trendCents: 70,
+      avg1Cents: 60,
+      avg7Cents: 65,
+      avg30Cents: 75,
     })
     .execute();
 }
@@ -243,32 +243,32 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     it("after mapping, staging row is deleted and snapshot is created", async () => {
       // Staging row for this external_id + finish should be gone
       const stagingRows = await db
-        .selectFrom("marketplace_staging")
+        .selectFrom("marketplaceStaging")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
-        .where("external_id", "=", 12_345)
+        .where("externalId", "=", 12_345)
         .where("finish", "=", "normal")
         .execute();
       expect(stagingRows).toHaveLength(0);
 
       // marketplace_sources row should exist
       const sourceRow = await db
-        .selectFrom("marketplace_sources")
+        .selectFrom("marketplaceSources")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
-        .where("printing_id", "=", printingId)
+        .where("printingId", "=", printingId)
         .executeTakeFirst();
       expect(sourceRow).toBeDefined();
-      expect(sourceRow?.external_id).toBe(12_345);
+      expect(sourceRow?.externalId).toBe(12_345);
 
       // marketplace_snapshots should have at least one row
       const snapshots = await db
-        .selectFrom("marketplace_snapshots")
+        .selectFrom("marketplaceSnapshots")
         .selectAll()
-        .where("source_id", "=", sourceRow?.id as string)
+        .where("sourceId", "=", sourceRow?.id as string)
         .execute();
       expect(snapshots.length).toBeGreaterThanOrEqual(1);
-      expect(snapshots[0].market_cents).toBe(100);
+      expect(snapshots[0].marketCents).toBe(100);
     });
 
     it("mapped printing shows externalId in overview", async () => {
@@ -300,19 +300,19 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // Source should be deleted
       const sourceRow = await db
-        .selectFrom("marketplace_sources")
+        .selectFrom("marketplaceSources")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
-        .where("printing_id", "=", printingId)
+        .where("printingId", "=", printingId)
         .executeTakeFirst();
       expect(sourceRow).toBeUndefined();
 
       // Staging rows should be restored
       const stagingRows = await db
-        .selectFrom("marketplace_staging")
+        .selectFrom("marketplaceStaging")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
-        .where("external_id", "=", 12_345)
+        .where("externalId", "=", 12_345)
         .where("finish", "=", "normal")
         .execute();
       expect(stagingRows.length).toBeGreaterThanOrEqual(1);
@@ -339,11 +339,11 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // No more sources with external_id should exist for TCGPlayer for our printing
       const sources = await db
-        .selectFrom("marketplace_sources")
+        .selectFrom("marketplaceSources")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
-        .where("printing_id", "=", printingId)
-        .where("external_id", "is not", null)
+        .where("printingId", "=", printingId)
+        .where("externalId", "is not", null)
         .execute();
       expect(sources).toHaveLength(0);
     });
@@ -398,20 +398,20 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // Verify source was created
       const sourceRow = await db
-        .selectFrom("marketplace_sources")
+        .selectFrom("marketplaceSources")
         .selectAll()
         .where("marketplace", "=", "cardmarket")
-        .where("printing_id", "=", printingId)
+        .where("printingId", "=", printingId)
         .executeTakeFirst();
       expect(sourceRow).toBeDefined();
-      expect(sourceRow?.external_id).toBe(67_890);
+      expect(sourceRow?.externalId).toBe(67_890);
 
       // Verify staging row was deleted
       const stagingRows = await db
-        .selectFrom("marketplace_staging")
+        .selectFrom("marketplaceStaging")
         .selectAll()
         .where("marketplace", "=", "cardmarket")
-        .where("external_id", "=", 67_890)
+        .where("externalId", "=", 67_890)
         .where("finish", "=", "normal")
         .execute();
       expect(stagingRows).toHaveLength(0);
@@ -445,25 +445,25 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       // Re-map so there's something to unmap
       // First re-seed staging since it was deleted by the POST above
       await db
-        .insertInto("marketplace_staging")
+        .insertInto("marketplaceStaging")
         .values({
           marketplace: "cardmarket",
-          external_id: 67_890,
-          group_id: 10_201,
-          product_name: "MKM Test Card Normal",
+          externalId: 67_890,
+          groupId: 10_201,
+          productName: "MKM Test Card Normal",
           finish: "normal",
-          recorded_at: new Date("2026-01-15T12:00:00Z"),
-          market_cents: 80,
-          low_cents: 40,
-          mid_cents: null,
-          high_cents: null,
-          trend_cents: 70,
-          avg1_cents: 60,
-          avg7_cents: 65,
-          avg30_cents: 75,
+          recordedAt: new Date("2026-01-15T12:00:00Z"),
+          marketCents: 80,
+          lowCents: 40,
+          midCents: null,
+          highCents: null,
+          trendCents: 70,
+          avg1Cents: 60,
+          avg7Cents: 65,
+          avg30Cents: 75,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "external_id", "finish", "recorded_at"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
         )
         .execute();
 

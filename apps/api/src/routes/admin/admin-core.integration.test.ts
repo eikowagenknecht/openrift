@@ -49,13 +49,13 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
 
   describe("after promoting user to admin", () => {
     it("inserts user into admins table", async () => {
-      await db.insertInto("admins").values({ user_id: USER_ID }).execute();
+      await db.insertInto("admins").values({ userId: USER_ID }).execute();
 
       // Verify the row exists
       const row = await db
         .selectFrom("admins")
-        .select("user_id")
-        .where("user_id", "=", USER_ID)
+        .select("userId")
+        .where("userId", "=", USER_ID)
         .executeTakeFirst();
       expect(row).toBeDefined();
     });

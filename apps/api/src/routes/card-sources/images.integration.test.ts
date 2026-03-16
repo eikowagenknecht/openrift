@@ -57,14 +57,14 @@ if (ctx) {
   // Ensure user is an admin
   await db
     .insertInto("admins")
-    .values({ user_id: USER_ID })
-    .onConflict((oc) => oc.column("user_id").doNothing())
+    .values({ userId: USER_ID })
+    .onConflict((oc) => oc.column("userId").doNothing())
     .execute();
 
   // Seed set
   const [set] = await db
     .insertInto("sets")
-    .values({ slug: "CSI", name: "CSI Test Set", printed_total: 1, sort_order: 930 })
+    .values({ slug: "CSI", name: "CSI Test Set", printedTotal: 1, sortOrder: 930 })
     .returning("id")
     .execute();
 
@@ -75,15 +75,15 @@ if (ctx) {
       slug: "CSI-001",
       name: "CSI Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
+      mightBonus: null,
       keywords: [],
-      rules_text: null,
-      effect_text: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
     })
     .returning("id")
@@ -94,20 +94,20 @@ if (ctx) {
     .insertInto("printings")
     .values({
       slug: printingSlug,
-      card_id: card.id,
-      set_id: set.id,
-      source_id: "CSI-001",
-      collector_number: 1,
+      cardId: card.id,
+      setId: set.id,
+      sourceId: "CSI-001",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "CSI",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      flavor_text: null,
+      publicCode: "CSI",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
       comment: null,
     })
     .returning("id")
@@ -116,50 +116,50 @@ if (ctx) {
 
   // Seed card source
   const [cs] = await db
-    .insertInto("card_sources")
+    .insertInto("cardSources")
     .values({
       source: "csi-source",
       name: "CSI Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
-      rules_text: null,
-      effect_text: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
-      source_id: "CSI-001",
-      source_entity_id: null,
-      extra_data: null,
+      sourceId: "CSI-001",
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
 
   // Printing source WITH image and linked to printing
   const [ps] = await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: cs.id,
-      printing_id: printingId,
-      source_id: "CSI-001",
-      set_id: "CSI",
-      set_name: "CSI Test Set",
-      collector_number: 1,
+      cardSourceId: cs.id,
+      printingId: printingId,
+      sourceId: "CSI-001",
+      setId: "CSI",
+      setName: "CSI Test Set",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "CSI",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      image_url: "https://example.com/csi-test.png",
-      flavor_text: null,
-      source_entity_id: null,
-      extra_data: null,
+      publicCode: "CSI",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: "https://example.com/csi-test.png",
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -167,50 +167,50 @@ if (ctx) {
 
   // Second card source (needed for unique constraint on card_source_id + printing_id)
   const [cs2] = await db
-    .insertInto("card_sources")
+    .insertInto("cardSources")
     .values({
       source: "csi-source-2",
       name: "CSI Test Card",
       type: "Unit",
-      super_types: [],
+      superTypes: [],
       domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
-      might_bonus: null,
-      rules_text: null,
-      effect_text: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
       tags: [],
-      source_id: "CSI-001",
-      source_entity_id: null,
-      extra_data: null,
+      sourceId: "CSI-001",
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
 
   // Printing source WITHOUT image (for 400 test)
   const [psNoImage] = await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: cs2.id,
-      printing_id: printingId,
-      source_id: "CSI-001b",
-      set_id: "CSI",
-      set_name: "CSI Test Set",
-      collector_number: 1,
+      cardSourceId: cs2.id,
+      printingId: printingId,
+      sourceId: "CSI-001b",
+      setId: "CSI",
+      setName: "CSI Test Set",
+      collectorNumber: 1,
       rarity: "Common",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "CSI",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      image_url: null,
-      flavor_text: null,
-      source_entity_id: null,
-      extra_data: null,
+      publicCode: "CSI",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: null,
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -218,27 +218,27 @@ if (ctx) {
 
   // Printing source NOT linked to a printing (for 400 test)
   const [psUnlinked] = await db
-    .insertInto("printing_sources")
+    .insertInto("printingSources")
     .values({
-      card_source_id: cs.id,
-      printing_id: null,
-      source_id: "CSI-002",
-      set_id: "CSI",
-      set_name: "CSI Test Set",
-      collector_number: 2,
+      cardSourceId: cs.id,
+      printingId: null,
+      sourceId: "CSI-002",
+      setId: "CSI",
+      setName: "CSI Test Set",
+      collectorNumber: 2,
       rarity: "Rare",
-      art_variant: "normal",
-      is_signed: false,
-      is_promo: false,
+      artVariant: "normal",
+      isSigned: false,
+      isPromo: false,
       finish: "normal",
       artist: "Test Artist",
-      public_code: "CSI",
-      printed_rules_text: null,
-      printed_effect_text: null,
-      image_url: "https://example.com/csi-test2.png",
-      flavor_text: null,
-      source_entity_id: null,
-      extra_data: null,
+      publicCode: "CSI",
+      printedRulesText: null,
+      printedEffectText: null,
+      imageUrl: "https://example.com/csi-test2.png",
+      flavorText: null,
+      sourceEntityId: null,
+      extraData: null,
     })
     .returning("id")
     .execute();
@@ -271,16 +271,16 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Verify printing_image was created
       const images = await db
-        .selectFrom("printing_images")
+        .selectFrom("printingImages")
         .selectAll()
-        .where("printing_id", "=", printingId)
+        .where("printingId", "=", printingId)
         .execute();
       expect(images.length).toBeGreaterThanOrEqual(1);
 
-      const active = images.find((i) => i.is_active);
+      const active = images.find((i) => i.isActive);
       expect(active).toBeDefined();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(active!.original_url).toBe("https://example.com/csi-test.png");
+      expect(active!.originalUrl).toBe("https://example.com/csi-test.png");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       expect(active!.source).toBe("csi-source");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
@@ -290,49 +290,49 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("sets image as additional for a linked printing source", async () => {
       // Use a different source to avoid upsert conflict
       const [cs2] = await db
-        .insertInto("card_sources")
+        .insertInto("cardSources")
         .values({
           source: "csi-alt-source",
           name: "CSI Test Card",
           type: "Unit",
-          super_types: [],
+          superTypes: [],
           domains: ["Mind"],
           might: null,
           energy: 2,
           power: null,
-          might_bonus: null,
-          rules_text: null,
-          effect_text: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
           tags: [],
-          source_id: "CSI-001-ALT",
-          source_entity_id: null,
-          extra_data: null,
+          sourceId: "CSI-001-ALT",
+          sourceEntityId: null,
+          extraData: null,
         })
         .returning("id")
         .execute();
 
       const [psAlt] = await db
-        .insertInto("printing_sources")
+        .insertInto("printingSources")
         .values({
-          card_source_id: cs2.id,
-          printing_id: printingId,
-          source_id: "CSI-001-ALT",
-          set_id: "CSI",
-          set_name: "CSI Test Set",
-          collector_number: 1,
+          cardSourceId: cs2.id,
+          printingId: printingId,
+          sourceId: "CSI-001-ALT",
+          setId: "CSI",
+          setName: "CSI Test Set",
+          collectorNumber: 1,
           rarity: "Common",
-          art_variant: "normal",
-          is_signed: false,
-          is_promo: false,
+          artVariant: "normal",
+          isSigned: false,
+          isPromo: false,
           finish: "normal",
           artist: "Test Artist",
-          public_code: "CSI",
-          printed_rules_text: null,
-          printed_effect_text: null,
-          image_url: "https://example.com/csi-test-alt.png",
-          flavor_text: null,
-          source_entity_id: null,
-          extra_data: null,
+          publicCode: "CSI",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: "https://example.com/csi-test-alt.png",
+          flavorText: null,
+          sourceEntityId: null,
+          extraData: null,
         })
         .returning("id")
         .execute();
@@ -349,13 +349,13 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Verify additional image was created as inactive
       const images = await db
-        .selectFrom("printing_images")
+        .selectFrom("printingImages")
         .selectAll()
-        .where("printing_id", "=", printingId)
+        .where("printingId", "=", printingId)
         .where("source", "=", "csi-alt-source")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].is_active).toBe(false);
+      expect(images[0].isActive).toBe(false);
       additionalImageId = images[0].id;
     });
 
@@ -408,21 +408,21 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Verify the image is now active
       const image = await db
-        .selectFrom("printing_images")
-        .select("is_active")
+        .selectFrom("printingImages")
+        .select("isActive")
         .where("id", "=", additionalImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(image!.is_active).toBe(true);
+      expect(image!.isActive).toBe(true);
 
       // The previously active image should be deactivated
       const prev = await db
-        .selectFrom("printing_images")
-        .select("is_active")
+        .selectFrom("printingImages")
+        .select("isActive")
         .where("id", "=", mainImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(prev!.is_active).toBe(false);
+      expect(prev!.isActive).toBe(false);
     });
 
     it("deactivates an active image", async () => {
@@ -438,12 +438,12 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Verify the image is now inactive
       const image = await db
-        .selectFrom("printing_images")
-        .select("is_active")
+        .selectFrom("printingImages")
+        .select("isActive")
         .where("id", "=", additionalImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(image!.is_active).toBe(false);
+      expect(image!.isActive).toBe(false);
     });
 
     it("returns 404 for non-existent image", async () => {
@@ -458,7 +458,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   // ── POST /printing-images/:imageId/rehost ────────────────────────────────
 
   describe("POST /admin/card-sources/printing-images/:imageId/rehost", () => {
-    it("rehosts an image with original_url", async () => {
+    it("rehosts an image with originalUrl", async () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing-images/${mainImageId}/rehost`),
       );
@@ -468,27 +468,27 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(json.ok).toBe(true);
       expect(json.rehostedUrl).toBeString();
 
-      // Verify rehosted_url was set in DB
+      // Verify rehostedUrl was set in DB
       const image = await db
-        .selectFrom("printing_images")
-        .select("rehosted_url")
+        .selectFrom("printingImages")
+        .select("rehostedUrl")
         .where("id", "=", mainImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(image!.rehosted_url).toBeString();
+      expect(image!.rehostedUrl).toBeString();
     });
 
-    it("returns 400 when image has no original_url", async () => {
-      // Insert a printing_image with no original_url (rehosted_url satisfies the DB constraint)
+    it("returns 400 when image has no originalUrl", async () => {
+      // Insert a printing_image with no originalUrl (rehostedUrl satisfies the DB constraint)
       const [noUrlImage] = await db
-        .insertInto("printing_images")
+        .insertInto("printingImages")
         .values({
-          printing_id: printingId,
+          printingId: printingId,
           face: "front",
           source: "csi-no-url-source",
-          original_url: null,
-          rehosted_url: "/card-images/CSI/placeholder",
-          is_active: false,
+          originalUrl: null,
+          rehostedUrl: "/card-images/CSI/placeholder",
+          isActive: false,
         })
         .returning("id")
         .execute();
@@ -502,7 +502,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(json.error).toBe("Image has no original URL to rehost");
 
       // Clean up
-      await db.deleteFrom("printing_images").where("id", "=", noUrlImage.id).execute();
+      await db.deleteFrom("printingImages").where("id", "=", noUrlImage.id).execute();
     });
 
     it("returns 404 for non-existent image", async () => {
@@ -520,12 +520,12 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("unrehosts a rehosted image", async () => {
       // mainImageId was rehosted in the previous describe block
       const before = await db
-        .selectFrom("printing_images")
-        .select("rehosted_url")
+        .selectFrom("printingImages")
+        .select("rehostedUrl")
         .where("id", "=", mainImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(before!.rehosted_url).toBeString();
+      expect(before!.rehostedUrl).toBeString();
 
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing-images/${mainImageId}/unrehost`),
@@ -535,18 +535,18 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const json = await res.json();
       expect(json).toEqual({ ok: true });
 
-      // Verify rehosted_url was cleared
+      // Verify rehostedUrl was cleared
       const after = await db
-        .selectFrom("printing_images")
-        .select("rehosted_url")
+        .selectFrom("printingImages")
+        .select("rehostedUrl")
         .where("id", "=", mainImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(after!.rehosted_url).toBeNull();
+      expect(after!.rehostedUrl).toBeNull();
     });
 
     it("returns 400 when image is not rehosted", async () => {
-      // mainImageId was just unrehosted, so rehosted_url is null
+      // mainImageId was just unrehosted, so rehostedUrl is null
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing-images/${mainImageId}/unrehost`),
       );
@@ -579,18 +579,18 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Verify it's gone
       const image = await db
-        .selectFrom("printing_images")
+        .selectFrom("printingImages")
         .select("id")
         .where("id", "=", additionalImageId)
         .executeTakeFirst();
       expect(image).toBeUndefined();
     });
 
-    it("deletes a printing image that has a rehosted_url", async () => {
-      // Set rehosted_url on mainImageId to test the deleteRehostFiles path
+    it("deletes a printing image that has a rehostedUrl", async () => {
+      // Set rehostedUrl on mainImageId to test the deleteRehostFiles path
       await db
-        .updateTable("printing_images")
-        .set({ rehosted_url: "/card-images/CSI/csi-test-rehosted" })
+        .updateTable("printingImages")
+        .set({ rehostedUrl: "/card-images/CSI/csi-test-rehosted" })
         .where("id", "=", mainImageId)
         .execute();
 
@@ -604,7 +604,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Verify it's gone
       const image = await db
-        .selectFrom("printing_images")
+        .selectFrom("printingImages")
         .select("id")
         .where("id", "=", mainImageId)
         .executeTakeFirst();
@@ -636,14 +636,14 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Verify printing_image was created
       const images = await db
-        .selectFrom("printing_images")
+        .selectFrom("printingImages")
         .selectAll()
-        .where("printing_id", "=", printingId)
+        .where("printingId", "=", printingId)
         .where("source", "=", "csi-manual-test")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].original_url).toBe("https://example.com/csi-new-image.png");
-      expect(images[0].is_active).toBe(true);
+      expect(images[0].originalUrl).toBe("https://example.com/csi-new-image.png");
+      expect(images[0].isActive).toBe(true);
     });
 
     it("adds an image URL with default mode and source", async () => {
@@ -659,13 +659,13 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // The default source is "manual" and default mode is "main"
       const images = await db
-        .selectFrom("printing_images")
+        .selectFrom("printingImages")
         .selectAll()
-        .where("printing_id", "=", printingId)
+        .where("printingId", "=", printingId)
         .where("source", "=", "manual")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].is_active).toBe(true);
+      expect(images[0].isActive).toBe(true);
     });
 
     it("returns 400 when url is empty", async () => {

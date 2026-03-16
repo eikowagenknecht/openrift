@@ -12,9 +12,9 @@ import type { acceptNewCardSchema } from "./schemas.js";
 // Uses indexed norm_name columns for fast equality lookups.
 export const resolveCardId = (alias: string) =>
   sql`COALESCE(
-    (SELECT c_res.id FROM cards c_res WHERE c_res.norm_name = ${sql.ref(`${alias}.norm_name`)} LIMIT 1),
-    (SELECT cna_res.card_id FROM card_name_aliases cna_res WHERE cna_res.norm_name = ${sql.ref(`${alias}.norm_name`)} LIMIT 1),
-    (SELECT p_res.card_id FROM printing_sources ps_res JOIN printings p_res ON p_res.source_id = ps_res.source_id JOIN card_sources cs_res ON cs_res.id = ps_res.card_source_id WHERE cs_res.norm_name = ${sql.ref(`${alias}.norm_name`)} LIMIT 1)
+    (SELECT c_res.id FROM cards c_res WHERE c_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
+    (SELECT cna_res.card_id FROM card_name_aliases cna_res WHERE cna_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
+    (SELECT p_res.card_id FROM printing_sources ps_res JOIN printings p_res ON p_res.source_id = ps_res.source_id JOIN card_sources cs_res ON cs_res.id = ps_res.card_source_id WHERE cs_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1)
   )`;
 
 /** Upsert a set by ID, inserting it with the next sort_order if it doesn't exist. */
@@ -32,11 +32,11 @@ export async function upsertSet(
   if (!existing) {
     const { max } = await trx
       .selectFrom("sets")
-      .select((eb) => eb.fn.coalesce(eb.fn.max("sort_order"), eb.lit(0)).as("max"))
+      .select((eb) => eb.fn.coalesce(eb.fn.max("sortOrder"), eb.lit(0)).as("max"))
       .executeTakeFirstOrThrow();
     await trx
       .insertInto("sets")
-      .values({ slug: setSlug, name: setName, printed_total: 0, sort_order: max + 1 })
+      .values({ slug: setSlug, name: setName, printedTotal: 0, sortOrder: max + 1 })
       .execute();
   }
 }
@@ -61,46 +61,46 @@ export async function insertPrintingImage(
   if (mode === "main") {
     // Deactivate current active front image
     await trx
-      .updateTable("printing_images")
-      .set({ is_active: false, updated_at: new Date() })
-      .where("printing_id", "=", printingId)
+      .updateTable("printingImages")
+      .set({ isActive: false, updatedAt: new Date() })
+      .where("printingId", "=", printingId)
       .where("face", "=", "front")
-      .where("is_active", "=", true)
+      .where("isActive", "=", true)
       .execute();
 
     // Insert or update as active
     await trx
-      .insertInto("printing_images")
+      .insertInto("printingImages")
       .values({
-        printing_id: printingId,
+        printingId: printingId,
         face: "front",
         source,
-        original_url: imageUrl,
-        is_active: true,
+        originalUrl: imageUrl,
+        isActive: true,
       })
       .onConflict((oc) =>
-        oc.columns(["printing_id", "face", "source"]).doUpdateSet({
-          original_url: imageUrl,
-          is_active: true,
-          updated_at: new Date(),
+        oc.columns(["printingId", "face", "source"]).doUpdateSet({
+          originalUrl: imageUrl,
+          isActive: true,
+          updatedAt: new Date(),
         }),
       )
       .execute();
   } else {
     // Insert as inactive additional image
     await trx
-      .insertInto("printing_images")
+      .insertInto("printingImages")
       .values({
-        printing_id: printingId,
+        printingId: printingId,
         face: "front",
         source,
-        original_url: imageUrl,
-        is_active: false,
+        originalUrl: imageUrl,
+        isActive: false,
       })
       .onConflict((oc) =>
-        oc.columns(["printing_id", "face", "source"]).doUpdateSet({
-          original_url: imageUrl,
-          updated_at: new Date(),
+        oc.columns(["printingId", "face", "source"]).doUpdateSet({
+          originalUrl: imageUrl,
+          updatedAt: new Date(),
         }),
       )
       .execute();
@@ -128,15 +128,15 @@ export async function acceptNewCardFromSources(
       slug: cardFields.id,
       name: cardFields.name,
       type: cardFields.type,
-      super_types: cardFields.superTypes ?? [],
+      superTypes: cardFields.superTypes ?? [],
       domains: cardFields.domains,
       might: cardFields.might ?? null,
       energy: cardFields.energy ?? null,
       power: cardFields.power ?? null,
-      might_bonus: cardFields.mightBonus ?? null,
+      mightBonus: cardFields.mightBonus ?? null,
       keywords,
-      rules_text: cardFields.rulesText ?? null,
-      effect_text: cardFields.effectText ?? null,
+      rulesText: cardFields.rulesText ?? null,
+      effectText: cardFields.effectText ?? null,
       tags: cardFields.tags ?? [],
     })
     .returning("id")
@@ -156,8 +156,8 @@ export async function createNameAliases(
   cardId: string,
 ): Promise<void> {
   await trx
-    .insertInto("card_name_aliases")
-    .values({ norm_name: normalizedName, card_id: cardId })
-    .onConflict((oc) => oc.column("norm_name").doUpdateSet({ card_id: cardId }))
+    .insertInto("cardNameAliases")
+    .values({ normName: normalizedName, cardId: cardId })
+    .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId: cardId }))
     .execute();
 }
