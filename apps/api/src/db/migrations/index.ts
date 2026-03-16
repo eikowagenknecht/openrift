@@ -32,6 +32,7 @@ import * as m026 from "./026-printing-schema-updates.js";
 import * as m027 from "./027-card-name-matching.js";
 import * as m028 from "./028-nullable-text-fields.js";
 import * as m029 from "./029-constraint-checks.js";
+import * as m030 from "./030-array-element-checks.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -63,4 +64,5 @@ export const migrations: Record<string, Migration> = {
   "027-card-name-matching": m027,
   "028-nullable-text-fields": m028,
   "029-constraint-checks": m029,
+  "030-array-element-checks": m030,
 };

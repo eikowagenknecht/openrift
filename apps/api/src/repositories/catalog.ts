@@ -95,13 +95,9 @@ export function catalogRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns The printing's `id`, or `undefined` if not found. Accepts UUID or slug. */
-    printingByIdOrSlug(param: string) {
-      return db
-        .selectFrom("printings")
-        .select("id")
-        .where((eb) => eb.or([eb("id", "=", param), eb("slug", "=", param)]))
-        .executeTakeFirst();
+    /** @returns The printing's `id`, or `undefined` if not found. */
+    printingById(id: string) {
+      return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
     },
   };
 }

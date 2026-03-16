@@ -4,10 +4,8 @@ import type {
   Card,
   CardStats,
   CatalogPrinting,
-  Domain,
   PriceHistoryResponse,
   PrintingImage,
-  SuperType,
   RiftboundCatalog,
   TimeRange,
 } from "@openrift/shared";
@@ -79,8 +77,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         slug: row.slug,
         name: row.name,
         type: row.type,
-        superTypes: row.super_types as SuperType[],
-        domains: row.domains as Domain[],
+        superTypes: row.super_types,
+        domains: row.domains,
         stats: {
           might: row.might,
           energy: row.energy,
@@ -213,7 +211,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         rangeParam in RANGE_DAYS ? RANGE_DAYS[rangeParam as TimeRange] : RANGE_DAYS["30d"];
       const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
-      const printing = await catalog.printingByIdOrSlug(param);
+      const printing = await catalog.printingById(param);
 
       if (!printing) {
         return c.json({
