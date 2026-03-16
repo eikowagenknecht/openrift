@@ -17,7 +17,7 @@ const proxy = { "/api": "http://localhost:3000" };
 const cardImagesDir = path.resolve(__dirname, "../../card-images");
 
 export default defineConfig({
-  devtools: true,
+  devtools: false,
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
   },
