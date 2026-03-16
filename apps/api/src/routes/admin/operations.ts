@@ -1,14 +1,14 @@
 import { zValidator } from "@hono/zod-validator";
 import { createLogger } from "@openrift/shared/logger";
-import {
-  refreshCardmarketPrices,
-  refreshTcgplayerPrices,
-} from "@openrift/shared/services/price-refresh";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
 import { AppError } from "../../errors.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
+import {
+  refreshCardmarketPrices,
+  refreshTcgplayerPrices,
+} from "../../services/price-refresh/index.js";
 import type { Variables } from "../../types.js";
 
 const log = createLogger("admin");

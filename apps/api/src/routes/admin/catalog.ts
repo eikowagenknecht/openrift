@@ -1,9 +1,9 @@
 import { zValidator } from "@hono/zod-validator";
-import { setFieldRules } from "@openrift/shared/db/schemas";
 import { slugParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
+import { setFieldRules } from "../../db/schemas.js";
 import { AppError } from "../../errors.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";

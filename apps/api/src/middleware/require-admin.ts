@@ -1,7 +1,7 @@
-import type { Database } from "@openrift/shared/db";
 import type { MiddlewareHandler } from "hono";
 import type { Kysely } from "kysely";
 
+import type { Database } from "../db/index.js";
 import { AppError } from "../errors.js";
 import type { Variables } from "../types.js";
 

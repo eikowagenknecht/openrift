@@ -1,15 +1,17 @@
-import type { ColumnType, Generated } from "kysely";
-
-import type { ActivityAction, ActivityType, DeckFormat, DeckZone } from "../types/collection.js";
 import type {
+  ActivityAction,
+  ActivityType,
   ArtVariant,
   CardFace,
   CardType,
+  DeckFormat,
+  DeckZone,
   Domain,
   Finish,
   Rarity,
   SuperType,
-} from "../types/enums.js";
+} from "@openrift/shared/types";
+import type { ColumnType, Generated } from "kysely";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
 

@@ -1,9 +1,9 @@
-import type { Database } from "@openrift/shared/db";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { imageUrl } from "../db-helpers.js";
+import type { Database } from "../db/index.js";
 import type {
   MarketplaceConfig,
   ProductInfo,

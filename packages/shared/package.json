@@ -6,16 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./schemas": "./src/schemas.ts",
-    "./db": "./src/db/index.ts",
-    "./db/schemas": "./src/db/schemas.ts",
-    "./db/connect": "./src/db/connect.ts",
-    "./db/migrate": "./src/db/migrate.ts",
     "./utils": "./src/utils.ts",
-    "./services/price-refresh": "./src/services/price-refresh/index.ts",
     "./keywords": "./src/keywords.ts",
     "./types": "./src/types/index.ts",
-    "./logger": "./src/logger.ts",
-    "./test/integration-setup": "./src/test/integration-setup.ts"
+    "./logger": "./src/logger.ts"
   },
   "scripts": {
     "test": "bun test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
@@ -29,10 +23,7 @@
     "make-admin": "bun --env-file=../../.env ../../scripts/make-admin.ts"
   },
   "dependencies": {
-    "kysely": "0.28.11",
-    "kysely-postgres-js": "3.0.0",
     "pino": "10.3.1",
-    "postgres": "3.4.8",
     "zod": "4.3.6"
   },
   "devDependencies": {

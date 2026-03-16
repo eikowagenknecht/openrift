@@ -1,12 +1,13 @@
+import { z } from "zod";
+
 import {
   cardFieldRules,
   printingFieldRules,
   printingSourceFieldRules,
   setFieldRules,
-} from "@openrift/shared/db/schemas";
-import { z } from "zod";
+} from "../../db/schemas.js";
 
-export { cardFieldRules, printingFieldRules } from "@openrift/shared/db/schemas";
+export { cardFieldRules, printingFieldRules } from "../../db/schemas.js";
 
 export const cardSourcesQuerySchema = z.object({
   filter: z.string().optional(),

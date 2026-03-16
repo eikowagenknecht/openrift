@@ -1,17 +1,14 @@
-import { createDb } from "@openrift/shared/db/connect";
-import { migrate } from "@openrift/shared/db/migrate";
 import { createLogger } from "@openrift/shared/logger";
-import {
-  refreshCardmarketPrices,
-  refreshTcgplayerPrices,
-} from "@openrift/shared/services/price-refresh";
 import { Cron } from "croner";
 
 import { createApp } from "./app.js";
 import { createAuth } from "./auth.js";
 import { createConfig, validateConfig } from "./config.js";
 import { cronJobs } from "./cron-jobs.js";
+import { createDb } from "./db/connect.js";
+import { migrate } from "./db/migrate.js";
 import { createEmailSender } from "./email.js";
+import { refreshCardmarketPrices, refreshTcgplayerPrices } from "./services/price-refresh/index.js";
 
 // ── Composition root ──────────────────────────────────────────────────────────
 

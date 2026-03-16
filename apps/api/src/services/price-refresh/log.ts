@@ -1,4 +1,5 @@
-import type { Logger } from "../../logger.js";
+import type { Logger } from "@openrift/shared/logger";
+
 import type { PriceRefreshResult, UpsertCounts } from "./types.js";
 
 /**

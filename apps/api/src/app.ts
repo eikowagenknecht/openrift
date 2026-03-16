@@ -1,4 +1,3 @@
-import type { Database } from "@openrift/shared/db";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
@@ -7,6 +6,7 @@ import type { Kysely } from "kysely";
 import { z } from "zod/v4";
 
 import { matchOrigin } from "./cors.js";
+import type { Database } from "./db/index.js";
 import { AppError } from "./errors.js";
 import { activitiesRoute } from "./routes/activities.js";
 import { adminRoute } from "./routes/admin/index.js";

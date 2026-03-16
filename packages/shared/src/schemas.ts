@@ -1,11 +1,21 @@
 import { z } from "zod";
 
-import {
-  collectionFieldRules,
-  deckCardFieldRules,
-  deckFieldRules,
-  wishListItemFieldRules,
-} from "./db/schemas.js";
+// Field rules inlined from api/db/schemas — mirrors DB CHECK constraints for
+// the subset needed by shared request-validation schemas.
+const collectionFieldRules = {
+  name: z.string().min(1).max(200),
+};
+const deckFieldRules = {
+  name: z.string().min(1).max(200),
+  format: z.enum(["standard", "freeform"]),
+};
+const deckCardFieldRules = {
+  zone: z.enum(["main", "sideboard"]),
+  quantity: z.number().int().positive(),
+};
+const wishListItemFieldRules = {
+  quantityDesired: z.number().int().positive(),
+};
 
 // ---------------------------------------------------------------------------
 // Common param & query schemas (used by zValidator("param"//"query"))

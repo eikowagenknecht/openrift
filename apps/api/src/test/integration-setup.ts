@@ -1,10 +1,10 @@
+import type { Logger } from "@openrift/shared/logger";
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 
 import { migrate } from "../db/migrate.js";
 import type { Database } from "../db/types.js";
-import type { Logger } from "../logger.js";
 
 // oxlint-disable-next-line no-empty-function -- noop for postgres notice handler and logger
 export const noop = () => {};

@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 
-import { createDb } from "../packages/shared/src/db/connect.js";
+import { createDb } from "../apps/api/src/db/connect.js";
 import { requireEnv } from "./env.js";
 
 const { db } = createDb(requireEnv("DATABASE_URL"));

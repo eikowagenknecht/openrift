@@ -1,15 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
 
-import { createDb } from "@openrift/shared/db/connect";
-import { migrate } from "@openrift/shared/db/migrate";
-import {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "@openrift/shared/test/integration-setup";
-
 import { createApp } from "../app.js";
+import { createDb } from "../db/connect.js";
+import { migrate } from "../db/migrate.js";
+import { createTempDb, dropTempDb, noopLogger, replaceDbName } from "../test/integration-setup.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Decks routes

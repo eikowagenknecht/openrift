@@ -1,9 +1,9 @@
 import { describe, expect, it, spyOn } from "bun:test";
 
+import type { Logger } from "@openrift/shared/logger";
 import { Migrator } from "kysely";
 import type { Kysely } from "kysely";
 
-import type { Logger } from "../logger.js";
 import { migrate, rollback } from "./migrate.js";
 import type { Database } from "./types.js";
 

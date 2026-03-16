@@ -8,11 +8,11 @@
  * Usage: bun scripts/refresh-tcgplayer-prices.ts
  */
 
+import type { Logger } from "@openrift/shared/logger";
+import { groupIntoMap, toCents } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types.js";
-import type { Logger } from "../../logger.js";
-import { groupIntoMap, toCents } from "../../utils.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceRefreshResult, PriceUpsertConfig, StagingRow } from "./types.js";

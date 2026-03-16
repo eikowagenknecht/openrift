@@ -1,4 +1,3 @@
-import type { Database } from "@openrift/shared/db";
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import type { Kysely } from "kysely";
@@ -6,6 +5,7 @@ import type { PostgresJSDialect } from "kysely-postgres-js";
 
 import type { createConfig } from "./config.js";
 import { matchOrigin } from "./cors.js";
+import type { Database } from "./db/index.js";
 import type { createEmailSender } from "./email.js";
 
 export function createAuth(deps: {

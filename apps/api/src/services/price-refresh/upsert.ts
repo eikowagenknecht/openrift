@@ -5,13 +5,13 @@
  * deduplication, and conflict resolution with IS DISTINCT FROM.
  */
 
+import type { Logger } from "@openrift/shared/logger";
+import { groupIntoMap } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { buildDistinctWhere } from "../../db/helpers.js";
 import type { Database } from "../../db/types.js";
-import type { Logger } from "../../logger.js";
-import { groupIntoMap } from "../../utils.js";
 import type {
   GroupRow,
   PriceColumns,

@@ -1,9 +1,9 @@
-import type { Database } from "@openrift/shared/db";
 import { extractKeywords } from "@openrift/shared/keywords";
 import type { Transaction } from "kysely";
 import { sql } from "kysely";
 import type { z } from "zod";
 
+import type { Database } from "../../db/index.js";
 import type { acceptNewCardSchema } from "./schemas.js";
 
 // Resolve card_id dynamically: direct card name match → alias match.

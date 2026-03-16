@@ -1,16 +1,15 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 
-import { createDb } from "@openrift/shared/db/connect";
-import { migrate } from "@openrift/shared/db/migrate";
+import { createApp } from "../../app.js";
+import { createDb } from "../../db/connect.js";
+import { migrate } from "../../db/migrate.js";
+import { req } from "../../test/integration-helper.js";
 import {
   createTempDb,
   dropTempDb,
   noopLogger,
   replaceDbName,
-} from "@openrift/shared/test/integration-setup";
-
-import { createApp } from "../../app.js";
-import { req } from "../../test/integration-helper.js";
+} from "../../test/integration-setup.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin operations (clear prices, refresh prices)
@@ -25,7 +24,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const USER_ID = "a0000000-0000-4000-a000-00000000aa01";
 
 // Mock the price refresh service BEFORE any other mocks
-mock.module("@openrift/shared/services/price-refresh", () => ({
+mock.module("../../services/price-refresh/index.js", () => ({
   refreshTcgplayerPrices: async () => ({ status: "ok", updated: 0 }),
   refreshCardmarketPrices: async () => ({ status: "ok", updated: 0 }),
 }));

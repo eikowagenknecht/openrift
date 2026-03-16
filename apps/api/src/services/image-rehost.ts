@@ -5,9 +5,10 @@ import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, extname, join } from "node:path";
 
-import type { Database } from "@openrift/shared/db";
 import type { Kysely } from "kysely";
 import sharp from "sharp";
+
+import type { Database } from "../db/index.js";
 
 function findProjectRoot(): string {
   let dir = import.meta.dir;

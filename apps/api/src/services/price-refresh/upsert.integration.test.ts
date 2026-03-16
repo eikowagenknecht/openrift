@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 
+import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types.js";
-import type { Logger } from "../../logger.js";
 import { setupTestDb } from "../../test/integration-setup.js";
 import { loadReferenceData } from "./reference-data.js";
 import type { PriceUpsertConfig, StagingRow } from "./types.js";

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 
+import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types";
-import type { Logger } from "../../logger";
 import * as fetchMod from "./fetch";
 import * as logMod from "./log";
 import { refreshTcgplayerPrices } from "./tcgplayer";

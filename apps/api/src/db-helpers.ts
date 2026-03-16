@@ -1,6 +1,7 @@
-import type { Database } from "@openrift/shared/db";
 import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
+
+import type { Database } from "./db/index.js";
 
 /**
  * Resolves the best available image URL for a printing (prefers rehosted).

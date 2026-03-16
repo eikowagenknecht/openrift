@@ -1,7 +1,7 @@
+import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types.js";
-import { normalizeNameForMatching } from "../../utils.js";
 import type { ReferenceData } from "./types.js";
 
 /**

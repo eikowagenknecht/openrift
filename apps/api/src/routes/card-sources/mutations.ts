@@ -759,6 +759,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     if (!ps.public_code) {
       throw new AppError(400, "BAD_REQUEST", "Cannot accept: public_code is required");
     }
+    const collectorNumber = ps.collector_number;
+    const { artist } = ps;
+    const publicCode = ps.public_code;
 
     const printingId = buildPrintingId(
       ps.source_id,
@@ -789,14 +792,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
           card_id: cardId,
           set_id: setUuid,
           source_id: ps.source_id,
-          collector_number: ps.collector_number,
+          collector_number: collectorNumber,
           rarity: normalizedRarity as Rarity,
           art_variant: (ps.art_variant ?? "normal") as ArtVariant,
           is_signed: ps.is_signed ?? false,
           is_promo: ps.is_promo ?? false,
           finish: validatedFinish.data as Finish,
-          artist: ps.artist,
-          public_code: ps.public_code,
+          artist,
+          public_code: publicCode,
           printed_rules_text: ps.printed_rules_text ?? null,
           printed_effect_text: ps.printed_effect_text,
           flavor_text: ps.flavor_text,

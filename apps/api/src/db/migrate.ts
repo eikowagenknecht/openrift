@@ -1,7 +1,7 @@
+import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
 import { Migrator } from "kysely";
 
-import type { Logger } from "../logger.js";
 import { migrations } from "./migrations/index.js";
 import type { Database } from "./types.js";
 

@@ -1,6 +1,7 @@
 import type { ActivityAction, ActivityType } from "@openrift/shared";
-import type { Database } from "@openrift/shared/db";
 import type { Transaction } from "kysely";
+
+import type { Database } from "../db/index.js";
 
 interface ActivityItemInput {
   copyId?: string | null;

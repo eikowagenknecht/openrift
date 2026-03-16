@@ -1,6 +1,6 @@
-import type { Database } from "@openrift/shared/db";
 import type { Kysely } from "kysely";
 
+import type { Database } from "../db/index.js";
 import { AppError } from "../errors.js";
 import { createActivity } from "./activity-logger.js";
 import { ensureInbox } from "./inbox.js";

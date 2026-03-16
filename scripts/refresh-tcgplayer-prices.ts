@@ -1,6 +1,6 @@
-import { createDb } from "../packages/shared/src/db/connect.js";
+import { createDb } from "../apps/api/src/db/connect.js";
+import { refreshTcgplayerPrices } from "../apps/api/src/services/price-refresh/tcgplayer.js";
 import { createLogger } from "../packages/shared/src/logger.js";
-import { refreshTcgplayerPrices } from "../packages/shared/src/services/price-refresh/tcgplayer.js";
 import { requireEnv } from "./env.js";
 
 const log = createLogger("tcgplayer");

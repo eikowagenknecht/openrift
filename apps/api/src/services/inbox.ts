@@ -1,5 +1,6 @@
-import type { Database } from "@openrift/shared/db";
 import type { Kysely } from "kysely";
+
+import type { Database } from "../db/index.js";
 
 /**
  * Ensures the user has an inbox collection. Creates one if it doesn't exist.

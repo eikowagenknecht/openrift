@@ -7,12 +7,7 @@
  * — live here.
  */
 
-export {
-  createTempDb,
-  dropTempDb,
-  noopLogger,
-  replaceDbName,
-} from "@openrift/shared/test/integration-setup";
+export { createTempDb, dropTempDb, noopLogger, replaceDbName } from "./integration-setup.js";
 
 export function req(method: string, path: string, body?: unknown): Request {
   const opts: RequestInit = { method, headers: { "Content-Type": "application/json" } };

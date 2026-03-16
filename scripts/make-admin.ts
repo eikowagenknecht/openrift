@@ -1,4 +1,4 @@
-import { createDb } from "../packages/shared/src/db/connect.js";
+import { createDb } from "../apps/api/src/db/connect.js";
 import { requireEnv } from "./env.js";
 
 const email = process.argv[2];

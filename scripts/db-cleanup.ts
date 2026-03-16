@@ -1,4 +1,4 @@
-import { dropTempDb, listTestDatabases } from "../packages/shared/src/test/integration-setup.js";
+import { dropTempDb, listTestDatabases } from "../apps/api/src/test/integration-setup.js";
 import { requireEnv } from "./env.js";
 
 const databaseUrl = requireEnv("DATABASE_URL");

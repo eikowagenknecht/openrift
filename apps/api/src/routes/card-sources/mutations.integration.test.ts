@@ -1,16 +1,15 @@
 import { afterAll, describe, expect, it } from "bun:test";
 
-import { createDb } from "@openrift/shared/db/connect";
-import { migrate } from "@openrift/shared/db/migrate";
+import { createApp } from "../../app.js";
+import { createDb } from "../../db/connect.js";
+import { migrate } from "../../db/migrate.js";
+import { req } from "../../test/integration-helper.js";
 import {
   createTempDb,
   dropTempDb,
   noopLogger,
   replaceDbName,
-} from "@openrift/shared/test/integration-setup";
-
-import { createApp } from "../../app.js";
-import { req } from "../../test/integration-helper.js";
+} from "../../test/integration-setup.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources mutation routes

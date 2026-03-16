@@ -1,8 +1,9 @@
-import type { Database } from "@openrift/shared/db";
-import { cardSourceFieldRules, printingSourceFieldRules } from "@openrift/shared/db/schemas";
 import { buildPrintingId, emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 import { z } from "zod";
+
+import type { Database } from "../db/index.js";
+import { cardSourceFieldRules, printingSourceFieldRules } from "../db/schemas.js";
 
 interface IngestCard {
   name: string;

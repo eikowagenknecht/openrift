@@ -1,6 +1,6 @@
-import { createDb } from "../packages/shared/src/db/connect.js";
+import { createDb } from "../apps/api/src/db/connect.js";
+import { refreshCardmarketPrices } from "../apps/api/src/services/price-refresh/cardmarket.js";
 import { createLogger } from "../packages/shared/src/logger.js";
-import { refreshCardmarketPrices } from "../packages/shared/src/services/price-refresh/cardmarket.js";
 import { requireEnv } from "./env.js";
 
 const log = createLogger("cardmarket");

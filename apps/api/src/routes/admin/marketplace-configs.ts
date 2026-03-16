@@ -1,6 +1,7 @@
-import type { Database } from "@openrift/shared/db";
 import type { Kysely, Transaction } from "kysely";
 import { sql } from "kysely";
+
+import type { Database } from "../../db/index.js";
 
 // ── Unified product-info shape consumed by the frontend ─────────────────────
 

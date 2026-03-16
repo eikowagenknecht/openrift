@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 
-import type { Logger } from "../../logger";
-import { toCents } from "../../utils";
+import type { Logger } from "@openrift/shared/logger";
+import { toCents } from "@openrift/shared/utils";
+
 import { cmProductUrl } from "./cardmarket";
 import { fetchJson } from "./fetch";
 import { logUpsertCounts } from "./log";
