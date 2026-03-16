@@ -2,6 +2,7 @@
 
 ## 2026-03-16
 
+- fix: Visiting an unknown URL now shows a themed "not found" page instead of a blank one
 - feat: Price data now loads faster thanks to browser caching
 
 ## 2026-03-13
