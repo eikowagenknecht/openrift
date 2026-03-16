@@ -49,7 +49,7 @@ export function useScrollIndicator({
     dragging: false,
   });
 
-  const hideTimerRef = useRef(0);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>();
   const isDraggingRef = useRef(false);
   const isHoveredRef = useRef(false);
   const postDragCooldownRef = useRef(false);
