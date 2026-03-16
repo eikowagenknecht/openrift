@@ -10,7 +10,7 @@ import type { Database } from "./db/index.js";
 import { AppError } from "./errors.js";
 import { activitiesRoute } from "./routes/activities.js";
 import { adminRoute } from "./routes/admin/index.js";
-import { cardsRoute } from "./routes/cards.js";
+import { catalogRoute } from "./routes/catalog.js";
 import { collectionsRoute } from "./routes/collections.js";
 import { copiesRoute } from "./routes/copies.js";
 import { decksRoute } from "./routes/decks.js";
@@ -126,7 +126,7 @@ export function createApp(deps: AppDeps) {
       return c.json({ status: "ok" });
     })
 
-    .route("/api", cardsRoute)
+    .route("/api", catalogRoute)
     .route("/api", adminRoute)
     .route("/api", collectionsRoute)
     .route("/api", sourcesRoute)

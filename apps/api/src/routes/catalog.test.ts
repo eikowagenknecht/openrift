@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach } from "bun:test";
 
 import { Hono } from "hono";
 
-import { cardsRoute } from "./cards";
+import { catalogRoute } from "./catalog";
 
 // ---------------------------------------------------------------------------
 // Mock DB
@@ -48,7 +48,7 @@ const app = new Hono()
     c.set("db", mockDb);
     await next();
   })
-  .route("/api", cardsRoute);
+  .route("/api", catalogRoute);
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -108,23 +108,34 @@ const dbPriceFoil = {
 };
 
 // ---------------------------------------------------------------------------
-// GET /api/cards
+// GET /api/catalog
 // ---------------------------------------------------------------------------
 
-describe("GET /api/cards", () => {
+describe("GET /api/catalog", () => {
   beforeEach(() => {
-    mockState.tables = { sets: [dbSet], cards: [dbCard], "printings as p": [dbPrintingRow] };
+    mockState.tables = {
+      sets: [dbSet],
+      cards: [dbCard],
+      "printings as p": [dbPrintingRow],
+      printing_images: [
+        {
+          printing_id: "OGS-001:rare:normal:",
+          face: "front",
+          url: "https://example.com/thumb.jpg",
+        },
+      ],
+    };
   });
 
-  it("returns 200 with RiftboundContent structure", async () => {
-    const res = await app.request("/api/cards");
+  it("returns 200 with RiftboundCatalog structure", async () => {
+    const res = await app.request("/api/catalog");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.sets).toHaveLength(1);
   });
 
   it("maps joined row fields to Printing shape with nested card", async () => {
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
 
@@ -145,28 +156,28 @@ describe("GET /api/cards", () => {
   });
 
   it("maps DB fields into nested stats object on card", async () => {
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
     expect(printing.card.stats).toEqual({ might: 4, energy: 5, power: 6 });
   });
 
   it("maps image URL into images array", async () => {
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
     expect(printing.images).toEqual([{ face: "front", url: "https://example.com/thumb.jpg" }]);
   });
 
   it("maps set_id to printing.set", async () => {
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
     expect(printing.set).toBe("OGS");
   });
 
   it("uses rules_text as card.description", async () => {
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     const printing = json.sets[0].printings[0];
     expect(printing.card.description).toBe("A fiery beast");
@@ -189,9 +200,10 @@ describe("GET /api/cards", () => {
       sets: [dbSet, secondSet],
       cards: [dbCard, secondCard],
       "printings as p": [dbPrintingRow, secondRow],
+      printing_images: [],
     };
 
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     expect(json.sets).toHaveLength(2);
     expect(json.sets[0].printings).toHaveLength(1);
@@ -201,15 +213,15 @@ describe("GET /api/cards", () => {
 
   it("returns empty printings array for sets with no printings", async () => {
     const emptySet = { id: "EMPTY", slug: "EMPTY", name: "Empty Set", printed_total: 0 };
-    mockState.tables = { sets: [emptySet], cards: [], "printings as p": [] };
+    mockState.tables = { sets: [emptySet], cards: [], "printings as p": [], printing_images: [] };
 
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     expect(json.sets[0].printings).toEqual([]);
   });
 
   it("maps set fields correctly", async () => {
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     const json = await res.json();
     const set = json.sets[0];
     expect(set.id).toBe("OGS");
@@ -218,21 +230,21 @@ describe("GET /api/cards", () => {
   });
 
   it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/cards");
+    const res = await app.request("/api/catalog");
     expect(res.headers.get("ETag")).toBe(`"catalog-${CATALOG_LAST_MODIFIED.getTime()}"`);
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
     const etag = `"catalog-${CATALOG_LAST_MODIFIED.getTime()}"`;
-    const res = await app.request("/api/cards", {
+    const res = await app.request("/api/catalog", {
       headers: { "If-None-Match": etag },
     });
     expect(res.status).toBe(304);
   });
 
   it("returns 200 when If-None-Match does not match", async () => {
-    const res = await app.request("/api/cards", {
+    const res = await app.request("/api/catalog", {
       headers: { "If-None-Match": '"catalog-0"' },
     });
     expect(res.status).toBe(200);

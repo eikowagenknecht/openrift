@@ -7,7 +7,7 @@ date: 2026-03-10
 
 ## Context and Problem Statement
 
-The card browser fetches all cards and prices in two requests (`GET /api/cards`, `GET /api/prices`), then filters, sorts, and virtualizes entirely on the client. As the Riftbound card pool grows with future set releases, should we move filtering and pagination to the server, or keep the current client-side approach?
+The card browser fetches all cards and prices in two requests (`GET /api/catalog`, `GET /api/prices`), then filters, sorts, and virtualizes entirely on the client. As the Riftbound card pool grows with future set releases, should we move filtering and pagination to the server, or keep the current client-side approach?
 
 ## Decision Drivers
 
@@ -45,7 +45,7 @@ Re-evaluate this decision when **any** of these hold:
 
 ## Migration Path (When Thresholds Are Crossed)
 
-1. Add `WHERE`/`ORDER BY`/`LIMIT`+`OFFSET` (or keyset pagination) to `GET /api/cards`, driven by the existing `CardFilters` type from `packages/shared`.
+1. Add `WHERE`/`ORDER BY`/`LIMIT`+`OFFSET` (or keyset pagination) to `GET /api/catalog`, driven by the existing `CardFilters` type from `packages/shared`.
 2. Replace `useQuery` with `useInfiniteQuery` in `useCards`, fetching pages as the virtualizer scrolls.
 3. Debounce or defer filter params before sending to the server (200–300 ms).
 4. Keep `filterCards()` in `packages/shared` — it can still be used for optimistic client-side pre-filtering while the server response is in flight.

@@ -60,6 +60,6 @@ export interface ContentSet {
   printings: Printing[];
 }
 
-export interface RiftboundContent {
+export interface RiftboundCatalog {
   sets: ContentSet[];
 }

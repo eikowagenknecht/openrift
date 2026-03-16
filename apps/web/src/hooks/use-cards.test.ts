@@ -1,4 +1,4 @@
-import type { RiftboundContent, PricesData, Printing } from "@openrift/shared";
+import type { RiftboundCatalog, PricesData, Printing } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -41,7 +41,7 @@ function stubPrinting(overrides: Partial<Printing> = {}): Printing {
   };
 }
 
-const CARDS_RESPONSE: RiftboundContent = {
+const CATALOG_RESPONSE: RiftboundCatalog = {
   sets: [
     {
       id: "00000000-0000-0000-0000-000000000010",
@@ -103,8 +103,8 @@ describe("useCards", () => {
 
   it("returns cards and set info on success", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/cards")) {
-        return { ok: true, json: () => CARDS_RESPONSE };
+      if (url.includes("/api/catalog")) {
+        return { ok: true, json: () => CATALOG_RESPONSE };
       }
       if (url.includes("/api/prices")) {
         return { ok: true, json: () => PRICES_RESPONSE };
@@ -125,8 +125,8 @@ describe("useCards", () => {
 
   it("merges price data onto matching cards", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/cards")) {
-        return { ok: true, json: () => CARDS_RESPONSE };
+      if (url.includes("/api/catalog")) {
+        return { ok: true, json: () => CATALOG_RESPONSE };
       }
       if (url.includes("/api/prices")) {
         return { ok: true, json: () => PRICES_RESPONSE };
@@ -151,7 +151,7 @@ describe("useCards", () => {
 
   it("returns an ApiError with health status when cards fetch fails", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/cards")) {
+      if (url.includes("/api/catalog")) {
         return { ok: false, status: 500, json: () => ({}) };
       }
       if (url.includes("/api/health")) {
@@ -171,7 +171,7 @@ describe("useCards", () => {
 
   it("returns an ApiError with null health when health endpoint is unreachable", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/cards")) {
+      if (url.includes("/api/catalog")) {
         return { ok: false, status: 500, json: () => ({}) };
       }
       if (url.includes("/api/health")) {
@@ -190,8 +190,8 @@ describe("useCards", () => {
 
   it("returns cards without prices when prices fetch fails", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/cards")) {
-        return { ok: true, json: () => CARDS_RESPONSE };
+      if (url.includes("/api/catalog")) {
+        return { ok: true, json: () => CATALOG_RESPONSE };
       }
       if (url.includes("/api/prices")) {
         return { ok: false, status: 500, json: () => ({}) };

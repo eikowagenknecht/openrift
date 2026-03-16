@@ -14,7 +14,7 @@ export type {
   ContentSet,
   Printing,
   PrintingImage,
-  RiftboundContent,
+  RiftboundCatalog,
 } from "./cards.js";
 export { getOrientation } from "./cards.js";
 
