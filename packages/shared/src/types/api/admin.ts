@@ -80,6 +80,7 @@ export interface CardSourceSummaryResponse {
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasGallery: boolean;
+  hasMissingImage: boolean;
   suggestedCard: { id: string; slug: string; name: string } | null;
 }
 
