@@ -15,7 +15,6 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
-import { wishListsRepo } from "../repositories/wish-lists.js";
 import type { Variables } from "../types.js";
 import { toWishList, toWishListItem } from "../utils/mappers.js";
 
@@ -30,14 +29,14 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/wish-lists", async (c) => {
-    const wishLists = wishListsRepo(c.get("db"));
+    const { wishLists } = c.get("repos");
     const rows = await wishLists.listForUser(getUserId(c));
     return c.json(rows.map((row) => toWishList(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/wish-lists", zValidator("json", createWishListSchema), async (c) => {
-    const wishLists = wishListsRepo(c.get("db"));
+    const { wishLists } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await wishLists.create({
@@ -50,7 +49,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET ONE (custom: returns wish list with items) ──────────────────────────
   .get("/wish-lists/:id", zValidator("param", idParamSchema), async (c) => {
-    const wishLists = wishListsRepo(c.get("db"));
+    const { wishLists } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
@@ -74,7 +73,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateWishListSchema),
     async (c) => {
-      const wishLists = wishListsRepo(c.get("db"));
+      const { wishLists } = c.get("repos");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -89,7 +88,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
   .delete("/wish-lists/:id", zValidator("param", idParamSchema), async (c) => {
-    const wishLists = wishListsRepo(c.get("db"));
+    const { wishLists } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await wishLists.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
@@ -104,7 +103,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", createWishListItemSchema),
     async (c) => {
-      const wishLists = wishListsRepo(c.get("db"));
+      const { wishLists } = c.get("repos");
       const userId = getUserId(c);
       const { id: wishListId } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -142,7 +141,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idAndItemIdParamSchema),
     zValidator("json", updateWishListItemSchema),
     async (c) => {
-      const wishLists = wishListsRepo(c.get("db"));
+      const { wishLists } = c.get("repos");
       const userId = getUserId(c);
       const { id: wishListId, itemId } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -164,7 +163,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
     "/wish-lists/:id/items/:itemId",
     zValidator("param", idAndItemIdParamSchema),
     async (c) => {
-      const wishLists = wishListsRepo(c.get("db"));
+      const { wishLists } = c.get("repos");
       const userId = getUserId(c);
       const { id: wishListId, itemId } = c.req.valid("param");
 

@@ -25,14 +25,6 @@ const mockCopiesRepo = {
   existsForUser: mock(() => Promise.resolve(undefined as object | undefined)),
 };
 
-mock.module("../repositories/trade-lists.js", () => ({
-  tradeListsRepo: () => mockRepo,
-}));
-
-mock.module("../repositories/copies.js", () => ({
-  copiesRepo: () => mockCopiesRepo,
-}));
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -43,6 +35,10 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", {} as never);
     c.set("user", { id: USER_ID });
+    c.set("repos", {
+      tradeLists: mockRepo,
+      copies: mockCopiesRepo,
+    } as never);
     await next();
   })
   .route("/api", tradeListsRoute)

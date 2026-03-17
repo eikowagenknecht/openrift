@@ -12,6 +12,10 @@ import type { Kysely } from "kysely";
 import { createApp } from "../app.js";
 import { createDb } from "../db/connect.js";
 import type { Database } from "../db/types.js";
+import type { Services } from "../deps.js";
+import type { Io } from "../io.js";
+
+export type { Io, Services };
 
 // ---------------------------------------------------------------------------
 // Shared Kysely instance — created once per process, reused across files
@@ -56,13 +60,17 @@ export interface TestContext {
   userId: string;
 }
 
-export function createTestContext(userId: string, email?: string): TestContext | null {
+export function createTestContext(
+  userId: string,
+  emailOrOptions?: string | { email?: string; services?: Partial<Services>; io?: Io },
+): TestContext | null {
   const db = getSharedDb();
   if (!db) {
     return null;
   }
 
-  const resolvedEmail = email ?? `user-${userId.slice(14, 18)}@test.com`;
+  const opts = typeof emailOrOptions === "string" ? { email: emailOrOptions } : emailOrOptions;
+  const resolvedEmail = opts?.email ?? `user-${userId.slice(14, 18)}@test.com`;
 
   const mockAuth = {
     handler: () => new Response("ok"),
@@ -76,7 +84,13 @@ export function createTestContext(userId: string, email?: string): TestContext |
     $Infer: { Session: { user: null, session: null } },
   } as any;
 
-  const app = createApp({ db, auth: mockAuth, config: mockConfig });
+  const app = createApp({
+    db,
+    auth: mockAuth,
+    config: mockConfig,
+    services: opts?.services,
+    io: opts?.io,
+  });
   return { app, db, userId };
 }
 

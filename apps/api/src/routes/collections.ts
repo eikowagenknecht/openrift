@@ -11,10 +11,6 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
-import { collectionsRepo } from "../repositories/collections.js";
-import { copiesRepo } from "../repositories/copies.js";
-import { createActivity } from "../services/activity-logger.js";
-import { ensureInbox } from "../services/inbox.js";
 import type { Variables } from "../types.js";
 import { toCollection, toCopy } from "../utils/mappers.js";
 
@@ -31,16 +27,17 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/collections", async (c) => {
-    const db = c.get("db");
+    const { collections } = c.get("repos");
+    const { ensureInbox } = c.get("services");
     const userId = getUserId(c);
-    await ensureInbox(db, userId);
-    const rows = await collectionsRepo(db).listForUser(userId);
+    await ensureInbox(c.get("db"), userId);
+    const rows = await collections.listForUser(userId);
     return c.json(rows.map((row) => toCollection(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/collections", zValidator("json", createCollectionSchema), async (c) => {
-    const collections = collectionsRepo(c.get("db"));
+    const { collections } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await collections.create({
@@ -56,7 +53,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   .get("/collections/:id", zValidator("param", idParamSchema), async (c) => {
-    const collections = collectionsRepo(c.get("db"));
+    const { collections } = c.get("repos");
     const { id } = c.req.valid("param");
     const row = await collections.getByIdForUser(id, getUserId(c));
     if (!row) {
@@ -71,7 +68,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateCollectionSchema),
     async (c) => {
-      const collections = collectionsRepo(c.get("db"));
+      const { collections } = c.get("repos");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -88,7 +85,8 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   // Complex: validates inbox, relocates copies, logs activity
   .delete("/collections/:id", zValidator("param", idParamSchema), async (c) => {
     const db = c.get("db");
-    const collections = collectionsRepo(db);
+    const { collections } = c.get("repos");
+    const { createActivity } = c.get("services");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const moveCopiesTo = c.req.query("move_copies_to");
@@ -165,16 +163,16 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
   .get("/collections/:id/copies", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
+    const { collections, copies } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
     // Verify collection belongs to user
-    const collection = await collectionsRepo(db).exists(id, userId);
+    const collection = await collections.exists(id, userId);
     if (!collection) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const rows = await copiesRepo(db).listForCollection(id);
+    const rows = await copies.listForCollection(id);
     return c.json(rows.map((row) => toCopy(row)));
   });

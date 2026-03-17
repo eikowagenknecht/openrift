@@ -1,12 +1,7 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-// Mock the price refresh service BEFORE any other imports that depend on it
-mock.module("../../services/price-refresh/index.js", () => ({
-  refreshTcgplayerPrices: async () => ({ status: "ok", updated: 0 }),
-  refreshCardmarketPrices: async () => ({ status: "ok", updated: 0 }),
-}));
-
-// oxlint-disable-next-line import/first -- mock.module must run before this import
+import type { Io } from "../../io.js";
+import { defaultIo } from "../../io.js";
 import {
   createTestContext,
   createUnauthenticatedTestContext,
@@ -16,14 +11,22 @@ import {
 // ---------------------------------------------------------------------------
 // Integration tests: Admin operations (clear prices, refresh prices)
 //
-// Uses the shared integration database. Auth and price-refresh service are mocked.
+// Uses the shared integration database. Price-refresh HTTP calls are stubbed
+// via a mock io.fetch that returns empty data, so the real refresh functions
+// run but produce no-op results.
 // Uses prefix OPS- for entities it creates.
 // ---------------------------------------------------------------------------
+
+const mockIo: Io = {
+  ...defaultIo,
+  // Return empty results in the format each price API expects
+  fetch: async () => Response.json({ results: [], createdAt: null }, { status: 200 }),
+};
 
 const ADMIN_USER_ID = "a0000000-0019-4000-a000-000000000001";
 const NON_ADMIN_USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const ctx = createTestContext(ADMIN_USER_ID);
+const ctx = createTestContext(ADMIN_USER_ID, { io: mockIo });
 const unauthCtx = createUnauthenticatedTestContext();
 const nonAdminCtx = createTestContext(NON_ADMIN_USER_ID);
 
@@ -370,24 +373,24 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
   // ── POST /admin/refresh-tcgplayer-prices ────────────────────────────────
 
   describe("POST /admin/refresh-tcgplayer-prices", () => {
-    it("returns 200 with mocked result", async () => {
+    it("returns 200 with refresh result", async () => {
       const res = await app.fetch(req("POST", "/admin/refresh-tcgplayer-prices"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({ status: "ok", updated: 0 });
+      expect(json).toHaveProperty("transformed");
     });
   });
 
   // ── POST /admin/refresh-cardmarket-prices ──────────────────────────────
 
   describe("POST /admin/refresh-cardmarket-prices", () => {
-    it("returns 200 with mocked result", async () => {
+    it("returns 200 with refresh result", async () => {
       const res = await app.fetch(req("POST", "/admin/refresh-cardmarket-prices"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({ status: "ok", updated: 0 });
+      expect(json).toHaveProperty("transformed");
     });
   });
 });

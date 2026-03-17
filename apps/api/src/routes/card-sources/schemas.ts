@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   cardFieldRules,
+  cardSourceFieldRules,
   printingFieldRules,
   printingSourceFieldRules,
   setFieldRules,
@@ -110,12 +111,70 @@ export const uploadImageFormSchema = z.object({
   mode: z.enum(["main", "additional"]).optional(),
 });
 
+// ---------------------------------------------------------------------------
+// Upload / ingest schemas — coerce incoming JSON into typed shapes
+// ---------------------------------------------------------------------------
+// These handle type coercion and undefined→null defaults for upload payloads.
+// Value constraints (min, positive, enums) are validated per-card in the
+// ingestion service so that individual bad cards can be skipped gracefully.
+
+/** Nullable string that defaults to null when missing from JSON. */
+const nullStr = z.string().nullable().optional().default(null);
+/** Nullable number that defaults to null when missing from JSON. */
+const nullNum = z.number().nullable().optional().default(null);
+
+const ingestPrintingSchema = z.object({
+  source_id: z.string(),
+  set_id: nullStr,
+  set_name: nullStr,
+  collector_number: nullNum,
+  rarity: nullStr,
+  art_variant: nullStr,
+  is_signed: z.boolean().optional().default(false),
+  is_promo: z.boolean().optional().default(false),
+  finish: nullStr,
+  artist: nullStr,
+  public_code: nullStr,
+  printed_rules_text: nullStr,
+  printed_effect_text: nullStr,
+  image_url: nullStr,
+  flavor_text: nullStr,
+  source_entity_id: z.string(),
+  extra_data: z.unknown().nullable().optional().default(null),
+});
+
+const ingestCardFieldsSchema = z.object({
+  name: cardSourceFieldRules.name,
+  type: cardSourceFieldRules.type.optional().default(null),
+  super_types: z.array(z.string()).optional().default([]),
+  domains: z.array(z.string()).optional().default([]),
+  might: cardSourceFieldRules.might.optional().default(null),
+  energy: cardSourceFieldRules.energy.optional().default(null),
+  power: cardSourceFieldRules.power.optional().default(null),
+  might_bonus: cardSourceFieldRules.mightBonus.optional().default(null),
+  rules_text: cardSourceFieldRules.rulesText.optional().default(null),
+  effect_text: cardSourceFieldRules.effectText.optional().default(null),
+  tags: z.array(z.string()).optional().default([]),
+  source_id: cardSourceFieldRules.sourceId.optional().default(null),
+  source_entity_id: cardSourceFieldRules.sourceEntityId,
+  extra_data: cardSourceFieldRules.extraData.optional().default(null),
+});
+
+export type IngestPrinting = z.infer<typeof ingestPrintingSchema>;
+export type IngestCard = z.infer<typeof ingestCardFieldsSchema> & {
+  printings: IngestPrinting[];
+};
+
 export const uploadCardSourcesSchema = z.object({
-  source: z.string(),
-  candidates: z.array(
-    z.object({
-      card: z.record(z.string(), z.unknown()),
-      printings: z.array(z.record(z.string(), z.unknown())),
-    }),
-  ),
+  source: z.string().min(1),
+  candidates: z
+    .array(
+      z
+        .object({
+          card: ingestCardFieldsSchema,
+          printings: z.array(ingestPrintingSchema),
+        })
+        .transform(({ card, printings }) => ({ ...card, printings })),
+    )
+    .min(1),
 });

@@ -70,7 +70,11 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
   .post("/admin/refresh-tcgplayer-prices", async (c) => {
     const db = c.get("db");
     try {
-      const result = await refreshTcgplayerPrices(db, log.child({ service: "tcgplayer" }));
+      const result = await refreshTcgplayerPrices(
+        c.get("io").fetch,
+        db,
+        log.child({ service: "tcgplayer" }),
+      );
       return c.json(result);
     } catch (error) {
       log.error(error, "refresh-tcgplayer-prices failed");
@@ -81,7 +85,11 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
   .post("/admin/refresh-cardmarket-prices", async (c) => {
     const db = c.get("db");
     try {
-      const result = await refreshCardmarketPrices(db, log.child({ service: "cardmarket" }));
+      const result = await refreshCardmarketPrices(
+        c.get("io").fetch,
+        db,
+        log.child({ service: "cardmarket" }),
+      );
       return c.json(result);
     } catch (error) {
       log.error(error, "refresh-cardmarket-prices failed");

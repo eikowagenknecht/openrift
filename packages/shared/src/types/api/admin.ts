@@ -23,7 +23,7 @@ export interface CardSourceResponse {
   effectText: string | null;
   tags: string[];
   sourceId: string | null;
-  sourceEntityId: string | null;
+  sourceEntityId: string;
   extraData: unknown | null;
   checkedAt: string | null;
   createdAt: string;
@@ -49,7 +49,7 @@ export interface PrintingSourceResponse {
   printedEffectText: string | null;
   imageUrl: string | null;
   flavorText: string | null;
-  sourceEntityId: string | null;
+  sourceEntityId: string;
   extraData: unknown | null;
   checkedAt: string | null;
   createdAt: string;

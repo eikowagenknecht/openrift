@@ -1,50 +1,42 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-// Mock image rehost service (filesystem operations)
-mock.module("../../services/image-rehost.js", () => ({
-  CARD_IMAGES_DIR: "/tmp/test-card-images",
-  downloadImage: async () => ({ buffer: Buffer.from("fake-image-data"), ext: ".png" }),
-  printingIdToFileBase: (id: string) => {
-    const [sourceId, rarity, finish, promo] = id.split(":");
-    return `${sourceId}-${rarity}-${finish}-${promo ? "y" : "n"}`;
-  },
-  // oxlint-disable-next-line no-empty-function -- noop mock
-  processAndSave: async () => {},
-  // oxlint-disable-next-line no-empty-function -- noop mock
-  deleteRehostFiles: async () => {},
-  // oxlint-disable-next-line no-empty-function -- noop mock
-  renameRehostFiles: async () => {},
-  rehostImages: async () => ({ total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] }),
-  regenerateImages: async () => ({
-    total: 0,
-    regenerated: 0,
-    failed: 0,
-    errors: [],
-    hasMore: false,
-    totalFiles: 0,
-  }),
-  clearAllRehosted: async () => ({ cleared: 0 }),
-  getRehostStatus: async () => ({
-    total: 0,
-    rehosted: 0,
-    external: 0,
-    sets: [],
-    disk: { totalBytes: 0, sets: [] },
-  }),
-}));
-
-// oxlint-disable-next-line import/first -- mock.module must run before this import
+import type { Io } from "../../io.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources image management routes
 //
-// Uses the shared integration database. Auth and image-rehost are mocked.
+// Uses the shared integration database. A mock io object is injected so
+// image-rehost functions don't hit the real filesystem or network.
 // ---------------------------------------------------------------------------
+
+const FAKE_BUFFER = Buffer.from("img");
+
+const mockSharpPipeline = {
+  resize: () => mockSharpPipeline,
+  webp: () => mockSharpPipeline,
+  toBuffer: async () => FAKE_BUFFER,
+};
+
+/* oxlint-disable no-empty-function -- noop mocks for io operations */
+const mockIo: Io = {
+  fs: {
+    mkdir: async () => undefined as any,
+    writeFile: async () => undefined as any,
+    readFile: async () => FAKE_BUFFER as any,
+    readdir: async () => [] as any,
+    rename: async () => undefined as any,
+    unlink: async () => undefined as any,
+    stat: async () => ({ size: 1024 }) as any,
+  },
+  fetch: async () => new Response(FAKE_BUFFER, { headers: { "content-type": "image/png" } }),
+  sharp: (() => mockSharpPipeline) as any,
+};
+/* oxlint-enable no-empty-function */
 
 const USER_ID = "a0000000-0021-4000-a000-000000000001";
 
-const ctx = createTestContext(USER_ID);
+const ctx = createTestContext(USER_ID, { io: mockIo });
 
 // Seed data IDs (populated during setup)
 let printingId = "";
@@ -134,7 +126,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: "CSI-001",
-      sourceEntityId: null,
+      sourceEntityId: "CSI-001",
       extraData: null,
     })
     .returning("id")
@@ -161,7 +153,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csi-test.png",
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "CSI-001",
       extraData: null,
     })
     .returning("id")
@@ -185,7 +177,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: "CSI-001",
-      sourceEntityId: null,
+      sourceEntityId: "CSI-001",
       extraData: null,
     })
     .returning("id")
@@ -212,7 +204,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "CSI-001b",
       extraData: null,
     })
     .returning("id")
@@ -240,7 +232,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csi-test2.png",
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "CSI-002",
       extraData: null,
     })
     .returning("id")
@@ -305,7 +297,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           effectText: null,
           tags: [],
           sourceId: "CSI-001-ALT",
-          sourceEntityId: null,
+          sourceEntityId: "CSI-001-ALT",
           extraData: null,
         })
         .returning("id")
@@ -331,7 +323,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           printedEffectText: null,
           imageUrl: "https://example.com/csi-test-alt.png",
           flavorText: null,
-          sourceEntityId: null,
+          sourceEntityId: "CSI-001-ALT",
           extraData: null,
         })
         .returning("id")
@@ -807,10 +799,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   describe("POST /admin/card-sources/printing/:printingId/upload-image", () => {
     it("uploads an image as main", async () => {
       const formData = new FormData();
-      formData.append(
-        "file",
-        new File([new Uint8Array([137, 80, 78, 71])], "test.png", { type: "image/png" }),
-      );
+      formData.append("file", new File([FAKE_BUFFER], "test.png", { type: "image/png" }));
       formData.append("source", "csi-upload-test");
       formData.append("mode", "main");
 
@@ -839,10 +828,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("uploads an image as additional", async () => {
       const formData = new FormData();
-      formData.append(
-        "file",
-        new File([new Uint8Array([137, 80, 78, 71])], "extra.png", { type: "image/png" }),
-      );
+      formData.append("file", new File([FAKE_BUFFER], "extra.png", { type: "image/png" }));
       formData.append("source", "csi-upload-additional");
       formData.append("mode", "additional");
 
@@ -872,10 +858,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("uploads with default mode (main) and source (upload)", async () => {
       const formData = new FormData();
-      formData.append(
-        "file",
-        new File([new Uint8Array([137, 80, 78, 71])], "default.png", { type: "image/png" }),
-      );
+      formData.append("file", new File([FAKE_BUFFER], "default.png", { type: "image/png" }));
 
       const request = new Request(
         `http://localhost/api/admin/card-sources/printing/${printingSlug}/upload-image`,
@@ -900,10 +883,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 404 for non-existent printing", async () => {
       const formData = new FormData();
-      formData.append(
-        "file",
-        new File([new Uint8Array([137, 80, 78, 71])], "nope.png", { type: "image/png" }),
-      );
+      formData.append("file", new File([FAKE_BUFFER], "nope.png", { type: "image/png" }));
 
       const request = new Request(
         `http://localhost/api/admin/card-sources/printing/FAKE-SLUG:rare:foil:/upload-image`,

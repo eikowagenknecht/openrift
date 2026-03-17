@@ -23,6 +23,7 @@ const mockCopiesRepo = {
 };
 
 const mockEnsureInbox = mock(() => Promise.resolve("inbox-id"));
+const mockCreateActivity = mock(() => Promise.resolve());
 
 // Tracks transaction operations
 const mockTrxOps = {
@@ -68,22 +69,6 @@ const mockDb = {
   }),
 };
 
-mock.module("../repositories/collections.js", () => ({
-  collectionsRepo: () => mockCollectionsRepo,
-}));
-
-mock.module("../repositories/copies.js", () => ({
-  copiesRepo: () => mockCopiesRepo,
-}));
-
-mock.module("../services/inbox.js", () => ({
-  ensureInbox: mockEnsureInbox,
-}));
-
-mock.module("../services/activity-logger.js", () => ({
-  createActivity: mock(() => Promise.resolve()),
-}));
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -94,6 +79,14 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", mockDb as never);
     c.set("user", { id: USER_ID });
+    c.set("repos", {
+      collections: mockCollectionsRepo,
+      copies: mockCopiesRepo,
+    } as never);
+    c.set("services", {
+      ensureInbox: mockEnsureInbox,
+      createActivity: mockCreateActivity,
+    } as never);
     await next();
   })
   .route("/api", collectionsRoute)

@@ -15,10 +15,6 @@ const mockRepo = {
   itemsWithDetails: mock(() => Promise.resolve([] as object[])),
 };
 
-mock.module("../repositories/activities.js", () => ({
-  activitiesRepo: () => mockRepo,
-}));
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -29,6 +25,7 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", {} as never);
     c.set("user", { id: USER_ID });
+    c.set("repos", { activities: mockRepo } as never);
     await next();
   })
   .route("/api", activitiesRoute)

@@ -10,8 +10,6 @@ import { Hono } from "hono";
 import { AppError } from "../errors.js";
 import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
-import { copiesRepo } from "../repositories/copies.js";
-import { addCopies, disposeCopies, moveCopies } from "../services/copies.js";
 import type { Variables } from "../types.js";
 import { toCopy } from "../utils/mappers.js";
 
@@ -23,7 +21,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // All copies for the authenticated user (combined view)
 
   .get("/", async (c) => {
-    const copies = copiesRepo(c.get("db"));
+    const { copies } = c.get("repos");
     const rows = await copies.listForUser(getUserId(c));
     return c.json(rows.map((row) => toCopy(row)));
   })
@@ -32,6 +30,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // Batch add copies (acquisition)
 
   .post("/", zValidator("json", addCopiesSchema), async (c) => {
+    const { addCopies } = c.get("services");
     const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -43,6 +42,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // Move copies between collections (reorganization)
 
   .post("/move", zValidator("json", moveCopiesSchema), async (c) => {
+    const { moveCopies } = c.get("services");
     const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -54,6 +54,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // Dispose copies (disposal) — hard-deletes with metadata snapshot
 
   .post("/dispose", zValidator("json", disposeCopiesSchema), async (c) => {
+    const { disposeCopies } = c.get("services");
     const db = c.get("db");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -65,7 +66,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // Returns owned count per printing for the authenticated user
 
   .get("/count", async (c) => {
-    const copies = copiesRepo(c.get("db"));
+    const { copies } = c.get("repos");
     const rows = await copies.countByPrintingForUser(getUserId(c));
 
     const counts: Record<string, number> = Object.fromEntries(
@@ -77,7 +78,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /copies/:id ─────────────────────────────────────────────────────────
 
   .get("/:id", zValidator("param", idParamSchema), async (c) => {
-    const copies = copiesRepo(c.get("db"));
+    const { copies } = c.get("repos");
     const { id } = c.req.valid("param");
     const copy = await copies.getByIdForUser(id, getUserId(c));
     if (!copy) {

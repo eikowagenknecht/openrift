@@ -50,7 +50,7 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0016-4000-a000-000000000001", email: "admin-0016@test.com", isAdmin: false },
   { id: "a0000000-0017-4000-a000-000000000001", email: "admin-0017@test.com", isAdmin: true },
   { id: "a0000000-0018-4000-a000-000000000001", email: "admin-0018@test.com", isAdmin: true },
-  // mock.module tests (admin, pre-promoted)
+  // admin operations + images tests (pre-promoted)
   { id: "a0000000-0019-4000-a000-000000000001", email: "admin-0019@test.com", isAdmin: true },
   { id: "a0000000-0020-4000-a000-000000000001", email: "admin-0020@test.com", isAdmin: true },
   { id: "a0000000-0021-4000-a000-000000000001", email: "admin-0021@test.com", isAdmin: true },
@@ -89,14 +89,13 @@ const PARALLEL_FILES = [
   "src/services/ingest-card-sources.integration.test.ts",
   "src/routes/prices.integration.test.ts",
   "src/routes/catalog.integration.test.ts",
-];
-
-/** Files using mock.module() — must run in separate processes */
-const MOCK_MODULE_FILES = [
   "src/routes/admin/operations.integration.test.ts",
   "src/routes/admin/images.integration.test.ts",
   "src/routes/card-sources/images.integration.test.ts",
 ];
+
+/** Files that formerly used mock.module() — now empty since services are injected via context */
+const MOCK_MODULE_FILES: string[] = [];
 
 /** Migrations test — always gets its own temp DB (unchanged) */
 const MIGRATIONS_FILE = "src/db/migrations/migrations.integration.test.ts";

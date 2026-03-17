@@ -4,11 +4,16 @@ import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types";
+import type { Fetch } from "../../io";
 import * as fetchMod from "./fetch";
 import * as logMod from "./log";
 import { refreshTcgplayerPrices } from "./tcgplayer";
 import type { StagingRow, UpsertCounts } from "./types";
 import * as upsertMod from "./upsert";
+
+const stubFetch: Fetch = (() => {
+  throw new Error("unexpected real fetch");
+}) as unknown as Fetch;
 
 // ── Representative mock data (modelled on real TCGCSV responses) ─────────
 
@@ -189,7 +194,7 @@ function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiDat
   const lastModified = data.lastModified ?? null;
   const lastModifiedByGroup = data.lastModifiedByGroup;
 
-  fetchJsonSpy.mockImplementation(async (url: string) => {
+  fetchJsonSpy.mockImplementation(async (_fetchFn: Fetch, url: string) => {
     if (url.endsWith("/groups")) {
       return { data: { results: groups }, lastModified: null };
     }
@@ -252,9 +257,9 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
-      const urls = fetchJsonSpy.mock.calls.map((c: unknown[]) => c[0]);
+      const urls = fetchJsonSpy.mock.calls.map((c: unknown[]) => c[1]);
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/groups");
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/101/products");
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/101/prices");
@@ -265,7 +270,7 @@ describe("refreshTcgplayerPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      const result = await refreshTcgplayerPrices(db, log);
+      const result = await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
@@ -289,9 +294,9 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
-      const urls = fetchJsonSpy.mock.calls.map((c: unknown[]) => c[0]);
+      const urls = fetchJsonSpy.mock.calls.map((c: unknown[]) => c[1]);
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/101/products");
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/102/products");
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/101/prices");
@@ -312,7 +317,7 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: LAST_MODIFIED,
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       const normal = staging.find((r) => r.externalId === 5001 && r.finish === "normal");
@@ -335,7 +340,7 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: LAST_MODIFIED,
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       const foil = staging.find((r) => r.externalId === 5001 && r.finish === "foil");
@@ -355,7 +360,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL, PRICE_FLAME_FOIL]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(2);
@@ -372,7 +377,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_ICE_NULL_MARKET]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
@@ -387,7 +392,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_ICE_ZERO_MARKET]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
@@ -402,7 +407,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, []]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
@@ -419,7 +424,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL, PRICE_FLAME_FOIL]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging.find((r) => r.externalId === 5001 && r.finish === "normal")).toBeUndefined();
@@ -437,7 +442,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL, PRICE_FLAME_FOIL]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging.find((r) => r.externalId === 5001 && r.finish === "foil")).toBeUndefined();
@@ -459,7 +464,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(2);
@@ -476,7 +481,7 @@ describe("refreshTcgplayerPrices", () => {
         // No pricesByGroup entry for 101 → empty prices
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
@@ -495,7 +500,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       expect(wasInsertCalled()).toBe(true);
     });
@@ -505,7 +510,7 @@ describe("refreshTcgplayerPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       // insertInto is never called because upsertTcgplayerGroups returns early
       // and upsertPriceData is mocked
@@ -526,7 +531,7 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: LAST_MODIFIED,
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging[0].recordedAt).toEqual(LAST_MODIFIED);
@@ -553,7 +558,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       const flameRow = staging.find((r) => r.externalId === 5001);
@@ -573,7 +578,7 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: null,
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const staging = upsertStaging(upsertSpy);
       const ts = staging[0].recordedAt.getTime();
@@ -590,7 +595,7 @@ describe("refreshTcgplayerPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       expect(upsertSpy.mock.calls[0][0]).toBe(db);
     });
@@ -614,7 +619,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      const result = await refreshTcgplayerPrices(db, log);
+      const result = await refreshTcgplayerPrices(stubFetch, db, log);
 
       expect(result.transformed.groups).toBe(2);
       expect(result.transformed.products).toBe(3);
@@ -632,7 +637,7 @@ describe("refreshTcgplayerPrices", () => {
       };
       upsertSpy.mockResolvedValue(customCounts);
 
-      const result = await refreshTcgplayerPrices(db, log);
+      const result = await refreshTcgplayerPrices(stubFetch, db, log);
 
       expect(result.upserted).toBe(customCounts);
     });
@@ -656,7 +661,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).toBeDefined();
@@ -679,7 +684,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).toContain("2 ignored");
@@ -694,7 +699,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).not.toContain("ignored");
@@ -705,7 +710,7 @@ describe("refreshTcgplayerPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      await refreshTcgplayerPrices(db, log);
+      await refreshTcgplayerPrices(stubFetch, db, log);
 
       expect(logUpsertSpy).toHaveBeenCalledWith(log, ZERO_COUNTS);
     });

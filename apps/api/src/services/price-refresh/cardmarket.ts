@@ -13,6 +13,7 @@ import { toCents } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types.js";
+import type { Fetch } from "../../io.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceRefreshResult, PriceUpsertConfig, StagingRow } from "./types.js";
@@ -61,12 +62,14 @@ interface CardmarketFetchResult {
   recordedAt: Date;
 }
 
-async function fetchCardmarketData(): Promise<CardmarketFetchResult> {
+async function fetchCardmarketData(fetchFn: Fetch): Promise<CardmarketFetchResult> {
   const [cmPriceGuideRes, cmSinglesRes] = await Promise.all([
     fetchJson<{ createdAt?: string; priceGuides: CmPriceGuide[] }>(
+      fetchFn,
       `${CARDMARKET_BASE}/priceGuide/price_guide_${CARDMARKET_GAME}.json`,
     ),
     fetchJson<{ products: CmProduct[] }>(
+      fetchFn,
       `${CARDMARKET_BASE}/productList/products_singles_${CARDMARKET_GAME}.json`,
     ),
   ]);
@@ -156,13 +159,14 @@ function buildCardmarketGroups(singles: CmProduct[]): GroupRow[] {
  * @returns Fetch totals and per-table upsert counts.
  */
 export async function refreshCardmarketPrices(
+  fetchFn: Fetch,
   db: Kysely<Database>,
   log: Logger,
 ): Promise<PriceRefreshResult> {
   const ignoredKeys = await loadIgnoredKeys(db, "cardmarket");
 
   // Phase 1: Fetch
-  const fetchResult = await fetchCardmarketData();
+  const fetchResult = await fetchCardmarketData(fetchFn);
   const { singles } = fetchResult;
 
   // Phase 2: Transform

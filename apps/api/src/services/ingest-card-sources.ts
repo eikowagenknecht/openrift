@@ -4,44 +4,7 @@ import { z } from "zod";
 
 import type { Database } from "../db/index.js";
 import { cardSourceFieldRules, printingSourceFieldRules } from "../db/schemas.js";
-
-interface IngestCard {
-  name: string;
-  type: string;
-  super_types: string[];
-  domains: string[];
-  might: number | null;
-  energy: number | null;
-  power: number | null;
-  might_bonus: number | null;
-  rules_text: string | null;
-  effect_text: string | null;
-  tags: string[];
-  source_id?: string | null;
-  source_entity_id?: string | null;
-  extra_data?: unknown | null;
-  printings: IngestPrinting[];
-}
-
-interface IngestPrinting {
-  source_id: string;
-  set_id: string;
-  set_name?: string | null;
-  collector_number: number;
-  rarity: string;
-  art_variant: string;
-  is_signed: boolean;
-  is_promo: boolean;
-  finish: string;
-  artist: string;
-  public_code: string;
-  printed_rules_text: string | null;
-  printed_effect_text: string | null;
-  image_url?: string | null;
-  flavor_text?: string;
-  source_entity_id?: string | null;
-  extra_data?: unknown | null;
-}
+import type { IngestCard } from "../routes/card-sources/schemas.js";
 
 interface UpdatedCardDetail {
   name: string;
@@ -258,6 +221,21 @@ export async function ingestCardSources(
       psBySourceFinish.set(`${ps.cardSourceId}:${ps.sourceId}:${ps.finish}`, ps);
     }
 
+    // 1f. Ignored sources — load once and build lookup sets
+    const ignoredCardRows = await trx
+      .selectFrom("ignoredCardSources")
+      .select(["source", "sourceEntityId"])
+      .where("source", "=", source)
+      .execute();
+    const ignoredCards = new Set(ignoredCardRows.map((r) => r.sourceEntityId));
+
+    const ignoredPrintingRows = await trx
+      .selectFrom("ignoredPrintingSources")
+      .select(["source", "sourceEntityId"])
+      .where("source", "=", source)
+      .execute();
+    const ignoredPrintings = new Set(ignoredPrintingRows.map((r) => r.sourceEntityId));
+
     // ── Phase 2: Process each card (writes only) ───────────────────────────
 
     for (const card of cards) {
@@ -272,12 +250,17 @@ export async function ingestCardSources(
         rules_text: emptyToNull(card.rules_text),
         effect_text: emptyToNull(card.effect_text),
         source_id: card.source_id ?? null,
-        source_entity_id: card.source_entity_id ?? null,
+        source_entity_id: card.source_entity_id,
       });
       if (!cardValidation.success) {
         errors.push(
           `Card "${card.name}": ${cardValidation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
         );
+        continue;
+      }
+
+      // Skip ignored card sources
+      if (ignoredCards.has(card.source_entity_id)) {
         continue;
       }
 
@@ -302,40 +285,7 @@ export async function ingestCardSources(
             sourceId: card.source_id ?? null,
             fields: changedFields,
           });
-          await trx
-            .updateTable("cardSources")
-            .set({
-              name: card.name,
-              type: card.type,
-              superTypes: card.super_types,
-              domains: card.domains,
-              might: card.might,
-              energy: card.energy,
-              power: card.power,
-              mightBonus: card.might_bonus,
-              rulesText: emptyToNull(card.rules_text),
-              effectText: emptyToNull(card.effect_text),
-              tags: card.tags,
-              ...(card.source_id !== undefined && { sourceId: card.source_id ?? null }),
-              ...(card.source_entity_id !== undefined && {
-                sourceEntityId: card.source_entity_id ?? null,
-              }),
-              ...(card.extra_data !== undefined && { extraData: jsonOrNull(card.extra_data) }),
-              checkedAt: null,
-              updatedAt: new Date(),
-            })
-            .where("id", "=", existingCardSource.id)
-            .execute();
-          updates++;
-        } else {
-          unchanged++;
-        }
-        cardSourceId = existingCardSource.id;
-      } else {
-        const [inserted] = await trx
-          .insertInto("cardSources")
-          .values({
-            source,
+          const cardUpdate: Record<string, unknown> = {
             name: card.name,
             type: card.type,
             superTypes: card.super_types,
@@ -347,12 +297,52 @@ export async function ingestCardSources(
             rulesText: emptyToNull(card.rules_text),
             effectText: emptyToNull(card.effect_text),
             tags: card.tags,
-            ...(card.source_id !== undefined && { sourceId: card.source_id ?? null }),
-            ...(card.source_entity_id !== undefined && {
-              sourceEntityId: card.source_entity_id ?? null,
-            }),
-            ...(card.extra_data !== undefined && { extraData: jsonOrNull(card.extra_data) }),
-          })
+            sourceEntityId: card.source_entity_id,
+            checkedAt: null,
+            updatedAt: new Date(),
+          };
+          if (card.source_id !== undefined) {
+            cardUpdate.sourceId = card.source_id ?? null;
+          }
+          if (card.extra_data !== undefined) {
+            cardUpdate.extraData = jsonOrNull(card.extra_data);
+          }
+          await trx
+            .updateTable("cardSources")
+            .set(cardUpdate)
+            .where("id", "=", existingCardSource.id)
+            .execute();
+          updates++;
+        } else {
+          unchanged++;
+        }
+        cardSourceId = existingCardSource.id;
+      } else {
+        const cardInsert: Record<string, unknown> = {
+          source,
+          name: card.name,
+          type: card.type,
+          superTypes: card.super_types,
+          domains: card.domains,
+          might: card.might,
+          energy: card.energy,
+          power: card.power,
+          mightBonus: card.might_bonus,
+          rulesText: emptyToNull(card.rules_text),
+          effectText: emptyToNull(card.effect_text),
+          tags: card.tags,
+          sourceEntityId: card.source_entity_id,
+        };
+        if (card.source_id !== undefined) {
+          cardInsert.sourceId = card.source_id ?? null;
+        }
+        if (card.extra_data !== undefined) {
+          cardInsert.extraData = jsonOrNull(card.extra_data);
+        }
+        const [inserted] = await trx
+          .insertInto("cardSources")
+          // oxlint-disable-next-line typescript/no-explicit-any -- optional fields built dynamically
+          .values(cardInsert as any)
           .returning("id")
           .execute();
         cardSourceId = inserted.id;
@@ -379,7 +369,7 @@ export async function ingestCardSources(
           printed_effect_text: emptyToNull(p.printed_effect_text),
           image_url: p.image_url ?? null,
           flavor_text: p.flavor_text ?? null,
-          source_entity_id: p.source_entity_id ?? null,
+          source_entity_id: p.source_entity_id,
         });
         if (!printingValidation.success) {
           errors.push(
@@ -388,9 +378,15 @@ export async function ingestCardSources(
           continue;
         }
 
-        const printingSlug = effectiveCardId
-          ? buildPrintingId(p.source_id, p.rarity, p.is_promo, p.finish)
-          : null;
+        // Skip ignored printing sources
+        if (ignoredPrintings.has(p.source_entity_id)) {
+          continue;
+        }
+
+        const printingSlug =
+          effectiveCardId && p.rarity && p.finish
+            ? buildPrintingId(p.source_id, p.rarity, p.is_promo, p.finish)
+            : null;
         const resolvedPrintingId = printingSlug ? (printingBySlug.get(printingSlug) ?? null) : null;
 
         // Look up existing printing_source from pre-fetched maps
@@ -414,9 +410,7 @@ export async function ingestCardSources(
           printedEffectText: emptyToNull(p.printed_effect_text),
           imageUrl: p.image_url ?? null,
           flavorText: p.flavor_text ?? null,
-          ...(p.source_entity_id !== undefined && {
-            sourceEntityId: p.source_entity_id ?? null,
-          }),
+          sourceEntityId: p.source_entity_id,
           extraData: jsonOrNull(p.extra_data),
         };
 
@@ -428,17 +422,17 @@ export async function ingestCardSources(
           );
 
           if (pChangedFields.length > 0) {
+            const psUpdate: Record<string, unknown> = {
+              ...printingFields,
+              checkedAt: null,
+              updatedAt: new Date(),
+            };
+            if (!existingPS.printingId && resolvedPrintingId) {
+              psUpdate.printingId = resolvedPrintingId;
+            }
             await trx
               .updateTable("printingSources")
-              .set({
-                ...printingFields,
-                // Preserve manually-assigned printingId; only auto-assign if unset
-                ...(!existingPS.printingId && resolvedPrintingId
-                  ? { printingId: resolvedPrintingId }
-                  : {}),
-                checkedAt: null,
-                updatedAt: new Date(),
-              })
+              .set(psUpdate)
               .where("id", "=", existingPS.id)
               .execute();
           } else if (resolvedPrintingId && !existingPS.printingId) {
@@ -451,11 +445,8 @@ export async function ingestCardSources(
         } else {
           await trx
             .insertInto("printingSources")
-            .values({
-              cardSourceId: cardSourceId,
-              printingId: resolvedPrintingId,
-              ...printingFields,
-            })
+            // oxlint-disable-next-line typescript/no-explicit-any -- spread fields typed separately
+            .values({ cardSourceId, printingId: resolvedPrintingId, ...printingFields } as any)
             .execute();
         }
       }

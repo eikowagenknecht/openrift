@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
 import type { Logger } from "@openrift/shared/logger";
 import { toCents } from "@openrift/shared/utils";
@@ -139,40 +139,34 @@ describe("logUpsertCounts", () => {
 // ---------------------------------------------------------------------------
 
 describe("fetchJson", () => {
-  const originalFetch = globalThis.fetch;
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
+  const stubFetch: typeof globalThis.fetch = async () =>
+    Response.json({ hello: "world" }, { status: 200 });
 
   it("returns parsed JSON and null lastModified when no header", async () => {
-    globalThis.fetch = (async () =>
-      Response.json({ hello: "world" }, { status: 200 })) as unknown as typeof fetch;
-
-    const result = await fetchJson<{ hello: string }>("https://example.com/api");
+    const result = await fetchJson<{ hello: string }>(stubFetch, "https://example.com/api");
     expect(result.data).toEqual({ hello: "world" });
     expect(result.lastModified).toBeNull();
   });
 
   it("parses Last-Modified header into Date", async () => {
-    globalThis.fetch = (async () =>
+    const mockFetch: typeof globalThis.fetch = async () =>
       Response.json(
         { ok: true },
         {
           status: 200,
           headers: { "Last-Modified": "Wed, 01 Jan 2025 00:00:00 GMT" },
         },
-      )) as unknown as typeof fetch;
+      );
 
-    const result = await fetchJson("https://example.com/api");
+    const result = await fetchJson(mockFetch, "https://example.com/api");
     expect(result.lastModified).toBeInstanceOf(Date);
     expect(result.lastModified?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
   });
 
   it("throws on non-OK response", async () => {
-    globalThis.fetch = (async () =>
-      new Response("Not Found", { status: 404 })) as unknown as typeof fetch;
+    const mockFetch: typeof globalThis.fetch = async () =>
+      new Response("Not Found", { status: 404 });
 
-    await expect(fetchJson("https://example.com/missing")).rejects.toThrow("HTTP 404");
+    await expect(fetchJson(mockFetch, "https://example.com/missing")).rejects.toThrow("HTTP 404");
   });
 });

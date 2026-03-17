@@ -1,61 +1,42 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-// Mock the image rehost service BEFORE the app is created
-mock.module("../../services/image-rehost.js", () => ({
-  rehostImages: async () => ({
-    total: 0,
-    rehosted: 0,
-    skipped: 0,
-    failed: 0,
-    errors: [],
-  }),
-  regenerateImages: async () => ({
-    total: 0,
-    regenerated: 0,
-    failed: 0,
-    errors: [],
-    hasMore: false,
-    totalFiles: 0,
-  }),
-  clearAllRehosted: async () => ({ cleared: 0 }),
-  getRehostStatus: async () => ({
-    total: 5,
-    rehosted: 2,
-    external: 3,
-    sets: [
-      {
-        setId: "IMG",
-        setName: "IMG Test Set",
-        total: 5,
-        rehosted: 2,
-        external: 3,
-      },
-    ],
-    disk: { totalBytes: 1024, sets: [] },
-  }),
-  CARD_IMAGES_DIR: "/tmp/test-card-images",
-  downloadImage: async () => ({ buffer: Buffer.from("fake"), ext: ".png" }),
-  printingIdToFileBase: (id: string) => id.replaceAll(":", "-"),
-  // oxlint-disable-next-line no-empty-function -- noop mock
-  processAndSave: async () => {},
-  // oxlint-disable-next-line no-empty-function -- noop mock
-  deleteRehostFiles: async () => {},
-  // oxlint-disable-next-line no-empty-function -- noop mock
-  renameRehostFiles: async () => {},
-}));
-
-// oxlint-disable-next-line import/first -- mock.module must run before this import
+import type { Io } from "../../io.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin image management routes
 //
-// Uses the shared integration database. Auth and image-rehost service are mocked.
+// Uses the shared integration database. A mock io object is injected so
+// image-rehost functions don't hit the real filesystem or network.
 // ---------------------------------------------------------------------------
+
+const FAKE_BUFFER = Buffer.from("img");
+
+const mockSharpPipeline = {
+  resize: () => mockSharpPipeline,
+  webp: () => mockSharpPipeline,
+  toBuffer: async () => FAKE_BUFFER,
+};
+
+/* oxlint-disable no-empty-function -- noop mocks for io operations */
+const mockIo: Io = {
+  fs: {
+    mkdir: async () => undefined as any,
+    writeFile: async () => undefined as any,
+    readFile: async () => FAKE_BUFFER as any,
+    readdir: async () => [] as any,
+    rename: async () => undefined as any,
+    unlink: async () => undefined as any,
+    stat: async () => ({ size: 1024 }) as any,
+  },
+  fetch: async () => new Response(FAKE_BUFFER, { headers: { "content-type": "image/png" } }),
+  sharp: (() => mockSharpPipeline) as any,
+};
+/* oxlint-enable no-empty-function */
 
 const USER_ID = "a0000000-0020-4000-a000-000000000001";
 
-const ctx = createTestContext(USER_ID);
+const ctx = createTestContext(USER_ID, { io: mockIo });
 
 let printingId = "";
 
@@ -143,7 +124,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: "IMG-001",
-      sourceEntityId: null,
+      sourceEntityId: "IMG-001",
       extraData: null,
     })
     .returning("id")
@@ -169,6 +150,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/img-test.png",
       flavorText: null,
+      sourceEntityId: "IMG-001",
     })
     .execute();
 }
@@ -184,18 +166,16 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
   // ── POST /admin/rehost-images ──────────────────────────────────────────
 
   describe("POST /admin/rehost-images", () => {
-    it("returns mocked result with default limit", async () => {
+    it("returns 200 with rehost result shape", async () => {
       const res = await app.fetch(req("POST", "/admin/rehost-images"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({
-        total: 0,
-        rehosted: 0,
-        skipped: 0,
-        failed: 0,
-        errors: [],
-      });
+      expect(json).toHaveProperty("total");
+      expect(json).toHaveProperty("rehosted");
+      expect(json).toHaveProperty("skipped");
+      expect(json).toHaveProperty("failed");
+      expect(json).toHaveProperty("errors");
     });
 
     it("accepts a custom limit query param", async () => {
@@ -203,7 +183,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.total).toBe(0);
+      expect(typeof json.total).toBe("number");
     });
   });
 
@@ -237,31 +217,38 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
   // ── POST /admin/clear-rehosted ─────────────────────────────────────────
 
   describe("POST /admin/clear-rehosted", () => {
-    it("returns mocked result", async () => {
+    it("returns 200 with cleared count", async () => {
+      // Ensure no images have rehostedUrl without originalUrl (would violate chk_printing_images_has_url)
+      await db
+        .updateTable("printingImages")
+        .set({ originalUrl: "https://example.com/placeholder.png", updatedAt: new Date() })
+        .where("rehostedUrl", "is not", null)
+        .where("originalUrl", "is", null)
+        .execute();
+
       const res = await app.fetch(req("POST", "/admin/clear-rehosted"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({ cleared: 0 });
+      expect(typeof json.cleared).toBe("number");
     });
   });
 
   // ── GET /admin/rehost-status ───────────────────────────────────────────
 
   describe("GET /admin/rehost-status", () => {
-    it("returns status shape from mock", async () => {
+    it("returns status shape", async () => {
       const res = await app.fetch(req("GET", "/admin/rehost-status"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.total).toBe(5);
-      expect(json.rehosted).toBe(2);
-      expect(json.external).toBe(3);
+      expect(json.total).toBeNumber();
+      expect(json.rehosted).toBeNumber();
+      expect(json.external).toBeNumber();
       expect(json.sets).toBeArray();
-      expect(json.sets).toHaveLength(1);
-      expect(json.sets[0].setId).toBe("IMG");
       expect(json.disk).toBeDefined();
-      expect(json.disk.totalBytes).toBe(1024);
+      expect(json.disk.totalBytes).toBeNumber();
+      expect(json.disk.sets).toBeArray();
     });
   });
 

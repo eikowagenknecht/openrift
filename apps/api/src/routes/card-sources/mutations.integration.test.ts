@@ -132,7 +132,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: "CSM-001",
-      sourceEntityId: null,
+      sourceEntityId: "CSM-001",
       extraData: null,
     })
     .returning("id")
@@ -156,7 +156,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -184,7 +184,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csm-test.png",
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -212,7 +212,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -236,7 +236,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: "CSM-ACCEPT-001",
-      sourceEntityId: null,
+      sourceEntityId: "CSM-ACCEPT-001",
       extraData: null,
     })
     .returning("id")
@@ -264,7 +264,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/accept-new.png",
       flavorText: "Some flavor",
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -292,7 +292,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -320,7 +320,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -348,7 +348,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -376,7 +376,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -404,7 +404,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -432,7 +432,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -1132,7 +1132,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           effectText: null,
           tags: [],
           sourceId: null,
-          sourceEntityId: null,
+          sourceEntityId: "test-entity",
           extraData: null,
         })
         .execute();
@@ -1190,7 +1190,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: "https://example.com/ap.png",
           flavorText: "AP Flavor",
-          sourceEntityId: null,
+          sourceEntityId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1262,7 +1262,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          sourceEntityId: null,
+          sourceEntityId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1310,7 +1310,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          sourceEntityId: null,
+          sourceEntityId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1400,7 +1400,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          sourceEntityId: null,
+          sourceEntityId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1542,10 +1542,12 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
                 effect_text: null,
                 tags: [],
                 source_id: "CSM-UPLOAD-001",
+                source_entity_id: "CSM-UPLOAD-001",
               },
               printings: [
                 {
                   source_id: "CSM-UPLOAD-001",
+                  source_entity_id: "CSM-UPLOAD-001",
                   set_id: "CSM-TEST",
                   set_name: "CSM Test Set",
                   collector_number: 10,

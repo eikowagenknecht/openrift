@@ -9,7 +9,11 @@ import { z } from "zod/v4";
 
 import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
+import type { Services } from "./deps.js";
+import { createRepos, services as defaultServices } from "./deps.js";
 import { AppError } from "./errors.js";
+import { defaultIo } from "./io.js";
+import type { Io } from "./io.js";
 import { activitiesRoute } from "./routes/activities.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { catalogRoute } from "./routes/catalog.js";
@@ -28,6 +32,8 @@ export interface AppDeps {
   db: Kysely<Database>;
   auth: Auth;
   config: Config;
+  io?: Io;
+  services?: Partial<Services>;
 }
 
 const authRateLimit = rateLimiter<{ Variables: Variables }>({
@@ -47,6 +53,9 @@ const rateLimitedAuthPrefixes = [
 
 export function createApp(deps: AppDeps) {
   const { db, auth, config } = deps;
+  const services: Services = deps.services
+    ? { ...defaultServices, ...deps.services }
+    : defaultServices;
 
   const app = new Hono<{ Variables: Variables }>()
 
@@ -55,8 +64,11 @@ export function createApp(deps: AppDeps) {
     // ── Inject dependencies into every request context ───────────────────────
     .use("/api/*", async (c, next) => {
       c.set("db", db);
+      c.set("io", deps.io ?? defaultIo);
       c.set("auth", auth);
       c.set("config", config);
+      c.set("repos", createRepos(db));
+      c.set("services", services);
       await next();
     })
 

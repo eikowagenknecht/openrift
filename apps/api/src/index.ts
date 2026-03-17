@@ -40,7 +40,7 @@ if (config.cron.enabled) {
   cronJobs.tcgplayer = new Cron(tcgSchedule, { protect: true }, async () => {
     try {
       tcgLog.info("Starting price refresh");
-      await refreshTcgplayerPrices(db, tcgLog);
+      await refreshTcgplayerPrices(globalThis.fetch, db, tcgLog);
       tcgLog.info("Price refresh complete");
     } catch (error) {
       tcgLog.error(error, "Price refresh failed");
@@ -51,7 +51,7 @@ if (config.cron.enabled) {
   cronJobs.cardmarket = new Cron(cmSchedule, { protect: true }, async () => {
     try {
       cmLog.info("Starting price refresh");
-      await refreshCardmarketPrices(db, cmLog);
+      await refreshCardmarketPrices(globalThis.fetch, db, cmLog);
       cmLog.info("Price refresh complete");
     } catch (error) {
       cmLog.error(error, "Price refresh failed");

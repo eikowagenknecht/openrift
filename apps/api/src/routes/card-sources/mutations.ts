@@ -9,8 +9,6 @@ import { sql } from "kysely";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-import { ingestCardSources } from "../../services/ingest-card-sources.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 import {
   acceptNewCardFromSources,
@@ -832,54 +830,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /upload ──────────────────────────────────────────────────────────
   .post("/upload", zValidator("json", uploadCardSourcesSchema), async (c) => {
     const db = c.get("db");
-    const { source, candidates } = c.req.valid("json");
+    const { source, candidates: cards } = c.req.valid("json");
 
-    if (!source || typeof source !== "string" || source.trim() === "") {
-      throw new AppError(400, "BAD_REQUEST", "Non-empty source name is required");
-    }
-
-    if (!Array.isArray(candidates) || candidates.length === 0) {
-      throw new AppError(400, "BAD_REQUEST", "Non-empty candidates array is required");
-    }
-
-    // Transform candidates to the ingestion format
-    const cards = candidates.map(
-      (candidate: { card: Record<string, unknown>; printings: Record<string, unknown>[] }) => ({
-        name: candidate.card.name as string,
-        type: candidate.card.type as string,
-        super_types: (candidate.card.super_types as string[]) ?? [],
-        domains: (candidate.card.domains as string[]) ?? [],
-        might: candidate.card.might as number | null,
-        energy: candidate.card.energy as number | null,
-        power: candidate.card.power as number | null,
-        might_bonus: (candidate.card.might_bonus as number | null) ?? null,
-        rules_text: (candidate.card.rules_text as string | null) ?? null,
-        effect_text: (candidate.card.effect_text as string | null) ?? null,
-        tags: (candidate.card.tags as string[]) ?? [],
-        source_id: (candidate.card.source_id as string) ?? null,
-        source_entity_id: (candidate.card.source_entity_id as string) ?? null,
-        extra_data: (candidate.card.extra_data as Record<string, unknown>) ?? null,
-        printings: candidate.printings as {
-          source_id: string;
-          set_id: string;
-          set_name?: string | null;
-          collector_number: number;
-          rarity: string;
-          art_variant: string;
-          is_signed: boolean;
-          is_promo: boolean;
-          finish: string;
-          artist: string;
-          public_code: string;
-          printed_rules_text: string;
-          printed_effect_text: string;
-          image_url?: string | null;
-          flavor_text?: string;
-          extra_data?: unknown | null;
-        }[],
-      }),
-    );
-
+    const { ingestCardSources } = c.get("services");
     const result = await ingestCardSources(db, source.trim(), cards);
 
     return c.json({

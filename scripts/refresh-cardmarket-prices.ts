@@ -6,7 +6,7 @@ import { requireEnv } from "./env.js";
 const log = createLogger("cardmarket");
 const { db } = createDb(requireEnv("DATABASE_URL"));
 try {
-  await refreshCardmarketPrices(db, log);
+  await refreshCardmarketPrices(globalThis.fetch, db, log);
 } finally {
   await db.destroy();
 }

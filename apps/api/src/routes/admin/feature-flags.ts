@@ -5,7 +5,6 @@ import { Hono } from "hono";
 import { z } from "zod/v4";
 
 import { AppError } from "../../errors.js";
-import { featureFlagsRepo } from "../../repositories/feature-flags.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -31,7 +30,7 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
   // ── GET /admin/feature-flags ──────────────────────────────────────────────
 
   .get("/admin/feature-flags", async (c) => {
-    const flagsRepo = featureFlagsRepo(c.get("db"));
+    const { featureFlags: flagsRepo } = c.get("repos");
     const rows = await flagsRepo.listAll();
     const flags: FeatureFlagResponse[] = rows.map((r) => ({
       key: r.key,
@@ -46,7 +45,7 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
   // ── Admin: POST /admin/feature-flags ────────────────────────────────────────
 
   .post("/admin/feature-flags", zValidator("json", createFlagSchema), async (c) => {
-    const flagsRepo = featureFlagsRepo(c.get("db"));
+    const { featureFlags: flagsRepo } = c.get("repos");
     const { key, description, enabled } = c.req.valid("json");
 
     const existing = await flagsRepo.getByKey(key);
@@ -70,7 +69,7 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", keyParamSchema),
     zValidator("json", updateFlagSchema),
     async (c) => {
-      const flagsRepo = featureFlagsRepo(c.get("db"));
+      const { featureFlags: flagsRepo } = c.get("repos");
       const { key } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -96,7 +95,7 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
   // ── Admin: DELETE /admin/feature-flags/:key ─────────────────────────────────
 
   .delete("/admin/feature-flags/:key", zValidator("param", keyParamSchema), async (c) => {
-    const flagsRepo = featureFlagsRepo(c.get("db"));
+    const { featureFlags: flagsRepo } = c.get("repos");
     const { key } = c.req.valid("param");
 
     const result = await flagsRepo.deleteByKey(key);

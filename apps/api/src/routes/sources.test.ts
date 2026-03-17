@@ -17,10 +17,6 @@ const mockRepo = {
   deleteByIdForUser: mock(() => Promise.resolve({ numDeletedRows: 0n })),
 };
 
-mock.module("../repositories/sources.js", () => ({
-  sourcesRepo: () => mockRepo,
-}));
-
 // ---------------------------------------------------------------------------
 // Test app — includes error handler so we can assert status codes from AppError
 // ---------------------------------------------------------------------------
@@ -31,6 +27,7 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", {} as never);
     c.set("user", { id: USER_ID });
+    c.set("repos", { sources: mockRepo } as never);
     await next();
   })
   .route("/api", sourcesRoute)

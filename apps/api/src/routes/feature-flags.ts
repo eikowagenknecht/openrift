@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 
-import { featureFlagsRepo } from "../repositories/feature-flags.js";
 import type { Variables } from "../types.js";
 
 // ── Public: GET /feature-flags ──────────────────────────────────────────────
@@ -9,8 +8,8 @@ import type { Variables } from "../types.js";
 export const featureFlagsRoute = new Hono<{ Variables: Variables }>().get(
   "/feature-flags",
   async (c) => {
-    const flagsRepo = featureFlagsRepo(c.get("db"));
-    const rows = await flagsRepo.listKeyEnabled();
+    const { featureFlags } = c.get("repos");
+    const rows = await featureFlags.listKeyEnabled();
 
     const flags: Record<string, boolean> = {};
     for (const row of rows) {
