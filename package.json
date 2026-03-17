@@ -41,7 +41,7 @@
     "oxfmt": "0.40.0",
     "oxlint": "1.55.0",
     "syncpack": "14.2.0",
-    "turbo": "2.8.16"
+    "turbo": "^2.8.17"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
