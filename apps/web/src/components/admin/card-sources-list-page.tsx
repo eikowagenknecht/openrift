@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CheckCheckIcon, LinkIcon, SettingsIcon } from "lucide-react";
+import { CheckCheckIcon, LinkIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -63,16 +63,6 @@ export function CardSourcesListPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<Link to="/admin/cards-manage" />}
-        >
-          <SettingsIcon />
-          Manage
-        </Button>
-
         <Button
           variant="outline"
           size="sm"
