@@ -47,6 +47,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`ALTER TABLE printings ADD CONSTRAINT chk_printings_collector_number_positive CHECK (collector_number > 0)`.execute(
     db,
   );
+  await sql`UPDATE printings SET art_variant = NULL WHERE art_variant = ''`.execute(db);
   await sql`ALTER TABLE printings ADD CONSTRAINT chk_printings_art_variant CHECK (art_variant = ANY(ARRAY['normal', 'altart', 'overnumbered']))`.execute(
     db,
   );
