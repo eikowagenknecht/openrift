@@ -20,7 +20,15 @@ function createMockDb(returnValue: unknown = []) {
 
   const chain: Record<string, (...args: unknown[]) => unknown> = {};
 
-  for (const method of ["selectAll", "select", "where", "orderBy", "values", "set"]) {
+  for (const method of [
+    "selectAll",
+    "select",
+    "where",
+    "orderBy",
+    "values",
+    "set",
+    "returningAll",
+  ]) {
     chain[method] = (...args: unknown[]) => {
       log(method, ...args);
       return chain;
@@ -34,6 +42,11 @@ function createMockDb(returnValue: unknown = []) {
 
   chain.executeTakeFirst = () => {
     log("executeTakeFirst");
+    return Array.isArray(returnValue) ? (returnValue[0] ?? undefined) : returnValue;
+  };
+
+  chain.executeTakeFirstOrThrow = () => {
+    log("executeTakeFirstOrThrow");
     return Array.isArray(returnValue) ? (returnValue[0] ?? undefined) : returnValue;
   };
 
@@ -180,33 +193,46 @@ describe("featureFlagsRepo.getByKey", () => {
 // ---------------------------------------------------------------------------
 
 describe("featureFlagsRepo.create", () => {
-  it("inserts a new flag with provided values", async () => {
-    const insertResult = [{ insertId: undefined, numInsertedOrUpdatedRows: 1n }];
-    const { db, calls } = createMockDb(insertResult);
+  it("inserts a new flag and returns the created row", async () => {
+    const row = {
+      key: "new-flag",
+      enabled: true,
+      description: "A new flag",
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    const { db, calls } = createMockDb([row]);
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = featureFlagsRepo(db as any);
 
     const values = { key: "new-flag", enabled: true, description: "A new flag" };
     const result = await repo.create(values);
 
-    expect(result).toEqual(insertResult);
+    expect(result).toEqual(row);
     expect(calls).toEqual([
       { method: "insertInto", args: ["featureFlags"] },
       { method: "values", args: [values] },
-      { method: "execute", args: [] },
+      { method: "returningAll", args: [] },
+      { method: "executeTakeFirstOrThrow", args: [] },
     ]);
   });
 
   it("inserts a flag with null description", async () => {
-    const insertResult = [{ insertId: undefined, numInsertedOrUpdatedRows: 1n }];
-    const { db } = createMockDb(insertResult);
+    const row = {
+      key: "null-desc-flag",
+      enabled: false,
+      description: null,
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    const { db } = createMockDb([row]);
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = featureFlagsRepo(db as any);
 
     const values = { key: "null-desc-flag", enabled: false, description: null };
     const result = await repo.create(values);
 
-    expect(result).toEqual(insertResult);
+    expect(result).toEqual(row);
   });
 });
 
@@ -215,35 +241,39 @@ describe("featureFlagsRepo.create", () => {
 // ---------------------------------------------------------------------------
 
 describe("featureFlagsRepo.update", () => {
-  it("updates a flag by key with the given updates", async () => {
-    const updateResult = [{ numUpdatedRows: 1n }];
-    const { db, calls } = createMockDb(updateResult);
+  it("updates a flag by key and returns the updated row", async () => {
+    const row = {
+      key: "my-flag",
+      enabled: true,
+      description: "Updated desc",
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-02",
+    };
+    const { db, calls } = createMockDb([row]);
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = featureFlagsRepo(db as any);
 
     const updates = { enabled: true, description: "Updated desc" };
     const result = await repo.update("my-flag", updates);
 
-    expect(result).toEqual(updateResult);
+    expect(result).toEqual(row);
     expect(calls).toEqual([
       { method: "updateTable", args: ["featureFlags"] },
       { method: "set", args: [updates] },
       { method: "where", args: ["key", "=", "my-flag"] },
-      { method: "execute", args: [] },
+      { method: "returningAll", args: [] },
+      { method: "executeTakeFirst", args: [] },
     ]);
   });
 
-  it("updates only enabled field", async () => {
-    const updateResult = [{ numUpdatedRows: 1n }];
-    const { db, calls } = createMockDb(updateResult);
+  it("returns undefined when flag not found", async () => {
+    const { db } = createMockDb([]);
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = featureFlagsRepo(db as any);
 
-    const updates = { enabled: false };
-    await repo.update("some-flag", updates);
+    const result = await repo.update("nonexistent", { enabled: false });
 
-    expect(calls[1]).toEqual({ method: "set", args: [{ enabled: false }] });
-    expect(calls[2]).toEqual({ method: "where", args: ["key", "=", "some-flag"] });
+    expect(result).toBeUndefined();
   });
 });
 

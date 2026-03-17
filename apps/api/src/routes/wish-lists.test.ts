@@ -15,7 +15,7 @@ const mockRepo = {
   getByIdForUser: mock(() => Promise.resolve(undefined as object | undefined)),
   update: mock(() => Promise.resolve(undefined as object | undefined)),
   deleteByIdForUser: mock(() => Promise.resolve({ numDeletedRows: 0n })),
-  itemsForList: mock(() => Promise.resolve([] as object[])),
+  items: mock(() => Promise.resolve([] as object[])),
   exists: mock(() => Promise.resolve(undefined as object | undefined)),
   createItem: mock(() => Promise.resolve({} as object)),
   updateItem: mock(() => Promise.resolve(undefined as object | undefined)),
@@ -126,12 +126,12 @@ describe("POST /api/wish-lists", () => {
 describe("GET /api/wish-lists/:id", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
-    mockRepo.itemsForList.mockReset();
+    mockRepo.items.mockReset();
   });
 
   it("returns 200 with wish list and items", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbWishList);
-    mockRepo.itemsForList.mockResolvedValue([dbWishListItem]);
+    mockRepo.items.mockResolvedValue([dbWishListItem]);
     const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}`);
     expect(res.status).toBe(200);
     const json = await res.json();

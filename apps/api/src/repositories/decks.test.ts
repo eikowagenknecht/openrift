@@ -372,19 +372,24 @@ describe("decksRepo.cardsWithDetails", () => {
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = decksRepo(db as any);
 
-    const result = await repo.cardsWithDetails("d1");
+    const result = await repo.cardsWithDetails("d1", "u1");
 
     expect(result).toEqual(data);
     expect(calls[0]).toEqual({ method: "selectFrom", args: ["deckCards as dc"] });
     expect(calls[1]).toEqual({
       method: "innerJoin",
+      args: ["decks as d", "d.id", "dc.deckId"],
+    });
+    expect(calls[2]).toEqual({
+      method: "innerJoin",
       args: ["cards as c", "c.id", "dc.cardId"],
     });
-    expect(calls[2].method).toBe("select");
-    expect(calls[3]).toEqual({ method: "where", args: ["dc.deckId", "=", "d1"] });
-    expect(calls[4]).toEqual({ method: "orderBy", args: ["dc.zone"] });
-    expect(calls[5]).toEqual({ method: "orderBy", args: ["c.name"] });
-    expect(calls[6]).toEqual({ method: "execute", args: [] });
+    expect(calls[3].method).toBe("select");
+    expect(calls[4]).toEqual({ method: "where", args: ["dc.deckId", "=", "d1"] });
+    expect(calls[5]).toEqual({ method: "where", args: ["d.userId", "=", "u1"] });
+    expect(calls[6]).toEqual({ method: "orderBy", args: ["dc.zone"] });
+    expect(calls[7]).toEqual({ method: "orderBy", args: ["c.name"] });
+    expect(calls[8]).toEqual({ method: "execute", args: [] });
   });
 
   it("returns empty array when deck has no cards", async () => {
@@ -392,7 +397,7 @@ describe("decksRepo.cardsWithDetails", () => {
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = decksRepo(db as any);
 
-    const result = await repo.cardsWithDetails("empty-deck");
+    const result = await repo.cardsWithDetails("empty-deck", "u1");
 
     expect(result).toEqual([]);
   });
