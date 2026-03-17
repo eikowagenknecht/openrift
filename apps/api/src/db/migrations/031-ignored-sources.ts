@@ -7,6 +7,13 @@ import { sql } from "kysely";
  *    nonsense entries can be permanently skipped during re-imports.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
+  // ── Clean up rows with NULL source_entity_id before adding NOT NULL ─────────
+  await sql`DELETE FROM printing_sources WHERE card_source_id IN (SELECT id FROM card_sources WHERE source_entity_id IS NULL)`.execute(
+    db,
+  );
+  await sql`DELETE FROM card_sources WHERE source_entity_id IS NULL`.execute(db);
+  await sql`DELETE FROM printing_sources WHERE source_entity_id IS NULL`.execute(db);
+
   // ── Make source_entity_id NOT NULL ──────────────────────────────────────────
 
   await sql`
