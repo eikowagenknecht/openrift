@@ -15,9 +15,6 @@ import type { ColumnType, Generated } from "kysely";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
 
-/** Unwrap a Kysely column-type wrapper to its select (read) type. */
-export type Readable<T> = T extends ColumnType<infer S, any, any> ? S : T;
-
 /** Timestamp column that defaults to NOW() on insert. */
 type CreatedAt = ColumnType<Date, Date | undefined, Date>;
 
