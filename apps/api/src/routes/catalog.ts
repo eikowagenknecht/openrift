@@ -37,15 +37,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     );
 
     // Build images lookup (null URLs already filtered at the DB level)
-    const imagesByPrinting = new Map<string, typeof imageRows>();
-    for (const r of imageRows) {
-      const arr = imagesByPrinting.get(r.printingId);
-      if (arr) {
-        arr.push(r);
-      } else {
-        imagesByPrinting.set(r.printingId, [r]);
-      }
-    }
+    const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
     // Build flat printings array
     const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
