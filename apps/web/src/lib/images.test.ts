@@ -39,6 +39,20 @@ describe("getCardImageUrl", () => {
     const url = getCardImageUrl(BASE_WITH_PARAMS, "full", "landscape");
     expect(url).toBe(`${BASE_WITH_PARAMS}&fm=webp&or=270`);
   });
+
+  it("returns -300w.webp for self-hosted thumbnail", () => {
+    const url = getCardImageUrl(
+      "/card-images/OGN/OGN-027-normal-n-n-foil",
+      "thumbnail",
+      "portrait",
+    );
+    expect(url).toBe("/card-images/OGN/OGN-027-normal-n-n-foil-300w.webp");
+  });
+
+  it("returns -full.webp for self-hosted full size", () => {
+    const url = getCardImageUrl("/card-images/OGN/OGN-027-normal-n-n-foil", "full", "portrait");
+    expect(url).toBe("/card-images/OGN/OGN-027-normal-n-n-foil-full.webp");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -79,6 +93,12 @@ describe("getCardImageSrcSet", () => {
     for (const entry of srcSet.split(", ")) {
       expect(entry).toContain("?accountingTag=RB&w=");
     }
+  });
+
+  it("returns 300w and 400w webp variants for self-hosted URLs", () => {
+    const base = "/card-images/OGN/OGN-027-normal-n-n-foil";
+    const srcSet = getCardImageSrcSet(base, "portrait");
+    expect(srcSet).toBe(`${base}-300w.webp 300w, ${base}-400w.webp 400w`);
   });
 });
 

@@ -1,0 +1,207 @@
+import { describe, expect, it, mock, beforeEach } from "bun:test";
+
+import { Hono } from "hono";
+
+import { AppError } from "../errors.js";
+import { copiesRoute } from "./copies";
+
+// ---------------------------------------------------------------------------
+// Mock repo and services
+// ---------------------------------------------------------------------------
+
+const mockRepo = {
+  listForUser: mock(() => Promise.resolve([] as object[])),
+  getByIdForUser: mock(() => Promise.resolve(undefined as object | undefined)),
+  countByPrintingForUser: mock(() =>
+    Promise.resolve([] as { printingId: string; count: number }[]),
+  ),
+};
+
+const mockAddCopies = mock(() => Promise.resolve([] as object[]));
+const mockMoveCopies = mock(() => Promise.resolve());
+const mockDisposeCopies = mock(() => Promise.resolve());
+
+mock.module("../repositories/copies.js", () => ({
+  copiesRepo: () => mockRepo,
+}));
+
+mock.module("../services/copies.js", () => ({
+  addCopies: mockAddCopies,
+  moveCopies: mockMoveCopies,
+  disposeCopies: mockDisposeCopies,
+}));
+
+// ---------------------------------------------------------------------------
+// Test app
+// ---------------------------------------------------------------------------
+
+const USER_ID = "a0000000-0001-4000-a000-000000000001";
+
+const app = new Hono()
+  .use("*", async (c, next) => {
+    c.set("db", {} as never);
+    c.set("user", { id: USER_ID });
+    await next();
+  })
+  .route("/api", copiesRoute)
+  .onError((err, c) => {
+    if (err instanceof AppError) {
+      return c.json({ error: err.message, code: err.code }, err.status as 400);
+    }
+    throw err;
+  });
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
+
+const now = new Date("2026-03-17T00:00:00Z");
+
+const dbCopy = {
+  id: "a0000000-0001-4000-a000-000000000020",
+  printingId: "OGS-001:rare:normal:",
+  collectionId: "a0000000-0001-4000-a000-000000000010",
+  sourceId: null,
+  createdAt: now,
+  updatedAt: now,
+  cardId: "OGS-001",
+  setId: "OGS",
+  collectorNumber: 1,
+  rarity: "Rare",
+  artVariant: "normal",
+  isSigned: false,
+  finish: "normal",
+  artist: "Alice",
+  imageUrl: "https://example.com/img.jpg",
+  cardName: "Fire Dragon",
+  cardType: "Unit",
+};
+
+const COPY_ID = "a0000000-0001-4000-a000-000000000020";
+const PRINTING_ID = "a0000000-0001-4000-a000-000000000030";
+const COLLECTION_ID = "a0000000-0001-4000-a000-000000000010";
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("GET /api/copies", () => {
+  beforeEach(() => {
+    mockRepo.listForUser.mockReset();
+  });
+
+  it("returns 200 with list of copies", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbCopy]);
+    const res = await app.request("/api/copies");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toHaveLength(1);
+    expect(json[0].id).toBe(dbCopy.id);
+  });
+
+  it("returns empty array when no copies", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    const res = await app.request("/api/copies");
+    const json = await res.json();
+    expect(json).toEqual([]);
+  });
+});
+
+describe("POST /api/copies", () => {
+  beforeEach(() => {
+    mockAddCopies.mockReset();
+  });
+
+  it("returns 201 with created copies", async () => {
+    const created = [
+      { id: COPY_ID, printingId: PRINTING_ID, collectionId: COLLECTION_ID, sourceId: null },
+    ];
+    mockAddCopies.mockResolvedValue(created);
+    const res = await app.request("/api/copies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copies: [{ printingId: PRINTING_ID }] }),
+    });
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    expect(json).toHaveLength(1);
+  });
+});
+
+describe("POST /api/copies/move", () => {
+  beforeEach(() => {
+    mockMoveCopies.mockReset();
+  });
+
+  it("returns 204 on successful move", async () => {
+    mockMoveCopies.mockResolvedValue();
+    const res = await app.request("/api/copies/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds: [COPY_ID], toCollectionId: COLLECTION_ID }),
+    });
+    expect(res.status).toBe(204);
+  });
+});
+
+describe("POST /api/copies/dispose", () => {
+  beforeEach(() => {
+    mockDisposeCopies.mockReset();
+  });
+
+  it("returns 204 on successful disposal", async () => {
+    mockDisposeCopies.mockResolvedValue();
+    const res = await app.request("/api/copies/dispose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds: [COPY_ID] }),
+    });
+    expect(res.status).toBe(204);
+  });
+});
+
+describe("GET /api/copies/count", () => {
+  beforeEach(() => {
+    mockRepo.countByPrintingForUser.mockReset();
+  });
+
+  it("returns 200 with printingId→count map", async () => {
+    mockRepo.countByPrintingForUser.mockResolvedValue([
+      { printingId: "OGS-001:rare:normal:", count: 3 },
+      { printingId: "OGS-002:common:normal:", count: 1 },
+    ]);
+    const res = await app.request("/api/copies/count");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json["OGS-001:rare:normal:"]).toBe(3);
+    expect(json["OGS-002:common:normal:"]).toBe(1);
+  });
+
+  it("returns empty object when no copies", async () => {
+    mockRepo.countByPrintingForUser.mockResolvedValue([]);
+    const res = await app.request("/api/copies/count");
+    const json = await res.json();
+    expect(json).toEqual({});
+  });
+});
+
+describe("GET /api/copies/:id", () => {
+  beforeEach(() => {
+    mockRepo.getByIdForUser.mockReset();
+  });
+
+  it("returns 200 with copy when found", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbCopy);
+    const res = await app.request(`/api/copies/${dbCopy.id}`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.id).toBe(dbCopy.id);
+    expect(json.cardName).toBe("Fire Dragon");
+  });
+
+  it("returns 404 when copy not found", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue();
+    const res = await app.request(`/api/copies/${dbCopy.id}`);
+    expect(res.status).toBe(404);
+  });
+});

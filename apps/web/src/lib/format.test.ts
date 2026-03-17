@@ -6,7 +6,9 @@ import {
   formatCardIdCompact,
   formatPrice,
   formatPriceCompact,
+  formatPriceEur,
   formatPriceRange,
+  formatPrintingLabel,
   formatPublicCode,
   priceColorClass,
 } from "./format";
@@ -206,5 +208,61 @@ describe("formatPriceCompact", () => {
     expect(formatPriceCompact(9999)).toBe("$10k");
     expect(formatPriceCompact(10_000)).toBe("$10k");
     expect(formatPriceCompact(25_000)).toBe("$25k");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatPrintingLabel
+// ---------------------------------------------------------------------------
+
+describe("formatPrintingLabel", () => {
+  it("shows non-normal attributes when no siblings provided", () => {
+    const p = stub({ artVariant: "altart", finish: "foil", isSigned: true, isPromo: true });
+    expect(formatPrintingLabel(p)).toBe("Alt Art · Foil · Signed · Promo");
+  });
+
+  it('returns "Standard" when all attributes are normal defaults', () => {
+    expect(formatPrintingLabel(stub())).toBe("Standard");
+  });
+
+  it("omits attributes shared by all siblings", () => {
+    const base = { finish: "foil" as const };
+    const p = stub({ ...base, artVariant: "altart" });
+    const siblings = [p, stub({ ...base, artVariant: "normal" })];
+    expect(formatPrintingLabel(p, siblings)).toBe("Alt Art");
+  });
+
+  it("includes attributes that differ among siblings", () => {
+    const p = stub({ isSigned: true, isPromo: true });
+    const siblings = [p, stub({ isSigned: false, isPromo: true })];
+    expect(formatPrintingLabel(p, siblings)).toBe("Signed");
+  });
+
+  it("joins multiple distinguishing attributes with ·", () => {
+    const p = stub({ artVariant: "altart", isSigned: true });
+    const siblings = [p, stub()];
+    expect(formatPrintingLabel(p, siblings)).toBe("Alt Art · Signed");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatPriceEur
+// ---------------------------------------------------------------------------
+
+describe("formatPriceEur", () => {
+  it('returns "--" for null', () => {
+    expect(formatPriceEur(null)).toBe("--");
+  });
+
+  it('returns "--" for undefined', () => {
+    expect(formatPriceEur()).toBe("--");
+  });
+
+  it("formats zero", () => {
+    expect(formatPriceEur(0)).toBe("€0.00");
+  });
+
+  it("formats a decimal value", () => {
+    expect(formatPriceEur(9.99)).toBe("€9.99");
   });
 });

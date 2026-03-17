@@ -39,4 +39,16 @@ describe("useOnlineStatus", () => {
     act(() => globalThis.dispatchEvent(new Event("online")));
     expect(result.current).toBe(true);
   });
+
+  it("removes event listeners on unmount", () => {
+    const removeSpy = vi.spyOn(globalThis, "removeEventListener");
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+
+    const { unmount } = renderHook(() => useOnlineStatus());
+    unmount();
+
+    const removedEvents = removeSpy.mock.calls.map((call) => call[0]);
+    expect(removedEvents).toContain("online");
+    expect(removedEvents).toContain("offline");
+  });
 });

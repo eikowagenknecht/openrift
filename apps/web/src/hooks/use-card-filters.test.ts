@@ -45,6 +45,7 @@ function defaultFilterState() {
     promo: null,
     sort: "id",
     sortDir: "asc",
+    view: "cards",
   };
 }
 
@@ -300,6 +301,62 @@ describe("useCardFilters", () => {
     act(() => result.current.toggleSearchField("cardText"));
 
     expect(mockToggleSearchField).toHaveBeenCalledWith("cardText");
+  });
+
+  it("setView passes null for default view ('cards')", () => {
+    const { result } = renderHook(() => useCardFilters());
+
+    act(() => result.current.setView("cards"));
+
+    expect(mockSetFilterState).toHaveBeenCalledWith({ view: null });
+  });
+
+  it("setView passes the view value for 'printings'", () => {
+    const { result } = renderHook(() => useCardFilters());
+
+    act(() => result.current.setView("printings"));
+
+    expect(mockSetFilterState).toHaveBeenCalledWith({ view: "printings" });
+  });
+
+  it("exposes view from filterState", () => {
+    mockFilterState = { ...defaultFilterState(), view: "printings" };
+    const { result } = renderHook(() => useCardFilters());
+    expect(result.current.view).toBe("printings");
+  });
+
+  it("pending ref effect clears entries when filterState catches up", () => {
+    // Start with empty types, toggle to add "Unit"
+    mockFilterState = { ...defaultFilterState(), types: [] };
+    const { result, rerender } = renderHook(() => useCardFilters());
+
+    act(() => result.current.toggleArrayFilter("types", "Unit"));
+    expect(mockSetFilterState).toHaveBeenCalledWith({ types: ["Unit"] });
+
+    // Simulate nuqs catching up — filterState now includes "Unit"
+    mockFilterState = { ...defaultFilterState(), types: ["Unit"] };
+    rerender();
+
+    // After rerender the pending ref should have been cleared.
+    // Toggling "Spell" should now base off filterState (["Unit"]), not a stale pending ref.
+    mockSetFilterState.mockClear();
+    act(() => result.current.toggleArrayFilter("types", "Spell"));
+    expect(mockSetFilterState).toHaveBeenCalledWith({ types: ["Unit", "Spell"] });
+  });
+
+  it("pending ref effect keeps entry when filterState has not caught up", () => {
+    mockFilterState = { ...defaultFilterState(), types: [] };
+    const { result, rerender } = renderHook(() => useCardFilters());
+
+    act(() => result.current.toggleArrayFilter("types", "Unit"));
+
+    // filterState does NOT update (nuqs hasn't flushed yet)
+    rerender();
+
+    // Pending ref should still hold ["Unit"], so toggling "Spell" should produce ["Unit", "Spell"]
+    mockSetFilterState.mockClear();
+    act(() => result.current.toggleArrayFilter("types", "Spell"));
+    expect(mockSetFilterState).toHaveBeenCalledWith({ types: ["Unit", "Spell"] });
   });
 
   it("toggleArrayFilter uses pending ref for rapid successive calls", () => {

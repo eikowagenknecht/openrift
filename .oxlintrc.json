@@ -128,9 +128,14 @@
   "ignorePatterns": [],
   "overrides": [
     {
-      "files": ["**/*.test.ts"],
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
       "rules": {
-        "require-await": "off"
+        "require-await": "off",
+        "no-empty-function": "off",
+        "typescript/no-non-null-assertion": "off",
+        "promise/prefer-await-to-then": "off",
+        "promise/prefer-await-to-callbacks": "off",
+        "unicorn/no-useless-undefined": "off"
       }
     },
     {

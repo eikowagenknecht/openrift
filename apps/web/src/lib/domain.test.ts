@@ -53,6 +53,20 @@ describe("getDomainGradientStyle", () => {
     const style = getDomainGradientStyle(["Unknown"]);
     expect(style).toEqual({ backgroundColor: "#737373" });
   });
+
+  it("falls back to gray for unknown domains in a dual-domain gradient", () => {
+    const style = getDomainGradientStyle(["Unknown", "AlsoUnknown"]);
+    expect(style).toEqual({
+      background: "linear-gradient(90deg, #737373 30%, #737373 70%)",
+    });
+  });
+
+  it("applies alpha to both colors in a dual-domain gradient", () => {
+    const style = getDomainGradientStyle(["Fury", "Calm"], "40");
+    expect(style).toEqual({
+      background: "linear-gradient(90deg, #CB212D40 30%, #16AA7140 70%)",
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -70,6 +84,12 @@ describe("getDomainTintStyle", () => {
     const style = getDomainTintStyle(["Mind", "Chaos"]);
     expect(style.backgroundImage).toContain("#227799");
     expect(style.backgroundImage).toContain("#6B4891");
+    expect(style.backgroundImage).toContain("135deg");
+  });
+
+  it("falls back to gray for unknown domains in dual tint", () => {
+    const style = getDomainTintStyle(["Unknown", "AlsoUnknown"]);
+    expect(style.backgroundImage).toContain("#737373");
     expect(style.backgroundImage).toContain("135deg");
   });
 });
