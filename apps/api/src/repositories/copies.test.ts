@@ -215,6 +215,40 @@ describe("copiesRepo.getByIdForUser", () => {
 });
 
 // ---------------------------------------------------------------------------
+// existsForUser
+// ---------------------------------------------------------------------------
+
+describe("copiesRepo.existsForUser", () => {
+  it("returns the id when copy exists for user", async () => {
+    const data = [{ id: "cp1" }];
+    const { db, calls } = createMockDb(data);
+    // oxlint-disable-next-line typescript/no-explicit-any -- mock db
+    const repo = copiesRepo(db as any);
+
+    const result = await repo.existsForUser("cp1", "u1");
+
+    expect(result).toEqual({ id: "cp1" });
+    expect(calls).toEqual([
+      { method: "selectFrom", args: ["copies"] },
+      { method: "select", args: ["id"] },
+      { method: "where", args: ["id", "=", "cp1"] },
+      { method: "where", args: ["userId", "=", "u1"] },
+      { method: "executeTakeFirst", args: [] },
+    ]);
+  });
+
+  it("returns undefined when copy not found", async () => {
+    const { db } = createMockDb([]);
+    // oxlint-disable-next-line typescript/no-explicit-any -- mock db
+    const repo = copiesRepo(db as any);
+
+    const result = await repo.existsForUser("nonexistent", "u1");
+
+    expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // listByIdsForUser (via selectCopyWithCard)
 // ---------------------------------------------------------------------------
 

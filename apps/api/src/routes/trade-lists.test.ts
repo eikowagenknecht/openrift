@@ -17,13 +17,20 @@ const mockRepo = {
   deleteByIdForUser: mock(() => Promise.resolve({ numDeletedRows: 0n })),
   itemsWithDetails: mock(() => Promise.resolve([] as object[])),
   exists: mock(() => Promise.resolve(undefined as object | undefined)),
-  copyExistsForUser: mock(() => Promise.resolve(undefined as object | undefined)),
   createItem: mock(() => Promise.resolve({} as object)),
   deleteItem: mock(() => Promise.resolve({ numDeletedRows: 0n })),
 };
 
+const mockCopiesRepo = {
+  existsForUser: mock(() => Promise.resolve(undefined as object | undefined)),
+};
+
 mock.module("../repositories/trade-lists.js", () => ({
   tradeListsRepo: () => mockRepo,
+}));
+
+mock.module("../repositories/copies.js", () => ({
+  copiesRepo: () => mockCopiesRepo,
 }));
 
 // ---------------------------------------------------------------------------
@@ -205,13 +212,13 @@ describe("DELETE /api/trade-lists/:id", () => {
 describe("POST /api/trade-lists/:id/items", () => {
   beforeEach(() => {
     mockRepo.exists.mockReset();
-    mockRepo.copyExistsForUser.mockReset();
+    mockCopiesRepo.existsForUser.mockReset();
     mockRepo.createItem.mockReset();
   });
 
   it("returns 201 with created item", async () => {
     mockRepo.exists.mockResolvedValue({ id: TRADE_LIST_ID });
-    mockRepo.copyExistsForUser.mockResolvedValue({ id: COPY_ID });
+    mockCopiesRepo.existsForUser.mockResolvedValue({ id: COPY_ID });
     mockRepo.createItem.mockResolvedValue({
       id: ITEM_ID,
       tradeListId: TRADE_LIST_ID,
@@ -240,7 +247,7 @@ describe("POST /api/trade-lists/:id/items", () => {
 
   it("returns 404 when copy not found", async () => {
     mockRepo.exists.mockResolvedValue({ id: TRADE_LIST_ID });
-    mockRepo.copyExistsForUser.mockResolvedValue();
+    mockCopiesRepo.existsForUser.mockResolvedValue();
     const res = await app.request(`/api/trade-lists/${TRADE_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

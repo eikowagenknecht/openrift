@@ -299,7 +299,7 @@ describe("tradeListsRepo.itemsWithDetails", () => {
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = tradeListsRepo(db as any);
 
-    const result = await repo.itemsWithDetails("tl1");
+    const result = await repo.itemsWithDetails("tl1", "u1");
 
     expect(result).toEqual(data);
     expect(calls[0]).toEqual({ method: "selectFrom", args: ["tradeListItems as tli"] });
@@ -320,14 +320,19 @@ describe("tradeListsRepo.itemsWithDetails", () => {
     expect(calls[4].args[0]).toBe("printingImages as pi");
     // select
     expect(calls[5].method).toBe("select");
-    // where
+    // where tradeListId
     expect(calls[6]).toEqual({
       method: "where",
       args: ["tli.tradeListId", "=", "tl1"],
     });
+    // where userId (defense-in-depth)
+    expect(calls[7]).toEqual({
+      method: "where",
+      args: ["tli.userId", "=", "u1"],
+    });
     // orderBy
-    expect(calls[7]).toEqual({ method: "orderBy", args: ["card.name"] });
-    expect(calls[8]).toEqual({ method: "execute", args: [] });
+    expect(calls[8]).toEqual({ method: "orderBy", args: ["card.name"] });
+    expect(calls[9]).toEqual({ method: "execute", args: [] });
   });
 
   it("returns empty array when trade list has no items", async () => {
@@ -335,7 +340,7 @@ describe("tradeListsRepo.itemsWithDetails", () => {
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = tradeListsRepo(db as any);
 
-    const result = await repo.itemsWithDetails("empty-tl");
+    const result = await repo.itemsWithDetails("empty-tl", "u1");
 
     expect(result).toEqual([]);
   });
@@ -397,39 +402,5 @@ describe("tradeListsRepo.deleteItem", () => {
     const result = await repo.deleteItem("nonexistent", "tl1", "u1");
 
     expect(result).toEqual({ numDeletedRows: 0n });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// copyExistsForUser
-// ---------------------------------------------------------------------------
-
-describe("tradeListsRepo.copyExistsForUser", () => {
-  it("returns the id when copy exists for user", async () => {
-    const data = [{ id: "cp1" }];
-    const { db, calls } = createMockDb(data);
-    // oxlint-disable-next-line typescript/no-explicit-any -- mock db
-    const repo = tradeListsRepo(db as any);
-
-    const result = await repo.copyExistsForUser("cp1", "u1");
-
-    expect(result).toEqual({ id: "cp1" });
-    expect(calls).toEqual([
-      { method: "selectFrom", args: ["copies"] },
-      { method: "select", args: ["id"] },
-      { method: "where", args: ["id", "=", "cp1"] },
-      { method: "where", args: ["userId", "=", "u1"] },
-      { method: "executeTakeFirst", args: [] },
-    ]);
-  });
-
-  it("returns undefined when copy not found", async () => {
-    const { db } = createMockDb([]);
-    // oxlint-disable-next-line typescript/no-explicit-any -- mock db
-    const repo = tradeListsRepo(db as any);
-
-    const result = await repo.copyExistsForUser("nonexistent", "u1");
-
-    expect(result).toBeUndefined();
   });
 });

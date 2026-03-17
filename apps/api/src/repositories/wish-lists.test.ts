@@ -272,11 +272,11 @@ describe("wishListsRepo.deleteByIdForUser", () => {
 });
 
 // ---------------------------------------------------------------------------
-// itemsForList
+// items
 // ---------------------------------------------------------------------------
 
-describe("wishListsRepo.itemsForList", () => {
-  it("selects all items for a wish list", async () => {
+describe("wishListsRepo.items", () => {
+  it("selects all items for a wish list scoped to user", async () => {
     const data = [
       { id: "wli1", wishListId: "wl1", cardId: "card1", printingId: null, quantityDesired: 2 },
       { id: "wli2", wishListId: "wl1", cardId: null, printingId: "p1", quantityDesired: 1 },
@@ -285,13 +285,14 @@ describe("wishListsRepo.itemsForList", () => {
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = wishListsRepo(db as any);
 
-    const result = await repo.itemsForList("wl1");
+    const result = await repo.items("wl1", "u1");
 
     expect(result).toEqual(data);
     expect(calls).toEqual([
       { method: "selectFrom", args: ["wishListItems"] },
       { method: "selectAll", args: [] },
       { method: "where", args: ["wishListId", "=", "wl1"] },
+      { method: "where", args: ["userId", "=", "u1"] },
       { method: "execute", args: [] },
     ]);
   });
@@ -301,7 +302,7 @@ describe("wishListsRepo.itemsForList", () => {
     // oxlint-disable-next-line typescript/no-explicit-any -- mock db
     const repo = wishListsRepo(db as any);
 
-    const result = await repo.itemsForList("empty-wl");
+    const result = await repo.items("empty-wl", "u1");
 
     expect(result).toEqual([]);
   });
