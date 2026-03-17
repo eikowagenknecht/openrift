@@ -13,6 +13,7 @@ export { cardFieldRules, printingFieldRules } from "../../db/schemas.js";
 export const cardSourcesQuerySchema = z.object({
   filter: z.string().optional(),
   source: z.string().optional(),
+  set: z.string().optional(),
 });
 
 export const checkAllPrintingSourcesSchema = z.object({

@@ -90,15 +90,20 @@ interface ListRow {
  * suggestions, source IDs, then sorts and shapes the response.
  * @returns Sorted card source list items shaped for the JSON response.
  */
-export async function buildCardSourceList(repo: Repo, filter: string, source?: string) {
-  const rows = await repo.listGroupedSources(filter, source);
+export async function buildCardSourceList(
+  repo: Repo,
+  filter: string,
+  source?: string,
+  set?: string,
+) {
+  const rows = await repo.listGroupedSources(filter, source, set);
 
   const allRows: ListRow[] = [...rows];
 
   // Include cards that have no card_sources (unless filtering for unmatched/source)
   if (filter !== "unmatched" && !source) {
     const cardIdsWithSources = new Set(rows.filter((r) => r.cardId).map((r) => r.cardId as string));
-    const orphanCards = await repo.listOrphanCards([...cardIdsWithSources]);
+    const orphanCards = await repo.listOrphanCards([...cardIdsWithSources], set);
 
     for (const oc of orphanCards) {
       allRows.push({

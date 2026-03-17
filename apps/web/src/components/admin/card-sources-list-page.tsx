@@ -1,5 +1,5 @@
-import { Link } from "@tanstack/react-router";
-import { CheckCheckIcon, LinkIcon } from "lucide-react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { CheckCheckIcon, LinkIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -28,7 +28,7 @@ import {
   useSourceNames,
 } from "@/hooks/use-card-sources";
 
-type Filter = "all" | "unchecked" | "unmatched";
+type Filter = "all" | "unchecked" | "unmatched" | "active";
 
 function formatSourceIds(ids: string[]): string {
   const counts = new Map<string, number>();
@@ -42,10 +42,12 @@ function formatSourceIds(ids: string[]): string {
 }
 
 export function CardSourcesListPage() {
+  const { set: setSlug } = useSearch({ from: "/_authenticated/admin/cards" });
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
   const [source, setSource] = useState<string>();
   const { data: sourceNames } = useSourceNames();
-  const { data, isLoading } = useCardSourceList(filter, source);
+  const { data, isLoading } = useCardSourceList(filter, source, setSlug);
   const linkCard = useLinkCard();
   const autoCheck = useAutoCheckSources();
 
@@ -101,16 +103,39 @@ export function CardSourcesListPage() {
           </SelectContent>
         </Select>
 
-        {(["all", "unchecked", "unmatched"] as const).map((f) => (
-          <Button
-            key={f}
-            variant={filter === f ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter(f)}
-          >
-            {f === "all" ? "All" : f === "unchecked" ? "Needs review" : "Candidates only"}
-          </Button>
-        ))}
+        {setSlug && (
+          <Badge variant="secondary" className="flex h-8 items-center gap-1">
+            Set: {setSlug}
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => navigate({ to: "/admin/cards", search: {} })}
+            >
+              <XIcon className="size-3" />
+            </button>
+          </Badge>
+        )}
+
+        {(["all", "active", "unchecked", "unmatched"] as const).map((f) => {
+          const label =
+            f === "all"
+              ? "All"
+              : f === "active"
+                ? "Active only"
+                : f === "unchecked"
+                  ? "Needs review"
+                  : "Candidates only";
+          return (
+            <Button
+              key={f}
+              variant={filter === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter(f)}
+            >
+              {label}
+            </Button>
+          );
+        })}
       </div>
 
       {rows.length === 0 ? (
