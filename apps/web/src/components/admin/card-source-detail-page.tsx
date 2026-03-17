@@ -82,6 +82,7 @@ import {
 } from "@/hooks/use-card-sources";
 import { useFavoriteSources } from "@/hooks/use-favorite-sources";
 import { useIgnoreCardSource, useIgnorePrintingSource } from "@/hooks/use-ignored-sources";
+import { cn } from "@/lib/utils";
 
 interface DetailData {
   card: Record<string, unknown>;
@@ -660,8 +661,13 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             );
             const isStale = printingSlug !== expectedId;
 
+            const allChecked = allSources.length > 0 && allSources.every((ps) => ps.checkedAt);
+
             return (
-              <div key={printingId} className="rounded-md border">
+              <div
+                key={printingId}
+                className={cn("rounded-md border", allChecked && "border-green-600/40")}
+              >
                 <div className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium">
                   <button
                     type="button"
@@ -680,6 +686,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       &mdash; {allSources.length} source
                       {allSources.length === 1 ? "" : "s"}
                     </span>
+                    {allChecked && <CheckCheckIcon className="size-3.5 text-green-600" />}
                   </button>
                   {isStale && (
                     <>
