@@ -98,10 +98,11 @@ export function decksRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Deck cards joined with card details, ordered by zone then name. */
-    cardsWithDetails(deckId: string): Promise<DeckCardRow[]> {
+    /** @returns Deck cards joined with card details, ordered by zone then name. Scoped to the owning user for defense-in-depth. */
+    cardsWithDetails(deckId: string, userId: string): Promise<DeckCardRow[]> {
       return db
         .selectFrom("deckCards as dc")
+        .innerJoin("decks as d", "d.id", "dc.deckId")
         .innerJoin("cards as c", "c.id", "dc.cardId")
         .select([
           "dc.id",
@@ -117,6 +118,7 @@ export function decksRepo(db: Kysely<Database>) {
           "c.power",
         ])
         .where("dc.deckId", "=", deckId)
+        .where("d.userId", "=", userId)
         .orderBy("dc.zone")
         .orderBy("c.name")
         .execute();

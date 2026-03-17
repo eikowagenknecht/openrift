@@ -66,7 +66,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const cardRows = await decks.cardsWithDetails(id);
+    const cardRows = await decks.cardsWithDetails(id, userId);
 
     const detail: DeckDetailResponse = {
       deck: toDeck(deck),

@@ -93,6 +93,19 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Whether a copy exists for the given user (for ownership verification), or `undefined`. */
+    existsForUser(
+      id: string,
+      userId: string,
+    ): Promise<Pick<Selectable<CopiesTable>, "id"> | undefined> {
+      return db
+        .selectFrom("copies")
+        .select("id")
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .executeTakeFirst();
+    },
+
     /** @returns All copies in a specific collection, ordered by card name then collector number. */
     listForCollection(collectionId: string): Promise<CopyRow[]> {
       return selectCopyWithCard(db)

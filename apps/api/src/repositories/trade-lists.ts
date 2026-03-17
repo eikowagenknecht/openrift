@@ -92,8 +92,8 @@ export function tradeListsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Trade list items joined with copy, printing, card, and image details. */
-    itemsWithDetails(tradeListId: string): Promise<TradeListItemRow[]> {
+    /** @returns Trade list items joined with copy, printing, card, and image details. Scoped to the owning user for defense-in-depth. */
+    itemsWithDetails(tradeListId: string, userId: string): Promise<TradeListItemRow[]> {
       return db
         .selectFrom("tradeListItems as tli")
         .innerJoin("copies as cp", "cp.id", "tli.copyId")
@@ -120,6 +120,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
           "card.type as cardType",
         ])
         .where("tli.tradeListId", "=", tradeListId)
+        .where("tli.userId", "=", userId)
         .orderBy("card.name")
         .execute();
     },
@@ -143,19 +144,6 @@ export function tradeListsRepo(db: Kysely<Database>) {
         .deleteFrom("tradeListItems")
         .where("id", "=", itemId)
         .where("tradeListId", "=", tradeListId)
-        .where("userId", "=", userId)
-        .executeTakeFirst();
-    },
-
-    /** @returns A copy by ID scoped to a user (for ownership verification), or `undefined`. */
-    copyExistsForUser(
-      copyId: string,
-      userId: string,
-    ): Promise<Pick<Selectable<CopiesTable>, "id"> | undefined> {
-      return db
-        .selectFrom("copies")
-        .select("id")
-        .where("id", "=", copyId)
         .where("userId", "=", userId)
         .executeTakeFirst();
     },

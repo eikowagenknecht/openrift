@@ -59,7 +59,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const itemRows = await wishLists.itemsForList(id);
+    const itemRows = await wishLists.items(id, userId);
 
     const detail: WishListDetailResponse = {
       wishList: toWishList(wishList),

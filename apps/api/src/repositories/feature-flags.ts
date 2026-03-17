@@ -1,4 +1,4 @@
-import type { DeleteResult, InsertResult, Kysely, Selectable, UpdateResult } from "kysely";
+import type { DeleteResult, Kysely, Selectable } from "kysely";
 
 import type { Database, FeatureFlagsTable } from "../db/index.js";
 
@@ -24,18 +24,26 @@ export function featureFlagsRepo(db: Kysely<Database>) {
       return db.selectFrom("featureFlags").select("key").where("key", "=", key).executeTakeFirst();
     },
 
-    /** @returns Inserts a new flag. */
+    /** @returns The newly created flag row. */
     create(values: {
       key: string;
       enabled: boolean;
       description: string | null;
-    }): Promise<InsertResult[]> {
-      return db.insertInto("featureFlags").values(values).execute();
+    }): Promise<Selectable<FeatureFlagsTable>> {
+      return db.insertInto("featureFlags").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
-    /** @returns Updates a flag by key. */
-    update(key: string, updates: Record<string, unknown>): Promise<UpdateResult[]> {
-      return db.updateTable("featureFlags").set(updates).where("key", "=", key).execute();
+    /** @returns The updated flag row, or `undefined` if not found. */
+    update(
+      key: string,
+      updates: Record<string, unknown>,
+    ): Promise<Selectable<FeatureFlagsTable> | undefined> {
+      return db
+        .updateTable("featureFlags")
+        .set(updates)
+        .where("key", "=", key)
+        .returningAll()
+        .executeTakeFirst();
     },
 
     /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
