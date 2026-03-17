@@ -54,6 +54,16 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
+    /** @returns All printing link overrides (manual links that survive re-uploads). */
+    allPrintingLinkOverrides(): Promise<
+      { sourceEntityId: string; finish: string; printingSlug: string }[]
+    > {
+      return db
+        .selectFrom("printingLinkOverrides")
+        .select(["sourceEntityId", "finish", "printingSlug"])
+        .execute();
+    },
+
     /** @returns Ignored printing source entries for a source. */
     ignoredPrintingSources(
       source: string,
