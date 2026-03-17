@@ -44,7 +44,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   );
 
   // ── printings: clean up dirty data before adding constraints ─────────────
-  await sql`UPDATE printings SET art_variant = NULL WHERE art_variant = ''`.execute(db);
+  await sql`UPDATE printings SET art_variant = 'normal' WHERE art_variant = ''`.execute(db);
   await sql`UPDATE printings SET artist = NULL WHERE artist = ''`.execute(db);
   await sql`UPDATE printings SET flavor_text = NULL WHERE flavor_text = ''`.execute(db);
   await sql`UPDATE printings SET comment = NULL WHERE comment = ''`.execute(db);
