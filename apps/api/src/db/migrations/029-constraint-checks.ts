@@ -43,11 +43,16 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     db,
   );
 
-  // ── printings: positive collector_number ─────────────────────────────────
+  // ── printings: clean up dirty data before adding constraints ─────────────
+  await sql`UPDATE printings SET art_variant = NULL WHERE art_variant = ''`.execute(db);
+  await sql`UPDATE printings SET artist = NULL WHERE artist = ''`.execute(db);
+  await sql`UPDATE printings SET flavor_text = NULL WHERE flavor_text = ''`.execute(db);
+  await sql`UPDATE printings SET comment = NULL WHERE comment = ''`.execute(db);
+
+  // ── printings: constraints ─────────────────────────────────────────────
   await sql`ALTER TABLE printings ADD CONSTRAINT chk_printings_collector_number_positive CHECK (collector_number > 0)`.execute(
     db,
   );
-  await sql`UPDATE printings SET art_variant = NULL WHERE art_variant = ''`.execute(db);
   await sql`ALTER TABLE printings ADD CONSTRAINT chk_printings_art_variant CHECK (art_variant = ANY(ARRAY['normal', 'altart', 'overnumbered']))`.execute(
     db,
   );
@@ -74,7 +79,15 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`ALTER TABLE printings ALTER COLUMN flavor_text DROP DEFAULT`.execute(db);
   await sql`ALTER TABLE printings ALTER COLUMN printed_effect_text DROP DEFAULT`.execute(db);
 
-  // ── printing_images ─────────────────────────────────────────────────────
+  // ── printing_images: clean up dirty data ───────────────────────────────
+  await sql`UPDATE printing_images SET original_url = NULL WHERE original_url = ''`.execute(db);
+  await sql`UPDATE printing_images SET rehosted_url = NULL WHERE rehosted_url = ''`.execute(db);
+  await sql`UPDATE printing_images SET source = NULL WHERE source = ''`.execute(db);
+  await sql`DELETE FROM printing_images WHERE original_url IS NULL AND rehosted_url IS NULL`.execute(
+    db,
+  );
+
+  // ── printing_images: constraints ───────────────────────────────────────
   await sql`ALTER TABLE printing_images ADD CONSTRAINT chk_printing_images_face CHECK (face = ANY(ARRAY['front', 'back']))`.execute(
     db,
   );
