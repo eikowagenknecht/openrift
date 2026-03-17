@@ -35,6 +35,7 @@ import * as m029 from "./029-constraint-checks.js";
 import * as m030 from "./030-array-element-checks.js";
 import * as m031 from "./031-ignored-sources.js";
 import * as m032 from "./032-ignored-printing-finish.js";
+import * as m033 from "./033-printing-link-overrides.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -69,4 +70,5 @@ export const migrations: Record<string, Migration> = {
   "030-array-element-checks": m030,
   "031-ignored-sources": m031,
   "032-ignored-printing-finish": m032,
+  "033-printing-link-overrides": m033,
 };

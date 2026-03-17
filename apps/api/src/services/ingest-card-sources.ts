@@ -224,6 +224,14 @@ export async function ingestCardSources(
       }
     }
 
+    // 1g. Printing link overrides (manual links that survive re-uploads)
+    const overrideRows = await repo.allPrintingLinkOverrides();
+    // Key: "entityId:finish" → printing slug
+    const linkOverrides = new Map<string, string>();
+    for (const r of overrideRows) {
+      linkOverrides.set(`${r.sourceEntityId}:${r.finish}`, r.printingSlug);
+    }
+
     // ── Phase 2: Process each card (writes only) ───────────────────────────
 
     for (const card of cards) {
@@ -368,7 +376,14 @@ export async function ingestCardSources(
           effectiveCardId && p.rarity && p.finish
             ? buildPrintingId(p.source_id, p.rarity, p.is_promo, p.finish)
             : null;
-        const resolvedPrintingId = printingSlug ? (printingBySlug.get(printingSlug) ?? null) : null;
+
+        // Check for a manual link override (survives delete + re-upload)
+        const overrideSlug = linkOverrides.get(`${p.source_entity_id}:${p.finish ?? ""}`);
+        const resolvedPrintingId = overrideSlug
+          ? (printingBySlug.get(overrideSlug) ?? null)
+          : printingSlug
+            ? (printingBySlug.get(printingSlug) ?? null)
+            : null;
 
         // Look up existing printing_source from pre-fetched maps
         const existingPS = resolvedPrintingId

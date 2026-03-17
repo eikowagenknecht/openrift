@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict hQuGbwfVPMPFQNdH1FvoGMQ4jyPCvhPHx1TFchKqIczeylAZz7FlI9xHR4Po6ZM
+\restrict oEWIIZPiaabLpfGwP4jCUrNqBkCGda9N6lHkTwdO4wKa0BXHtU13hx8XJfePiKc
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -518,6 +518,20 @@ CREATE TABLE public.printing_images (
 
 
 --
+-- Name: printing_link_overrides; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.printing_link_overrides (
+    source_entity_id text NOT NULL,
+    finish text NOT NULL,
+    printing_slug text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_plo_no_empty_printing_slug CHECK ((printing_slug <> ''::text)),
+    CONSTRAINT chk_plo_no_empty_source_entity_id CHECK ((source_entity_id <> ''::text))
+);
+
+
+--
 -- Name: printing_sources; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -980,6 +994,14 @@ ALTER TABLE ONLY public.marketplace_staging
 
 ALTER TABLE ONLY public.printing_images
     ADD CONSTRAINT printing_images_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: printing_link_overrides printing_link_overrides_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_link_overrides
+    ADD CONSTRAINT printing_link_overrides_pkey PRIMARY KEY (source_entity_id, finish);
 
 
 --
@@ -1774,5 +1796,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict hQuGbwfVPMPFQNdH1FvoGMQ4jyPCvhPHx1TFchKqIczeylAZz7FlI9xHR4Po6ZM
+\unrestrict oEWIIZPiaabLpfGwP4jCUrNqBkCGda9N6lHkTwdO4wKa0BXHtU13hx8XJfePiKc
 

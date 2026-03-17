@@ -497,6 +497,15 @@ export interface IgnoredPrintingSourcesTable {
   createdAt: CreatedAt;
 }
 
+export interface PrintingLinkOverridesTable {
+  /** CHECK: <> '' */
+  sourceEntityId: string;
+  finish: string;
+  /** CHECK: <> '' */
+  printingSlug: string;
+  createdAt: CreatedAt;
+}
+
 /**
  * CHECK: face IN ('front', 'back'); at least one URL must be non-NULL
  * @see printingImageFieldRules in `schemas.ts` for Zod validation of CHECK constraints
@@ -578,6 +587,9 @@ export interface Database {
   // Ignored sources (migration 031)
   ignoredCardSources: IgnoredCardSourcesTable;
   ignoredPrintingSources: IgnoredPrintingSourcesTable;
+
+  // Printing link overrides (migration 033)
+  printingLinkOverrides: PrintingLinkOverridesTable;
 
   // Image archive (migration 013)
   printingImages: PrintingImagesTable;
