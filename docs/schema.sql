@@ -2,6 +2,7 @@
 -- PostgreSQL database dump
 --
 
+\restrict hQuGbwfVPMPFQNdH1FvoGMQ4jyPCvhPHx1TFchKqIczeylAZz7FlI9xHR4Po6ZM
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -339,10 +340,8 @@ CREATE TABLE public.ignored_card_sources (
     id uuid DEFAULT uuidv7() NOT NULL,
     source text NOT NULL,
     source_entity_id text NOT NULL,
-    reason text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_ignored_card_sources_entity_id_not_empty CHECK ((source_entity_id <> ''::text)),
-    CONSTRAINT chk_ignored_card_sources_no_empty_reason CHECK ((reason <> ''::text)),
     CONSTRAINT chk_ignored_card_sources_source_not_empty CHECK ((source <> ''::text))
 );
 
@@ -355,10 +354,10 @@ CREATE TABLE public.ignored_printing_sources (
     id uuid DEFAULT uuidv7() NOT NULL,
     source text NOT NULL,
     source_entity_id text NOT NULL,
-    reason text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    finish text,
     CONSTRAINT chk_ignored_printing_sources_entity_id_not_empty CHECK ((source_entity_id <> ''::text)),
-    CONSTRAINT chk_ignored_printing_sources_no_empty_reason CHECK ((reason <> ''::text)),
+    CONSTRAINT chk_ignored_printing_sources_no_empty_finish CHECK ((finish <> ''::text)),
     CONSTRAINT chk_ignored_printing_sources_source_not_empty CHECK ((source <> ''::text))
 );
 
@@ -1296,10 +1295,10 @@ CREATE UNIQUE INDEX idx_ignored_card_sources_source_entity ON public.ignored_car
 
 
 --
--- Name: idx_ignored_printing_sources_source_entity; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ignored_printing_sources_source_entity_finish; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_ignored_printing_sources_source_entity ON public.ignored_printing_sources USING btree (source, source_entity_id);
+CREATE UNIQUE INDEX idx_ignored_printing_sources_source_entity_finish ON public.ignored_printing_sources USING btree (source, source_entity_id, COALESCE(finish, ''::text));
 
 
 --
@@ -1774,3 +1773,6 @@ ALTER TABLE ONLY public.wish_lists
 --
 -- PostgreSQL database dump complete
 --
+
+\unrestrict hQuGbwfVPMPFQNdH1FvoGMQ4jyPCvhPHx1TFchKqIczeylAZz7FlI9xHR4Po6ZM
+
