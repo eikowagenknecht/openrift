@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
-import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -58,8 +57,6 @@ export function createApp(deps: AppDeps) {
     : defaultServices;
 
   const app = new Hono<{ Variables: Variables }>()
-
-    .use("/api/*", compress())
 
     // ── Inject dependencies into every request context ───────────────────────
     .use("/api/*", async (c, next) => {
