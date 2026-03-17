@@ -41,7 +41,7 @@ describe("queryKeys", () => {
   });
 
   it("priceHistory.byPrinting returns tuple with printingId and range", () => {
-    expect(queryKeys.priceHistory.byPrinting("p1", "1m")).toEqual(["priceHistory", "p1", "1m"]);
+    expect(queryKeys.priceHistory.byPrinting("p1", "30d")).toEqual(["priceHistory", "p1", "30d"]);
   });
 });
 
