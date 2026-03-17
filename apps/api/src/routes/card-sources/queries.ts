@@ -29,8 +29,8 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
 
   .get("/", zValidator("query", cardSourcesQuerySchema), async (c) => {
     const { cardSources } = c.get("repos");
-    const { filter, source } = c.req.valid("query");
-    return c.json(await buildCardSourceList(cardSources, filter ?? "all", source));
+    const { filter, source, set } = c.req.valid("query");
+    return c.json(await buildCardSourceList(cardSources, filter ?? "all", source, set));
   })
 
   .get("/export", async (c) => {

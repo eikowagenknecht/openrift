@@ -4,13 +4,16 @@ import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export function useCardSourceList(filter: string, source?: string) {
+export function useCardSourceList(filter: string, source?: string, set?: string) {
   const query: Record<string, string> = { filter };
   if (source) {
     query.source = source;
   }
+  if (set) {
+    query.set = set;
+  }
   return useQuery({
-    queryKey: queryKeys.admin.cardSources.list(filter, source),
+    queryKey: queryKeys.admin.cardSources.list(filter, source, set),
     queryFn: () => rpc(client.api.admin["card-sources"].$get({ query })),
   });
 }

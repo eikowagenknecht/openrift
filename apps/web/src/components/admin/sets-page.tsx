@@ -1,7 +1,19 @@
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import { Link } from "@tanstack/react-router";
+import { ArrowDownIcon, ArrowUpIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
 import { CountBadge } from "@/components/admin/count-badge";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -14,7 +26,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCreateSet, useReorderSets, useSets, useUpdateSet } from "@/hooks/use-sets";
+import {
+  useCreateSet,
+  useDeleteSet,
+  useReorderSets,
+  useSets,
+  useUpdateSet,
+} from "@/hooks/use-sets";
 
 interface EditingRow {
   id: string;
@@ -28,6 +46,8 @@ export function SetsPage() {
   const updateMutation = useUpdateSet();
   const createMutation = useCreateSet();
   const reorderMutation = useReorderSets();
+  const deleteMutation = useDeleteSet();
+  const [deleteError, setDeleteError] = useState("");
   const [editing, setEditing] = useState<EditingRow | null>(null);
   const [adding, setAdding] = useState(false);
   const [newSet, setNewSet] = useState({ id: "", name: "", printedTotal: "", releasedAt: "" });
@@ -298,15 +318,78 @@ export function SetsPage() {
                   <TableCell className="text-right">{set.printedTotal}</TableCell>
                   <TableCell className="text-muted-foreground">{set.releasedAt ?? "—"}</TableCell>
                   <TableCell className="text-right">
-                    <CountBadge count={set.cardCount} />
+                    {set.cardCount > 0 ? (
+                      <Link
+                        to="/admin/cards"
+                        search={{ set: set.slug }}
+                        className="hover:opacity-70"
+                      >
+                        <CountBadge count={set.cardCount} />
+                      </Link>
+                    ) : (
+                      <CountBadge count={0} />
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <CountBadge count={set.printingCount} />
+                    {set.printingCount > 0 ? (
+                      <Link
+                        to="/admin/cards"
+                        search={{ set: set.slug }}
+                        className="hover:opacity-70"
+                      >
+                        <CountBadge count={set.printingCount} />
+                      </Link>
+                    ) : (
+                      <CountBadge count={0} />
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => startEditing(set)}>
-                      Edit
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => startEditing(set)}>
+                        Edit
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                            />
+                          }
+                        >
+                          <Trash2Icon className="h-4 w-4" />
+                        </AlertDialogTrigger>
+                        <AlertDialogContent size="sm">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Delete set &ldquo;{set.slug}&rdquo;?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the set <strong>{set.name}</strong>. Sets
+                              with printings cannot be deleted — remove their printings first.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setDeleteError("")}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogPrimitive.Close
+                              render={<Button variant="destructive" />}
+                              onClick={() => {
+                                setDeleteError("");
+                                deleteMutation.mutate(set.slug, {
+                                  onError: (err) => setDeleteError(err.message),
+                                });
+                              }}
+                            >
+                              Delete
+                            </AlertDialogPrimitive.Close>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ),

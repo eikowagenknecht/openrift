@@ -35,6 +35,13 @@ export function useCreateSet() {
   });
 }
 
+export function useDeleteSet() {
+  return useMutationWithInvalidation({
+    mutationFn: (id: string) => rpc(client.api.admin.sets[":id"].$delete({ param: { id } })),
+    invalidates: [queryKeys.admin.sets],
+  });
+}
+
 export function useReorderSets() {
   return useMutationWithInvalidation({
     mutationFn: (ids: string[]) => rpc(client.api.admin.sets.reorder.$put({ json: { ids } })),

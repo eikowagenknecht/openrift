@@ -28,8 +28,8 @@ export const queryKeys = {
     sets: ["admin", "sets"] as const,
     cardSources: {
       all: ["admin", "card-sources"] as const,
-      list: (filter: string, source?: string) =>
-        ["admin", "card-sources", "list", filter, source ?? "all"] as const,
+      list: (filter: string, source?: string, set?: string) =>
+        ["admin", "card-sources", "list", filter, source ?? "all", set ?? "all"] as const,
       detail: (cardId: string) => ["admin", "card-sources", "detail", cardId] as const,
       unmatched: (name: string) => ["admin", "card-sources", "unmatched", name] as const,
       allCards: ["admin", "card-sources", "all-cards"] as const,
