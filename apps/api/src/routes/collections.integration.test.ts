@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-
 import type { CollectionResponse } from "@openrift/shared";
+import { describe, expect, it } from "vitest";
 
 import { createTestContext, req } from "../test/integration-context.js";
 

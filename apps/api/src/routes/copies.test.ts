@@ -1,6 +1,5 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-
 import { Hono } from "hono";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../errors.js";
 import { copiesRoute } from "./copies";
@@ -10,16 +9,16 @@ import { copiesRoute } from "./copies";
 // ---------------------------------------------------------------------------
 
 const mockRepo = {
-  listForUser: mock(() => Promise.resolve([] as object[])),
-  getByIdForUser: mock(() => Promise.resolve(undefined as object | undefined)),
-  countByPrintingForUser: mock(() =>
+  listForUser: vi.fn(() => Promise.resolve([] as object[])),
+  getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  countByPrintingForUser: vi.fn(() =>
     Promise.resolve([] as { printingId: string; count: number }[]),
   ),
 };
 
-const mockAddCopies = mock(() => Promise.resolve([] as object[]));
-const mockMoveCopies = mock(() => Promise.resolve());
-const mockDisposeCopies = mock(() => Promise.resolve());
+const mockAddCopies = vi.fn(() => Promise.resolve([] as object[]));
+const mockMoveCopies = vi.fn(() => Promise.resolve());
+const mockDisposeCopies = vi.fn(() => Promise.resolve());
 
 // ---------------------------------------------------------------------------
 // Test app

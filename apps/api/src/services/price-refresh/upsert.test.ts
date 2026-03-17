@@ -1,7 +1,6 @@
-import { describe, expect, it } from "bun:test";
-
 import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
+import { describe, expect, it } from "vitest";
 
 import type { Database } from "../../db/types";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types";

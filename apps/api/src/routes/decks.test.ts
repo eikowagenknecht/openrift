@@ -1,6 +1,5 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-
 import { Hono } from "hono";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../errors.js";
 import { decksRoute } from "./decks";
@@ -10,23 +9,23 @@ import { decksRoute } from "./decks";
 // ---------------------------------------------------------------------------
 
 const mockRepo = {
-  listForUser: mock(() => Promise.resolve([] as object[])),
-  create: mock(() => Promise.resolve({} as object)),
-  getByIdForUser: mock(() => Promise.resolve(undefined as object | undefined)),
-  update: mock(() => Promise.resolve(undefined as object | undefined)),
-  deleteByIdForUser: mock(() => Promise.resolve({ numDeletedRows: 0n })),
-  cardsWithDetails: mock(() => Promise.resolve([] as object[])),
-  getIdAndFormat: mock(() => Promise.resolve(undefined as object | undefined)),
-  exists: mock(() => Promise.resolve(undefined as object | undefined)),
-  cardRequirements: mock(() => Promise.resolve([] as object[])),
-  availableCopiesByCard: mock(() => Promise.resolve([] as object[])),
+  listForUser: vi.fn(() => Promise.resolve([] as object[])),
+  create: vi.fn(() => Promise.resolve({} as object)),
+  getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  deleteByIdForUser: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
+  cardsWithDetails: vi.fn(() => Promise.resolve([] as object[])),
+  getIdAndFormat: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  exists: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  cardRequirements: vi.fn(() => Promise.resolve([] as object[])),
+  availableCopiesByCard: vi.fn(() => Promise.resolve([] as object[])),
 };
 
 // Transaction mock for PUT /decks/:id/cards
 const mockTrxOps = {
-  deleteExecute: mock(() => Promise.resolve()),
-  insertExecute: mock(() => Promise.resolve()),
-  updateExecute: mock(() => Promise.resolve()),
+  deleteExecute: vi.fn(() => Promise.resolve()),
+  insertExecute: vi.fn(() => Promise.resolve()),
+  updateExecute: vi.fn(() => Promise.resolve()),
 };
 
 const mockDb = {

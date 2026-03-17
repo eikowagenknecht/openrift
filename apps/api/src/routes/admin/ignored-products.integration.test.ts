@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";

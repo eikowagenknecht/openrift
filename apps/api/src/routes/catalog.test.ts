@@ -1,6 +1,5 @@
-import { describe, expect, it, beforeEach } from "bun:test";
-
 import { Hono } from "hono";
+import { describe, expect, it, beforeEach } from "vitest";
 
 import { catalogRepo } from "../repositories/catalog";
 import { marketplaceRepo } from "../repositories/marketplace";

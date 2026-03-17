@@ -2,7 +2,7 @@
    no-empty-function,
    unicorn/no-useless-undefined
    -- test file: mocks require empty fns and explicit undefined */
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 import { AppError } from "../errors.js";
 import { addCopies, disposeCopies, moveCopies } from "./copies.js";

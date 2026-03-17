@@ -1,6 +1,5 @@
-import { beforeAll, describe, expect, it } from "bun:test";
-
 import type { Logger } from "@openrift/shared/logger";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { createTestContext } from "../../test/integration-context.js";
 import { loadReferenceData } from "./reference-data.js";

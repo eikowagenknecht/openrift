@@ -3,7 +3,7 @@
    unicorn/no-useless-undefined,
    import/first
    -- test file: mocks require empty fns, explicit undefined, and ordering */
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 // ---------------------------------------------------------------------------
 // We need to re-import the module for each group to reset the module-level
 // adminCache. Use mock.module to intercept the errors import.
@@ -59,7 +59,7 @@ describe("require-admin middleware", () => {
   describe("requireAdmin middleware", () => {
     it("throws 401 if no user in context", async () => {
       const ctx = createMockContext({ user: null });
-      const next = mock(() => Promise.resolve());
+      const next = vi.fn(() => Promise.resolve());
 
       try {
         await requireAdminMiddleware(ctx, next);
@@ -74,7 +74,7 @@ describe("require-admin middleware", () => {
     it("throws 403 if user is not an admin", async () => {
       const db = createMockDb(false);
       const ctx = createMockContext({ user: { id: "user-non-admin" }, db });
-      const next = mock(() => Promise.resolve());
+      const next = vi.fn(() => Promise.resolve());
 
       try {
         await requireAdminMiddleware(ctx, next);
@@ -89,7 +89,7 @@ describe("require-admin middleware", () => {
     it("calls next() if user is admin", async () => {
       const db = createMockDb(true);
       const ctx = createMockContext({ user: { id: "admin-user" }, db });
-      const next = mock(() => Promise.resolve());
+      const next = vi.fn(() => Promise.resolve());
 
       await requireAdminMiddleware(ctx, next);
       expect(next).toHaveBeenCalledTimes(1);
@@ -107,7 +107,7 @@ describe("require-admin middleware", () => {
       const db = { selectFrom: () => chain };
 
       const ctx = createMockContext({ user: { id: "cached-admin" }, db });
-      const next = mock(() => Promise.resolve());
+      const next = vi.fn(() => Promise.resolve());
 
       // First call — hits DB
       await requireAdminMiddleware(ctx, next);

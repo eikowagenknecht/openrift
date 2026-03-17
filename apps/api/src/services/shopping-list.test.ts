@@ -1,7 +1,7 @@
 /* oxlint-disable
    no-empty-function
    -- test file: mocks require empty fns */
-import { mock, describe, expect, it } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 
 import { buildShoppingList } from "./shopping-list.js";
 
@@ -19,19 +19,19 @@ let mockWishItemRows: {
   quantityDesired: number;
 }[] = [];
 
-mock.module("../repositories/copies.js", () => ({
+vi.mock("../repositories/copies.js", () => ({
   copiesRepo: () => ({
     countByCardAndPrintingForDeckbuilding: () => Promise.resolve(mockOwnedRows),
   }),
 }));
 
-mock.module("../repositories/decks.js", () => ({
+vi.mock("../repositories/decks.js", () => ({
   decksRepo: () => ({
     wantedCardRequirements: () => Promise.resolve(mockDeckCardRows),
   }),
 }));
 
-mock.module("../repositories/wish-lists.js", () => ({
+vi.mock("../repositories/wish-lists.js", () => ({
   wishListsRepo: () => ({
     allItemsForUser: () => Promise.resolve(mockWishItemRows),
   }),

@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-
 import { HTTPException } from "hono/http-exception";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
 
 import { createApp } from "./app.js";
@@ -84,7 +83,7 @@ describe("onError handler", () => {
   let consoleSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    consoleSpy = spyOn(console, "error").mockImplementation(() => {});
+    consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {

@@ -9,7 +9,11 @@ import type { Database } from "../db/index.js";
 import type { Io } from "../io.js";
 
 function findProjectRoot(): string {
-  for (let dir = import.meta.dir; dir !== dirname(dir); dir = dirname(dir)) {
+  const start = import.meta.dirname;
+  if (!start) {
+    throw new Error("import.meta.dirname is not available");
+  }
+  for (let dir = start; dir !== dirname(dir); dir = dirname(dir)) {
     if (existsSync(join(dir, "bun.lock"))) {
       return dir;
     }

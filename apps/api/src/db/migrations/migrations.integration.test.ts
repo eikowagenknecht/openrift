@@ -1,6 +1,5 @@
-import { afterAll, beforeAll, describe, it } from "bun:test";
-
 import type { Kysely } from "kysely";
+import { afterAll, beforeAll, describe, it } from "vitest";
 
 import type { Logger } from "../../logger.js";
 import { setupTestDb } from "../../test/integration-setup.js";
