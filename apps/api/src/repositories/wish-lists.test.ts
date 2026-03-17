@@ -2,15 +2,6 @@ import { describe, expect, it } from "bun:test";
 
 import { wishListsRepo } from "./wish-lists.js";
 
-// DEBUG: Log what wishListsRepo actually is to diagnose CI-only failure
-console.log("[DEBUG] wishListsRepo type:", typeof wishListsRepo);
-if (typeof wishListsRepo === "function") {
-  const fakeDb = { selectFrom: () => ({}) };
-  const result = wishListsRepo(fakeDb as never);
-  console.log("[DEBUG] wishListsRepo(db) type:", typeof result);
-  console.log("[DEBUG] wishListsRepo(db) keys:", Object.keys(result));
-}
-
 // ---------------------------------------------------------------------------
 // Mock DB — tracks calls to verify the repo builds correct queries
 // ---------------------------------------------------------------------------

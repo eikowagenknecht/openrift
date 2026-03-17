@@ -2,17 +2,6 @@ import { describe, expect, it, vi } from "bun:test";
 
 import { copiesRepo } from "./copies.js";
 
-// DEBUG: Log what copiesRepo actually is to diagnose CI-only failure
-console.log("[DEBUG] copiesRepo type:", typeof copiesRepo);
-console.log("[DEBUG] copiesRepo:", copiesRepo);
-if (typeof copiesRepo === "function") {
-  const fakeDb = { selectFrom: () => ({}) };
-  const result = copiesRepo(fakeDb as never);
-  console.log("[DEBUG] copiesRepo(db) type:", typeof result);
-  console.log("[DEBUG] copiesRepo(db) keys:", Object.keys(result));
-  console.log("[DEBUG] copiesRepo(db):", result);
-}
-
 // ---------------------------------------------------------------------------
 // Mock DB — tracks calls to verify the repo builds correct queries
 // ---------------------------------------------------------------------------

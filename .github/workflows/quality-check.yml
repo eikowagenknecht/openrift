@@ -37,5 +37,11 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Debug - list any .js in src/repositories
+        run: find apps/api/src/repositories -name '*.js' 2>/dev/null || echo "none"
+
+      - name: Debug - check dist contents
+        run: ls -la apps/api/dist/repositories/ 2>/dev/null | head -5 || echo "no dist"
+
       - name: Test
         run: bun run test
