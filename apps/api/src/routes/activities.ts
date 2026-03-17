@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { ActivityDetailResponse, ActivityListResponse } from "@openrift/shared";
 import { activitiesQuerySchema, idParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
@@ -7,7 +8,7 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { activitiesRepo } from "../repositories/activities.js";
 import type { Variables } from "../types.js";
-import { toActivity } from "../utils/mappers.js";
+import { toActivity, toActivityItem } from "../utils/mappers.js";
 
 export const activitiesRoute = new Hono<{ Variables: Variables }>()
   .basePath("/activities")
@@ -26,10 +27,11 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
     const hasMore = rows.length > limit;
     const items = rows.slice(0, limit);
 
-    return c.json({
+    const result: ActivityListResponse = {
       activities: items.map((r) => toActivity(r)),
       nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
-    });
+    };
+    return c.json(result);
   })
 
   // ── GET /activities/:id ───────────────────────────────────────────────────────
@@ -46,11 +48,9 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
 
     const itemRows = await repo.itemsWithDetails(id, userId);
 
-    return c.json({
+    const detail: ActivityDetailResponse = {
       activity: toActivity(activity),
-      items: itemRows.map((row) => ({
-        ...row,
-        createdAt: row.createdAt.toISOString(),
-      })),
-    });
+      items: itemRows.map((row) => toActivityItem(row)),
+    };
+    return c.json(detail);
   });

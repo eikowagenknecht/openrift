@@ -2,12 +2,17 @@ import { describe, expect, it } from "bun:test";
 
 import {
   toActivity,
+  toActivityItem,
   toCollection,
   toCopy,
   toDeck,
+  toDeckAvailabilityItem,
+  toDeckCard,
+  toShoppingListItem,
   toSource,
   toTradeList,
   toTradeListItem,
+  toTradeListItemDetail,
   toWishList,
   toWishListItem,
 } from "./mappers.js";
@@ -20,83 +25,14 @@ const NOW = new Date("2025-06-15T12:00:00.000Z");
 const LATER = new Date("2025-06-16T08:30:00.000Z");
 
 // ---------------------------------------------------------------------------
-// serializeDates (tested indirectly via public wrappers)
-// ---------------------------------------------------------------------------
-
-describe("serializeDates (via public mappers)", () => {
-  it("converts Date createdAt/updatedAt to ISO strings", () => {
-    const row = { id: "abc", name: "Test", createdAt: NOW, updatedAt: LATER };
-    const result = toCollection(row);
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
-  });
-
-  it("passes through non-Date fields unchanged", () => {
-    const row = {
-      id: "abc",
-      name: "Test",
-      description: null,
-      availableForDeckbuilding: true,
-      isInbox: false,
-      sortOrder: 0,
-      shareToken: null,
-      createdAt: NOW,
-      updatedAt: LATER,
-    };
-    const result = toCollection(row);
-    expect(result.id).toBe("abc");
-    expect(result.name).toBe("Test");
-    expect(result.description).toBeNull();
-  });
-
-  it("does not convert fields that are not in the dateFields list", () => {
-    const customDate = new Date("2024-01-01T00:00:00.000Z");
-    const row = {
-      id: "abc",
-      name: "Test",
-      someOtherDate: customDate,
-      createdAt: NOW,
-      updatedAt: LATER,
-    };
-    const result = toCollection(row);
-    // someOtherDate should remain a Date since it's not in TIMESTAMPS
-    expect((result as Record<string, unknown>).someOtherDate).toBeInstanceOf(Date);
-  });
-
-  it("does not convert null values in date fields", () => {
-    const row = {
-      id: "abc",
-      name: "Test",
-      createdAt: null,
-      updatedAt: LATER,
-    };
-    const result = toCollection(row);
-    // null is not instanceof Date, so it should pass through as-is
-    expect(result.createdAt).toBeNull();
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
-  });
-
-  it("handles string values in date fields (not Dates)", () => {
-    const row = {
-      id: "abc",
-      name: "Test",
-      createdAt: "already-a-string",
-      updatedAt: LATER,
-    };
-    const result = toCollection(row);
-    // Strings are not instanceof Date, so they pass through as-is
-    expect(result.createdAt).toBe("already-a-string");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // toCollection
 // ---------------------------------------------------------------------------
 
 describe("toCollection", () => {
-  it("serializes a collection row", () => {
-    const row = {
+  it("maps a collection row with date serialization", () => {
+    const result = toCollection({
       id: "col-1",
+      userId: "user-1",
       name: "My Cards",
       description: "A collection",
       availableForDeckbuilding: true,
@@ -105,8 +41,7 @@ describe("toCollection", () => {
       shareToken: "tok-abc",
       createdAt: NOW,
       updatedAt: LATER,
-    };
-    const result = toCollection(row);
+    });
     expect(result).toEqual({
       id: "col-1",
       name: "My Cards",
@@ -119,6 +54,22 @@ describe("toCollection", () => {
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
   });
+
+  it("excludes userId from the response", () => {
+    const result = toCollection({
+      id: "col-1",
+      userId: "user-1",
+      name: "Test",
+      description: null,
+      availableForDeckbuilding: true,
+      isInbox: false,
+      sortOrder: 0,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect("userId" in result).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -126,20 +77,30 @@ describe("toCollection", () => {
 // ---------------------------------------------------------------------------
 
 describe("toDeck", () => {
-  it("serializes a deck row", () => {
-    const row = {
+  it("maps a deck row with date serialization", () => {
+    const result = toDeck({
+      id: "deck-1",
+      userId: "user-1",
+      name: "Aggro",
+      description: null,
+      format: "standard",
+      isWanted: false,
+      isPublic: true,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect(result).toEqual({
       id: "deck-1",
       name: "Aggro",
       description: null,
       format: "standard",
       isWanted: false,
-      createdAt: NOW,
-      updatedAt: LATER,
-    };
-    const result = toDeck(row);
-    expect(result.id).toBe("deck-1");
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
+      isPublic: true,
+      shareToken: null,
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
+    });
   });
 });
 
@@ -148,19 +109,22 @@ describe("toDeck", () => {
 // ---------------------------------------------------------------------------
 
 describe("toSource", () => {
-  it("serializes a source row", () => {
-    const row = {
+  it("maps a source row", () => {
+    const result = toSource({
       id: "src-1",
+      userId: "user-1",
       name: "Booster Pack",
       description: "A pack",
       createdAt: NOW,
       updatedAt: LATER,
-    };
-    const result = toSource(row);
-    expect(result.id).toBe("src-1");
-    expect(result.name).toBe("Booster Pack");
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
+    });
+    expect(result).toEqual({
+      id: "src-1",
+      name: "Booster Pack",
+      description: "A pack",
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
+    });
   });
 });
 
@@ -169,19 +133,24 @@ describe("toSource", () => {
 // ---------------------------------------------------------------------------
 
 describe("toTradeList", () => {
-  it("serializes a trade list row", () => {
-    const row = {
+  it("maps a trade list row", () => {
+    const result = toTradeList({
       id: "tl-1",
+      userId: "user-1",
       name: "For Trade",
       rules: { foo: "bar" },
       shareToken: null,
       createdAt: NOW,
       updatedAt: LATER,
-    };
-    const result = toTradeList(row);
-    expect(result.id).toBe("tl-1");
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
+    });
+    expect(result).toEqual({
+      id: "tl-1",
+      name: "For Trade",
+      rules: { foo: "bar" },
+      shareToken: null,
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
+    });
   });
 });
 
@@ -190,19 +159,57 @@ describe("toTradeList", () => {
 // ---------------------------------------------------------------------------
 
 describe("toTradeListItem", () => {
-  it("serializes a trade list item row", () => {
-    const row = {
+  it("maps a trade list item row (base fields only)", () => {
+    const result = toTradeListItem({
       id: "tli-1",
       tradeListId: "tl-1",
-      printingId: "p-1",
-      quantity: 2,
+      userId: "user-1",
+      copyId: "copy-1",
       createdAt: NOW,
       updatedAt: LATER,
-    };
-    const result = toTradeListItem(row);
-    expect(result.id).toBe("tli-1");
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
+    });
+    expect(result).toEqual({
+      id: "tli-1",
+      tradeListId: "tl-1",
+      copyId: "copy-1",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toTradeListItemDetail
+// ---------------------------------------------------------------------------
+
+describe("toTradeListItemDetail", () => {
+  it("maps a denormalized trade list item row with card details", () => {
+    const result = toTradeListItemDetail({
+      id: "tli-1",
+      tradeListId: "tl-1",
+      copyId: "copy-1",
+      printingId: "p-1",
+      collectionId: "col-1",
+      imageUrl: "https://example.com/img.jpg",
+      setId: "set-1",
+      collectorNumber: 42,
+      rarity: "Rare",
+      finish: "foil",
+      cardName: "Fire Dragon",
+      cardType: "Unit",
+    });
+    expect(result).toEqual({
+      id: "tli-1",
+      tradeListId: "tl-1",
+      copyId: "copy-1",
+      printingId: "p-1",
+      collectionId: "col-1",
+      imageUrl: "https://example.com/img.jpg",
+      setId: "set-1",
+      collectorNumber: 42,
+      rarity: "Rare",
+      finish: "foil",
+      cardName: "Fire Dragon",
+      cardType: "Unit",
+    });
   });
 });
 
@@ -211,19 +218,24 @@ describe("toTradeListItem", () => {
 // ---------------------------------------------------------------------------
 
 describe("toWishList", () => {
-  it("serializes a wish list row", () => {
-    const row = {
+  it("maps a wish list row", () => {
+    const result = toWishList({
       id: "wl-1",
+      userId: "user-1",
       name: "Wanted",
       rules: null,
       shareToken: "share-tok",
       createdAt: NOW,
       updatedAt: LATER,
-    };
-    const result = toWishList(row);
-    expect(result.id).toBe("wl-1");
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
+    });
+    expect(result).toEqual({
+      id: "wl-1",
+      name: "Wanted",
+      rules: null,
+      shareToken: "share-tok",
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
+    });
   });
 });
 
@@ -232,19 +244,24 @@ describe("toWishList", () => {
 // ---------------------------------------------------------------------------
 
 describe("toWishListItem", () => {
-  it("serializes a wish list item row", () => {
-    const row = {
+  it("maps a wish list item row", () => {
+    const result = toWishListItem({
       id: "wli-1",
       wishListId: "wl-1",
+      userId: "user-1",
+      cardId: null,
       printingId: "p-2",
-      quantity: 1,
+      quantityDesired: 3,
       createdAt: NOW,
       updatedAt: LATER,
-    };
-    const result = toWishListItem(row);
-    expect(result.id).toBe("wli-1");
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
+    });
+    expect(result).toEqual({
+      id: "wli-1",
+      wishListId: "wl-1",
+      cardId: null,
+      printingId: "p-2",
+      quantityDesired: 3,
+    });
   });
 });
 
@@ -253,21 +270,45 @@ describe("toWishListItem", () => {
 // ---------------------------------------------------------------------------
 
 describe("toCopy", () => {
-  it("serializes a copy row", () => {
-    const row = {
+  it("maps a denormalized copy row with card details", () => {
+    const result = toCopy({
       id: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
       sourceId: null,
       cardId: "card-1",
+      setId: "set-1",
+      collectorNumber: 27,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      finish: "normal",
+      imageUrl: null,
+      artist: "Jane Doe",
+      cardName: "Fire Bolt",
+      cardType: "Spell",
       createdAt: NOW,
       updatedAt: LATER,
-    };
-    const result = toCopy(row);
-    expect(result.id).toBe("copy-1");
-    expect(result.sourceId).toBeNull();
-    expect(result.createdAt).toBe("2025-06-15T12:00:00.000Z");
-    expect(result.updatedAt).toBe("2025-06-16T08:30:00.000Z");
+    });
+    expect(result).toEqual({
+      id: "copy-1",
+      printingId: "p-1",
+      collectionId: "col-1",
+      sourceId: null,
+      cardId: "card-1",
+      setId: "set-1",
+      collectorNumber: 27,
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      finish: "normal",
+      imageUrl: null,
+      artist: "Jane Doe",
+      cardName: "Fire Bolt",
+      cardType: "Spell",
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
+    });
   });
 });
 
@@ -303,34 +344,16 @@ describe("toActivity", () => {
   });
 
   it("handles null name and description", () => {
-    const row = { ...baseRow, name: null, description: null };
-    const result = toActivity(row);
+    const result = toActivity({ ...baseRow, name: null, description: null });
     expect(result.name).toBeNull();
     expect(result.description).toBeNull();
   });
 
-  it("handles isAuto = true", () => {
-    const row = { ...baseRow, isAuto: true };
-    const result = toActivity(row);
-    expect(result.isAuto).toBe(true);
-  });
-
-  it("parses 'disposal' activity type", () => {
-    const row = { ...baseRow, type: "disposal" as const };
-    const result = toActivity(row);
-    expect(result.type).toBe("disposal");
-  });
-
-  it("parses 'trade' activity type", () => {
-    const row = { ...baseRow, type: "trade" as const };
-    const result = toActivity(row);
-    expect(result.type).toBe("trade");
-  });
-
-  it("parses 'reorganization' activity type", () => {
-    const row = { ...baseRow, type: "reorganization" as const };
-    const result = toActivity(row);
-    expect(result.type).toBe("reorganization");
+  it("parses all valid activity types", () => {
+    for (const type of ["acquisition", "disposal", "trade", "reorganization"] as const) {
+      const result = toActivity({ ...baseRow, type });
+      expect(result.type).toBe(type);
+    }
   });
 
   it("throws on invalid activity type", () => {
@@ -340,9 +363,145 @@ describe("toActivity", () => {
   });
 
   it("formats date as UTC date string (YYYY-MM-DD)", () => {
-    // Use a date near midnight UTC to verify it uses UTC formatting
-    const row = { ...baseRow, date: new Date("2025-12-31T23:59:59.000Z") };
-    const result = toActivity(row);
+    const result = toActivity({ ...baseRow, date: new Date("2025-12-31T23:59:59.000Z") });
     expect(result.date).toBe("2025-12-31");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toActivityItem
+// ---------------------------------------------------------------------------
+
+describe("toActivityItem", () => {
+  it("maps a denormalized activity item row", () => {
+    const result = toActivityItem({
+      id: "ai-1",
+      activityId: "act-1",
+      activityType: "acquisition",
+      copyId: "copy-1",
+      printingId: "p-1",
+      action: "added",
+      fromCollectionId: null,
+      fromCollectionName: null,
+      toCollectionId: "col-1",
+      toCollectionName: "Main",
+      metadataSnapshot: { foo: "bar" },
+      createdAt: NOW,
+      setId: "set-1",
+      collectorNumber: 5,
+      rarity: "Rare",
+      imageUrl: "https://example.com/img.jpg",
+      cardName: "Shadow Knight",
+      cardType: "Unit",
+    });
+    expect(result).toEqual({
+      id: "ai-1",
+      activityId: "act-1",
+      activityType: "acquisition",
+      copyId: "copy-1",
+      printingId: "p-1",
+      action: "added",
+      fromCollectionId: null,
+      fromCollectionName: null,
+      toCollectionId: "col-1",
+      toCollectionName: "Main",
+      metadataSnapshot: { foo: "bar" },
+      createdAt: "2025-06-15T12:00:00.000Z",
+      setId: "set-1",
+      collectorNumber: 5,
+      rarity: "Rare",
+      imageUrl: "https://example.com/img.jpg",
+      cardName: "Shadow Knight",
+      cardType: "Unit",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toDeckCard
+// ---------------------------------------------------------------------------
+
+describe("toDeckCard", () => {
+  it("maps a denormalized deck card row", () => {
+    const result = toDeckCard({
+      id: "dc-1",
+      deckId: "deck-1",
+      cardId: "card-1",
+      zone: "main",
+      quantity: 4,
+      cardName: "Fire Bolt",
+      cardType: "Spell",
+      domains: ["Fury"],
+      energy: 2,
+      might: null,
+      power: null,
+    });
+    expect(result).toEqual({
+      id: "dc-1",
+      deckId: "deck-1",
+      cardId: "card-1",
+      zone: "main",
+      quantity: 4,
+      cardName: "Fire Bolt",
+      cardType: "Spell",
+      domains: ["Fury"],
+      energy: 2,
+      might: null,
+      power: null,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toDeckAvailabilityItem
+// ---------------------------------------------------------------------------
+
+describe("toDeckAvailabilityItem", () => {
+  it("maps a deck availability computation", () => {
+    const result = toDeckAvailabilityItem({
+      cardId: "card-1",
+      zone: "main",
+      needed: 4,
+      owned: 2,
+      shortfall: 2,
+    });
+    expect(result).toEqual({
+      cardId: "card-1",
+      zone: "main",
+      needed: 4,
+      owned: 2,
+      shortfall: 2,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toShoppingListItem
+// ---------------------------------------------------------------------------
+
+describe("toShoppingListItem", () => {
+  it("maps a shopping list item with sources", () => {
+    const result = toShoppingListItem({
+      cardId: "card-1",
+      printingId: null,
+      totalDemand: 6,
+      owned: 2,
+      stillNeeded: 4,
+      sources: [
+        { source: "deck", sourceId: "deck-1", sourceName: "Aggro", needed: 4 },
+        { source: "wish_list", sourceId: "wl-1", sourceName: "Wanted", needed: 2 },
+      ],
+    });
+    expect(result).toEqual({
+      cardId: "card-1",
+      printingId: null,
+      totalDemand: 6,
+      owned: 2,
+      stillNeeded: 4,
+      sources: [
+        { source: "deck", sourceId: "deck-1", sourceName: "Aggro", needed: 4 },
+        { source: "wish_list", sourceId: "wl-1", sourceName: "Wanted", needed: 2 },
+      ],
+    });
   });
 });

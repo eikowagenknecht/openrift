@@ -1,3 +1,4 @@
+import type { ShoppingListResponse } from "@openrift/shared";
 import { Hono } from "hono";
 
 import { getUserId } from "../middleware/get-user-id.js";
@@ -14,5 +15,6 @@ export const shoppingListRoute = new Hono<{ Variables: Variables }>()
     const db = c.get("db");
     const userId = getUserId(c);
     const items = await buildShoppingList(db, userId);
-    return c.json({ items });
+    const result: ShoppingListResponse = { items };
+    return c.json(result);
   });

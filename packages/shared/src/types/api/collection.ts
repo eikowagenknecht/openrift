@@ -17,7 +17,7 @@ export interface CopyResponse {
   sourceId: string | null;
   cardId: string;
   setId: string;
-  collectorNumber: string;
+  collectorNumber: number;
   rarity: string;
   artVariant: string;
   isSigned: boolean;

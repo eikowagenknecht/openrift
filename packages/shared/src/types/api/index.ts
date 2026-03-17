@@ -5,17 +5,42 @@ export type {
   CatalogSetResponse,
 } from "./catalog.js";
 
-export type { ActivityResponse } from "./activity.js";
+export type {
+  ActivityDetailResponse,
+  ActivityItemResponse,
+  ActivityListResponse,
+  ActivityResponse,
+} from "./activity.js";
 
 export type { CollectionResponse, CopyResponse } from "./collection.js";
 
-export type { DeckResponse } from "./deck.js";
+export type {
+  DeckAvailabilityItemResponse,
+  DeckCardResponse,
+  DeckDetailResponse,
+  DeckResponse,
+} from "./deck.js";
 
 export type { SourceResponse } from "./source.js";
 
-export type { TradeListResponse, TradeListItemResponse } from "./trade-list.js";
+export type {
+  TradeListDetailResponse,
+  TradeListItemDetailResponse,
+  TradeListItemResponse,
+  TradeListResponse,
+} from "./trade-list.js";
 
-export type { WishListResponse, WishListItemResponse } from "./wish-list.js";
+export type {
+  WishListDetailResponse,
+  WishListItemResponse,
+  WishListResponse,
+} from "./wish-list.js";
+
+export type {
+  ShoppingListItemResponse,
+  ShoppingListResponse,
+  ShoppingListSourceResponse,
+} from "./shopping-list.js";
 
 export type {
   CardmarketSnapshot,

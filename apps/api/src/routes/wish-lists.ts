@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { WishListDetailResponse } from "@openrift/shared";
 import {
   createWishListItemSchema,
   createWishListSchema,
@@ -44,7 +45,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
       name: body.name,
       rules: body.rules ? JSON.stringify(body.rules) : null,
     });
-    return c.json(toWishList(row as object), 201);
+    return c.json(toWishList(row), 201);
   })
 
   // ── GET ONE (custom: returns wish list with items) ──────────────────────────
@@ -60,10 +61,11 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
     const itemRows = await wishLists.itemsForList(id);
 
-    return c.json({
+    const detail: WishListDetailResponse = {
       wishList: toWishList(wishList),
       items: itemRows.map((row) => toWishListItem(row)),
-    });
+    };
+    return c.json(detail);
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────

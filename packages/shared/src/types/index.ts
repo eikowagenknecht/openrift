@@ -21,7 +21,6 @@ export {
 } from "./enums.js";
 
 export type { Card, Printing, PrintingImage } from "./catalog.js";
-export { getOrientation } from "./catalog.js";
 
 export type {
   CardFilters,
@@ -54,15 +53,27 @@ export type {
 } from "./api/index.js";
 
 export type {
+  ActivityDetailResponse,
+  ActivityItemResponse,
+  ActivityListResponse,
   ActivityResponse,
   CollectionResponse,
   CopyResponse,
+  DeckAvailabilityItemResponse,
+  DeckCardResponse,
+  DeckDetailResponse,
   DeckResponse,
+  ShoppingListItemResponse,
+  ShoppingListResponse,
+  ShoppingListSourceResponse,
   SourceResponse,
-  TradeListResponse,
+  TradeListDetailResponse,
+  TradeListItemDetailResponse,
   TradeListItemResponse,
-  WishListResponse,
+  TradeListResponse,
+  WishListDetailResponse,
   WishListItemResponse,
+  WishListResponse,
 } from "./api/index.js";
 
 export type {
@@ -71,38 +82,3 @@ export type {
   PricesResponse,
   TcgplayerSnapshot,
 } from "./api/index.js";
-
-export type { Readable } from "./tables.js";
-export type {
-  AccountsTable,
-  ActivitiesTable,
-  ActivityItemsTable,
-  AdminsTable,
-  CardNameAliasesTable,
-  CardSourcesTable,
-  CardsTable,
-  CollectionsTable,
-  CopiesTable,
-  Database,
-  DeckCardsTable,
-  DecksTable,
-  FeatureFlagsTable,
-  MarketplaceGroupsTable,
-  MarketplaceIgnoredProductsTable,
-  MarketplaceSnapshotsTable,
-  MarketplaceSourcesTable,
-  MarketplaceStagingCardOverridesTable,
-  MarketplaceStagingTable,
-  PrintingImagesTable,
-  PrintingSourcesTable,
-  PrintingsTable,
-  SessionsTable,
-  SetsTable,
-  SourcesTable,
-  TradeListItemsTable,
-  TradeListsTable,
-  UsersTable,
-  VerificationsTable,
-  WishListItemsTable,
-  WishListsTable,
-} from "./tables.js";

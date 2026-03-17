@@ -14,3 +14,8 @@ export interface WishListItemResponse {
   printingId: string | null;
   quantityDesired: number;
 }
+
+export interface WishListDetailResponse {
+  wishList: WishListResponse;
+  items: WishListItemResponse[];
+}

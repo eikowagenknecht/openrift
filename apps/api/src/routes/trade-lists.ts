@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { TradeListDetailResponse } from "@openrift/shared";
 import {
   createTradeListItemSchema,
   createTradeListSchema,
@@ -15,7 +16,7 @@ import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
 import { tradeListsRepo } from "../repositories/trade-lists.js";
 import type { Variables } from "../types.js";
-import { toTradeList, toTradeListItem } from "../utils/mappers.js";
+import { toTradeList, toTradeListItem, toTradeListItemDetail } from "../utils/mappers.js";
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -43,7 +44,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
       name: body.name,
       rules: body.rules ? JSON.stringify(body.rules) : null,
     });
-    return c.json(toTradeList(row as object), 201);
+    return c.json(toTradeList(row), 201);
   })
 
   // ── GET ONE (custom: returns trade list with enriched items) ────────────────
@@ -59,21 +60,11 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
 
     const itemRows = await tradeLists.itemsWithDetails(id);
 
-    return c.json({
+    const detail: TradeListDetailResponse = {
       tradeList: toTradeList(tradeList),
-      items: itemRows.map((row) => ({
-        ...toTradeListItem(row),
-        printingId: row.printingId,
-        collectionId: row.collectionId,
-        imageUrl: row.imageUrl,
-        setId: row.setId,
-        collectorNumber: row.collectorNumber,
-        rarity: row.rarity,
-        finish: row.finish,
-        cardName: row.cardName,
-        cardType: row.cardType,
-      })),
-    });
+      items: itemRows.map((row) => toTradeListItemDetail(row)),
+    };
+    return c.json(detail);
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────

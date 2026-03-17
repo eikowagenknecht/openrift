@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import type { DeckZone } from "@openrift/shared";
+import type { DeckAvailabilityItemResponse, DeckDetailResponse } from "@openrift/shared";
 import {
   createDeckSchema,
   decksQuerySchema,
@@ -16,7 +16,7 @@ import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
 import { decksRepo } from "../repositories/decks.js";
 import type { Variables } from "../types.js";
-import { toDeck } from "../utils/mappers.js";
+import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../utils/mappers.js";
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -68,22 +68,11 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
     const cardRows = await decks.cardsWithDetails(id);
 
-    return c.json({
+    const detail: DeckDetailResponse = {
       deck: toDeck(deck),
-      cards: cardRows.map((r) => ({
-        id: r.id,
-        deckId: r.deckId,
-        cardId: r.cardId,
-        zone: r.zone as DeckZone,
-        quantity: r.quantity,
-        cardName: r.cardName,
-        cardType: r.cardType,
-        domains: r.domains,
-        energy: r.energy,
-        might: r.might,
-        power: r.power,
-      })),
-    });
+      cards: cardRows.map((r) => toDeckCard(r)),
+    };
+    return c.json(detail);
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
@@ -213,13 +202,15 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
       ownedByCard.set(row.cardId, Number(row.count));
     }
 
-    const availability = deckCards.map((dc) => ({
-      cardId: dc.cardId,
-      zone: dc.zone,
-      needed: dc.quantity,
-      owned: ownedByCard.get(dc.cardId) ?? 0,
-      shortfall: Math.max(0, dc.quantity - (ownedByCard.get(dc.cardId) ?? 0)),
-    }));
+    const availability: DeckAvailabilityItemResponse[] = deckCards.map((dc) =>
+      toDeckAvailabilityItem({
+        cardId: dc.cardId,
+        zone: dc.zone,
+        needed: dc.quantity,
+        owned: ownedByCard.get(dc.cardId) ?? 0,
+        shortfall: Math.max(0, dc.quantity - (ownedByCard.get(dc.cardId) ?? 0)),
+      }),
+    );
 
     return c.json(availability);
   });

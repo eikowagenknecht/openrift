@@ -1,22 +1,7 @@
+import type { ShoppingListItemResponse } from "@openrift/shared";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
-
-interface ShoppingListSource {
-  source: string;
-  sourceId: string;
-  sourceName: string;
-  needed: number;
-}
-
-interface ShoppingListItem {
-  cardId: string | null;
-  printingId: string | null;
-  totalDemand: number;
-  owned: number;
-  stillNeeded: number;
-  sources: ShoppingListSource[];
-}
 
 /**
  * Builds a unified "still needed" shopping list by aggregating
@@ -26,7 +11,7 @@ interface ShoppingListItem {
 export async function buildShoppingList(
   db: Kysely<Database>,
   userId: string,
-): Promise<ShoppingListItem[]> {
+): Promise<ShoppingListItemResponse[]> {
   // Run all three independent queries in parallel
   const [ownedRows, deckCardRows, wishItemRows] = await Promise.all([
     // 1. Available copies per card (from deckbuilding-available collections)
@@ -110,7 +95,7 @@ export async function buildShoppingList(
   }
 
   // 5. Build result
-  const items: ShoppingListItem[] = [];
+  const items: ShoppingListItemResponse[] = [];
 
   // Card-level demands
   for (const [cardId, totalDemand] of demandByCard) {

@@ -1,4 +1,7 @@
 export type {
+  ActivityDetailResponse,
+  ActivityItemResponse,
+  ActivityListResponse,
   ActivityResponse,
   ActivityAction,
   ActivityType,
@@ -19,6 +22,9 @@ export type {
   CatalogSetResponse,
   CollectionResponse,
   CopyResponse,
+  DeckAvailabilityItemResponse,
+  DeckCardResponse,
+  DeckDetailResponse,
   DeckResponse,
   DeckZone,
   Domain,
@@ -36,6 +42,9 @@ export type {
   RangeKey,
   Rarity,
   SearchField,
+  ShoppingListItemResponse,
+  ShoppingListResponse,
+  ShoppingListSourceResponse,
   SortDirection,
   SortOption,
   SourceResponse,
@@ -43,10 +52,13 @@ export type {
   SuperType,
   TcgplayerSnapshot,
   TimeRange,
-  TradeListResponse,
+  TradeListDetailResponse,
+  TradeListItemDetailResponse,
   TradeListItemResponse,
-  WishListResponse,
+  TradeListResponse,
+  WishListDetailResponse,
   WishListItemResponse,
+  WishListResponse,
 } from "./types/index.js";
 export {
   ALL_SEARCH_FIELDS,
@@ -59,7 +71,6 @@ export {
   SEARCH_PREFIX_MAP,
   SUPER_TYPE_ORDER,
   TIME_RANGE_DAYS,
-  getOrientation,
 } from "./types/index.js";
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
@@ -70,6 +81,7 @@ export {
   centsToDollars,
   comparePrintings,
   formatDateUTC,
+  getOrientation,
   normalizeNameForMatching,
 } from "./utils.js";
 
