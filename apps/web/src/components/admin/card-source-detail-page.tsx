@@ -28,7 +28,7 @@ import {
   UploadIcon,
   XIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
@@ -148,12 +148,35 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
 
   // --- Existing-mode state ---
   const [expandedPrintings, setExpandedPrintings] = useState<Set<string>>(new Set());
+  const pendingScrollTarget = useRef<string | null>(null);
 
   // --- New-mode state ---
   const [activeCard, setActiveCard] = useState<Record<string, unknown>>({});
   const [newCardId, setNewCardId] = useState<string | null>(null);
   const [linkCardId, setLinkCardId] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
+
+  // After accepting a printing, expand it and scroll into view once data refetches
+  const existingData = existingQuery.data;
+  useEffect(() => {
+    const slug = pendingScrollTarget.current;
+    if (!slug || !existingData) {
+      return;
+    }
+    const printings = existingData.printings as Record<string, unknown>[];
+    const printing = printings.find((p) => (p.slug as string) === slug);
+    if (!printing) {
+      return;
+    }
+    const id = printing.id as string;
+    pendingScrollTarget.current = null;
+    setExpandedPrintings((prev) => new Set(prev).add(id));
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-printing-id="${id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [existingData]);
 
   // --- Resolve mode-specific data ---
   const isExisting = mode === "existing";
@@ -180,7 +203,6 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   }
 
   // At this point, one of the two queries has data
-  const existingData = existingQuery.data;
   const unmatchedData = unmatchedQuery.data;
 
   const sources: CardSourceResponse[] = isExisting
@@ -679,6 +701,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             return (
               <div
                 key={printingId}
+                data-printing-id={printingId}
                 className={cn("rounded-md border", allChecked && "border-green-600/40")}
               >
                 <div className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium">
@@ -959,7 +982,14 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               onCheck={(id) => checkPrintingSource.mutate(id)}
               onUncheck={(id) => uncheckPrintingSource.mutate(id)}
               onAccept={(printingFields, printingSourceIds) => {
-                acceptPrintingGroup.mutate({ cardId, printingFields, printingSourceIds });
+                acceptPrintingGroup.mutate(
+                  { cardId, printingFields, printingSourceIds },
+                  {
+                    onSuccess: (data) => {
+                      pendingScrollTarget.current = (data as { printingId: string }).printingId;
+                    },
+                  },
+                );
               }}
               onLink={(pid, printingSourceIds) => {
                 linkPrintingSources.mutate({ printingId: pid, printingSourceIds });
@@ -1360,7 +1390,7 @@ function GroupImagePreview({
     return a.source.localeCompare(b.source);
   });
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => sourceImages[0]?.id ?? null);
   const [resolution, setResolution] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
 
@@ -1483,7 +1513,9 @@ function PrintingImageSwitcher({
   const sortedImages = [...images].sort((a, b) => favSort(a.source, b.source));
   const sortedSourceImages = [...sourceImages].sort((a, b) => favSort(a.source, b.source));
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => sortedImages[0]?.id ?? sortedSourceImages[0]?.printingSourceId ?? null,
+  );
   const [resolution, setResolution] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
