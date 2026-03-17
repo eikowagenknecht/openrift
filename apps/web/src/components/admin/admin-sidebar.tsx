@@ -28,6 +28,7 @@ import {
 const catalogPages = [
   { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
   { to: "/admin/cards" as const, icon: GalleryVerticalIcon, title: "Cards" },
+  { to: "/admin/sources" as const, icon: DatabaseIcon, title: "Sources" },
   { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
 ];
 
