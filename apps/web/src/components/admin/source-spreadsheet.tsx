@@ -95,7 +95,7 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
 
 /** Resolve null finish based on rarity: Common/Uncommon default to "normal", others to "foil".
  * @returns The resolved finish string. */
-export function resolveFinish(finish: string | null, rarity: string | null): string {
+function resolveFinish(finish: string | null, rarity: string | null): string {
   if (finish) {
     return finish;
   }
