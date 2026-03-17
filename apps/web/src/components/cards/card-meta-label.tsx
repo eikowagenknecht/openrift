@@ -52,7 +52,7 @@ export function CardMetaLabel({
 
   return (
     // ⚠ space-y-0.5 and py-0.5 are mirrored as META_LINE_GAP / META_LABEL_PY in card-grid-constants.ts — update both together
-    <div className={cn("w-fit space-y-0.5 rounded-md bg-background px-1.5 py-0.5", className)}>
+    <div className={cn("space-y-0.5 rounded-md bg-background px-1.5 py-0.5", className)}>
       {compact ? (
         <>
           {(showNumber || showType || showRarity) && (
