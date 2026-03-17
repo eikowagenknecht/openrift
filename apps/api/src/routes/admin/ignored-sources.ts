@@ -6,15 +6,21 @@ import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
-const ignoreSourceSchema = z.object({
+const ignoreCardSourceSchema = z.object({
   source: z.string().min(1),
   sourceEntityId: z.string().min(1),
-  reason: z.string().min(1).nullable().optional(),
 });
 
-const unignoreSourceSchema = z.object({
+const ignorePrintingSourceSchema = z.object({
   source: z.string().min(1),
   sourceEntityId: z.string().min(1),
+  finish: z.string().min(1).nullable().optional(),
+});
+
+const unignorePrintingSourceSchema = z.object({
+  source: z.string().min(1),
+  sourceEntityId: z.string().min(1),
+  finish: z.string().min(1).nullable(),
 });
 
 // ── Route ───────────────────────────────────────────────────────────────────
@@ -36,14 +42,13 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
         id: r.id,
         source: r.source,
         sourceEntityId: r.sourceEntityId,
-        reason: r.reason,
         createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
       })),
       printings: printings.map((r) => ({
         id: r.id,
         source: r.source,
         sourceEntityId: r.sourceEntityId,
-        reason: r.reason,
+        finish: r.finish,
         createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
       })),
     });
@@ -51,17 +56,17 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-sources/cards ─────────────────────────────────────
 
-  .post("/admin/ignored-sources/cards", zValidator("json", ignoreSourceSchema), async (c) => {
+  .post("/admin/ignored-sources/cards", zValidator("json", ignoreCardSourceSchema), async (c) => {
     const { ignoredSources } = c.get("repos");
-    const { source, sourceEntityId, reason } = c.req.valid("json");
+    const { source, sourceEntityId } = c.req.valid("json");
 
-    await ignoredSources.ignoreCard({ source, sourceEntityId, reason: reason ?? null });
+    await ignoredSources.ignoreCard({ source, sourceEntityId });
     return c.body(null, 204);
   })
 
   // ── DELETE /admin/ignored-sources/cards ───────────────────────────────────
 
-  .delete("/admin/ignored-sources/cards", zValidator("json", unignoreSourceSchema), async (c) => {
+  .delete("/admin/ignored-sources/cards", zValidator("json", ignoreCardSourceSchema), async (c) => {
     const { ignoredSources } = c.get("repos");
     const { source, sourceEntityId } = c.req.valid("json");
 
@@ -71,24 +76,28 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-sources/printings ─────────────────────────────────
 
-  .post("/admin/ignored-sources/printings", zValidator("json", ignoreSourceSchema), async (c) => {
-    const { ignoredSources } = c.get("repos");
-    const { source, sourceEntityId, reason } = c.req.valid("json");
+  .post(
+    "/admin/ignored-sources/printings",
+    zValidator("json", ignorePrintingSourceSchema),
+    async (c) => {
+      const { ignoredSources } = c.get("repos");
+      const { source, sourceEntityId, finish } = c.req.valid("json");
 
-    await ignoredSources.ignorePrinting({ source, sourceEntityId, reason: reason ?? null });
-    return c.body(null, 204);
-  })
+      await ignoredSources.ignorePrinting({ source, sourceEntityId, finish: finish ?? null });
+      return c.body(null, 204);
+    },
+  )
 
   // ── DELETE /admin/ignored-sources/printings ───────────────────────────────
 
   .delete(
     "/admin/ignored-sources/printings",
-    zValidator("json", unignoreSourceSchema),
+    zValidator("json", unignorePrintingSourceSchema),
     async (c) => {
       const { ignoredSources } = c.get("repos");
-      const { source, sourceEntityId } = c.req.valid("json");
+      const { source, sourceEntityId, finish } = c.req.valid("json");
 
-      await ignoredSources.unignorePrinting(source, sourceEntityId);
+      await ignoredSources.unignorePrinting(source, sourceEntityId, finish);
       return c.body(null, 204);
     },
   );

@@ -1,21 +1,12 @@
 import { extractKeywords } from "@openrift/shared/keywords";
 import type { Transaction } from "kysely";
-import { sql } from "kysely";
 import type { z } from "zod";
 
 import type { Database } from "../../db/index.js";
 import type { acceptNewCardSchema } from "./schemas.js";
 
-// Resolve card_id dynamically: direct card name match → alias match.
-// card_sources no longer stores card_id — matching is always derived from the
-// card name or a previously-created card_name_alias.
-// Uses indexed norm_name columns for fast equality lookups.
-export const resolveCardId = (alias: string) =>
-  sql`COALESCE(
-    (SELECT c_res.id FROM cards c_res WHERE c_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
-    (SELECT cna_res.card_id FROM card_name_aliases cna_res WHERE cna_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
-    (SELECT p_res.card_id FROM printing_sources ps_res JOIN printings p_res ON p_res.source_id = ps_res.source_id JOIN card_sources cs_res ON cs_res.id = ps_res.card_source_id WHERE cs_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1)
-  )`;
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
+export { resolveCardId } from "../../db-helpers.js";
 
 /** Upsert a set by ID, inserting it with the next sort_order if it doesn't exist. */
 export async function upsertSet(

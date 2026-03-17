@@ -1,4 +1,5 @@
 import type { DeleteResult, Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type {
   Database,
@@ -34,11 +35,7 @@ export function ignoredSourcesRepo(db: Kysely<Database>) {
     },
 
     /** Insert ignored card source (no-op on conflict). */
-    async ignoreCard(values: {
-      source: string;
-      sourceEntityId: string;
-      reason: string | null;
-    }): Promise<void> {
+    async ignoreCard(values: { source: string; sourceEntityId: string }): Promise<void> {
       await db
         .insertInto("ignoredCardSources")
         .values(values)
@@ -83,21 +80,30 @@ export function ignoredSourcesRepo(db: Kysely<Database>) {
     async ignorePrinting(values: {
       source: string;
       sourceEntityId: string;
-      reason: string | null;
+      finish: string | null;
     }): Promise<void> {
       await db
         .insertInto("ignoredPrintingSources")
         .values(values)
-        .onConflict((oc) => oc.columns(["source", "sourceEntityId"]).doNothing())
+        .onConflict((oc) =>
+          oc.expression(sql`source, source_entity_id, COALESCE(finish, '')`).doNothing(),
+        )
         .execute();
     },
 
     /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
-    unignorePrinting(source: string, sourceEntityId: string): Promise<DeleteResult> {
+    unignorePrinting(
+      source: string,
+      sourceEntityId: string,
+      finish: string | null,
+    ): Promise<DeleteResult> {
       return db
         .deleteFrom("ignoredPrintingSources")
         .where("source", "=", source)
         .where("sourceEntityId", "=", sourceEntityId)
+        .where(
+          finish === null ? (eb) => eb("finish", "is", null) : (eb) => eb("finish", "=", finish),
+        )
         .executeTakeFirst();
     },
   };

@@ -36,6 +36,7 @@ function notIgnoredPrinting(alias: string, csAlias: string) {
     SELECT 1 FROM ignored_printing_sources ips
     WHERE ips.source = ${sql.ref(`${csAlias}.source`)}
       AND ips.source_entity_id = ${sql.ref(`${alias}.source_entity_id`)}
+      AND (ips.finish IS NULL OR ips.finish = ${sql.ref(`${alias}.finish`)})
   )`;
 }
 

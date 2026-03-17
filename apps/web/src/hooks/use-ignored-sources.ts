@@ -13,7 +13,7 @@ export function useIgnoredSources() {
 export function useIgnoreCardSource() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { source: string; sourceEntityId: string; reason?: string | null }) =>
+    mutationFn: (params: { source: string; sourceEntityId: string }) =>
       rpc(client.api.admin["ignored-sources"].cards.$post({ json: params })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredSources });
@@ -37,7 +37,7 @@ export function useUnignoreCardSource() {
 export function useIgnorePrintingSource() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { source: string; sourceEntityId: string; reason?: string | null }) =>
+    mutationFn: (params: { source: string; sourceEntityId: string; finish?: string | null }) =>
       rpc(client.api.admin["ignored-sources"].printings.$post({ json: params })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredSources });
@@ -49,7 +49,7 @@ export function useIgnorePrintingSource() {
 export function useUnignorePrintingSource() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { source: string; sourceEntityId: string }) =>
+    mutationFn: (params: { source: string; sourceEntityId: string; finish: string | null }) =>
       rpc(client.api.admin["ignored-sources"].printings.$delete({ json: params })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredSources });

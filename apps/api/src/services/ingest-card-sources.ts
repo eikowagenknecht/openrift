@@ -231,10 +231,18 @@ export async function ingestCardSources(
 
     const ignoredPrintingRows = await trx
       .selectFrom("ignoredPrintingSources")
-      .select(["source", "sourceEntityId"])
+      .select(["source", "sourceEntityId", "finish"])
       .where("source", "=", source)
       .execute();
-    const ignoredPrintings = new Set(ignoredPrintingRows.map((r) => r.sourceEntityId));
+    // Key: "entityId" for all-finish ignores, "entityId:finish" for specific finish
+    const ignoredPrintings = new Set<string>();
+    for (const r of ignoredPrintingRows) {
+      if (r.finish === null) {
+        ignoredPrintings.add(r.sourceEntityId);
+      } else {
+        ignoredPrintings.add(`${r.sourceEntityId}:${r.finish}`);
+      }
+    }
 
     // ── Phase 2: Process each card (writes only) ───────────────────────────
 
@@ -378,8 +386,11 @@ export async function ingestCardSources(
           continue;
         }
 
-        // Skip ignored printing sources
-        if (ignoredPrintings.has(p.source_entity_id)) {
+        // Skip ignored printing sources (check all-finish ignore, then specific finish)
+        if (
+          ignoredPrintings.has(p.source_entity_id) ||
+          ignoredPrintings.has(`${p.source_entity_id}:${p.finish}`)
+        ) {
           continue;
         }
 

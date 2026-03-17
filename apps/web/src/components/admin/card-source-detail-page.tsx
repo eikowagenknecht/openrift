@@ -828,6 +828,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                       sourceLabels[(row as PrintingSourceResponse).cardSourceId] ??
                                       "",
                                     sourceEntityId: row.sourceEntityId,
+                                    finish: (row as PrintingSourceResponse).finish,
                                   })
                                 }
                               >
@@ -859,6 +860,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                       sourceLabels[(row as PrintingSourceResponse).cardSourceId] ??
                                       "",
                                     sourceEntityId: row.sourceEntityId,
+                                    finish: (row as PrintingSourceResponse).finish,
                                   })
                                 }
                               >

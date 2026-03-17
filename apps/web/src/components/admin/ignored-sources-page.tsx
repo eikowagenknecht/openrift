@@ -41,7 +41,6 @@ export function IgnoredSourcesPage() {
                     <TableRow>
                       <TableHead className="w-36">Source</TableHead>
                       <TableHead>Entity ID</TableHead>
-                      <TableHead>Reason</TableHead>
                       <TableHead className="w-36">Ignored At</TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
@@ -53,12 +52,6 @@ export function IgnoredSourcesPage() {
                           <Badge variant="outline">{r.source}</Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{r.sourceEntityId}</TableCell>
-                        <TableCell
-                          className="max-w-xs truncate text-muted-foreground"
-                          title={r.reason ?? ""}
-                        >
-                          {r.reason ?? "-"}
-                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {r.createdAt.slice(0, 16).replace("T", " ")}
                         </TableCell>
@@ -102,7 +95,7 @@ export function IgnoredSourcesPage() {
                     <TableRow>
                       <TableHead className="w-36">Source</TableHead>
                       <TableHead>Entity ID</TableHead>
-                      <TableHead>Reason</TableHead>
+                      <TableHead className="w-24">Finish</TableHead>
                       <TableHead className="w-36">Ignored At</TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
@@ -114,11 +107,12 @@ export function IgnoredSourcesPage() {
                           <Badge variant="outline">{r.source}</Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{r.sourceEntityId}</TableCell>
-                        <TableCell
-                          className="max-w-xs truncate text-muted-foreground"
-                          title={r.reason ?? ""}
-                        >
-                          {r.reason ?? "-"}
+                        <TableCell>
+                          {r.finish ? (
+                            <Badge variant="outline">{r.finish}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">all</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {r.createdAt.slice(0, 16).replace("T", " ")}
@@ -132,6 +126,7 @@ export function IgnoredSourcesPage() {
                               unignorePrinting.mutate({
                                 source: r.source,
                                 sourceEntityId: r.sourceEntityId,
+                                finish: r.finish ?? null,
                               })
                             }
                             disabled={unignorePrinting.isPending}

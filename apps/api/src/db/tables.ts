@@ -483,8 +483,6 @@ export interface IgnoredCardSourcesTable {
   source: string;
   /** CHECK: <> '' */
   sourceEntityId: string;
-  /** CHECK: <> '' */
-  reason: string | null;
   createdAt: CreatedAt;
 }
 
@@ -495,7 +493,7 @@ export interface IgnoredPrintingSourcesTable {
   /** CHECK: <> '' */
   sourceEntityId: string;
   /** CHECK: <> '' */
-  reason: string | null;
+  finish: string | null;
   createdAt: CreatedAt;
 }
 
