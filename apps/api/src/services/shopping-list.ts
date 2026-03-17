@@ -2,6 +2,9 @@ import type { ShoppingListItemResponse } from "@openrift/shared";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { copiesRepo } from "../repositories/copies.js";
+import { decksRepo } from "../repositories/decks.js";
+import { wishListsRepo } from "../repositories/wish-lists.js";
 
 /**
  * Builds a unified "still needed" shopping list by aggregating
@@ -14,39 +17,9 @@ export async function buildShoppingList(
 ): Promise<ShoppingListItemResponse[]> {
   // Run all three independent queries in parallel
   const [ownedRows, deckCardRows, wishItemRows] = await Promise.all([
-    // 1. Available copies per card (from deckbuilding-available collections)
-    db
-      .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collectionId")
-      .innerJoin("printings as p", "p.id", "cp.printingId")
-      .select(["p.cardId", "cp.printingId", db.fn.countAll<number>().as("count")])
-      .where("cp.userId", "=", userId)
-      .where("col.availableForDeckbuilding", "=", true)
-      .groupBy(["p.cardId", "cp.printingId"])
-      .execute(),
-
-    // 2. Deck requirements (wanted decks joined with their cards)
-    db
-      .selectFrom("deckCards as dc")
-      .innerJoin("decks as d", "d.id", "dc.deckId")
-      .select(["d.id as deckId", "d.name as deckName", "dc.cardId", "dc.quantity"])
-      .where("d.userId", "=", userId)
-      .where("d.isWanted", "=", true)
-      .execute(),
-
-    // 3. Wish list items (wish lists joined with their items)
-    db
-      .selectFrom("wishListItems as wi")
-      .innerJoin("wishLists as wl", "wl.id", "wi.wishListId")
-      .select([
-        "wl.id as wishListId",
-        "wl.name as wishListName",
-        "wi.cardId",
-        "wi.printingId",
-        "wi.quantityDesired",
-      ])
-      .where("wl.userId", "=", userId)
-      .execute(),
+    copiesRepo(db).countByCardAndPrintingForDeckbuilding(userId),
+    decksRepo(db).wantedCardRequirements(userId),
+    wishListsRepo(db).allItemsForUser(userId),
   ]);
 
   const ownedByCard = new Map<string, number>();

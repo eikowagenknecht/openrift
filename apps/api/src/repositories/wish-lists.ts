@@ -122,5 +122,29 @@ export function wishListsRepo(db: Kysely<Database>) {
         .where("userId", "=", userId)
         .executeTakeFirst();
     },
+
+    /** @returns All wish list items across all wish lists for a user, with wish list name. */
+    allItemsForUser(userId: string): Promise<
+      {
+        wishListId: string;
+        wishListName: string;
+        cardId: string | null;
+        printingId: string | null;
+        quantityDesired: number;
+      }[]
+    > {
+      return db
+        .selectFrom("wishListItems as wi")
+        .innerJoin("wishLists as wl", "wl.id", "wi.wishListId")
+        .select([
+          "wl.id as wishListId",
+          "wl.name as wishListName",
+          "wi.cardId",
+          "wi.printingId",
+          "wi.quantityDesired",
+        ])
+        .where("wl.userId", "=", userId)
+        .execute();
+    },
   };
 }

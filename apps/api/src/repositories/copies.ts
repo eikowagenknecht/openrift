@@ -1,5 +1,5 @@
 import type { CardType } from "@openrift/shared/types";
-import type { Kysely, Selectable } from "kysely";
+import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
@@ -113,6 +113,75 @@ export function copiesRepo(db: Kysely<Database>) {
         .where("cp.collectionId", "=", collectionId)
         .orderBy("c.name")
         .orderBy("p.collectorNumber")
+        .execute();
+    },
+
+    /** @returns The inserted copy rows with `id`, `printingId`, `collectionId`, and `sourceId`. */
+    insertBatch(
+      values: Insertable<CopiesTable>[],
+    ): Promise<Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "sourceId">[]> {
+      return db
+        .insertInto("copies")
+        .values(values)
+        .returning(["id", "printingId", "collectionId", "sourceId"])
+        .execute();
+    },
+
+    /** @returns Copies with their current collection name, for move/dispose operations. */
+    listWithCollectionName(
+      copyIds: string[],
+      userId: string,
+    ): Promise<
+      (Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "sourceId"> & {
+        collectionName: string;
+      })[]
+    > {
+      return db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .select([
+          "cp.id",
+          "cp.printingId",
+          "cp.collectionId",
+          "cp.sourceId",
+          "col.name as collectionName",
+        ])
+        .where("cp.id", "in", copyIds)
+        .where("cp.userId", "=", userId)
+        .execute();
+    },
+
+    /** Moves copies to a target collection. */
+    async moveBatch(copyIds: string[], userId: string, toCollectionId: string): Promise<void> {
+      await db
+        .updateTable("copies")
+        .set({ collectionId: toCollectionId, updatedAt: new Date() })
+        .where("id", "in", copyIds)
+        .where("userId", "=", userId)
+        .execute();
+    },
+
+    /** Hard-deletes copies by IDs scoped to a user. */
+    async deleteBatch(copyIds: string[], userId: string): Promise<void> {
+      await db
+        .deleteFrom("copies")
+        .where("id", "in", copyIds)
+        .where("userId", "=", userId)
+        .execute();
+    },
+
+    /** @returns Owned count per card+printing from deckbuilding-available collections. */
+    countByCardAndPrintingForDeckbuilding(
+      userId: string,
+    ): Promise<{ cardId: string; printingId: string; count: number }[]> {
+      return db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .select(["p.cardId", "cp.printingId", db.fn.countAll<number>().as("count")])
+        .where("cp.userId", "=", userId)
+        .where("col.availableForDeckbuilding", "=", true)
+        .groupBy(["p.cardId", "cp.printingId"])
         .execute();
     },
   };

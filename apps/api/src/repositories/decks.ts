@@ -147,5 +147,18 @@ export function decksRepo(db: Kysely<Database>) {
         .groupBy("p.cardId")
         .execute();
     },
+
+    /** @returns Card requirements from all wanted decks for a user, with deck name. */
+    wantedCardRequirements(
+      userId: string,
+    ): Promise<{ deckId: string; deckName: string; cardId: string; quantity: number }[]> {
+      return db
+        .selectFrom("deckCards as dc")
+        .innerJoin("decks as d", "d.id", "dc.deckId")
+        .select(["d.id as deckId", "d.name as deckName", "dc.cardId", "dc.quantity"])
+        .where("d.userId", "=", userId)
+        .where("d.isWanted", "=", true)
+        .execute();
+    },
   };
 }

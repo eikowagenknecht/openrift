@@ -1,7 +1,8 @@
 import type { ActivityAction, ActivityType } from "@openrift/shared";
-import type { Transaction } from "kysely";
+import type { Kysely, Transaction } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { activitiesRepo } from "../repositories/activities.js";
 
 interface ActivityItemInput {
   copyId?: string | null;
@@ -29,44 +30,35 @@ interface CreateActivityInput {
  * @returns The activity ID
  */
 export async function createActivity(
-  trx: Transaction<Database>,
+  trx: Transaction<Database> | Kysely<Database>,
   input: CreateActivityInput,
 ): Promise<string> {
-  const activity = await trx
-    .insertInto("activities")
-    .values({
+  const repo = activitiesRepo(trx);
+
+  const activityId = await repo.create({
+    userId: input.userId,
+    type: input.type,
+    name: input.name ?? null,
+    date: input.date ? new Date(input.date) : new Date(),
+    description: input.description ?? null,
+    isAuto: input.isAuto ?? false,
+  });
+
+  await repo.createItems(
+    input.items.map((item) => ({
+      activityId: activityId,
       userId: input.userId,
-      type: input.type,
-      name: input.name ?? null,
-      date: input.date ? new Date(input.date) : new Date(),
-      description: input.description ?? null,
-      isAuto: input.isAuto ?? false,
-    })
-    .returning("id")
-    .executeTakeFirstOrThrow();
-
-  const activityId = activity.id;
-
-  if (input.items.length > 0) {
-    await trx
-      .insertInto("activityItems")
-      .values(
-        input.items.map((item) => ({
-          activityId: activityId,
-          userId: input.userId,
-          activityType: input.type,
-          copyId: item.copyId ?? null,
-          printingId: item.printingId,
-          action: item.action,
-          fromCollectionId: item.fromCollectionId ?? null,
-          fromCollectionName: item.fromCollectionName ?? null,
-          toCollectionId: item.toCollectionId ?? null,
-          toCollectionName: item.toCollectionName ?? null,
-          metadataSnapshot: item.metadataSnapshot ? JSON.stringify(item.metadataSnapshot) : null,
-        })),
-      )
-      .execute();
-  }
+      activityType: input.type,
+      copyId: item.copyId ?? null,
+      printingId: item.printingId,
+      action: item.action,
+      fromCollectionId: item.fromCollectionId ?? null,
+      fromCollectionName: item.fromCollectionName ?? null,
+      toCollectionId: item.toCollectionId ?? null,
+      toCollectionName: item.toCollectionName ?? null,
+      metadataSnapshot: item.metadataSnapshot ? JSON.stringify(item.metadataSnapshot) : null,
+    })),
+  );
 
   return activityId;
 }

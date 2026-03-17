@@ -2,6 +2,8 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 import { AppError } from "../errors.js";
+import { collectionsRepo } from "../repositories/collections.js";
+import { copiesRepo } from "../repositories/copies.js";
 import { createActivity } from "./activity-logger.js";
 import { ensureInbox } from "./inbox.js";
 
@@ -33,18 +35,16 @@ export async function addCopies(
   // Verify all explicit collectionIds belong to this user
   const explicitIds = [...new Set(copies.map((c) => c.collectionId).filter(Boolean))] as string[];
   if (explicitIds.length > 0) {
-    const owned = await db
-      .selectFrom("collections")
-      .select("id")
-      .where("id", "in", explicitIds)
-      .where("userId", "=", userId)
-      .execute();
+    const owned = await collectionsRepo(db).listIdsByIdsForUser(explicitIds, userId);
     if (owned.length !== explicitIds.length) {
       throw new AppError(403, "FORBIDDEN", "One or more collections do not belong to you");
     }
   }
 
   const created = await db.transaction().execute(async (trx) => {
+    const copies_ = copiesRepo(trx);
+    const collections = collectionsRepo(trx);
+
     const copyValues = copies.map((item) => ({
       userId: userId,
       printingId: item.printingId,
@@ -52,20 +52,12 @@ export async function addCopies(
       sourceId: item.sourceId ?? null,
     }));
 
-    const copyRows = await trx
-      .insertInto("copies")
-      .values(copyValues)
-      .returning(["id", "printingId", "collectionId", "sourceId"])
-      .execute();
+    const copyRows = await copies_.insertBatch(copyValues);
 
     // Look up collection names for activity items
     const collectionIds = [...new Set(copyRows.map((r) => r.collectionId))];
-    const collections = await trx
-      .selectFrom("collections")
-      .select(["id", "name"])
-      .where("id", "in", collectionIds)
-      .execute();
-    const collectionNames = new Map(collections.map((col) => [col.id, col.name]));
+    const collectionRows = await collections.listIdAndNameByIds(collectionIds);
+    const collectionNames = new Map(collectionRows.map((col) => [col.id, col.name]));
 
     await createActivity(trx, {
       userId,
@@ -102,42 +94,28 @@ export async function moveCopies(
   toCollectionId: string,
 ): Promise<void> {
   // Verify target collection belongs to user
-  const target = await db
-    .selectFrom("collections")
-    .select(["id", "name"])
-    .where("id", "=", toCollectionId)
-    .where("userId", "=", userId)
-    .executeTakeFirst();
+  const target = await collectionsRepo(db).getIdAndName(toCollectionId, userId);
 
   if (!target) {
     throw new AppError(404, "NOT_FOUND", "Target collection not found");
   }
 
   await db.transaction().execute(async (trx) => {
+    const copies_ = copiesRepo(trx);
+
     // Fetch copies with their current collection info
-    const copies = await trx
-      .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collectionId")
-      .select(["cp.id", "cp.printingId", "cp.collectionId", "col.name as collectionName"])
-      .where("cp.id", "in", copyIds)
-      .where("cp.userId", "=", userId)
-      .execute();
+    const copies = await copies_.listWithCollectionName(copyIds, userId);
 
     if (copies.length !== copyIds.length) {
       throw new AppError(404, "NOT_FOUND", "One or more copies not found");
     }
 
     // Update copies
-    await trx
-      .updateTable("copies")
-      .set({ collectionId: toCollectionId, updatedAt: new Date() })
-      .where(
-        "id",
-        "in",
-        copies.map((row) => row.id),
-      )
-      .where("userId", "=", userId)
-      .execute();
+    await copies_.moveBatch(
+      copies.map((row) => row.id),
+      userId,
+      toCollectionId,
+    );
 
     // Log reorganization activity
     await createActivity(trx, {
@@ -167,20 +145,10 @@ export async function disposeCopies(
   copyIds: string[],
 ): Promise<void> {
   await db.transaction().execute(async (trx) => {
+    const copies_ = copiesRepo(trx);
+
     // Fetch copies with collection info for snapshots
-    const copies = await trx
-      .selectFrom("copies as cp")
-      .innerJoin("collections as col", "col.id", "cp.collectionId")
-      .select([
-        "cp.id",
-        "cp.printingId",
-        "cp.collectionId",
-        "cp.sourceId",
-        "col.name as collectionName",
-      ])
-      .where("cp.id", "in", copyIds)
-      .where("cp.userId", "=", userId)
-      .execute();
+    const copies = await copies_.listWithCollectionName(copyIds, userId);
 
     if (copies.length !== copyIds.length) {
       throw new AppError(404, "NOT_FOUND", "One or more copies not found");
@@ -205,14 +173,9 @@ export async function disposeCopies(
     });
 
     // Hard-delete copies (activity_items.copy_id → SET NULL via FK)
-    await trx
-      .deleteFrom("copies")
-      .where(
-        "id",
-        "in",
-        copies.map((row) => row.id),
-      )
-      .where("userId", "=", userId)
-      .execute();
+    await copies_.deleteBatch(
+      copies.map((row) => row.id),
+      userId,
+    );
   });
 }

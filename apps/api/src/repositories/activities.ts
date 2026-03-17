@@ -1,4 +1,4 @@
-import type { CardType } from "@openrift/shared/types";
+import type { ActivityAction, ActivityType, CardType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 
 import { imageUrl } from "../db-helpers.js";
@@ -99,6 +99,45 @@ export function activitiesRepo(db: Kysely<Database>) {
         .orderBy("ai.createdAt")
         .orderBy("ai.id")
         .execute();
+    },
+
+    /** @returns The newly created activity's ID. */
+    create(values: {
+      userId: string;
+      type: ActivityType;
+      name: string | null;
+      date: Date;
+      description: string | null;
+      isAuto: boolean;
+    }): Promise<string> {
+      return db
+        .insertInto("activities")
+        .values(values)
+        .returning("id")
+        .executeTakeFirstOrThrow()
+        .then((row) => row.id);
+    },
+
+    /** Batch-insert activity items for a given activity. */
+    async createItems(
+      items: {
+        activityId: string;
+        userId: string;
+        activityType: ActivityType;
+        copyId: string | null;
+        printingId: string;
+        action: ActivityAction;
+        fromCollectionId: string | null;
+        fromCollectionName: string | null;
+        toCollectionId: string | null;
+        toCollectionName: string | null;
+        metadataSnapshot: string | null;
+      }[],
+    ): Promise<void> {
+      if (items.length === 0) {
+        return;
+      }
+      await db.insertInto("activityItems").values(items).execute();
     },
   };
 }
