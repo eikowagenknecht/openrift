@@ -12,6 +12,9 @@ concurrency:
   group: ci-${{ github.head_ref }}
   cancel-in-progress: true
 
+env:
+  DO_NOT_TRACK: 1
+
 jobs:
   validate:
     # Do not run for automated release commits (otherwise we would run into a deadlock situation)
