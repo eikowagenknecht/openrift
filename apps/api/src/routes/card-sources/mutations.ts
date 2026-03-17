@@ -59,6 +59,20 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     return c.body(null, 204);
   })
 
+  // ── POST /:cardSourceId/uncheck ────────────────────────────────────────────
+  .post("/:cardSourceId/uncheck", async (c) => {
+    const { cardSourceMutations: mut } = c.get("repos");
+    const { cardSourceId } = c.req.param();
+
+    const result = await mut.uncheckCardSource(cardSourceId);
+
+    if (!result || result.numUpdatedRows === 0n) {
+      throw new AppError(404, "NOT_FOUND", "Card source not found");
+    }
+
+    return c.body(null, 204);
+  })
+
   // ── POST /printing-sources/check-all ─────────────────────────────────────
   // Mark all printing_sources for a given printing as checked
   // NOTE: Must be registered before /:cardId/check-all to avoid
@@ -81,6 +95,20 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { id } = c.req.param();
 
     const result = await mut.checkPrintingSource(id);
+
+    if (!result || result.numUpdatedRows === 0n) {
+      throw new AppError(404, "NOT_FOUND", "Printing source not found");
+    }
+
+    return c.body(null, 204);
+  })
+
+  // ── POST /printing-sources/:id/uncheck ─────────────────────────────────────
+  .post("/printing-sources/:id/uncheck", async (c) => {
+    const { cardSourceMutations: mut } = c.get("repos");
+    const { id } = c.req.param();
+
+    const result = await mut.uncheckPrintingSource(id);
 
     if (!result || result.numUpdatedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
@@ -211,6 +239,11 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     await mut.linkPrintingSources(printingSourceIds, printingUuid);
+
+    // Persist or remove link overrides so links survive delete + re-upload
+    await (printingId
+      ? mut.upsertPrintingLinkOverrides(printingSourceIds, printingId)
+      : mut.removePrintingLinkOverrides(printingSourceIds));
 
     return c.body(null, 204);
   })

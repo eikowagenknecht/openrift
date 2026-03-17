@@ -90,6 +90,18 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Clear checked_at on a single card source.
+     * @returns Update result.
+     */
+    uncheckCardSource(cardSourceId: string): Promise<UpdateResult> {
+      return db
+        .updateTable("cardSources")
+        .set({ checkedAt: null, updatedAt: new Date() })
+        .where("id", "=", cardSourceId)
+        .executeTakeFirst();
+    },
+
+    /**
      * Mark all card sources with matching normalized names as checked.
      * @returns The total number of rows updated.
      */
@@ -113,6 +125,18 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
       return db
         .updateTable("printingSources")
         .set({ checkedAt: new Date(), updatedAt: new Date() })
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Clear checked_at on a single printing source.
+     * @returns Update result.
+     */
+    uncheckPrintingSource(id: string): Promise<UpdateResult> {
+      return db
+        .updateTable("printingSources")
+        .set({ checkedAt: null, updatedAt: new Date() })
         .where("id", "=", id)
         .executeTakeFirst();
     },
@@ -240,6 +264,50 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
         .set({ printingId: printingUuid, checkedAt: new Date(), updatedAt: new Date() })
         .where("id", "in", printingSourceIds)
         .execute();
+    },
+
+    /** Upsert printing link overrides for the given printing source IDs. */
+    async upsertPrintingLinkOverrides(
+      printingSourceIds: string[],
+      printingSlug: string,
+    ): Promise<void> {
+      const rows = await db
+        .selectFrom("printingSources")
+        .select(["sourceEntityId", "finish"])
+        .where("id", "in", printingSourceIds)
+        .execute();
+      for (const row of rows) {
+        await db
+          .insertInto("printingLinkOverrides")
+          .values({
+            sourceEntityId: row.sourceEntityId,
+            finish: row.finish ?? "",
+            printingSlug,
+          })
+          .onConflict((oc) =>
+            oc.columns(["sourceEntityId", "finish"]).doUpdateSet({ printingSlug }),
+          )
+          .execute();
+      }
+    },
+
+    /** Remove printing link overrides for the given printing source IDs (unlink). */
+    async removePrintingLinkOverrides(printingSourceIds: string[]): Promise<void> {
+      const rows = await db
+        .selectFrom("printingSources")
+        .select(["sourceEntityId", "finish"])
+        .where("id", "in", printingSourceIds)
+        .execute();
+      if (rows.length === 0) {
+        return;
+      }
+      for (const row of rows) {
+        await db
+          .deleteFrom("printingLinkOverrides")
+          .where("sourceEntityId", "=", row.sourceEntityId)
+          .where("finish", "=", row.finish ?? "")
+          .execute();
+      }
     },
 
     // ── Card mutations ────────────────────────────────────────────────────────
