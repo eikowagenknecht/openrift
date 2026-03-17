@@ -2,6 +2,7 @@
 export type {
   ActivitiesTable,
   ActivityItemsTable,
+  CardSourcesTable,
   CardsTable,
   CollectionsTable,
   CopiesTable,
@@ -14,6 +15,7 @@ export type {
   MarketplaceSnapshotsTable,
   MarketplaceSourcesTable,
   PrintingImagesTable,
+  PrintingSourcesTable,
   PrintingsTable,
   SetsTable,
   SourcesTable,
