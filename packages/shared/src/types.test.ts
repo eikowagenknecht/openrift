@@ -8,8 +8,8 @@ import {
   FINISH_ORDER,
   RARITY_ORDER,
   SEARCH_PREFIX_MAP,
-  getOrientation,
 } from "./types";
+import { getOrientation } from "./utils";
 
 describe("getOrientation", () => {
   it("returns landscape for Battlefield", () => {

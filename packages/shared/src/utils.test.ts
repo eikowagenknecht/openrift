@@ -237,7 +237,7 @@ describe("toCents", () => {
   });
 
   it("returns null for undefined input", () => {
-    expect(toCents()).toBeNull();
+    expect(toCents(undefined)).toBeNull();
   });
 
   it("returns null for zero", () => {
@@ -313,7 +313,7 @@ describe("emptyToNull", () => {
   });
 
   it("returns null for undefined input", () => {
-    expect(emptyToNull()).toBeNull();
+    expect(emptyToNull(undefined)).toBeNull();
   });
 
   it("returns the string for non-empty input", () => {
