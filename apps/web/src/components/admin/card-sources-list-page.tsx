@@ -200,6 +200,11 @@ export function CardSourcesListPage() {
                       {row.name}
                     </Link>
                     {row.hasGallery && <Badge className="ml-2 text-xs">gallery</Badge>}
+                    {row.hasMissingImage && (
+                      <Badge variant="destructive" className="ml-2 text-xs">
+                        missing image
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     <span>

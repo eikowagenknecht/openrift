@@ -330,6 +330,31 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute() as Promise<{ cardId: string | null; sourceId: string }[]>;
     },
 
+    /** @returns Card IDs that have at least one printing without an active front image. */
+    listCardIdsWithMissingImages(cardIds: string[]): Promise<{ cardId: string }[]> {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printings as p")
+        .select("p.cardId")
+        .where("p.cardId", "in", cardIds)
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("printingImages as pi")
+                .select(sql.lit(1).as("one"))
+                .whereRef("pi.printingId", "=", "p.id")
+                .where("pi.face", "=", "front")
+                .where("pi.isActive", "=", true),
+            ),
+          ),
+        )
+        .groupBy("p.cardId")
+        .execute();
+    },
+
     /** @returns Printing source IDs for unmatched groups, ordered by sourceId. */
     listPendingSourceIds(normNames: string[]): Promise<{ norm: string; sourceId: string }[]> {
       if (normNames.length === 0) {

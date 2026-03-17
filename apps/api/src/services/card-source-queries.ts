@@ -190,6 +190,15 @@ export async function buildCardSourceList(
     }
   }
 
+  // Find cards with printings missing an active front image
+  const missingImageCardIds = new Set<string>();
+  if (matchedCardIds.length > 0) {
+    const missingRows = await repo.listCardIdsWithMissingImages(matchedCardIds);
+    for (const mr of missingRows) {
+      missingImageCardIds.add(mr.cardId);
+    }
+  }
+
   // Load candidate printing source IDs for matched cards (printing_sources with no printing_id yet)
   const candidateSourceIdsMap = new Map<string, string[]>();
   if (matchedCardIds.length > 0) {
@@ -295,6 +304,7 @@ export async function buildCardSourceList(
     uncheckedCardCount: Number(r.uncheckedCardCount),
     uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
     hasGallery: Boolean(r.hasGallery),
+    hasMissingImage: r.cardId ? missingImageCardIds.has(r.cardId) : false,
     suggestedCard: r.cardId ? null : (suggestionMap.get(r.groupKey as string) ?? null),
   }));
 }
