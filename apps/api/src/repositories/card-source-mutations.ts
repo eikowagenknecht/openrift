@@ -102,14 +102,27 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Mark all card sources with matching normalized names as checked.
+     * Mark all card sources with matching normalized names OR linked to the
+     * given card via printing_sources → printings as checked.
      * @returns The total number of rows updated.
      */
-    async checkAllCardSourcesByNormNames(normNames: string[]): Promise<number> {
+    async checkAllCardSources(normNames: string[], cardId: string): Promise<number> {
+      const now = new Date();
+      const linkedIds = db
+        .selectFrom("printingSources")
+        .innerJoin("printings", "printings.id", "printingSources.printingId")
+        .select("printingSources.cardSourceId")
+        .where("printings.cardId", "=", cardId);
+
       const results = await db
         .updateTable("cardSources")
-        .set({ checkedAt: new Date(), updatedAt: new Date() })
-        .where("cardSources.normName", "in", normNames)
+        .set({ checkedAt: now, updatedAt: now })
+        .where((eb) =>
+          eb.or([
+            eb("cardSources.normName", "in", normNames),
+            eb("cardSources.id", "in", linkedIds),
+          ]),
+        )
         .where("checkedAt", "is", null)
         .execute();
       return results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);

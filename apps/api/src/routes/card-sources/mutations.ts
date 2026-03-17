@@ -133,7 +133,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const aliasRows = await mut.getCardAliases(card.id);
     const uniqueVariants = [...new Set([cardNormName, ...aliasRows.map((a) => a.normName)])];
 
-    const updated = await mut.checkAllCardSourcesByNormNames(uniqueVariants);
+    const updated = await mut.checkAllCardSources(uniqueVariants, card.id);
     return c.json({ updated });
   })
 
