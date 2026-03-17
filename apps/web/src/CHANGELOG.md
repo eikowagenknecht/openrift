@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-03-17
+
+- feat: Admin card sources can now be filtered by set, with clickable counts on the sets page
+- feat: Empty sets can now be deleted from the sets admin page
+
 ## 2026-03-16
 
 - fix: Visiting an unknown URL now shows a themed "not found" page instead of a blank one
