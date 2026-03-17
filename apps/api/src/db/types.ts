@@ -1,7 +1,8 @@
-// Re-export all table types from the shared package (single source of truth).
+// Re-export all table types from the local tables file (single source of truth).
 export type {
   ActivitiesTable,
   ActivityItemsTable,
+  CardNameAliasesTable,
   CardSourcesTable,
   CardsTable,
   CollectionsTable,
@@ -10,15 +11,23 @@ export type {
   DeckCardsTable,
   DecksTable,
   FeatureFlagsTable,
+  MarketplaceGroupsTable,
+  MarketplaceIgnoredProductsTable,
   MarketplaceSnapshotsTable,
   MarketplaceSourcesTable,
+  MarketplaceStagingCardOverridesTable,
+  MarketplaceStagingTable,
   PrintingImagesTable,
   PrintingSourcesTable,
   PrintingsTable,
+  Readable,
+  SessionsTable,
   SetsTable,
   SourcesTable,
   TradeListItemsTable,
   TradeListsTable,
+  UsersTable,
+  VerificationsTable,
   WishListItemsTable,
   WishListsTable,
-} from "@openrift/shared/types";
+} from "./tables.js";

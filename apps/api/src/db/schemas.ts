@@ -7,7 +7,7 @@ import type {
   PrintingSourcesTable,
   PrintingsTable,
   SetsTable,
-} from "./types.js";
+} from "./tables.js";
 /* oxlint-enable no-unused-vars */
 
 // ---------------------------------------------------------------------------

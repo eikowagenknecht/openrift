@@ -1,21 +1,20 @@
-import type { ArtVariant, CardFace, CardType, Finish, Rarity } from "./enums.js";
-import type { CardsTable, Readable } from "./tables.js";
+import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
 
 export interface Card {
-  id: Readable<CardsTable["id"]>;
-  slug: CardsTable["slug"];
-  name: CardsTable["name"];
-  type: CardsTable["type"];
-  superTypes: CardsTable["superTypes"];
-  domains: CardsTable["domains"];
-  might: CardsTable["might"];
-  energy: CardsTable["energy"];
-  power: CardsTable["power"];
-  keywords: CardsTable["keywords"];
-  tags: CardsTable["tags"];
-  mightBonus: CardsTable["mightBonus"];
-  rulesText: CardsTable["rulesText"];
-  effectText: CardsTable["effectText"];
+  id: string;
+  slug: string;
+  name: string;
+  type: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+  keywords: string[];
+  tags: string[];
+  mightBonus: number | null;
+  rulesText: string | null;
+  effectText: string | null;
 }
 
 export interface PrintingImage {
@@ -43,8 +42,4 @@ export interface Printing {
   flavorText: string | null;
   marketPrice?: number;
   card: Card;
-}
-
-export function getOrientation(type: CardType): "portrait" | "landscape" {
-  return type === "Battlefield" ? "landscape" : "portrait";
 }

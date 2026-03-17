@@ -1,5 +1,3 @@
-import type { ColumnType, Generated } from "kysely";
-
 import type {
   ActivityAction,
   ActivityType,
@@ -12,7 +10,8 @@ import type {
   Finish,
   Rarity,
   SuperType,
-} from "./enums.js";
+} from "@openrift/shared/types";
+import type { ColumnType, Generated } from "kysely";
 
 // ─── Column helpers ──────────────────────────────────────────────────────────
 

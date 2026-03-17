@@ -1,4 +1,4 @@
-import type { ArtVariant, Finish, Rarity } from "./types/index.js";
+import type { ArtVariant, CardType, Finish, Rarity } from "./types/index.js";
 import { ART_VARIANT_ORDER, FINISH_ORDER, RARITY_ORDER } from "./types/index.js";
 
 /**
@@ -143,4 +143,8 @@ export function boundsOf(vals: number[]): { min: number; max: number } {
     min: Math.floor(vals.reduce((a, b) => Math.min(a, b))),
     max: Math.ceil(vals.reduce((a, b) => Math.max(a, b))),
   };
+}
+
+export function getOrientation(type: CardType): "portrait" | "landscape" {
+  return type === "Battlefield" ? "landscape" : "portrait";
 }
