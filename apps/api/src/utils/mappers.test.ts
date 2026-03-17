@@ -8,7 +8,6 @@ import {
   toDeck,
   toDeckAvailabilityItem,
   toDeckCard,
-  toShoppingListItem,
   toSource,
   toTradeList,
   toTradeListItem,
@@ -476,32 +475,3 @@ describe("toDeckAvailabilityItem", () => {
 });
 
 // ---------------------------------------------------------------------------
-// toShoppingListItem
-// ---------------------------------------------------------------------------
-
-describe("toShoppingListItem", () => {
-  it("maps a shopping list item with sources", () => {
-    const result = toShoppingListItem({
-      cardId: "card-1",
-      printingId: null,
-      totalDemand: 6,
-      owned: 2,
-      stillNeeded: 4,
-      sources: [
-        { source: "deck", sourceId: "deck-1", sourceName: "Aggro", needed: 4 },
-        { source: "wish_list", sourceId: "wl-1", sourceName: "Wanted", needed: 2 },
-      ],
-    });
-    expect(result).toEqual({
-      cardId: "card-1",
-      printingId: null,
-      totalDemand: 6,
-      owned: 2,
-      stillNeeded: 4,
-      sources: [
-        { source: "deck", sourceId: "deck-1", sourceName: "Aggro", needed: 4 },
-        { source: "wish_list", sourceId: "wl-1", sourceName: "Wanted", needed: 2 },
-      ],
-    });
-  });
-});

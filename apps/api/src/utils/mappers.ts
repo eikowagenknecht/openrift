@@ -6,7 +6,6 @@ import type {
   DeckAvailabilityItemResponse,
   DeckCardResponse,
   DeckResponse,
-  ShoppingListItemResponse,
   SourceResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,
@@ -297,32 +296,5 @@ export function toDeckAvailabilityItem(row: {
     needed: row.needed,
     owned: row.owned,
     shortfall: row.shortfall,
-  };
-}
-
-/**
- * Maps a shopping list computation to ShoppingListItemResponse.
- * @returns The serialized shopping list item.
- */
-export function toShoppingListItem(row: {
-  cardId: string | null;
-  printingId: string | null;
-  totalDemand: number;
-  owned: number;
-  stillNeeded: number;
-  sources: { source: string; sourceId: string; sourceName: string; needed: number }[];
-}): ShoppingListItemResponse {
-  return {
-    cardId: row.cardId,
-    printingId: row.printingId,
-    totalDemand: row.totalDemand,
-    owned: row.owned,
-    stillNeeded: row.stillNeeded,
-    sources: row.sources.map((s) => ({
-      source: s.source,
-      sourceId: s.sourceId,
-      sourceName: s.sourceName,
-      needed: s.needed,
-    })),
   };
 }
