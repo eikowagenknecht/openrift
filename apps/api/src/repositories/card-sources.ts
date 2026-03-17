@@ -139,7 +139,11 @@ export function cardSourcesRepo(db: Kysely<Database>) {
      * or normalized name (unmatched), with source/unchecked counts and set info.
      * @returns Grouped source rows with aggregate counts and set tier info.
      */
-    async listGroupedSources(filter: string, source?: string): Promise<GroupedSourceRow[]> {
+    async listGroupedSources(
+      filter: string,
+      source?: string,
+      set?: string,
+    ): Promise<GroupedSourceRow[]> {
       const rcid = resolveCardId("cs");
       let query = db
         .selectFrom("cardSources as cs")
@@ -188,6 +192,28 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         );
       }
 
+      if (set) {
+        query = query.where((eb) =>
+          eb.or([
+            eb.exists(
+              eb
+                .selectFrom("printingSources as ps2")
+                .select(sql.lit(1).as("x"))
+                .where("ps2.setId", "=", set)
+                .whereRef("ps2.cardSourceId", "=", "cs.id"),
+            ),
+            eb.exists(
+              eb
+                .selectFrom("printings as p2")
+                .innerJoin("sets as s2", "s2.id", "p2.setId")
+                .select(sql.lit(1).as("x"))
+                .where("s2.slug", "=", set)
+                .where(sql<SqlBool>`p2.card_id = (${rcid})`),
+            ),
+          ]),
+        );
+      }
+
       if (filter === "unchecked") {
         // raw sql: arithmetic on two conditional aggregates in HAVING — clearer as raw sql
         query = query.having(
@@ -198,19 +224,34 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         );
       } else if (filter === "unmatched") {
         query = query.where(sql<SqlBool>`(${rcid}) IS NULL`);
+      } else if (filter === "active") {
+        query = query.where(sql<SqlBool>`(${rcid}) IS NOT NULL`);
       }
 
       const rows = await query.execute();
       return rows as unknown as GroupedSourceRow[];
     },
 
-    /** @returns Cards that have no card_sources (orphans). */
+    /** @returns Cards that have no card_sources (orphans), optionally filtered to a set. */
     listOrphanCards(
       excludeIds: string[],
+      set?: string,
     ): Promise<Pick<Selectable<CardsTable>, "id" | "slug" | "name">[]> {
       let query = db.selectFrom("cards as c").select(["c.id", "c.slug", "c.name"]);
       if (excludeIds.length > 0) {
         query = query.where("c.id", "not in", excludeIds);
+      }
+      if (set) {
+        query = query.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("printings as p")
+              .innerJoin("sets as s", "s.id", "p.setId")
+              .select(sql.lit(1).as("x"))
+              .where("s.slug", "=", set)
+              .whereRef("p.cardId", "=", "c.id"),
+          ),
+        );
       }
       return query.execute();
     },

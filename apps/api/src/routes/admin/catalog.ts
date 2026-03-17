@@ -38,37 +38,15 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   // ── Cardmarket Expansions ────────────────────────────────────────────────────
 
   .get("/admin/cardmarket-groups", async (c) => {
-    const db = c.get("db");
-    const expansions = await db
-      .selectFrom("marketplaceGroups")
-      .select(["groupId", "name"])
-      .where("marketplace", "=", "cardmarket")
-      .orderBy("groupId")
-      .execute();
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
 
-    // Count staging rows per expansion
-    const stagingCounts = await db
-      .selectFrom("marketplaceStaging")
-      .select((eb) => [
-        "groupId" as const,
-        eb.fn.count<number>("externalId").distinct().as("count"),
-      ])
-      .where("marketplace", "=", "cardmarket")
-      .where("groupId", "is not", null)
-      .groupBy("groupId")
-      .execute();
+    const [expansions, stagingCounts, assignedCounts] = await Promise.all([
+      mktAdmin.listGroupsByMarketplace("cardmarket", "groupId"),
+      mktAdmin.stagingCountsByMarketplaceGroup("cardmarket"),
+      mktAdmin.assignedCountsByMarketplaceGroup("cardmarket"),
+    ]);
 
     const countMap = new Map(stagingCounts.map((r) => [r.groupId, Number(r.count)]));
-
-    // Count assigned (mapped) products per expansion
-    const assignedCounts = await db
-      .selectFrom("marketplaceSources")
-      .select((eb) => ["groupId" as const, eb.fn.countAll<number>().as("count")])
-      .where("marketplace", "=", "cardmarket")
-      .where("groupId", "is not", null)
-      .groupBy("groupId")
-      .execute();
-
     const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, Number(r.count)]));
 
     const items: MarketplaceGroupResponse[] = expansions.map((e) => ({
@@ -87,16 +65,11 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", slugParamSchema),
     zValidator("json", updateExpansionSchema),
     async (c) => {
-      const db = c.get("db");
+      const { marketplaceAdmin: mktAdmin } = c.get("repos");
       const expansionId = Number(c.req.valid("param").id);
       const { name } = c.req.valid("json");
 
-      await db
-        .updateTable("marketplaceGroups")
-        .set({ name, updatedAt: new Date() })
-        .where("marketplace", "=", "cardmarket")
-        .where("groupId", "=", expansionId)
-        .execute();
+      await mktAdmin.updateGroupName("cardmarket", expansionId, name);
 
       return c.body(null, 204);
     },
@@ -105,37 +78,15 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   // ── TCGPlayer Groups ─────────────────────────────────────────────────────────
 
   .get("/admin/tcgplayer-groups", async (c) => {
-    const db = c.get("db");
-    const groups = await db
-      .selectFrom("marketplaceGroups")
-      .select(["groupId", "name", "abbreviation"])
-      .where("marketplace", "=", "tcgplayer")
-      .orderBy("name")
-      .execute();
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
 
-    // Count staging rows per groupId
-    const stagingCounts = await db
-      .selectFrom("marketplaceStaging")
-      .select((eb) => [
-        "groupId" as const,
-        eb.fn.count<number>("externalId").distinct().as("count"),
-      ])
-      .where("marketplace", "=", "tcgplayer")
-      .where("groupId", "is not", null)
-      .groupBy("groupId")
-      .execute();
+    const [groups, stagingCounts, assignedCounts] = await Promise.all([
+      mktAdmin.listGroupsByMarketplace("tcgplayer", "name"),
+      mktAdmin.stagingCountsByMarketplaceGroup("tcgplayer"),
+      mktAdmin.assignedCountsByMarketplaceGroup("tcgplayer"),
+    ]);
 
     const countMap = new Map(stagingCounts.map((r) => [r.groupId, Number(r.count)]));
-
-    // Count assigned (mapped) products per groupId
-    const assignedCounts = await db
-      .selectFrom("marketplaceSources")
-      .select((eb) => ["groupId" as const, eb.fn.countAll<number>().as("count")])
-      .where("marketplace", "=", "tcgplayer")
-      .where("groupId", "is not", null)
-      .groupBy("groupId")
-      .execute();
-
     const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, Number(r.count)]));
 
     const items: MarketplaceGroupResponse[] = groups.map((g) => ({
@@ -152,20 +103,13 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   // ── Sets CRUD ─────────────────────────────────────────────────────────────────
 
   .get("/admin/sets", async (c) => {
-    const db = c.get("db");
-    const sets = await db.selectFrom("sets").selectAll().orderBy("sortOrder").execute();
+    const { sets: setsRepo } = c.get("repos");
 
-    const cardCounts = await db
-      .selectFrom("printings")
-      .select((eb) => ["setId" as const, eb.fn.count<number>("cardId").distinct().as("cardCount")])
-      .groupBy("setId")
-      .execute();
-
-    const printingCounts = await db
-      .selectFrom("printings")
-      .select((eb) => ["setId" as const, eb.fn.countAll<number>().as("printingCount")])
-      .groupBy("setId")
-      .execute();
+    const [sets, cardCounts, printingCounts] = await Promise.all([
+      setsRepo.listAll(),
+      setsRepo.cardCountsBySet(),
+      setsRepo.printingCountsBySet(),
+    ]);
 
     const cardCountMap = new Map(cardCounts.map((r) => [r.setId, Number(r.cardCount)]));
     const printingCountMap = new Map(printingCounts.map((r) => [r.setId, Number(r.printingCount)]));
@@ -191,54 +135,50 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", slugParamSchema),
     zValidator("json", updateSetSchema),
     async (c) => {
-      const db = c.get("db");
+      const { sets: setsRepo } = c.get("repos");
       const { id } = c.req.valid("param");
       const { name, printedTotal, releasedAt } = c.req.valid("json");
 
-      await db
-        .updateTable("sets")
-        .set({
-          name,
-          printedTotal,
-          releasedAt,
-          updatedAt: new Date(),
-        })
-        .where("slug", "=", id)
-        .execute();
+      await setsRepo.update(id, { name, printedTotal, releasedAt });
 
       return c.body(null, 204);
     },
   )
 
   .post("/admin/sets", zValidator("json", createSetSchema), async (c) => {
-    const db = c.get("db");
+    const { sets: setsRepo } = c.get("repos");
     const { id, name, printedTotal, releasedAt } = c.req.valid("json");
 
-    const existing = await db
-      .selectFrom("sets")
-      .select("id")
-      .where("slug", "=", id)
-      .executeTakeFirst();
-
+    const existing = await setsRepo.getBySlug(id);
     if (existing) {
       throw new AppError(409, "CONFLICT", `Set with ID "${id}" already exists`);
     }
 
-    const maxOrder = await db
-      .selectFrom("sets")
-      .select((eb) => eb.fn.coalesce(eb.fn.max("sortOrder"), eb.lit(0)).as("max"))
-      .executeTakeFirstOrThrow();
+    const sortOrder = await setsRepo.nextSortOrder();
+    await setsRepo.create({ slug: id, name, printedTotal, releasedAt, sortOrder });
 
-    await db
-      .insertInto("sets")
-      .values({
-        slug: id,
-        name,
-        printedTotal,
-        releasedAt: releasedAt ?? null,
-        sortOrder: maxOrder.max + 1,
-      })
-      .execute();
+    return c.body(null, 204);
+  })
+
+  .delete("/admin/sets/:id", zValidator("param", slugParamSchema), async (c) => {
+    const { sets: setsRepo } = c.get("repos");
+    const { id } = c.req.valid("param");
+
+    const set = await setsRepo.getBySlug(id);
+    if (!set) {
+      throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
+    }
+
+    const count = await setsRepo.printingCount(set.id);
+    if (count > 0) {
+      throw new AppError(
+        409,
+        "CONFLICT",
+        `Cannot delete set "${id}" — it still has ${count} printing(s). Remove them first.`,
+      );
+    }
+
+    await setsRepo.deleteBySlug(id);
 
     return c.body(null, 204);
   })
@@ -246,18 +186,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   // ── Set reorder ───────────────────────────────────────────────────────────────
 
   .put("/admin/sets/reorder", zValidator("json", reorderSetsSchema), async (c) => {
-    const db = c.get("db");
+    const { sets: setsRepo } = c.get("repos");
     const { ids } = c.req.valid("json");
-
-    await db.transaction().execute(async (tx) => {
-      for (let i = 0; i < ids.length; i++) {
-        await tx
-          .updateTable("sets")
-          .set({ sortOrder: i + 1, updatedAt: new Date() })
-          .where("slug", "=", ids[i])
-          .execute();
-      }
-    });
-
+    await setsRepo.reorder(ids);
     return c.body(null, 204);
   });

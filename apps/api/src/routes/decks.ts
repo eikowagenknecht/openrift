@@ -111,7 +111,6 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateDeckCardsSchema),
     async (c) => {
-      const db = c.get("db");
       const { decks } = c.get("repos");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
@@ -148,32 +147,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
         }
       }
 
-      await db.transaction().execute(async (trx) => {
-        // Delete existing cards
-        await trx.deleteFrom("deckCards").where("deckId", "=", id).execute();
-
-        // Insert new cards
-        if (body.cards.length > 0) {
-          await trx
-            .insertInto("deckCards")
-            .values(
-              body.cards.map((card) => ({
-                deckId: id,
-                cardId: card.cardId,
-                zone: card.zone,
-                quantity: card.quantity,
-              })),
-            )
-            .execute();
-        }
-
-        // Touch deck updated_at
-        await trx
-          .updateTable("decks")
-          .set({ updatedAt: new Date() })
-          .where("id", "=", id)
-          .execute();
-      });
+      await decks.replaceCards(id, body.cards);
 
       return c.body(null, 204);
     },

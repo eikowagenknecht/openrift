@@ -21,39 +21,17 @@ const updateGroupSchema = z.object({
 export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
 
   .get("/admin/marketplace-groups", async (c) => {
-    const db = c.get("db");
-    const groups = await db
-      .selectFrom("marketplaceGroups")
-      .select(["marketplace", "groupId", "name", "abbreviation"])
-      .orderBy("marketplace")
-      .orderBy("name")
-      .execute();
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
 
-    const stagingCounts = await db
-      .selectFrom("marketplaceStaging")
-      .select((eb) => [
-        "marketplace" as const,
-        "groupId" as const,
-        eb.fn.count<number>("externalId").distinct().as("count"),
-      ])
-      .where("groupId", "is not", null)
-      .groupBy(["marketplace", "groupId"])
-      .execute();
+    const [groups, stagingCounts, assignedCounts] = await Promise.all([
+      mktAdmin.listAllGroups(),
+      mktAdmin.stagingCountsByMarketplaceGroup(),
+      mktAdmin.assignedCountsByMarketplaceGroup(),
+    ]);
 
     const stagingMap = new Map(
       stagingCounts.map((r) => [`${r.marketplace}:${r.groupId}`, Number(r.count)]),
     );
-
-    const assignedCounts = await db
-      .selectFrom("marketplaceSources")
-      .select((eb) => [
-        "marketplace" as const,
-        "groupId" as const,
-        eb.fn.countAll<number>().as("count"),
-      ])
-      .where("groupId", "is not", null)
-      .groupBy(["marketplace", "groupId"])
-      .execute();
 
     const assignedMap = new Map(
       assignedCounts.map((r) => [`${r.marketplace}:${r.groupId}`, Number(r.count)]),
@@ -78,16 +56,11 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", marketplaceGroupParamSchema),
     zValidator("json", updateGroupSchema),
     async (c) => {
-      const db = c.get("db");
+      const { marketplaceAdmin: mktAdmin } = c.get("repos");
       const { marketplace, id: groupId } = c.req.valid("param");
       const { name } = c.req.valid("json");
 
-      await db
-        .updateTable("marketplaceGroups")
-        .set({ name, updatedAt: new Date() })
-        .where("marketplace", "=", marketplace)
-        .where("groupId", "=", groupId)
-        .execute();
+      await mktAdmin.updateGroupName(marketplace, groupId, name);
 
       return c.body(null, 204);
     },

@@ -117,22 +117,11 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     }
 
     await db.transaction().execute(async (trx) => {
-      // Get copies to move
-      const copies = await trx
-        .selectFrom("copies")
-        .select(["id", "printingId"])
-        .where("collectionId", "=", id)
-        .execute();
+      const copies = await collections.listCopiesInCollection(id, trx);
 
       if (copies.length > 0) {
-        // Move all copies to target
-        await trx
-          .updateTable("copies")
-          .set({ collectionId: moveCopiesTo, updatedAt: new Date() })
-          .where("collectionId", "=", id)
-          .execute();
+        await collections.moveCopiesBetweenCollections(id, moveCopiesTo, trx);
 
-        // Log reorganization activity
         await createActivity(trx, {
           userId,
           type: "reorganization",
@@ -150,12 +139,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
         });
       }
 
-      // Now delete the empty collection
-      await trx
-        .deleteFrom("collections")
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .execute();
+      await collections.deleteByIdForUser(id, userId, trx);
     });
 
     return c.body(null, 204);

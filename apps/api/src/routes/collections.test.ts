@@ -15,6 +15,9 @@ const mockCollectionsRepo = {
   update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   getIdAndName: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   exists: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  listCopiesInCollection: vi.fn(() => Promise.resolve([] as object[])),
+  moveCopiesBetweenCollections: vi.fn(() => Promise.resolve()),
+  deleteByIdForUser: vi.fn(() => Promise.resolve()),
 };
 
 const mockCopiesRepo = {

@@ -1,4 +1,4 @@
-import type { CardType, DeckFormat } from "@openrift/shared/types";
+import type { CardType, DeckFormat, DeckZone } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable } from "kysely";
 
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
@@ -146,6 +146,29 @@ export function decksRepo(db: Kysely<Database>) {
         .where("col.availableForDeckbuilding", "=", true)
         .groupBy("p.cardId")
         .execute();
+    },
+
+    /** Replaces all cards in a deck within a transaction. Deletes existing cards, inserts new ones, and touches updatedAt. */
+    async replaceCards(
+      deckId: string,
+      cards: { cardId: string; zone: DeckZone; quantity: number }[],
+    ): Promise<void> {
+      await db.transaction().execute(async (trx) => {
+        await trx.deleteFrom("deckCards").where("deckId", "=", deckId).execute();
+
+        if (cards.length > 0) {
+          await trx
+            .insertInto("deckCards")
+            .values(cards.map((card) => ({ deckId, ...card })))
+            .execute();
+        }
+
+        await trx
+          .updateTable("decks")
+          .set({ updatedAt: new Date() })
+          .where("id", "=", deckId)
+          .execute();
+      });
     },
 
     /** @returns Card requirements from all wanted decks for a user, with deck name. */

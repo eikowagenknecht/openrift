@@ -58,53 +58,20 @@ const mockIo: Io = {
   sharp: (() => mockSharpInstance) as any,
 };
 
-// ─── Kysely chain mock ─────────────────────────────────────────────────
-// Proxy that makes every property access and function call chainable.
-// Calls any function/array-of-function args so callback-based Kysely
-// builders (leftJoin, select, filterWhere) execute their inline callbacks.
-const IS_CHAIN = Symbol("isChain");
-
-function isRealFn(x: unknown): x is (...args: any[]) => any {
-  return typeof x === "function" && !(x as any)[IS_CHAIN];
-}
-
-function makeChain(value: any): any {
-  const handler: ProxyHandler<any> = {
-    get(_, prop) {
-      if (prop === IS_CHAIN) {
-        return true;
-      }
-      if (prop === "then" || prop === "catch" || prop === "finally") {
-        return undefined;
-      }
-      if (prop === "execute") {
-        return () => Promise.resolve(value);
-      }
-      return makeChain(value);
-    },
-    apply(_, __, args) {
-      for (const arg of args) {
-        if (isRealFn(arg)) {
-          arg(makeChain(value));
-        } else if (Array.isArray(arg)) {
-          for (const item of arg) {
-            if (isRealFn(item)) {
-              item(makeChain(value));
-            }
-          }
-        }
-      }
-      return makeChain(value);
-    },
-  };
-  // Use a function target so the proxy is callable
-  return new Proxy(function noop() {}, handler);
-}
-
-function makeMockDb(opts: { selectResult?: any; updateResult?: any } = {}) {
+/**
+ * Creates a mock PrintingImagesRepo for rehostImages/clearAllRehosted/getRehostStatus.
+ * @returns Mock repo object.
+ */
+function makeMockRepo(opts: { selectResult?: any; updateResult?: any } = {}) {
+  const updateRehostedUrlFn = vi.fn(() => Promise.resolve());
   return {
-    selectFrom: () => makeChain(opts.selectResult ?? []),
-    updateTable: () => makeChain(opts.updateResult ?? [{ numUpdatedRows: 0n }]),
+    listUnrehosted: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
+    updateRehostedUrl: updateRehostedUrlFn,
+    clearAllRehostedUrls: vi.fn(() => {
+      const rows = opts.updateResult ?? [{ numUpdatedRows: 0n }];
+      return Promise.resolve(Number(rows[0].numUpdatedRows));
+    }),
+    rehostStatusBySet: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
   } as any;
 }
 
@@ -278,12 +245,12 @@ describe("renameRehostFiles", () => {
 
 describe("rehostImages", () => {
   it("returns zeros when no images found", async () => {
-    const result = await rehostImages(mockIo, makeMockDb());
+    const result = await rehostImages(mockIo, makeMockRepo());
     expect(result).toEqual({ total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] });
   });
 
   it("rehosts an image", async () => {
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [
         {
           imageId: 1,
@@ -292,44 +259,43 @@ describe("rehostImages", () => {
           setSlug: "set1",
         },
       ],
-      updateResult: [{ numUpdatedRows: 1n }],
     });
 
-    const result = await rehostImages(mockIo, db);
+    const result = await rehostImages(mockIo, repo);
     expect(result).toEqual({ total: 1, rehosted: 1, skipped: 0, failed: 0, errors: [] });
     expect(mockFetch).toHaveBeenCalledWith("https://example.com/img.png");
     expect(mockWriteFile).toHaveBeenCalled();
   });
 
   it("skips null originalUrl", async () => {
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [{ imageId: 1, printingSlug: "X:a:b:", originalUrl: null, setSlug: "s" }],
     });
-    const result = await rehostImages(mockIo, db);
+    const result = await rehostImages(mockIo, repo);
     expect(result.skipped).toBe(1);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("counts download failures", async () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [
         { imageId: 1, printingSlug: "X:a:b:", originalUrl: "https://x.com/img", setSlug: "s" },
       ],
     });
-    const result = await rehostImages(mockIo, db);
+    const result = await rehostImages(mockIo, repo);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("Network error");
   });
 
   it("handles non-Error thrown values", async () => {
     mockFetch.mockRejectedValue("string-error");
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [
         { imageId: 1, printingSlug: "X:a:b:", originalUrl: "https://x.com/img", setSlug: "s" },
       ],
     });
-    const result = await rehostImages(mockIo, db);
+    const result = await rehostImages(mockIo, repo);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("string-error");
   });
@@ -341,7 +307,7 @@ describe("rehostImages", () => {
       )
       .mockRejectedValueOnce(new Error("timeout"));
 
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [
         {
           imageId: 1,
@@ -357,10 +323,9 @@ describe("rehostImages", () => {
           setSlug: "s3",
         },
       ],
-      updateResult: [{ numUpdatedRows: 1n }],
     });
 
-    const result = await rehostImages(mockIo, db);
+    const result = await rehostImages(mockIo, repo);
     expect(result.total).toBe(3);
     expect(result.rehosted).toBe(1);
     expect(result.skipped).toBe(1);
@@ -370,7 +335,7 @@ describe("rehostImages", () => {
   });
 
   it("respects a custom limit parameter", async () => {
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [
         {
           imageId: 1,
@@ -379,9 +344,8 @@ describe("rehostImages", () => {
           setSlug: "s",
         },
       ],
-      updateResult: [{ numUpdatedRows: 1n }],
     });
-    const result = await rehostImages(mockIo, db, 5);
+    const result = await rehostImages(mockIo, repo, 5);
     expect(result.rehosted).toBe(1);
   });
 });
@@ -500,7 +464,7 @@ describe("regenerateImages", () => {
 
 describe("clearAllRehosted", () => {
   it("clears DB and deletes files", async () => {
-    const db = makeMockDb({ updateResult: [{ numUpdatedRows: 5n }] });
+    const repo = makeMockRepo({ updateResult: [{ numUpdatedRows: 5n }] });
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
         return [dirent("set1", true), dirent(".gitkeep", false)];
@@ -508,20 +472,20 @@ describe("clearAllRehosted", () => {
       return ["card-orig.png", "card-300w.webp"];
     });
 
-    const result = await clearAllRehosted(mockIo, db);
+    const result = await clearAllRehosted(mockIo, repo);
     expect(result).toEqual({ cleared: 5 });
     expect(mockUnlink).toHaveBeenCalledTimes(2);
   });
 
   it("handles missing card-images directory", async () => {
-    const db = makeMockDb({ updateResult: [{ numUpdatedRows: 3n }] });
+    const repo = makeMockRepo({ updateResult: [{ numUpdatedRows: 3n }] });
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    const result = await clearAllRehosted(mockIo, db);
+    const result = await clearAllRehosted(mockIo, repo);
     expect(result).toEqual({ cleared: 3 });
   });
 
   it("deletes across multiple set directories", async () => {
-    const db = makeMockDb({ updateResult: [{ numUpdatedRows: 10n }] });
+    const repo = makeMockRepo({ updateResult: [{ numUpdatedRows: 10n }] });
     let setCall = 0;
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
@@ -531,7 +495,7 @@ describe("clearAllRehosted", () => {
       return setCall === 1 ? ["f1.webp", "f2.webp"] : ["f3.webp"];
     });
 
-    const result = await clearAllRehosted(mockIo, db);
+    const result = await clearAllRehosted(mockIo, repo);
     expect(result).toEqual({ cleared: 10 });
     expect(mockUnlink).toHaveBeenCalledTimes(3);
   });
@@ -539,7 +503,7 @@ describe("clearAllRehosted", () => {
 
 describe("getRehostStatus", () => {
   it("returns aggregated stats with disk info", async () => {
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [
         { setId: "set1", setName: "Set One", total: 10, rehosted: 6 },
         { setId: "set2", setName: "Set Two", total: 5, rehosted: 2 },
@@ -552,7 +516,7 @@ describe("getRehostStatus", () => {
       return ["f1.webp", "f2.webp"];
     });
 
-    const result = await getRehostStatus(mockIo, db);
+    const result = await getRehostStatus(mockIo, repo);
     expect(result.total).toBe(15);
     expect(result.rehosted).toBe(8);
     expect(result.external).toBe(7);
@@ -562,9 +526,9 @@ describe("getRehostStatus", () => {
   });
 
   it("handles empty database", async () => {
-    const db = makeMockDb();
+    const repo = makeMockRepo();
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    const result = await getRehostStatus(mockIo, db);
+    const result = await getRehostStatus(mockIo, repo);
     expect(result).toEqual({
       total: 0,
       rehosted: 0,
@@ -575,7 +539,7 @@ describe("getRehostStatus", () => {
   });
 
   it("computes disk stats across multiple set directories", async () => {
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [{ setId: "s1", setName: "S1", total: 3, rehosted: 3 }],
     });
     let dirCall = 0;
@@ -588,7 +552,7 @@ describe("getRehostStatus", () => {
     });
     mockStat.mockResolvedValue({ size: 500 });
 
-    const result = await getRehostStatus(mockIo, db);
+    const result = await getRehostStatus(mockIo, repo);
     expect(result.disk.totalBytes).toBe(1500);
     expect(result.disk.sets).toEqual([
       { setId: "set-a", bytes: 1000, fileCount: 2 },
@@ -597,7 +561,7 @@ describe("getRehostStatus", () => {
   });
 
   it("correctly computes external = total - rehosted per set", async () => {
-    const db = makeMockDb({
+    const repo = makeMockRepo({
       selectResult: [
         { setId: "a", setName: "Alpha", total: 10, rehosted: 3 },
         { setId: "b", setName: "Beta", total: 5, rehosted: 5 },
@@ -605,7 +569,7 @@ describe("getRehostStatus", () => {
     });
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
 
-    const result = await getRehostStatus(mockIo, db);
+    const result = await getRehostStatus(mockIo, repo);
     expect(result.sets[0]).toEqual({
       setId: "a",
       setName: "Alpha",

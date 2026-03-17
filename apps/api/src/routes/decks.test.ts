@@ -19,6 +19,7 @@ const mockRepo = {
   exists: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   cardRequirements: vi.fn(() => Promise.resolve([] as object[])),
   availableCopiesByCard: vi.fn(() => Promise.resolve([] as object[])),
+  replaceCards: vi.fn(() => Promise.resolve()),
 };
 
 // Transaction mock for PUT /decks/:id/cards

@@ -1,6 +1,6 @@
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely, Selectable, Transaction } from "kysely";
 
-import type { CollectionsTable, Database } from "../db/index.js";
+import type { CollectionsTable, CopiesTable, Database } from "../db/index.js";
 
 /**
  * Queries for user collections.
@@ -102,6 +102,44 @@ export function collectionsRepo(db: Kysely<Database>) {
       ids: string[],
     ): Promise<Pick<Selectable<CollectionsTable>, "id" | "name">[]> {
       return db.selectFrom("collections").select(["id", "name"]).where("id", "in", ids).execute();
+    },
+
+    /** @returns Copies in the given collection (id and printingId only). Accepts a transaction for use within larger transactions. */
+    listCopiesInCollection(
+      collectionId: string,
+      trx: Transaction<Database> | Kysely<Database>,
+    ): Promise<Pick<Selectable<CopiesTable>, "id" | "printingId">[]> {
+      return trx
+        .selectFrom("copies")
+        .select(["id", "printingId"])
+        .where("collectionId", "=", collectionId)
+        .execute();
+    },
+
+    /** Moves all copies from one collection to another. Accepts a transaction for use within larger transactions. */
+    async moveCopiesBetweenCollections(
+      fromCollectionId: string,
+      toCollectionId: string,
+      trx: Transaction<Database> | Kysely<Database>,
+    ): Promise<void> {
+      await trx
+        .updateTable("copies")
+        .set({ collectionId: toCollectionId, updatedAt: new Date() })
+        .where("collectionId", "=", fromCollectionId)
+        .execute();
+    },
+
+    /** Deletes a collection by ID scoped to a user. Accepts a transaction for use within larger transactions. */
+    async deleteByIdForUser(
+      id: string,
+      userId: string,
+      trx: Transaction<Database> | Kysely<Database>,
+    ): Promise<void> {
+      await trx
+        .deleteFrom("collections")
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .execute();
     },
 
     /**
