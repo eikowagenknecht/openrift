@@ -14,6 +14,7 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
+import { copiesRepo } from "../repositories/copies.js";
 import { tradeListsRepo } from "../repositories/trade-lists.js";
 import type { Variables } from "../types.js";
 import { toTradeList, toTradeListItem, toTradeListItemDetail } from "../utils/mappers.js";
@@ -58,7 +59,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const itemRows = await tradeLists.itemsWithDetails(id);
+    const itemRows = await tradeLists.itemsWithDetails(id, userId);
 
     const detail: TradeListDetailResponse = {
       tradeList: toTradeList(tradeList),
@@ -115,7 +116,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
       }
 
       // Verify copy belongs to user
-      const copy = await tradeLists.copyExistsForUser(body.copyId, userId);
+      const copy = await copiesRepo(c.get("db")).existsForUser(body.copyId, userId);
       if (!copy) {
         throw new AppError(404, "NOT_FOUND", "Copy not found");
       }

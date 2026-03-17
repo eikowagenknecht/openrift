@@ -75,12 +75,13 @@ export function wishListsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns All items for a wish list. */
-    itemsForList(wishListId: string): Promise<Selectable<WishListItemsTable>[]> {
+    /** @returns All items for a wish list. Scoped to the owning user for defense-in-depth. */
+    items(wishListId: string, userId: string): Promise<Selectable<WishListItemsTable>[]> {
       return db
         .selectFrom("wishListItems")
         .selectAll()
         .where("wishListId", "=", wishListId)
+        .where("userId", "=", userId)
         .execute();
     },
 
