@@ -210,6 +210,19 @@ describe("comparePrintings", () => {
     expect(comparePrintings(signed, unsigned)).toBeGreaterThan(0);
   });
 
+  it("sorts non-promo before promo", () => {
+    const normal = { ...base, isPromo: false };
+    const promo = { ...base, isPromo: true };
+    expect(comparePrintings(normal, promo)).toBeLessThan(0);
+    expect(comparePrintings(promo, normal)).toBeGreaterThan(0);
+  });
+
+  it("treats missing isPromo as false", () => {
+    const noPromo = { ...base };
+    const promo = { ...base, isPromo: true };
+    expect(comparePrintings(noPromo, promo)).toBeLessThan(0);
+  });
+
   it("handles null setId by treating it as empty string", () => {
     const nullSet = { ...base, setId: null };
     const emptySet = { ...base, setId: "" };

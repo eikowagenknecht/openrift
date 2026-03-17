@@ -70,6 +70,7 @@ export function comparePrintings(
     rarity: Rarity | string;
     finish: Finish | string;
     isSigned: boolean;
+    isPromo?: boolean;
   },
   b: {
     setId?: string | null;
@@ -78,6 +79,7 @@ export function comparePrintings(
     rarity: Rarity | string;
     finish: Finish | string;
     isSigned: boolean;
+    isPromo?: boolean;
   },
 ): number {
   const av = (v: ArtVariant | null): ArtVariant => v || "normal";
@@ -87,7 +89,8 @@ export function comparePrintings(
     ART_VARIANT_ORDER.indexOf(av(a.artVariant)) - ART_VARIANT_ORDER.indexOf(av(b.artVariant)) ||
     RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity) ||
     FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish) ||
-    Number(a.isSigned) - Number(b.isSigned)
+    Number(a.isSigned) - Number(b.isSigned) ||
+    Number(a.isPromo ?? false) - Number(b.isPromo ?? false)
   );
 }
 
