@@ -7,12 +7,7 @@
     },
     "apps/api": {
       "entry": ["src/app.ts"],
-      "ignore": [
-        "src/**/*.test.ts",
-        "src/**/*.integration.test.ts",
-        "src/test/**",
-        "src/services/price-refresh/reference-data.ts"
-      ]
+      "ignore": ["src/**/*.test.ts", "src/**/*.integration.test.ts", "src/test/**"]
     },
     "apps/web": {
       "entry": [

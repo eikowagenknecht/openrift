@@ -6,9 +6,6 @@ import type { Database } from "../../db/index.js";
 import { setsRepo } from "../../repositories/sets.js";
 import type { acceptNewCardSchema } from "./schemas.js";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
-export { resolveCardId } from "../../db-helpers.js";
-
 /** Upsert a set by slug, inserting it with the next sort_order if it doesn't exist. */
 export async function upsertSet(
   trx: Transaction<Database>,
