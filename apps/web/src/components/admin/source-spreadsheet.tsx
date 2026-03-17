@@ -48,6 +48,8 @@ interface FieldDef {
   collapsible?: boolean;
   /** When true, renders a textarea that supports newlines instead of a single-line input. */
   multiline?: boolean;
+  /** When true, the value is a string[] — comma-separated input is split into an array on commit. */
+  array?: boolean;
 }
 
 const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
@@ -65,7 +67,7 @@ export const CARD_SOURCE_FIELDS: FieldDef[] = [
   { key: "keywords", label: "Keywords", readOnly: true },
   { key: "rulesText", label: "Rules Text", multiline: true },
   { key: "effectText", label: "Effect Text", multiline: true },
-  { key: "tags", label: "Tags" },
+  { key: "tags", label: "Tags", array: true },
   { key: "sourceId", label: "Source ID", readOnly: true },
   { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
   { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
@@ -305,13 +307,24 @@ export function SourceSpreadsheet({
 
   const hasCollapsible = fields.some((f) => f.collapsible);
 
-  function commitEdit(field: string, raw: string) {
+  function commitEdit(fieldKey: string, raw: string) {
     setEditingField(null);
     if (!onActiveChange) {
       return;
     }
     const trimmed = raw.trim();
-    onActiveChange(field, trimmed || null);
+    const fieldDef = fields.find((f) => f.key === fieldKey);
+    if (fieldDef?.array) {
+      const items = trimmed
+        ? trimmed
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+      onActiveChange(fieldKey, items.length > 0 ? items : null);
+      return;
+    }
+    onActiveChange(fieldKey, trimmed || null);
   }
 
   return (
@@ -470,7 +483,13 @@ export function SourceSpreadsheet({
                     <input
                       ref={inputRef}
                       type="text"
-                      defaultValue={hasValue(activeValue) ? String(activeValue) : ""}
+                      defaultValue={
+                        hasValue(activeValue)
+                          ? Array.isArray(activeValue)
+                            ? activeValue.join(", ")
+                            : String(activeValue)
+                          : ""
+                      }
                       className="w-full border-b border-primary bg-transparent text-sm outline-none"
                       // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
                       autoFocus
