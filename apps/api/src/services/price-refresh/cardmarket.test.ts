@@ -1,7 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-
 import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Database } from "../../db/types";
 import type { Fetch } from "../../io";
@@ -207,12 +206,12 @@ describe("refreshCardmarketPrices", () => {
   }
 
   beforeEach(() => {
-    fetchJsonSpy = spyOn(fetchMod, "fetchJson" as any).mockResolvedValue({
+    fetchJsonSpy = vi.spyOn(fetchMod, "fetchJson" as any).mockResolvedValue({
       data: {},
       lastModified: null,
     });
-    upsertSpy = spyOn(upsertMod, "upsertPriceData" as any).mockResolvedValue(ZERO_COUNTS);
-    logUpsertSpy = spyOn(logMod, "logUpsertCounts" as any);
+    upsertSpy = vi.spyOn(upsertMod, "upsertPriceData" as any).mockResolvedValue(ZERO_COUNTS);
+    logUpsertSpy = vi.spyOn(logMod, "logUpsertCounts" as any);
   });
 
   afterEach(() => {

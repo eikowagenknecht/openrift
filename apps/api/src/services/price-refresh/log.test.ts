@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-
 import type { Logger } from "@openrift/shared/logger";
+import { describe, expect, it } from "vitest";
 
 import { logFetchSummary, logUpsertCounts } from "./log";
 import type { UpsertCounts } from "./types";

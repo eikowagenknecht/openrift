@@ -1,6 +1,5 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-
 import { Hono } from "hono";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../errors.js";
 import { sourcesRoute } from "./sources";
@@ -10,11 +9,11 @@ import { sourcesRoute } from "./sources";
 // ---------------------------------------------------------------------------
 
 const mockRepo = {
-  listForUser: mock(() => Promise.resolve([] as object[])),
-  create: mock(() => Promise.resolve({} as object)),
-  getByIdForUser: mock(() => Promise.resolve(undefined as object | undefined)),
-  update: mock(() => Promise.resolve(undefined as object | undefined)),
-  deleteByIdForUser: mock(() => Promise.resolve({ numDeletedRows: 0n })),
+  listForUser: vi.fn(() => Promise.resolve([] as object[])),
+  create: vi.fn(() => Promise.resolve({} as object)),
+  getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  deleteByIdForUser: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
 };
 
 // ---------------------------------------------------------------------------

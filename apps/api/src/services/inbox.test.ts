@@ -1,7 +1,7 @@
 /* oxlint-disable
    no-empty-function
    -- test file: mocks require empty fns */
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 import { ensureInbox } from "./inbox.js";
 

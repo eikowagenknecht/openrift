@@ -4,8 +4,9 @@
    promise/prefer-await-to-then,
    unicorn/no-useless-undefined
    -- test file: mocks require Promise.resolve(), empty fns, and node imports */
-import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { join } from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Io } from "../io.js";
 // ─── Import module under test ───────────────────────────────────────────
@@ -23,15 +24,15 @@ import {
 } from "./image-rehost.js";
 
 // ─── Mock fs functions (provided via io parameter) ──────────────────────
-const mockMkdir = mock(() => Promise.resolve(undefined as any));
-const mockWriteFile = mock(() => Promise.resolve(undefined as any));
-const mockReadFile = mock(() => Promise.resolve(Buffer.from("img")));
-const mockReaddir = mock((): Promise<any> => Promise.resolve([]));
-const mockRename = mock(() => Promise.resolve(undefined as any));
-const mockUnlink = mock(() => Promise.resolve(undefined as any));
-const mockStat = mock(() => Promise.resolve({ size: 1024 }));
+const mockMkdir = vi.fn(() => Promise.resolve(undefined as any));
+const mockWriteFile = vi.fn(() => Promise.resolve(undefined as any));
+const mockReadFile = vi.fn(() => Promise.resolve(Buffer.from("img")));
+const mockReaddir = vi.fn((): Promise<any> => Promise.resolve([]));
+const mockRename = vi.fn(() => Promise.resolve(undefined as any));
+const mockUnlink = vi.fn(() => Promise.resolve(undefined as any));
+const mockStat = vi.fn(() => Promise.resolve({ size: 1024 }));
 
-const mockFetch = mock(() =>
+const mockFetch = vi.fn(() =>
   Promise.resolve(
     new Response(Buffer.from("image-data"), { headers: { "content-type": "image/png" } }),
   ),
@@ -127,7 +128,7 @@ beforeEach(() => {
       new Response(Buffer.from("image-data"), { headers: { "content-type": "image/png" } }),
     );
 
-  consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+  consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {

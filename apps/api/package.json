@@ -10,9 +10,9 @@
     }
   },
   "scripts": {
-    "test": "bun --env-file=../../.env test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
-    "test:coverage": "bun --env-file=../../.env test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=./coverage/unit $(find src -name '*.test.ts' ! -name '*.integration.test.ts') && COVERAGE=1 bun --env-file=../../.env run src/test/run-integration.ts",
-    "test:watch": "bun --env-file=../../.env --watch test $(find src -name '*.test.ts' ! -name '*.integration.test.ts')",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov && COVERAGE=1 bun --env-file=../../.env run src/test/run-integration.ts",
+    "test:watch": "vitest",
     "test:integration": "bun --env-file=../../.env run src/test/run-integration.ts",
     "dev": "bun --env-file=../../.env --watch src/index.ts",
     "start": "bun --env-file=../../.env src/index.ts",
@@ -36,6 +36,7 @@
   "devDependencies": {
     "@types/bun": "1.3.10",
     "@types/nodemailer": "7.0.11",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.1.0"
   }
 }

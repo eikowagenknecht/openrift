@@ -1,6 +1,5 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-
 import { Hono } from "hono";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../errors.js";
 import { wishListsRoute } from "./wish-lists";
@@ -10,16 +9,16 @@ import { wishListsRoute } from "./wish-lists";
 // ---------------------------------------------------------------------------
 
 const mockRepo = {
-  listForUser: mock(() => Promise.resolve([] as object[])),
-  create: mock(() => Promise.resolve({} as object)),
-  getByIdForUser: mock(() => Promise.resolve(undefined as object | undefined)),
-  update: mock(() => Promise.resolve(undefined as object | undefined)),
-  deleteByIdForUser: mock(() => Promise.resolve({ numDeletedRows: 0n })),
-  items: mock(() => Promise.resolve([] as object[])),
-  exists: mock(() => Promise.resolve(undefined as object | undefined)),
-  createItem: mock(() => Promise.resolve({} as object)),
-  updateItem: mock(() => Promise.resolve(undefined as object | undefined)),
-  deleteItem: mock(() => Promise.resolve({ numDeletedRows: 0n })),
+  listForUser: vi.fn(() => Promise.resolve([] as object[])),
+  create: vi.fn(() => Promise.resolve({} as object)),
+  getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  deleteByIdForUser: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
+  items: vi.fn(() => Promise.resolve([] as object[])),
+  exists: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  createItem: vi.fn(() => Promise.resolve({} as object)),
+  updateItem: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  deleteItem: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
 };
 
 // ---------------------------------------------------------------------------

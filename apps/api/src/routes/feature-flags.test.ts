@@ -1,6 +1,5 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-
 import { Hono } from "hono";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { featureFlagsRoute } from "./feature-flags";
 
@@ -9,7 +8,7 @@ import { featureFlagsRoute } from "./feature-flags";
 // ---------------------------------------------------------------------------
 
 const mockFeatureFlagsRepo = {
-  listKeyEnabled: mock(() => Promise.resolve([] as { key: string; enabled: boolean }[])),
+  listKeyEnabled: vi.fn(() => Promise.resolve([] as { key: string; enabled: boolean }[])),
 };
 
 // ---------------------------------------------------------------------------

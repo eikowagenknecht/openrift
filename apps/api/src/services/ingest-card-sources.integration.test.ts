@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import type { IngestCard, IngestPrinting } from "../routes/card-sources/schemas.js";
 import { createTestContext } from "../test/integration-context.js";

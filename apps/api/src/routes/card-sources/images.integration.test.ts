@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 import type { Io } from "../../io.js";
 import { createTestContext, req } from "../../test/integration-context.js";

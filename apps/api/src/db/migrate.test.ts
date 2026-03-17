@@ -1,8 +1,7 @@
-import { describe, expect, it, spyOn } from "bun:test";
-
 import type { Logger } from "@openrift/shared/logger";
 import { Migrator } from "kysely";
 import type { Kysely } from "kysely";
+import { describe, expect, it, vi } from "vitest";
 
 import { migrate, rollback } from "./migrate.js";
 import type { Database } from "./types.js";
@@ -18,8 +17,8 @@ function makeLog(): Logger {
 describe("migrate()", () => {
   it("logs success and completion message", async () => {
     const log = makeLog();
-    const infoSpy = spyOn(log, "info");
-    const spy = spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
+    const infoSpy = vi.spyOn(log, "info");
+    const spy = vi.spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
       error: undefined,
       results: [{ migrationName: "001-test", status: "Success", direction: "Up" }],
     });
@@ -33,8 +32,8 @@ describe("migrate()", () => {
 
   it("logs error results and throws the error", async () => {
     const log = makeLog();
-    const errorSpy = spyOn(log, "error");
-    const spy = spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
+    const errorSpy = vi.spyOn(log, "error");
+    const spy = vi.spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
       error: new Error("migration failed"),
       results: [{ migrationName: "001-fail", status: "Error", direction: "Up" }],
     });
@@ -45,7 +44,7 @@ describe("migrate()", () => {
   });
 
   it("wraps non-Error values before throwing", async () => {
-    const spy = spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
+    const spy = vi.spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
       error: "string error",
       results: [],
     });
@@ -56,8 +55,8 @@ describe("migrate()", () => {
 
   it("logs 'Already up to date' when no migrations run", async () => {
     const log = makeLog();
-    const infoSpy = spyOn(log, "info");
-    const spy = spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
+    const infoSpy = vi.spyOn(log, "info");
+    const spy = vi.spyOn(Migrator.prototype, "migrateToLatest").mockResolvedValueOnce({
       error: undefined,
       results: [],
     });
@@ -72,8 +71,8 @@ describe("migrate()", () => {
 describe("rollback()", () => {
   it("logs success and completion message", async () => {
     const log = makeLog();
-    const infoSpy = spyOn(log, "info");
-    const spy = spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
+    const infoSpy = vi.spyOn(log, "info");
+    const spy = vi.spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
       error: undefined,
       results: [{ migrationName: "001-test", status: "Success", direction: "Down" }],
     });
@@ -87,8 +86,8 @@ describe("rollback()", () => {
 
   it("logs error results and throws the error", async () => {
     const log = makeLog();
-    const errorSpy = spyOn(log, "error");
-    const spy = spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
+    const errorSpy = vi.spyOn(log, "error");
+    const spy = vi.spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
       error: new Error("rollback failed"),
       results: [{ migrationName: "001-fail", status: "Error", direction: "Down" }],
     });
@@ -99,7 +98,7 @@ describe("rollback()", () => {
   });
 
   it("wraps non-Error values before throwing", async () => {
-    const spy = spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
+    const spy = vi.spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
       error: "string error",
       results: [],
     });
@@ -110,8 +109,8 @@ describe("rollback()", () => {
 
   it("logs 'Nothing to roll back' when no results", async () => {
     const log = makeLog();
-    const infoSpy = spyOn(log, "info");
-    const spy = spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
+    const infoSpy = vi.spyOn(log, "info");
+    const spy = vi.spyOn(Migrator.prototype, "migrateDown").mockResolvedValueOnce({
       error: undefined,
       results: [],
     });
