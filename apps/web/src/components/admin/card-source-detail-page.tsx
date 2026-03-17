@@ -66,6 +66,8 @@ import {
   useCheckAllPrintingSources,
   useCheckCardSource,
   useCheckPrintingSource,
+  useUncheckCardSource,
+  useUncheckPrintingSource,
   useCopyPrintingSource,
   useDeletePrintingImage,
   useDeletePrintingSource,
@@ -119,7 +121,9 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
 
   // --- Shared hooks ---
   const checkCardSource = useCheckCardSource();
+  const uncheckCardSource = useUncheckCardSource();
   const checkPrintingSource = useCheckPrintingSource();
+  const uncheckPrintingSource = useUncheckPrintingSource();
   const { favorites } = useFavoriteSources();
 
   // --- Existing-mode hooks ---
@@ -223,19 +227,27 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
     const ambiguous: PrintingGroup[] = [];
     for (const group of unmatchedGroups) {
       const d = group.differentiators;
+      const isWild = !d.rarity || !d.finish;
       const matches = printings.filter((p) => {
         const pSetId = (p.setId as string | null) ?? null;
         const pVariant = (p.artVariant as string) || "normal";
         return (
           pSetId === (d.setId ?? null) &&
-          pVariant === d.artVariant &&
-          (p.rarity as string) === d.rarity &&
+          (isWild || pVariant === d.artVariant) &&
+          (!d.rarity || (p.rarity as string) === d.rarity) &&
           (p.isSigned as boolean) === d.isSigned &&
           (p.isPromo as boolean) === d.isPromo &&
-          (p.finish as string) === d.finish
+          (!d.finish || (p.finish as string) === d.finish)
         );
       });
-      if (matches.length === 1) {
+      if (isWild && matches.length > 0) {
+        for (const m of matches) {
+          const pid = m.id as string;
+          const existing = matched.get(pid) ?? [];
+          existing.push(group);
+          matched.set(pid, existing);
+        }
+      } else if (matches.length === 1) {
         const pid = matches[0].id as string;
         const existing = matched.get(pid) ?? [];
         existing.push(group);
@@ -530,6 +542,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             }
           }}
           onCheck={(sourceId) => checkCardSource.mutate(sourceId)}
+          onUncheck={(sourceId) => uncheckCardSource.mutate(sourceId)}
           columnActions={(row) =>
             isExisting ? (
               <>
@@ -710,7 +723,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                     <Button
                       variant="outline"
                       size="sm"
-                      className="ml-auto h-6 text-xs"
+                      className="h-6 text-xs"
                       disabled={checkAllPrintingSources.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -776,6 +789,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                           acceptPrintingField.mutate({ printingId: printingSlug, field, value });
                         }}
                         onCheck={(id) => checkPrintingSource.mutate(id)}
+                        onUncheck={(id) => uncheckPrintingSource.mutate(id)}
                         columnClassName={(row) =>
                           autoSourceIds.has(row.id)
                             ? "bg-violet-50 dark:bg-violet-950/30"
@@ -795,35 +809,31 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                 <MoveIcon className="mr-2 size-3.5" />
                                 Link to this printing
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  const record = row as unknown as Record<string, unknown>;
-                                  const fields: Record<string, unknown> = {};
-                                  for (const field of PRINTING_SOURCE_FIELDS) {
-                                    if (field.readOnly) {
-                                      continue;
-                                    }
-                                    const val = record[field.key];
-                                    if (val !== null && val !== undefined && val !== "") {
-                                      fields[field.key] = val;
-                                    }
-                                  }
-                                  const slug = buildPrintingId(
-                                    fields.sourceId as string,
-                                    (fields.rarity as string) ?? ("Common" satisfies Rarity),
-                                    (fields.isPromo as boolean) ?? false,
-                                    fields.finish as string,
-                                  );
-                                  acceptPrintingGroup.mutate({
-                                    cardId,
-                                    printingFields: { id: slug, ...fields },
-                                    printingSourceIds: [row.id],
-                                  });
-                                }}
-                              >
-                                <PlusIcon className="mr-2 size-3.5" />
-                                Create new printing
-                              </DropdownMenuItem>
+                              {printings.some((p) => (p.id as string) !== printingId) && (
+                                <DropdownMenuSub>
+                                  <DropdownMenuSubTrigger>
+                                    <ArrowRightIcon className="mr-2 size-3.5" />
+                                    Link to…
+                                  </DropdownMenuSubTrigger>
+                                  <DropdownMenuSubContent>
+                                    {printings
+                                      .filter((p) => (p.id as string) !== printingId)
+                                      .map((p) => (
+                                        <DropdownMenuItem
+                                          key={`autolink-${p.slug as string}`}
+                                          onClick={() =>
+                                            linkPrintingSources.mutate({
+                                              printingSourceIds: [row.id],
+                                              printingId: p.slug as string,
+                                            })
+                                          }
+                                        >
+                                          {p.slug as string}
+                                        </DropdownMenuItem>
+                                      ))}
+                                  </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                              )}
                               <DropdownMenuItem onClick={() => deletePrintingSource.mutate(row.id)}>
                                 <Trash2Icon className="mr-2 size-3.5" />
                                 Delete
@@ -947,6 +957,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               isExpanded={expandedPrintings.has(group.key)}
               onToggle={() => togglePrinting(group.key)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
+              onUncheck={(id) => uncheckPrintingSource.mutate(id)}
               onAccept={(printingFields, printingSourceIds) => {
                 acceptPrintingGroup.mutate({ cardId, printingFields, printingSourceIds });
               }}
@@ -958,6 +969,17 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               }}
               onDelete={(id) => {
                 deletePrintingSource.mutate(id);
+              }}
+              onIgnore={(sourceEntityId, finish) => {
+                ignorePrintingSource.mutate({
+                  source:
+                    sourceLabels[
+                      group.sources.find((s) => s.sourceEntityId === sourceEntityId)
+                        ?.cardSourceId ?? ""
+                    ] ?? "",
+                  sourceEntityId,
+                  finish,
+                });
               }}
               isAccepting={acceptPrintingGroup.isPending}
               isLinking={linkPrintingSources.isPending}
@@ -1035,15 +1057,23 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                     </DropdownMenu>
                   )}
                 </div>
-                <div className="border-t p-3">
-                  <SourceSpreadsheet
-                    fields={PRINTING_SOURCE_FIELDS}
-                    activeRow={null}
-                    sourceRows={group.sources}
+                <div className="flex gap-3 border-t p-3">
+                  <GroupImagePreview
+                    sources={group.sources}
                     sourceLabels={sourceLabels}
                     favoriteSources={favorites}
-                    onCheck={(id) => checkPrintingSource.mutate(id)}
                   />
+                  <div className="min-w-0 flex-1">
+                    <SourceSpreadsheet
+                      fields={PRINTING_SOURCE_FIELDS}
+                      activeRow={null}
+                      sourceRows={group.sources}
+                      sourceLabels={sourceLabels}
+                      favoriteSources={favorites}
+                      onCheck={(id) => checkPrintingSource.mutate(id)}
+                      onUncheck={(id) => uncheckPrintingSource.mutate(id)}
+                    />
+                  </div>
                 </div>
               </div>
             );
@@ -1076,10 +1106,12 @@ function NewPrintingGroupCard({
   isExpanded,
   onToggle,
   onCheck,
+  onUncheck,
   onAccept,
   onLink,
   onCopy,
   onDelete,
+  onIgnore,
   isAccepting,
 }: {
   cardId: string;
@@ -1090,10 +1122,12 @@ function NewPrintingGroupCard({
   isExpanded: boolean;
   onToggle: () => void;
   onCheck: (id: string) => void;
+  onUncheck: (id: string) => void;
   onAccept: (printingFields: Record<string, unknown>, printingSourceIds: string[]) => void;
   onLink: (printingId: string, printingSourceIds: string[]) => void;
   onCopy: (id: string, printingId: string) => void;
   onDelete: (id: string) => void;
+  onIgnore: (sourceEntityId: string, finish: string) => void;
   isAccepting: boolean;
   isLinking?: boolean;
 }) {
@@ -1172,96 +1206,232 @@ function NewPrintingGroupCard({
               Click cells to fill all required fields (marked with *).
             </p>
           )}
-          <div className="border-t p-3">
-            <SourceSpreadsheet
-              fields={PRINTING_SOURCE_FIELDS}
-              requiredKeys={REQUIRED_PRINTING_KEYS}
-              activeRow={Object.keys(activePrinting).length > 0 ? activePrinting : null}
-              sourceRows={group.sources}
+          <div className="flex gap-3 border-t p-3">
+            <GroupImagePreview
+              sources={group.sources}
               sourceLabels={sourceLabels}
               favoriteSources={favoriteSources}
-              onCellClick={(field, value) => {
-                setActivePrinting((prev) => ({ ...prev, [field]: value }));
-              }}
-              onActiveChange={(field, value) => {
-                setActivePrinting((prev) =>
-                  value === null || value === undefined
-                    ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== field))
-                    : { ...prev, [field]: value },
-                );
-              }}
-              onCheck={onCheck}
-              columnActions={(row) => (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      const record = row as unknown as Record<string, unknown>;
-                      const values: Record<string, unknown> = {};
-                      for (const field of PRINTING_SOURCE_FIELDS) {
-                        if (field.readOnly) {
-                          continue;
-                        }
-                        const val = record[field.key];
-                        if (val === null || val === undefined || val === "") {
-                          continue;
-                        }
-                        if (field.options && !field.options.includes(String(val))) {
-                          continue;
-                        }
-                        values[field.key] = val;
-                      }
-                      setActivePrinting((prev) => ({ ...prev, ...values }));
-                    }}
-                  >
-                    <CopyCheckIcon className="mr-2 size-3.5" />
-                    Accept all fields
-                  </DropdownMenuItem>
-                  {existingPrintings.length > 0 && (
-                    <>
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                          <MoveIcon className="mr-2 size-3.5" />
-                          Assign to…
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                          {existingPrintings.map((p) => (
-                            <DropdownMenuItem
-                              key={`link-${p.slug as string}`}
-                              onClick={() => onLink(p.slug as string, [row.id])}
-                            >
-                              {p.slug as string}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                          <CopyIcon className="mr-2 size-3.5" />
-                          Copy to…
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                          {existingPrintings.map((p) => (
-                            <DropdownMenuItem
-                              key={`copy-${p.slug as string}`}
-                              onClick={() => onCopy(row.id, p.slug as string)}
-                            >
-                              {p.slug as string}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                    </>
-                  )}
-                  <DropdownMenuItem onClick={() => onDelete(row.id)}>
-                    <Trash2Icon className="mr-2 size-3.5" />
-                    Delete
-                  </DropdownMenuItem>
-                </>
-              )}
             />
+            <div className="min-w-0 flex-1">
+              <SourceSpreadsheet
+                fields={PRINTING_SOURCE_FIELDS}
+                requiredKeys={REQUIRED_PRINTING_KEYS}
+                activeRow={Object.keys(activePrinting).length > 0 ? activePrinting : null}
+                sourceRows={group.sources}
+                sourceLabels={sourceLabels}
+                favoriteSources={favoriteSources}
+                onCellClick={(field, value) => {
+                  setActivePrinting((prev) => ({ ...prev, [field]: value }));
+                }}
+                onActiveChange={(field, value) => {
+                  setActivePrinting((prev) =>
+                    value === null || value === undefined
+                      ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== field))
+                      : { ...prev, [field]: value },
+                  );
+                }}
+                onCheck={onCheck}
+                onUncheck={onUncheck}
+                columnActions={(row) => (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const record = row as unknown as Record<string, unknown>;
+                        const values: Record<string, unknown> = {};
+                        for (const field of PRINTING_SOURCE_FIELDS) {
+                          if (field.readOnly) {
+                            continue;
+                          }
+                          const val = record[field.key];
+                          if (val === null || val === undefined || val === "") {
+                            continue;
+                          }
+                          if (field.options && !field.options.includes(String(val))) {
+                            continue;
+                          }
+                          values[field.key] = val;
+                        }
+                        setActivePrinting((prev) => ({ ...prev, ...values }));
+                      }}
+                    >
+                      <CopyCheckIcon className="mr-2 size-3.5" />
+                      Accept all fields
+                    </DropdownMenuItem>
+                    {existingPrintings.length > 0 && (
+                      <>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <MoveIcon className="mr-2 size-3.5" />
+                            Assign to…
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            {existingPrintings.map((p) => (
+                              <DropdownMenuItem
+                                key={`link-${p.slug as string}`}
+                                onClick={() => onLink(p.slug as string, [row.id])}
+                              >
+                                {p.slug as string}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <CopyIcon className="mr-2 size-3.5" />
+                            Copy to…
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            {existingPrintings.map((p) => (
+                              <DropdownMenuItem
+                                key={`copy-${p.slug as string}`}
+                                onClick={() => onCopy(row.id, p.slug as string)}
+                              >
+                                {p.slug as string}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      </>
+                    )}
+                    <DropdownMenuItem onClick={() => onDelete(row.id)}>
+                      <Trash2Icon className="mr-2 size-3.5" />
+                      Delete
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        onIgnore(
+                          row.sourceEntityId,
+                          (row as unknown as Record<string, string>).finish,
+                        )
+                      }
+                    >
+                      <BanIcon className="mr-2 size-3.5" />
+                      Ignore permanently
+                    </DropdownMenuItem>
+                  </>
+                )}
+              />
+            </div>
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── Read-only image preview for new/ambiguous groups ─────────────────────────
+
+function GroupImagePreview({
+  sources,
+  sourceLabels,
+  favoriteSources,
+}: {
+  sources: PrintingSourceResponse[];
+  sourceLabels: Record<string, string>;
+  favoriteSources: Set<string>;
+}) {
+  // Deduplicate source images by URL, collecting source labels
+  const sourceImages = [
+    ...sources
+      .filter((ps) => ps.imageUrl)
+      .reduce((acc, ps) => {
+        const url = ps.imageUrl as string;
+        const src = sourceLabels[ps.cardSourceId] ?? "unknown";
+        const existing = acc.get(url);
+        if (existing) {
+          if (!existing.source.split(", ").includes(src)) {
+            existing.source += `, ${src}`;
+          }
+        } else {
+          acc.set(url, { id: ps.id, url, source: src });
+        }
+        return acc;
+      }, new Map<string, { id: string; url: string; source: string }>())
+      .values(),
+  ];
+
+  // Sort: favorites first, then alphabetical
+  sourceImages.sort((a, b) => {
+    const aFav = favoriteSources.has(a.source);
+    const bFav = favoriteSources.has(b.source);
+    if (aFav !== bFav) {
+      return aFav ? -1 : 1;
+    }
+    return a.source.localeCompare(b.source);
+  });
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [resolution, setResolution] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
+
+  if (sourceImages.length === 0) {
+    return null;
+  }
+
+  const selected = sourceImages.find((si) => si.id === selectedId) ?? sourceImages[0];
+
+  return (
+    <div className="w-96 shrink-0 space-y-2">
+      {/* Source image tabs */}
+      <div className="flex flex-wrap items-center gap-1">
+        {sourceImages.map((si) => (
+          <button
+            key={si.id}
+            type="button"
+            className={`rounded border border-dashed px-1.5 py-0.5 text-[10px] ${
+              selected.id === si.id ? "border-primary bg-primary/10" : "text-muted-foreground"
+            }`}
+            onClick={() => {
+              setSelectedId(si.id);
+              setResolution(null);
+              setImgError(false);
+            }}
+          >
+            {si.source}
+          </button>
+        ))}
+      </div>
+
+      {/* Preview */}
+      <div className="relative">
+        {imgError ? (
+          <a
+            href={selected.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex aspect-[5/7] w-full items-center justify-center rounded border bg-muted/30 text-xs text-muted-foreground hover:bg-muted/50"
+          >
+            Failed to load — click to open
+          </a>
+        ) : (
+          <a href={selected.url} target="_blank" rel="noopener noreferrer">
+            <img
+              src={selected.url}
+              alt="source"
+              className="w-full rounded border object-contain"
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                setResolution(`${img.naturalWidth}×${img.naturalHeight}`);
+              }}
+              onError={() => setImgError(true)}
+            />
+          </a>
+        )}
+        {resolution && !imgError && (
+          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+            {resolution}
+          </span>
+        )}
+      </div>
+      <a
+        href={selected.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
+        title={selected.url}
+      >
+        {selected.url}
+      </a>
     </div>
   );
 }

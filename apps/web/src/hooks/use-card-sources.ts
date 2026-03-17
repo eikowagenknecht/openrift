@@ -60,6 +60,18 @@ export function useCheckCardSource() {
   });
 }
 
+export function useUncheckCardSource() {
+  return useMutationWithInvalidation({
+    mutationFn: (cardSourceId: string) =>
+      rpc(
+        client.api.admin["card-sources"][":cardSourceId"].uncheck.$post({
+          param: { cardSourceId },
+        }),
+      ),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
 export function useCheckAllCardSources() {
   return useMutationWithInvalidation({
     mutationFn: (cardId: string) =>
@@ -73,6 +85,18 @@ export function useCheckPrintingSource() {
     mutationFn: (id: string) =>
       rpc(
         client.api.admin["card-sources"]["printing-sources"][":id"].check.$post({
+          param: { id },
+        }),
+      ),
+    invalidates: [queryKeys.admin.cardSources.all],
+  });
+}
+
+export function useUncheckPrintingSource() {
+  return useMutationWithInvalidation({
+    mutationFn: (id: string) =>
+      rpc(
+        client.api.admin["card-sources"]["printing-sources"][":id"].uncheck.$post({
           param: { id },
         }),
       ),
@@ -232,13 +256,18 @@ export function useAcceptPrintingGroup() {
       cardId: string;
       printingFields: Record<string, unknown>;
       printingSourceIds: string[];
-    }) =>
-      rpc(
+    }) => {
+      const fields = { ...printingFields };
+      if (typeof fields.collectorNumber === "string") {
+        fields.collectorNumber = Number(fields.collectorNumber);
+      }
+      return rpc(
         client.api.admin["card-sources"][":cardId"]["accept-printing"].$post({
           param: { cardId },
-          json: { printingFields, printingSourceIds } as any,
+          json: { printingFields: fields, printingSourceIds } as any,
         }),
-      ),
+      );
+    },
     invalidates: [queryKeys.admin.cardSources.all],
   });
 }

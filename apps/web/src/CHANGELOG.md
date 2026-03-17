@@ -2,6 +2,10 @@
 
 ## 2026-03-17
 
+- feat: Manual printing links now survive when card sources are deleted and re-uploaded
+- feat: Card and printing sources can be unchecked in the admin UI
+- feat: Source image previews are now shown alongside printing groups in the admin
+- feat: Text fields like rules text and flavor text now support multiline editing
 - feat: Admin card sources can now be filtered by set, with clickable counts on the sets page
 - feat: Empty sets can now be deleted from the sets admin page
 

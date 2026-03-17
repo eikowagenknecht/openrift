@@ -8,7 +8,13 @@ import {
   SUPER_TYPE_ORDER,
   comparePrintings,
 } from "@openrift/shared";
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon, EllipsisVerticalIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  EllipsisVerticalIcon,
+  XIcon,
+} from "lucide-react";
 import { Fragment, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +46,8 @@ interface FieldDef {
   suffixKey?: string;
   /** When true, this field is hidden behind a collapsible toggle row. */
   collapsible?: boolean;
+  /** When true, renders a textarea that supports newlines instead of a single-line input. */
+  multiline?: boolean;
 }
 
 const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
@@ -55,8 +63,8 @@ export const CARD_SOURCE_FIELDS: FieldDef[] = [
   { key: "power", label: "Power" },
   { key: "mightBonus", label: "Might Bonus" },
   { key: "keywords", label: "Keywords", readOnly: true },
-  { key: "rulesText", label: "Rules Text" },
-  { key: "effectText", label: "Effect Text" },
+  { key: "rulesText", label: "Rules Text", multiline: true },
+  { key: "effectText", label: "Effect Text", multiline: true },
   { key: "tags", label: "Tags" },
   { key: "sourceId", label: "Source ID", readOnly: true },
   { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
@@ -74,9 +82,9 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
   { key: "finish", label: "Finish", options: FINISH_ORDER },
   { key: "artist", label: "Artist" },
   { key: "publicCode", label: "Public Code" },
-  { key: "printedRulesText", label: "Printed Rules" },
-  { key: "printedEffectText", label: "Printed Effect" },
-  { key: "flavorText", label: "Flavor Text" },
+  { key: "printedRulesText", label: "Printed Rules", multiline: true },
+  { key: "printedEffectText", label: "Printed Effect", multiline: true },
+  { key: "flavorText", label: "Flavor Text", multiline: true },
   { key: "comment", label: "Comment" },
   { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
   { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
@@ -84,6 +92,18 @@ export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
 ];
 
 // ── Printing source grouping ──────────────────────────────────────────────────
+
+/** Resolve null finish based on rarity: Common/Uncommon default to "normal", others to "foil".
+ * @returns The resolved finish string. */
+export function resolveFinish(finish: string | null, rarity: string | null): string {
+  if (finish) {
+    return finish;
+  }
+  if (!rarity) {
+    return "";
+  }
+  return rarity === "Common" || rarity === "Uncommon" ? "normal" : "foil";
+}
 
 export interface PrintingGroup {
   key: string;
@@ -104,7 +124,8 @@ export function groupPrintingSources(printingSources: PrintingSourceResponse[]):
   const groups = new Map<string, PrintingSourceResponse[]>();
   for (const ps of printingSources) {
     const variant = ps.artVariant || ("normal" satisfies ArtVariant);
-    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.isPromo}|${ps.rarity}|${ps.finish}`;
+    const finish = resolveFinish(ps.finish, ps.rarity);
+    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.isPromo}|${ps.rarity}|${finish}`;
     const group = groups.get(key) ?? [];
     group.push(ps);
     groups.set(key, group);
@@ -118,7 +139,8 @@ export function groupPrintingSources(printingSources: PrintingSourceResponse[]):
     const mostCommonId = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
     const ps = sources[0];
     const variant = ps.artVariant || ("normal" satisfies ArtVariant);
-    const parts = [mostCommonId, ps.finish];
+    const finish = resolveFinish(ps.finish, ps.rarity);
+    const parts = [mostCommonId, finish];
     if (variant !== ("normal" satisfies ArtVariant)) {
       parts.push(variant);
     }
@@ -138,7 +160,7 @@ export function groupPrintingSources(printingSources: PrintingSourceResponse[]):
         isSigned: ps.isSigned,
         isPromo: ps.isPromo,
         rarity: ps.rarity,
-        finish: ps.finish,
+        finish,
       },
       sources,
     };
@@ -165,6 +187,7 @@ interface SourceSpreadsheetProps {
   /** Called to set or clear a value in the active column. Pass null to clear. */
   onActiveChange?: (field: string, value: unknown | null) => void;
   onCheck?: (sourceId: string) => void;
+  onUncheck?: (sourceId: string) => void;
   /** Render extra action buttons in each source column header. */
   columnActions?: (row: CardSourceResponse | PrintingSourceResponse) => React.ReactNode;
   /** Extra CSS classes for a source column header `<th>`. */
@@ -260,6 +283,7 @@ export function SourceSpreadsheet({
   onCellClick,
   onActiveChange,
   onCheck,
+  onUncheck,
   columnActions,
   columnClassName,
 }: SourceSpreadsheetProps) {
@@ -277,6 +301,7 @@ export function SourceSpreadsheet({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const hasCollapsible = fields.some((f) => f.collapsible);
 
@@ -328,6 +353,12 @@ export function SourceSpreadsheet({
                           Mark as checked
                         </DropdownMenuItem>
                       )}
+                      {onUncheck && isChecked(row) && (
+                        <DropdownMenuItem onClick={() => onUncheck(row.id)}>
+                          <XIcon className="mr-2 size-3.5" />
+                          Mark as unchecked
+                        </DropdownMenuItem>
+                      )}
                       {columnActions?.(row)}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -358,6 +389,7 @@ export function SourceSpreadsheet({
                 <td
                   className={cn(
                     "break-words border-l px-3 py-1.5",
+                    field.multiline && "whitespace-pre-wrap",
                     field.readOnly && "bg-muted/30",
                     isMissing && "bg-red-50 dark:bg-red-950/20",
                     onActiveChange &&
@@ -379,7 +411,13 @@ export function SourceSpreadsheet({
                       return;
                     }
                     setEditingField(field.key);
-                    requestAnimationFrame(() => inputRef.current?.focus());
+                    requestAnimationFrame(() => {
+                      if (field.multiline) {
+                        textareaRef.current?.focus();
+                      } else {
+                        inputRef.current?.focus();
+                      }
+                    });
                   }}
                 >
                   {editingField === field.key && field.options ? (
@@ -412,6 +450,22 @@ export function SourceSpreadsheet({
                         ))}
                       </SelectContent>
                     </Select>
+                  ) : editingField === field.key && field.multiline ? (
+                    <textarea
+                      ref={textareaRef}
+                      defaultValue={hasValue(activeValue) ? String(activeValue) : ""}
+                      rows={4}
+                      className="w-full resize-y rounded border border-primary bg-transparent p-1 text-sm outline-none"
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
+                      autoFocus
+                      onBlur={(e) => commitEdit(field.key, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setEditingField(null);
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   ) : editingField === field.key ? (
                     <input
                       ref={inputRef}
@@ -489,6 +543,7 @@ export function SourceSpreadsheet({
                       }
                       className={cn(
                         "break-words border-l px-3 py-1.5",
+                        field.multiline && "whitespace-pre-wrap",
                         isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
                         invalidOption && "bg-red-50 line-through dark:bg-red-950/30",
