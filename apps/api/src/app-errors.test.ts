@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod/v4";
@@ -81,6 +81,16 @@ app.post("/api/test-error/json-body", async (c) => {
 // ---------------------------------------------------------------------------
 
 describe("onError handler", () => {
+  let consoleSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
   it("handles AppError with details", async () => {
     const res = await app.fetch(new Request("http://localhost/api/test-error/app-error"));
     expect(res.status).toBe(409);
