@@ -291,18 +291,18 @@ export function SourceSpreadsheet({
 
   return (
     <div className="w-fit max-w-full overflow-x-auto rounded-md border">
-      <table className="text-sm">
+      <table className="table-fixed text-sm" style={{ width: 150 + 300 * (1 + sortedRows.length) }}>
         <thead>
           <tr className="border-b bg-muted/50">
-            <th className="sticky left-0 z-10 min-w-[150px] bg-muted/50 px-3 py-2 text-left font-medium">
+            <th className="sticky left-0 z-10 w-[150px] bg-muted/50 px-3 py-2 text-left font-medium">
               Field
             </th>
-            <th className="min-w-[200px] border-l px-3 py-2 text-left font-medium">Active</th>
+            <th className="w-[300px] border-l px-3 py-2 text-left font-medium">Active</th>
             {sortedRows.map((row) => (
               <th
                 key={row.id}
                 className={cn(
-                  "min-w-[200px] border-l px-3 py-2 text-left font-medium",
+                  "w-[300px] border-l px-3 py-2 text-left font-medium",
                   isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                   isChecked(row) && "opacity-50",
                   columnClassName?.(row),
@@ -357,7 +357,7 @@ export function SourceSpreadsheet({
                 </td>
                 <td
                   className={cn(
-                    "border-l px-3 py-1.5",
+                    "break-words border-l px-3 py-1.5",
                     field.readOnly && "bg-muted/30",
                     isMissing && "bg-red-50 dark:bg-red-950/20",
                     onActiveChange &&
@@ -486,7 +486,7 @@ export function SourceSpreadsheet({
                           : undefined
                       }
                       className={cn(
-                        "border-l px-3 py-1.5",
+                        "break-words border-l px-3 py-1.5",
                         isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
                         invalidOption && "bg-red-50 line-through dark:bg-red-950/30",
