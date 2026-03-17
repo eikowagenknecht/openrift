@@ -2,6 +2,9 @@
 
 ## 2026-03-17
 
+- feat: Card sources with missing images now show a "missing image" badge in the admin list
+- feat: After accepting a new printing, it automatically expands and scrolls into view
+- feat: Image previews now start with the first image pre-selected
 - feat: Manual printing links now survive when card sources are deleted and re-uploaded
 - feat: Card and printing sources can be unchecked in the admin UI
 - feat: Source image previews are now shown alongside printing groups in the admin
