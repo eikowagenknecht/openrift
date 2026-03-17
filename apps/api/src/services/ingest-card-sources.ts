@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { Database } from "../db/index.js";
 import { cardSourceFieldRules, printingSourceFieldRules } from "../db/schemas.js";
+import { ingestRepo } from "../repositories/ingest.js";
 import type { IngestCard } from "../routes/card-sources/schemas.js";
 
 interface UpdatedCardDetail {
@@ -149,14 +150,12 @@ export async function ingestCardSources(
   const updatedCards: UpdatedCardDetail[] = [];
 
   await db.transaction().execute(async (trx) => {
+    const repo = ingestRepo(trx);
+
     // ── Phase 1: Bulk-fetch all existing data ──────────────────────────────
 
     // 1a. All existing card_sources for this source (keyed by source_id or name)
-    const existingCSRows = await trx
-      .selectFrom("cardSources")
-      .selectAll()
-      .where("source", "=", source)
-      .execute();
+    const existingCSRows = await repo.allCardSourcesForSource(source);
 
     // Index by (sourceId) and by (name where sourceId is null)
     const csBySid = new Map<string, (typeof existingCSRows)[number]>();
@@ -170,24 +169,21 @@ export async function ingestCardSources(
     }
 
     // 1b. All cards (for normName → id resolution)
-    const allCards = await trx.selectFrom("cards").select(["id", "normName"]).execute();
+    const allCards = await repo.allCardNorms();
     const cardByNorm = new Map<string, string>();
     for (const c of allCards) {
       cardByNorm.set(c.normName, c.id);
     }
 
     // 1c. All card_name_aliases (for normName → cardId fallback)
-    const allAliases = await trx
-      .selectFrom("cardNameAliases")
-      .select(["normName", "cardId"])
-      .execute();
+    const allAliases = await repo.allCardNameAliases();
     const aliasByNorm = new Map<string, string>();
     for (const a of allAliases) {
       aliasByNorm.set(a.normName, a.cardId);
     }
 
     // 1d. All printings (for slug → id resolution)
-    const allPrintings = await trx.selectFrom("printings").select(["id", "slug"]).execute();
+    const allPrintings = await repo.allPrintingSlugs();
     const printingBySlug = new Map<string, string>();
     for (const p of allPrintings) {
       printingBySlug.set(p.slug, p.id);
@@ -196,17 +192,9 @@ export async function ingestCardSources(
     // 1e. All existing printing_sources for card_sources owned by this source.
     // We need the card_source_ids first, so collect from the existing rows.
     const existingCSIds = new Set(existingCSRows.map((r) => r.id));
-    let existingPSRows: Awaited<
-      ReturnType<
-        ReturnType<ReturnType<typeof trx.selectFrom<"printingSources">>["selectAll"]>["execute"]
-      >
-    > = [];
+    let existingPSRows: Awaited<ReturnType<typeof repo.printingSourcesByCardSourceIds>> = [];
     if (existingCSIds.size > 0) {
-      existingPSRows = await trx
-        .selectFrom("printingSources")
-        .selectAll()
-        .where("cardSourceId", "in", [...existingCSIds])
-        .execute();
+      existingPSRows = await repo.printingSourcesByCardSourceIds([...existingCSIds]);
     }
 
     // Index printing_sources two ways:
@@ -222,18 +210,10 @@ export async function ingestCardSources(
     }
 
     // 1f. Ignored sources — load once and build lookup sets
-    const ignoredCardRows = await trx
-      .selectFrom("ignoredCardSources")
-      .select(["source", "sourceEntityId"])
-      .where("source", "=", source)
-      .execute();
+    const ignoredCardRows = await repo.ignoredCardSources(source);
     const ignoredCards = new Set(ignoredCardRows.map((r) => r.sourceEntityId));
 
-    const ignoredPrintingRows = await trx
-      .selectFrom("ignoredPrintingSources")
-      .select(["source", "sourceEntityId", "finish"])
-      .where("source", "=", source)
-      .execute();
+    const ignoredPrintingRows = await repo.ignoredPrintingSources(source);
     // Key: "entityId" for all-finish ignores, "entityId:finish" for specific finish
     const ignoredPrintings = new Set<string>();
     for (const r of ignoredPrintingRows) {
@@ -315,11 +295,7 @@ export async function ingestCardSources(
           if (card.extra_data !== undefined) {
             cardUpdate.extraData = jsonOrNull(card.extra_data);
           }
-          await trx
-            .updateTable("cardSources")
-            .set(cardUpdate)
-            .where("id", "=", existingCardSource.id)
-            .execute();
+          await repo.updateCardSource(existingCardSource.id, cardUpdate);
           updates++;
         } else {
           unchanged++;
@@ -347,13 +323,7 @@ export async function ingestCardSources(
         if (card.extra_data !== undefined) {
           cardInsert.extraData = jsonOrNull(card.extra_data);
         }
-        const [inserted] = await trx
-          .insertInto("cardSources")
-          // oxlint-disable-next-line typescript/no-explicit-any -- optional fields built dynamically
-          .values(cardInsert as any)
-          .returning("id")
-          .execute();
-        cardSourceId = inserted.id;
+        cardSourceId = await repo.insertCardSource(cardInsert);
         newCards++;
       }
 
@@ -441,24 +411,19 @@ export async function ingestCardSources(
             if (!existingPS.printingId && resolvedPrintingId) {
               psUpdate.printingId = resolvedPrintingId;
             }
-            await trx
-              .updateTable("printingSources")
-              .set(psUpdate)
-              .where("id", "=", existingPS.id)
-              .execute();
+            await repo.updatePrintingSource(existingPS.id, psUpdate);
           } else if (resolvedPrintingId && !existingPS.printingId) {
-            await trx
-              .updateTable("printingSources")
-              .set({ printingId: resolvedPrintingId, updatedAt: new Date() })
-              .where("id", "=", existingPS.id)
-              .execute();
+            await repo.updatePrintingSource(existingPS.id, {
+              printingId: resolvedPrintingId,
+              updatedAt: new Date(),
+            });
           }
         } else {
-          await trx
-            .insertInto("printingSources")
-            // oxlint-disable-next-line typescript/no-explicit-any -- spread fields typed separately
-            .values({ cardSourceId, printingId: resolvedPrintingId, ...printingFields } as any)
-            .execute();
+          await repo.insertPrintingSource({
+            cardSourceId,
+            printingId: resolvedPrintingId,
+            ...printingFields,
+          });
         }
       }
     }

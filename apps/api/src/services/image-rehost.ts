@@ -3,10 +3,10 @@ import { existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, extname, join } from "node:path";
 
-import type { Kysely } from "kysely";
-
-import type { Database } from "../db/index.js";
 import type { Io } from "../io.js";
+import type { printingImagesRepo } from "../repositories/printing-images.js";
+
+type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 
 function findProjectRoot(): string {
   const start = import.meta.dirname;
@@ -166,21 +166,10 @@ const BATCH_SIZE = 10;
 
 export async function rehostImages(
   io: Io,
-  db: Kysely<Database>,
+  repo: PrintingImagesRepo,
   limit = BATCH_SIZE,
 ): Promise<RehostProgress> {
-  // Find active front images that haven't been rehosted yet
-  const images = await db
-    .selectFrom("printingImages as pi")
-    .innerJoin("printings as p", "p.id", "pi.printingId")
-    .innerJoin("sets as s", "s.id", "p.setId")
-    .select(["pi.id as imageId", "p.slug as printingSlug", "pi.originalUrl", "s.slug as setSlug"])
-    .where("pi.isActive", "=", true)
-    .where("pi.face", "=", "front")
-    .where("pi.rehostedUrl", "is", null)
-    .where("pi.originalUrl", "is not", null)
-    .limit(limit)
-    .execute();
+  const images = await repo.listUnrehosted(limit);
 
   const progress: RehostProgress = {
     total: images.length,
@@ -205,11 +194,7 @@ export async function rehostImages(
 
       const selfHostedPath = `/card-images/${img.setSlug}/${fileBase}`;
 
-      await db
-        .updateTable("printingImages")
-        .set({ rehostedUrl: selfHostedPath, updatedAt: new Date() })
-        .where("id", "=", img.imageId)
-        .execute();
+      await repo.updateRehostedUrl(img.imageId, selfHostedPath);
 
       progress.rehosted++;
     } catch (error) {
@@ -286,15 +271,11 @@ export async function regenerateImages(
   return progress;
 }
 
-export async function clearAllRehosted(io: Io, db: Kysely<Database>): Promise<{ cleared: number }> {
-  // Null out all rehosted_url values
-  const result = await db
-    .updateTable("printingImages")
-    .set({ rehostedUrl: null, updatedAt: new Date() })
-    .where("rehostedUrl", "is not", null)
-    .execute();
-
-  const cleared = Number(result[0].numUpdatedRows);
+export async function clearAllRehosted(
+  io: Io,
+  repo: PrintingImagesRepo,
+): Promise<{ cleared: number }> {
+  const cleared = await repo.clearAllRehostedUrls();
 
   // Delete all files in the card-images directory
   try {
@@ -358,7 +339,7 @@ async function getDiskStats(io: Io): Promise<DiskStats> {
 
 export async function getRehostStatus(
   io: Io,
-  db: Kysely<Database>,
+  repo: PrintingImagesRepo,
 ): Promise<{
   total: number;
   rehosted: number;
@@ -366,34 +347,7 @@ export async function getRehostStatus(
   sets: SetImageStats[];
   disk: DiskStats;
 }> {
-  const [perSet, disk] = await Promise.all([
-    db
-      .selectFrom("printings")
-      .innerJoin("sets", "sets.id", "printings.setId")
-      .leftJoin("printingImages as pi", (jb) =>
-        jb
-          .onRef("pi.printingId", "=", "printings.id")
-          .on("pi.face", "=", "front")
-          .on("pi.isActive", "=", true),
-      )
-      .select([
-        "sets.slug as setId",
-        "sets.name as setName",
-        ({ fn }) =>
-          fn
-            .count<number>("pi.id")
-            .filterWhere((wb) =>
-              wb.or([wb("pi.originalUrl", "is not", null), wb("pi.rehostedUrl", "is not", null)]),
-            )
-            .as("total"),
-        ({ fn }) =>
-          fn.count<number>("pi.id").filterWhere("pi.rehostedUrl", "is not", null).as("rehosted"),
-      ])
-      .groupBy(["sets.slug", "sets.name"])
-      .orderBy("sets.name")
-      .execute(),
-    getDiskStats(io),
-  ]);
+  const [perSet, disk] = await Promise.all([repo.rehostStatusBySet(), getDiskStats(io)]);
 
   let total = 0;
   let rehosted = 0;

@@ -3,99 +3,20 @@ import type { Transaction } from "kysely";
 import type { z } from "zod";
 
 import type { Database } from "../../db/index.js";
+import { setsRepo } from "../../repositories/sets.js";
 import type { acceptNewCardSchema } from "./schemas.js";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 export { resolveCardId } from "../../db-helpers.js";
 
-/** Upsert a set by ID, inserting it with the next sort_order if it doesn't exist. */
+/** Upsert a set by slug, inserting it with the next sort_order if it doesn't exist. */
 export async function upsertSet(
   trx: Transaction<Database>,
   setSlug: string,
   setName: string,
 ): Promise<void> {
-  const existing = await trx
-    .selectFrom("sets")
-    .select("id")
-    .where("slug", "=", setSlug)
-    .executeTakeFirst();
-
-  if (!existing) {
-    const { max } = await trx
-      .selectFrom("sets")
-      .select((eb) => eb.fn.coalesce(eb.fn.max("sortOrder"), eb.lit(0)).as("max"))
-      .executeTakeFirstOrThrow();
-    await trx
-      .insertInto("sets")
-      .values({ slug: setSlug, name: setName, printedTotal: 0, sortOrder: max + 1 })
-      .execute();
-  }
-}
-
-/**
- * Insert an image record into printing_images.
- *
- * @param mode - `'main'`: deactivate current active image, insert/update as active.
- *               `'additional'`: insert as inactive.
- */
-export async function insertPrintingImage(
-  trx: Transaction<Database>,
-  printingId: string,
-  imageUrl: string | null,
-  source: string,
-  mode: "main" | "additional" = "main",
-): Promise<void> {
-  if (!imageUrl) {
-    return;
-  }
-
-  if (mode === "main") {
-    // Deactivate current active front image
-    await trx
-      .updateTable("printingImages")
-      .set({ isActive: false, updatedAt: new Date() })
-      .where("printingId", "=", printingId)
-      .where("face", "=", "front")
-      .where("isActive", "=", true)
-      .execute();
-
-    // Insert or update as active
-    await trx
-      .insertInto("printingImages")
-      .values({
-        printingId: printingId,
-        face: "front",
-        source,
-        originalUrl: imageUrl,
-        isActive: true,
-      })
-      .onConflict((oc) =>
-        oc.columns(["printingId", "face", "source"]).doUpdateSet({
-          originalUrl: imageUrl,
-          isActive: true,
-          updatedAt: new Date(),
-        }),
-      )
-      .execute();
-  } else {
-    // Insert as inactive additional image
-    await trx
-      .insertInto("printingImages")
-      .values({
-        printingId: printingId,
-        face: "front",
-        source,
-        originalUrl: imageUrl,
-        isActive: false,
-      })
-      .onConflict((oc) =>
-        oc.columns(["printingId", "face", "source"]).doUpdateSet({
-          originalUrl: imageUrl,
-          updatedAt: new Date(),
-        }),
-      )
-      .execute();
-  }
+  // Delegates to setsRepo — trx is passed as both the db binding and the transaction context
+  await setsRepo(trx).upsert(setSlug, setName, trx);
 }
 
 /**

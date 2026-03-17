@@ -1,47 +1,48 @@
-import postgres from "postgres";
+import { createDb } from "../apps/api/src/db/connect.js";
+import { requireEnv } from "./env.js";
 
-// oxlint-disable-next-line no-non-null-assertion -- script requires DATABASE_URL to be set
-const sql = postgres(process.env.DATABASE_URL!);
+const { db } = createDb(requireEnv("DATABASE_URL"));
 
-const [row] = await sql`
-  SELECT name, type, super_types, domains, might, energy, power, might_bonus,
-         keywords, rules_text, effect_text, tags, source_id, source_entity_id, extra_data
-  FROM card_sources WHERE source = ${"riftbinder"} AND name = ${"Jinx Rebel"}
-`;
+const row = await db
+  .selectFrom("cardSources")
+  .selectAll()
+  .where("source", "=", "riftbinder")
+  .where("name", "=", "Jinx Rebel")
+  .executeTakeFirst();
+
+if (!row) {
+  console.log("No row found");
+  await db.destroy();
+  process.exit(1);
+}
 
 const FIELDS = [
   "name",
   "type",
-  "super_types",
+  "superTypes",
   "domains",
   "might",
   "energy",
   "power",
-  "might_bonus",
-  "keywords",
-  "rules_text",
-  "effect_text",
+  "mightBonus",
+  "rulesText",
+  "effectText",
   "tags",
-  "source_id",
-  "source_entity_id",
-  "extra_data",
-];
+  "sourceId",
+  "sourceEntityId",
+  "extraData",
+] as const;
 
 for (const f of FIELDS) {
   const a = row[f];
-  const b = row[f]; // same value — should always match
-
-  const isObjA = typeof a === "object" && a !== null;
-  const isObjB = typeof b === "object" && b !== null;
-  const eq = isObjA && isObjB ? JSON.stringify(a) === JSON.stringify(b) : a === b;
+  const isObj = typeof a === "object" && a !== null;
 
   console.log(
-    eq ? "OK:  " : "DIFF:",
     f.padEnd(20),
     `typeof=${typeof a}`.padEnd(16),
     `isArray=${Array.isArray(a)}`.padEnd(14),
-    JSON.stringify(a)?.slice(0, 60) ?? "undefined",
+    isObj ? JSON.stringify(a).slice(0, 60) : String(a),
   );
 }
 
-await sql.end();
+await db.destroy();

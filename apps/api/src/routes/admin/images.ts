@@ -1,7 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { createLogger } from "@openrift/shared/logger";
 import { Hono } from "hono";
-import { sql } from "kysely";
 import { z } from "zod/v4";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
@@ -34,10 +33,10 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     "/admin/rehost-images",
     zValidator("query", z.object({ limit: z.coerce.number().int().min(1).optional() })),
     async (c) => {
-      const db = c.get("db");
+      const { printingImages } = c.get("repos");
       const limit = c.req.valid("query").limit ?? 10;
       try {
-        const result = await rehostImages(c.get("io"), db, limit);
+        const result = await rehostImages(c.get("io"), printingImages, limit);
         return c.json(result);
       } catch (error) {
         log.error(error, "rehost-images failed");
@@ -62,9 +61,9 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   )
 
   .post("/admin/clear-rehosted", async (c) => {
-    const db = c.get("db");
+    const { printingImages } = c.get("repos");
     try {
-      const result = await clearAllRehosted(c.get("io"), db);
+      const result = await clearAllRehosted(c.get("io"), printingImages);
       return c.json(result);
     } catch (error) {
       log.error(error, "clear-rehosted failed");
@@ -73,9 +72,9 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   })
 
   .get("/admin/rehost-status", async (c) => {
-    const db = c.get("db");
+    const { printingImages } = c.get("repos");
     try {
-      const result = await getRehostStatus(c.get("io"), db);
+      const result = await getRehostStatus(c.get("io"), printingImages);
       return c.json(result);
     } catch (error) {
       log.error(error, "rehost-status failed");
@@ -86,27 +85,11 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   // ── Restore original URLs from a card source ──────────────────────────────
 
   .post("/admin/restore-image-urls", zValidator("json", restoreImageUrlsSchema), async (c) => {
-    const db = c.get("db");
+    const { printingImages } = c.get("repos");
     const { source } = c.req.valid("json");
 
     try {
-      // Insert or update printing_images from printing_sources for the given source.
-      // Creates missing rows (face=front, is_active=true) and backfills original_url
-      // where it's currently NULL.
-      const result = await sql`
-          INSERT INTO printing_images (printing_id, face, source, original_url, is_active)
-          SELECT ps.printing_id, 'front', cs.source, ps.image_url, true
-          FROM printing_sources ps
-          JOIN card_sources cs ON cs.id = ps.card_source_id
-          WHERE ps.printing_id IS NOT NULL
-            AND ps.image_url IS NOT NULL
-            AND cs.source = ${source}
-          ON CONFLICT (printing_id, face, source) DO UPDATE
-            SET original_url = EXCLUDED.original_url, updated_at = now()
-            WHERE printing_images.original_url IS NULL
-        `.execute(db);
-
-      const updated = Number(result.numAffectedRows ?? 0);
+      const updated = await printingImages.restoreFromSources(source);
       return c.json({ source, updated });
     } catch (error) {
       log.error(error, "restore-image-urls failed");

@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
 import { activitiesRepo } from "./repositories/activities.js";
+import { cardSourceMutationsRepo } from "./repositories/card-source-mutations.js";
 import { cardSourcesRepo } from "./repositories/card-sources.js";
 import { catalogRepo } from "./repositories/catalog.js";
 import { collectionsRepo } from "./repositories/collections.js";
@@ -9,7 +10,10 @@ import { copiesRepo } from "./repositories/copies.js";
 import { decksRepo } from "./repositories/decks.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";
 import { ignoredSourcesRepo } from "./repositories/ignored-sources.js";
+import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
+import { printingImagesRepo } from "./repositories/printing-images.js";
+import { setsRepo } from "./repositories/sets.js";
 import { sourcesRepo } from "./repositories/sources.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
 import { wishListsRepo } from "./repositories/wish-lists.js";
@@ -22,6 +26,7 @@ import { buildShoppingList } from "./services/shopping-list.js";
 
 export interface Repos {
   activities: ReturnType<typeof activitiesRepo>;
+  cardSourceMutations: ReturnType<typeof cardSourceMutationsRepo>;
   cardSources: ReturnType<typeof cardSourcesRepo>;
   catalog: ReturnType<typeof catalogRepo>;
   collections: ReturnType<typeof collectionsRepo>;
@@ -30,6 +35,9 @@ export interface Repos {
   featureFlags: ReturnType<typeof featureFlagsRepo>;
   ignoredSources: ReturnType<typeof ignoredSourcesRepo>;
   marketplace: ReturnType<typeof marketplaceRepo>;
+  marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
+  printingImages: ReturnType<typeof printingImagesRepo>;
+  sets: ReturnType<typeof setsRepo>;
   sources: ReturnType<typeof sourcesRepo>;
   tradeLists: ReturnType<typeof tradeListsRepo>;
   wishLists: ReturnType<typeof wishListsRepo>;
@@ -49,6 +57,7 @@ export interface Services {
 export function createRepos(db: Kysely<Database>): Repos {
   return {
     activities: activitiesRepo(db),
+    cardSourceMutations: cardSourceMutationsRepo(db),
     cardSources: cardSourcesRepo(db),
     catalog: catalogRepo(db),
     collections: collectionsRepo(db),
@@ -57,6 +66,9 @@ export function createRepos(db: Kysely<Database>): Repos {
     featureFlags: featureFlagsRepo(db),
     ignoredSources: ignoredSourcesRepo(db),
     marketplace: marketplaceRepo(db),
+    marketplaceAdmin: marketplaceAdminRepo(db),
+    printingImages: printingImagesRepo(db),
+    sets: setsRepo(db),
     sources: sourcesRepo(db),
     tradeLists: tradeListsRepo(db),
     wishLists: wishListsRepo(db),

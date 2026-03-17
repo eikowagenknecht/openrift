@@ -37,12 +37,8 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   // ── GET /admin/ignored-products ─────────────────────────────────────────────
 
   .get("/admin/ignored-products", async (c) => {
-    const db = c.get("db");
-    const rows = await db
-      .selectFrom("marketplaceIgnoredProducts as ip")
-      .select(["ip.marketplace", "ip.externalId", "ip.finish", "ip.productName", "ip.createdAt"])
-      .orderBy("ip.createdAt", "desc")
-      .execute();
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
+    const rows = await mktAdmin.listIgnoredProducts();
 
     const products: IgnoredProductResponse[] = rows.map((r) => ({
       marketplace: r.marketplace,
@@ -57,17 +53,12 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /admin/ignored-products ────────────────────────────────────────────
 
   .post("/admin/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
-    const db = c.get("db");
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source, products } = c.req.valid("json");
 
     // Look up product names from staging
     const externalIds = products.map((p) => p.externalId);
-    const stagingRows = await db
-      .selectFrom("marketplaceStaging")
-      .select(["externalId", "productName"])
-      .where("marketplace", "=", source)
-      .where("externalId", "in", externalIds)
-      .execute();
+    const stagingRows = await mktAdmin.getStagingProductNames(source, externalIds);
 
     const nameMap = new Map<number, string>();
     for (const row of stagingRows) {
@@ -87,11 +78,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
       }));
 
     if (values.length > 0) {
-      await db
-        .insertInto("marketplaceIgnoredProducts")
-        .values(values)
-        .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
-        .execute();
+      await mktAdmin.insertIgnoredProducts(values);
     }
 
     return c.json({ ignored: products.length });
@@ -100,16 +87,11 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
   // ── DELETE /admin/ignored-products ──────────────────────────────────────────
 
   .delete("/admin/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
-    const db = c.get("db");
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source, products } = c.req.valid("json");
 
     for (const p of products) {
-      await db
-        .deleteFrom("marketplaceIgnoredProducts")
-        .where("marketplace", "=", source)
-        .where("externalId", "=", p.externalId)
-        .where("finish", "=", p.finish)
-        .execute();
+      await mktAdmin.deleteIgnoredProduct(source, p.externalId, p.finish);
     }
 
     return c.json({ unignored: products.length });
@@ -121,36 +103,25 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
     "/admin/staging-card-overrides",
     zValidator("json", stagingCardOverrideSchema),
     async (c) => {
-      const db = c.get("db");
+      const { marketplaceAdmin: mktAdmin } = c.get("repos");
       const { source, externalId, finish, cardId } = c.req.valid("json");
 
-      await db
-        .insertInto("marketplaceStagingCardOverrides")
-        .values({
-          marketplace: source,
-          externalId,
-          finish,
-          cardId,
-        })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish"]).doUpdateSet({ cardId }),
-        )
-        .execute();
+      await mktAdmin.upsertStagingCardOverride({
+        marketplace: source,
+        externalId,
+        finish,
+        cardId,
+      });
 
       return c.body(null, 204);
     },
   )
 
   .delete("/admin/staging-card-overrides", zValidator("json", deleteOverrideSchema), async (c) => {
-    const db = c.get("db");
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source, externalId, finish } = c.req.valid("json");
 
-    await db
-      .deleteFrom("marketplaceStagingCardOverrides")
-      .where("marketplace", "=", source)
-      .where("externalId", "=", externalId)
-      .where("finish", "=", finish)
-      .execute();
+    await mktAdmin.deleteStagingCardOverride(source, externalId, finish);
 
     return c.body(null, 204);
   });

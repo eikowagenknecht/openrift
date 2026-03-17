@@ -27,38 +27,12 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
   // ── Clear price data ─────────────────────────────────────────────────────────
 
   .post("/admin/clear-prices", zValidator("json", clearPricesSchema), async (c) => {
-    const db = c.get("db");
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source } = c.req.valid("json");
 
     try {
-      // Delete snapshots for this marketplace (via source_id join)
-      const snapshots = await db
-        .deleteFrom("marketplaceSnapshots")
-        .where(
-          "sourceId",
-          "in",
-          db.selectFrom("marketplaceSources").select("id").where("marketplace", "=", source),
-        )
-        .execute();
-
-      const sources = await db
-        .deleteFrom("marketplaceSources")
-        .where("marketplace", "=", source)
-        .execute();
-
-      const staging = await db
-        .deleteFrom("marketplaceStaging")
-        .where("marketplace", "=", source)
-        .execute();
-
-      return c.json({
-        source,
-        deleted: {
-          snapshots: Number(snapshots[0].numDeletedRows),
-          sources: Number(sources[0].numDeletedRows),
-          staging: Number(staging[0].numDeletedRows),
-        },
-      });
+      const deleted = await mktAdmin.clearPriceData(source);
+      return c.json({ source, deleted });
     } catch (error) {
       log.error(error, `clear-prices (${source}) failed`);
       throw new AppError(500, "INTERNAL_ERROR", `Failed to clear ${source} price data`);

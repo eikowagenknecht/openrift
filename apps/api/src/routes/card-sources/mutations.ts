@@ -4,19 +4,12 @@ import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
 import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
-import { sql } from "kysely";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
-import {
-  acceptNewCardFromSources,
-  createNameAliases,
-  insertPrintingImage,
-  resolveCardId,
-  upsertSet,
-} from "./helpers.js";
+import { acceptNewCardFromSources, createNameAliases, upsertSet } from "./helpers.js";
 import {
   acceptFieldSchema,
   acceptNewCardSchema,
@@ -38,55 +31,13 @@ import {
 // wildcard doesn't swallow "auto-check".
 export const mutationsRoute = new Hono<{ Variables: Variables }>()
   .post("/auto-check", async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const now = new Date();
-    const rcid = resolveCardId("cs");
 
-    // Normalise empty strings to NULL so '' and NULL are treated as equal.
-    const n = (ref: string) => sql`COALESCE(NULLIF(${sql.ref(ref)}, ''), NULL)`;
-
-    // 1. Card sources: compare all acceptablefields against the resolved card
-    const cardResult = await sql`
-      UPDATE card_sources cs
-      SET checked_at = ${now}, updated_at = ${now}
-      FROM cards c
-      WHERE c.id = (${rcid})
-        AND cs.checked_at IS NULL
-        AND cs.name        IS NOT DISTINCT FROM c.name
-        AND cs.type        IS NOT DISTINCT FROM c.type
-        AND cs.super_types IS NOT DISTINCT FROM c.super_types
-        AND cs.domains     IS NOT DISTINCT FROM c.domains
-        AND cs.might       IS NOT DISTINCT FROM c.might
-        AND cs.energy      IS NOT DISTINCT FROM c.energy
-        AND cs.power       IS NOT DISTINCT FROM c.power
-        AND cs.might_bonus IS NOT DISTINCT FROM c.might_bonus
-        AND ${n("cs.rulesText")}  IS NOT DISTINCT FROM ${n("c.rulesText")}
-        AND ${n("cs.effectText")} IS NOT DISTINCT FROM ${n("c.effectText")}
-        AND cs.tags        IS NOT DISTINCT FROM c.tags
-    `.execute(db);
-
-    // 2. Printing sources: compare against the linked printing
-    const printingResult = await sql`
-      UPDATE printing_sources ps
-      SET checked_at = ${now}, updated_at = ${now}
-      FROM printings p
-      LEFT JOIN sets s ON s.id = p.set_id
-      WHERE ps.printing_id = p.id
-        AND ps.checked_at IS NULL
-        AND ps.source_id         IS NOT DISTINCT FROM p.source_id
-        AND ps.set_id            IS NOT DISTINCT FROM s.slug
-        AND ps.collector_number  IS NOT DISTINCT FROM p.collector_number
-        AND LOWER(ps.rarity)     IS NOT DISTINCT FROM LOWER(p.rarity)
-        AND ${n("ps.artVariant")}  IS NOT DISTINCT FROM ${n("p.artVariant")}
-        AND ps.is_signed         IS NOT DISTINCT FROM p.is_signed
-        AND ps.is_promo          IS NOT DISTINCT FROM p.is_promo
-        AND ps.finish            IS NOT DISTINCT FROM p.finish
-        AND COALESCE(ps.artist, '') IS NOT DISTINCT FROM p.artist
-        AND ps.public_code       IS NOT DISTINCT FROM p.public_code
-        AND ${n("ps.printedRulesText")}  IS NOT DISTINCT FROM ${n("p.printedRulesText")}
-        AND ${n("ps.printedEffectText")} IS NOT DISTINCT FROM ${n("p.printedEffectText")}
-        AND ${n("ps.flavorText")}         IS NOT DISTINCT FROM ${n("p.flavorText")}
-    `.execute(db);
+    const [cardResult, printingResult] = await Promise.all([
+      mut.autoCheckCardSources(now),
+      mut.autoCheckPrintingSources(now),
+    ]);
 
     return c.json({
       cardSourcesChecked: Number(cardResult.numAffectedRows),
@@ -96,14 +47,10 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /:cardSourceId/check ──────────────────────────────────────────────
   .post("/:cardSourceId/check", async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const { cardSourceId } = c.req.param();
 
-    const result = await db
-      .updateTable("cardSources")
-      .set({ checkedAt: new Date(), updatedAt: new Date() })
-      .where("id", "=", cardSourceId)
-      .executeTakeFirst();
+    const result = await mut.checkCardSource(cardSourceId);
 
     if (!result || result.numUpdatedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Card source not found");
@@ -120,36 +67,20 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     "/printing-sources/check-all",
     zValidator("json", checkAllPrintingSourcesSchema),
     async (c) => {
-      const db = c.get("db");
+      const { cardSourceMutations: mut } = c.get("repos");
       const { printingId, extraIds } = c.req.valid("json");
 
-      const results = await db
-        .updateTable("printingSources")
-        .set({ checkedAt: new Date(), updatedAt: new Date() })
-        .where((eb) =>
-          eb.or([
-            eb("printingId", "=", printingId),
-            ...(extraIds?.length ? [eb("id", "in", extraIds)] : []),
-          ]),
-        )
-        .where("checkedAt", "is", null)
-        .execute();
-
-      const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+      const updated = await mut.checkAllPrintingSources(printingId, extraIds);
       return c.json({ updated });
     },
   )
 
   // ── POST /printing-sources/:id/check ─────────────────────────────────────
   .post("/printing-sources/:id/check", async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const { id } = c.req.param();
 
-    const result = await db
-      .updateTable("printingSources")
-      .set({ checkedAt: new Date(), updatedAt: new Date() })
-      .where("id", "=", id)
-      .executeTakeFirst();
+    const result = await mut.checkPrintingSource(id);
 
     if (!result || result.numUpdatedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
@@ -161,42 +92,27 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /:cardId/check-all ──────────────────────────────────────────────
   // Mark all card_sources for a given card as checked
   .post("/:cardId/check-all", async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const cardSlug = c.req.param("cardId");
 
     // Resolve slug → card, then find sources by name/alias
-    const card = await db
-      .selectFrom("cards")
-      .select(["id", "name"])
-      .where("slug", "=", cardSlug)
-      .executeTakeFirst();
+    const card = await mut.getCardBySlug(cardSlug);
     if (!card) {
       throw new AppError(404, "NOT_FOUND", "Card not found");
     }
 
     const cardNormName = normalizeNameForMatching(card.name);
-    const aliasRows = await db
-      .selectFrom("cardNameAliases")
-      .select("normName")
-      .where("cardId", "=", card.id)
-      .execute();
+    const aliasRows = await mut.getCardAliases(card.id);
     const uniqueVariants = [...new Set([cardNormName, ...aliasRows.map((a) => a.normName)])];
 
-    const results = await db
-      .updateTable("cardSources")
-      .set({ checkedAt: new Date(), updatedAt: new Date() })
-      .where("cardSources.normName", "in", uniqueVariants)
-      .where("checkedAt", "is", null)
-      .execute();
-
-    const updated = results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+    const updated = await mut.checkAllCardSourcesByNormNames(uniqueVariants);
     return c.json({ updated });
   })
 
   // ── PATCH /printing-sources/:id ───────────────────────────────────────────
   // Update differentiator fields on a printing_source (e.g. fix wrong art_variant)
   .patch("/printing-sources/:id", zValidator("json", patchPrintingSourceSchema), async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const { id } = c.req.param();
     const body = c.req.valid("json");
 
@@ -211,7 +127,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       "rarity",
     ];
 
-    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    const updates: Record<string, unknown> = {};
     const bodyRecord = body as Record<string, unknown>;
     for (const field of allowedFields) {
       if (field in body) {
@@ -219,15 +135,11 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    if (Object.keys(updates).length === 1) {
+    if (Object.keys(updates).length === 0) {
       throw new AppError(400, "BAD_REQUEST", "No valid fields to update");
     }
 
-    const result = await db
-      .updateTable("printingSources")
-      .set(updates)
-      .where("id", "=", id)
-      .executeTakeFirst();
+    const result = await mut.patchPrintingSource(id, updates);
 
     if (!result || result.numUpdatedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
@@ -238,10 +150,10 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /printing-sources/:id ──────────────────────────────────────────
   .delete("/printing-sources/:id", async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const { id } = c.req.param();
 
-    const result = await db.deleteFrom("printingSources").where("id", "=", id).executeTakeFirst();
+    const result = await mut.deletePrintingSource(id);
 
     if (!result || result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
@@ -253,7 +165,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /printing-sources/:id/copy ───────────────────────────────────────
   // Duplicate a printing_source and link the copy to a different printing
   .post("/printing-sources/:id/copy", zValidator("json", copyPrintingSourceSchema), async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const { id } = c.req.param();
     const { printingId } = c.req.valid("json");
 
@@ -261,50 +173,19 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "printingId is required");
     }
 
-    const ps = await db
-      .selectFrom("printingSources")
-      .selectAll()
-      .where("id", "=", id)
-      .executeTakeFirst();
+    const ps = await mut.getPrintingSourceById(id);
 
     if (!ps) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
-    const target = await db
-      .selectFrom("printings")
-      .select(["id", "finish", "artVariant", "isSigned", "isPromo", "rarity"])
-      .where("slug", "=", printingId)
-      .executeTakeFirst();
+    const target = await mut.getPrintingDifferentiatorsBySlug(printingId);
 
     if (!target) {
       throw new AppError(404, "NOT_FOUND", "Target printing not found");
     }
 
-    await db
-      .insertInto("printingSources")
-      .values({
-        cardSourceId: ps.cardSourceId,
-        printingId: target.id,
-        sourceId: ps.sourceId,
-        setId: ps.setId,
-        setName: ps.setName,
-        collectorNumber: ps.collectorNumber,
-        rarity: target.rarity,
-        artVariant: target.artVariant,
-        isSigned: target.isSigned,
-        isPromo: target.isPromo,
-        finish: target.finish,
-        artist: ps.artist,
-        publicCode: ps.publicCode,
-        printedRulesText: ps.printedRulesText,
-        printedEffectText: ps.printedEffectText,
-        imageUrl: ps.imageUrl,
-        flavorText: ps.flavorText,
-        sourceEntityId: ps.sourceEntityId,
-        extraData: ps.extraData,
-      })
-      .execute();
+    await mut.copyPrintingSource(ps, target);
 
     return c.body(null, 204);
   })
@@ -312,7 +193,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /printing-sources/link ───────────────────────────────────────────
   // Bulk-link (or unlink) printing sources to a printing
   .post("/printing-sources/link", zValidator("json", linkPrintingSourcesSchema), async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const { printingSourceIds, printingId } = c.req.valid("json");
 
     if (!Array.isArray(printingSourceIds) || printingSourceIds.length === 0) {
@@ -322,29 +203,21 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     // Resolve slug → uuid if linking (printingId is null when unlinking)
     let printingUuid: string | null = null;
     if (printingId) {
-      const p = await db
-        .selectFrom("printings")
-        .select("id")
-        .where("slug", "=", printingId)
-        .executeTakeFirst();
+      const p = await mut.getPrintingIdBySlug(printingId);
       if (!p) {
         throw new AppError(404, "NOT_FOUND", "Target printing not found");
       }
       printingUuid = p.id;
     }
 
-    await db
-      .updateTable("printingSources")
-      .set({ printingId: printingUuid, updatedAt: new Date() })
-      .where("id", "in", printingSourceIds)
-      .execute();
+    await mut.linkPrintingSources(printingSourceIds, printingUuid);
 
     return c.body(null, 204);
   })
 
   // ── POST /:cardId/rename ──────────────────────────────────────────────────
   .post("/:cardId/rename", zValidator("json", renameSchema), async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const cardSlug = c.req.param("cardId");
     const { newId } = c.req.valid("json");
 
@@ -357,18 +230,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     // UUID PK is immutable — only the slug changes
-    await db
-      .updateTable("cards")
-      .set({ slug: newId.trim(), updatedAt: new Date() })
-      .where("slug", "=", cardSlug)
-      .execute();
+    await mut.renameCardSlug(cardSlug, newId.trim());
 
     return c.body(null, 204);
   })
 
   // ── POST /:cardId/accept-field ────────────────────────────────────────────
   .post("/:cardId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const cardSlug = c.req.param("cardId");
     const { field, value } = c.req.valid("json");
 
@@ -406,15 +275,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    const updates: Record<string, unknown> = { [field]: value, updatedAt: new Date() };
+    const updates: Record<string, unknown> = { [field]: value };
 
     // Recompute keywords when rulesText or effectText changes
     if (field === "rulesText" || field === "effectText") {
-      const card = await db
-        .selectFrom("cards")
-        .select(["rulesText", "effectText"])
-        .where("slug", "=", cardSlug)
-        .executeTakeFirstOrThrow();
+      const card = await mut.getCardTexts(cardSlug);
+      if (!card) {
+        throw new AppError(404, "NOT_FOUND", "Card not found");
+      }
       const rulesText = field === "rulesText" ? (value as string) : card.rulesText;
       const effectText = field === "effectText" ? (value as string) : card.effectText;
       updates.keywords = [
@@ -423,14 +291,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       ].filter((v, i, a) => a.indexOf(v) === i);
     }
 
-    await db.updateTable("cards").set(updates).where("slug", "=", cardSlug).execute();
+    await mut.updateCardBySlug(cardSlug, updates);
 
     return c.body(null, 204);
   })
 
   // ── POST /printing/:printingId/accept-field ──────────────────────────────
   .post("/printing/:printingId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const printingSlug = c.req.param("printingId");
     const { field, value } = c.req.valid("json");
 
@@ -479,18 +347,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    await db
-      .updateTable("printings")
-      .set({ [field]: normalizedValue, updatedAt: new Date() })
-      .where("slug", "=", printingSlug)
-      .execute();
+    await mut.updatePrintingBySlug(printingSlug, field, normalizedValue);
 
     return c.body(null, 204);
   })
 
   // ── POST /printing/:printingId/rename ────────────────────────────────────
   .post("/printing/:printingId/rename", zValidator("json", renameSchema), async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const printingSlug = c.req.param("printingId");
     const { newId } = c.req.valid("json");
 
@@ -503,11 +367,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     // UUID PK is immutable — only the slug changes
-    await db
-      .updateTable("printings")
-      .set({ slug: newId.trim(), updatedAt: new Date() })
-      .where("slug", "=", printingSlug)
-      .execute();
+    await mut.renamePrintingSlug(printingSlug, newId.trim());
 
     return c.body(null, 204);
   })
@@ -534,6 +394,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // Link unmatched sources to an existing card
   .post("/new/:name/link", zValidator("json", linkUnmatchedSchema), async (c) => {
     const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const normalizedName = decodeURIComponent(c.req.param("name"));
     const { cardId: cardSlug } = c.req.valid("json");
 
@@ -541,11 +402,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "cardId required");
     }
 
-    const card = await db
-      .selectFrom("cards")
-      .select("id")
-      .where("slug", "=", cardSlug)
-      .executeTakeFirst();
+    const card = await mut.getCardIdBySlug(cardSlug);
 
     if (!card) {
       throw new AppError(404, "NOT_FOUND", "Target card not found");
@@ -562,6 +419,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // Create a new printing from admin-selected fields, link all sources in the group
   .post("/:cardId/accept-printing", zValidator("json", acceptPrintingSchema), async (c) => {
     const db = c.get("db");
+    const { cardSourceMutations: mut, printingImages } = c.get("repos");
     const cardSlug = c.req.param("cardId");
     const { printingFields, printingSourceIds } = c.req.valid("json");
 
@@ -573,11 +431,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     // Verify card exists (resolve slug → uuid)
-    const card = await db
-      .selectFrom("cards")
-      .select("id")
-      .where("slug", "=", cardSlug)
-      .executeTakeFirst();
+    const card = await mut.getCardIdBySlug(cardSlug);
 
     if (!card) {
       throw new AppError(404, "NOT_FOUND", "Card not found");
@@ -593,12 +447,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       );
 
     // Get source name from the first printing_source's card_source
-    const firstPs = await db
-      .selectFrom("printingSources")
-      .innerJoin("cardSources", "cardSources.id", "printingSources.cardSourceId")
-      .select("cardSources.source")
-      .where("printingSources.id", "=", printingSourceIds[0])
-      .executeTakeFirst();
+    const firstPs = await mut.getSourceNameForPrintingSource(printingSourceIds[0]);
 
     await db.transaction().execute(async (trx) => {
       if (printingFields.setId) {
@@ -607,11 +456,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
       let setUuid = "";
       if (printingFields.setId) {
-        const setRow = await trx
-          .selectFrom("sets")
-          .select("id")
-          .where("slug", "=", printingFields.setId)
-          .executeTakeFirst();
+        const setRow = await mut.getSetIdBySlug(printingFields.setId, trx);
         setUuid = setRow?.id ?? "";
       }
 
@@ -628,53 +473,36 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         );
       }
 
-      const inserted = await trx
-        .insertInto("printings")
-        .values({
-          slug: printingId,
-          cardId: card.id,
-          setId: setUuid,
-          sourceId: printingFields.sourceId,
-          collectorNumber: printingFields.collectorNumber,
-          rarity: normalizedRarity as Rarity,
-          artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
-          isSigned: printingFields.isSigned ?? false,
-          isPromo: printingFields.isPromo ?? false,
-          finish: (printingFields.finish ?? "normal") as Finish,
-          artist: printingFields.artist,
-          publicCode: printingFields.publicCode,
-          printedRulesText: printingFields.printedRulesText ?? null,
-          printedEffectText: printingFields.printedEffectText ?? null,
-          flavorText: printingFields.flavorText ?? null,
-        })
-        .onConflict((oc) =>
-          oc.column("slug").doUpdateSet((eb) => ({
-            artist: eb.ref("excluded.artist"),
-            publicCode: eb.ref("excluded.publicCode"),
-            printedRulesText: eb.ref("excluded.printedRulesText"),
-            printedEffectText: eb.ref("excluded.printedEffectText"),
-            flavorText: eb.ref("excluded.flavorText"),
-          })),
-        )
-        .returning("id")
-        .executeTakeFirstOrThrow();
+      const insertedId = await mut.upsertPrinting(trx, {
+        slug: printingId,
+        cardId: card.id,
+        setId: setUuid,
+        sourceId: printingFields.sourceId,
+        collectorNumber: printingFields.collectorNumber,
+        rarity: normalizedRarity as Rarity,
+        artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
+        isSigned: printingFields.isSigned ?? false,
+        isPromo: printingFields.isPromo ?? false,
+        finish: (printingFields.finish ?? "normal") as Finish,
+        artist: printingFields.artist,
+        publicCode: printingFields.publicCode,
+        printedRulesText: printingFields.printedRulesText ?? null,
+        printedEffectText: printingFields.printedEffectText ?? null,
+        flavorText: printingFields.flavorText ?? null,
+      });
 
       // Insert image from the first source
       if (printingFields.imageUrl) {
-        await insertPrintingImage(
+        await printingImages.insertImage(
           trx,
-          inserted.id,
+          insertedId,
           printingFields.imageUrl,
           firstPs?.source ?? "import",
         );
       }
 
       // Link all printing_sources in the group
-      await trx
-        .updateTable("printingSources")
-        .set({ printingId: inserted.id, checkedAt: new Date(), updatedAt: new Date() })
-        .where("id", "in", printingSourceIds)
-        .execute();
+      await mut.linkAndCheckPrintingSources(printingSourceIds, insertedId, trx);
     });
 
     return c.json({ printingId });
@@ -684,13 +512,10 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // Create a new printing from a printing_source row (legacy, single source)
   .post("/printing-sources/:id/accept-new", async (c) => {
     const db = c.get("db");
+    const { cardSourceMutations: mut, printingImages } = c.get("repos");
     const { id } = c.req.param();
 
-    const ps = await db
-      .selectFrom("printingSources")
-      .selectAll()
-      .where("id", "=", id)
-      .executeTakeFirst();
+    const ps = await mut.getPrintingSourceById(id);
 
     if (!ps) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
@@ -701,11 +526,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     // Get the parent card_source to resolve card dynamically
-    const cs = await db
-      .selectFrom("cardSources")
-      .select(["name", "source"])
-      .where("id", "=", ps.cardSourceId)
-      .executeTakeFirst();
+    const cs = await mut.getCardSourceNameAndSource(ps.cardSourceId);
 
     if (!cs) {
       throw new AppError(400, "BAD_REQUEST", "Card source not found");
@@ -713,16 +534,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     // Resolve card by name or alias
     const normName = normalizeNameForMatching(cs.name);
-    const resolvedCard = await db
-      .selectFrom("cards")
-      .select("id")
-      .where("cards.normName", "=", normName)
-      .executeTakeFirst();
-    const aliasMatch = await db
-      .selectFrom("cardNameAliases")
-      .select("cardId")
-      .where("cardNameAliases.normName", "=", normName)
-      .executeTakeFirst();
+    const resolvedCard = await mut.resolveCardByNormName(normName);
+    const aliasMatch = await mut.resolveCardByAlias(normName);
     const cardId = resolvedCard?.id ?? aliasMatch?.cardId;
 
     if (!cardId) {
@@ -776,52 +589,31 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
       let setUuid = "";
       if (ps.setId) {
-        const setRow = await trx
-          .selectFrom("sets")
-          .select("id")
-          .where("slug", "=", ps.setId)
-          .executeTakeFirst();
+        const setRow = await mut.getSetIdBySlug(ps.setId, trx);
         setUuid = setRow?.id ?? "";
       }
 
-      const inserted = await trx
-        .insertInto("printings")
-        .values({
-          slug: printingId,
-          cardId: cardId,
-          setId: setUuid,
-          sourceId: ps.sourceId,
-          collectorNumber: collectorNumber,
-          rarity: normalizedRarity as Rarity,
-          artVariant: (ps.artVariant ?? "normal") as ArtVariant,
-          isSigned: ps.isSigned ?? false,
-          isPromo: ps.isPromo ?? false,
-          finish: validatedFinish.data as Finish,
-          artist,
-          publicCode: publicCode,
-          printedRulesText: ps.printedRulesText ?? null,
-          printedEffectText: ps.printedEffectText,
-          flavorText: ps.flavorText,
-        })
-        .onConflict((oc) =>
-          oc.column("slug").doUpdateSet((eb) => ({
-            artist: eb.ref("excluded.artist"),
-            publicCode: eb.ref("excluded.publicCode"),
-            printedRulesText: eb.ref("excluded.printedRulesText"),
-            printedEffectText: eb.ref("excluded.printedEffectText"),
-            flavorText: eb.ref("excluded.flavorText"),
-          })),
-        )
-        .returning("id")
-        .executeTakeFirstOrThrow();
+      const insertedId = await mut.upsertPrinting(trx, {
+        slug: printingId,
+        cardId: cardId,
+        setId: setUuid,
+        sourceId: ps.sourceId,
+        collectorNumber: collectorNumber,
+        rarity: normalizedRarity as Rarity,
+        artVariant: (ps.artVariant ?? "normal") as ArtVariant,
+        isSigned: ps.isSigned ?? false,
+        isPromo: ps.isPromo ?? false,
+        finish: validatedFinish.data as Finish,
+        artist,
+        publicCode: publicCode,
+        printedRulesText: ps.printedRulesText ?? null,
+        printedEffectText: ps.printedEffectText,
+        flavorText: ps.flavorText,
+      });
 
-      await insertPrintingImage(trx, inserted.id, ps.imageUrl, cs.source);
+      await printingImages.insertImage(trx, insertedId, ps.imageUrl, cs.source);
 
-      await trx
-        .updateTable("printingSources")
-        .set({ printingId: inserted.id, checkedAt: new Date(), updatedAt: new Date() })
-        .where("id", "=", id)
-        .execute();
+      await mut.linkAndCheckPrintingSources([id], insertedId, trx);
     });
 
     return c.json({ printingId });
@@ -847,14 +639,12 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── DELETE /by-source/:source ─────────────────────────────────────────────
   // Delete all card_sources (and cascaded printing_sources) for a given source name
   .delete("/by-source/:source", async (c) => {
-    const db = c.get("db");
+    const { cardSourceMutations: mut } = c.get("repos");
     const source = decodeURIComponent(c.req.param("source"));
     if (!source.trim()) {
       throw new AppError(400, "BAD_REQUEST", "Source name is required");
     }
 
-    const result = await db.deleteFrom("cardSources").where("source", "=", source.trim()).execute();
-
-    const deleted = Number(result[0].numDeletedRows);
+    const deleted = await mut.deleteBySource(source.trim());
     return c.json({ source, deleted });
   });

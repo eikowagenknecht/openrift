@@ -18,7 +18,6 @@ import {
 } from "../../services/image-rehost.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
-import { insertPrintingImage } from "./helpers.js";
 import {
   activateImageSchema,
   addImageUrlSchema,
@@ -30,14 +29,11 @@ import {
 export const imagesRoute = new Hono<{ Variables: Variables }>()
   .post("/printing-sources/:id/set-image", zValidator("json", setImageSchema), async (c) => {
     const db = c.get("db");
+    const { printingImages } = c.get("repos");
     const { id } = c.req.param();
     const { mode } = c.req.valid("json");
 
-    const ps = await db
-      .selectFrom("printingSources")
-      .selectAll()
-      .where("id", "=", id)
-      .executeTakeFirst();
+    const ps = await printingImages.getPrintingSourceById(id);
 
     if (!ps) {
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
@@ -51,14 +47,10 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Printing source has no image URL");
     }
 
-    const cs = await db
-      .selectFrom("cardSources")
-      .select("source")
-      .where("id", "=", ps.cardSourceId)
-      .executeTakeFirst();
+    const cs = await printingImages.getCardSourceSource(ps.cardSourceId);
 
     await db.transaction().execute(async (trx) => {
-      await insertPrintingImage(
+      await printingImages.insertImage(
         trx,
         ps.printingId as string,
         ps.imageUrl,
@@ -72,20 +64,16 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /printing-images/:imageId ──────────────────────────────────────
   .delete("/printing-images/:imageId", async (c) => {
-    const db = c.get("db");
+    const { printingImages } = c.get("repos");
     const { imageId } = c.req.param();
 
-    const image = await db
-      .selectFrom("printingImages")
-      .select(["id", "rehostedUrl"])
-      .where("id", "=", imageId)
-      .executeTakeFirst();
+    const image = await printingImages.getIdAndRehostedUrl(imageId);
 
     if (!image) {
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
     }
 
-    await db.deleteFrom("printingImages").where("id", "=", imageId).execute();
+    await printingImages.deleteById(imageId);
 
     if (image.rehostedUrl) {
       await deleteRehostFiles(c.get("io"), image.rehostedUrl);
@@ -100,23 +88,11 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     zValidator("json", activateImageSchema),
     async (c) => {
       const db = c.get("db");
+      const { printingImages } = c.get("repos");
       const { imageId } = c.req.param();
       const { active } = c.req.valid("json");
 
-      const image = await db
-        .selectFrom("printingImages")
-        .innerJoin("printings", "printings.id", "printingImages.printingId")
-        .innerJoin("sets", "sets.id", "printings.setId")
-        .select([
-          "printingImages.id",
-          "printingImages.printingId",
-          "printingImages.face",
-          "printingImages.rehostedUrl",
-          "printings.slug as printingSlug",
-          "sets.slug as setSlug",
-        ])
-        .where("printingImages.id", "=", imageId)
-        .executeTakeFirst();
+      const image = await printingImages.getWithPrintingAndSetForActivate(imageId);
 
       if (!image) {
         throw new AppError(404, "NOT_FOUND", "Printing image not found");
@@ -127,59 +103,33 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
       // Find the currently active image (if any) for file rename purposes
       const currentActive = active
-        ? await db
-            .selectFrom("printingImages")
-            .select(["id", "rehostedUrl"])
-            .where("printingId", "=", image.printingId)
-            .where("face", "=", image.face)
-            .where("isActive", "=", true)
-            .executeTakeFirst()
+        ? await printingImages.getActiveFrontImage(image.printingId, image.face)
         : null;
 
       await db.transaction().execute(async (trx) => {
         if (active && currentActive) {
           // Deactivate the current active image
-          await trx
-            .updateTable("printingImages")
-            .set({ isActive: false, updatedAt: new Date() })
-            .where("id", "=", currentActive.id)
-            .execute();
+          await printingImages.deactivate(currentActive.id, trx);
 
           // Rename current active's files: main path → ID-suffixed path
           if (currentActive.rehostedUrl) {
             const demotedPath = `${mainPath}-${currentActive.id}`;
             await renameRehostFiles(c.get("io"), currentActive.rehostedUrl, demotedPath);
-            await trx
-              .updateTable("printingImages")
-              .set({ rehostedUrl: demotedPath, updatedAt: new Date() })
-              .where("id", "=", currentActive.id)
-              .execute();
+            await printingImages.updateRehostedUrlTrx(currentActive.id, demotedPath, trx);
           }
         }
 
-        await trx
-          .updateTable("printingImages")
-          .set({ isActive: active, updatedAt: new Date() })
-          .where("id", "=", imageId)
-          .execute();
+        await printingImages.setActive(imageId, active, trx);
 
         if (active && image.rehostedUrl) {
           // Rename newly active image's files: ID-suffixed path → main path
           await renameRehostFiles(c.get("io"), image.rehostedUrl, mainPath);
-          await trx
-            .updateTable("printingImages")
-            .set({ rehostedUrl: mainPath, updatedAt: new Date() })
-            .where("id", "=", imageId)
-            .execute();
+          await printingImages.updateRehostedUrlTrx(imageId, mainPath, trx);
         } else if (!active && image.rehostedUrl) {
           // Demoting: rename from main path → ID-suffixed path
           const demotedPath = `${mainPath}-${image.id}`;
           await renameRehostFiles(c.get("io"), image.rehostedUrl, demotedPath);
-          await trx
-            .updateTable("printingImages")
-            .set({ rehostedUrl: demotedPath, updatedAt: new Date() })
-            .where("id", "=", imageId)
-            .execute();
+          await printingImages.updateRehostedUrlTrx(imageId, demotedPath, trx);
         }
       });
 
@@ -189,14 +139,10 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing-images/:imageId/unrehost ──────────────────────────────
   .post("/printing-images/:imageId/unrehost", async (c) => {
-    const db = c.get("db");
+    const { printingImages } = c.get("repos");
     const { imageId } = c.req.param();
 
-    const image = await db
-      .selectFrom("printingImages")
-      .select(["id", "rehostedUrl", "originalUrl"])
-      .where("id", "=", imageId)
-      .executeTakeFirst();
+    const image = await printingImages.getIdAndUrls(imageId);
 
     if (!image) {
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
@@ -208,34 +154,17 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
     await deleteRehostFiles(c.get("io"), image.rehostedUrl);
 
-    await db
-      .updateTable("printingImages")
-      .set({ rehostedUrl: null, updatedAt: new Date() })
-      .where("id", "=", imageId)
-      .execute();
+    await printingImages.updateRehostedUrl(imageId, null);
 
     return c.body(null, 204);
   })
 
   // ── POST /printing-images/:imageId/rehost ────────────────────────────────
   .post("/printing-images/:imageId/rehost", async (c) => {
-    const db = c.get("db");
+    const { printingImages } = c.get("repos");
     const { imageId } = c.req.param();
 
-    const image = await db
-      .selectFrom("printingImages")
-      .innerJoin("printings", "printings.id", "printingImages.printingId")
-      .innerJoin("sets", "sets.id", "printings.setId")
-      .select([
-        "printingImages.id",
-        "printingImages.printingId",
-        "printingImages.originalUrl",
-        "printingImages.isActive",
-        "printings.slug as printingSlug",
-        "sets.slug as setSlug",
-      ])
-      .where("printingImages.id", "=", imageId)
-      .executeTakeFirst();
+    const image = await printingImages.getWithPrintingAndSetForRehost(imageId);
 
     if (!image) {
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
@@ -254,11 +183,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
     const rehostedUrl = `/card-images/${image.setSlug}/${fileBase}`;
 
-    await db
-      .updateTable("printingImages")
-      .set({ rehostedUrl: rehostedUrl, updatedAt: new Date() })
-      .where("id", "=", imageId)
-      .execute();
+    await printingImages.updateRehostedUrl(imageId, rehostedUrl);
 
     return c.json({ rehostedUrl });
   })
@@ -266,6 +191,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
   .post("/printing/:printingId/add-image-url", zValidator("json", addImageUrlSchema), async (c) => {
     const db = c.get("db");
+    const { printingImages } = c.get("repos");
     const printingSlug = c.req.param("printingId");
     const body = c.req.valid("json");
 
@@ -273,11 +199,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "url is required");
     }
 
-    const printing = await db
-      .selectFrom("printings")
-      .select("id")
-      .where("slug", "=", printingSlug)
-      .executeTakeFirst();
+    const printing = await printingImages.getPrintingIdBySlug(printingSlug);
     if (!printing) {
       throw new AppError(404, "NOT_FOUND", "Printing not found");
     }
@@ -286,7 +208,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const source = body.source?.trim() || "manual";
 
     await db.transaction().execute(async (trx) => {
-      await insertPrintingImage(trx, printing.id, body.url.trim(), source, mode);
+      await printingImages.insertImage(trx, printing.id, body.url.trim(), source, mode);
     });
 
     return c.body(null, 204);
@@ -298,14 +220,10 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     zValidator("form", uploadImageFormSchema),
     async (c) => {
       const db = c.get("db");
+      const { printingImages } = c.get("repos");
       const printingSlug = c.req.param("printingId");
 
-      const printing = await db
-        .selectFrom("printings")
-        .innerJoin("sets", "sets.id", "printings.setId")
-        .select(["printings.id", "sets.slug as setSlug"])
-        .where("printings.slug", "=", printingSlug)
-        .executeTakeFirst();
+      const printing = await printingImages.getPrintingWithSetBySlug(printingSlug);
 
       if (!printing) {
         throw new AppError(404, "NOT_FOUND", "Printing not found");
@@ -330,34 +248,13 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       await processAndSave(c.get("io"), buffer, ext, outputDir, fileBase);
 
       await db.transaction().execute(async (trx) => {
-        if (mode === "main") {
-          await trx
-            .updateTable("printingImages")
-            .set({ isActive: false, updatedAt: new Date() })
-            .where("printingId", "=", printing.id)
-            .where("face", "=", "front")
-            .where("isActive", "=", true)
-            .execute();
-        }
-
-        await trx
-          .insertInto("printingImages")
-          .values({
-            ...(imageId ? { id: imageId } : {}),
-            printingId: printing.id,
-            face: "front",
-            source,
-            isActive: mode === "main",
-            rehostedUrl,
-          })
-          .onConflict((oc) =>
-            oc.columns(["printingId", "face", "source"]).doUpdateSet({
-              isActive: mode === "main",
-              rehostedUrl,
-              updatedAt: new Date(),
-            }),
-          )
-          .execute();
+        await printingImages.insertUploadedImage(trx, {
+          id: imageId,
+          printingId: printing.id,
+          source,
+          rehostedUrl,
+          mode,
+        });
       });
 
       return c.json({ rehostedUrl });
