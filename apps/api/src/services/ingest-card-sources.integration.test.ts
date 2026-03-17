@@ -1,7 +1,27 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
+import type { IngestCard, IngestPrinting } from "../routes/card-sources/schemas.js";
 import { createTestContext } from "../test/integration-context.js";
 import { ingestCardSources } from "./ingest-card-sources.js";
+
+// Helpers — default source_entity_id from source_id (cards) or source_id (printings)
+// so every test object satisfies the NOT NULL constraint without repeating it.
+type CardInput = Omit<IngestCard, "source_entity_id" | "printings"> & {
+  source_entity_id?: string;
+  printings?: PrintingInput[];
+};
+type PrintingInput = Omit<IngestPrinting, "source_entity_id"> & { source_entity_id?: string };
+
+function card(input: CardInput): IngestCard {
+  return {
+    ...input,
+    source_entity_id: input.source_entity_id ?? input.source_id ?? input.name,
+    printings: (input.printings ?? []).map((p) => ({
+      ...p,
+      source_entity_id: p.source_entity_id ?? p.source_id,
+    })),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Integration tests: ingestCardSources service
@@ -162,7 +182,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("inserts a new card_source with no printings", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Solo Card",
         type: "Unit",
         super_types: [],
@@ -176,7 +196,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "SOLO-001",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(1);
@@ -199,7 +219,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("inserts a new card_source with printings", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Card With Printings",
         type: "Spell",
         super_types: [],
@@ -229,7 +249,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             image_url: "https://example.com/img.png",
           },
         ],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(1);
@@ -259,7 +279,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("updates an existing card_source when fields change", async () => {
     // First ingest
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Evolving Card",
         type: "Unit",
         super_types: [],
@@ -273,12 +293,12 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "EVO-001",
         printings: [],
-      },
+      }),
     ]);
 
     // Second ingest with changed fields
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Evolving Card",
         type: "Unit",
         super_types: ["Champion"],
@@ -292,7 +312,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: ["elite"],
         source_id: "EVO-001",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.updates).toBe(1);
@@ -321,7 +341,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("returns unchanged when card_source has not changed", async () => {
     // First ingest
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Stable Card",
         type: "Rune",
         super_types: [],
@@ -335,12 +355,12 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "STABLE-001",
         printings: [],
-      },
+      }),
     ]);
 
     // Second ingest with identical data
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Stable Card",
         type: "Rune",
         super_types: [],
@@ -354,7 +374,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "STABLE-001",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.unchanged).toBe(1);
@@ -366,7 +386,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("records validation error for card with negative might", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Bad Might Card",
         type: "Unit",
         super_types: [],
@@ -380,7 +400,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BAD-001",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(0);
@@ -391,7 +411,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("records validation error for card with empty name", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "",
         type: "Unit",
         super_types: [],
@@ -405,7 +425,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BAD-002",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(0);
@@ -415,7 +435,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("records validation error for printing with empty source_id", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Valid Card With Bad Printing",
         type: "Unit",
         super_types: [],
@@ -444,7 +464,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     // The card itself is inserted successfully, but the printing fails validation
@@ -458,7 +478,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("updates printing_source when fields change", async () => {
     // First ingest with a printing
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Print Update Card",
         type: "Unit",
         super_types: [],
@@ -487,7 +507,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     // Get the initial printing_source
@@ -506,7 +526,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
     // Second ingest with changed artist
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Print Update Card",
         type: "Unit",
         super_types: [],
@@ -535,7 +555,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     const psAfter = await db
@@ -550,7 +570,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("does not update printing_source when nothing changed", async () => {
     // First ingest
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Print Stable Card",
         type: "Gear",
         super_types: [],
@@ -579,7 +599,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     const cs = await db
@@ -596,7 +616,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
     // Second ingest with identical data
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Print Stable Card",
         type: "Gear",
         super_types: [],
@@ -625,7 +645,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     const psAfter = await db
@@ -643,7 +663,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     // "Ingest Alpha" normalizes to "ingestalpha" which matches our seed card
     // The printing slug "IGT-001:common:normal:" should match our seed printing
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Ingest Alpha",
         type: "Unit",
         super_types: [],
@@ -672,7 +692,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(1);
@@ -698,7 +718,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("resolves card by alias when normName does not match directly", async () => {
     // "Ingest Beta Alias" normalizes to "ingestbetaalias" which matches the alias we seeded
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Ingest Beta Alias",
         type: "Spell",
         super_types: [],
@@ -712,7 +732,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "ALIAS-001",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(1);
@@ -724,7 +744,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("finds existing card_source by source_id rather than name", async () => {
     // Insert with source_id
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Name One",
         type: "Unit",
         super_types: [],
@@ -738,12 +758,12 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "SID-LOOKUP",
         printings: [],
-      },
+      }),
     ]);
 
     // Re-ingest same source_id but different name — should update, not insert
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Name Two",
         type: "Unit",
         super_types: [],
@@ -757,7 +777,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "SID-LOOKUP",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(0);
@@ -778,7 +798,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("finds existing card_source by name when source_id is absent", async () => {
     // Insert without source_id
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Name Only Card",
         type: "Unit",
         super_types: [],
@@ -791,12 +811,12 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         effect_text: null,
         tags: [],
         printings: [],
-      },
+      }),
     ]);
 
     // Re-ingest same name — should be unchanged (not a new insert)
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Name Only Card",
         type: "Unit",
         super_types: [],
@@ -809,7 +829,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         effect_text: null,
         tags: [],
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.unchanged).toBe(1);
@@ -820,7 +840,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("stores extra_data as null when given an empty object", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Extra Data Empty Card",
         type: "Unit",
         super_types: [],
@@ -835,7 +855,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         source_id: "EXTRA-001",
         extra_data: {},
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(1);
@@ -851,7 +871,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("stores non-empty extra_data as-is", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Extra Data Real Card",
         type: "Unit",
         super_types: [],
@@ -866,7 +886,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         source_id: "EXTRA-002",
         extra_data: { foo: "bar", count: 42 },
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(1);
@@ -887,7 +907,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
     // Phase 1: insert two cards
     await ingestCardSources(db, batchSource, [
-      {
+      card({
         name: "Batch Unchanged",
         type: "Unit",
         super_types: [],
@@ -901,8 +921,8 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BATCH-001",
         printings: [],
-      },
-      {
+      }),
+      card({
         name: "Batch Will Update",
         type: "Spell",
         super_types: [],
@@ -916,13 +936,13 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BATCH-002",
         printings: [],
-      },
+      }),
     ]);
 
     // Phase 2: mixed batch
     const result = await ingestCardSources(db, batchSource, [
       // Unchanged
-      {
+      card({
         name: "Batch Unchanged",
         type: "Unit",
         super_types: [],
@@ -936,9 +956,9 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BATCH-001",
         printings: [],
-      },
+      }),
       // Updated (changed energy from 3 → 5; energy is a snake_case-matching field)
-      {
+      card({
         name: "Batch Will Update",
         type: "Spell",
         super_types: [],
@@ -952,9 +972,9 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BATCH-002",
         printings: [],
-      },
+      }),
       // New card
-      {
+      card({
         name: "Batch New Card",
         type: "Gear",
         super_types: [],
@@ -968,9 +988,9 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BATCH-003",
         printings: [],
-      },
+      }),
       // Validation error (negative energy)
-      {
+      card({
         name: "Batch Bad Card",
         type: "Unit",
         super_types: [],
@@ -984,7 +1004,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "BATCH-004",
         printings: [],
-      },
+      }),
     ]);
 
     expect(result.unchanged).toBe(1);
@@ -999,7 +1019,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("treats empty string as equivalent to null for card fields", async () => {
     // Insert with rules_text = null
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Normalize Test Card",
         type: "Unit",
         super_types: [],
@@ -1013,12 +1033,12 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "NORM-001",
         printings: [],
-      },
+      }),
     ]);
 
     // Re-ingest with rules_text = "" — emptyToNull converts to null, so should be unchanged
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Normalize Test Card",
         type: "Unit",
         super_types: [],
@@ -1032,7 +1052,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         tags: [],
         source_id: "NORM-001",
         printings: [],
-      },
+      }),
     ]);
 
     // rules_text "" is converted to null by emptyToNull, so the values match
@@ -1045,7 +1065,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   it("inserts printing_source with printingId=null when card name is unresolvable", async () => {
     // Card name "Totally Unknown Card" doesn't match any card normName or alias
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Totally Unknown Card",
         type: "Unit",
         super_types: [],
@@ -1074,7 +1094,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     const cs = await db
@@ -1098,7 +1118,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("stores source_entity_id on card_source and printing_source", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Entity ID Card",
         type: "Unit",
         super_types: [],
@@ -1129,7 +1149,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             source_entity_id: "entity-print-456",
           },
         ],
-      },
+      }),
     ]);
 
     expect(result.newCards).toBe(1);
@@ -1154,7 +1174,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("stores optional printing fields: flavor_text, set_name, image_url", async () => {
     await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Full Printing Card",
         type: "Unit",
         super_types: [],
@@ -1186,7 +1206,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             flavor_text: "A fiery blaze illuminates the night.",
           },
         ],
-      },
+      }),
     ]);
 
     const cs = await db
@@ -1217,7 +1237,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("records printing validation error for collector_number=0", async () => {
     const result = await ingestCardSources(db, SOURCE, [
-      {
+      card({
         name: "Zero Collector Card",
         type: "Unit",
         super_types: [],
@@ -1246,7 +1266,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             printed_effect_text: null,
           },
         ],
-      },
+      }),
     ]);
 
     // Card is inserted, but printing fails Zod validation

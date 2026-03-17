@@ -10,6 +10,7 @@ const pageTitles: Record<string, string> = {
   "/_authenticated/admin/marketplace-groups": "Marketplace Groups",
   "/_authenticated/admin/marketplace-mappings": "Marketplace Mappings",
   "/_authenticated/admin/ignored-products": "Ignored Products",
+  "/_authenticated/admin/ignored-sources": "Ignored Sources",
   "/_authenticated/admin/sources": "Sources",
   "/_authenticated/admin/cards": "Cards",
   "/_authenticated/admin/images": "Images",

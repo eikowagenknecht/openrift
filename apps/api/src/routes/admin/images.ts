@@ -37,7 +37,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const db = c.get("db");
       const limit = c.req.valid("query").limit ?? 10;
       try {
-        const result = await rehostImages(db, limit);
+        const result = await rehostImages(c.get("io"), db, limit);
         return c.json(result);
       } catch (error) {
         log.error(error, "rehost-images failed");
@@ -52,7 +52,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     async (c) => {
       const offset = c.req.valid("query").offset ?? 0;
       try {
-        const result = await regenerateImages(offset);
+        const result = await regenerateImages(c.get("io"), offset);
         return c.json(result);
       } catch (error) {
         log.error(error, "regenerate-images failed");
@@ -64,7 +64,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   .post("/admin/clear-rehosted", async (c) => {
     const db = c.get("db");
     try {
-      const result = await clearAllRehosted(db);
+      const result = await clearAllRehosted(c.get("io"), db);
       return c.json(result);
     } catch (error) {
       log.error(error, "clear-rehosted failed");
@@ -75,7 +75,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   .get("/admin/rehost-status", async (c) => {
     const db = c.get("db");
     try {
-      const result = await getRehostStatus(db);
+      const result = await getRehostStatus(c.get("io"), db);
       return c.json(result);
     } catch (error) {
       log.error(error, "rehost-status failed");

@@ -8,13 +8,9 @@ import { featureFlagsRoute } from "./feature-flags";
 // Mock repo
 // ---------------------------------------------------------------------------
 
-const mockListKeyEnabled = mock(() => Promise.resolve([] as { key: string; enabled: boolean }[]));
-
-mock.module("../repositories/feature-flags.js", () => ({
-  featureFlagsRepo: () => ({
-    listKeyEnabled: mockListKeyEnabled,
-  }),
-}));
+const mockFeatureFlagsRepo = {
+  listKeyEnabled: mock(() => Promise.resolve([] as { key: string; enabled: boolean }[])),
+};
 
 // ---------------------------------------------------------------------------
 // Test app
@@ -23,6 +19,7 @@ mock.module("../repositories/feature-flags.js", () => ({
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", {} as never);
+    c.set("repos", { featureFlags: mockFeatureFlagsRepo } as never);
     await next();
   })
   .route("/api", featureFlagsRoute);
@@ -33,11 +30,11 @@ const app = new Hono()
 
 describe("GET /api/feature-flags", () => {
   beforeEach(() => {
-    mockListKeyEnabled.mockReset();
+    mockFeatureFlagsRepo.listKeyEnabled.mockReset();
   });
 
   it("returns 200 with key→enabled map", async () => {
-    mockListKeyEnabled.mockResolvedValue([
+    mockFeatureFlagsRepo.listKeyEnabled.mockResolvedValue([
       { key: "dark-mode", enabled: true },
       { key: "beta-search", enabled: false },
     ]);
@@ -49,7 +46,7 @@ describe("GET /api/feature-flags", () => {
   });
 
   it("returns empty object when no flags exist", async () => {
-    mockListKeyEnabled.mockResolvedValue([]);
+    mockFeatureFlagsRepo.listKeyEnabled.mockResolvedValue([]);
 
     const res = await app.request("/api/feature-flags");
     expect(res.status).toBe(200);
@@ -58,7 +55,7 @@ describe("GET /api/feature-flags", () => {
   });
 
   it("returns multiple flags correctly", async () => {
-    mockListKeyEnabled.mockResolvedValue([
+    mockFeatureFlagsRepo.listKeyEnabled.mockResolvedValue([
       { key: "a", enabled: true },
       { key: "b", enabled: true },
       { key: "c", enabled: false },

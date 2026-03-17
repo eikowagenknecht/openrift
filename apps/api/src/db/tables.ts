@@ -425,7 +425,7 @@ export interface CardSourcesTable {
   /** CHECK: <> '' */
   sourceId: string | null;
   /** CHECK: <> '' */
-  sourceEntityId: string | null;
+  sourceEntityId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
   checkedAt: Date | null;
@@ -467,12 +467,36 @@ export interface PrintingSourcesTable {
   /** CHECK: <> '' */
   flavorText: string | null;
   /** CHECK: <> '' */
-  sourceEntityId: string | null;
+  sourceEntityId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
   checkedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+}
+
+// ─── Ignored sources (migration 031) ─────────────────────────────────────────
+
+export interface IgnoredCardSourcesTable {
+  id: Generated<string>;
+  /** CHECK: <> '' */
+  source: string;
+  /** CHECK: <> '' */
+  sourceEntityId: string;
+  /** CHECK: <> '' */
+  reason: string | null;
+  createdAt: CreatedAt;
+}
+
+export interface IgnoredPrintingSourcesTable {
+  id: Generated<string>;
+  /** CHECK: <> '' */
+  source: string;
+  /** CHECK: <> '' */
+  sourceEntityId: string;
+  /** CHECK: <> '' */
+  reason: string | null;
+  createdAt: CreatedAt;
 }
 
 /**
@@ -552,6 +576,10 @@ export interface Database {
   cardSources: CardSourcesTable;
   printingSources: PrintingSourcesTable;
   cardNameAliases: CardNameAliasesTable;
+
+  // Ignored sources (migration 031)
+  ignoredCardSources: IgnoredCardSourcesTable;
+  ignoredPrintingSources: IgnoredPrintingSourcesTable;
 
   // Image archive (migration 013)
   printingImages: PrintingImagesTable;

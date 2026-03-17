@@ -21,16 +21,6 @@ const mockAddCopies = mock(() => Promise.resolve([] as object[]));
 const mockMoveCopies = mock(() => Promise.resolve());
 const mockDisposeCopies = mock(() => Promise.resolve());
 
-mock.module("../repositories/copies.js", () => ({
-  copiesRepo: () => mockRepo,
-}));
-
-mock.module("../services/copies.js", () => ({
-  addCopies: mockAddCopies,
-  moveCopies: mockMoveCopies,
-  disposeCopies: mockDisposeCopies,
-}));
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -41,6 +31,12 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", {} as never);
     c.set("user", { id: USER_ID });
+    c.set("repos", { copies: mockRepo } as never);
+    c.set("services", {
+      addCopies: mockAddCopies,
+      moveCopies: mockMoveCopies,
+      disposeCopies: mockDisposeCopies,
+    } as never);
     await next();
   })
   .route("/api", copiesRoute)

@@ -7,35 +7,8 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { join } from "node:path";
 
-// ─── fs/promises mocks (must be declared before importing the module under test) ──
-const mockMkdir = mock(() => Promise.resolve(undefined as any));
-const mockWriteFile = mock(() => Promise.resolve(undefined as any));
-const mockReadFile = mock(() => Promise.resolve(Buffer.from("img")));
-const mockReaddir = mock((): Promise<any> => Promise.resolve([]));
-const mockRename = mock(() => Promise.resolve(undefined as any));
-const mockUnlink = mock(() => Promise.resolve(undefined as any));
-const mockStat = mock(() => Promise.resolve({ size: 1024 }));
-
-mock.module("node:fs/promises", () => ({
-  mkdir: mockMkdir,
-  writeFile: mockWriteFile,
-  readFile: mockReadFile,
-  readdir: mockReaddir,
-  rename: mockRename,
-  unlink: mockUnlink,
-  stat: mockStat,
-}));
-
-// ─── sharp mock ─────────────────────────────────────────────────────────
-const mockSharpInstance: any = {};
-mockSharpInstance.resize = () => mockSharpInstance;
-mockSharpInstance.webp = () => mockSharpInstance;
-mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("webp"));
-
-mock.module("sharp", () => ({ default: () => mockSharpInstance }));
-
+import type { Io } from "../io.js";
 // ─── Import module under test ───────────────────────────────────────────
-// oxlint-disable-next-line import/first -- mocks must come before imports
 import {
   CARD_IMAGES_DIR,
   clearAllRehosted,
@@ -48,6 +21,41 @@ import {
   rehostImages,
   renameRehostFiles,
 } from "./image-rehost.js";
+
+// ─── Mock fs functions (provided via io parameter) ──────────────────────
+const mockMkdir = mock(() => Promise.resolve(undefined as any));
+const mockWriteFile = mock(() => Promise.resolve(undefined as any));
+const mockReadFile = mock(() => Promise.resolve(Buffer.from("img")));
+const mockReaddir = mock((): Promise<any> => Promise.resolve([]));
+const mockRename = mock(() => Promise.resolve(undefined as any));
+const mockUnlink = mock(() => Promise.resolve(undefined as any));
+const mockStat = mock(() => Promise.resolve({ size: 1024 }));
+
+const mockFetch = mock(() =>
+  Promise.resolve(
+    new Response(Buffer.from("image-data"), { headers: { "content-type": "image/png" } }),
+  ),
+) as any;
+
+// ─── sharp mock ──────────────────────────────────────────────────────────
+const mockSharpInstance: any = {};
+mockSharpInstance.resize = () => mockSharpInstance;
+mockSharpInstance.webp = () => mockSharpInstance;
+mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("webp"));
+
+const mockIo: Io = {
+  fs: {
+    mkdir: mockMkdir as any,
+    readFile: mockReadFile as any,
+    readdir: mockReaddir as any,
+    rename: mockRename as any,
+    stat: mockStat as any,
+    unlink: mockUnlink as any,
+    writeFile: mockWriteFile as any,
+  },
+  fetch: mockFetch,
+  sharp: (() => mockSharpInstance) as any,
+};
 
 // ─── Kysely chain mock ─────────────────────────────────────────────────
 // Proxy that makes every property access and function call chainable.
@@ -104,7 +112,6 @@ const dirent = (name: string, isDir: boolean) => ({ name, isDirectory: () => isD
 
 // ─── Shared setup ───────────────────────────────────────────────────────
 let consoleErrorSpy: ReturnType<typeof spyOn>;
-let fetchSpy: ReturnType<typeof spyOn>;
 
 beforeEach(() => {
   mockMkdir.mockReset().mockResolvedValue();
@@ -114,16 +121,17 @@ beforeEach(() => {
   mockRename.mockReset().mockResolvedValue();
   mockUnlink.mockReset().mockResolvedValue();
   mockStat.mockReset().mockResolvedValue({ size: 1024 });
+  mockFetch
+    .mockReset()
+    .mockResolvedValue(
+      new Response(Buffer.from("image-data"), { headers: { "content-type": "image/png" } }),
+    );
 
   consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
-  fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(Buffer.from("image-data"), { headers: { "content-type": "image/png" } }),
-  );
 });
 
 afterEach(() => {
   consoleErrorSpy.mockRestore();
-  fetchSpy.mockRestore();
 });
 
 // ─── Tests ──────────────────────────────────────────────────────────────
@@ -160,50 +168,54 @@ describe("downloadImage", () => {
       { contentType: "image/avif", expected: ".avif" },
     ];
     for (const { contentType, expected } of cases) {
-      fetchSpy.mockResolvedValueOnce(
+      mockFetch.mockResolvedValueOnce(
         new Response(Buffer.from("d"), { headers: { "content-type": contentType } }),
       );
-      const result = await downloadImage("https://example.com/img");
+      const result = await downloadImage(mockIo, "https://example.com/img");
       expect(result.ext).toBe(expected);
       expect(result.buffer).toBeInstanceOf(Buffer);
     }
   });
 
   it("falls back to URL extension", async () => {
-    fetchSpy.mockResolvedValue(new Response(Buffer.from("d")));
-    const { ext } = await downloadImage("https://example.com/img.gif");
+    mockFetch.mockResolvedValue(new Response(Buffer.from("d")));
+    const { ext } = await downloadImage(mockIo, "https://example.com/img.gif");
     expect(ext).toBe(".gif");
   });
 
   it("defaults to .png when no extension info", async () => {
-    fetchSpy.mockResolvedValue(new Response(Buffer.from("d")));
-    const { ext } = await downloadImage("https://example.com/image");
+    mockFetch.mockResolvedValue(new Response(Buffer.from("d")));
+    const { ext } = await downloadImage(mockIo, "https://example.com/image");
     expect(ext).toBe(".png");
   });
 
   it("throws on non-ok response", async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 404 }));
-    await expect(downloadImage("https://example.com/x")).rejects.toThrow("Download failed (404)");
+    mockFetch.mockResolvedValue(new Response(null, { status: 404 }));
+    await expect(downloadImage(mockIo, "https://example.com/x")).rejects.toThrow(
+      "Download failed (404)",
+    );
   });
 
   it("handles content-type with extra params (charset)", async () => {
-    fetchSpy.mockResolvedValueOnce(
+    mockFetch.mockResolvedValueOnce(
       new Response(Buffer.from("d"), { headers: { "content-type": "image/png; charset=utf-8" } }),
     );
-    const { ext } = await downloadImage("https://example.com/img");
+    const { ext } = await downloadImage(mockIo, "https://example.com/img");
     expect(ext).toBe(".png");
   });
 
   it("throws on 500 server error", async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
-    await expect(downloadImage("https://example.com/x")).rejects.toThrow("Download failed (500)");
+    mockFetch.mockResolvedValue(new Response(null, { status: 500 }));
+    await expect(downloadImage(mockIo, "https://example.com/x")).rejects.toThrow(
+      "Download failed (500)",
+    );
   });
 });
 
 describe("processAndSave", () => {
   it("writes original and 3 webp variants", async () => {
     const buf = Buffer.from("test-img");
-    await processAndSave(buf, ".png", "/tmp/out", "card-001");
+    await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001");
 
     // mkdir: once in processAndSave, once in generateWebpVariants
     expect(mockMkdir).toHaveBeenCalledTimes(2);
@@ -219,7 +231,7 @@ describe("processAndSave", () => {
 describe("deleteRehostFiles", () => {
   it("deletes matching files only", async () => {
     mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-300w.webp", "other.webp"]);
-    await deleteRehostFiles("/card-images/set1/card-001");
+    await deleteRehostFiles(mockIo, "/card-images/set1/card-001");
 
     expect(mockUnlink).toHaveBeenCalledTimes(2);
     expect(mockUnlink).toHaveBeenCalledWith(join(CARD_IMAGES_DIR, "set1", "card-001-orig.png"));
@@ -228,21 +240,21 @@ describe("deleteRehostFiles", () => {
 
   it("handles missing directory", async () => {
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    await deleteRehostFiles("/card-images/set1/card-001");
+    await deleteRehostFiles(mockIo, "/card-images/set1/card-001");
     expect(mockUnlink).not.toHaveBeenCalled();
   });
 
   it("swallows unlink errors", async () => {
     mockReaddir.mockResolvedValue(["base-orig.png"]);
     mockUnlink.mockRejectedValue(new Error("EPERM"));
-    await deleteRehostFiles("/card-images/set1/base"); // should not throw
+    await deleteRehostFiles(mockIo, "/card-images/set1/base"); // should not throw
   });
 });
 
 describe("renameRehostFiles", () => {
   it("renames matching files", async () => {
     mockReaddir.mockResolvedValue(["old-orig.png", "old-300w.webp", "other.webp"]);
-    await renameRehostFiles("/card-images/set1/old", "/card-images/set1/new");
+    await renameRehostFiles(mockIo, "/card-images/set1/old", "/card-images/set1/new");
 
     const dir = join(CARD_IMAGES_DIR, "set1");
     expect(mockRename).toHaveBeenCalledTimes(2);
@@ -252,20 +264,20 @@ describe("renameRehostFiles", () => {
 
   it("handles missing directory", async () => {
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    await renameRehostFiles("/card-images/set1/old", "/card-images/set1/new");
+    await renameRehostFiles(mockIo, "/card-images/set1/old", "/card-images/set1/new");
     expect(mockRename).not.toHaveBeenCalled();
   });
 
   it("swallows rename errors", async () => {
     mockReaddir.mockResolvedValue(["old-orig.png"]);
     mockRename.mockRejectedValue(new Error("EPERM"));
-    await renameRehostFiles("/card-images/set1/old", "/card-images/set1/new"); // no throw
+    await renameRehostFiles(mockIo, "/card-images/set1/old", "/card-images/set1/new"); // no throw
   });
 });
 
 describe("rehostImages", () => {
   it("returns zeros when no images found", async () => {
-    const result = await rehostImages(makeMockDb());
+    const result = await rehostImages(mockIo, makeMockDb());
     expect(result).toEqual({ total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] });
   });
 
@@ -282,9 +294,9 @@ describe("rehostImages", () => {
       updateResult: [{ numUpdatedRows: 1n }],
     });
 
-    const result = await rehostImages(db);
+    const result = await rehostImages(mockIo, db);
     expect(result).toEqual({ total: 1, rehosted: 1, skipped: 0, failed: 0, errors: [] });
-    expect(fetchSpy).toHaveBeenCalledWith("https://example.com/img.png");
+    expect(mockFetch).toHaveBeenCalledWith("https://example.com/img.png");
     expect(mockWriteFile).toHaveBeenCalled();
   });
 
@@ -292,37 +304,37 @@ describe("rehostImages", () => {
     const db = makeMockDb({
       selectResult: [{ imageId: 1, printingSlug: "X:a:b:", originalUrl: null, setSlug: "s" }],
     });
-    const result = await rehostImages(db);
+    const result = await rehostImages(mockIo, db);
     expect(result.skipped).toBe(1);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("counts download failures", async () => {
-    fetchSpy.mockRejectedValue(new Error("Network error"));
+    mockFetch.mockRejectedValue(new Error("Network error"));
     const db = makeMockDb({
       selectResult: [
         { imageId: 1, printingSlug: "X:a:b:", originalUrl: "https://x.com/img", setSlug: "s" },
       ],
     });
-    const result = await rehostImages(db);
+    const result = await rehostImages(mockIo, db);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("Network error");
   });
 
   it("handles non-Error thrown values", async () => {
-    fetchSpy.mockRejectedValue("string-error");
+    mockFetch.mockRejectedValue("string-error");
     const db = makeMockDb({
       selectResult: [
         { imageId: 1, printingSlug: "X:a:b:", originalUrl: "https://x.com/img", setSlug: "s" },
       ],
     });
-    const result = await rehostImages(db);
+    const result = await rehostImages(mockIo, db);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("string-error");
   });
 
   it("processes a mixed batch of success, skip, and failure", async () => {
-    fetchSpy
+    mockFetch
       .mockResolvedValueOnce(
         new Response(Buffer.from("ok"), { headers: { "content-type": "image/png" } }),
       )
@@ -347,7 +359,7 @@ describe("rehostImages", () => {
       updateResult: [{ numUpdatedRows: 1n }],
     });
 
-    const result = await rehostImages(db);
+    const result = await rehostImages(mockIo, db);
     expect(result.total).toBe(3);
     expect(result.rehosted).toBe(1);
     expect(result.skipped).toBe(1);
@@ -368,7 +380,7 @@ describe("rehostImages", () => {
       ],
       updateResult: [{ numUpdatedRows: 1n }],
     });
-    const result = await rehostImages(db, 5);
+    const result = await rehostImages(mockIo, db, 5);
     expect(result.rehosted).toBe(1);
   });
 });
@@ -376,7 +388,7 @@ describe("rehostImages", () => {
 describe("regenerateImages", () => {
   it("returns empty when card-images dir missing", async () => {
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    const result = await regenerateImages(0);
+    const result = await regenerateImages(mockIo, 0);
     expect(result).toEqual({
       total: 0,
       regenerated: 0,
@@ -394,7 +406,7 @@ describe("regenerateImages", () => {
       }
       return ["card-300w.webp"]; // no -orig. files
     });
-    const result = await regenerateImages(0);
+    const result = await regenerateImages(mockIo, 0);
     expect(result.total).toBe(0);
     expect(result.hasMore).toBe(false);
   });
@@ -406,7 +418,7 @@ describe("regenerateImages", () => {
       }
       return ["card-001-orig.png", "card-002-orig.jpg"];
     });
-    const result = await regenerateImages(0);
+    const result = await regenerateImages(mockIo, 0);
     expect(result.regenerated).toBe(2);
     expect(result.totalFiles).toBe(2);
     expect(mockReadFile).toHaveBeenCalledTimes(2);
@@ -420,7 +432,7 @@ describe("regenerateImages", () => {
       }
       return files;
     });
-    const result = await regenerateImages(0);
+    const result = await regenerateImages(mockIo, 0);
     expect(result.totalFiles).toBe(15);
     expect(result.total).toBe(10);
     expect(result.hasMore).toBe(true);
@@ -435,7 +447,7 @@ describe("regenerateImages", () => {
       return ["card-001-orig.png"];
     });
     mockReadFile.mockRejectedValue(new Error("read error"));
-    const result = await regenerateImages(0);
+    const result = await regenerateImages(mockIo, 0);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("read error");
   });
@@ -448,7 +460,7 @@ describe("regenerateImages", () => {
       }
       return files;
     });
-    const result = await regenerateImages(10);
+    const result = await regenerateImages(mockIo, 10);
     expect(result.totalFiles).toBe(15);
     expect(result.total).toBe(5);
     expect(result.hasMore).toBe(false);
@@ -463,7 +475,7 @@ describe("regenerateImages", () => {
       return ["card-001-orig.png"];
     });
     mockReadFile.mockRejectedValue("raw-string-error");
-    const result = await regenerateImages(0);
+    const result = await regenerateImages(mockIo, 0);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("raw-string-error");
   });
@@ -478,7 +490,7 @@ describe("regenerateImages", () => {
       // alpha has 1 orig, beta has 1 orig
       return callIndex === 1 ? ["card-a-orig.png"] : ["card-b-orig.jpg"];
     });
-    const result = await regenerateImages(0);
+    const result = await regenerateImages(mockIo, 0);
     expect(result.totalFiles).toBe(2);
     expect(result.regenerated).toBe(2);
     expect(mockReadFile).toHaveBeenCalledTimes(2);
@@ -495,7 +507,7 @@ describe("clearAllRehosted", () => {
       return ["card-orig.png", "card-300w.webp"];
     });
 
-    const result = await clearAllRehosted(db);
+    const result = await clearAllRehosted(mockIo, db);
     expect(result).toEqual({ cleared: 5 });
     expect(mockUnlink).toHaveBeenCalledTimes(2);
   });
@@ -503,7 +515,7 @@ describe("clearAllRehosted", () => {
   it("handles missing card-images directory", async () => {
     const db = makeMockDb({ updateResult: [{ numUpdatedRows: 3n }] });
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    const result = await clearAllRehosted(db);
+    const result = await clearAllRehosted(mockIo, db);
     expect(result).toEqual({ cleared: 3 });
   });
 
@@ -518,7 +530,7 @@ describe("clearAllRehosted", () => {
       return setCall === 1 ? ["f1.webp", "f2.webp"] : ["f3.webp"];
     });
 
-    const result = await clearAllRehosted(db);
+    const result = await clearAllRehosted(mockIo, db);
     expect(result).toEqual({ cleared: 10 });
     expect(mockUnlink).toHaveBeenCalledTimes(3);
   });
@@ -539,7 +551,7 @@ describe("getRehostStatus", () => {
       return ["f1.webp", "f2.webp"];
     });
 
-    const result = await getRehostStatus(db);
+    const result = await getRehostStatus(mockIo, db);
     expect(result.total).toBe(15);
     expect(result.rehosted).toBe(8);
     expect(result.external).toBe(7);
@@ -551,7 +563,7 @@ describe("getRehostStatus", () => {
   it("handles empty database", async () => {
     const db = makeMockDb();
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    const result = await getRehostStatus(db);
+    const result = await getRehostStatus(mockIo, db);
     expect(result).toEqual({
       total: 0,
       rehosted: 0,
@@ -575,7 +587,7 @@ describe("getRehostStatus", () => {
     });
     mockStat.mockResolvedValue({ size: 500 });
 
-    const result = await getRehostStatus(db);
+    const result = await getRehostStatus(mockIo, db);
     expect(result.disk.totalBytes).toBe(1500);
     expect(result.disk.sets).toEqual([
       { setId: "set-a", bytes: 1000, fileCount: 2 },
@@ -592,7 +604,7 @@ describe("getRehostStatus", () => {
     });
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
 
-    const result = await getRehostStatus(db);
+    const result = await getRehostStatus(mockIo, db);
     expect(result.sets[0]).toEqual({
       setId: "a",
       setName: "Alpha",

@@ -13,6 +13,7 @@ import { groupIntoMap, toCents } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/types.js";
+import type { Fetch } from "../../io.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceRefreshResult, PriceUpsertConfig, StagingRow } from "./types.js";
@@ -66,8 +67,9 @@ interface TcgplayerFetchResult {
   totalProducts: number;
 }
 
-async function fetchTcgplayerData(): Promise<TcgplayerFetchResult> {
+async function fetchTcgplayerData(fetchFn: Fetch): Promise<TcgplayerFetchResult> {
   const { data: groupsData } = await fetchJson<{ results: TcgcsvGroup[] }>(
+    fetchFn,
     `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/groups`,
   );
   const groups = groupsData.results;
@@ -81,9 +83,11 @@ async function fetchTcgplayerData(): Promise<TcgplayerFetchResult> {
     groups.map(async (group) => {
       const [productsRes, pricesRes] = await Promise.all([
         fetchJson<{ results: TcgcsvProduct[] }>(
+          fetchFn,
           `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/products`,
         ),
         fetchJson<{ results: TcgcsvPrice[] }>(
+          fetchFn,
           `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/prices`,
         ),
       ]);
@@ -174,13 +178,14 @@ function buildTcgplayerGroups(groups: TcgcsvGroup[]): GroupRow[] {
  * @returns Fetch totals and per-table upsert counts.
  */
 export async function refreshTcgplayerPrices(
+  fetchFn: Fetch,
   db: Kysely<Database>,
   log: Logger,
 ): Promise<PriceRefreshResult> {
   const ignoredKeys = await loadIgnoredKeys(db, "tcgplayer");
 
   // Phase 1: Fetch
-  const fetchResult = await fetchTcgplayerData();
+  const fetchResult = await fetchTcgplayerData(fetchFn);
   const { groups, totalProducts } = fetchResult;
 
   // Phase 2: Transform

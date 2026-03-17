@@ -6,7 +6,7 @@ import { requireEnv } from "./env.js";
 const log = createLogger("tcgplayer");
 const { db } = createDb(requireEnv("DATABASE_URL"));
 try {
-  await refreshTcgplayerPrices(db, log);
+  await refreshTcgplayerPrices(globalThis.fetch, db, log);
 } finally {
   await db.destroy();
 }

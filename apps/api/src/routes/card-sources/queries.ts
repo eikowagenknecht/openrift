@@ -12,6 +12,33 @@ import type { Variables } from "../../types.js";
 import { resolveCardId } from "./helpers.js";
 import { cardSourcesQuerySchema } from "./schemas.js";
 
+/**
+ * Reusable WHERE filter: exclude card_sources that appear in ignored_card_sources.
+ * @param alias — the card_sources table alias used in the query (e.g. "cs", "cardSources")
+ * @returns SQL boolean expression for NOT EXISTS subquery
+ */
+function notIgnoredCard(alias: string) {
+  return sql<SqlBool>`NOT EXISTS (
+    SELECT 1 FROM ignored_card_sources ics
+    WHERE ics.source = ${sql.ref(`${alias}.source`)}
+      AND ics.source_entity_id = ${sql.ref(`${alias}.source_entity_id`)}
+  )`;
+}
+
+/**
+ * Reusable WHERE filter: exclude printing_sources that appear in ignored_printing_sources.
+ * @param alias — the printing_sources table alias used in the query (e.g. "ps", "printingSources")
+ * @param csAlias — the card_sources table alias to resolve the source name
+ * @returns SQL boolean expression for NOT EXISTS subquery
+ */
+function notIgnoredPrinting(alias: string, csAlias: string) {
+  return sql<SqlBool>`NOT EXISTS (
+    SELECT 1 FROM ignored_printing_sources ips
+    WHERE ips.source = ${sql.ref(`${csAlias}.source`)}
+      AND ips.source_entity_id = ${sql.ref(`${alias}.source_entity_id`)}
+  )`;
+}
+
 // ── GET /all-cards ──────────────────────────────────────────────────────────
 // Lightweight list of all cards for client-side search (link combobox etc.)
 export const queriesRoute = new Hono<{ Variables: Variables }>()
@@ -55,6 +82,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
           "lastUpdated",
         ),
       ])
+      .where(notIgnoredCard("cs"))
       .groupBy("cs.source")
       .orderBy("cs.source")
       .execute();
@@ -111,6 +139,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
         sql<boolean>`bool_or(s.id IS NOT NULL AND s.released_at IS NULL)`.as("hasKnownSet"),
         sql<boolean>`bool_or(ps.id IS NOT NULL AND s.id IS NULL)`.as("hasUnknownSet"),
       ])
+      .where(notIgnoredCard("cs"))
       .groupBy(sql`COALESCE((${rcid})::text, cs.norm_name)`);
 
     if (source) {
@@ -502,7 +531,8 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     let sourcesQuery = db
       .selectFrom("cardSources")
       .selectAll()
-      .where("cardSources.normName", "in", uniqueVariants);
+      .where("cardSources.normName", "in", uniqueVariants)
+      .where(notIgnoredCard("cardSources"));
 
     if (matchingSourceIds.length > 0) {
       sourcesQuery = db
@@ -519,7 +549,8 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
                 .where("ps_match.sourceId", "in", matchingSourceIds),
             ),
           ]),
-        );
+        )
+        .where(notIgnoredCard("cardSources"));
     }
 
     const sources = await sourcesQuery.orderBy("source").execute();
@@ -534,13 +565,15 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     const printingSources =
       sourceIds.length > 0
         ? await db
-            .selectFrom("printingSources")
-            .selectAll()
-            .where("cardSourceId", "in", sourceIds)
-            .orderBy("setId")
-            .orderBy("finish")
-            .orderBy("isSigned")
-            .orderBy("sourceId")
+            .selectFrom("printingSources as ps")
+            .innerJoin("cardSources as cs_parent", "cs_parent.id", "ps.cardSourceId")
+            .selectAll("ps")
+            .where("ps.cardSourceId", "in", sourceIds)
+            .where(notIgnoredPrinting("ps", "cs_parent"))
+            .orderBy("ps.setId")
+            .orderBy("ps.finish")
+            .orderBy("ps.isSigned")
+            .orderBy("ps.sourceId")
             .execute()
         : [];
 
@@ -679,6 +712,7 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
       .selectFrom("cardSources")
       .selectAll()
       .where("cardSources.normName", "=", name)
+      .where(notIgnoredCard("cardSources"))
       .orderBy("source")
       .execute();
 
@@ -688,11 +722,13 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
 
     const sourceIds = sources.map((s) => s.id);
     const printingSources = await db
-      .selectFrom("printingSources")
-      .selectAll()
-      .where("cardSourceId", "in", sourceIds)
-      .orderBy("collectorNumber")
-      .orderBy("sourceId")
+      .selectFrom("printingSources as ps")
+      .innerJoin("cardSources as cs_parent", "cs_parent.id", "ps.cardSourceId")
+      .selectAll("ps")
+      .where("ps.cardSourceId", "in", sourceIds)
+      .where(notIgnoredPrinting("ps", "cs_parent"))
+      .orderBy("ps.collectorNumber")
+      .orderBy("ps.sourceId")
       .execute();
 
     // Use the shortest raw name from the group as the display name

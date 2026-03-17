@@ -14,7 +14,6 @@ import { getUserId } from "../middleware/get-user-id.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { buildPatchUpdates } from "../patch.js";
 import type { FieldMapping } from "../patch.js";
-import { decksRepo } from "../repositories/decks.js";
 import type { Variables } from "../types.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../utils/mappers.js";
 
@@ -32,7 +31,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   .get("/decks", zValidator("query", decksQuerySchema), async (c) => {
-    const decks = decksRepo(c.get("db"));
+    const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { wanted } = c.req.valid("query");
     const rows = await decks.listForUser(userId, wanted === "true");
@@ -41,7 +40,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .post("/decks", zValidator("json", createDeckSchema), async (c) => {
-    const decks = decksRepo(c.get("db"));
+    const { decks } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await decks.create({
@@ -57,7 +56,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET ONE (custom: returns deck with deck_cards joined) ───────────────────
   .get("/decks/:id", zValidator("param", idParamSchema), async (c) => {
-    const decks = decksRepo(c.get("db"));
+    const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
@@ -81,7 +80,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     zValidator("param", idParamSchema),
     zValidator("json", updateDeckSchema),
     async (c) => {
-      const decks = decksRepo(c.get("db"));
+      const { decks } = c.get("repos");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -96,7 +95,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
   .delete("/decks/:id", zValidator("param", idParamSchema), async (c) => {
-    const decks = decksRepo(c.get("db"));
+    const { decks } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await decks.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
@@ -113,7 +112,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     zValidator("json", updateDeckCardsSchema),
     async (c) => {
       const db = c.get("db");
-      const decks = decksRepo(db);
+      const { decks } = c.get("repos");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
@@ -183,7 +182,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   // ── GET /decks/:id/availability ───────────────────────────────────────────
   // For a wanted deck, returns per-card availability from deckbuilding collections
   .get("/decks/:id/availability", zValidator("param", idParamSchema), async (c) => {
-    const decks = decksRepo(c.get("db"));
+    const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 

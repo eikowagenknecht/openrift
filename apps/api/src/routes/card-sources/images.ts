@@ -88,7 +88,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     await db.deleteFrom("printingImages").where("id", "=", imageId).execute();
 
     if (image.rehostedUrl) {
-      await deleteRehostFiles(image.rehostedUrl);
+      await deleteRehostFiles(c.get("io"), image.rehostedUrl);
     }
 
     return c.body(null, 204);
@@ -148,7 +148,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
           // Rename current active's files: main path → ID-suffixed path
           if (currentActive.rehostedUrl) {
             const demotedPath = `${mainPath}-${currentActive.id}`;
-            await renameRehostFiles(currentActive.rehostedUrl, demotedPath);
+            await renameRehostFiles(c.get("io"), currentActive.rehostedUrl, demotedPath);
             await trx
               .updateTable("printingImages")
               .set({ rehostedUrl: demotedPath, updatedAt: new Date() })
@@ -165,7 +165,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
         if (active && image.rehostedUrl) {
           // Rename newly active image's files: ID-suffixed path → main path
-          await renameRehostFiles(image.rehostedUrl, mainPath);
+          await renameRehostFiles(c.get("io"), image.rehostedUrl, mainPath);
           await trx
             .updateTable("printingImages")
             .set({ rehostedUrl: mainPath, updatedAt: new Date() })
@@ -174,7 +174,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
         } else if (!active && image.rehostedUrl) {
           // Demoting: rename from main path → ID-suffixed path
           const demotedPath = `${mainPath}-${image.id}`;
-          await renameRehostFiles(image.rehostedUrl, demotedPath);
+          await renameRehostFiles(c.get("io"), image.rehostedUrl, demotedPath);
           await trx
             .updateTable("printingImages")
             .set({ rehostedUrl: demotedPath, updatedAt: new Date() })
@@ -206,7 +206,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Image is not rehosted");
     }
 
-    await deleteRehostFiles(image.rehostedUrl);
+    await deleteRehostFiles(c.get("io"), image.rehostedUrl);
 
     await db
       .updateTable("printingImages")
@@ -245,12 +245,12 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Image has no original URL to rehost");
     }
 
-    const { buffer, ext } = await downloadImage(image.originalUrl);
+    const { buffer, ext } = await downloadImage(c.get("io"), image.originalUrl);
     const baseFileBase = printingIdToFileBase(image.printingSlug);
     const fileBase = image.isActive ? baseFileBase : `${baseFileBase}-${image.id}`;
     const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
 
-    await processAndSave(buffer, ext, outputDir, fileBase);
+    await processAndSave(c.get("io"), buffer, ext, outputDir, fileBase);
 
     const rehostedUrl = `/card-images/${image.setSlug}/${fileBase}`;
 
@@ -327,7 +327,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageId}`;
       const rehostedUrl = `/card-images/${printing.setSlug}/${fileBase}`;
 
-      await processAndSave(buffer, ext, outputDir, fileBase);
+      await processAndSave(c.get("io"), buffer, ext, outputDir, fileBase);
 
       await db.transaction().execute(async (trx) => {
         if (mode === "main") {

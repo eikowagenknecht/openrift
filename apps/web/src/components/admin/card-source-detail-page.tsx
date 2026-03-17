@@ -8,6 +8,7 @@ import { buildPrintingId, comparePrintings } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightIcon,
+  BanIcon,
   CheckCheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -80,6 +81,7 @@ import {
   useUploadPrintingImage,
 } from "@/hooks/use-card-sources";
 import { useFavoriteSources } from "@/hooks/use-favorite-sources";
+import { useIgnoreCardSource, useIgnorePrintingSource } from "@/hooks/use-ignored-sources";
 
 interface DetailData {
   card: Record<string, unknown>;
@@ -128,6 +130,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   const acceptPrintingGroup = useAcceptPrintingGroup();
   const copyPrintingSource = useCopyPrintingSource();
   const deletePrintingSource = useDeletePrintingSource();
+  const ignoreCardSource = useIgnoreCardSource();
+  const ignorePrintingSource = useIgnorePrintingSource();
   const linkPrintingSources = useLinkPrintingSources();
   const renamePrinting = useRenamePrinting();
 
@@ -527,56 +531,82 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
           onCheck={(sourceId) => checkCardSource.mutate(sourceId)}
           columnActions={(row) =>
             isExisting ? (
-              <DropdownMenuItem
-                onClick={() => {
-                  const record = row as unknown as Record<string, unknown>;
-                  for (const field of CARD_SOURCE_FIELDS) {
-                    if (field.readOnly) {
-                      continue;
+              <>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const record = row as unknown as Record<string, unknown>;
+                    for (const field of CARD_SOURCE_FIELDS) {
+                      if (field.readOnly) {
+                        continue;
+                      }
+                      const val = record[field.key];
+                      if (val !== null && val !== undefined && val !== "") {
+                        acceptCardField.mutate({ cardId, field: field.key, value: val });
+                      }
                     }
-                    const val = record[field.key];
-                    if (val !== null && val !== undefined && val !== "") {
-                      acceptCardField.mutate({ cardId, field: field.key, value: val });
-                    }
+                  }}
+                >
+                  <CopyCheckIcon className="mr-2 size-3.5" />
+                  Accept all fields
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    ignoreCardSource.mutate({
+                      source: (row as CardSourceResponse).source,
+                      sourceEntityId: row.sourceEntityId,
+                    })
                   }
-                }}
-              >
-                <CopyCheckIcon className="mr-2 size-3.5" />
-                Accept all fields
-              </DropdownMenuItem>
+                >
+                  <BanIcon className="mr-2 size-3.5" />
+                  Ignore permanently
+                </DropdownMenuItem>
+              </>
             ) : (
-              <DropdownMenuItem
-                disabled={!newModeCardId.trim() || acceptNewCard.isPending}
-                onClick={() => {
-                  const record = row as unknown as Record<string, unknown>;
-                  const values: Record<string, unknown> = {};
-                  for (const field of CARD_SOURCE_FIELDS) {
-                    if (field.readOnly) {
-                      continue;
+              <>
+                <DropdownMenuItem
+                  disabled={!newModeCardId.trim() || acceptNewCard.isPending}
+                  onClick={() => {
+                    const record = row as unknown as Record<string, unknown>;
+                    const values: Record<string, unknown> = {};
+                    for (const field of CARD_SOURCE_FIELDS) {
+                      if (field.readOnly) {
+                        continue;
+                      }
+                      const val = record[field.key];
+                      if (val !== null && val !== undefined && val !== "") {
+                        values[field.key] = val;
+                      }
                     }
-                    const val = record[field.key];
-                    if (val !== null && val !== undefined && val !== "") {
-                      values[field.key] = val;
+                    if (!values.name || !values.type || !values.domains) {
+                      return;
                     }
-                  }
-                  if (!values.name || !values.type || !values.domains) {
-                    return;
-                  }
-                  const id = newModeCardId.trim();
-                  acceptNewCard.mutate(
-                    { name: identifier, cardFields: { id, ...values } },
-                    {
-                      onSuccess: () => {
-                        checkCardSource.mutate(row.id);
-                        void navigate({ to: "/admin/cards/$cardId", params: { cardId: id } });
+                    const id = newModeCardId.trim();
+                    acceptNewCard.mutate(
+                      { name: identifier, cardFields: { id, ...values } },
+                      {
+                        onSuccess: () => {
+                          checkCardSource.mutate(row.id);
+                          void navigate({ to: "/admin/cards/$cardId", params: { cardId: id } });
+                        },
                       },
-                    },
-                  );
-                }}
-              >
-                <RocketIcon className="mr-2 size-3.5" />
-                Accept all &amp; create card
-              </DropdownMenuItem>
+                    );
+                  }}
+                >
+                  <RocketIcon className="mr-2 size-3.5" />
+                  Accept all &amp; create card
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    ignoreCardSource.mutate({
+                      source: (row as CardSourceResponse).source,
+                      sourceEntityId: row.sourceEntityId,
+                    })
+                  }
+                >
+                  <BanIcon className="mr-2 size-3.5" />
+                  Ignore permanently
+                </DropdownMenuItem>
+              </>
             )
           }
         />
@@ -791,6 +821,19 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                 <Trash2Icon className="mr-2 size-3.5" />
                                 Delete
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  ignorePrintingSource.mutate({
+                                    source:
+                                      sourceLabels[(row as PrintingSourceResponse).cardSourceId] ??
+                                      "",
+                                    sourceEntityId: row.sourceEntityId,
+                                  })
+                                }
+                              >
+                                <BanIcon className="mr-2 size-3.5" />
+                                Ignore permanently
+                              </DropdownMenuItem>
                             </>
                           ) : (
                             <>
@@ -808,6 +851,19 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                               <DropdownMenuItem onClick={() => deletePrintingSource.mutate(row.id)}>
                                 <Trash2Icon className="mr-2 size-3.5" />
                                 Delete
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  ignorePrintingSource.mutate({
+                                    source:
+                                      sourceLabels[(row as PrintingSourceResponse).cardSourceId] ??
+                                      "",
+                                    sourceEntityId: row.sourceEntityId,
+                                  })
+                                }
+                              >
+                                <BanIcon className="mr-2 size-3.5" />
+                                Ignore permanently
                               </DropdownMenuItem>
                               {printings.some((p) => (p.id as string) !== printingId) && (
                                 <>

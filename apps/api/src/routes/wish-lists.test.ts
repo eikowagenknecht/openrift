@@ -22,10 +22,6 @@ const mockRepo = {
   deleteItem: mock(() => Promise.resolve({ numDeletedRows: 0n })),
 };
 
-mock.module("../repositories/wish-lists.js", () => ({
-  wishListsRepo: () => mockRepo,
-}));
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -36,6 +32,7 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", {} as never);
     c.set("user", { id: USER_ID });
+    c.set("repos", { wishLists: mockRepo } as never);
     await next();
   })
   .route("/api", wishListsRoute)

@@ -9,6 +9,8 @@ export type {
   DeckCardsTable,
   DecksTable,
   FeatureFlagsTable,
+  IgnoredCardSourcesTable,
+  IgnoredPrintingSourcesTable,
   MarketplaceSnapshotsTable,
   MarketplaceSourcesTable,
   PrintingImagesTable,

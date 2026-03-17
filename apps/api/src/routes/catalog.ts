@@ -7,8 +7,6 @@ import type {
 import { Hono } from "hono";
 import { etag } from "hono/etag";
 
-import { catalogRepo } from "../repositories/catalog.js";
-import { marketplaceRepo } from "../repositories/marketplace.js";
 import type { Variables } from "../types.js";
 
 export const catalogRoute = new Hono<{ Variables: Variables }>()
@@ -20,9 +18,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
    * market prices are included directly on each printing.
    */
   .get("/catalog", etag(), async (c) => {
-    const db = c.get("db");
-    const catalog = catalogRepo(db);
-    const marketplace = marketplaceRepo(db);
+    const { catalog, marketplace } = c.get("repos");
 
     const [sets, cardRows, printingRows, imageRows, priceRows] = await Promise.all([
       catalog.sets(),

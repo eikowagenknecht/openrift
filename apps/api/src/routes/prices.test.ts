@@ -2,6 +2,8 @@ import { describe, expect, it, beforeEach } from "bun:test";
 
 import { Hono } from "hono";
 
+import { catalogRepo } from "../repositories/catalog";
+import { marketplaceRepo } from "../repositories/marketplace";
 import { pricesRoute } from "./prices";
 
 // ---------------------------------------------------------------------------
@@ -40,6 +42,10 @@ const mockDb = createMockDb();
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", mockDb);
+    c.set("repos", {
+      catalog: catalogRepo(mockDb as never),
+      marketplace: marketplaceRepo(mockDb as never),
+    } as never);
     await next();
   })
   .route("/api", pricesRoute);

@@ -50,5 +50,6 @@ export const queryKeys = {
       byFilter: (showAll: boolean) => ["admin", "unified-mappings", { all: showAll }] as const,
     },
     ignoredProducts: ["admin", "ignored-products"] as const,
+    ignoredSources: ["admin", "ignored-sources"] as const,
   },
 } as const;

@@ -1,14 +1,12 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
-import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
-// oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, extname, join } from "node:path";
 
 import type { Kysely } from "kysely";
-import sharp from "sharp";
 
 import type { Database } from "../db/index.js";
+import type { Io } from "../io.js";
 
 function findProjectRoot(): string {
   for (let dir = import.meta.dir; dir !== dirname(dir); dir = dirname(dir)) {
@@ -64,8 +62,8 @@ function guessExtension(contentType: string | null, url: string): string {
   return ext || ".png";
 }
 
-export async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string }> {
-  const res = await fetch(url);
+export async function downloadImage(io: Io, url: string): Promise<{ buffer: Buffer; ext: string }> {
+  const res = await io.fetch(url);
   if (!res.ok) {
     throw new Error(`Download failed (${res.status}): ${url}`);
   }
@@ -75,44 +73,46 @@ export async function downloadImage(url: string): Promise<{ buffer: Buffer; ext:
 }
 
 async function generateWebpVariants(
+  io: Io,
   buffer: Buffer,
   outputDir: string,
   fileBase: string,
 ): Promise<void> {
-  await mkdir(outputDir, { recursive: true });
+  await io.fs.mkdir(outputDir, { recursive: true });
   for (const size of SIZES) {
-    let pipeline = sharp(buffer);
+    let pipeline = io.sharp(buffer);
     if (size.width !== null) {
       pipeline = pipeline.resize(size.width, null, { withoutEnlargement: true });
     }
     const webpBuffer = await pipeline.webp({ quality: size.quality }).toBuffer();
-    await writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), webpBuffer);
+    await io.fs.writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), webpBuffer);
   }
 }
 
 export async function processAndSave(
+  io: Io,
   buffer: Buffer,
   originalExt: string,
   outputDir: string,
   fileBase: string,
 ): Promise<void> {
-  await mkdir(outputDir, { recursive: true });
-  await writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
-  await generateWebpVariants(buffer, outputDir, fileBase);
+  await io.fs.mkdir(outputDir, { recursive: true });
+  await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
+  await generateWebpVariants(io, buffer, outputDir, fileBase);
 }
 
 /**
  * Delete all rehosted files for a given rehosted_url path prefix.
  * Removes orig, 300w, 400w, full variants.
  */
-export async function deleteRehostFiles(rehostedUrl: string): Promise<void> {
+export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<void> {
   const dir = join(CARD_IMAGES_DIR, rehostedUrl.replace(/^\/card-images\//, ""));
   const parentDir = dirname(dir);
   const base = dir.split("/").pop() as string;
 
   let files: string[];
   try {
-    files = await readdir(parentDir);
+    files = await io.fs.readdir(parentDir);
   } catch {
     return; // directory doesn't exist
   }
@@ -120,7 +120,7 @@ export async function deleteRehostFiles(rehostedUrl: string): Promise<void> {
   for (const file of files) {
     if (file.startsWith(`${base}-`)) {
       // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
-      await unlink(join(parentDir, file)).catch(() => {});
+      await io.fs.unlink(join(parentDir, file)).catch(() => {});
     }
   }
 }
@@ -130,6 +130,7 @@ export async function deleteRehostFiles(rehostedUrl: string): Promise<void> {
  * Handles orig, 300w, 400w, full variants.
  */
 export async function renameRehostFiles(
+  io: Io,
   oldRehostedUrl: string,
   newRehostedUrl: string,
 ): Promise<void> {
@@ -141,7 +142,7 @@ export async function renameRehostFiles(
 
   let files: string[];
   try {
-    files = await readdir(parentDir);
+    files = await io.fs.readdir(parentDir);
   } catch {
     return;
   }
@@ -149,8 +150,10 @@ export async function renameRehostFiles(
   for (const file of files) {
     if (file.startsWith(`${oldBase}-`)) {
       const suffix = file.slice(oldBase.length);
-      // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
-      await rename(join(parentDir, file), join(parentDir, `${newBase}${suffix}`)).catch(() => {});
+      await io.fs
+        .rename(join(parentDir, file), join(parentDir, `${newBase}${suffix}`))
+        // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
+        .catch(() => {});
     }
   }
 }
@@ -158,6 +161,7 @@ export async function renameRehostFiles(
 const BATCH_SIZE = 10;
 
 export async function rehostImages(
+  io: Io,
   db: Kysely<Database>,
   limit = BATCH_SIZE,
 ): Promise<RehostProgress> {
@@ -189,11 +193,11 @@ export async function rehostImages(
     }
 
     try {
-      const { buffer, ext } = await downloadImage(img.originalUrl);
+      const { buffer, ext } = await downloadImage(io, img.originalUrl);
       const fileBase = printingIdToFileBase(img.printingSlug);
       const outputDir = join(CARD_IMAGES_DIR, img.setSlug);
 
-      await processAndSave(buffer, ext, outputDir, fileBase);
+      await processAndSave(io, buffer, ext, outputDir, fileBase);
 
       const selfHostedPath = `/card-images/${img.setSlug}/${fileBase}`;
 
@@ -223,6 +227,7 @@ interface RegenerateProgress {
 }
 
 export async function regenerateImages(
+  io: Io,
   offset: number,
 ): Promise<RegenerateProgress & { hasMore: boolean; totalFiles: number }> {
   const progress: RegenerateProgress & { hasMore: boolean; totalFiles: number } = {
@@ -237,14 +242,14 @@ export async function regenerateImages(
   // Collect all orig files across all sets
   const allOrigFiles: { setDir: string; setId: string; file: string }[] = [];
   try {
-    const entries = await readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    const entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
     const setDirs = entries
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort();
     for (const setId of setDirs) {
       const setDir = join(CARD_IMAGES_DIR, setId);
-      const files = await readdir(setDir);
+      const files = await io.fs.readdir(setDir);
       for (const file of files) {
         if (file.includes("-orig.")) {
           allOrigFiles.push({ setDir, setId, file });
@@ -263,8 +268,8 @@ export async function regenerateImages(
   for (const { setDir, setId, file } of batch) {
     const fileBase = file.replace(/-orig\.[^.]+$/, "");
     try {
-      const buffer = await readFile(join(setDir, file));
-      await generateWebpVariants(buffer, setDir, fileBase);
+      const buffer = await io.fs.readFile(join(setDir, file));
+      await generateWebpVariants(io, buffer, setDir, fileBase);
       progress.regenerated++;
     } catch (error) {
       progress.failed++;
@@ -277,7 +282,7 @@ export async function regenerateImages(
   return progress;
 }
 
-export async function clearAllRehosted(db: Kysely<Database>): Promise<{ cleared: number }> {
+export async function clearAllRehosted(io: Io, db: Kysely<Database>): Promise<{ cleared: number }> {
   // Null out all rehosted_url values
   const result = await db
     .updateTable("printingImages")
@@ -289,15 +294,15 @@ export async function clearAllRehosted(db: Kysely<Database>): Promise<{ cleared:
 
   // Delete all files in the card-images directory
   try {
-    const entries = await readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    const entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) {
         continue;
       }
       const setDir = join(CARD_IMAGES_DIR, entry.name);
-      const files = await readdir(setDir);
+      const files = await io.fs.readdir(setDir);
       for (const file of files) {
-        await unlink(join(setDir, file));
+        await io.fs.unlink(join(setDir, file));
       }
     }
   } catch {
@@ -320,21 +325,21 @@ interface DiskStats {
   sets: { setId: string; bytes: number; fileCount: number }[];
 }
 
-async function getDiskStats(): Promise<DiskStats> {
+async function getDiskStats(io: Io): Promise<DiskStats> {
   const sets: DiskStats["sets"] = [];
   let totalBytes = 0;
 
   try {
-    const entries = await readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    const entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) {
         continue;
       }
       const setDir = join(CARD_IMAGES_DIR, entry.name);
-      const files = await readdir(setDir);
+      const files = await io.fs.readdir(setDir);
       let setBytes = 0;
       for (const file of files) {
-        const info = await stat(join(setDir, file));
+        const info = await io.fs.stat(join(setDir, file));
         setBytes += info.size;
       }
       sets.push({ setId: entry.name, bytes: setBytes, fileCount: files.length });
@@ -347,7 +352,10 @@ async function getDiskStats(): Promise<DiskStats> {
   return { totalBytes, sets };
 }
 
-export async function getRehostStatus(db: Kysely<Database>): Promise<{
+export async function getRehostStatus(
+  io: Io,
+  db: Kysely<Database>,
+): Promise<{
   total: number;
   rehosted: number;
   external: number;
@@ -380,7 +388,7 @@ export async function getRehostStatus(db: Kysely<Database>): Promise<{
       .groupBy(["sets.slug", "sets.name"])
       .orderBy("sets.name")
       .execute(),
-    getDiskStats(),
+    getDiskStats(io),
   ]);
 
   let total = 0;

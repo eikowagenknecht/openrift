@@ -180,7 +180,7 @@ CREATE TABLE public.card_sources (
     id uuid DEFAULT uuidv7() NOT NULL,
     source text NOT NULL,
     source_id text,
-    source_entity_id text,
+    source_entity_id text NOT NULL,
     name text NOT NULL,
     type text,
     super_types text[] DEFAULT '{}'::text[] NOT NULL,
@@ -328,6 +328,38 @@ CREATE TABLE public.feature_flags (
     description text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: ignored_card_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ignored_card_sources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    source text NOT NULL,
+    source_entity_id text NOT NULL,
+    reason text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_ignored_card_sources_entity_id_not_empty CHECK ((source_entity_id <> ''::text)),
+    CONSTRAINT chk_ignored_card_sources_no_empty_reason CHECK ((reason <> ''::text)),
+    CONSTRAINT chk_ignored_card_sources_source_not_empty CHECK ((source <> ''::text))
+);
+
+
+--
+-- Name: ignored_printing_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ignored_printing_sources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    source text NOT NULL,
+    source_entity_id text NOT NULL,
+    reason text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_ignored_printing_sources_entity_id_not_empty CHECK ((source_entity_id <> ''::text)),
+    CONSTRAINT chk_ignored_printing_sources_no_empty_reason CHECK ((reason <> ''::text)),
+    CONSTRAINT chk_ignored_printing_sources_source_not_empty CHECK ((source <> ''::text))
 );
 
 
@@ -513,7 +545,7 @@ CREATE TABLE public.printing_sources (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid,
-    source_entity_id text,
+    source_entity_id text NOT NULL,
     CONSTRAINT chk_printing_sources_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_printing_sources_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_printing_sources_no_empty_artist CHECK ((artist <> ''::text)),
@@ -829,6 +861,22 @@ ALTER TABLE ONLY public.decks
 
 ALTER TABLE ONLY public.feature_flags
     ADD CONSTRAINT feature_flags_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: ignored_card_sources ignored_card_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ignored_card_sources
+    ADD CONSTRAINT ignored_card_sources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ignored_printing_sources ignored_printing_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ignored_printing_sources
+    ADD CONSTRAINT ignored_printing_sources_pkey PRIMARY KEY (id);
 
 
 --
@@ -1238,6 +1286,20 @@ CREATE INDEX idx_deck_cards_deck ON public.deck_cards USING btree (deck_id);
 --
 
 CREATE INDEX idx_decks_user_id ON public.decks USING btree (user_id);
+
+
+--
+-- Name: idx_ignored_card_sources_source_entity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_ignored_card_sources_source_entity ON public.ignored_card_sources USING btree (source, source_entity_id);
+
+
+--
+-- Name: idx_ignored_printing_sources_source_entity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_ignored_printing_sources_source_entity ON public.ignored_printing_sources USING btree (source, source_entity_id);
 
 
 --

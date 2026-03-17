@@ -10,8 +10,6 @@ import { Hono } from "hono";
 import { etag } from "hono/etag";
 import { z } from "zod/v4";
 
-import { catalogRepo } from "../repositories/catalog.js";
-import { marketplaceRepo } from "../repositories/marketplace.js";
 import type { Variables } from "../types.js";
 
 export const pricesRoute = new Hono<{ Variables: Variables }>()
@@ -23,7 +21,7 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
    * Prices are returned as a `{ [printingId]: dollars }` map.
    */
   .get("/prices", etag(), async (c) => {
-    const marketplace = marketplaceRepo(c.get("db"));
+    const { marketplace } = c.get("repos");
 
     const rows = await marketplace.latestPrices();
 
@@ -57,9 +55,7 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
     ),
     etag(),
     async (c) => {
-      const db = c.get("db");
-      const catalog = catalogRepo(db);
-      const marketplace = marketplaceRepo(db);
+      const { catalog, marketplace } = c.get("repos");
 
       const { printingId } = c.req.valid("param");
       const rangeParam = c.req.valid("query").range;

@@ -119,7 +119,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: "CSQ-001",
-      sourceEntityId: null,
+      sourceEntityId: "CSQ-001",
       extraData: null,
     })
     .returning("id")
@@ -143,7 +143,7 @@ if (ctx) {
       effectText: null,
       tags: [],
       sourceId: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -171,7 +171,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csq-test.png",
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .execute();
@@ -197,7 +197,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: null,
+      sourceEntityId: "test-entity",
       extraData: null,
     })
     .execute();

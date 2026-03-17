@@ -85,7 +85,7 @@ export const cardSourceFieldRules = {
   rulesText: z.string().min(1).nullable(),
   effectText: z.string().min(1).nullable(),
   sourceId: z.string().min(1).nullable(),
-  sourceEntityId: z.string().min(1).nullable(),
+  sourceEntityId: z.string().min(1),
   extraData: noEmptyJsonb,
 } satisfies Record<string, z.ZodType>;
 
@@ -104,6 +104,6 @@ export const printingSourceFieldRules = {
   printedEffectText: z.string().min(1).nullable(),
   imageUrl: z.string().min(1).nullable(),
   flavorText: z.string().min(1).nullable(),
-  sourceEntityId: z.string().min(1).nullable(),
+  sourceEntityId: z.string().min(1),
   extraData: noEmptyJsonb,
 } satisfies Record<string, z.ZodType>;

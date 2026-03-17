@@ -56,10 +56,6 @@ const mockDb = {
   }),
 };
 
-mock.module("../repositories/decks.js", () => ({
-  decksRepo: () => mockRepo,
-}));
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -70,6 +66,7 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db", mockDb as never);
     c.set("user", { id: USER_ID });
+    c.set("repos", { decks: mockRepo } as never);
     await next();
   })
   .route("/api", decksRoute)
