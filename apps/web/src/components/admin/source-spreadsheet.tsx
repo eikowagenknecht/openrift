@@ -468,7 +468,9 @@ export function SourceSpreadsheet({
                   const invalidOption =
                     field.options &&
                     hasValue(sourceValue) &&
-                    !field.options.includes(String(sourceValue));
+                    (Array.isArray(sourceValue)
+                      ? sourceValue.some((v) => !field.options?.includes(String(v)))
+                      : !field.options.includes(String(sourceValue)));
                   const isClickable =
                     !field.readOnly &&
                     !invalidOption &&
