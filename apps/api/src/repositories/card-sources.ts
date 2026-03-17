@@ -42,7 +42,7 @@ function notIgnoredPrinting(alias: string, csAlias: string) {
 // ── Row types for aggregate / joined queries ────────────────────────────────
 
 /** Row returned by `listGroupedSources`. */
-export interface GroupedSourceRow {
+interface GroupedSourceRow {
   cardId: string | null;
   cardSlug: string | null;
   name: string;
@@ -58,7 +58,7 @@ export interface GroupedSourceRow {
 }
 
 /** Row returned by `sourceStats`. */
-export interface SourceStatRow {
+interface SourceStatRow {
   source: string;
   cardCount: number;
   printingCount: number;
@@ -66,7 +66,7 @@ export interface SourceStatRow {
 }
 
 /** Row returned by `exportPrintings`. */
-export interface ExportPrintingRow extends Selectable<PrintingsTable> {
+interface ExportPrintingRow extends Selectable<PrintingsTable> {
   setSlug: string;
   setName: string;
   rehostedUrl: string | null;
