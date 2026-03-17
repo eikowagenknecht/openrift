@@ -2,6 +2,15 @@ import { describe, expect, it } from "bun:test";
 
 import { decksRepo } from "./decks.js";
 
+// DEBUG: Log what decksRepo actually is to diagnose CI-only failure
+console.log("[DEBUG] decksRepo type:", typeof decksRepo);
+if (typeof decksRepo === "function") {
+  const fakeDb = { selectFrom: () => ({}) };
+  const result = decksRepo(fakeDb as never);
+  console.log("[DEBUG] decksRepo(db) type:", typeof result);
+  console.log("[DEBUG] decksRepo(db) keys:", Object.keys(result));
+}
+
 // ---------------------------------------------------------------------------
 // Mock DB — tracks calls to verify the repo builds correct queries
 // ---------------------------------------------------------------------------
