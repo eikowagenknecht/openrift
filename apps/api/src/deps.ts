@@ -10,6 +10,7 @@ import { collectionsRepo } from "./repositories/collections.js";
 import { copiesRepo } from "./repositories/copies.js";
 import { decksRepo } from "./repositories/decks.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";
+import { healthRepo } from "./repositories/health.js";
 import { ignoredSourcesRepo } from "./repositories/ignored-sources.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
@@ -38,6 +39,7 @@ export interface Repos {
   copies: ReturnType<typeof copiesRepo>;
   decks: ReturnType<typeof decksRepo>;
   featureFlags: ReturnType<typeof featureFlagsRepo>;
+  health: ReturnType<typeof healthRepo>;
   ignoredSources: ReturnType<typeof ignoredSourcesRepo>;
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
@@ -73,6 +75,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     copies: copiesRepo(db),
     decks: decksRepo(db),
     featureFlags: featureFlagsRepo(db),
+    health: healthRepo(db),
     ignoredSources: ignoredSourcesRepo(db),
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),

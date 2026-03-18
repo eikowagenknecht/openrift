@@ -1,5 +1,6 @@
 export function createConfig(env: Record<string, string | undefined>) {
   return {
+    isDev: (env.APP_ENV ?? "development") !== "production",
     port: Number(env.PORT ?? 3000),
     databaseUrl: env.DATABASE_URL ?? "",
 
