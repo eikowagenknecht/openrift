@@ -1,6 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import type { AdminSetResponse, MarketplaceGroupResponse } from "@openrift/shared";
 import { slugParamSchema } from "@openrift/shared/schemas";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -8,11 +9,34 @@ import { setFieldRules } from "../../db/schemas.js";
 import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
-// ── Schemas ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-const marketplaceParamSchema = z.object({
-  marketplace: z.enum(["cardmarket", "tcgplayer"]),
-});
+function listGroups(marketplace: "cardmarket" | "tcgplayer") {
+  return async (c: Context<{ Variables: Variables }>) => {
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
+
+    const [groups, stagingCounts, assignedCounts] = await Promise.all([
+      mktAdmin.listGroupsByMarketplace(marketplace),
+      mktAdmin.stagingCountsByMarketplaceGroup(marketplace),
+      mktAdmin.assignedCountsByMarketplaceGroup(marketplace),
+    ]);
+
+    const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
+    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
+
+    const items: MarketplaceGroupResponse[] = groups.map((g) => ({
+      marketplace,
+      groupId: g.groupId,
+      name: g.name,
+      abbreviation: g.abbreviation,
+      stagedCount: countMap.get(g.groupId) ?? 0,
+      assignedCount: assignedMap.get(g.groupId) ?? 0,
+    }));
+    return c.json({ groups: items });
+  };
+}
+
+// ── Schemas ─────────────────────────────────────────────────────────────────
 
 const numericIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -46,33 +70,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
 
   // ── Marketplace Groups ──────────────────────────────────────────────────────
 
-  .get(
-    "/:marketplace{cardmarket|tcgplayer}-groups",
-    zValidator("param", marketplaceParamSchema),
-    async (c) => {
-      const { marketplaceAdmin: mktAdmin } = c.get("repos");
-      const { marketplace } = c.req.valid("param");
-
-      const [groups, stagingCounts, assignedCounts] = await Promise.all([
-        mktAdmin.listGroupsByMarketplace(marketplace),
-        mktAdmin.stagingCountsByMarketplaceGroup(marketplace),
-        mktAdmin.assignedCountsByMarketplaceGroup(marketplace),
-      ]);
-
-      const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
-      const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
-
-      const items: MarketplaceGroupResponse[] = groups.map((g) => ({
-        marketplace,
-        groupId: g.groupId,
-        name: g.name,
-        abbreviation: g.abbreviation,
-        stagedCount: countMap.get(g.groupId) ?? 0,
-        assignedCount: assignedMap.get(g.groupId) ?? 0,
-      }));
-      return c.json({ groups: items });
-    },
-  )
+  .get("/cardmarket-groups", listGroups("cardmarket"))
+  .get("/tcgplayer-groups", listGroups("tcgplayer"))
 
   // Only cardmarket groups have editable names — tcgplayer group names come
   // preset from the marketplace feed and are not user-editable.
@@ -105,8 +104,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       setsRepo.printingCountsBySet(),
     ]);
 
-    const cardCountMap = new Map(cardCounts.map((r) => [r.setId, Number(r.cardCount)]));
-    const printingCountMap = new Map(printingCounts.map((r) => [r.setId, Number(r.printingCount)]));
+    const cardCountMap = new Map(cardCounts.map((r) => [r.setId, r.cardCount]));
+    const printingCountMap = new Map(printingCounts.map((r) => [r.setId, r.printingCount]));
 
     const items: AdminSetResponse[] = sets.map((s) => ({
       id: s.id,
@@ -114,7 +113,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       name: s.name,
       printedTotal: s.printedTotal,
       sortOrder: s.sortOrder,
-      releasedAt: s.releasedAt ?? null,
+      releasedAt: s.releasedAt,
       cardCount: cardCountMap.get(s.id) ?? 0,
       printingCount: printingCountMap.get(s.id) ?? 0,
     }));
@@ -155,17 +154,16 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     const { sets: setsRepo } = c.get("repos");
     const { id } = c.req.valid("param");
 
-    const set = await setsRepo.getBySlug(id);
+    const set = await setsRepo.getBySlugWithPrintingCount(id);
     if (!set) {
       throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
     }
 
-    const printingCount = await setsRepo.printingCount(set.id);
-    if (printingCount > 0) {
+    if (set.printingCount > 0) {
       throw new AppError(
         409,
         "CONFLICT",
-        `Cannot delete set "${id}" — it still has ${printingCount} printing(s). Remove them first.`,
+        `Cannot delete set "${id}" — it still has ${set.printingCount} printing(s). Remove them first.`,
       );
     }
 

@@ -147,7 +147,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(printing.rarity).toBe("Epic");
       expect(printing.artVariant).toBe("normal");
       expect(printing.isSigned).toBe(false);
-      expect(printing.isPromo).toBe(false);
+      expect(printing.promoType).toBeNull();
       expect(printing.finish).toBe("normal");
       expect(printing.artist).toBe("Polar Engine Studio");
       expect(printing.publicCode).toBe("OGS-001/024");

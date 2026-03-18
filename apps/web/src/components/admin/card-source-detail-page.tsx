@@ -181,7 +181,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   const [isCheckingAll, setIsCheckingAll] = useState(false);
   // oxlint-disable-next-line no-empty-function -- initialized before data is available, set after early returns
   const checkAllAndNextRef = useRef<() => void>(() => {});
-  useHotkey("ctrl+Enter", () => checkAllAndNextRef.current(), {
+  useHotkey("Mod+Enter", () => checkAllAndNextRef.current(), {
     enabled: mode === "existing" && !isCheckingAll,
   });
 

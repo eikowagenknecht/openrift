@@ -67,7 +67,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Test Artist",
       publicCode: "UNM",
@@ -114,7 +114,7 @@ if (ctx) {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Test Artist",
       publicCode: "UNM",
@@ -587,7 +587,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(printing.rarity).toBe("Common");
       expect(printing.artVariant).toBe("normal");
       expect(printing.isSigned).toBe(false);
-      expect(printing.isPromo).toBe(false);
+      expect(printing.promoTypeSlug).toBeNull();
       expect(printing.finish).toBe("normal");
       expect(printing.collectorNumber).toBe(1);
     });

@@ -62,7 +62,7 @@ const dbPrintingRow = {
   rarity: "Rare",
   artVariant: "normal",
   isSigned: false,
-  isPromo: false,
+  promoType: null,
   finish: "normal",
   artist: "Alice",
   publicCode: "ABCD",
@@ -198,7 +198,7 @@ describe("GET /api/catalog", () => {
     expect(printing.publicCode).toBe("ABCD");
     expect(printing.artVariant).toBe("normal");
     expect(printing.isSigned).toBe(false);
-    expect(printing.isPromo).toBe(false);
+    expect(printing.promoType).toBeNull();
     expect(printing.finish).toBe("normal");
     expect(printing.artist).toBe("Alice");
     expect(printing.cardId).toBe("OGS-001");

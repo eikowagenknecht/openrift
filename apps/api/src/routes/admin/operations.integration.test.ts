@@ -94,7 +94,7 @@ async function seedMarketplaceData(marketplace: string) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Test Artist",
       publicCode: "OPS",
