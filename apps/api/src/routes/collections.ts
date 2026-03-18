@@ -85,13 +85,13 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   // Complex: validates inbox, relocates copies, logs activity
   .delete("/collections/:id", zValidator("param", idParamSchema), async (c) => {
     const db = c.get("db");
-    const { collections } = c.get("repos");
-    const { createActivity } = c.get("services");
+    const repos = c.get("repos");
+    const { deleteCollection } = c.get("services");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const moveCopiesTo = c.req.query("move_copies_to");
 
-    const collection = await collections.getByIdForUser(id, userId);
+    const collection = await repos.collections.getByIdForUser(id, userId);
 
     if (!collection) {
       throw new AppError(404, "NOT_FOUND", "Not found");
@@ -110,36 +110,18 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     }
 
     // Verify target collection exists and belongs to user
-    const target = await collections.getIdAndName(moveCopiesTo, userId);
+    const target = await repos.collections.getIdAndName(moveCopiesTo, userId);
 
     if (!target) {
       throw new AppError(404, "NOT_FOUND", "Target collection not found");
     }
 
-    await db.transaction().execute(async (trx) => {
-      const copies = await collections.listCopiesInCollection(id, trx);
-
-      if (copies.length > 0) {
-        await collections.moveCopiesBetweenCollections(id, moveCopiesTo, trx);
-
-        await createActivity(trx, {
-          userId,
-          type: "reorganization",
-          name: `Moved cards from deleted collection "${collection.name}"`,
-          isAuto: true,
-          items: copies.map((copy) => ({
-            copyId: copy.id,
-            printingId: copy.printingId,
-            action: "moved" as const,
-            fromCollectionId: id,
-            fromCollectionName: collection.name,
-            toCollectionId: moveCopiesTo,
-            toCollectionName: target.name,
-          })),
-        });
-      }
-
-      await collections.deleteByIdForUser(id, userId, trx);
+    await deleteCollection(db, repos, {
+      collectionId: id,
+      collectionName: collection.name,
+      moveCopiesTo,
+      targetName: target.name,
+      userId,
     });
 
     return c.body(null, 204);

@@ -1,49 +1,29 @@
 import { Hono } from "hono";
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { catalogRepo } from "../repositories/catalog";
-import { marketplaceRepo } from "../repositories/marketplace";
 import { catalogRoute } from "./catalog";
 
 // ---------------------------------------------------------------------------
-// Mock DB
+// Mock repos
 // ---------------------------------------------------------------------------
 
-const mockState = {
-  tables: {} as Record<string, unknown[]>,
+const mockCatalogRepo = {
+  sets: vi.fn(() => Promise.resolve([])),
+  cards: vi.fn(() => Promise.resolve([])),
+  printings: vi.fn(() => Promise.resolve([])),
+  printingImages: vi.fn(() => Promise.resolve([])),
 };
 
-function createMockDb() {
-  return {
-    selectFrom: (table: string) => {
-      const data = mockState.tables[table] ?? [];
-      const chain: Record<string, unknown> = {
-        selectAll: () => chain,
-        select: () => chain,
-        innerJoin: () => chain,
-        leftJoin: () => chain,
-        distinctOn: () => chain,
-        where: () => chain,
-        or: () => chain,
-        orderBy: () => chain,
-        limit: () => chain,
-        execute: () => data,
-        executeTakeFirst: () => data[0] ?? undefined,
-        executeTakeFirstOrThrow: () => data[0],
-      };
-      return chain;
-    },
-  };
-}
+const mockMarketplaceRepo = {
+  latestPrices: vi.fn(() => Promise.resolve([])),
+};
 
-const mockDb = createMockDb();
-
+// oxlint-disable-next-line -- test mock doesn't match full Repos type
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("db", mockDb);
     c.set("repos", {
-      catalog: catalogRepo(mockDb as never),
-      marketplace: marketplaceRepo(mockDb as never),
+      catalog: mockCatalogRepo,
+      marketplace: mockMarketplaceRepo,
     } as never);
     await next();
   })
@@ -103,15 +83,18 @@ const dbPrice = {
   recordedAt: new Date("2026-03-01"),
 };
 
-function catalogTables(overrides?: Record<string, unknown[]>) {
-  return {
-    sets: [dbSet],
-    cards: [dbCard],
-    printings: [dbPrintingRow],
-    printingImages: [dbImage],
-    "marketplaceSources as ps": [dbPrice],
-    ...overrides,
-  };
+function seedDefaults(overrides?: {
+  sets?: unknown[];
+  cards?: unknown[];
+  printings?: unknown[];
+  printingImages?: unknown[];
+  prices?: unknown[];
+}) {
+  mockCatalogRepo.sets.mockResolvedValue(overrides?.sets ?? [dbSet]);
+  mockCatalogRepo.cards.mockResolvedValue(overrides?.cards ?? [dbCard]);
+  mockCatalogRepo.printings.mockResolvedValue(overrides?.printings ?? [dbPrintingRow]);
+  mockCatalogRepo.printingImages.mockResolvedValue(overrides?.printingImages ?? [dbImage]);
+  mockMarketplaceRepo.latestPrices.mockResolvedValue(overrides?.prices ?? [dbPrice]);
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +103,12 @@ function catalogTables(overrides?: Record<string, unknown[]>) {
 
 describe("GET /api/catalog", () => {
   beforeEach(() => {
-    mockState.tables = catalogTables();
+    mockCatalogRepo.sets.mockReset();
+    mockCatalogRepo.cards.mockReset();
+    mockCatalogRepo.printings.mockReset();
+    mockCatalogRepo.printingImages.mockReset();
+    mockMarketplaceRepo.latestPrices.mockReset();
+    seedDefaults();
   });
 
   it("returns 200 with normalized CatalogResponse structure", async () => {
@@ -152,7 +140,7 @@ describe("GET /api/catalog", () => {
   });
 
   it("preserves null fields and empty arrays on cards", async () => {
-    mockState.tables = catalogTables({
+    seedDefaults({
       cards: [
         {
           ...dbCard,
@@ -185,7 +173,7 @@ describe("GET /api/catalog", () => {
   });
 
   it("preserves null fields and empty arrays on printings", async () => {
-    mockState.tables = catalogTables({
+    seedDefaults({
       printings: [{ ...dbPrintingRow, printedRulesText: null, printedEffectText: null }],
       printingImages: [],
     });
@@ -246,7 +234,7 @@ describe("GET /api/catalog", () => {
   });
 
   it("omits marketPrice when no price exists", async () => {
-    mockState.tables = catalogTables({ "marketplaceSources as ps": [] });
+    seedDefaults({ prices: [] });
     const res = await app.request("/api/catalog");
     const json = await res.json();
     expect(json.printings[0].marketPrice).toBeUndefined();
@@ -263,7 +251,7 @@ describe("GET /api/catalog", () => {
       sourceId: "S2-001",
       setId: "S2",
     };
-    mockState.tables = catalogTables({
+    seedDefaults({
       sets: [dbSet, secondSet],
       cards: [dbCard, secondCard],
       printings: [dbPrintingRow, secondRow],
@@ -278,12 +266,12 @@ describe("GET /api/catalog", () => {
   });
 
   it("returns empty printings when catalog is empty", async () => {
-    mockState.tables = catalogTables({
+    seedDefaults({
       sets: [],
       cards: [],
       printings: [],
       printingImages: [],
-      "marketplaceSources as ps": [],
+      prices: [],
     });
     const res = await app.request("/api/catalog");
     const json = await res.json();

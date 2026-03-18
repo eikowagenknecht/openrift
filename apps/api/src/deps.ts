@@ -19,6 +19,7 @@ import { sourcesRepo } from "./repositories/sources.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
 import { wishListsRepo } from "./repositories/wish-lists.js";
 import { createActivity } from "./services/activity-logger.js";
+import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCardSources } from "./services/ingest-card-sources.js";
@@ -48,6 +49,7 @@ export interface Repos {
 export interface Services {
   ensureInbox: typeof ensureInbox;
   createActivity: typeof createActivity;
+  deleteCollection: typeof deleteCollection;
   addCopies: typeof addCopies;
   moveCopies: typeof moveCopies;
   disposeCopies: typeof disposeCopies;
@@ -81,6 +83,7 @@ export function createRepos(db: Kysely<Database>): Repos {
 export const services: Services = {
   ensureInbox,
   createActivity,
+  deleteCollection,
   addCopies,
   moveCopies,
   disposeCopies,
