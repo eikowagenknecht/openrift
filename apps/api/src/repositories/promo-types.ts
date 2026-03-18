@@ -33,7 +33,10 @@ export function promoTypesRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    update(id: string, updates: Record<string, unknown>) {
+    update(
+      id: string,
+      updates: { slug?: string; label?: string; sortOrder?: number; updatedAt?: Date },
+    ) {
       return db
         .updateTable("promoTypes")
         .set(updates)
@@ -43,6 +46,15 @@ export function promoTypesRepo(db: Kysely<Database>) {
 
     deleteById(id: string) {
       return db.deleteFrom("promoTypes").where("id", "=", id).executeTakeFirstOrThrow();
+    },
+
+    isInUse(id: string) {
+      return db
+        .selectFrom("printings")
+        .select("id")
+        .where("promoTypeId", "=", id)
+        .limit(1)
+        .executeTakeFirst();
     },
   };
 }
