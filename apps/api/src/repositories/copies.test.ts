@@ -68,7 +68,7 @@ function createMockDb(returnValue: unknown = []) {
 // ---------------------------------------------------------------------------
 
 // We need to mock the db-helpers module so that selectCopyWithCard returns our chain
-vi.mock("../db-helpers.js", () => ({
+vi.mock("./query-helpers.js", () => ({
   // selectCopyWithCard receives the db and returns a query builder chain.
   // We store a reference so tests can set it up before calling repo methods.
   // Call selectFrom on the mock db to record the call, then return the chain

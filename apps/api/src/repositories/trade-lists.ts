@@ -1,7 +1,6 @@
 import type { CardType } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable } from "kysely";
 
-import { imageUrl } from "../db-helpers.js";
 import type {
   CopiesTable,
   Database,
@@ -9,6 +8,7 @@ import type {
   TradeListItemsTable,
   TradeListsTable,
 } from "../db/index.js";
+import { imageUrl } from "./query-helpers.js";
 
 /** Trade list item row with copy, printing, card, and image details. */
 type TradeListItemRow = Pick<Selectable<TradeListItemsTable>, "id" | "tradeListId" | "copyId"> &

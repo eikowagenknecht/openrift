@@ -11,6 +11,6 @@ export type Logger = pino.Logger;
  * In production, logs are JSON to stdout — Docker captures them as-is.
  * @returns A configured pino Logger.
  */
-export function createLogger(name: string, level?: pino.Level): Logger {
+export function createLogger(name: string, level?: pino.LevelWithSilent): Logger {
   return pino({ name, level: level ?? "info" });
 }

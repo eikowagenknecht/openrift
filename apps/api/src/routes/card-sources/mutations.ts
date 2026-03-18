@@ -7,9 +7,9 @@ import { Hono } from "hono";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
+import { setsRepo } from "../../repositories/sets.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
-import { acceptNewCardFromSources, createNameAliases, upsertSet } from "./helpers.js";
 import {
   acceptFieldSchema,
   acceptNewCardSchema,
@@ -416,8 +416,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "cardFields required");
     }
 
+    const { cardSourceMutations: mut } = c.get("repos");
     await db.transaction().execute(async (trx) => {
-      await acceptNewCardFromSources(trx, cardFields, normalizedName);
+      await mut.acceptNewCardFromSources(trx, cardFields, normalizedName);
     });
 
     return c.body(null, 204);
@@ -442,7 +443,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     }
 
     await db.transaction().execute(async (trx) => {
-      await createNameAliases(trx, normalizedName, card.id);
+      await mut.createNameAliases(trx, normalizedName, card.id);
     });
 
     return c.body(null, 204);
@@ -484,7 +485,11 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     await db.transaction().execute(async (trx) => {
       if (printingFields.setId) {
-        await upsertSet(trx, printingFields.setId, printingFields.setName ?? printingFields.setId);
+        await setsRepo(trx).upsert(
+          printingFields.setId,
+          printingFields.setName ?? printingFields.setId,
+          trx,
+        );
       }
 
       let setUuid = "";
@@ -617,7 +622,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     await db.transaction().execute(async (trx) => {
       if (ps.setId) {
-        await upsertSet(trx, ps.setId, ps.setName ?? ps.setId);
+        await setsRepo(trx).upsert(ps.setId, ps.setName ?? ps.setId, trx);
       }
 
       let setUuid = "";

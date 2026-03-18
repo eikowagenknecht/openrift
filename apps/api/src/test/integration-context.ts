@@ -7,6 +7,7 @@
  * and its URL is passed via INTEGRATION_DB_URL.
  */
 
+import { createLogger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
 
 import { createApp } from "../app.js";
@@ -88,6 +89,7 @@ export function createTestContext(
     db,
     auth: mockAuth,
     config: mockConfig,
+    log: createLogger("test", "silent"),
     services: opts?.services,
     io: opts?.io,
   });
@@ -107,7 +109,12 @@ export function createUnauthenticatedTestContext(): TestContext | null {
     $Infer: { Session: { user: null, session: null } },
   } as any;
 
-  const app = createApp({ db, auth: mockAuth, config: mockConfig });
+  const app = createApp({
+    db,
+    auth: mockAuth,
+    config: mockConfig,
+    log: createLogger("test", "silent"),
+  });
   return { app, db, userId: "" };
 }
 

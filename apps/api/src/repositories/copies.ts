@@ -2,8 +2,8 @@ import type { CardType } from "@openrift/shared/types";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { imageUrl, selectCopyWithCard } from "../db-helpers.js";
 import type { CopiesTable, Database, PrintingsTable } from "../db/index.js";
+import { imageUrl, selectCopyWithCard } from "./query-helpers.js";
 
 /** Denormalized copy row with printing, card, and image details. */
 type CopyRow = Pick<

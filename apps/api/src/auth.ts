@@ -7,6 +7,7 @@ import type { createConfig } from "./config.js";
 import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import type { createEmailSender } from "./email.js";
+import { adminsRepo } from "./repositories/admins.js";
 
 export function createAuth(deps: {
   config: ReturnType<typeof createConfig>;
@@ -126,11 +127,7 @@ export function createAuth(deps: {
           async after(user) {
             const adminEmail = config.auth.adminEmail;
             if (adminEmail && user.email === adminEmail) {
-              await db
-                .insertInto("admins")
-                .values({ userId: user.id })
-                .onConflict((oc) => oc.column("userId").doNothing())
-                .execute();
+              await adminsRepo(db).autoPromote(user.id);
             }
           },
         },

@@ -1,8 +1,8 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { imageUrl } from "../db-helpers.js";
 import type { Database } from "../db/index.js";
+import { imageUrl } from "./query-helpers.js";
 
 type Db = Kysely<Database>;
 

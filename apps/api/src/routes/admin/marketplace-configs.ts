@@ -1,7 +1,7 @@
 import type { Kysely, Transaction } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../../db/index.js";
+import { marketplaceTransferRepo } from "../../repositories/marketplace-transfer.js";
 
 // ── Unified product-info shape consumed by the frontend ─────────────────────
 
@@ -78,28 +78,15 @@ export interface MarketplaceConfig {
   bulkUnmapSql(tx: Transaction<Database>): Promise<void>;
 }
 
-// ── Typed doUpdateSet for all 8 price columns ───────────────────────────────
-
-const PRICE_EXCLUDED_SET = {
-  marketCents: sql<number>`excluded.market_cents`,
-  lowCents: sql<number | null>`excluded.low_cents`,
-  midCents: sql<number | null>`excluded.mid_cents`,
-  highCents: sql<number | null>`excluded.high_cents`,
-  trendCents: sql<number | null>`excluded.trend_cents`,
-  avg1Cents: sql<number | null>`excluded.avg1_cents`,
-  avg7Cents: sql<number | null>`excluded.avg7_cents`,
-  avg30Cents: sql<number | null>`excluded.avg30_cents`,
-};
-
 // ── Factory helper ──────────────────────────────────────────────────────────
 
 function createMarketplaceConfig(opts: {
   marketplace: string;
   currency: string;
   mapPrices(row: PriceColumns): Omit<ProductInfo, "productName" | "recordedAt">;
-  snapshotQuery(printingIds: string[]): Promise<MappedSnapshotRow[]>;
+  repo: ReturnType<typeof marketplaceTransferRepo>;
 }): MarketplaceConfig {
-  const { marketplace, mapPrices, snapshotQuery } = opts;
+  const { marketplace, mapPrices, repo } = opts;
 
   return {
     marketplace,
@@ -107,7 +94,7 @@ function createMarketplaceConfig(opts: {
 
     mapStagingPrices: mapPrices,
 
-    snapshotQuery,
+    snapshotQuery: (printingIds) => repo.snapshotsByMarketplace(marketplace, printingIds),
 
     mapSnapshotPrices: (row) => ({
       productName: row.productName,
@@ -115,64 +102,12 @@ function createMarketplaceConfig(opts: {
       ...mapPrices(row),
     }),
 
-    insertSnapshot: async (tx, sourceId, row) => {
-      await tx
-        .insertInto("marketplaceSnapshots")
-        .values({
-          sourceId,
-          recordedAt: row.recordedAt,
-          marketCents: row.marketCents,
-          lowCents: row.lowCents,
-          midCents: row.midCents,
-          highCents: row.highCents,
-          trendCents: row.trendCents,
-          avg1Cents: row.avg1Cents,
-          avg7Cents: row.avg7Cents,
-          avg30Cents: row.avg30Cents,
-        })
-        .onConflict((oc) => oc.columns(["sourceId", "recordedAt"]).doUpdateSet(PRICE_EXCLUDED_SET))
-        .execute();
-    },
+    insertSnapshot: (tx, sourceId, row) => repo.insertSnapshot(tx, sourceId, row),
 
-    insertStagingFromSnapshot: async (tx, ps, finish, snap) => {
-      await tx
-        .insertInto("marketplaceStaging")
-        .values({
-          marketplace,
-          externalId: ps.externalId,
-          groupId: ps.groupId,
-          productName: ps.productName,
-          finish,
-          recordedAt: snap.recordedAt,
-          marketCents: snap.marketCents,
-          lowCents: snap.lowCents,
-          midCents: snap.midCents,
-          highCents: snap.highCents,
-          trendCents: snap.trendCents,
-          avg1Cents: snap.avg1Cents,
-          avg7Cents: snap.avg7Cents,
-          avg30Cents: snap.avg30Cents,
-        })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
-        )
-        .execute();
-    },
+    insertStagingFromSnapshot: (tx, ps, finish, snap) =>
+      repo.insertStagingFromSnapshot(tx, marketplace, ps, finish, snap),
 
-    bulkUnmapSql: async (tx) => {
-      await sql`
-        INSERT INTO marketplace_staging (marketplace, external_id, group_id, product_name, finish, recorded_at,
-          market_cents, low_cents, mid_cents, high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents)
-        SELECT s.marketplace, s.external_id, s.group_id, s.product_name, p.finish, snap.recorded_at,
-          snap.market_cents, snap.low_cents, snap.mid_cents, snap.high_cents, snap.trend_cents, snap.avg1_cents, snap.avg7_cents, snap.avg30_cents
-        FROM marketplace_sources s
-        JOIN printings p ON p.id = s.printing_id
-        JOIN marketplace_snapshots snap ON snap.source_id = s.id
-        WHERE s.marketplace = ${marketplace}
-          AND s.external_id IS NOT NULL
-        ON CONFLICT (marketplace, external_id, finish, recorded_at) DO NOTHING
-      `.execute(tx);
-    },
+    bulkUnmapSql: (tx) => repo.bulkUnmapToStaging(tx, marketplace),
   };
 }
 
@@ -202,43 +137,20 @@ const cmMapPrices = (row: PriceColumns) => ({
   avg30Cents: row.avg30Cents,
 });
 
-function snapshotQueryFor(db: Kysely<Database>, marketplace: string) {
-  return (printingIds: string[]) =>
-    db
-      .selectFrom("marketplaceSources as ps")
-      .innerJoin("marketplaceSnapshots as snap", "snap.sourceId", "ps.id")
-      .select([
-        "ps.printingId",
-        "ps.productName",
-        "snap.marketCents",
-        "snap.lowCents",
-        "snap.midCents",
-        "snap.highCents",
-        "snap.trendCents",
-        "snap.avg1Cents",
-        "snap.avg7Cents",
-        "snap.avg30Cents",
-        "snap.recordedAt",
-      ])
-      .where("ps.marketplace", "=", marketplace)
-      .where("ps.printingId", "in", printingIds)
-      .orderBy("snap.recordedAt", "desc")
-      .execute();
-}
-
 export function createMarketplaceConfigs(db: Kysely<Database>) {
+  const repo = marketplaceTransferRepo(db);
   return {
     tcgplayer: createMarketplaceConfig({
       marketplace: "tcgplayer",
       currency: "USD",
       mapPrices: tcgMapPrices,
-      snapshotQuery: snapshotQueryFor(db, "tcgplayer"),
+      repo,
     }),
     cardmarket: createMarketplaceConfig({
       marketplace: "cardmarket",
       currency: "EUR",
       mapPrices: cmMapPrices,
-      snapshotQuery: snapshotQueryFor(db, "cardmarket"),
+      repo,
     }),
   };
 }

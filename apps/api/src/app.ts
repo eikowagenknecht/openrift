@@ -1,3 +1,4 @@
+import type { Logger } from "@openrift/shared/logger";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
@@ -13,6 +14,7 @@ import { createRepos, services as defaultServices } from "./deps.js";
 import { AppError } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
+import { setsRepo } from "./repositories/sets.js";
 import { activitiesRoute } from "./routes/activities.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { catalogRoute } from "./routes/catalog.js";
@@ -31,6 +33,7 @@ export interface AppDeps {
   db: Kysely<Database>;
   auth: Auth;
   config: Config;
+  log: Logger;
   io?: Io;
   services?: Partial<Services>;
 }
@@ -51,7 +54,7 @@ const rateLimitedAuthPrefixes = [
 ];
 
 export function createApp(deps: AppDeps) {
-  const { db, auth, config } = deps;
+  const { db, auth, config, log } = deps;
   const services: Services = deps.services
     ? { ...defaultServices, ...deps.services }
     : defaultServices;
@@ -94,7 +97,7 @@ export function createApp(deps: AppDeps) {
         return c.json({ error: "Invalid JSON in request body", code: "BAD_REQUEST" }, 400);
       }
 
-      console.error(err);
+      log.error({ err, method: c.req.method, path: c.req.path }, "Unhandled error");
       return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
     })
 
@@ -134,8 +137,7 @@ export function createApp(deps: AppDeps) {
       }
 
       try {
-        const result = await db.selectFrom("sets").select("id").limit(1).execute();
-        if (result.length === 0) {
+        if (!(await setsRepo(db).hasAny())) {
           return c.json({ status: "db_empty" }, 503);
         }
       } catch {

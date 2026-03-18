@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
 import { activitiesRepo } from "./repositories/activities.js";
+import { adminsRepo } from "./repositories/admins.js";
 import { cardSourceMutationsRepo } from "./repositories/card-source-mutations.js";
 import { cardSourcesRepo } from "./repositories/card-sources.js";
 import { catalogRepo } from "./repositories/catalog.js";
@@ -26,6 +27,7 @@ import { buildShoppingList } from "./services/shopping-list.js";
 
 export interface Repos {
   activities: ReturnType<typeof activitiesRepo>;
+  admins: ReturnType<typeof adminsRepo>;
   cardSourceMutations: ReturnType<typeof cardSourceMutationsRepo>;
   cardSources: ReturnType<typeof cardSourcesRepo>;
   catalog: ReturnType<typeof catalogRepo>;
@@ -57,6 +59,7 @@ export interface Services {
 export function createRepos(db: Kysely<Database>): Repos {
   return {
     activities: activitiesRepo(db),
+    admins: adminsRepo(db),
     cardSourceMutations: cardSourceMutationsRepo(db),
     cardSources: cardSourcesRepo(db),
     catalog: catalogRepo(db),

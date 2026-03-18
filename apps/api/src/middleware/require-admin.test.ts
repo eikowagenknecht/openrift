@@ -4,34 +4,26 @@
    import/first
    -- test file: mocks require empty fns, explicit undefined, and ordering */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-// ---------------------------------------------------------------------------
-// We need to re-import the module for each group to reset the module-level
-// adminCache. Use mock.module to intercept the errors import.
-// ---------------------------------------------------------------------------
 
 import { AppError } from "../errors.js";
 
-// Since adminCache is module-scoped, we import directly and rely on
-// cache expiry via time manipulation.
+// ---------------------------------------------------------------------------
+// Mock adminsRepo — controls what isAdmin returns per test
+// ---------------------------------------------------------------------------
+
+const mockIsAdmin = vi.fn<(userId: string) => Promise<boolean>>();
+
+vi.mock("../repositories/admins.js", () => ({
+  adminsRepo: () => ({ isAdmin: mockIsAdmin }),
+}));
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function createMockDb(isAdminUser: boolean) {
-  const chain: any = {};
-  chain.select = () => chain;
-  chain.where = () => chain;
-  chain.executeTakeFirst = () => Promise.resolve(isAdminUser ? { userId: "user-1" } : undefined);
-
-  return {
-    selectFrom: () => chain,
-  };
-}
-
-function createMockContext(options: { user?: { id: string } | null; db?: any }) {
-  const vars: Record<string, any> = {
-    db: options.db ?? createMockDb(false),
+function createMockContext(options: { user?: { id: string } | null; db?: unknown }) {
+  const vars: Record<string, unknown> = {
+    db: options.db ?? {},
     user: options.user === undefined ? null : options.user,
   };
 
@@ -45,13 +37,10 @@ function createMockContext(options: { user?: { id: string } | null; db?: any }) 
 // ---------------------------------------------------------------------------
 
 describe("require-admin middleware", () => {
-  // We dynamically import to get a fresh module with a fresh cache
   let requireAdminMiddleware: any;
 
   beforeEach(async () => {
-    // Clear module cache to get fresh adminCache each time
-    // We can't easily bust the cache with bun, so we'll import once
-    // and use time-based cache expiry tests instead
+    mockIsAdmin.mockReset();
     const mod = await import("./require-admin.js");
     requireAdminMiddleware = mod.requireAdmin;
   });
@@ -72,8 +61,8 @@ describe("require-admin middleware", () => {
     });
 
     it("throws 403 if user is not an admin", async () => {
-      const db = createMockDb(false);
-      const ctx = createMockContext({ user: { id: "user-non-admin" }, db });
+      mockIsAdmin.mockResolvedValue(false);
+      const ctx = createMockContext({ user: { id: "user-non-admin" } });
       const next = vi.fn(() => Promise.resolve());
 
       try {
@@ -87,8 +76,8 @@ describe("require-admin middleware", () => {
     });
 
     it("calls next() if user is admin", async () => {
-      const db = createMockDb(true);
-      const ctx = createMockContext({ user: { id: "admin-user" }, db });
+      mockIsAdmin.mockResolvedValue(true);
+      const ctx = createMockContext({ user: { id: "admin-user" } });
       const next = vi.fn(() => Promise.resolve());
 
       await requireAdminMiddleware(ctx, next);
@@ -96,26 +85,17 @@ describe("require-admin middleware", () => {
     });
 
     it("uses cache on second call for same admin user", async () => {
-      let queryCount = 0;
-      const chain: any = {};
-      chain.select = () => chain;
-      chain.where = () => chain;
-      chain.executeTakeFirst = () => {
-        queryCount++;
-        return Promise.resolve({ userId: "cached-admin" });
-      };
-      const db = { selectFrom: () => chain };
-
-      const ctx = createMockContext({ user: { id: "cached-admin" }, db });
+      mockIsAdmin.mockResolvedValue(true);
+      const ctx = createMockContext({ user: { id: "cached-admin" } });
       const next = vi.fn(() => Promise.resolve());
 
-      // First call — hits DB
+      // First call — hits repo
       await requireAdminMiddleware(ctx, next);
-      expect(queryCount).toBe(1);
+      expect(mockIsAdmin).toHaveBeenCalledTimes(1);
 
-      // Second call — should use cache (no additional DB query)
+      // Second call — should use cache (no additional repo query)
       await requireAdminMiddleware(ctx, next);
-      expect(queryCount).toBe(1);
+      expect(mockIsAdmin).toHaveBeenCalledTimes(1);
     });
   });
 });

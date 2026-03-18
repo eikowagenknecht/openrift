@@ -1,3 +1,4 @@
+import { createLogger } from "@openrift/shared/logger";
 import { describe, expect, it, beforeEach } from "vitest";
 
 import { createApp } from "./app.js";
@@ -38,6 +39,12 @@ function createMockDb() {
           }
           return mockState.tables[table] ?? [];
         },
+        executeTakeFirst: () => {
+          if (mockState.tableErrors[table]) {
+            throw new Error(`relation "${table}" does not exist`);
+          }
+          return (mockState.tables[table] ?? [])[0];
+        },
       };
       return chain;
     },
@@ -64,6 +71,7 @@ const app = createApp({
   db: createMockDb() as any,
   auth: mockAuth as any,
   config: mockConfig as any,
+  log: createLogger("test", "silent"),
 });
 // oxlint-enable
 
