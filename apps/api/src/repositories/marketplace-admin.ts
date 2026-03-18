@@ -12,13 +12,13 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
   return {
     // ── Marketplace groups ──────────────────────────────────────────────────
 
-    /** @returns Groups for a specific marketplace, ordered by groupId or name. */
-    listGroupsByMarketplace(marketplace: string, orderBy: "groupId" | "name" = "groupId") {
+    /** @returns Groups for a specific marketplace, ordered by name. */
+    listGroupsByMarketplace(marketplace: string) {
       return db
         .selectFrom("marketplaceGroups")
         .select(["groupId", "name", "abbreviation"])
         .where("marketplace", "=", marketplace)
-        .orderBy(orderBy)
+        .orderBy("name")
         .execute();
     },
 
