@@ -42,14 +42,14 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
         id: r.id,
         source: r.source,
         sourceEntityId: r.sourceEntityId,
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+        createdAt: r.createdAt.toISOString(),
       })),
       printings: printings.map((r) => ({
         id: r.id,
         source: r.source,
         sourceEntityId: r.sourceEntityId,
         finish: r.finish,
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+        createdAt: r.createdAt.toISOString(),
       })),
     });
   })

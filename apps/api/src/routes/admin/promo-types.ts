@@ -12,7 +12,7 @@ const createPromoTypeSchema = z.object({
   slug: z
     .string()
     .min(1)
-    .regex(/^[a-z][a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be kebab-case (e.g. nexus-night)"),
+    .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case (e.g. nexus-night)"),
   label: z.string().min(1),
   sortOrder: z.number().int().optional(),
 });
@@ -21,7 +21,7 @@ const updatePromoTypeSchema = z.object({
   slug: z
     .string()
     .min(1)
-    .regex(/^[a-z][a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be kebab-case")
+    .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case")
     .optional(),
   label: z.string().min(1).optional(),
   sortOrder: z.number().int().optional(),
@@ -45,8 +45,8 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
       slug: r.slug,
       label: r.label,
       sortOrder: r.sortOrder,
-      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
-      updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
     }));
     return c.json({ promoTypes });
   })
@@ -82,25 +82,14 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
         throw new AppError(404, "NOT_FOUND", `Promo type not found`);
       }
 
-      if (body.slug && body.slug !== existing.slug) {
+      if (body.slug !== undefined && body.slug !== existing.slug) {
         const conflict = await repo.getBySlug(body.slug);
         if (conflict) {
           throw new AppError(409, "CONFLICT", `Slug "${body.slug}" already in use`);
         }
       }
 
-      const updates: Record<string, unknown> = { updatedAt: new Date() };
-      if (body.slug !== undefined) {
-        updates.slug = body.slug;
-      }
-      if (body.label !== undefined) {
-        updates.label = body.label;
-      }
-      if (body.sortOrder !== undefined) {
-        updates.sortOrder = body.sortOrder;
-      }
-
-      await repo.update(id, updates);
+      await repo.update(id, { ...body, updatedAt: new Date() });
       return c.body(null, 204);
     },
   )
@@ -116,15 +105,7 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", `Promo type not found`);
     }
 
-    // Check if any printings reference this promo type
-    const inUse = await c
-      .get("db")
-      .selectFrom("printings")
-      .select("id")
-      .where("promoTypeId", "=", id)
-      .limit(1)
-      .executeTakeFirst();
-
+    const inUse = await repo.isInUse(id);
     if (inUse) {
       throw new AppError(
         409,

@@ -45,7 +45,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
       externalId: r.externalId,
       finish: r.finish,
       productName: r.productName,
-      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+      createdAt: r.createdAt.toISOString(),
     }));
     return c.json({ products });
   })
