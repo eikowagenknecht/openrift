@@ -1,4 +1,4 @@
-import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
@@ -20,6 +20,24 @@ export function cardSourceListQueryOptions(filter: string, source?: string, set?
 
 export function useCardSourceList(filter: string, source?: string, set?: string) {
   return useSuspenseQuery(cardSourceListQueryOptions(filter, source, set));
+}
+
+/**
+ * Fetches the unchecked list and returns the first card slug that isn't `currentCardId`.
+ * @returns an object with a `fetchNext` function that resolves to the next card slug or null
+ */
+export function useNextUncheckedCard(currentCardId: string) {
+  const queryClient = useQueryClient();
+
+  async function fetchNext(): Promise<string | null> {
+    const rows = await queryClient.fetchQuery(cardSourceListQueryOptions("unchecked"));
+    const next = rows.find(
+      (r: { cardSlug: string | null }) => r.cardSlug && r.cardSlug !== currentCardId,
+    );
+    return next?.cardSlug ?? null;
+  }
+
+  return { fetchNext };
 }
 
 const allCardsQueryOptions = queryOptions({
