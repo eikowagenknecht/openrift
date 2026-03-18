@@ -1,21 +1,8 @@
+import type { UnifiedMappingsResponse } from "@openrift/shared";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 
-import type {
-  AssignableCard,
-  StagedProduct,
-  UnifiedMappingGroup,
-} from "@/components/admin/price-mappings-types";
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
-
-interface UnifiedMappingsResponse {
-  groups: UnifiedMappingGroup[];
-  unmatchedProducts: {
-    tcgplayer: StagedProduct[];
-    cardmarket: StagedProduct[];
-  };
-  allCards: AssignableCard[];
-}
 
 export function unifiedMappingsQueryOptions(showAll = false) {
   return queryOptions({

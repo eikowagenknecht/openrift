@@ -1,4 +1,16 @@
-import type { ArtVariant, PrintingSourceGroupResponse } from "@openrift/shared";
+import type {
+  AdminPrintingImageResponse,
+  ArtVariant,
+  CardSourceResponse,
+  CardSourceSummaryResponse,
+  CardType,
+  Domain,
+  Finish,
+  PrintingSourceGroupResponse,
+  PrintingSourceResponse,
+  Rarity,
+  SuperType,
+} from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import {
   comparePrintings,
@@ -16,14 +28,14 @@ type Repo = ReturnType<typeof cardSourcesRepo>;
 
 // ── Shared response-shaping helpers ─────────────────────────────────────────
 
-function formatCardSource(s: Selectable<CardSourcesTable>) {
+function formatCardSource(s: Selectable<CardSourcesTable>): CardSourceResponse {
   return {
     id: s.id,
     source: s.source,
     name: s.name,
-    type: s.type,
-    superTypes: s.superTypes,
-    domains: s.domains,
+    type: s.type as CardType | null,
+    superTypes: s.superTypes as SuperType[],
+    domains: s.domains as Domain[],
     might: s.might,
     energy: s.energy,
     power: s.power,
@@ -44,7 +56,7 @@ function formatCardSource(s: Selectable<CardSourcesTable>) {
   };
 }
 
-function formatPrintingSource(ps: Selectable<PrintingSourcesTable>) {
+function formatPrintingSource(ps: Selectable<PrintingSourcesTable>): PrintingSourceResponse {
   return {
     id: ps.id,
     cardSourceId: ps.cardSourceId,
@@ -53,11 +65,11 @@ function formatPrintingSource(ps: Selectable<PrintingSourcesTable>) {
     setId: ps.setId,
     setName: ps.setName,
     collectorNumber: ps.collectorNumber,
-    rarity: ps.rarity,
-    artVariant: ps.artVariant,
+    rarity: ps.rarity as Rarity | null,
+    artVariant: ps.artVariant as ArtVariant | null,
     isSigned: ps.isSigned,
     promoTypeId: ps.promoTypeId,
-    finish: ps.finish,
+    finish: ps.finish as Finish | null,
     artist: ps.artist,
     publicCode: ps.publicCode,
     printedRulesText: ps.printedRulesText,
@@ -244,7 +256,7 @@ type ListRow = MatchedRow | UnmatchedRow;
  * suggestions, source IDs, then sorts and shapes the response.
  * @returns Sorted card source list items shaped for the JSON response.
  */
-export async function buildCardSourceList(repo: Repo) {
+export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummaryResponse[]> {
   const rows = await repo.listGroupedSources();
 
   const allRows = [...rows] as ListRow[];
@@ -657,17 +669,19 @@ export async function buildCardSourceDetail(repo: Repo, slug: string) {
       })),
     ),
     expectedCardId,
-    printingImages: printingImages.map((pi) => ({
-      id: pi.id,
-      printingId: pi.printingId,
-      face: pi.face,
-      source: pi.source,
-      originalUrl: pi.originalUrl,
-      rehostedUrl: pi.rehostedUrl,
-      isActive: pi.isActive,
-      createdAt: pi.createdAt.toISOString(),
-      updatedAt: pi.updatedAt.toISOString(),
-    })),
+    printingImages: printingImages.map(
+      (pi): AdminPrintingImageResponse => ({
+        id: pi.id,
+        printingId: pi.printingId,
+        face: pi.face,
+        source: pi.source,
+        originalUrl: pi.originalUrl,
+        rehostedUrl: pi.rehostedUrl,
+        isActive: pi.isActive,
+        createdAt: pi.createdAt.toISOString(),
+        updatedAt: pi.updatedAt.toISOString(),
+      }),
+    ),
   };
 }
 

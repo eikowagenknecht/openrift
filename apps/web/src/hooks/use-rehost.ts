@@ -1,3 +1,4 @@
+import type { RehostImageResponse, RegenerateImageResponse } from "@openrift/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -5,20 +6,12 @@ import { client, rpc } from "@/lib/rpc-client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface RehostResult {
-  total: number;
-  rehosted: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-}
+export type RehostResult = RehostImageResponse;
 
-export interface RegenerateResult {
-  total: number;
-  regenerated: number;
-  failed: number;
-  errors: string[];
-}
+export type RegenerateResult = Pick<
+  RegenerateImageResponse,
+  "total" | "regenerated" | "failed" | "errors"
+>;
 
 // ── Query ─────────────────────────────────────────────────────────────────────
 
