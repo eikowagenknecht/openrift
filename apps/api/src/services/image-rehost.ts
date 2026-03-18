@@ -3,6 +3,14 @@ import { existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, extname, join } from "node:path";
 
+import type {
+  ClearRehostedResponse,
+  RegenerateImageResponse,
+  RehostImageResponse,
+  RehostStatusDiskStats,
+  RehostStatusResponse,
+} from "@openrift/shared";
+
 import type { Io } from "../io.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 
@@ -29,13 +37,7 @@ const SIZES = [
   { suffix: "full", width: null, quality: 85 },
 ] as const;
 
-interface RehostProgress {
-  total: number;
-  rehosted: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-}
+/** @see RehostImageResponse — shared contract */
 
 /**
  * Convert a printing ID to a filesystem-safe filename base.
@@ -168,10 +170,10 @@ export async function rehostImages(
   io: Io,
   repo: PrintingImagesRepo,
   limit = BATCH_SIZE,
-): Promise<RehostProgress> {
+): Promise<RehostImageResponse> {
   const images = await repo.listUnrehosted(limit);
 
-  const progress: RehostProgress = {
+  const progress: RehostImageResponse = {
     total: images.length,
     rehosted: 0,
     skipped: 0,
@@ -208,18 +210,8 @@ export async function rehostImages(
   return progress;
 }
 
-interface RegenerateProgress {
-  total: number;
-  regenerated: number;
-  failed: number;
-  errors: string[];
-}
-
-export async function regenerateImages(
-  io: Io,
-  offset: number,
-): Promise<RegenerateProgress & { hasMore: boolean; totalFiles: number }> {
-  const progress: RegenerateProgress & { hasMore: boolean; totalFiles: number } = {
+export async function regenerateImages(io: Io, offset: number): Promise<RegenerateImageResponse> {
+  const progress: RegenerateImageResponse = {
     total: 0,
     regenerated: 0,
     failed: 0,
@@ -274,7 +266,7 @@ export async function regenerateImages(
 export async function clearAllRehosted(
   io: Io,
   repo: PrintingImagesRepo,
-): Promise<{ cleared: number }> {
+): Promise<ClearRehostedResponse> {
   const cleared = await repo.clearAllRehostedUrls();
 
   // Delete all files in the card-images directory
@@ -297,21 +289,8 @@ export async function clearAllRehosted(
   return { cleared };
 }
 
-interface SetImageStats {
-  setId: string;
-  setName: string;
-  total: number;
-  rehosted: number;
-  external: number;
-}
-
-interface DiskStats {
-  totalBytes: number;
-  sets: { setId: string; bytes: number; fileCount: number }[];
-}
-
-async function getDiskStats(io: Io): Promise<DiskStats> {
-  const sets: DiskStats["sets"] = [];
+async function getDiskStats(io: Io): Promise<RehostStatusDiskStats> {
+  const sets: RehostStatusDiskStats["sets"] = [];
   let totalBytes = 0;
 
   try {
@@ -340,13 +319,7 @@ async function getDiskStats(io: Io): Promise<DiskStats> {
 export async function getRehostStatus(
   io: Io,
   repo: PrintingImagesRepo,
-): Promise<{
-  total: number;
-  rehosted: number;
-  external: number;
-  sets: SetImageStats[];
-  disk: DiskStats;
-}> {
+): Promise<RehostStatusResponse> {
   const [perSet, disk] = await Promise.all([repo.rehostStatusBySet(), getDiskStats(io)]);
 
   let total = 0;

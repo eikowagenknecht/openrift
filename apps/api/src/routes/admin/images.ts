@@ -1,15 +1,14 @@
 import { zValidator } from "@hono/zod-validator";
+import type { RestoreImageUrlsResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import {
   clearAllRehosted,
   getRehostStatus,
   regenerateImages,
   rehostImages,
 } from "../../services/image-rehost.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -63,5 +62,5 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const { printingImages } = c.get("repos");
     const { source } = c.req.valid("json");
     const updated = await printingImages.restoreFromSources(source);
-    return c.json({ source, updated });
+    return c.json({ source, updated } satisfies RestoreImageUrlsResponse);
   });

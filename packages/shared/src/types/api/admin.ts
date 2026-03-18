@@ -12,13 +12,14 @@ export interface CardSourceResponse {
   id: string;
   source: string;
   name: string;
-  type: CardType;
+  type: CardType | null;
   superTypes: SuperType[];
   domains: Domain[];
   might: number | null;
   energy: number | null;
   power: number | null;
   mightBonus: number | null;
+  keywords: string[];
   rulesText: string | null;
   effectText: string | null;
   tags: string[];
@@ -37,14 +38,14 @@ export interface PrintingSourceResponse {
   sourceId: string;
   setId: string | null;
   setName: string | null;
-  collectorNumber: number;
-  rarity: Rarity;
-  artVariant: ArtVariant;
-  isSigned: boolean;
+  collectorNumber: number | null;
+  rarity: Rarity | null;
+  artVariant: ArtVariant | null;
+  isSigned: boolean | null;
   promoTypeId: string | null;
-  finish: Finish;
-  artist: string;
-  publicCode: string;
+  finish: Finish | null;
+  artist: string | null;
+  publicCode: string | null;
   printedRulesText: string | null;
   printedEffectText: string | null;
   imageUrl: string | null;
@@ -99,6 +100,7 @@ export interface CardSourceSummaryResponse {
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasGallery: boolean;
+  releasedSetSlug: string | null;
   hasMissingImage: boolean;
   suggestedCard: { id: string; slug: string; name: string } | null;
   formattedSourceIds: string;
@@ -177,4 +179,168 @@ export interface IgnoredProductResponse {
   finish: string;
   productName: string;
   createdAt: string;
+}
+
+// ── Image rehosting response types ──────────────────────────────────────────
+
+export interface RehostImageResponse {
+  total: number;
+  rehosted: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+}
+
+export interface RegenerateImageResponse {
+  total: number;
+  regenerated: number;
+  failed: number;
+  errors: string[];
+  hasMore: boolean;
+  totalFiles: number;
+}
+
+export interface ClearRehostedResponse {
+  cleared: number;
+}
+
+export interface RestoreImageUrlsResponse {
+  source: string;
+  updated: number;
+}
+
+export interface RehostStatusSetStats {
+  setId: string;
+  setName: string;
+  total: number;
+  rehosted: number;
+  external: number;
+}
+
+export interface RehostStatusDiskStats {
+  totalBytes: number;
+  sets: { setId: string; bytes: number; fileCount: number }[];
+}
+
+export interface RehostStatusResponse {
+  total: number;
+  rehosted: number;
+  external: number;
+  sets: RehostStatusSetStats[];
+  disk: RehostStatusDiskStats;
+}
+
+// ── Price refresh response types ────────────────────────────────────────────
+
+export interface PriceRefreshUpsertCounts {
+  total: number;
+  new: number;
+  updated: number;
+  unchanged: number;
+}
+
+export interface PriceRefreshResponse {
+  transformed: {
+    groups: number;
+    products: number;
+    prices: number;
+  };
+  upserted: {
+    snapshots: PriceRefreshUpsertCounts;
+    staging: PriceRefreshUpsertCounts;
+  };
+}
+
+export interface ClearPricesResponse {
+  source: string;
+  deleted: { snapshots: number; sources: number; staging: number };
+}
+
+// ── Unified marketplace mappings response types ─────────────────────────────
+
+export interface MappingPrintingResponse {
+  printingId: string;
+  sourceId: string;
+  rarity: string;
+  artVariant: string;
+  isSigned: boolean;
+  promoTypeSlug: string | null;
+  finish: string;
+  collectorNumber: number;
+  imageUrl: string | null;
+  externalId: number | null;
+}
+
+export interface UnifiedMappingPrintingResponse extends Omit<
+  MappingPrintingResponse,
+  "externalId"
+> {
+  tcgExternalId: number | null;
+  cmExternalId: number | null;
+}
+
+export interface StagedProductResponse {
+  externalId: number;
+  productName: string;
+  finish: string;
+  marketCents: number;
+  lowCents: number | null;
+  currency: string;
+  recordedAt: string;
+  midCents: number | null;
+  highCents: number | null;
+  trendCents: number | null;
+  avg1Cents: number | null;
+  avg7Cents: number | null;
+  avg30Cents: number | null;
+  isOverride?: boolean;
+  groupId?: number;
+  groupName?: string;
+}
+
+export interface UnifiedMappingGroupResponse {
+  cardId: string;
+  cardSlug: string;
+  cardName: string;
+  cardType: string;
+  superTypes: string[];
+  domains: string[];
+  energy: number | null;
+  might: number | null;
+  setId: string;
+  setName: string;
+  printings: UnifiedMappingPrintingResponse[];
+  primarySourceId: string;
+  tcgplayer: {
+    stagedProducts: StagedProductResponse[];
+    assignedProducts: StagedProductResponse[];
+  };
+  cardmarket: {
+    stagedProducts: StagedProductResponse[];
+    assignedProducts: StagedProductResponse[];
+  };
+}
+
+export interface AssignableCardResponse {
+  cardId: string;
+  cardName: string;
+  setId: string;
+  setName: string;
+  printings: {
+    printingId: string;
+    sourceId: string;
+    finish: string;
+    collectorNumber: number;
+    isSigned: boolean;
+    externalId: number | null;
+  }[];
+}
+
+export interface UnifiedMappingsResponse {
+  groups: UnifiedMappingGroupResponse[];
+  unmatchedProducts: {
+    tcgplayer: StagedProductResponse[];
+    cardmarket: StagedProductResponse[];
+  };
+  allCards: AssignableCardResponse[];
 }

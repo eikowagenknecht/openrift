@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 import { imagesRoute } from "./images.js";
 import { mutationsRoute } from "./mutations.js";

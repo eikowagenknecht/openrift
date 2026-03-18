@@ -1,3 +1,4 @@
+import type { ClearPricesResponse, PriceRefreshResponse } from "@openrift/shared";
 import { useMutation } from "@tanstack/react-query";
 
 import { refreshActions, clearActions } from "@/components/admin/refresh-actions";
@@ -5,22 +6,9 @@ import { client, rpc } from "@/lib/rpc-client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface PriceResult {
-  transformed: {
-    groups: number;
-    products: number;
-    prices: number;
-  };
-  upserted: {
-    snapshots: { total: number; new: number; updated: number; unchanged: number };
-    staging: { total: number; new: number; updated: number; unchanged: number };
-  };
-}
+export type PriceResult = PriceRefreshResponse;
 
-interface ClearPriceResult {
-  source: string;
-  deleted: { snapshots: number; sources: number; staging: number };
-}
+type ClearPriceResult = ClearPricesResponse;
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 

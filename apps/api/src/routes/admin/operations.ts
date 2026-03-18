@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { ClearPricesResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { Hono } from "hono";
 import { z } from "zod/v4";
@@ -32,7 +33,7 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
     try {
       const deleted = await mktAdmin.clearPriceData(source);
-      return c.json({ source, deleted });
+      return c.json({ source, deleted } satisfies ClearPricesResponse);
     } catch (error) {
       log.error(error, `clear-prices (${source}) failed`);
       throw new AppError(500, "INTERNAL_ERROR", `Failed to clear ${source} price data`);
