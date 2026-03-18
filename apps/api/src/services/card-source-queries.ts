@@ -1,5 +1,11 @@
+import type { ArtVariant, PrintingSourceGroupResponse } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import {
+  comparePrintings,
+  formatSourceIds,
+  mostCommonValue,
+  normalizeNameForMatching,
+} from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
 import type { CardSourcesTable, PrintingSourcesTable } from "../db/index.js";
@@ -61,10 +67,149 @@ function formatPrintingSource(ps: Selectable<PrintingSourcesTable>) {
     flavorText: ps.flavorText,
     sourceEntityId: ps.sourceEntityId,
     extraData: ps.extraData,
+    groupKey: ps.groupKey,
     checkedAt: ps.checkedAt?.toISOString() ?? null,
     createdAt: ps.createdAt.toISOString(),
     updatedAt: ps.updatedAt.toISOString(),
   };
+}
+
+// ── Shared grouping helpers ──────────────────────────────────────────────────
+
+/** Resolve null finish based on rarity: Common/Uncommon default to "normal", others to "foil".
+ * @returns The resolved finish string. */
+function resolveFinish(finish: string | null, rarity: string | null): string {
+  if (finish) {
+    return finish;
+  }
+  if (!rarity) {
+    return "";
+  }
+  return rarity === "Common" || rarity === "Uncommon" ? "normal" : "foil";
+}
+
+/**
+ * Group formatted printing sources by their precomputed `groupKey`.
+ * Optionally auto-matches groups against printings (existing-mode only).
+ * @returns Sorted array of printing source groups with auto-matching data.
+ */
+function buildPrintingSourceGroups(
+  printingSources: ReturnType<typeof formatPrintingSource>[],
+  printings?: {
+    id: string;
+    setId: string | null;
+    artVariant: string;
+    isSigned: boolean;
+    promoTypeId: string | null;
+    rarity: string;
+    finish: string;
+  }[],
+): PrintingSourceGroupResponse[] {
+  // Group by precomputed groupKey
+  const groupMap = new Map<string, ReturnType<typeof formatPrintingSource>[]>();
+  for (const ps of printingSources) {
+    const key = ps.groupKey;
+    let arr = groupMap.get(key);
+    if (!arr) {
+      arr = [];
+      groupMap.set(key, arr);
+    }
+    arr.push(ps);
+  }
+
+  const result: PrintingSourceGroupResponse[] = [];
+  for (const [groupKey, sources] of groupMap) {
+    const mcSourceId = mostCommonValue(sources.map((s) => s.sourceId));
+    const first = sources[0];
+    const artVariant = first.artVariant || "normal";
+    const finish = resolveFinish(first.finish, first.rarity);
+
+    // Build label
+    const parts = [mcSourceId, finish];
+    if (artVariant !== "normal") {
+      parts.push(artVariant);
+    }
+    if (first.isSigned) {
+      parts.push("signed");
+    }
+    if (first.promoTypeId) {
+      parts.push("promo");
+    }
+
+    // Auto-matching against printings (existing mode)
+    let matchedPrintingId: string | null = null;
+    const candidatePrintingIds: string[] = [];
+    if (printings) {
+      const d = {
+        setId: first.setId ?? null,
+        artVariant,
+        isSigned: first.isSigned ?? false,
+        promoTypeId: first.promoTypeId ?? null,
+        rarity: first.rarity ?? "",
+        finish,
+      };
+      const isWild = !d.rarity || !d.finish;
+      const matches = printings.filter((p) => {
+        const pVariant = p.artVariant || "normal";
+        return (
+          (p.setId ?? null) === d.setId &&
+          (isWild || pVariant === d.artVariant) &&
+          (!d.rarity || p.rarity === d.rarity) &&
+          p.isSigned === d.isSigned &&
+          (p.promoTypeId ?? null) === d.promoTypeId &&
+          (!d.finish || p.finish === d.finish)
+        );
+      });
+      if (isWild && matches.length > 0) {
+        // Wild match → all are candidates
+        for (const m of matches) {
+          candidatePrintingIds.push(m.id);
+        }
+      } else if (matches.length === 1) {
+        matchedPrintingId = matches[0].id;
+      } else if (matches.length > 1) {
+        for (const m of matches) {
+          candidatePrintingIds.push(m.id);
+        }
+      }
+    }
+
+    result.push({
+      groupKey,
+      label: parts.join(" · "),
+      mostCommonSourceId: mcSourceId,
+      differentiators: {
+        setId: first.setId ?? null,
+        collectorNumber: first.collectorNumber ?? null,
+        artVariant,
+        isSigned: first.isSigned ?? false,
+        promoTypeId: first.promoTypeId ?? null,
+        rarity: first.rarity ?? "",
+        finish,
+      },
+      sourceIds: sources.map((s) => s.id),
+      matchedPrintingId,
+      candidatePrintingIds,
+    });
+  }
+
+  // Sort by canonical printing order
+  result.sort((a, b) =>
+    comparePrintings(
+      {
+        ...a.differentiators,
+        collectorNumber: a.differentiators.collectorNumber ?? 0,
+        artVariant: a.differentiators.artVariant as ArtVariant,
+      },
+      {
+        ...b.differentiators,
+        collectorNumber: b.differentiators.collectorNumber ?? 0,
+        artVariant: b.differentiators.artVariant as ArtVariant,
+      },
+    ),
+  );
+
+  return result;
 }
 
 // ── GET / — card source list ────────────────────────────────────────────────
@@ -132,10 +277,7 @@ export async function buildCardSourceList(
         if (!row) {
           continue;
         }
-        const relDate =
-          (op.releasedAt as unknown) instanceof Date
-            ? (op.releasedAt as unknown as Date).toISOString().slice(0, 10)
-            : (op.releasedAt ?? null);
+        const relDate = op.releasedAt ?? null;
         if (relDate) {
           if (!row.minReleasedAt || relDate < row.minReleasedAt) {
             row.minReleasedAt = relDate as string | null;
@@ -292,21 +434,27 @@ export async function buildCardSourceList(
     return nameA.localeCompare(nameB);
   });
 
-  return allRows.map((r) => ({
-    cardId: r.cardId ?? null,
-    cardSlug: r.cardSlug ?? null,
-    name: r.name,
-    normalizedName: r.cardId ? normalizeNameForMatching(String(r.name)) : r.groupKey,
-    sourceIds: r.cardId ? (printingSourceIdsMap.get(r.cardId as string) ?? []) : [],
-    pendingSourceIds: r.cardId ? [] : (pendingSourceIdsMap.get(r.groupKey as string) ?? []),
-    candidateSourceIds: r.cardId ? (candidateSourceIdsMap.get(r.cardId as string) ?? []) : [],
-    sourceCount: Number(r.sourceCount),
-    uncheckedCardCount: Number(r.uncheckedCardCount),
-    uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
-    hasGallery: Boolean(r.hasGallery),
-    hasMissingImage: r.cardId ? missingImageCardIds.has(r.cardId) : false,
-    suggestedCard: r.cardId ? null : (suggestionMap.get(r.groupKey as string) ?? null),
-  }));
+  return allRows.map((r) => {
+    const sourceIds = r.cardId ? (printingSourceIdsMap.get(r.cardId as string) ?? []) : [];
+    const pendingSourceIds = r.cardId ? [] : (pendingSourceIdsMap.get(r.groupKey as string) ?? []);
+    return {
+      cardId: r.cardId ?? null,
+      cardSlug: r.cardSlug ?? null,
+      name: r.name,
+      normalizedName: r.cardId ? normalizeNameForMatching(String(r.name)) : r.groupKey,
+      sourceIds,
+      pendingSourceIds,
+      candidateSourceIds: r.cardId ? (candidateSourceIdsMap.get(r.cardId as string) ?? []) : [],
+      sourceCount: Number(r.sourceCount),
+      uncheckedCardCount: Number(r.uncheckedCardCount),
+      uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
+      hasGallery: Boolean(r.hasGallery),
+      hasMissingImage: r.cardId ? missingImageCardIds.has(r.cardId) : false,
+      suggestedCard: r.cardId ? null : (suggestionMap.get(r.groupKey as string) ?? null),
+      formattedSourceIds: formatSourceIds(sourceIds),
+      formattedPendingSourceIds: formatSourceIds(pendingSourceIds),
+    };
+  });
 }
 
 // ── GET /export ─────────────────────────────────────────────────────────────
@@ -403,6 +551,56 @@ export async function buildCardSourceDetail(repo: Repo, slug: string) {
   const setRows = await repo.setSlugsByIds(setIds);
   const setSlugMap = new Map(setRows.map((s) => [s.id, s.slug]));
 
+  const formattedPS = printingSources.map((ps) => formatPrintingSource(ps));
+  const sourceLabels = Object.fromEntries(sources.map((s) => [s.id, s.source]));
+
+  const formattedPrintings = printings.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    cardId: card.id,
+    setId: setSlugMap.get(p.setId) ?? p.setId,
+    sourceId: p.sourceId,
+    collectorNumber: p.collectorNumber,
+    rarity: p.rarity,
+    artVariant: p.artVariant,
+    isSigned: p.isSigned,
+    promoTypeId: p.promoTypeId,
+    promoTypeSlug: p.promoTypeSlug,
+    finish: p.finish,
+    artist: p.artist,
+    publicCode: p.publicCode,
+    printedRulesText: p.printedRulesText,
+    printedEffectText: p.printedEffectText,
+    flavorText: p.flavorText,
+    comment: p.comment,
+  }));
+
+  // Compute expected card ID from canonical printing source
+  const expectedCardId = (() => {
+    const linked = formattedPS.filter((ps) => ps.printingId);
+    if (linked.length === 0) {
+      return slug;
+    }
+    const isGallery = (ps: (typeof linked)[0]) => sourceLabels[ps.cardSourceId] === "gallery";
+    const matchesCurrent = (ps: (typeof linked)[0]) =>
+      ps.sourceId.replace(/(?<=\d)[a-z*]+$/, "") === slug;
+    const withDefaults = (ps: (typeof linked)[0]) => ({
+      ...ps,
+      collectorNumber: ps.collectorNumber ?? 0,
+      artVariant: (ps.artVariant ?? "normal") as ArtVariant,
+      isSigned: ps.isSigned ?? false,
+      rarity: ps.rarity ?? "",
+      finish: ps.finish ?? "",
+    });
+    const canonical = [...linked].sort(
+      (a, b) =>
+        Number(isGallery(b)) - Number(isGallery(a)) ||
+        Number(matchesCurrent(b)) - Number(matchesCurrent(a)) ||
+        comparePrintings(withDefaults(a), withDefaults(b)),
+    )[0];
+    return canonical.sourceId.replace(/(?<=\d)[a-z*]+$/, "");
+  })();
+
   return {
     card: {
       id: card.id,
@@ -421,27 +619,21 @@ export async function buildCardSourceDetail(repo: Repo, slug: string) {
       tags: card.tags,
     },
     sources: sources.map((s) => formatCardSource(s)),
-    printings: printings.map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      cardId: card.id,
-      setId: setSlugMap.get(p.setId) ?? p.setId,
-      sourceId: p.sourceId,
-      collectorNumber: p.collectorNumber,
-      rarity: p.rarity,
-      artVariant: p.artVariant,
-      isSigned: p.isSigned,
-      promoTypeId: p.promoTypeId,
-      promoTypeSlug: p.promoTypeSlug,
-      finish: p.finish,
-      artist: p.artist,
-      publicCode: p.publicCode,
-      printedRulesText: p.printedRulesText,
-      printedEffectText: p.printedEffectText,
-      flavorText: p.flavorText,
-      comment: p.comment,
-    })),
-    printingSources: printingSources.map((ps) => formatPrintingSource(ps)),
+    printings: formattedPrintings,
+    printingSources: formattedPS,
+    printingSourceGroups: buildPrintingSourceGroups(
+      formattedPS.filter((ps) => !ps.printingId),
+      formattedPrintings.map((p) => ({
+        id: p.id,
+        setId: p.setId,
+        artVariant: p.artVariant || "normal",
+        isSigned: p.isSigned,
+        promoTypeId: p.promoTypeId,
+        rarity: p.rarity,
+        finish: p.finish,
+      })),
+    ),
+    expectedCardId,
     printingImages: printingImages.map((pi) => ({
       id: pi.id,
       printingId: pi.printingId,
@@ -478,9 +670,29 @@ export async function buildUnmatchedDetail(repo: Repo, normName: string) {
     sources[0].name,
   );
 
+  const formattedPS = printingSources.map((ps) => formatPrintingSource(ps));
+
+  // Derive default card ID from canonical printing source
+  const psDefaults = (ps: (typeof formattedPS)[0]) => ({
+    ...ps,
+    collectorNumber: ps.collectorNumber ?? 0,
+    artVariant: (ps.artVariant ?? "normal") as ArtVariant,
+    isSigned: ps.isSigned ?? false,
+    rarity: ps.rarity ?? "",
+    finish: ps.finish ?? "",
+  });
+  const defaultCardId =
+    formattedPS.length > 0
+      ? [...formattedPS]
+          .sort((a, b) => comparePrintings(psDefaults(a), psDefaults(b)))[0]
+          .sourceId.replace(/(?<=\d)[a-z*]+$/, "")
+      : "";
+
   return {
     name: displayName,
     sources: sources.map((s) => formatCardSource(s)),
-    printingSources: printingSources.map((ps) => formatPrintingSource(ps)),
+    printingSources: formattedPS,
+    printingSourceGroups: buildPrintingSourceGroups(formattedPS),
+    defaultCardId,
   };
 }

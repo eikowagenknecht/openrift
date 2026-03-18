@@ -157,11 +157,20 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
         }
       }
 
+      // Compute primarySourceId for each group and pre-sort
+      const allGroupsWithPrimary = [...mergedMap.values()].map((g) => ({
+        ...g,
+        primarySourceId: g.printings.reduce(
+          (best, p) => (p.sourceId.localeCompare(best) < 0 ? p.sourceId : best),
+          g.printings[0]?.sourceId ?? "",
+        ),
+      }));
+      allGroupsWithPrimary.sort((a, b) => a.primarySourceId.localeCompare(b.primarySourceId));
+
       // Filter after merge so both marketplaces have complete data
-      const allGroups = [...mergedMap.values()];
       const filteredGroups = showAll
-        ? allGroups
-        : allGroups.filter(
+        ? allGroupsWithPrimary
+        : allGroupsWithPrimary.filter(
             (g) =>
               g.printings.some((p) => p.tcgExternalId === null || p.cmExternalId === null) ||
               (g.tcgplayer.stagedProducts as unknown[]).length > 0 ||

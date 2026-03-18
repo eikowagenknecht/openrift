@@ -154,3 +154,44 @@ export function boundsOf(vals: number[]): { min: number; max: number } {
 export function getOrientation(type: CardType): "portrait" | "landscape" {
   return type === "Battlefield" ? "landscape" : "portrait";
 }
+
+/**
+ * Return the most frequent string in the array. Ties broken by first occurrence.
+ * @returns The most common value, or `""` if the array is empty.
+ */
+export function mostCommonValue(items: string[]): string {
+  if (items.length === 0) {
+    return "";
+  }
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    counts.set(item, (counts.get(item) ?? 0) + 1);
+  }
+  let best = items[0];
+  let bestCount = 0;
+  for (const [val, count] of counts) {
+    if (count > bestCount) {
+      best = val;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
+ * Format source IDs as "OGN-027, OGN-027a ×2" (counted + alpha-sorted).
+ * @returns A formatted string, or `""` if the array is empty.
+ */
+export function formatSourceIds(ids: string[]): string {
+  if (ids.length === 0) {
+    return "";
+  }
+  const counts = new Map<string, number>();
+  for (const id of ids) {
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, n]) => (n > 1 ? `${id} ×${n}` : id))
+    .join(", ");
+}
