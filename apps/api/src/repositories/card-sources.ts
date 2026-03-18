@@ -432,9 +432,15 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings for a card. */
-    printingsForCard(cardId: string): Promise<Selectable<PrintingsTable>[]> {
-      return db.selectFrom("printings").selectAll().where("cardId", "=", cardId).execute();
+    /** @returns All printings for a card, with promo type slug resolved. */
+    printingsForCard(cardId: string) {
+      return db
+        .selectFrom("printings")
+        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
+        .selectAll("printings")
+        .select("promoTypes.slug as promoTypeSlug")
+        .where("printings.cardId", "=", cardId)
+        .execute();
     },
 
     /**

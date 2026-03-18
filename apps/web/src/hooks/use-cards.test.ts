@@ -36,7 +36,7 @@ function stubCatalogPrintingResponse(
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
-    isPromo: false,
+    promoType: null,
     finish: "normal",
     images: [],
     artist: "Artist",

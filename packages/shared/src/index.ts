@@ -37,6 +37,7 @@ export type {
   PriceHistoryResponse,
   PricesResponse,
   Printing,
+  PromoTypeResponse,
   PrintingImage,
   PrintingSourceResponse,
   RangeKey,

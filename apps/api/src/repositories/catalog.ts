@@ -13,15 +13,20 @@ import { imageUrl } from "./query-helpers.js";
 /** Card columns returned by the catalog (excludes normName and timestamps). */
 type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt">;
 
-/** Printing columns returned by the catalog (excludes timestamps and comment). */
-type CatalogPrintingRow = Omit<Selectable<PrintingsTable>, "comment" | "createdAt" | "updatedAt">;
-
 /** Set columns returned by the catalog (id, slug, name only). */
 type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name">;
 
 /** Active printing image with resolved URL (null URLs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
   url: string;
+};
+
+/** Printing row returned by the catalog, with promoType resolved from the join. */
+type CatalogPrintingRow = Omit<
+  Selectable<PrintingsTable>,
+  "comment" | "createdAt" | "updatedAt" | "promoTypeId"
+> & {
+  promoType: { id: string; slug: string; label: string } | null;
 };
 
 /**
@@ -64,32 +69,56 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings ordered by set, collector number, finish. */
-    printings(): Promise<CatalogPrintingRow[]> {
-      return db
+    /** @returns All printings ordered by set, collector number, finish, with promoType resolved. */
+    async printings(): Promise<CatalogPrintingRow[]> {
+      const rows = await db
         .selectFrom("printings")
+        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
         .select([
-          "id",
-          "slug",
-          "cardId",
-          "setId",
-          "sourceId",
-          "collectorNumber",
-          "rarity",
-          "artVariant",
-          "isSigned",
-          "isPromo",
-          "finish",
-          "artist",
-          "publicCode",
-          "printedRulesText",
-          "printedEffectText",
-          "flavorText",
+          "printings.id",
+          "printings.slug",
+          "printings.cardId",
+          "printings.setId",
+          "printings.sourceId",
+          "printings.collectorNumber",
+          "printings.rarity",
+          "printings.artVariant",
+          "printings.isSigned",
+          "printings.finish",
+          "printings.artist",
+          "printings.publicCode",
+          "printings.printedRulesText",
+          "printings.printedEffectText",
+          "printings.flavorText",
+          "promoTypes.id as promoTypeId",
+          "promoTypes.slug as promoTypeSlug",
+          "promoTypes.label as promoTypeLabel",
         ])
-        .orderBy("setId")
-        .orderBy("collectorNumber")
-        .orderBy("finish", "desc")
+        .orderBy("printings.setId")
+        .orderBy("printings.collectorNumber")
+        .orderBy("printings.finish", "desc")
         .execute();
+
+      return rows.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        cardId: row.cardId,
+        setId: row.setId,
+        sourceId: row.sourceId,
+        collectorNumber: row.collectorNumber,
+        rarity: row.rarity,
+        artVariant: row.artVariant,
+        isSigned: row.isSigned,
+        finish: row.finish,
+        artist: row.artist,
+        publicCode: row.publicCode,
+        printedRulesText: row.printedRulesText,
+        printedEffectText: row.printedEffectText,
+        flavorText: row.flavorText,
+        promoType: row.promoTypeId
+          ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
+          : null,
+      }));
     },
 
     /** @returns All active printing images (front and back), ordered by printing then face. */

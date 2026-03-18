@@ -105,8 +105,8 @@ afterEach(() => {
 // ─── Tests ──────────────────────────────────────────────────────────────
 
 describe("printingIdToFileBase", () => {
-  it("converts with promo flag", () => {
-    expect(printingIdToFileBase("SET-001:common:normal:promo")).toBe("SET-001-common-normal-y");
+  it("converts with promo type slug", () => {
+    expect(printingIdToFileBase("SET-001:common:normal:promo")).toBe("SET-001-common-normal-promo");
   });
 
   it("converts without promo (empty string)", () => {
@@ -118,11 +118,17 @@ describe("printingIdToFileBase", () => {
   });
 
   it("handles source IDs with dots and hyphens", () => {
-    expect(printingIdToFileBase("A.B-C:rare:foil:promo")).toBe("A.B-C-rare-foil-y");
+    expect(printingIdToFileBase("A.B-C:rare:foil:promo")).toBe("A.B-C-rare-foil-promo");
   });
 
   it("handles numeric source IDs", () => {
     expect(printingIdToFileBase("12345:common:normal:")).toBe("12345-common-normal-n");
+  });
+
+  it("handles specific promo type slugs", () => {
+    expect(printingIdToFileBase("SET-001:rare:foil:nexus-night")).toBe(
+      "SET-001-rare-foil-nexus-night",
+    );
   });
 });
 

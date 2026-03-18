@@ -41,7 +41,7 @@ export interface PrintingSourceResponse {
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;
-  isPromo: boolean;
+  promoTypeId: string | null;
   finish: Finish;
   artist: string;
   publicCode: string;
@@ -131,6 +131,15 @@ export interface FeatureFlagResponse {
   key: string;
   enabled: boolean;
   description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromoTypeResponse {
+  id: string;
+  slug: string;
+  label: string;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

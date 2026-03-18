@@ -14,6 +14,7 @@ import { ignoredSourcesRepo } from "./repositories/ignored-sources.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
+import { promoTypesRepo } from "./repositories/promo-types.js";
 import { setsRepo } from "./repositories/sets.js";
 import { sourcesRepo } from "./repositories/sources.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
@@ -40,6 +41,7 @@ export interface Repos {
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
+  promoTypes: ReturnType<typeof promoTypesRepo>;
   sets: ReturnType<typeof setsRepo>;
   sources: ReturnType<typeof sourcesRepo>;
   tradeLists: ReturnType<typeof tradeListsRepo>;
@@ -73,6 +75,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),
+    promoTypes: promoTypesRepo(db),
     sets: setsRepo(db),
     sources: sourcesRepo(db),
     tradeLists: tradeListsRepo(db),

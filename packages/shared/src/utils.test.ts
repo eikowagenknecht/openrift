@@ -38,21 +38,25 @@ describe("unique", () => {
 
 describe("buildPrintingId", () => {
   it("builds a basic non-promo slug", () => {
-    expect(buildPrintingId("OGN-001", "Common", false, "normal")).toBe("OGN-001:common:normal:");
+    expect(buildPrintingId("OGN-001", "Common", null, "normal")).toBe("OGN-001:common:normal:");
   });
 
-  it("includes promo segment when isPromo is true", () => {
-    expect(buildPrintingId("OGN-001", "Common", true, "foil")).toBe("OGN-001:common:foil:promo");
+  it("includes promo type slug when provided", () => {
+    expect(buildPrintingId("OGN-001", "Common", "promo", "foil")).toBe("OGN-001:common:foil:promo");
+  });
+
+  it("includes specific promo type slug", () => {
+    expect(buildPrintingId("OGN-001", "Common", "nexus-night", "foil")).toBe(
+      "OGN-001:common:foil:nexus-night",
+    );
   });
 
   it("lowercases rarity", () => {
-    expect(buildPrintingId("SFD-010", "Epic", false, "foil")).toBe("SFD-010:epic:foil:");
+    expect(buildPrintingId("SFD-010", "Epic", null, "foil")).toBe("SFD-010:epic:foil:");
   });
 
   it("preserves finish value", () => {
-    expect(buildPrintingId("OGN-105", "Showcase", false, "normal")).toBe(
-      "OGN-105:showcase:normal:",
-    );
+    expect(buildPrintingId("OGN-105", "Showcase", null, "normal")).toBe("OGN-105:showcase:normal:");
   });
 });
 
@@ -211,16 +215,23 @@ describe("comparePrintings", () => {
   });
 
   it("sorts non-promo before promo", () => {
-    const normal = { ...base, isPromo: false };
-    const promo = { ...base, isPromo: true };
+    const normal = { ...base, promoTypeSlug: null };
+    const promo = { ...base, promoTypeSlug: "promo" };
     expect(comparePrintings(normal, promo)).toBeLessThan(0);
     expect(comparePrintings(promo, normal)).toBeGreaterThan(0);
   });
 
-  it("treats missing isPromo as false", () => {
+  it("treats missing promoTypeSlug as non-promo", () => {
     const noPromo = { ...base };
-    const promo = { ...base, isPromo: true };
+    const promo = { ...base, promoTypeSlug: "promo" };
     expect(comparePrintings(noPromo, promo)).toBeLessThan(0);
+  });
+
+  it("sorts promo types alphabetically", () => {
+    const a = { ...base, promoTypeSlug: "alpha" };
+    const b = { ...base, promoTypeSlug: "beta" };
+    expect(comparePrintings(a, b)).toBeLessThan(0);
+    expect(comparePrintings(b, a)).toBeGreaterThan(0);
   });
 
   it("handles null setId by treating it as empty string", () => {

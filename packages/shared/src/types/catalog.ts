@@ -1,5 +1,11 @@
 import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
 
+export interface PromoType {
+  id: string;
+  slug: string;
+  label: string;
+}
+
 export interface Card {
   id: string;
   slug: string;
@@ -32,7 +38,7 @@ export interface Printing {
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;
-  isPromo: boolean;
+  promoType: PromoType | null;
   finish: Finish;
   images: PrintingImage[];
   artist: string;

@@ -101,7 +101,7 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     rarity: p.rarity as Rarity,
     artVariant: p.artVariant as ArtVariant,
     isSigned: p.isSigned,
-    isPromo: p.isPromo,
+    promoType: p.promoTypeSlug ? { id: "", slug: p.promoTypeSlug, label: p.promoTypeSlug } : null,
     finish: p.finish as Finish,
     images: p.imageUrl ? [{ face: "front", url: p.imageUrl }] : [],
     artist: "",
@@ -416,7 +416,7 @@ function UnifiedExpandedDetail({
                         ? " · Overnumbered"
                         : ""}
                       {p.isSigned ? " · Signed" : ""}
-                      {p.isPromo ? " · Promo" : ""}
+                      {p.promoTypeSlug ? ` · ${p.promoTypeSlug}` : ""}
                     </span>
                   </div>
 

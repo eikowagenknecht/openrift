@@ -77,7 +77,7 @@ export interface CardsTable {
 /**
  * Physical printing of a game card.
  *
- * The `slug` is a composite key: "{source_id}:{rarity (lowercase)}:{finish}:{promo|}".
+ * The `slug` is a composite key: "{source_id}:{rarity (lowercase)}:{finish}:{promo_type_slug|}".
  * @see printingFieldRules in `schemas.ts` for Zod validation of CHECK constraints
  */
 export interface PrintingsTable {
@@ -93,7 +93,7 @@ export interface PrintingsTable {
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;
-  isPromo: boolean;
+  promoTypeId: string | null;
   finish: Finish;
   /** CHECK: <> '' */
   artist: string;
@@ -451,7 +451,7 @@ export interface PrintingSourcesTable {
   /** CHECK: <> '' */
   artVariant: string | null;
   isSigned: boolean | null;
-  isPromo: boolean | null;
+  promoTypeId: string | null;
   /** CHECK: <> '' */
   finish: string | null;
   /** CHECK: <> '' */
@@ -531,6 +531,19 @@ export interface CardNameAliasesTable {
   cardId: string;
 }
 
+// ─── Promo types (migration 034) ──────────────────────────────────────────────
+
+export interface PromoTypesTable {
+  id: Generated<string>;
+  /** CHECK: <> '' */
+  slug: string;
+  /** CHECK: <> '' */
+  label: string;
+  sortOrder: number;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── Feature flags (migration 014) ───────────────────────────────────────────
 
 export interface FeatureFlagsTable {
@@ -593,6 +606,9 @@ export interface Database {
 
   // Image archive (migration 013)
   printingImages: PrintingImagesTable;
+
+  // Promo types (migration 034)
+  promoTypes: PromoTypesTable;
 
   // Feature flags (migration 014)
   featureFlags: FeatureFlagsTable;

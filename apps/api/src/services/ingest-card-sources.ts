@@ -232,6 +232,14 @@ export async function ingestCardSources(
       linkOverrides.set(`${r.sourceEntityId}:${r.finish}`, r.printingSlug);
     }
 
+    // 1h. Default promo type ID (for is_promo=true in upload data)
+    const defaultPromoType = await trx
+      .selectFrom("promoTypes")
+      .select("id")
+      .where("slug", "=", "promo")
+      .executeTakeFirst();
+    const defaultPromoTypeId = defaultPromoType?.id ?? null;
+
     // ── Phase 2: Process each card (writes only) ───────────────────────────
 
     for (const card of cards) {
@@ -374,7 +382,7 @@ export async function ingestCardSources(
 
         const printingSlug =
           effectiveCardId && p.rarity && p.finish
-            ? buildPrintingId(p.source_id, p.rarity, p.is_promo, p.finish)
+            ? buildPrintingId(p.source_id, p.rarity, p.is_promo ? "promo" : null, p.finish)
             : null;
 
         // Check for a manual link override (survives delete + re-upload)
@@ -398,7 +406,7 @@ export async function ingestCardSources(
           rarity: p.rarity,
           artVariant: p.art_variant,
           isSigned: p.is_signed,
-          isPromo: p.is_promo,
+          promoTypeId: p.is_promo ? defaultPromoTypeId : null,
           finish: p.finish,
           artist: p.artist,
           publicCode: p.public_code,

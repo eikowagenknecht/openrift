@@ -147,7 +147,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const allowedFields = [
       "artVariant",
       "isSigned",
-      "isPromo",
+      "promoTypeId",
       "finish",
       "collectorNumber",
       "setId",
@@ -346,7 +346,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       "rarity",
       "artVariant",
       "isSigned",
-      "isPromo",
+      "promoTypeId",
       "finish",
       "artist",
       "publicCode",
@@ -471,12 +471,26 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Card not found");
     }
 
+    // Resolve promo type slug from ID for printing ID generation
+    let promoTypeSlug: string | null = null;
+    if (printingFields.promoTypeId) {
+      const pt = await db
+        .selectFrom("promoTypes")
+        .select("slug")
+        .where("id", "=", printingFields.promoTypeId)
+        .executeTakeFirst();
+      if (!pt) {
+        throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
+      }
+      promoTypeSlug = pt.slug;
+    }
+
     const printingId =
       printingFields.id ||
       buildPrintingId(
         printingFields.sourceId,
         printingFields.rarity ?? ("Common" satisfies Rarity),
-        printingFields.isPromo ?? false,
+        promoTypeSlug,
         printingFields.finish ?? ("normal" satisfies Finish),
       );
 
@@ -520,7 +534,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         rarity: normalizedRarity as Rarity,
         artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
         isSigned: printingFields.isSigned ?? false,
-        isPromo: printingFields.isPromo ?? false,
+        promoTypeId: printingFields.promoTypeId ?? null,
         finish: (printingFields.finish ?? "normal") as Finish,
         artist: printingFields.artist,
         publicCode: printingFields.publicCode,
@@ -613,10 +627,21 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { artist } = ps;
     const publicCode = ps.publicCode;
 
+    // Resolve promo type slug for printing ID
+    let autoPromoSlug: string | null = null;
+    if (ps.promoTypeId) {
+      const pt = await db
+        .selectFrom("promoTypes")
+        .select("slug")
+        .where("id", "=", ps.promoTypeId)
+        .executeTakeFirst();
+      autoPromoSlug = pt?.slug ?? null;
+    }
+
     const printingId = buildPrintingId(
       ps.sourceId,
       normalizedRarity,
-      ps.isPromo ?? false,
+      autoPromoSlug,
       validatedFinish.data,
     );
 
@@ -640,7 +665,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         rarity: normalizedRarity as Rarity,
         artVariant: (ps.artVariant ?? "normal") as ArtVariant,
         isSigned: ps.isSigned ?? false,
-        isPromo: ps.isPromo ?? false,
+        promoTypeId: ps.promoTypeId ?? null,
         finish: validatedFinish.data as Finish,
         artist,
         publicCode: publicCode,

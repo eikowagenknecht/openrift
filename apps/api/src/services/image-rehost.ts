@@ -40,13 +40,13 @@ interface RehostProgress {
 /**
  * Convert a printing ID to a filesystem-safe filename base.
  *
- * Printing ID format: `{source_id}:{rarity}:{finish}:{promo|}`
- * File format:        `{source_id}-{rarity}-{finish}-{y|n}`
+ * Printing ID format: `{source_id}:{rarity}:{finish}:{promo_type_slug|}`
+ * File format:        `{source_id}-{rarity}-{finish}-{promo_type_slug|n}`
  * @returns The filesystem-safe filename base
  */
 export function printingIdToFileBase(printingId: string): string {
-  const [sourceId, rarity, finish, promo] = printingId.split(":");
-  return `${sourceId}-${rarity}-${finish}-${promo ? "y" : "n"}`;
+  const [sourceId, rarity, finish, promoSlug] = printingId.split(":");
+  return `${sourceId}-${rarity}-${finish}-${promoSlug || "n"}`;
 }
 
 function guessExtension(contentType: string | null, url: string): string {

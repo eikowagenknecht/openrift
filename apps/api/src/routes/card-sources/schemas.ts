@@ -80,7 +80,7 @@ export const acceptPrintingSchema = z.object({
     rarity: printingFieldRules.rarity.optional().nullable(),
     artVariant: printingFieldRules.artVariant.optional(),
     isSigned: z.boolean().optional(),
-    isPromo: z.boolean().optional(),
+    promoTypeId: z.string().nullable().optional(),
     finish: printingFieldRules.finish.optional(),
     artist: printingFieldRules.artist,
     publicCode: printingFieldRules.publicCode,
@@ -132,7 +132,7 @@ const ingestPrintingSchema = z.object({
   rarity: nullStr,
   art_variant: nullStr,
   is_signed: z.boolean().optional().default(false),
-  is_promo: z.boolean().optional().default(false),
+  is_promo: z.boolean().optional().default(false), // kept for backward compat in uploads; resolved to promo_type_id during ingest
   finish: nullStr,
   artist: nullStr,
   public_code: nullStr,

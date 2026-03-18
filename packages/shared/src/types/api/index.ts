@@ -59,5 +59,6 @@ export type {
   IgnoredProductResponse,
   MarketplaceGroupResponse,
   PrintingSourceResponse,
+  PromoTypeResponse,
   SourceStatsResponse,
 } from "./admin.js";

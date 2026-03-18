@@ -67,7 +67,7 @@ function inferVariant(suffix: string): ArtVariant | null {
   return null;
 }
 
-function inferPromo(suffix: string): boolean | null {
+function inferIsPromo(suffix: string): boolean | null {
   if (
     suffix.includes("launchexclusive") ||
     suffix.includes("exclusive") ||
@@ -115,9 +115,10 @@ function scorePrintingProduct(
     }
   }
 
-  const promo = inferPromo(suffix);
+  const promo = inferIsPromo(suffix);
   if (promo !== null) {
-    if (promo === printing.isPromo) {
+    const isPromo = printing.promoTypeSlug !== null;
+    if (promo === isPromo) {
       score += 50;
     } else {
       score -= 80;

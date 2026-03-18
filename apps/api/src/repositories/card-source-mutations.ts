@@ -73,7 +73,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
           AND LOWER(ps.rarity)     IS NOT DISTINCT FROM LOWER(p.rarity)
           AND ${n("ps.artVariant")}  IS NOT DISTINCT FROM ${n("p.artVariant")}
           AND ps.is_signed         IS NOT DISTINCT FROM p.is_signed
-          AND ps.is_promo          IS NOT DISTINCT FROM p.is_promo
+          AND ps.promo_type_id     IS NOT DISTINCT FROM p.promo_type_id
           AND ps.finish            IS NOT DISTINCT FROM p.finish
           AND COALESCE(ps.artist, '') IS NOT DISTINCT FROM p.artist
           AND ps.public_code       IS NOT DISTINCT FROM p.public_code
@@ -225,7 +225,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     getPrintingDifferentiatorsBySlug(slug: string) {
       return db
         .selectFrom("printings")
-        .select(["id", "finish", "artVariant", "isSigned", "isPromo", "rarity"])
+        .select(["id", "finish", "artVariant", "isSigned", "promoTypeId", "rarity"])
         .where("slug", "=", slug)
         .executeTakeFirst();
     },
@@ -238,7 +238,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
         rarity: string | null;
         artVariant: string | null;
         isSigned: boolean;
-        isPromo: boolean;
+        promoTypeId: string | null;
         finish: string;
       },
     ): Promise<void> {
@@ -254,7 +254,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
           rarity: target.rarity as Rarity | null,
           artVariant: target.artVariant as ArtVariant | null,
           isSigned: target.isSigned,
-          isPromo: target.isPromo,
+          promoTypeId: target.promoTypeId,
           finish: target.finish as Finish,
           artist: ps.artist,
           publicCode: ps.publicCode,
@@ -452,7 +452,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
         rarity: Rarity;
         artVariant: ArtVariant;
         isSigned: boolean;
-        isPromo: boolean;
+        promoTypeId: string | null;
         finish: Finish;
         artist: string;
         publicCode: string;
