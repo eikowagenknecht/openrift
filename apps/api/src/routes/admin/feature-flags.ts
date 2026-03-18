@@ -35,14 +35,17 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
   .get("/admin/feature-flags", async (c) => {
     const { featureFlags: flagsRepo } = c.get("repos");
     const rows = await flagsRepo.listAll();
-    const flags: FeatureFlagResponse[] = rows.map((r) => ({
-      key: r.key,
-      enabled: r.enabled,
-      description: r.description,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
-    return c.json({ flags });
+    return c.json({
+      flags: rows.map(
+        (r): FeatureFlagResponse => ({
+          key: r.key,
+          enabled: r.enabled,
+          description: r.description,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        }),
+      ),
+    });
   })
 
   // ── Admin: POST /admin/feature-flags ────────────────────────────────────────

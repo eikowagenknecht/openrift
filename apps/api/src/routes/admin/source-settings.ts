@@ -29,12 +29,15 @@ export const adminSourceSettingsRoute = new Hono<{ Variables: Variables }>()
   .get("/admin/source-settings", async (c) => {
     const { sourceSettings: repo } = c.get("repos");
     const rows = await repo.listAll();
-    const sourceSettings: SourceSettingResponse[] = rows.map((r) => ({
-      source: r.source,
-      sortOrder: r.sortOrder,
-      isHidden: r.isHidden,
-    }));
-    return c.json({ sourceSettings });
+    return c.json({
+      sourceSettings: rows.map(
+        (r): SourceSettingResponse => ({
+          source: r.source,
+          sortOrder: r.sortOrder,
+          isHidden: r.isHidden,
+        }),
+      ),
+    });
   })
 
   // ── PUT /admin/source-settings/reorder ──────────────────────────────────

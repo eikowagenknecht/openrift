@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { StagedProductResponse, UnifiedMappingsResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -71,8 +72,14 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
             tcgExternalId: number | null;
             cmExternalId: number | null;
           }[];
-          tcgplayer: { stagedProducts: unknown[]; assignedProducts: unknown[] };
-          cardmarket: { stagedProducts: unknown[]; assignedProducts: unknown[] };
+          tcgplayer: {
+            stagedProducts: StagedProductResponse[];
+            assignedProducts: StagedProductResponse[];
+          };
+          cardmarket: {
+            stagedProducts: StagedProductResponse[];
+            assignedProducts: StagedProductResponse[];
+          };
         }
       >();
 
@@ -173,8 +180,8 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
         : allGroupsWithPrimary.filter(
             (g) =>
               g.printings.some((p) => p.tcgExternalId === null || p.cmExternalId === null) ||
-              (g.tcgplayer.stagedProducts as unknown[]).length > 0 ||
-              (g.cardmarket.stagedProducts as unknown[]).length > 0,
+              g.tcgplayer.stagedProducts.length > 0 ||
+              g.cardmarket.stagedProducts.length > 0,
           );
 
       // allCards only needs to be sent once (same card pool for both)
@@ -190,7 +197,7 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
           cardmarket: cmResult.unmatchedProducts,
         },
         allCards,
-      });
+      } satisfies UnifiedMappingsResponse);
     },
   )
 

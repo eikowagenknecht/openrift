@@ -37,18 +37,19 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
       assignedCounts.map((r) => [`${r.marketplace}:${r.groupId}`, r.count]),
     );
 
-    const items: MarketplaceGroupResponse[] = groups.map((g) => {
-      const key = `${g.marketplace}:${g.groupId}`;
-      return {
-        marketplace: g.marketplace,
-        groupId: g.groupId,
-        name: g.name,
-        abbreviation: g.abbreviation,
-        stagedCount: stagingMap.get(key) ?? 0,
-        assignedCount: assignedMap.get(key) ?? 0,
-      };
+    return c.json({
+      groups: groups.map((g): MarketplaceGroupResponse => {
+        const key = `${g.marketplace}:${g.groupId}`;
+        return {
+          marketplace: g.marketplace,
+          groupId: g.groupId,
+          name: g.name,
+          abbreviation: g.abbreviation,
+          stagedCount: stagingMap.get(key) ?? 0,
+          assignedCount: assignedMap.get(key) ?? 0,
+        };
+      }),
     });
-    return c.json({ groups: items });
   })
 
   .patch(

@@ -27,14 +27,17 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const rows = await mktAdmin.listIgnoredProducts();
 
-    const products: IgnoredProductResponse[] = rows.map((r) => ({
-      marketplace: r.marketplace,
-      externalId: r.externalId,
-      finish: r.finish,
-      productName: r.productName,
-      createdAt: r.createdAt.toISOString(),
-    }));
-    return c.json({ products });
+    return c.json({
+      products: rows.map(
+        (r): IgnoredProductResponse => ({
+          marketplace: r.marketplace,
+          externalId: r.externalId,
+          finish: r.finish,
+          productName: r.productName,
+          createdAt: r.createdAt.toISOString(),
+        }),
+      ),
+    });
   })
 
   // ── POST /admin/ignored-products ────────────────────────────────────────────

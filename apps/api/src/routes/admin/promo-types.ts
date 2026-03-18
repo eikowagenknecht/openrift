@@ -42,15 +42,18 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
   .get("/admin/promo-types", async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const rows = await repo.listAll();
-    const promoTypes: PromoTypeResponse[] = rows.map((r) => ({
-      id: r.id,
-      slug: r.slug,
-      label: r.label,
-      sortOrder: r.sortOrder,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
-    return c.json({ promoTypes });
+    return c.json({
+      promoTypes: rows.map(
+        (r): PromoTypeResponse => ({
+          id: r.id,
+          slug: r.slug,
+          label: r.label,
+          sortOrder: r.sortOrder,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        }),
+      ),
+    });
   })
 
   // ── POST /admin/promo-types ─────────────────────────────────────────────
