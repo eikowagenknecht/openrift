@@ -213,9 +213,7 @@ function buildPrintingSourceGroups(
 
 // ── GET / — card source list ────────────────────────────────────────────────
 
-interface ListRow {
-  cardId: string | null;
-  cardSlug: string | null;
+interface ListRowBase {
   name: string;
   groupKey: string;
   sourceCount: number;
@@ -226,8 +224,20 @@ interface ListRow {
   releasedSetSlug: string | null;
   hasKnownSet: boolean;
   hasUnknownSet: boolean;
+}
+
+interface MatchedRow extends ListRowBase {
+  cardId: string;
+  cardSlug: string | null;
   _fromCard?: boolean;
 }
+
+interface UnmatchedRow extends ListRowBase {
+  cardId: null;
+  cardSlug: null;
+}
+
+type ListRow = MatchedRow | UnmatchedRow;
 
 /**
  * Orchestrates the GET / endpoint: fetches grouped sources, orphan cards,
@@ -237,10 +247,10 @@ interface ListRow {
 export async function buildCardSourceList(repo: Repo) {
   const rows = await repo.listGroupedSources();
 
-  const allRows: ListRow[] = [...rows];
+  const allRows = [...rows] as ListRow[];
 
   // Include cards that have no card_sources (orphans)
-  const cardIdsWithSources = new Set(rows.filter((r) => r.cardId).map((r) => r.cardId as string));
+  const cardIdsWithSources = new Set(rows.flatMap((r) => (r.cardId ? [r.cardId] : [])));
   const orphanCards = await repo.listOrphanCards([...cardIdsWithSources]);
 
   for (const oc of orphanCards) {
@@ -264,22 +274,25 @@ export async function buildCardSourceList(repo: Repo) {
   // Fetch set release info for orphan cards via their printings
   const orphanIds = orphanCards.map((oc) => oc.id);
   if (orphanIds.length > 0) {
+    const orphanRowMap = new Map(
+      allRows.filter((r): r is MatchedRow => "_fromCard" in r).map((r) => [r.cardId, r]),
+    );
     const orphanPrintings = await repo.listOrphanPrintingSetInfo(orphanIds);
     for (const op of orphanPrintings) {
-      const row = allRows.find((r) => r.cardId === op.cardId && r._fromCard);
+      const row = orphanRowMap.get(op.cardId);
       if (!row) {
         continue;
       }
       const relDate = op.releasedAt ?? null;
       if (relDate) {
         if (!row.minReleasedAt || relDate < row.minReleasedAt) {
-          row.minReleasedAt = relDate as string | null;
-          row.releasedSetSlug = op.slug as string | null;
+          row.minReleasedAt = relDate;
+          row.releasedSetSlug = op.slug;
         } else if (
           relDate === row.minReleasedAt &&
           (!row.releasedSetSlug || op.slug < row.releasedSetSlug)
         ) {
-          row.releasedSetSlug = op.slug as string | null;
+          row.releasedSetSlug = op.slug;
         }
       } else {
         row.hasKnownSet = true;
@@ -287,90 +300,87 @@ export async function buildCardSourceList(repo: Repo) {
     }
   }
 
-  // Compute dynamic match suggestions for unmatched groups
-  const unmatchedNormNames = allRows.filter((r) => !r.cardId).map((r) => r.groupKey as string);
+  // Partition rows for downstream queries
+  const matchedRows: MatchedRow[] = [];
+  const unmatchedRows: UnmatchedRow[] = [];
+  for (const r of allRows) {
+    if (r.cardId) {
+      matchedRows.push(r as MatchedRow);
+    } else {
+      unmatchedRows.push(r as UnmatchedRow);
+    }
+  }
+  const matchedCardIds = matchedRows.map((r) => r.cardId);
+  const matchedNormNames = matchedRows.map((r) => normalizeNameForMatching(String(r.name)));
+  const unmatchedGroupKeys = unmatchedRows.map((r) => r.groupKey);
 
+  // Fire all independent queries in parallel
+  const [printingRows, missingRows, candidateRows, pendingRows, suggestionRows] = await Promise.all(
+    [
+      matchedCardIds.length > 0 ? repo.listPrintingSourceIds(matchedCardIds) : [],
+      matchedCardIds.length > 0 ? repo.listCardIdsWithMissingImages(matchedCardIds) : [],
+      matchedCardIds.length > 0 ? repo.listCandidateSourceIds(matchedNormNames) : [],
+      unmatchedGroupKeys.length > 0 ? repo.listPendingSourceIds(unmatchedGroupKeys) : [],
+      unmatchedGroupKeys.length > 0 ? repo.listSuggestionsByNormName(unmatchedGroupKeys) : [],
+    ],
+  );
+
+  // Build suggestion map (direct matches + alias fallback)
   const suggestionMap = new Map<string, { id: string; slug: string; name: string }>();
-  if (unmatchedNormNames.length > 0) {
-    const suggestions = await repo.listSuggestionsByNormName(unmatchedNormNames);
-    for (const s of suggestions) {
-      suggestionMap.set(s.norm, { id: s.id, slug: s.slug, name: s.name });
-    }
-
-    // Also check aliases for matches not covered by direct card name
-    const missingNorms = unmatchedNormNames.filter((n) => !suggestionMap.has(n));
-    if (missingNorms.length > 0) {
-      const aliasSuggestions = await repo.listAliasSuggestions(missingNorms);
-      for (const s of aliasSuggestions) {
-        if (!suggestionMap.has(s.norm)) {
-          suggestionMap.set(s.norm, { id: s.id, slug: s.slug, name: s.name });
-        }
+  for (const s of suggestionRows) {
+    suggestionMap.set(s.norm, { id: s.id, slug: s.slug, name: s.name });
+  }
+  const missingNorms = unmatchedGroupKeys.filter((n) => !suggestionMap.has(n));
+  if (missingNorms.length > 0) {
+    const aliasSuggestions = await repo.listAliasSuggestions(missingNorms);
+    for (const s of aliasSuggestions) {
+      if (!suggestionMap.has(s.norm)) {
+        suggestionMap.set(s.norm, { id: s.id, slug: s.slug, name: s.name });
       }
     }
   }
 
-  // Load printing source IDs for matched cards
-  const matchedCardIds = allRows.filter((r) => r.cardId).map((r) => r.cardId as string);
+  // Build printing source IDs map
   const printingSourceIdsMap = new Map<string, string[]>();
-  if (matchedCardIds.length > 0) {
-    const printingRows = await repo.listPrintingSourceIds(matchedCardIds);
-    for (const pr of printingRows) {
-      const existing = printingSourceIdsMap.get(pr.cardId);
-      if (existing) {
-        existing.push(pr.sourceId);
-      } else {
-        printingSourceIdsMap.set(pr.cardId, [pr.sourceId]);
-      }
+  for (const pr of printingRows) {
+    const existing = printingSourceIdsMap.get(pr.cardId);
+    if (existing) {
+      existing.push(pr.sourceId);
+    } else {
+      printingSourceIdsMap.set(pr.cardId, [pr.sourceId]);
     }
   }
 
-  // Find cards with printings missing an active front image
-  const missingImageCardIds = new Set<string>();
-  if (matchedCardIds.length > 0) {
-    const missingRows = await repo.listCardIdsWithMissingImages(matchedCardIds);
-    for (const mr of missingRows) {
-      missingImageCardIds.add(mr.cardId);
-    }
-  }
+  // Build missing image set
+  const missingImageCardIds = new Set(missingRows.map((mr) => mr.cardId));
 
-  // Load candidate printing source IDs for matched cards (printing_sources with no printing_id yet)
+  // Build candidate source IDs map
   const candidateSourceIdsMap = new Map<string, string[]>();
-  if (matchedCardIds.length > 0) {
-    const matchedNormNames = allRows
-      .filter((r) => r.cardId)
-      .map((r) => normalizeNameForMatching(String(r.name)));
-    const candidateRows = await repo.listCandidateSourceIds(matchedNormNames);
-    for (const cr of candidateRows) {
-      const cardId = cr.cardId as string | null;
-      if (!cardId) {
-        continue;
+  for (const cr of candidateRows) {
+    const cardId = cr.cardId as string | null;
+    if (!cardId) {
+      continue;
+    }
+    const existing = candidateSourceIdsMap.get(cardId);
+    if (existing) {
+      if (!existing.includes(cr.sourceId)) {
+        existing.push(cr.sourceId);
       }
-      const existing = candidateSourceIdsMap.get(cardId);
-      if (existing) {
-        if (!existing.includes(cr.sourceId)) {
-          existing.push(cr.sourceId);
-        }
-      } else {
-        candidateSourceIdsMap.set(cardId, [cr.sourceId]);
-      }
+    } else {
+      candidateSourceIdsMap.set(cardId, [cr.sourceId]);
     }
   }
 
-  // Load printing source IDs for unmatched cards
-  const unmatchedGroupKeys = allRows.filter((r) => !r.cardId).map((r) => r.groupKey as string);
+  // Build pending source IDs map
   const pendingSourceIdsMap = new Map<string, string[]>();
-  if (unmatchedGroupKeys.length > 0) {
-    const pendingRows = await repo.listPendingSourceIds(unmatchedGroupKeys);
-    for (const pr of pendingRows) {
-      const norm = pr.norm;
-      const existing = pendingSourceIdsMap.get(norm);
-      if (existing) {
-        if (!existing.includes(pr.sourceId)) {
-          existing.push(pr.sourceId);
-        }
-      } else {
-        pendingSourceIdsMap.set(norm, [pr.sourceId]);
+  for (const pr of pendingRows) {
+    const existing = pendingSourceIdsMap.get(pr.norm);
+    if (existing) {
+      if (!existing.includes(pr.sourceId)) {
+        existing.push(pr.sourceId);
       }
+    } else {
+      pendingSourceIdsMap.set(pr.norm, [pr.sourceId]);
     }
   }
 
@@ -379,7 +389,7 @@ export async function buildCardSourceList(repo: Repo) {
     if (r.cardSlug) {
       return null;
     }
-    const pending = pendingSourceIdsMap.get(r.groupKey as string);
+    const pending = pendingSourceIdsMap.get(r.groupKey);
     if (!pending || pending.length === 0) {
       return null;
     }
@@ -427,24 +437,44 @@ export async function buildCardSourceList(repo: Repo) {
   });
 
   return allRows.map((r) => {
-    const sourceIds = r.cardId ? (printingSourceIdsMap.get(r.cardId as string) ?? []) : [];
-    const pendingSourceIds = r.cardId ? [] : (pendingSourceIdsMap.get(r.groupKey as string) ?? []);
+    if (r.cardId) {
+      const sourceIds = printingSourceIdsMap.get(r.cardId) ?? [];
+      return {
+        cardId: r.cardId,
+        cardSlug: r.cardSlug,
+        name: r.name,
+        normalizedName: normalizeNameForMatching(String(r.name)),
+        sourceIds,
+        pendingSourceIds: [] as string[],
+        candidateSourceIds: candidateSourceIdsMap.get(r.cardId) ?? [],
+        sourceCount: Number(r.sourceCount),
+        uncheckedCardCount: Number(r.uncheckedCardCount),
+        uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
+        hasGallery: Boolean(r.hasGallery),
+        releasedSetSlug: r.releasedSetSlug ?? null,
+        hasMissingImage: missingImageCardIds.has(r.cardId),
+        suggestedCard: null,
+        formattedSourceIds: formatSourceIds(sourceIds),
+        formattedPendingSourceIds: formatSourceIds([]),
+      };
+    }
+    const pendingSourceIds = pendingSourceIdsMap.get(r.groupKey) ?? [];
     return {
-      cardId: r.cardId ?? null,
-      cardSlug: r.cardSlug ?? null,
+      cardId: null,
+      cardSlug: null,
       name: r.name,
-      normalizedName: r.cardId ? normalizeNameForMatching(String(r.name)) : r.groupKey,
-      sourceIds,
+      normalizedName: r.groupKey,
+      sourceIds: [] as string[],
       pendingSourceIds,
-      candidateSourceIds: r.cardId ? (candidateSourceIdsMap.get(r.cardId as string) ?? []) : [],
+      candidateSourceIds: [] as string[],
       sourceCount: Number(r.sourceCount),
       uncheckedCardCount: Number(r.uncheckedCardCount),
       uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
       hasGallery: Boolean(r.hasGallery),
       releasedSetSlug: r.releasedSetSlug ?? null,
-      hasMissingImage: r.cardId ? missingImageCardIds.has(r.cardId) : false,
-      suggestedCard: r.cardId ? null : (suggestionMap.get(r.groupKey as string) ?? null),
-      formattedSourceIds: formatSourceIds(sourceIds),
+      hasMissingImage: false,
+      suggestedCard: suggestionMap.get(r.groupKey) ?? null,
+      formattedSourceIds: formatSourceIds([]),
       formattedPendingSourceIds: formatSourceIds(pendingSourceIds),
     };
   });
