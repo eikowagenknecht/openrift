@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-LOCKFILE=/tmp/openrift-deploy.lock
+LOCKFILE="${DEPLOY_LOCKFILE:-/tmp/openrift-deploy.lock}"
 if [ -f "$LOCKFILE" ]; then
   echo "Deploy already running (lockfile: $LOCKFILE), exiting."
   exit 1
