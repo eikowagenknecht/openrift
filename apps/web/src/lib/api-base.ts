@@ -6,8 +6,13 @@ import { PREVIEW_HOSTS as RAW_PREVIEW_HOSTS } from "./env";
 // same-origin — no cross-origin cookie issues on mobile browsers.
 const PREVIEW_HOSTS = RAW_PREVIEW_HOSTS.split(",").filter(Boolean);
 
-/** SSR-safe: only evaluates `location` in the browser. */
+/**
+ * SSR-safe: only evaluates `location` in the browser.
+ * @returns Whether the current host is a preview deployment.
+ */
 export function isPreview(): boolean {
-  if (typeof window === "undefined") return false;
+  if (globalThis.window === undefined) {
+    return false;
+  }
   return PREVIEW_HOSTS.some((h) => location.hostname.endsWith(h));
 }

@@ -9,9 +9,8 @@ import { Header } from "@/components/layout/header";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { SWUpdateProvider } from "@/hooks/use-sw-update";
-import { featureFlagsQueryOptions } from "@/lib/feature-flags";
-
 import { PROD } from "@/lib/env";
+import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 
 const TanStackRouterDevtools = PROD
   ? () => null

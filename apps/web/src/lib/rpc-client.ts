@@ -8,6 +8,7 @@ import { ApiError } from "./api-client";
  * Factory for the Hono RPC client. On the server, pass an absolute URL
  * (e.g. "http://localhost:3000"); on the client, "/" is fine since the
  * dev proxy / Cloudflare Worker forwards /api/* to the backend.
+ * @returns A typed Hono RPC client instance.
  */
 export function createRpcClient(baseUrl: string) {
   return hc<AppType>(baseUrl, { init: { credentials: "include" } });

@@ -5,13 +5,14 @@ import { createAuthClient } from "better-auth/react";
 /**
  * Build an auth client for the given origin. On the server, pass the
  * request origin; on the client the default uses window.location.origin.
+ * @returns A configured Better Auth client instance.
  */
 export function createAppAuthClient(baseURL: string) {
   return createAuthClient({ baseURL, plugins: [emailOTPClient()] });
 }
 
 export const authClient = createAppAuthClient(
-  typeof window !== "undefined" ? window.location.origin : "",
+  globalThis.window === undefined ? "" : globalThis.location.origin,
 );
 
 export const { useSession, signIn, signUp, signOut } = authClient;
