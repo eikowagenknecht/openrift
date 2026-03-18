@@ -12,6 +12,7 @@ import { imagesRoute } from "./images.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { operationsRoute } from "./operations.js";
 import { adminPromoTypesRoute } from "./promo-types.js";
+import { adminSourceSettingsRoute } from "./source-settings.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 
 export const adminRoute = new Hono<{ Variables: Variables }>()
@@ -48,6 +49,7 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
   .route("/", marketplaceGroupsRoute)
   .route("/", unifiedMappingsRoute)
   .route("/", adminPromoTypesRoute)
+  .route("/", adminSourceSettingsRoute)
 
   // ── Card source routes ────────────────────────────────────────────────────
 

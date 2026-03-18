@@ -39,6 +39,7 @@ export type {
   Printing,
   PromoTypeResponse,
   PrintingImage,
+  PrintingSourceGroupResponse,
   PrintingSourceResponse,
   RangeKey,
   Rarity,
@@ -49,6 +50,7 @@ export type {
   SortDirection,
   SortOption,
   SourceResponse,
+  SourceSettingResponse,
   SourceStatsResponse,
   SuperType,
   TcgplayerSnapshot,
@@ -82,7 +84,9 @@ export {
   centsToDollars,
   comparePrintings,
   formatDateUTC,
+  formatSourceIds,
   getOrientation,
+  mostCommonValue,
   normalizeNameForMatching,
 } from "./utils.js";
 

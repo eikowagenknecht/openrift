@@ -51,9 +51,28 @@ export interface PrintingSourceResponse {
   flavorText: string | null;
   sourceEntityId: string;
   extraData: unknown | null;
+  groupKey: string;
   checkedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PrintingSourceGroupResponse {
+  groupKey: string;
+  label: string;
+  mostCommonSourceId: string;
+  differentiators: {
+    setId: string | null;
+    collectorNumber: number | null;
+    artVariant: string;
+    isSigned: boolean;
+    promoTypeId: string | null;
+    rarity: string;
+    finish: string;
+  };
+  sourceIds: string[];
+  matchedPrintingId: string | null;
+  candidatePrintingIds: string[];
 }
 
 export interface AdminPrintingImageResponse {
@@ -82,6 +101,8 @@ export interface CardSourceSummaryResponse {
   hasGallery: boolean;
   hasMissingImage: boolean;
   suggestedCard: { id: string; slug: string; name: string } | null;
+  formattedSourceIds: string;
+  formattedPendingSourceIds: string;
 }
 
 export interface SourceStatsResponse {
@@ -142,6 +163,12 @@ export interface PromoTypeResponse {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SourceSettingResponse {
+  source: string;
+  sortOrder: number;
+  isHidden: boolean;
 }
 
 export interface IgnoredProductResponse {

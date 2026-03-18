@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardSourceDetailQueryOptions } from "@/hooks/use-card-sources";
 import { adminPromoTypesQueryOptions } from "@/hooks/use-promo-types";
+import { sourceSettingsQueryOptions } from "@/hooks/use-source-settings";
 
 function AdminPending() {
   return (
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin/cards_/$cardId")({
     await Promise.all([
       context.queryClient.ensureQueryData(cardSourceDetailQueryOptions(params.cardId)),
       context.queryClient.ensureQueryData(adminPromoTypesQueryOptions),
+      context.queryClient.ensureQueryData(sourceSettingsQueryOptions),
     ]);
   },
   pendingComponent: AdminPending,

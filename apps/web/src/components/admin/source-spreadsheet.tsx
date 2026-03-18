@@ -1,4 +1,9 @@
-import type { ArtVariant, CardSourceResponse, PrintingSourceResponse } from "@openrift/shared";
+import type {
+  ArtVariant,
+  CardSourceResponse,
+  PrintingSourceResponse,
+  SourceSettingResponse,
+} from "@openrift/shared";
 import {
   ART_VARIANT_ORDER,
   CARD_TYPE_ORDER,
@@ -7,6 +12,7 @@ import {
   RARITY_ORDER,
   SUPER_TYPE_ORDER,
   comparePrintings,
+  mostCommonValue,
 } from "@openrift/shared";
 import {
   CheckIcon,
@@ -137,24 +143,18 @@ export interface PrintingGroup {
 export function groupPrintingSources(printingSources: PrintingSourceResponse[]): PrintingGroup[] {
   const groups = new Map<string, PrintingSourceResponse[]>();
   for (const ps of printingSources) {
-    const variant = ps.artVariant || ("normal" satisfies ArtVariant);
-    const finish = resolveFinish(ps.finish, ps.rarity);
-    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.promoTypeId ?? ""}|${ps.rarity}|${finish}`;
+    const key = ps.groupKey;
     const group = groups.get(key) ?? [];
     group.push(ps);
     groups.set(key, group);
   }
 
   const result = [...groups.entries()].map(([key, sources]) => {
-    const counts = new Map<string, number>();
-    for (const s of sources) {
-      counts.set(s.sourceId, (counts.get(s.sourceId) ?? 0) + 1);
-    }
-    const mostCommonId = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const mcSourceId = mostCommonValue(sources.map((s) => s.sourceId));
     const ps = sources[0];
     const variant = ps.artVariant || ("normal" satisfies ArtVariant);
     const finish = resolveFinish(ps.finish, ps.rarity);
-    const parts = [mostCommonId, finish];
+    const parts = [mcSourceId, finish];
     if (variant !== ("normal" satisfies ArtVariant)) {
       parts.push(variant);
     }
@@ -193,8 +193,8 @@ interface SourceSpreadsheetProps {
   sourceRows: (CardSourceResponse | PrintingSourceResponse)[];
   /** Map from cardSourceId → source name, used to label PrintingSourceResponse columns. */
   sourceLabels?: Record<string, string>;
-  /** Source names to sort first (before alphabetical). */
-  favoriteSources?: Set<string>;
+  /** Source settings for sort order and visibility. Hidden sources are excluded. */
+  sourceSettings?: SourceSettingResponse[];
   /** Field keys that must be selected before the card can be accepted. */
   requiredKeys?: string[];
   onCellClick?: (field: string, value: unknown, sourceId: string) => void;
@@ -326,7 +326,7 @@ export function SourceSpreadsheet({
   activeRow,
   sourceRows,
   sourceLabels,
-  favoriteSources,
+  sourceSettings,
   requiredKeys,
   onCellClick,
   onActiveChange,
@@ -335,16 +335,20 @@ export function SourceSpreadsheet({
   columnActions,
   columnClassName,
 }: SourceSpreadsheetProps) {
-  const sortedRows = [...sourceRows].sort((a, b) => {
-    const aLabel = getSourceLabel(a, sourceLabels);
-    const bLabel = getSourceLabel(b, sourceLabels);
-    const aFav = favoriteSources?.has(aLabel) ?? false;
-    const bFav = favoriteSources?.has(bLabel) ?? false;
-    if (aFav !== bFav) {
-      return aFav ? -1 : 1;
-    }
-    return aLabel.localeCompare(bLabel);
-  });
+  const settingsMap = new Map(sourceSettings?.map((s) => [s.source, s]));
+  const hiddenSources = new Set(sourceSettings?.filter((s) => s.isHidden).map((s) => s.source));
+  const sortedRows = sourceRows
+    .filter((row) => !hiddenSources.has(getSourceLabel(row, sourceLabels)))
+    .sort((a, b) => {
+      const aLabel = getSourceLabel(a, sourceLabels);
+      const bLabel = getSourceLabel(b, sourceLabels);
+      const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;
+      const bOrder = settingsMap.get(bLabel)?.sortOrder ?? 0;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      return aLabel.localeCompare(bLabel);
+    });
 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(true);

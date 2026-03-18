@@ -26,19 +26,9 @@ import {
   useLinkCard,
   useSourceNames,
 } from "@/hooks/use-card-sources";
+import { useSourceSettings } from "@/hooks/use-source-settings";
 
 type Filter = "all" | "unchecked" | "unmatched" | "active";
-
-function formatSourceIds(ids: string[]): string {
-  const counts = new Map<string, number>();
-  for (const id of ids) {
-    counts.set(id, (counts.get(id) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .toSorted(([a], [b]) => a.localeCompare(b))
-    .map(([id, n]) => (n > 1 ? `${id} ×${n}` : id))
-    .join(", ");
-}
 
 export function CardSourcesListPage() {
   const { set: setSlug } = useSearch({ from: "/_authenticated/admin/cards" });
@@ -46,6 +36,18 @@ export function CardSourcesListPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [source, setSource] = useState<string>();
   const { data: sourceNames } = useSourceNames();
+  const { data: sourceSettingsData } = useSourceSettings();
+  const settingsMap = new Map((sourceSettingsData?.sourceSettings ?? []).map((s) => [s.source, s]));
+  const visibleSourceNames = sourceNames
+    .filter((name) => !settingsMap.get(name)?.isHidden)
+    .sort((a, b) => {
+      const aOrder = settingsMap.get(a)?.sortOrder ?? 0;
+      const bOrder = settingsMap.get(b)?.sortOrder ?? 0;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      return a.localeCompare(b);
+    });
   const { data } = useCardSourceList(filter, source, setSlug);
   const linkCard = useLinkCard();
   const autoCheck = useAutoCheckSources();
@@ -85,7 +87,7 @@ export function CardSourcesListPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All sources</SelectItem>
-            {sourceNames.map((name) => (
+            {visibleSourceNames.map((name) => (
               <SelectItem key={name} value={name}>
                 {name}
               </SelectItem>
@@ -198,10 +200,9 @@ export function CardSourcesListPage() {
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     <span>
-                      {row.sourceIds.length > 0 &&
-                        formatSourceIds(row.sourceIds)
-                          .split(", ")
-                          .map((id, i, arr) => (
+                      {row.formattedSourceIds && (
+                        <>
+                          {row.formattedSourceIds.split(", ").map((id, i, arr) => (
                             <span key={id} className="text-muted-foreground">
                               {id}
                               {(i < arr.length - 1 ||
@@ -210,6 +211,8 @@ export function CardSourcesListPage() {
                                 ", "}
                             </span>
                           ))}
+                        </>
+                      )}
                       {row.pendingSourceIds.map((id, i) => (
                         <span key={`p-${id}`} className="italic text-muted-foreground/50">
                           {id}

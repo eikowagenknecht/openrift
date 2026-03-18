@@ -470,6 +470,7 @@ export interface PrintingSourcesTable {
   sourceEntityId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
+  groupKey: ColumnType<string, string | undefined, string | undefined>;
   checkedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -544,6 +545,17 @@ export interface PromoTypesTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── Source settings (migration 035) ──────────────────────────────────────────
+
+export interface SourceSettingsTable {
+  /** PK — matches card_sources.source */
+  source: string;
+  sortOrder: number;
+  isHidden: boolean;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── Feature flags (migration 014) ───────────────────────────────────────────
 
 export interface FeatureFlagsTable {
@@ -609,6 +621,9 @@ export interface Database {
 
   // Promo types (migration 034)
   promoTypes: PromoTypesTable;
+
+  // Source settings (migration 035)
+  sourceSettings: SourceSettingsTable;
 
   // Feature flags (migration 014)
   featureFlags: FeatureFlagsTable;
