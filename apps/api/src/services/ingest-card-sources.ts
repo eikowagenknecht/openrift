@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { Database } from "../db/index.js";
 import { cardSourceFieldRules, printingSourceFieldRules } from "../db/schemas.js";
 import { ingestRepo } from "../repositories/ingest.js";
-import type { IngestCard } from "../routes/card-sources/schemas.js";
+import type { IngestCard } from "../routes/admin/card-sources/schemas.js";
 
 interface UpdatedCardDetail {
   name: string;
