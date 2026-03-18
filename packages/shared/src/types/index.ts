@@ -48,8 +48,10 @@ export type {
   FeatureFlagResponse,
   IgnoredProductResponse,
   MarketplaceGroupResponse,
+  PrintingSourceGroupResponse,
   PrintingSourceResponse,
   PromoTypeResponse,
+  SourceSettingResponse,
   SourceStatsResponse,
 } from "./api/index.js";
 

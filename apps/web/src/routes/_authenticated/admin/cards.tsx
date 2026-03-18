@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardSourceListQueryOptions, sourceNamesQueryOptions } from "@/hooks/use-card-sources";
+import { sourceSettingsQueryOptions } from "@/hooks/use-source-settings";
 
 interface CardsSearch {
   set?: string;
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/_authenticated/admin/cards")({
     await Promise.all([
       context.queryClient.ensureQueryData(cardSourceListQueryOptions("all", undefined, deps.set)),
       context.queryClient.ensureQueryData(sourceNamesQueryOptions),
+      context.queryClient.ensureQueryData(sourceSettingsQueryOptions),
     ]);
   },
   pendingComponent: AdminPending,

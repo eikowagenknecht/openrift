@@ -55,5 +55,6 @@ export const queryKeys = {
     ignoredProducts: ["admin", "ignored-products"] as const,
     ignoredSources: ["admin", "ignored-sources"] as const,
     promoTypes: ["admin", "promo-types"] as const,
+    sourceSettings: ["admin", "source-settings"] as const,
   },
 } as const;

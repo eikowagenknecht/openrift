@@ -1,10 +1,11 @@
-import type { SourceStatsResponse } from "@openrift/shared";
+import type { SourceSettingResponse, SourceStatsResponse } from "@openrift/shared";
 import {
   CheckIcon,
   ChevronsUpDownIcon,
   DownloadIcon,
+  EyeIcon,
+  EyeOffIcon,
   LoaderIcon,
-  StarIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -30,7 +31,7 @@ import {
   useSourceStats,
   useUploadCardSources,
 } from "@/hooks/use-card-sources";
-import { useFavoriteSources } from "@/hooks/use-favorite-sources";
+import { useSourceSettings, useUpdateSourceSetting } from "@/hooks/use-source-settings";
 import { client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
@@ -373,14 +374,18 @@ function ManageSourcesCard({
   sourceStats: SourceStatsResponse[];
 }) {
   const deleteSource = useDeleteSource();
-  const { favorites, toggleFavorite } = useFavoriteSources();
+  const { data: settingsData } = useSourceSettings();
+  const updateSetting = useUpdateSourceSetting();
   const [confirming, setConfirming] = useState<string | null>(null);
   const statsBySource = new Map(sourceStats.map((s) => [s.source, s]));
+  const settingsMap = new Map(
+    (settingsData?.sourceSettings ?? []).map((s: SourceSettingResponse) => [s.source, s]),
+  );
   const sortedNames = [...sourceNames].sort((a, b) => {
-    const aFav = favorites.has(a);
-    const bFav = favorites.has(b);
-    if (aFav !== bFav) {
-      return aFav ? -1 : 1;
+    const aOrder = settingsMap.get(a)?.sortOrder ?? 0;
+    const bOrder = settingsMap.get(b)?.sortOrder ?? 0;
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
     }
     return a.localeCompare(b);
   });
@@ -393,31 +398,45 @@ function ManageSourcesCard({
           Manage Sources
         </CardTitle>
         <CardDescription>
-          Delete all card and printing source data for a given source.
+          Control visibility, sort order, and deletion of source data.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
           {sortedNames.map((name) => {
             const stats = statsBySource.get(name);
-            const isFav = favorites.has(name);
+            const setting = settingsMap.get(name);
+            const isHidden = setting?.isHidden ?? false;
             return (
               <div
                 key={name}
-                className="flex items-center justify-between rounded-md border px-3 py-2"
+                className={cn(
+                  "flex items-center justify-between rounded-md border px-3 py-2",
+                  isHidden && "opacity-50",
+                )}
               >
                 <span className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="text-muted-foreground hover:text-yellow-500"
-                    onClick={() => toggleFavorite(name)}
-                    title={isFav ? "Remove from favorites" : "Add to favorites"}
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => updateSetting.mutate({ source: name, isHidden: !isHidden })}
+                    title={isHidden ? "Show source" : "Hide source"}
                   >
-                    <StarIcon
-                      className={cn("size-4", isFav && "fill-yellow-400 text-yellow-400")}
-                    />
+                    {isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                   </button>
                   <span className="text-sm font-medium">{name}</span>
+                  <input
+                    type="number"
+                    className="h-6 w-14 rounded border bg-transparent px-1 text-center text-xs"
+                    value={setting?.sortOrder ?? 0}
+                    title="Sort order"
+                    onChange={(e) => {
+                      const val = Number.parseInt(e.target.value, 10);
+                      if (!Number.isNaN(val)) {
+                        updateSetting.mutate({ source: name, sortOrder: val });
+                      }
+                    }}
+                  />
                 </span>
                 <span className="flex items-center gap-4">
                   {stats && (
