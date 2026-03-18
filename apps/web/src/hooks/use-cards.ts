@@ -1,5 +1,5 @@
 import type { Printing, CatalogResponse } from "@openrift/shared";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { queryKeys } from "@/lib/query-keys";
@@ -50,13 +50,15 @@ async function fetchCatalog(): Promise<CatalogResponse> {
   return (await res.json()) as CatalogResponse;
 }
 
+export const catalogQueryOptions = queryOptions({
+  queryKey: queryKeys.catalog.all,
+  queryFn: fetchCatalog,
+  staleTime: 5 * 60 * 1000,
+  refetchOnWindowFocus: false,
+});
+
 export function useCards(): UseCardsResult {
-  const catalogQuery = useQuery({
-    queryKey: queryKeys.catalog.all,
-    queryFn: fetchCatalog,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+  const catalogQuery = useQuery(catalogQueryOptions);
 
   const isEmpty = catalogQuery.data !== undefined && catalogQuery.data.printings.length === 0;
   const isLoading = !isEmpty && catalogQuery.isLoading;
