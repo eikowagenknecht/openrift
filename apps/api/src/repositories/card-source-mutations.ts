@@ -108,11 +108,23 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
      */
     async checkAllCardSources(normNames: string[], cardId: string): Promise<number> {
       const now = new Date();
-      const linkedIds = db
+      // Card sources linked because their printing_sources already have a printingId
+      const linkedByPrintingId = db
         .selectFrom("printingSources")
         .innerJoin("printings", "printings.id", "printingSources.printingId")
         .select("printingSources.cardSourceId")
         .where("printings.cardId", "=", cardId);
+
+      // Card sources linked because their printing_sources have a sourceId matching
+      // a printing's sourceId (same logic as the display query)
+      const printingSourceIds = db
+        .selectFrom("printings")
+        .select("sourceId")
+        .where("cardId", "=", cardId);
+      const linkedBySourceId = db
+        .selectFrom("printingSources as ps_match")
+        .select("ps_match.cardSourceId")
+        .where("ps_match.sourceId", "in", printingSourceIds);
 
       const results = await db
         .updateTable("cardSources")
@@ -120,7 +132,8 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
         .where((eb) =>
           eb.or([
             eb("cardSources.normName", "in", normNames),
-            eb("cardSources.id", "in", linkedIds),
+            eb("cardSources.id", "in", linkedByPrintingId),
+            eb("cardSources.id", "in", linkedBySourceId),
           ]),
         )
         .where("checkedAt", "is", null)
