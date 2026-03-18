@@ -148,18 +148,7 @@ export function collectionsRepo(db: Kysely<Database>) {
      * @returns The inbox collection ID
      */
     async ensureInbox(userId: string): Promise<string> {
-      const existing = await db
-        .selectFrom("collections")
-        .select("id")
-        .where("userId", "=", userId)
-        .where("isInbox", "=", true)
-        .executeTakeFirst();
-
-      if (existing) {
-        return existing.id;
-      }
-
-      await db
+      const result = await db
         .insertInto("collections")
         .values({
           userId: userId,
@@ -169,19 +158,21 @@ export function collectionsRepo(db: Kysely<Database>) {
           sortOrder: 0,
         })
         .onConflict((oc) => oc.doNothing())
-        .execute();
+        .returning("id")
+        .executeTakeFirst();
 
-      // In case of a race, re-fetch
+      if (result) {
+        return result.id;
+      }
+
+      // Insert was a no-op (inbox already exists) — fetch it
       const row = await db
         .selectFrom("collections")
         .select("id")
         .where("userId", "=", userId)
         .where("isInbox", "=", true)
-        .executeTakeFirst();
+        .executeTakeFirstOrThrow();
 
-      if (!row) {
-        throw new Error("Inbox collection not found after insert");
-      }
       return row.id;
     },
   };
