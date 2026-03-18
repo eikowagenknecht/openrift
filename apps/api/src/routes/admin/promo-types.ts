@@ -1,9 +1,11 @@
 import { zValidator } from "@hono/zod-validator";
 import type { PromoTypeResponse } from "@openrift/shared";
 import { Hono } from "hono";
+import { sql } from "kysely";
 import { z } from "zod/v4";
 
 import { AppError } from "../../errors.js";
+import { printingIdToFileBase, renameRehostFiles } from "../../services/image-rehost.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -89,7 +91,64 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
         }
       }
 
+      const slugChanging = body.slug !== undefined && body.slug !== existing.slug;
+
       await repo.update(id, { ...body, updatedAt: new Date() });
+
+      // Cascade slug rename to all printings that use this promo type
+      if (slugChanging) {
+        const db = c.get("db");
+        const io = c.get("io");
+        const oldSlug = existing.slug;
+        // slugChanging guard above ensures body.slug is defined
+        const newSlug = body.slug as string;
+
+        // Find all affected printings and their rehosted images
+        const affectedImages = await db
+          .selectFrom("printings as p")
+          .innerJoin("printingImages as pi", "pi.printingId", "p.id")
+          .innerJoin("sets as s", "s.id", "p.setId")
+          .select([
+            "p.id as printingId",
+            "p.slug as printingSlug",
+            "pi.id as imageId",
+            "pi.rehostedUrl",
+            "s.slug as setSlug",
+          ])
+          .where("p.promoTypeId", "=", id)
+          .where("pi.rehostedUrl", "is not", null)
+          .execute();
+
+        // Rebuild printing slugs (replace 4th segment)
+        const oldSuffix = `:${oldSlug}`;
+        const newSuffix = `:${newSlug}`;
+        await db
+          .updateTable("printings")
+          .set({
+            slug: sql<string>`replace(slug, ${oldSuffix}, ${newSuffix})`,
+            updatedAt: new Date(),
+          })
+          .where("promoTypeId", "=", id)
+          .execute();
+
+        // Rename rehosted files and update image URLs
+        for (const img of affectedImages) {
+          // WHERE filter guarantees rehostedUrl is not null
+          const rehostedUrl = img.rehostedUrl as string;
+          const oldFileBase = printingIdToFileBase(img.printingSlug);
+          const newPrintingSlug = img.printingSlug.replace(oldSuffix, newSuffix);
+          const newFileBase = printingIdToFileBase(newPrintingSlug);
+          const newRehostedUrl = rehostedUrl.replace(oldFileBase, newFileBase);
+
+          await renameRehostFiles(io, rehostedUrl, newRehostedUrl);
+          await db
+            .updateTable("printingImages")
+            .set({ rehostedUrl: newRehostedUrl, updatedAt: new Date() })
+            .where("id", "=", img.imageId)
+            .execute();
+        }
+      }
+
       return c.body(null, 204);
     },
   )

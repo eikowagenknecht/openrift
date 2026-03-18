@@ -8,6 +8,7 @@ import { Hono } from "hono";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../../errors.js";
 import { setsRepo } from "../../repositories/sets.js";
+import { printingIdToFileBase, renameRehostFiles } from "../../services/image-rehost.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
 import {
@@ -380,6 +381,81 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
+    // When promoTypeId changes, rebuild the printing slug and rename rehosted files
+    if (field === "promoTypeId") {
+      const db = c.get("db");
+      const io = c.get("io");
+
+      // Fetch current printing + set slug + active front image
+      const printing = await db
+        .selectFrom("printings as p")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .select(["p.id", "p.slug", "p.sourceId", "p.rarity", "p.finish", "s.slug as setSlug"])
+        .where("p.slug", "=", printingSlug)
+        .executeTakeFirst();
+      if (!printing) {
+        throw new AppError(404, "NOT_FOUND", "Printing not found");
+      }
+
+      // Resolve new promo type slug (null value clears promo type)
+      let promoTypeSlug: string | null = null;
+      if (normalizedValue) {
+        const pt = await db
+          .selectFrom("promoTypes")
+          .select("slug")
+          .where("id", "=", normalizedValue as string)
+          .executeTakeFirst();
+        if (!pt) {
+          throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
+        }
+        promoTypeSlug = pt.slug;
+      }
+
+      const newSlug = buildPrintingId(
+        printing.sourceId,
+        printing.rarity,
+        promoTypeSlug,
+        printing.finish,
+      );
+
+      // Update promoTypeId and slug together
+      await db
+        .updateTable("printings")
+        .set({
+          promoTypeId: (normalizedValue as string) || null,
+          slug: newSlug,
+          updatedAt: new Date(),
+        })
+        .where("id", "=", printing.id)
+        .execute();
+
+      // Rename rehosted files for all images of this printing
+      if (newSlug !== printing.slug) {
+        const images = await db
+          .selectFrom("printingImages")
+          .select(["id", "rehostedUrl"])
+          .where("printingId", "=", printing.id)
+          .where("rehostedUrl", "is not", null)
+          .execute();
+
+        const oldFileBase = printingIdToFileBase(printing.slug);
+        const newFileBase = printingIdToFileBase(newSlug);
+        for (const img of images) {
+          // WHERE filter guarantees rehostedUrl is not null
+          const rehostedUrl = img.rehostedUrl as string;
+          const newRehostedUrl = rehostedUrl.replace(oldFileBase, newFileBase);
+          await renameRehostFiles(io, rehostedUrl, newRehostedUrl);
+          await db
+            .updateTable("printingImages")
+            .set({ rehostedUrl: newRehostedUrl, updatedAt: new Date() })
+            .where("id", "=", img.id)
+            .execute();
+        }
+      }
+
+      return c.body(null, 204);
+    }
+
     await mut.updatePrintingBySlug(printingSlug, field, normalizedValue);
 
     return c.body(null, 204);
@@ -399,8 +475,46 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       return c.body(null, 204);
     }
 
+    const trimmedId = newId.trim();
+    const db = c.get("db");
+    const io = c.get("io");
+
+    // Fetch printing ID for image lookup
+    const printing = await db
+      .selectFrom("printings")
+      .select("id")
+      .where("slug", "=", printingSlug)
+      .executeTakeFirst();
+    if (!printing) {
+      throw new AppError(404, "NOT_FOUND", "Printing not found");
+    }
+
     // UUID PK is immutable — only the slug changes
-    await mut.renamePrintingSlug(printingSlug, newId.trim());
+    await mut.renamePrintingSlug(printingSlug, trimmedId);
+
+    // Rename rehosted files to match the new slug
+    const images = await db
+      .selectFrom("printingImages")
+      .select(["id", "rehostedUrl"])
+      .where("printingId", "=", printing.id)
+      .where("rehostedUrl", "is not", null)
+      .execute();
+
+    if (images.length > 0) {
+      const oldFileBase = printingIdToFileBase(printingSlug);
+      const newFileBase = printingIdToFileBase(trimmedId);
+      for (const img of images) {
+        // WHERE filter guarantees rehostedUrl is not null
+        const rehostedUrl = img.rehostedUrl as string;
+        const newRehostedUrl = rehostedUrl.replace(oldFileBase, newFileBase);
+        await renameRehostFiles(io, rehostedUrl, newRehostedUrl);
+        await db
+          .updateTable("printingImages")
+          .set({ rehostedUrl: newRehostedUrl, updatedAt: new Date() })
+          .where("id", "=", img.id)
+          .execute();
+      }
+    }
 
     return c.body(null, 204);
   })
