@@ -12,6 +12,10 @@ const updateSchema = z.object({
   isHidden: z.boolean().optional(),
 });
 
+const reorderSchema = z.object({
+  sources: z.array(z.string().min(1)).min(1),
+});
+
 const sourceParamSchema = z.object({
   source: z.string().min(1),
 });
@@ -31,6 +35,21 @@ export const adminSourceSettingsRoute = new Hono<{ Variables: Variables }>()
       isHidden: r.isHidden,
     }));
     return c.json({ sourceSettings });
+  })
+
+  // ── PUT /admin/source-settings/reorder ──────────────────────────────────
+
+  .put("/admin/source-settings/reorder", zValidator("json", reorderSchema), async (c) => {
+    const { sourceSettings: repo } = c.get("repos");
+    const { sources } = c.req.valid("json");
+
+    const uniqueSources = new Set(sources);
+    if (uniqueSources.size !== sources.length) {
+      return c.json({ error: "Duplicate sources in reorder list" }, 400);
+    }
+
+    await repo.reorder(sources);
+    return c.body(null, 204);
   })
 
   // ── PATCH /admin/source-settings/:source ────────────────────────────────

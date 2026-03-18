@@ -13,6 +13,20 @@ export function sourceSettingsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    async reorder(sources: string[]) {
+      await db.transaction().execute(async (tx) => {
+        for (let i = 0; i < sources.length; i++) {
+          await tx
+            .insertInto("sourceSettings")
+            .values({ source: sources[i], sortOrder: i + 1, isHidden: false })
+            .onConflict((oc) =>
+              oc.column("source").doUpdateSet({ sortOrder: i + 1, updatedAt: new Date() }),
+            )
+            .execute();
+        }
+      });
+    },
+
     upsert(source: string, updates: { sortOrder?: number; isHidden?: boolean }) {
       return db
         .insertInto("sourceSettings")

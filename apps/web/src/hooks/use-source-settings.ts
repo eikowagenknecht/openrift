@@ -13,6 +13,14 @@ export function useSourceSettings() {
   return useSuspenseQuery(sourceSettingsQueryOptions);
 }
 
+export function useReorderSourceSettings() {
+  return useMutationWithInvalidation({
+    mutationFn: (sources: string[]) =>
+      rpc(client.api.admin["source-settings"].reorder.$put({ json: { sources } })),
+    invalidates: [queryKeys.admin.sourceSettings],
+  });
+}
+
 export function useUpdateSourceSetting() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { source: string; sortOrder?: number; isHidden?: boolean }) =>

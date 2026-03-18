@@ -1,5 +1,7 @@
 import type { SourceSettingResponse, SourceStatsResponse } from "@openrift/shared";
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   DownloadIcon,
@@ -31,7 +33,11 @@ import {
   useSourceStats,
   useUploadCardSources,
 } from "@/hooks/use-card-sources";
-import { useSourceSettings, useUpdateSourceSetting } from "@/hooks/use-source-settings";
+import {
+  useReorderSourceSettings,
+  useSourceSettings,
+  useUpdateSourceSetting,
+} from "@/hooks/use-source-settings";
 import { client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
@@ -376,6 +382,7 @@ function ManageSourcesCard({
   const deleteSource = useDeleteSource();
   const { data: settingsData } = useSourceSettings();
   const updateSetting = useUpdateSourceSetting();
+  const reorderMutation = useReorderSourceSettings();
   const [confirming, setConfirming] = useState<string | null>(null);
   const statsBySource = new Map(sourceStats.map((s) => [s.source, s]));
   const settingsMap = new Map(
@@ -390,6 +397,16 @@ function ManageSourcesCard({
     return a.localeCompare(b);
   });
 
+  function moveSource(index: number, direction: -1 | 1) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= sortedNames.length) {
+      return;
+    }
+    const reordered = [...sortedNames];
+    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+    reorderMutation.mutate(reordered);
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -403,7 +420,7 @@ function ManageSourcesCard({
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {sortedNames.map((name) => {
+          {sortedNames.map((name, index) => {
             const stats = statsBySource.get(name);
             const setting = settingsMap.get(name);
             const isHidden = setting?.isHidden ?? false;
@@ -416,6 +433,26 @@ function ManageSourcesCard({
                 )}
               >
                 <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      disabled={index === 0 || reorderMutation.isPending}
+                      onClick={() => moveSource(index, -1)}
+                    >
+                      <ArrowUpIcon className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      disabled={index === sortedNames.length - 1 || reorderMutation.isPending}
+                      onClick={() => moveSource(index, 1)}
+                    >
+                      <ArrowDownIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  </span>
                   <button
                     type="button"
                     className="text-muted-foreground hover:text-foreground"
@@ -425,18 +462,6 @@ function ManageSourcesCard({
                     {isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                   </button>
                   <span className="text-sm font-medium">{name}</span>
-                  <input
-                    type="number"
-                    className="h-6 w-14 rounded border bg-transparent px-1 text-center text-xs"
-                    value={setting?.sortOrder ?? 0}
-                    title="Sort order"
-                    onChange={(e) => {
-                      const val = Number.parseInt(e.target.value, 10);
-                      if (!Number.isNaN(val)) {
-                        updateSetting.mutate({ source: name, sortOrder: val });
-                      }
-                    }}
-                  />
                 </span>
                 <span className="flex items-center gap-4">
                   {stats && (
