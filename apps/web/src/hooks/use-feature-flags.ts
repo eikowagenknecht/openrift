@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -15,11 +15,13 @@ export function useFeatureEnabled(key: string): boolean {
 // Admin hooks (hit the /admin/feature-flags endpoints)
 // ---------------------------------------------------------------------------
 
+export const adminFeatureFlagsQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.featureFlags,
+  queryFn: () => rpc(client.api.admin["feature-flags"].$get()),
+});
+
 export function useFeatureFlags() {
-  return useQuery({
-    queryKey: queryKeys.admin.featureFlags,
-    queryFn: () => rpc(client.api.admin["feature-flags"].$get()),
-  });
+  return useQuery(adminFeatureFlagsQueryOptions);
 }
 
 export function useToggleFeatureFlag() {

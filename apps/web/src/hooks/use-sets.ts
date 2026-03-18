@@ -1,14 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
+export const setsQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.sets,
+  queryFn: () => rpc(client.api.admin.sets.$get()),
+});
+
 export function useSets() {
-  return useQuery({
-    queryKey: queryKeys.admin.sets,
-    queryFn: () => rpc(client.api.admin.sets.$get()),
-  });
+  return useQuery(setsQueryOptions);
 }
 
 export function useUpdateSet() {

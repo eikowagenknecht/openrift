@@ -1,13 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 
+export const ignoredSourcesQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.ignoredSources,
+  queryFn: () => rpc(client.api.admin["ignored-sources"].$get()),
+});
+
 export function useIgnoredSources() {
-  return useQuery({
-    queryKey: queryKeys.admin.ignoredSources,
-    queryFn: () => rpc(client.api.admin["ignored-sources"].$get()),
-  });
+  return useQuery(ignoredSourcesQueryOptions);
 }
 
 export function useIgnoreCardSource() {

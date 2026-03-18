@@ -1,14 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
+export const sourcesQueryOptions = queryOptions({
+  queryKey: queryKeys.sources.all,
+  queryFn: () => rpc(client.api.sources.$get()),
+});
+
 export function useSources() {
-  return useQuery({
-    queryKey: queryKeys.sources.all,
-    queryFn: () => rpc(client.api.sources.$get()),
-  });
+  return useQuery(sourcesQueryOptions);
 }
 
 export function useCreateSource() {

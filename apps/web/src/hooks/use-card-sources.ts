@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export function useCardSourceList(filter: string, source?: string, set?: string) {
+export function cardSourceListQueryOptions(filter: string, source?: string, set?: string) {
   const query: Record<string, string> = { filter };
   if (source) {
     query.source = source;
@@ -12,31 +12,49 @@ export function useCardSourceList(filter: string, source?: string, set?: string)
   if (set) {
     query.set = set;
   }
-  return useQuery({
+  return queryOptions({
     queryKey: queryKeys.admin.cardSources.list(filter, source, set),
     queryFn: () => rpc(client.api.admin["card-sources"].$get({ query })),
   });
 }
 
+export function useCardSourceList(filter: string, source?: string, set?: string) {
+  return useQuery(cardSourceListQueryOptions(filter, source, set));
+}
+
+export const allCardsQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.cardSources.allCards,
+  queryFn: () => rpc(client.api.admin["card-sources"]["all-cards"].$get()),
+});
+
 export function useAllCards() {
-  return useQuery({
-    queryKey: queryKeys.admin.cardSources.allCards,
-    queryFn: () => rpc(client.api.admin["card-sources"]["all-cards"].$get()),
+  return useQuery(allCardsQueryOptions);
+}
+
+export function cardSourceDetailQueryOptions(cardId: string) {
+  return queryOptions({
+    queryKey: queryKeys.admin.cardSources.detail(cardId),
+    queryFn: () => rpc(client.api.admin["card-sources"][":cardId"].$get({ param: { cardId } })),
   });
 }
 
 export function useCardSourceDetail(cardId: string) {
   return useQuery({
-    queryKey: queryKeys.admin.cardSources.detail(cardId),
-    queryFn: () => rpc(client.api.admin["card-sources"][":cardId"].$get({ param: { cardId } })),
+    ...cardSourceDetailQueryOptions(cardId),
     enabled: Boolean(cardId),
+  });
+}
+
+export function unmatchedCardDetailQueryOptions(name: string) {
+  return queryOptions({
+    queryKey: queryKeys.admin.cardSources.unmatched(name),
+    queryFn: () => rpc(client.api.admin["card-sources"].new[":name"].$get({ param: { name } })),
   });
 }
 
 export function useUnmatchedCardDetail(name: string) {
   return useQuery({
-    queryKey: queryKeys.admin.cardSources.unmatched(name),
-    queryFn: () => rpc(client.api.admin["card-sources"].new[":name"].$get({ param: { name } })),
+    ...unmatchedCardDetailQueryOptions(name),
     enabled: Boolean(name),
   });
 }
@@ -284,18 +302,22 @@ export function useDeleteSource() {
   });
 }
 
+export const sourceStatsQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.cardSources.sourceStats,
+  queryFn: () => rpc(client.api.admin["card-sources"]["source-stats"].$get()),
+});
+
 export function useSourceStats() {
-  return useQuery({
-    queryKey: queryKeys.admin.cardSources.sourceStats,
-    queryFn: () => rpc(client.api.admin["card-sources"]["source-stats"].$get()),
-  });
+  return useQuery(sourceStatsQueryOptions);
 }
 
+export const sourceNamesQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.cardSources.sourceNames,
+  queryFn: () => rpc(client.api.admin["card-sources"]["source-names"].$get()),
+});
+
 export function useSourceNames() {
-  return useQuery({
-    queryKey: queryKeys.admin.cardSources.sourceNames,
-    queryFn: () => rpc(client.api.admin["card-sources"]["source-names"].$get()),
-  });
+  return useQuery(sourceNamesQueryOptions);
 }
 
 export function useDeletePrintingImage() {
