@@ -4,7 +4,6 @@ import { createLogger } from "@openrift/shared/logger";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
-import { AppError } from "../../errors.js";
 import {
   refreshCardmarketPrices,
   refreshTcgplayerPrices,
@@ -31,43 +30,20 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source } = c.req.valid("json");
 
-    try {
-      const deleted = await mktAdmin.clearPriceData(source);
-      return c.json({ source, deleted } satisfies ClearPricesResponse);
-    } catch (error) {
-      log.error(error, `clear-prices (${source}) failed`);
-      throw new AppError(500, "INTERNAL_ERROR", `Failed to clear ${source} price data`);
-    }
+    const deleted = await mktAdmin.clearPriceData(source);
+    return c.json({ source, deleted } satisfies ClearPricesResponse);
   })
 
   // ── Manual refresh endpoints ────────────────────────────────────────────────
 
   .post("/admin/refresh-tcgplayer-prices", async (c) => {
     const db = c.get("db");
-    try {
-      const result = await refreshTcgplayerPrices(
-        c.get("io").fetch,
-        db,
-        log.child({ service: "tcgplayer" }),
-      );
-      return c.json(result);
-    } catch (error) {
-      log.error(error, "refresh-tcgplayer-prices failed");
-      throw new AppError(500, "INTERNAL_ERROR", "TCGPlayer price refresh failed");
-    }
+    const result = await refreshTcgplayerPrices(c.get("io").fetch, db, log);
+    return c.json(result);
   })
 
   .post("/admin/refresh-cardmarket-prices", async (c) => {
     const db = c.get("db");
-    try {
-      const result = await refreshCardmarketPrices(
-        c.get("io").fetch,
-        db,
-        log.child({ service: "cardmarket" }),
-      );
-      return c.json(result);
-    } catch (error) {
-      log.error(error, "refresh-cardmarket-prices failed");
-      throw new AppError(500, "INTERNAL_ERROR", "Cardmarket price refresh failed");
-    }
+    const result = await refreshCardmarketPrices(c.get("io").fetch, db, log);
+    return c.json(result);
   });

@@ -3,6 +3,7 @@ import type { MarketplaceGroupResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
+import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -61,7 +62,14 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
       const { marketplace, id: groupId } = c.req.valid("param");
       const { name } = c.req.valid("json");
 
-      await mktAdmin.updateGroupName(marketplace, groupId, name);
+      const updated = await mktAdmin.updateGroupName(marketplace, groupId, name);
+      if (!updated) {
+        throw new AppError(
+          404,
+          "NOT_FOUND",
+          `Marketplace group ${marketplace}/${groupId} not found`,
+        );
+      }
 
       return c.body(null, 204);
     },

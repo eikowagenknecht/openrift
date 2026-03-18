@@ -3,6 +3,7 @@ import type { SourceSettingResponse } from "@openrift/shared";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
+import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ export const adminSourceSettingsRoute = new Hono<{ Variables: Variables }>()
 
     const uniqueSources = new Set(sources);
     if (uniqueSources.size !== sources.length) {
-      return c.json({ error: "Duplicate sources in reorder list" }, 400);
+      throw new AppError(400, "BAD_REQUEST", "Duplicate sources in reorder list");
     }
 
     await repo.reorder(sources);

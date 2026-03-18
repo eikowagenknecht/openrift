@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { cronJobs } from "../../cron-jobs.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
-import { cardSourcesRoute } from "../card-sources/index.js";
+import { cardSourcesRoute } from "./card-sources/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
