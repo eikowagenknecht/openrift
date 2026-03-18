@@ -21,5 +21,6 @@
       "ignore": ["src/**/*.test.ts"]
     }
   },
-  "ignoreBinaries": ["wait"]
+  "ignoreBinaries": ["wait"],
+  "ignoreDependencies": ["@vitest/coverage-v8"]
 }
