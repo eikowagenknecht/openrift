@@ -1,4 +1,4 @@
-import type { Kysely, Selectable, SqlBool } from "kysely";
+import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type {
@@ -14,42 +14,62 @@ import { resolveCardId } from "./query-helpers.js";
 /**
  * Reusable WHERE filter: exclude card_sources that appear in ignored_card_sources.
  * @param alias — the card_sources table alias used in the query (e.g. "cs", "cardSources")
- * @returns SQL boolean expression for NOT EXISTS subquery
+ * @returns Expression builder callback for NOT EXISTS subquery
  */
 function notIgnoredCard(alias: string) {
-  return sql<SqlBool>`NOT EXISTS (
-    SELECT 1 FROM ignored_card_sources ics
-    WHERE ics.source = ${sql.ref(`${alias}.source`)}
-      AND ics.source_entity_id = ${sql.ref(`${alias}.source_entity_id`)}
-  )`;
+  return (eb: ExpressionBuilder<Database, any>) =>
+    eb.not(
+      eb.exists(
+        eb
+          .selectFrom("ignoredCardSources as ics")
+          .select(sql.lit(1).as("x"))
+          .where("ics.source", "=", sql<string>`${sql.ref(`${alias}.source`)}`)
+          .where("ics.sourceEntityId", "=", sql<string>`${sql.ref(`${alias}.sourceEntityId`)}`),
+      ),
+    );
 }
 
 /**
  * Reusable WHERE filter: exclude card_sources whose source is hidden in source_settings.
  * @param alias — the card_sources table alias used in the query (e.g. "cs", "cardSources")
- * @returns SQL boolean expression for NOT EXISTS subquery
+ * @returns Expression builder callback for NOT EXISTS subquery
  */
 function notHiddenSource(alias: string) {
-  return sql<SqlBool>`NOT EXISTS (
-    SELECT 1 FROM source_settings ss
-    WHERE ss.source = ${sql.ref(`${alias}.source`)}
-      AND ss.is_hidden = true
-  )`;
+  return (eb: ExpressionBuilder<Database, any>) =>
+    eb.not(
+      eb.exists(
+        eb
+          .selectFrom("sourceSettings as ss")
+          .select(sql.lit(1).as("x"))
+          .where("ss.source", "=", sql<string>`${sql.ref(`${alias}.source`)}`)
+          .where("ss.isHidden", "=", true),
+      ),
+    );
 }
 
 /**
  * Reusable WHERE filter: exclude printing_sources that appear in ignored_printing_sources.
  * @param alias — the printing_sources table alias used in the query (e.g. "ps", "printingSources")
  * @param csAlias — the card_sources table alias to resolve the source name
- * @returns SQL boolean expression for NOT EXISTS subquery
+ * @returns Expression builder callback for NOT EXISTS subquery
  */
 function notIgnoredPrinting(alias: string, csAlias: string) {
-  return sql<SqlBool>`NOT EXISTS (
-    SELECT 1 FROM ignored_printing_sources ips
-    WHERE ips.source = ${sql.ref(`${csAlias}.source`)}
-      AND ips.source_entity_id = ${sql.ref(`${alias}.source_entity_id`)}
-      AND (ips.finish IS NULL OR ips.finish = ${sql.ref(`${alias}.finish`)})
-  )`;
+  return (eb: ExpressionBuilder<Database, any>) =>
+    eb.not(
+      eb.exists(
+        eb
+          .selectFrom("ignoredPrintingSources as ips")
+          .select(sql.lit(1).as("x"))
+          .where("ips.source", "=", sql<string>`${sql.ref(`${csAlias}.source`)}`)
+          .where("ips.sourceEntityId", "=", sql<string>`${sql.ref(`${alias}.sourceEntityId`)}`)
+          .where((eb2) =>
+            eb2.or([
+              eb2("ips.finish", "is", null),
+              eb2("ips.finish", "=", sql<string>`${sql.ref(`${alias}.finish`)}`),
+            ]),
+          ),
+      ),
+    );
 }
 
 // ── Row types for aggregate / joined queries ────────────────────────────────
@@ -154,120 +174,74 @@ export function cardSourcesRepo(db: Kysely<Database>) {
      * or normalized name (unmatched), with source/unchecked counts and set info.
      * @returns Grouped source rows with aggregate counts and set tier info.
      */
-    async listGroupedSources(
-      filter: string,
-      source?: string,
-      set?: string,
-    ): Promise<GroupedSourceRow[]> {
+    async listGroupedSources(): Promise<GroupedSourceRow[]> {
       const rcid = resolveCardId("cs");
-      let query = db
+      const rows = await db
         .selectFrom("cardSources as cs")
         .leftJoin("printingSources as ps", "ps.cardSourceId", "cs.id")
         .leftJoin("sets as s", "s.slug", "ps.setId")
         .leftJoin("cards as c", (jb) => jb.on(sql`c.id = (${rcid})`))
-        // raw sql: could use fn.count(eb.case()...).distinct() but the sql`` form is
-        // much more readable for these multi-condition conditional aggregates
-        .select([
+        .select((eb) => [
           sql<string | null>`max((${rcid})::text)`.as("cardId"),
-          sql<string | null>`max(c.slug)`.as("cardSlug"),
-          sql<string>`COALESCE(max(c.name), min(cs.name))`.as("name"),
+          eb.fn.max("c.slug").as("cardSlug"),
+          eb.fn.coalesce(eb.fn.max("c.name"), eb.fn.min("cs.name")).as("name"),
           sql<string>`COALESCE((${rcid})::text, cs.norm_name)`.as("groupKey"),
-          sql<number>`count(DISTINCT cs.source)::int`.as("sourceCount"),
-          sql<number>`count(DISTINCT CASE WHEN cs.checked_at IS NULL THEN cs.id END)::int`.as(
-            "uncheckedCardCount",
-          ),
-          sql<number>`count(DISTINCT CASE WHEN ps.checked_at IS NULL AND ps.id IS NOT NULL THEN ps.id END)::int`.as(
-            "uncheckedPrintingCount",
-          ),
-          sql<boolean>`bool_or(cs.source = 'gallery')`.as("hasGallery"),
-          sql<string | null>`min(s.released_at::text) FILTER (WHERE s.released_at IS NOT NULL)`.as(
-            "minReleasedAt",
-          ),
-          sql<string | null>`min(s.slug) FILTER (WHERE s.released_at IS NOT NULL)`.as(
-            "releasedSetSlug",
-          ),
-          sql<boolean>`bool_or(s.id IS NOT NULL AND s.released_at IS NULL)`.as("hasKnownSet"),
-          sql<boolean>`bool_or(ps.id IS NOT NULL AND s.id IS NULL)`.as("hasUnknownSet"),
+          eb.cast<number>(eb.fn.count("cs.source").distinct(), "integer").as("sourceCount"),
+          eb
+            .cast<number>(
+              eb.fn
+                // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CaseBuilder.then(), not Promise
+                .count(eb.case().when("cs.checkedAt", "is", null).then(eb.ref("cs.id")).end())
+                .distinct(),
+              "integer",
+            )
+            .as("uncheckedCardCount"),
+          eb
+            .cast<number>(
+              eb.fn
+                .count(
+                  eb
+                    .case()
+                    .when(eb.and([eb("ps.checkedAt", "is", null), eb("ps.id", "is not", null)]))
+                    // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CaseBuilder.then(), not Promise
+                    .then(eb.ref("ps.id"))
+                    .end(),
+                )
+                .distinct(),
+              "integer",
+            )
+            .as("uncheckedPrintingCount"),
+          eb.fn.agg<boolean>("bool_or", [eb("cs.source", "=", "gallery")]).as("hasGallery"),
+          eb.fn
+            .min(eb.cast<string>(eb.ref("s.releasedAt"), "text"))
+            .filterWhere("s.releasedAt", "is not", null)
+            .as("minReleasedAt"),
+          eb.fn.min("s.slug").filterWhere("s.releasedAt", "is not", null).as("releasedSetSlug"),
+          eb.fn
+            .agg<boolean>("bool_or", [
+              eb.and([eb("s.id", "is not", null), eb("s.releasedAt", "is", null)]),
+            ])
+            .as("hasKnownSet"),
+          eb.fn
+            .agg<boolean>("bool_or", [
+              eb.and([eb("ps.id", "is not", null), eb("s.id", "is", null)]),
+            ])
+            .as("hasUnknownSet"),
         ])
         .where(notIgnoredCard("cs"))
         .where(notHiddenSource("cs"))
-        .groupBy(sql`COALESCE((${rcid})::text, cs.norm_name)`);
-
-      if (source) {
-        const rcid2 = resolveCardId("cs2");
-        query = query.where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom("cardSources as cs2")
-              .select(sql.lit(1).as("x"))
-              .where("cs2.source", "=", source)
-              .where(
-                sql<SqlBool>`COALESCE((${rcid2})::text, cs2.norm_name) = COALESCE((${rcid})::text, cs.norm_name)`,
-              ),
-          ),
-        );
-      }
-
-      if (set) {
-        query = query.where((eb) =>
-          eb.or([
-            eb.exists(
-              eb
-                .selectFrom("printingSources as ps2")
-                .select(sql.lit(1).as("x"))
-                .where("ps2.setId", "=", set)
-                .whereRef("ps2.cardSourceId", "=", "cs.id"),
-            ),
-            eb.exists(
-              eb
-                .selectFrom("printings as p2")
-                .innerJoin("sets as s2", "s2.id", "p2.setId")
-                .select(sql.lit(1).as("x"))
-                .where("s2.slug", "=", set)
-                .where(sql<SqlBool>`p2.card_id = (${rcid})`),
-            ),
-          ]),
-        );
-      }
-
-      if (filter === "unchecked") {
-        // raw sql: arithmetic on two conditional aggregates in HAVING — clearer as raw sql
-        query = query.having(
-          sql`count(DISTINCT CASE WHEN cs.checked_at IS NULL THEN cs.id END) +
-            count(DISTINCT CASE WHEN ps.checked_at IS NULL AND ps.id IS NOT NULL THEN ps.id END)`,
-          ">",
-          0,
-        );
-      } else if (filter === "unmatched") {
-        query = query.where(sql<SqlBool>`(${rcid}) IS NULL`);
-      } else if (filter === "active") {
-        query = query.where(sql<SqlBool>`(${rcid}) IS NOT NULL`);
-      }
-
-      const rows = await query.execute();
+        .groupBy(sql`COALESCE((${rcid})::text, cs.norm_name)`)
+        .execute();
       return rows as unknown as GroupedSourceRow[];
     },
 
-    /** @returns Cards that have no card_sources (orphans), optionally filtered to a set. */
+    /** @returns Cards that have no card_sources (orphans). */
     listOrphanCards(
       excludeIds: string[],
-      set?: string,
     ): Promise<Pick<Selectable<CardsTable>, "id" | "slug" | "name">[]> {
       let query = db.selectFrom("cards as c").select(["c.id", "c.slug", "c.name"]);
       if (excludeIds.length > 0) {
         query = query.where("c.id", "not in", excludeIds);
-      }
-      if (set) {
-        query = query.where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom("printings as p")
-              .innerJoin("sets as s", "s.id", "p.setId")
-              .select(sql.lit(1).as("x"))
-              .where("s.slug", "=", set)
-              .whereRef("p.cardId", "=", "c.id"),
-          ),
-        );
       }
       return query.execute();
     },
