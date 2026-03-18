@@ -22,40 +22,6 @@ const mockRepo = {
   replaceCards: vi.fn(() => Promise.resolve()),
 };
 
-// Transaction mock for PUT /decks/:id/cards
-const mockTrxOps = {
-  deleteExecute: vi.fn(() => Promise.resolve()),
-  insertExecute: vi.fn(() => Promise.resolve()),
-  updateExecute: vi.fn(() => Promise.resolve()),
-};
-
-const mockDb = {
-  transaction: () => ({
-    execute: (fn: (trx: object) => Promise<void>) => {
-      const trx = {
-        deleteFrom: () => ({
-          where: () => ({
-            execute: mockTrxOps.deleteExecute,
-          }),
-        }),
-        insertInto: () => ({
-          values: () => ({
-            execute: mockTrxOps.insertExecute,
-          }),
-        }),
-        updateTable: () => ({
-          set: () => ({
-            where: () => ({
-              execute: mockTrxOps.updateExecute,
-            }),
-          }),
-        }),
-      };
-      return fn(trx);
-    },
-  }),
-};
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -64,7 +30,6 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("db", mockDb as never);
     c.set("user", { id: USER_ID });
     c.set("repos", { decks: mockRepo } as never);
     await next();
@@ -246,9 +211,7 @@ describe("DELETE /api/decks/:id", () => {
 describe("PUT /api/decks/:id/cards", () => {
   beforeEach(() => {
     mockRepo.getIdAndFormat.mockReset();
-    mockTrxOps.deleteExecute.mockReset();
-    mockTrxOps.insertExecute.mockReset();
-    mockTrxOps.updateExecute.mockReset();
+    mockRepo.replaceCards.mockReset();
   });
 
   it("returns 204 when cards replaced successfully", async () => {

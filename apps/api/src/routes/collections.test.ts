@@ -25,51 +25,7 @@ const mockCopiesRepo = {
 };
 
 const mockEnsureInbox = vi.fn(() => Promise.resolve("inbox-id"));
-const mockCreateActivity = vi.fn(() => Promise.resolve());
-
-// Tracks transaction operations
-const mockTrxOps = {
-  selectExecute: vi.fn(() => Promise.resolve([] as object[])),
-  updateExecute: vi.fn(() => Promise.resolve()),
-  deleteExecute: vi.fn(() => Promise.resolve()),
-  insertExecute: vi.fn(() => Promise.resolve()),
-};
-
-const mockDb = {
-  transaction: () => ({
-    execute: (fn: (trx: object) => Promise<void>) => {
-      const trx = {
-        selectFrom: () => ({
-          select: () => ({
-            where: () => ({
-              execute: mockTrxOps.selectExecute,
-            }),
-          }),
-        }),
-        updateTable: () => ({
-          set: () => ({
-            where: () => ({
-              execute: mockTrxOps.updateExecute,
-            }),
-          }),
-        }),
-        deleteFrom: () => ({
-          where: () => ({
-            where: () => ({
-              execute: mockTrxOps.deleteExecute,
-            }),
-          }),
-        }),
-        insertInto: () => ({
-          values: () => ({
-            execute: mockTrxOps.insertExecute,
-          }),
-        }),
-      };
-      return fn(trx);
-    },
-  }),
-};
+const mockDeleteCollection = vi.fn(() => Promise.resolve());
 
 // ---------------------------------------------------------------------------
 // Test app
@@ -79,7 +35,7 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("db", mockDb as never);
+    c.set("db", {} as never);
     c.set("user", { id: USER_ID });
     c.set("repos", {
       collections: mockCollectionsRepo,
@@ -87,7 +43,7 @@ const app = new Hono()
     } as never);
     c.set("services", {
       ensureInbox: mockEnsureInbox,
-      createActivity: mockCreateActivity,
+      deleteCollection: mockDeleteCollection,
     } as never);
     await next();
   })
@@ -256,33 +212,28 @@ describe("DELETE /api/collections/:id", () => {
   beforeEach(() => {
     mockCollectionsRepo.getByIdForUser.mockReset();
     mockCollectionsRepo.getIdAndName.mockReset();
-    mockTrxOps.selectExecute.mockReset();
-    mockTrxOps.updateExecute.mockReset();
-    mockTrxOps.deleteExecute.mockReset();
+    mockDeleteCollection.mockReset();
   });
 
   const targetId = "a0000000-0001-4000-a000-000000000012";
 
-  it("returns 204 when deleted with copies moved", async () => {
+  it("returns 204 when deleted", async () => {
     mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
     mockCollectionsRepo.getIdAndName.mockResolvedValue({ id: targetId, name: "Target" });
-    mockTrxOps.selectExecute.mockResolvedValue([{ id: "copy-1", printingId: "p1" }]);
     const res = await app.request(
       `/api/collections/${dbCollection.id}?move_copies_to=${targetId}`,
       { method: "DELETE" },
     );
     expect(res.status).toBe(204);
-  });
-
-  it("returns 204 when deleted with no copies to move", async () => {
-    mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
-    mockCollectionsRepo.getIdAndName.mockResolvedValue({ id: targetId, name: "Target" });
-    mockTrxOps.selectExecute.mockResolvedValue([]);
-    const res = await app.request(
-      `/api/collections/${dbCollection.id}?move_copies_to=${targetId}`,
-      { method: "DELETE" },
+    expect(mockDeleteCollection).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        collectionId: dbCollection.id,
+        moveCopiesTo: targetId,
+        userId: USER_ID,
+      }),
     );
-    expect(res.status).toBe(204);
   });
 
   it("returns 404 when collection not found", async () => {

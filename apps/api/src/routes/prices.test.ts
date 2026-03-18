@@ -1,49 +1,28 @@
 import { Hono } from "hono";
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { catalogRepo } from "../repositories/catalog";
-import { marketplaceRepo } from "../repositories/marketplace";
 import { pricesRoute } from "./prices";
 
 // ---------------------------------------------------------------------------
-// Mock DB
+// Mock repos
 // ---------------------------------------------------------------------------
 
-const mockState = {
-  tables: {} as Record<string, unknown[]>,
+const mockCatalogRepo = {
+  printingById: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
-function createMockDb() {
-  return {
-    selectFrom: (table: string) => {
-      const data = mockState.tables[table] ?? [];
-      const chain: Record<string, unknown> = {
-        selectAll: () => chain,
-        select: () => chain,
-        innerJoin: () => chain,
-        leftJoin: () => chain,
-        distinctOn: () => chain,
-        where: () => chain,
-        or: () => chain,
-        orderBy: () => chain,
-        limit: () => chain,
-        execute: () => data,
-        executeTakeFirst: () => data[0] ?? undefined,
-        executeTakeFirstOrThrow: () => data[0],
-      };
-      return chain;
-    },
-  };
-}
+const mockMarketplaceRepo = {
+  latestPrices: vi.fn(() => Promise.resolve([] as object[])),
+  sourcesForPrinting: vi.fn(() => Promise.resolve([] as object[])),
+  snapshots: vi.fn(() => Promise.resolve([] as object[])),
+};
 
-const mockDb = createMockDb();
-
+// oxlint-disable-next-line -- test mock doesn't match full Repos type
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("db", mockDb);
     c.set("repos", {
-      catalog: catalogRepo(mockDb as never),
-      marketplace: marketplaceRepo(mockDb as never),
+      catalog: mockCatalogRepo,
+      marketplace: mockMarketplaceRepo,
     } as never);
     await next();
   })
@@ -100,9 +79,10 @@ const dbSnapshot = {
 
 describe("GET /api/prices", () => {
   beforeEach(() => {
-    mockState.tables = {
-      "marketplaceSources as ps": [dbPrice, dbPriceFoil],
-    };
+    mockMarketplaceRepo.latestPrices.mockReset().mockResolvedValue([dbPrice, dbPriceFoil]);
+    mockCatalogRepo.printingById.mockReset();
+    mockMarketplaceRepo.sourcesForPrinting.mockReset();
+    mockMarketplaceRepo.snapshots.mockReset();
   });
 
   it("returns 200 with PricesResponse structure", async () => {
@@ -126,9 +106,7 @@ describe("GET /api/prices", () => {
   });
 
   it("returns empty prices when no rows exist", async () => {
-    mockState.tables = {
-      "marketplaceSources as ps": [],
-    };
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([]);
     const res = await app.request("/api/prices");
     const json = await res.json();
     expect(json.prices).toEqual({});
@@ -164,11 +142,12 @@ describe("GET /api/prices", () => {
 
 describe("GET /api/prices/:printingId/history", () => {
   beforeEach(() => {
-    mockState.tables = {
-      printings: [dbPrinting],
-      marketplaceSources: [dbMarketplaceSource, dbMarketplaceSourceCM],
-      marketplaceSnapshots: [dbSnapshot],
-    };
+    mockMarketplaceRepo.latestPrices.mockReset();
+    mockCatalogRepo.printingById.mockReset().mockResolvedValue(dbPrinting);
+    mockMarketplaceRepo.sourcesForPrinting
+      .mockReset()
+      .mockResolvedValue([dbMarketplaceSource, dbMarketplaceSourceCM]);
+    mockMarketplaceRepo.snapshots.mockReset().mockResolvedValue([dbSnapshot]);
   });
 
   it("returns 200 with PriceHistoryResponse structure", async () => {
@@ -220,7 +199,7 @@ describe("GET /api/prices/:printingId/history", () => {
   });
 
   it("returns unavailable sources for non-existent printing", async () => {
-    mockState.tables = { printings: [] };
+    mockCatalogRepo.printingById.mockResolvedValue(undefined);
     const res = await app.request("/api/prices/nonexistent/history");
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -232,11 +211,8 @@ describe("GET /api/prices/:printingId/history", () => {
   });
 
   it("returns unavailable when no marketplace sources exist", async () => {
-    mockState.tables = {
-      printings: [dbPrinting],
-      marketplaceSources: [],
-      marketplaceSnapshots: [],
-    };
+    mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([]);
+    mockMarketplaceRepo.snapshots.mockResolvedValue([]);
     const res = await app.request("/api/prices/OGS-001:rare:normal/history");
     const json = await res.json();
     expect(json.tcgplayer.available).toBe(false);
