@@ -118,4 +118,20 @@ export function createUnauthenticatedTestContext(): TestContext | null {
   return { app, db, userId: "" };
 }
 
+export interface DbContext {
+  db: Db;
+  userId: string;
+}
+
+/** Lightweight context for repo-level integration tests (no app/auth).
+ * @returns A `DbContext` with the shared DB, or `null` if `INTEGRATION_DB_URL` is not set.
+ */
+export function createDbContext(userId: string): DbContext | null {
+  const db = getSharedDb();
+  if (!db) {
+    return null;
+  }
+  return { db, userId };
+}
+
 export { req } from "./integration-helper.js";
