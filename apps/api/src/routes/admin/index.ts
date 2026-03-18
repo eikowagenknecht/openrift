@@ -41,18 +41,15 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
 
   // ── Mount sub-routes ──────────────────────────────────────────────────────
 
-  .route("/", adminFeatureFlagsRoute)
-  .route("/", ignoredProductsRoute)
-  .route("/", ignoredSourcesRoute)
-  .route("/", catalogRoute) // catalogRoute uses .basePath("/admin")
-  .route("/", operationsRoute)
-  .route("/", imagesRoute)
-  .route("/", marketplaceGroupsRoute)
-  .route("/", unifiedMappingsRoute)
-  .route("/", adminPromoTypesRoute)
-  .route("/", adminSourceSettingsRoute)
-  .route("/", stagingCardOverridesRoute)
-
-  // ── Card source routes ────────────────────────────────────────────────────
-
+  .route("/admin", adminFeatureFlagsRoute)
+  .route("/admin", ignoredProductsRoute)
+  .route("/admin", ignoredSourcesRoute)
+  .route("/admin", catalogRoute)
+  .route("/admin", operationsRoute)
+  .route("/admin", imagesRoute)
+  .route("/admin", marketplaceGroupsRoute)
+  .route("/admin", unifiedMappingsRoute)
+  .route("/admin", adminPromoTypesRoute)
+  .route("/admin", adminSourceSettingsRoute)
+  .route("/admin", stagingCardOverridesRoute)
   .route("/admin", cardSourcesRoute);

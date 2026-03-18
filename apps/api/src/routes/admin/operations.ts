@@ -26,7 +26,7 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── Clear price data ─────────────────────────────────────────────────────────
 
-  .post("/admin/clear-prices", zValidator("json", clearPricesSchema), async (c) => {
+  .post("/clear-prices", zValidator("json", clearPricesSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source } = c.req.valid("json");
 
@@ -36,13 +36,13 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── Manual refresh endpoints ────────────────────────────────────────────────
 
-  .post("/admin/refresh-tcgplayer-prices", async (c) => {
+  .post("/refresh-tcgplayer-prices", async (c) => {
     const db = c.get("db");
     const result = await refreshTcgplayerPrices(c.get("io").fetch, db, log);
     return c.json(result);
   })
 
-  .post("/admin/refresh-cardmarket-prices", async (c) => {
+  .post("/refresh-cardmarket-prices", async (c) => {
     const db = c.get("db");
     const result = await refreshCardmarketPrices(c.get("io").fetch, db, log);
     return c.json(result);

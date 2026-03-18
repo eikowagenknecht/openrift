@@ -31,7 +31,7 @@ const unmapSchema = z.object({
 export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
 
   .get(
-    "/admin/marketplace-mappings",
+    "/marketplace-mappings",
     zValidator("query", z.object({ all: z.string().optional() })),
     async (c) => {
       const db = c.get("db");
@@ -202,7 +202,7 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
   )
 
   .post(
-    "/admin/marketplace-mappings",
+    "/marketplace-mappings",
     zValidator("query", marketplaceSchema),
     zValidator("json", saveMappingsSchema),
     async (c) => {
@@ -217,7 +217,7 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
   )
 
   .delete(
-    "/admin/marketplace-mappings",
+    "/marketplace-mappings",
     zValidator("query", marketplaceSchema),
     zValidator("json", unmapSchema),
     async (c) => {
@@ -231,7 +231,7 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
     },
   )
 
-  .delete("/admin/marketplace-mappings/all", zValidator("query", marketplaceSchema), async (c) => {
+  .delete("/marketplace-mappings/all", zValidator("query", marketplaceSchema), async (c) => {
     const db = c.get("db");
     const { marketplace } = c.req.valid("query");
     const configs = createMarketplaceConfigs(db);

@@ -23,7 +23,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /admin/ignored-products ─────────────────────────────────────────────
 
-  .get("/admin/ignored-products", async (c) => {
+  .get("/ignored-products", async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const rows = await mktAdmin.listIgnoredProducts();
 
@@ -42,7 +42,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-products ────────────────────────────────────────────
 
-  .post("/admin/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
+  .post("/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source, products } = c.req.valid("json");
 
@@ -76,7 +76,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /admin/ignored-products ──────────────────────────────────────────
 
-  .delete("/admin/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
+  .delete("/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source, products } = c.req.valid("json");
 

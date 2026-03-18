@@ -30,9 +30,9 @@ const updateFlagSchema = z
 
 export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
 
-  // ── GET /admin/feature-flags ──────────────────────────────────────────────
+  // ── GET /feature-flags ───────────────────────────────────────────────────
 
-  .get("/admin/feature-flags", async (c) => {
+  .get("/feature-flags", async (c) => {
     const { featureFlags: flagsRepo } = c.get("repos");
     const rows = await flagsRepo.listAll();
     return c.json({
@@ -48,9 +48,9 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
     });
   })
 
-  // ── Admin: POST /admin/feature-flags ────────────────────────────────────────
+  // ── POST /feature-flags ──────────────────────────────────────────────────
 
-  .post("/admin/feature-flags", zValidator("json", createFlagSchema), async (c) => {
+  .post("/feature-flags", zValidator("json", createFlagSchema), async (c) => {
     const { featureFlags: flagsRepo } = c.get("repos");
     const { key, description, enabled } = c.req.valid("json");
 
@@ -66,10 +66,10 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
     return c.body(null, 201);
   })
 
-  // ── Admin: PATCH /admin/feature-flags/:key ──────────────────────────────────
+  // ── PATCH /feature-flags/:key ─────────────────────────────────────────────
 
   .patch(
-    "/admin/feature-flags/:key",
+    "/feature-flags/:key",
     zValidator("param", keyParamSchema),
     zValidator("json", updateFlagSchema),
     async (c) => {
@@ -86,9 +86,9 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
     },
   )
 
-  // ── Admin: DELETE /admin/feature-flags/:key ─────────────────────────────────
+  // ── DELETE /feature-flags/:key ────────────────────────────────────────────
 
-  .delete("/admin/feature-flags/:key", zValidator("param", keyParamSchema), async (c) => {
+  .delete("/feature-flags/:key", zValidator("param", keyParamSchema), async (c) => {
     const { featureFlags: flagsRepo } = c.get("repos");
     const { key } = c.req.valid("param");
 

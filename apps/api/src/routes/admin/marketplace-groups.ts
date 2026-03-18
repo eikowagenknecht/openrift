@@ -21,7 +21,7 @@ const updateGroupSchema = z.object({
 
 export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
 
-  .get("/admin/marketplace-groups", async (c) => {
+  .get("/marketplace-groups", async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
 
     const [groups, stagingCounts, assignedCounts] = await Promise.all([
@@ -54,7 +54,7 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
   })
 
   .patch(
-    "/admin/marketplace-groups/:marketplace/:id",
+    "/marketplace-groups/:marketplace/:id",
     zValidator("param", marketplaceGroupParamSchema),
     zValidator("json", updateGroupSchema),
     async (c) => {

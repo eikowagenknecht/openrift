@@ -27,7 +27,7 @@ export const adminSourceSettingsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /admin/source-settings ──────────────────────────────────────────
 
-  .get("/admin/source-settings", async (c) => {
+  .get("/source-settings", async (c) => {
     const { sourceSettings: repo } = c.get("repos");
     const rows = await repo.listAll();
     return c.json({
@@ -43,7 +43,7 @@ export const adminSourceSettingsRoute = new Hono<{ Variables: Variables }>()
 
   // ── PUT /admin/source-settings/reorder ──────────────────────────────────
 
-  .put("/admin/source-settings/reorder", zValidator("json", reorderSchema), async (c) => {
+  .put("/source-settings/reorder", zValidator("json", reorderSchema), async (c) => {
     const { sourceSettings: repo } = c.get("repos");
     const { sources } = c.req.valid("json");
 
@@ -59,7 +59,7 @@ export const adminSourceSettingsRoute = new Hono<{ Variables: Variables }>()
   // ── PATCH /admin/source-settings/:source ────────────────────────────────
 
   .patch(
-    "/admin/source-settings/:source",
+    "/source-settings/:source",
     zValidator("param", sourceParamSchema),
     zValidator("json", updateSchema),
     async (c) => {

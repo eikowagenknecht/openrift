@@ -29,7 +29,7 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /admin/ignored-sources ──────────────────────────────────────────────
 
-  .get("/admin/ignored-sources", async (c) => {
+  .get("/ignored-sources", async (c) => {
     const { ignoredSources } = c.get("repos");
 
     const [cards, printings] = await Promise.all([
@@ -56,7 +56,7 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-sources/cards ─────────────────────────────────────
 
-  .post("/admin/ignored-sources/cards", zValidator("json", ignoreCardSourceSchema), async (c) => {
+  .post("/ignored-sources/cards", zValidator("json", ignoreCardSourceSchema), async (c) => {
     const { ignoredSources } = c.get("repos");
     const { source, sourceEntityId } = c.req.valid("json");
 
@@ -66,7 +66,7 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /admin/ignored-sources/cards ───────────────────────────────────
 
-  .delete("/admin/ignored-sources/cards", zValidator("json", ignoreCardSourceSchema), async (c) => {
+  .delete("/ignored-sources/cards", zValidator("json", ignoreCardSourceSchema), async (c) => {
     const { ignoredSources } = c.get("repos");
     const { source, sourceEntityId } = c.req.valid("json");
 
@@ -76,22 +76,18 @@ export const ignoredSourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-sources/printings ─────────────────────────────────
 
-  .post(
-    "/admin/ignored-sources/printings",
-    zValidator("json", ignorePrintingSourceSchema),
-    async (c) => {
-      const { ignoredSources } = c.get("repos");
-      const { source, sourceEntityId, finish } = c.req.valid("json");
+  .post("/ignored-sources/printings", zValidator("json", ignorePrintingSourceSchema), async (c) => {
+    const { ignoredSources } = c.get("repos");
+    const { source, sourceEntityId, finish } = c.req.valid("json");
 
-      await ignoredSources.ignorePrinting({ source, sourceEntityId, finish: finish ?? null });
-      return c.body(null, 204);
-    },
-  )
+    await ignoredSources.ignorePrinting({ source, sourceEntityId, finish: finish ?? null });
+    return c.body(null, 204);
+  })
 
   // ── DELETE /admin/ignored-sources/printings ───────────────────────────────
 
   .delete(
-    "/admin/ignored-sources/printings",
+    "/ignored-sources/printings",
     zValidator("json", unignorePrintingSourceSchema),
     async (c) => {
       const { ignoredSources } = c.get("repos");

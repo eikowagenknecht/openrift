@@ -69,7 +69,6 @@ const reorderSetsSchema = z.object({
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const catalogRoute = new Hono<{ Variables: Variables }>()
-  .basePath("/admin")
 
   // ── Marketplace Groups ──────────────────────────────────────────────────────
 

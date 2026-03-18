@@ -24,7 +24,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   // ── Image rehosting ─────────────────────────────────────────────────────────
 
   .post(
-    "/admin/rehost-images",
+    "/rehost-images",
     zValidator("query", z.object({ limit: z.coerce.number().int().min(1).optional() })),
     async (c) => {
       const { printingImages } = c.get("repos");
@@ -35,7 +35,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   )
 
   .post(
-    "/admin/regenerate-images",
+    "/regenerate-images",
     zValidator("query", z.object({ offset: z.coerce.number().int().min(0).optional() })),
     async (c) => {
       const offset = c.req.valid("query").offset ?? 0;
@@ -44,13 +44,13 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     },
   )
 
-  .post("/admin/clear-rehosted", async (c) => {
+  .post("/clear-rehosted", async (c) => {
     const { printingImages } = c.get("repos");
     const result = await clearAllRehosted(c.get("io"), printingImages);
     return c.json(result);
   })
 
-  .get("/admin/rehost-status", async (c) => {
+  .get("/rehost-status", async (c) => {
     const { printingImages } = c.get("repos");
     const result = await getRehostStatus(c.get("io"), printingImages);
     return c.json(result);
@@ -58,7 +58,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── Restore original URLs from a card source ──────────────────────────────
 
-  .post("/admin/restore-image-urls", zValidator("json", restoreImageUrlsSchema), async (c) => {
+  .post("/restore-image-urls", zValidator("json", restoreImageUrlsSchema), async (c) => {
     const { printingImages } = c.get("repos");
     const { source } = c.req.valid("json");
     const updated = await printingImages.restoreFromSources(source);

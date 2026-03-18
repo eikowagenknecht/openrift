@@ -153,16 +153,17 @@ function createMockDb(
         chain[method] = () => chain;
       }
       chain.executeTakeFirst = () => Promise.resolve(resultSet.executeTakeFirst);
+      chain.executeTakeFirstOrThrow = () => Promise.resolve(resultSet.executeTakeFirst);
       chain.execute = () => Promise.resolve(resultSet.execute);
       return chain;
     },
     // ensureInbox may call db.insertInto("collections")
     insertInto: () => {
       const chain: Record<string, any> = {};
-      for (const method of ["values", "onConflict", "doNothing"]) {
+      for (const method of ["values", "onConflict", "doNothing", "returning"]) {
         chain[method] = () => chain;
       }
-      chain.execute = () => Promise.resolve([]);
+      chain.executeTakeFirst = () => Promise.resolve(undefined);
       return chain;
     },
     transaction: () => ({

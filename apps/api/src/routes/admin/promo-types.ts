@@ -39,7 +39,7 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /admin/promo-types ──────────────────────────────────────────────
 
-  .get("/admin/promo-types", async (c) => {
+  .get("/promo-types", async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const rows = await repo.listAll();
     return c.json({
@@ -58,7 +58,7 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/promo-types ─────────────────────────────────────────────
 
-  .post("/admin/promo-types", zValidator("json", createPromoTypeSchema), async (c) => {
+  .post("/promo-types", zValidator("json", createPromoTypeSchema), async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const { slug, label, sortOrder } = c.req.valid("json");
 
@@ -74,7 +74,7 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
   // ── PATCH /admin/promo-types/:id ────────────────────────────────────────
 
   .patch(
-    "/admin/promo-types/:id",
+    "/promo-types/:id",
     zValidator("param", idParamSchema),
     zValidator("json", updatePromoTypeSchema),
     async (c) => {
@@ -158,7 +158,7 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /admin/promo-types/:id ───────────────────────────────────────
 
-  .delete("/admin/promo-types/:id", zValidator("param", idParamSchema), async (c) => {
+  .delete("/promo-types/:id", zValidator("param", idParamSchema), async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const { id } = c.req.valid("param");
 
