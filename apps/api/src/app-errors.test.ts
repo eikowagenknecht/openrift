@@ -10,22 +10,6 @@ import { AppError } from "./errors.js";
 // Mock deps — minimal stubs to boot the app
 // ---------------------------------------------------------------------------
 
-function createMockDb() {
-  return {
-    selectNoFrom: () => ({ as: () => ({ execute: () => [{ one: 1 }] }) }),
-    selectFrom: () => {
-      const chain: Record<string, unknown> = {
-        selectAll: () => chain,
-        select: () => chain,
-        orderBy: () => chain,
-        limit: () => chain,
-        execute: () => [],
-      };
-      return chain;
-    },
-  };
-}
-
 const mockAuth = {
   handler: () => new Response("ok"),
   api: { getSession: () => null },
@@ -43,7 +27,7 @@ const mockConfig = {
 
 // oxlint-disable -- test mocks don't match full types
 const app = createApp({
-  db: createMockDb() as any,
+  db: {} as any,
   auth: mockAuth as any,
   config: mockConfig as any,
   log: createLogger("test", "silent"),
