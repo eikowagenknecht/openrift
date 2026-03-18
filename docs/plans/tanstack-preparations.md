@@ -14,26 +14,26 @@ module scope or outside a `useEffect` will crash during SSR.
 
 **Files to audit (18 files use browser globals):**
 
-| File | Concern |
-|------|---------|
-| `stores/theme-store.ts` | Likely accesses `document.documentElement` to apply theme class |
-| `lib/cookie-storage.ts` | Already has `typeof document === "undefined"` guards — OK |
-| `lib/auth-client.ts:6` | `globalThis.location.origin` at **module level** — will crash on server |
-| `lib/api-base.ts:7` | `location.hostname` at **module level** |
-| `main.tsx` | Touch listeners on `document` (will be replaced, keep safe for now) |
-| `hooks/use-foil-gyroscope.ts` | `navigator`/`window` access |
-| `hooks/use-online-status.ts` | `navigator.onLine` |
-| `hooks/use-favorite-sources.ts` | Likely `localStorage` |
-| `hooks/use-card-detail-nav.ts` | Possible `window` access |
-| `components/landing/card-scatter.tsx` | Likely `window` dimensions |
-| `components/cards/use-scroll-indicator.ts` | `window.scrollY` or similar |
-| `components/cards/use-grid-keyboard-nav.ts` | `document` keyboard events |
-| `components/cards/card-grid-debug.tsx` | `window`/`document` access |
-| `components/error-fallback.tsx` | `globalThis.location.reload()` |
-| `components/profile/danger-zone-section.tsx` | `globalThis.location.href` |
-| `components/ui/sidebar.tsx` | Browser API usage |
-| `components/collection/add-to-collection-flow.tsx` | Browser API usage |
-| `lib/phash-scanner.ts` | Browser API usage |
+| File                                               | Concern                                                                 |
+| -------------------------------------------------- | ----------------------------------------------------------------------- |
+| `stores/theme-store.ts`                            | Likely accesses `document.documentElement` to apply theme class         |
+| `lib/cookie-storage.ts`                            | Already has `typeof document === "undefined"` guards — OK               |
+| `lib/auth-client.ts:6`                             | `globalThis.location.origin` at **module level** — will crash on server |
+| `lib/api-base.ts:7`                                | `location.hostname` at **module level**                                 |
+| `main.tsx`                                         | Touch listeners on `document` (will be replaced, keep safe for now)     |
+| `hooks/use-foil-gyroscope.ts`                      | `navigator`/`window` access                                             |
+| `hooks/use-online-status.ts`                       | `navigator.onLine`                                                      |
+| `hooks/use-favorite-sources.ts`                    | Likely `localStorage`                                                   |
+| `hooks/use-card-detail-nav.ts`                     | Possible `window` access                                                |
+| `components/landing/card-scatter.tsx`              | Likely `window` dimensions                                              |
+| `components/cards/use-scroll-indicator.ts`         | `window.scrollY` or similar                                             |
+| `components/cards/use-grid-keyboard-nav.ts`        | `document` keyboard events                                              |
+| `components/cards/card-grid-debug.tsx`             | `window`/`document` access                                              |
+| `components/error-fallback.tsx`                    | `globalThis.location.reload()`                                          |
+| `components/profile/danger-zone-section.tsx`       | `globalThis.location.href`                                              |
+| `components/ui/sidebar.tsx`                        | Browser API usage                                                       |
+| `components/collection/add-to-collection-flow.tsx` | Browser API usage                                                       |
+| `lib/phash-scanner.ts`                             | Browser API usage                                                       |
 
 **Action:** Wrap all module-level browser access in functions or lazy
 initializers. Use `typeof window !== "undefined"` guards or move access into
@@ -45,7 +45,7 @@ initializers. Use `typeof window !== "undefined"` guards or move access into
 
 ```ts
 // Current (breaks on server — no location available):
-baseURL: globalThis.location.origin
+baseURL: globalThis.location.origin;
 ```
 
 **Action:** Accept the base URL as a parameter or resolve it lazily. TanStack
@@ -148,11 +148,11 @@ good. Verify it doesn't import any browser-only modules (currently clean).
 
 Three stores:
 
-| Store | Persistence | SSR-safe? |
-|-------|------------|-----------|
-| `display-store.ts` | Cookies via `cookieStorage` | Yes — already guards `document` |
-| `theme-store.ts` | Cookies via `cookieStorage` | Needs audit — may access `document.documentElement` at init |
-| `search-scope-store.ts` | In-memory only | Yes |
+| Store                   | Persistence                 | SSR-safe?                                                   |
+| ----------------------- | --------------------------- | ----------------------------------------------------------- |
+| `display-store.ts`      | Cookies via `cookieStorage` | Yes — already guards `document`                             |
+| `theme-store.ts`        | Cookies via `cookieStorage` | Needs audit — may access `document.documentElement` at init |
+| `search-scope-store.ts` | In-memory only              | Yes                                                         |
 
 **Action:** Verify `theme-store.ts` only accesses `document.documentElement`
 inside effects or Zustand subscribers, never at the module level. The
@@ -282,7 +282,7 @@ in Start's build (which uses Vinxi/Nitro).
 **Action:** No code change. Document the current chunking strategy so it can be
 recreated in the new build config:
 
-- `react` chunk: react, react-dom, scheduler, @tanstack/*
+- `react` chunk: react, react-dom, scheduler, @tanstack/\*
 - `ui` chunk: @base-ui, @floating-ui, tailwind-merge, better-auth, react-hook-form, zod, nuqs, sonner, lucide-react, etc.
 
 ---
@@ -317,11 +317,11 @@ Vinxi's plugin system or a built-in option).
 
 ## Priority Matrix
 
-| Priority | Items | Effort |
-|----------|-------|--------|
-| **High** | #1 Guard browser globals, #2 Auth client, #3 API base, #6 QueryClient factory, #13 RPC client factory | Medium |
-| **Medium** | #4 Env access, #5 Head metadata, #8 Zustand audit, #10 PWA isolation, #12 Loader audit, #16 Upgrade router | Small–Medium |
-| **Low** | #9 nuqs adapter, #11 Worker docs, #14 Card-images middleware, #15/#17/#18/#19/#20 awareness items | Trivial–Small |
+| Priority   | Items                                                                                                      | Effort        |
+| ---------- | ---------------------------------------------------------------------------------------------------------- | ------------- |
+| **High**   | #1 Guard browser globals, #2 Auth client, #3 API base, #6 QueryClient factory, #13 RPC client factory      | Medium        |
+| **Medium** | #4 Env access, #5 Head metadata, #8 Zustand audit, #10 PWA isolation, #12 Loader audit, #16 Upgrade router | Small–Medium  |
+| **Low**    | #9 nuqs adapter, #11 Worker docs, #14 Card-images middleware, #15/#17/#18/#19/#20 awareness items          | Trivial–Small |
 
 **Recommended order:** Start with the High-priority items (#1–3, #6, #13) as
 they make the entire data layer SSR-safe. Then work through Medium items. Low
