@@ -1,5 +1,4 @@
 import type {
-  ArtVariant,
   CardSourceResponse,
   PrintingSourceResponse,
   SourceSettingResponse,
@@ -11,8 +10,6 @@ import {
   FINISH_ORDER,
   RARITY_ORDER,
   SUPER_TYPE_ORDER,
-  comparePrintings,
-  mostCommonValue,
 } from "@openrift/shared";
 import {
   CheckIcon,
@@ -111,20 +108,6 @@ export function buildPrintingSourceFields(
   ];
 }
 
-// ── Printing source grouping ──────────────────────────────────────────────────
-
-/** Resolve null finish based on rarity: Common/Uncommon default to "normal", others to "foil".
- * @returns The resolved finish string. */
-function resolveFinish(finish: string | null, rarity: string | null): string {
-  if (finish) {
-    return finish;
-  }
-  if (!rarity) {
-    return "";
-  }
-  return rarity === "Common" || rarity === "Uncommon" ? "normal" : "foil";
-}
-
 export interface PrintingGroup {
   key: string;
   label: string;
@@ -138,51 +121,6 @@ export interface PrintingGroup {
     finish: string;
   };
   sources: PrintingSourceResponse[];
-}
-
-export function groupPrintingSources(printingSources: PrintingSourceResponse[]): PrintingGroup[] {
-  const groups = new Map<string, PrintingSourceResponse[]>();
-  for (const ps of printingSources) {
-    const key = ps.groupKey;
-    const group = groups.get(key) ?? [];
-    group.push(ps);
-    groups.set(key, group);
-  }
-
-  const result = [...groups.entries()].map(([key, sources]) => {
-    const mcSourceId = mostCommonValue(sources.map((s) => s.sourceId));
-    const ps = sources[0];
-    const variant = ps.artVariant || ("normal" satisfies ArtVariant);
-    const finish = resolveFinish(ps.finish, ps.rarity);
-    const parts = [mcSourceId, finish];
-    if (variant !== ("normal" satisfies ArtVariant)) {
-      parts.push(variant);
-    }
-    if (ps.isSigned) {
-      parts.push("signed");
-    }
-    if (ps.promoTypeId) {
-      parts.push("promo");
-    }
-    return {
-      key,
-      label: parts.join(" · "),
-      differentiators: {
-        setId: ps.setId,
-        collectorNumber: ps.collectorNumber,
-        artVariant: variant,
-        isSigned: ps.isSigned,
-        promoTypeId: ps.promoTypeId,
-        rarity: ps.rarity,
-        finish,
-      },
-      sources,
-    };
-  });
-
-  result.sort((a, b) => comparePrintings(a.differentiators, b.differentiators));
-
-  return result;
 }
 
 // ── Spreadsheet component ────────────────────────────────────────────────────

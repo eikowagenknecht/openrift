@@ -23,5 +23,4 @@ export type {
   TradeListsTable,
   WishListItemsTable,
   WishListsTable,
-  SourceSettingsTable,
 } from "./tables.js";
