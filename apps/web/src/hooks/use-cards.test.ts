@@ -2,10 +2,10 @@ import type { Card, CatalogResponse, CatalogPrintingResponse } from "@openrift/s
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { createElement } from "react";
+import { createElement, Suspense } from "react";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-import { useCards, ApiError } from "./use-cards";
+import { useCards, ApiError, catalogQueryOptions } from "./use-cards";
 
 const stubCard: Card = {
   id: "00000000-0000-0000-0000-000000000001",
@@ -80,7 +80,11 @@ function createWrapper() {
     defaultOptions: { queries: { retry: false } },
   });
   return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client: queryClient }, children);
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(Suspense, { fallback: null }, children),
+    );
 }
 
 describe("useCards", () => {
@@ -90,18 +94,6 @@ describe("useCards", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it("returns loading state initially", () => {
-    // oxlint-disable-next-line promise/avoid-new -- need a forever-pending promise
-    (fetch as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(Function.prototype as never));
-
-    const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
-
-    expect(result.current.isLoading).toBe(true);
-    expect(result.current.allCards).toEqual([]);
-    expect(result.current.setInfoList).toEqual([]);
-    expect(result.current.error).toBeNull();
   });
 
   it("returns cards and set info on success", async () => {
@@ -114,10 +106,8 @@ describe("useCards", () => {
 
     const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.allCards).toHaveLength(2));
 
-    expect(result.current.allCards).toHaveLength(2);
-    expect(result.current.error).toBeNull();
     expect(result.current.setInfoList).toEqual([
       { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
     ]);
@@ -133,7 +123,7 @@ describe("useCards", () => {
 
     const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.allCards).toHaveLength(2));
 
     const cardA = result.current.allCards.find(
       (c) => c.id === "00000000-0000-0000-0000-000000000011",
@@ -148,7 +138,7 @@ describe("useCards", () => {
     expect(cardB?.marketPrice).toBeUndefined();
   });
 
-  it("returns an ApiError with health status when catalog fetch fails", async () => {
+  it("throws an ApiError with health status when catalog fetch fails", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
       if (url.includes("/api/catalog")) {
         return { ok: false, status: 500, json: () => ({}) };
@@ -159,15 +149,20 @@ describe("useCards", () => {
       return { ok: true, json: () => ({}) };
     });
 
-    const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
 
-    await waitFor(() => expect(result.current.error).not.toBeNull());
-
-    expect(result.current.error).toBeInstanceOf(ApiError);
-    expect((result.current.error as ApiError).healthStatus).toBe("db_empty");
+    try {
+      await queryClient.fetchQuery(catalogQueryOptions);
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).healthStatus).toBe("db_empty");
+    }
   });
 
-  it("returns an ApiError with null health when health endpoint is unreachable", async () => {
+  it("throws an ApiError with null health when health endpoint is unreachable", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
       if (url.includes("/api/catalog")) {
         return { ok: false, status: 500, json: () => ({}) };
@@ -178,11 +173,15 @@ describe("useCards", () => {
       return { ok: true, json: () => ({}) };
     });
 
-    const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
 
-    await waitFor(() => expect(result.current.error).not.toBeNull());
-
-    expect(result.current.error).toBeInstanceOf(ApiError);
-    expect((result.current.error as ApiError).healthStatus).toBeNull();
+    try {
+      await queryClient.fetchQuery(catalogQueryOptions);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).healthStatus).toBeNull();
+    }
   });
 });
