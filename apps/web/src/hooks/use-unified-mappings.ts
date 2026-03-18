@@ -58,22 +58,24 @@ interface SaveMappingsBody {
 }
 
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket") {
-  const mappingClient =
-    marketplace === "tcgplayer"
-      ? client.api.admin["tcgplayer-mappings"]
-      : client.api.admin["cardmarket-mappings"];
   return useUnifiedMutation(marketplace, (body: SaveMappingsBody) =>
-    rpc(mappingClient.$post({ json: body })),
+    rpc(
+      client.api.admin["marketplace-mappings"].$post({
+        query: { marketplace },
+        json: body,
+      }),
+    ),
   );
 }
 
 export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket") {
-  const mappingClient =
-    marketplace === "tcgplayer"
-      ? client.api.admin["tcgplayer-mappings"]
-      : client.api.admin["cardmarket-mappings"];
   return useUnifiedMutation(marketplace, (printingId: string) =>
-    rpc(mappingClient.$delete({ json: { printingId } })),
+    rpc(
+      client.api.admin["marketplace-mappings"].$delete({
+        query: { marketplace },
+        json: { printingId },
+      }),
+    ),
   );
 }
 

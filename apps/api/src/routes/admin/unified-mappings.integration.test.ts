@@ -6,6 +6,7 @@ import { createTestContext, req } from "../../test/integration-context.js";
 // Integration tests: Unified marketplace mappings route
 //
 // GET /admin/marketplace-mappings merges TCGPlayer + Cardmarket data per card.
+// POST/DELETE /admin/marketplace-mappings?marketplace=<mp> for mutations.
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix UNM- for entities it creates.
 // ---------------------------------------------------------------------------
@@ -341,12 +342,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     it("excludes fully-mapped cards when all is not true", async () => {
       // Map Alpha Card printing for both TCGPlayer and Cardmarket
       await app.fetch(
-        req("POST", "/admin/tcgplayer-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111 }],
         }),
       );
       await app.fetch(
-        req("POST", "/admin/cardmarket-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 22_222 }],
         }),
       );
@@ -372,8 +373,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(filteredGroupCount).toBeLessThanOrEqual(allGroupCount);
 
       // Clean up: unmap so other tests are not affected
-      await app.fetch(req("DELETE", "/admin/tcgplayer-mappings/all"));
-      await app.fetch(req("DELETE", "/admin/cardmarket-mappings/all"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
     });
   });
 
@@ -406,7 +407,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .execute();
 
       await app.fetch(
-        req("POST", "/admin/tcgplayer-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111 }],
         }),
       );
@@ -428,7 +429,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(mapped.cmExternalId).toBeNull();
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/tcgplayer-mappings/all"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
     });
 
     it("printings reflect cmExternalId after Cardmarket-only mapping", async () => {
@@ -457,7 +458,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .execute();
 
       await app.fetch(
-        req("POST", "/admin/cardmarket-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 22_222 }],
         }),
       );
@@ -480,7 +481,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(mapped.tcgExternalId).toBeNull();
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/cardmarket-mappings/all"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
     });
 
     it("printings reflect both tcgExternalId and cmExternalId after dual mapping", async () => {
@@ -533,12 +534,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Map both marketplaces
       await app.fetch(
-        req("POST", "/admin/tcgplayer-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111 }],
         }),
       );
       await app.fetch(
-        req("POST", "/admin/cardmarket-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 22_222 }],
         }),
       );
@@ -560,8 +561,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(mapped.cmExternalId).toBe(22_222);
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/tcgplayer-mappings/all"));
-      await app.fetch(req("DELETE", "/admin/cardmarket-mappings/all"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
     });
   });
 
@@ -702,12 +703,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Map both marketplaces
       await app.fetch(
-        req("POST", "/admin/tcgplayer-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111 }],
         }),
       );
       await app.fetch(
-        req("POST", "/admin/cardmarket-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 22_222 }],
         }),
       );
@@ -733,8 +734,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaGroup.cardmarket.stagedProducts).toHaveLength(0);
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/tcgplayer-mappings/all"));
-      await app.fetch(req("DELETE", "/admin/cardmarket-mappings/all"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
+      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
     });
 
     it("Beta Card Cardmarket section has empty assignedProducts and stagedProducts", async () => {
