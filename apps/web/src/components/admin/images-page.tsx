@@ -1,3 +1,4 @@
+import type { RehostImageResponse } from "@openrift/shared";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -13,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSourceNames } from "@/hooks/use-card-sources";
-import type { RehostResult, RegenerateResult } from "@/hooks/use-rehost";
+import type { RegenerateAccumulator } from "@/hooks/use-rehost";
 import {
   useClearRehosted,
   useRegenerateImages,
@@ -43,7 +44,7 @@ function MutationStatus({
   mutation: {
     isSuccess: boolean;
     isError: boolean;
-    data?: RehostResult | RegenerateResult;
+    data?: RehostImageResponse | RegenerateAccumulator;
     error?: Error | null;
   };
   label: string;

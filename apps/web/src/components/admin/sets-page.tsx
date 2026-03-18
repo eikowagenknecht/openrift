@@ -55,13 +55,13 @@ export function SetsPage() {
   const { sets } = data;
 
   function startEditing(set: {
-    slug: string;
+    id: string;
     name: string;
     printedTotal: number | null;
     releasedAt: string | null;
   }) {
     setEditing({
-      id: set.slug,
+      id: set.id,
       name: set.name,
       printedTotal: set.printedTotal === null ? "" : String(set.printedTotal),
       releasedAt: set.releasedAt ?? "",
@@ -119,7 +119,7 @@ export function SetsPage() {
     if (newIndex < 0 || newIndex >= sets.length) {
       return;
     }
-    const reordered = sets.map((s) => s.slug);
+    const reordered = sets.map((s) => s.id);
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
@@ -223,8 +223,8 @@ export function SetsPage() {
               </TableRow>
             )}
             {sets.map((set, index) =>
-              editing?.id === set.slug ? (
-                <TableRow key={set.slug}>
+              editing?.id === set.id ? (
+                <TableRow key={set.id}>
                   <TableCell className="text-muted-foreground text-center">{index + 1}</TableCell>
                   <TableCell className="font-mono">{set.slug}</TableCell>
                   <TableCell>
@@ -272,7 +272,7 @@ export function SetsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                <TableRow key={set.slug}>
+                <TableRow key={set.id}>
                   <TableCell>
                     <div className="flex items-center gap-0.5">
                       <Button
@@ -361,7 +361,7 @@ export function SetsPage() {
                               render={<Button variant="destructive" />}
                               onClick={() => {
                                 setDeleteError("");
-                                deleteMutation.mutate(set.slug, {
+                                deleteMutation.mutate(set.id, {
                                   onError: (err) => setDeleteError(err.message),
                                 });
                               }}

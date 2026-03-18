@@ -772,7 +772,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             );
             const isStale = printingSlug !== expectedId;
 
-            const allChecked = allSources.length > 0 && allSources.every((ps) => ps.checkedAt);
+            const allChecked = allSources.every((ps) => ps.checkedAt);
 
             return (
               <div
@@ -799,6 +799,11 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       {allSources.length === 1 ? "" : "s"}
                     </span>
                     {allChecked && <CheckCheckIcon className="size-3.5 text-green-600" />}
+                    {!activeImage && (
+                      <Badge variant="destructive" className="text-xs">
+                        no image
+                      </Badge>
+                    )}
                   </button>
                   {isStale && (
                     <>

@@ -1,3 +1,4 @@
+import type { PriceRefreshResponse } from "@openrift/shared";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
 import { formatRelativeTime } from "@/components/admin/refresh-actions";
@@ -6,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCronStatus } from "@/hooks/use-cron-status";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
-import type { PriceResult } from "@/hooks/use-prices";
 import { useClearPrices, useRefreshPrices } from "@/hooks/use-prices";
 
 import { ConfirmClearButton } from "./confirm-clear-button";
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function PriceRefreshResult({ result }: { result: PriceResult }) {
+function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   const { transformed, upserted } = result;
   const insertedParts = [
     upserted.snapshots.new > 0 ? `${upserted.snapshots.new} snapshots` : null,

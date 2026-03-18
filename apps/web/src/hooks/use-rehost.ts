@@ -4,11 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export type RehostResult = RehostImageResponse;
-
-export type RegenerateResult = Pick<
+/** Accumulated totals across regeneration batches (excludes per-batch pagination fields). */
+export type RegenerateAccumulator = Pick<
   RegenerateImageResponse,
   "total" | "regenerated" | "failed" | "errors"
 >;
@@ -27,8 +24,14 @@ export function useRehostStatus() {
 export function useRehostImages(onBatchComplete?: () => void) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (): Promise<RehostResult> => {
-      const totals: RehostResult = { total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] };
+    mutationFn: async (): Promise<RehostImageResponse> => {
+      const totals: RehostImageResponse = {
+        total: 0,
+        rehosted: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [],
+      };
       for (;;) {
         const batch = await rpc(client.api.admin["rehost-images"].$post({ query: {} }));
         totals.total += batch.total;
@@ -52,8 +55,8 @@ export function useRehostImages(onBatchComplete?: () => void) {
 export function useRegenerateImages(onProgress?: (processed: number, totalFiles: number) => void) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (): Promise<RegenerateResult> => {
-      const totals: RegenerateResult = { total: 0, regenerated: 0, failed: 0, errors: [] };
+    mutationFn: async (): Promise<RegenerateAccumulator> => {
+      const totals: RegenerateAccumulator = { total: 0, regenerated: 0, failed: 0, errors: [] };
       let offset = 0;
       for (;;) {
         const batch = await rpc(
