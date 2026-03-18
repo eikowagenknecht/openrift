@@ -1,3 +1,4 @@
+import { createLogger } from "@openrift/shared/logger";
 import { describe, expect, it, beforeEach } from "vitest";
 
 import { createApp } from "./app.js";
@@ -264,6 +265,7 @@ const app = createApp({
   db: createMockDb() as any,
   auth: mockAuth as any,
   config: mockConfig as any,
+  log: createLogger("test", "silent"),
 });
 // oxlint-enable
 

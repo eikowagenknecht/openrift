@@ -1,3 +1,4 @@
+import { createLogger } from "@openrift/shared/logger";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
@@ -45,6 +46,7 @@ const app = createApp({
   db: createMockDb() as any,
   auth: mockAuth as any,
   config: mockConfig as any,
+  log: createLogger("test", "silent"),
 });
 
 // Register test-only routes that throw specific error types
