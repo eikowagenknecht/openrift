@@ -1,6 +1,5 @@
 import type { CardType } from "@openrift/shared/types";
 import type { Insertable, Kysely, Selectable } from "kysely";
-import { sql } from "kysely";
 
 import type { CopiesTable, Database, PrintingsTable } from "../db/index.js";
 import { imageUrl, selectCopyWithCard } from "./query-helpers.js";
@@ -87,7 +86,10 @@ export function copiesRepo(db: Kysely<Database>) {
     countByPrintingForUser(userId: string): Promise<{ printingId: string; count: number }[]> {
       return db
         .selectFrom("copies")
-        .select(["printingId", sql<number>`count(id)::int`.as("count")])
+        .select((eb) => [
+          "printingId" as const,
+          eb.cast<number>(eb.fn.count("id"), "integer").as("count"),
+        ])
         .where("userId", "=", userId)
         .groupBy("printingId")
         .execute();
@@ -178,7 +180,11 @@ export function copiesRepo(db: Kysely<Database>) {
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
         .innerJoin("printings as p", "p.id", "cp.printingId")
-        .select(["p.cardId", "cp.printingId", db.fn.countAll<number>().as("count")])
+        .select((eb) => [
+          "p.cardId" as const,
+          "cp.printingId" as const,
+          eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
+        ])
         .where("cp.userId", "=", userId)
         .where("col.availableForDeckbuilding", "=", true)
         .groupBy(["p.cardId", "cp.printingId"])

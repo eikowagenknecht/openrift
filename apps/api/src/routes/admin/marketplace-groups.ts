@@ -30,11 +30,11 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
     ]);
 
     const stagingMap = new Map(
-      stagingCounts.map((r) => [`${r.marketplace}:${r.groupId}`, Number(r.count)]),
+      stagingCounts.map((r) => [`${r.marketplace}:${r.groupId}`, r.count]),
     );
 
     const assignedMap = new Map(
-      assignedCounts.map((r) => [`${r.marketplace}:${r.groupId}`, Number(r.count)]),
+      assignedCounts.map((r) => [`${r.marketplace}:${r.groupId}`, r.count]),
     );
 
     const items: MarketplaceGroupResponse[] = groups.map((g) => {

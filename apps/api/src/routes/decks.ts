@@ -172,7 +172,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
     const ownedByCard = new Map<string, number>();
     for (const row of availableCopies) {
-      ownedByCard.set(row.cardId, Number(row.count));
+      ownedByCard.set(row.cardId, row.count);
     }
 
     const availability: DeckAvailabilityItemResponse[] = deckCards.map((dc) =>

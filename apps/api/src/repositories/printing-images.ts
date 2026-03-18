@@ -285,15 +285,27 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .select([
           "sets.slug as setId",
           "sets.name as setName",
-          ({ fn }) =>
-            fn
-              .count<number>("pi.id")
-              .filterWhere((wb) =>
-                wb.or([wb("pi.originalUrl", "is not", null), wb("pi.rehostedUrl", "is not", null)]),
+          (eb) =>
+            eb
+              .cast<number>(
+                eb.fn
+                  .count("pi.id")
+                  .filterWhere((wb) =>
+                    wb.or([
+                      wb("pi.originalUrl", "is not", null),
+                      wb("pi.rehostedUrl", "is not", null),
+                    ]),
+                  ),
+                "integer",
               )
               .as("total"),
-          ({ fn }) =>
-            fn.count<number>("pi.id").filterWhere("pi.rehostedUrl", "is not", null).as("rehosted"),
+          (eb) =>
+            eb
+              .cast<number>(
+                eb.fn.count("pi.id").filterWhere("pi.rehostedUrl", "is not", null),
+                "integer",
+              )
+              .as("rehosted"),
         ])
         .groupBy(["sets.slug", "sets.name"])
         .orderBy("sets.name")

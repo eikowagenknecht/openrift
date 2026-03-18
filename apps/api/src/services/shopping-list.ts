@@ -25,8 +25,8 @@ export async function buildShoppingList(
   const ownedByCard = new Map<string, number>();
   const ownedByPrinting = new Map<string, number>();
   for (const row of ownedRows) {
-    ownedByCard.set(row.cardId, (ownedByCard.get(row.cardId) ?? 0) + Number(row.count));
-    ownedByPrinting.set(row.printingId, Number(row.count));
+    ownedByCard.set(row.cardId, (ownedByCard.get(row.cardId) ?? 0) + row.count);
+    ownedByPrinting.set(row.printingId, row.count);
   }
 
   const deckDemands = deckCardRows.map((dc) => ({

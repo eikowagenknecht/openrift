@@ -39,7 +39,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .select((eb) => [
           "marketplace" as const,
           "groupId" as const,
-          eb.fn.count<number>("externalId").distinct().as("count"),
+          eb.cast<number>(eb.fn.count("externalId").distinct(), "integer").as("count"),
         ])
         .where("groupId", "is not", null)
         .groupBy(["marketplace", "groupId"]);
@@ -58,7 +58,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .select((eb) => [
           "marketplace" as const,
           "groupId" as const,
-          eb.fn.countAll<number>().as("count"),
+          eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
         ])
         .where("groupId", "is not", null)
         .groupBy(["marketplace", "groupId"]);

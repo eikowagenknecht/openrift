@@ -125,20 +125,20 @@ export function priceRefreshRepo(db: Db) {
       const result = await db
         .selectFrom("marketplaceSnapshots as snap")
         .innerJoin("marketplaceSources as src", "src.id", "snap.sourceId")
-        .select(db.fn.countAll<number>().as("count"))
+        .select(sql<number>`count(*)::int`.as("count"))
         .where("src.marketplace", "=", marketplace)
         .executeTakeFirstOrThrow();
-      return Number(result.count);
+      return result.count;
     },
 
     /** @returns Row count for marketplace staging. */
     async countStaging(marketplace: string): Promise<number> {
       const result = await db
         .selectFrom("marketplaceStaging")
-        .select(db.fn.countAll<number>().as("count"))
+        .select(sql<number>`count(*)::int`.as("count"))
         .where("marketplace", "=", marketplace)
         .executeTakeFirstOrThrow();
-      return Number(result.count);
+      return result.count;
     },
 
     // ── Batch upserts ───────────────────────────────────────────────────────

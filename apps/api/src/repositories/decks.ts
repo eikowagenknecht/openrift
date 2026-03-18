@@ -141,7 +141,10 @@ export function decksRepo(db: Kysely<Database>) {
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
         .innerJoin("printings as p", "p.id", "cp.printingId")
-        .select(["p.cardId", db.fn.countAll<number>().as("count")])
+        .select((eb) => [
+          "p.cardId" as const,
+          eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
+        ])
         .where("cp.userId", "=", userId)
         .where("col.availableForDeckbuilding", "=", true)
         .groupBy("p.cardId")

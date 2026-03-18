@@ -352,8 +352,8 @@ export async function getRehostStatus(
   let total = 0;
   let rehosted = 0;
   const sets = perSet.map((row) => {
-    const t = Number(row.total);
-    const r = Number(row.rehosted);
+    const t = row.total;
+    const r = row.rehosted;
     total += t;
     rehosted += r;
     return { setId: row.setId, setName: row.setName, total: t, rehosted: r, external: t - r };

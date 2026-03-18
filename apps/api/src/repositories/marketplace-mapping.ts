@@ -240,11 +240,11 @@ export function marketplaceMappingRepo(db: Db) {
     async countMappedSources(marketplace: string, trx: Db): Promise<number> {
       const result = await trx
         .selectFrom("marketplaceSources")
-        .select(sql<number>`count(*)`.as("count"))
+        .select(sql<number>`count(*)::int`.as("count"))
         .where("marketplace", "=", marketplace)
         .where("externalId", "is not", null)
         .executeTakeFirstOrThrow();
-      return Number(result.count);
+      return result.count;
     },
 
     /** Delete all snapshots for mapped sources of a marketplace. */

@@ -46,8 +46,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       mktAdmin.assignedCountsByMarketplaceGroup("cardmarket"),
     ]);
 
-    const countMap = new Map(stagingCounts.map((r) => [r.groupId, Number(r.count)]));
-    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, Number(r.count)]));
+    const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
+    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
 
     const items: MarketplaceGroupResponse[] = expansions.map((e) => ({
       marketplace: "cardmarket",
@@ -86,8 +86,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       mktAdmin.assignedCountsByMarketplaceGroup("tcgplayer"),
     ]);
 
-    const countMap = new Map(stagingCounts.map((r) => [r.groupId, Number(r.count)]));
-    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, Number(r.count)]));
+    const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
+    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
 
     const items: MarketplaceGroupResponse[] = groups.map((g) => ({
       marketplace: "tcgplayer",

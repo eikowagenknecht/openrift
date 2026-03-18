@@ -113,8 +113,8 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .leftJoin("printingSources as ps", "ps.cardSourceId", "cs.id")
         .select((eb) => [
           "cs.source" as const,
-          eb.fn.count<number>("cs.name").distinct().as("cardCount"),
-          eb.fn.count<number>("ps.id").distinct().as("printingCount"),
+          eb.cast<number>(eb.fn.count("cs.name").distinct(), "integer").as("cardCount"),
+          eb.cast<number>(eb.fn.count("ps.id").distinct(), "integer").as("printingCount"),
           sql<string>`max(greatest(cs.updated_at, coalesce(ps.updated_at, cs.updated_at)))`.as(
             "lastUpdated",
           ),
@@ -126,8 +126,8 @@ export function cardSourcesRepo(db: Kysely<Database>) {
 
       return rows.map((r) => ({
         source: r.source,
-        cardCount: Number(r.cardCount),
-        printingCount: Number(r.printingCount),
+        cardCount: r.cardCount,
+        printingCount: r.printingCount,
         lastUpdated: r.lastUpdated,
       }));
     },
@@ -157,11 +157,11 @@ export function cardSourcesRepo(db: Kysely<Database>) {
           sql<string | null>`max(c.slug)`.as("cardSlug"),
           sql<string>`COALESCE(max(c.name), min(cs.name))`.as("name"),
           sql<string>`COALESCE((${rcid})::text, cs.norm_name)`.as("groupKey"),
-          sql<number>`count(DISTINCT cs.source)`.as("sourceCount"),
-          sql<number>`count(DISTINCT CASE WHEN cs.checked_at IS NULL THEN cs.id END)`.as(
+          sql<number>`count(DISTINCT cs.source)::int`.as("sourceCount"),
+          sql<number>`count(DISTINCT CASE WHEN cs.checked_at IS NULL THEN cs.id END)::int`.as(
             "uncheckedCardCount",
           ),
-          sql<number>`count(DISTINCT CASE WHEN ps.checked_at IS NULL AND ps.id IS NOT NULL THEN ps.id END)`.as(
+          sql<number>`count(DISTINCT CASE WHEN ps.checked_at IS NULL AND ps.id IS NOT NULL THEN ps.id END)::int`.as(
             "uncheckedPrintingCount",
           ),
           sql<boolean>`bool_or(cs.source = 'gallery')`.as("hasGallery"),
