@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -15,7 +15,7 @@ export const marketplaceGroupsQueryOptions = queryOptions({
 });
 
 export function useMarketplaceGroups() {
-  return useQuery(marketplaceGroupsQueryOptions);
+  return useSuspenseQuery(marketplaceGroupsQueryOptions);
 }
 
 export function useUpdateMarketplaceGroup() {

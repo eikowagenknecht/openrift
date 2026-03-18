@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
@@ -10,7 +10,7 @@ export const collectionsQueryOptions = queryOptions({
 });
 
 export function useCollections() {
-  return useQuery(collectionsQueryOptions);
+  return useSuspenseQuery(collectionsQueryOptions);
 }
 
 export function useCreateCollection() {

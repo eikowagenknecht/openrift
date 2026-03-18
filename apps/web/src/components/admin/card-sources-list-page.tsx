@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -47,20 +46,11 @@ export function CardSourcesListPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [source, setSource] = useState<string>();
   const { data: sourceNames } = useSourceNames();
-  const { data, isLoading } = useCardSourceList(filter, source, setSlug);
+  const { data } = useCardSourceList(filter, source, setSlug);
   const linkCard = useLinkCard();
   const autoCheck = useAutoCheckSources();
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-64" />
-      </div>
-    );
-  }
-
-  const rows = data ?? [];
+  const rows = data;
 
   return (
     <div className="space-y-4">
@@ -95,7 +85,7 @@ export function CardSourcesListPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All sources</SelectItem>
-            {sourceNames?.map((name) => (
+            {sourceNames.map((name) => (
               <SelectItem key={name} value={name}>
                 {name}
               </SelectItem>

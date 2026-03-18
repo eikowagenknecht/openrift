@@ -28,8 +28,8 @@ interface StackedEntry {
 }
 
 export function CollectionGrid({ collectionId }: CollectionGridProps) {
-  const { data: copies, isLoading: copiesLoading } = useCopies(collectionId);
-  const { allCards, isLoading: cardsLoading } = useCards();
+  const { data: copies } = useCopies(collectionId);
+  const { allCards } = useCards();
   const { data: collections } = useCollections();
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
@@ -49,21 +49,19 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
   // Group copies by printing ID into stacks
   const stacks: StackedEntry[] = [];
-  if (copies) {
-    const stackMap = new Map<string, StackedEntry>();
-    for (const copy of copies) {
-      const printing = printingById.get(copy.printingId);
-      if (!printing) {
-        continue;
-      }
-      const existing = stackMap.get(copy.printingId);
-      if (existing) {
-        existing.copyIds.push(copy.id);
-      } else {
-        const entry: StackedEntry = { printingId: copy.printingId, printing, copyIds: [copy.id] };
-        stackMap.set(copy.printingId, entry);
-        stacks.push(entry);
-      }
+  const stackMap = new Map<string, StackedEntry>();
+  for (const copy of copies) {
+    const printing = printingById.get(copy.printingId);
+    if (!printing) {
+      continue;
+    }
+    const existing = stackMap.get(copy.printingId);
+    if (existing) {
+      existing.copyIds.push(copy.id);
+    } else {
+      const entry: StackedEntry = { printingId: copy.printingId, printing, copyIds: [copy.id] };
+      stackMap.set(copy.printingId, entry);
+      stacks.push(entry);
     }
   }
 
@@ -140,16 +138,9 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     );
   };
 
-  const currentCollection = collections?.find((c) => c.id === collectionId);
-  const isLoading = copiesLoading || cardsLoading;
+  const currentCollection = collections.find((c) => c.id === collectionId);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">Loading…</div>
-    );
-  }
-
-  const addTarget = collectionId ?? collections?.find((c) => c.isInbox)?.id;
+  const addTarget = collectionId ?? collections.find((c) => c.isInbox)?.id;
 
   if (sortedStacks.length === 0) {
     return (
@@ -314,7 +305,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       <MoveDialog
         open={moveOpen}
         onOpenChange={setMoveOpen}
-        collections={collections?.filter((c) => c.id !== collectionId) ?? []}
+        collections={collections.filter((c) => c.id !== collectionId)}
         onMove={handleMove}
         isPending={moveCopies.isPending}
       />

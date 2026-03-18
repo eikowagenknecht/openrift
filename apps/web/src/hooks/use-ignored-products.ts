@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
@@ -9,7 +9,7 @@ export const ignoredProductsQueryOptions = queryOptions({
 });
 
 export function useIgnoredProducts() {
-  return useQuery(ignoredProductsQueryOptions);
+  return useSuspenseQuery(ignoredProductsQueryOptions);
 }
 
 export function useUnignoreProduct() {

@@ -17,7 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -42,7 +41,7 @@ interface EditingRow {
 }
 
 export function SetsPage() {
-  const { data, isLoading, error } = useSets();
+  const { data } = useSets();
   const updateMutation = useUpdateSet();
   const createMutation = useCreateSet();
   const reorderMutation = useReorderSets();
@@ -52,23 +51,6 @@ export function SetsPage() {
   const [adding, setAdding] = useState(false);
   const [newSet, setNewSet] = useState({ id: "", name: "", printedTotal: "", releasedAt: "" });
   const [createError, setCreateError] = useState("");
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
-  }
-
-  if (!data) {
-    return null;
-  }
 
   const { sets } = data;
 

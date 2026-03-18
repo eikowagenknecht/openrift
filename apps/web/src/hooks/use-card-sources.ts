@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
@@ -19,7 +19,7 @@ export function cardSourceListQueryOptions(filter: string, source?: string, set?
 }
 
 export function useCardSourceList(filter: string, source?: string, set?: string) {
-  return useQuery(cardSourceListQueryOptions(filter, source, set));
+  return useSuspenseQuery(cardSourceListQueryOptions(filter, source, set));
 }
 
 export const allCardsQueryOptions = queryOptions({
@@ -28,7 +28,7 @@ export const allCardsQueryOptions = queryOptions({
 });
 
 export function useAllCards() {
-  return useQuery(allCardsQueryOptions);
+  return useSuspenseQuery(allCardsQueryOptions);
 }
 
 export function cardSourceDetailQueryOptions(cardId: string) {
@@ -308,7 +308,7 @@ export const sourceStatsQueryOptions = queryOptions({
 });
 
 export function useSourceStats() {
-  return useQuery(sourceStatsQueryOptions);
+  return useSuspenseQuery(sourceStatsQueryOptions);
 }
 
 export const sourceNamesQueryOptions = queryOptions({
@@ -317,7 +317,7 @@ export const sourceNamesQueryOptions = queryOptions({
 });
 
 export function useSourceNames() {
-  return useQuery(sourceNamesQueryOptions);
+  return useSuspenseQuery(sourceNamesQueryOptions);
 }
 
 export function useDeletePrintingImage() {

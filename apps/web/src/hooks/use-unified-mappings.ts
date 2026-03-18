@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
   AssignableCard,
@@ -31,7 +31,7 @@ export function unifiedMappingsQueryOptions(showAll = false) {
 }
 
 export function useUnifiedMappings(showAll = false) {
-  return useQuery(unifiedMappingsQueryOptions(showAll));
+  return useSuspenseQuery(unifiedMappingsQueryOptions(showAll));
 }
 
 // Mutations invalidate both the unified query and the per-marketplace queries.

@@ -29,7 +29,7 @@ import {
 } from "@/lib/phash-scanner";
 
 export function ScanTestPage() {
-  const { allCards, isLoading: cardsLoading } = useCards();
+  const { allCards } = useCards();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -179,11 +179,7 @@ export function ScanTestPage() {
         image hashing (visual similarity). Capture a card image and compare results.
       </div>
 
-      {cardsLoading ? (
-        <p className="text-sm text-muted-foreground">Loading card database...</p>
-      ) : (
-        <p className="text-sm text-muted-foreground">{allCards.length} printings loaded.</p>
-      )}
+      <p className="text-sm text-muted-foreground">{allCards.length} printings loaded.</p>
 
       {/* Camera section */}
       <Card>

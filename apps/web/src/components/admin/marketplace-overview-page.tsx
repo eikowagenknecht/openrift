@@ -160,7 +160,7 @@ export function MarketplaceOverviewPage() {
   const { data: cronStatus } = useCronStatus();
   const { data: groupsData } = useMarketplaceGroups();
 
-  const allGroups = groupsData?.groups ?? [];
+  const allGroups = groupsData.groups;
   const tcgGroups = allGroups.filter((g) => g.marketplace === "tcgplayer");
   const cmGroups = allGroups.filter((g) => g.marketplace === "cardmarket");
   const tcgAssigned = tcgGroups.reduce((sum, g) => sum + g.assignedCount, 0);

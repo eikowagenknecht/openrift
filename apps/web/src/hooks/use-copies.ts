@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
@@ -15,7 +15,7 @@ export function copiesQueryOptions(collectionId?: string) {
 }
 
 export function useCopies(collectionId?: string) {
-  return useQuery(copiesQueryOptions(collectionId));
+  return useSuspenseQuery(copiesQueryOptions(collectionId));
 }
 
 export function useAddCopies() {

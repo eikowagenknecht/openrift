@@ -1,12 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 
-import { ErrorBoundary, RouterErrorFallback } from "./components/error-fallback";
-import { featureFlagsQueryOptions } from "./lib/feature-flags";
-import { routeTree } from "./routeTree.gen";
+import { ErrorBoundary } from "./components/error-fallback";
+import { createAppRouter } from "./router";
 
 // oxlint-disable-next-line import/no-unassigned-import -- CSS side-effect import
 import "./index.css";
@@ -45,25 +44,12 @@ const queryClient = new QueryClient({
   },
 });
 
-const router = createRouter({
-  routeTree,
-  context: { queryClient },
-  defaultErrorComponent: RouterErrorFallback,
-});
-
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
+const router = createAppRouter(queryClient);
 
 const root = document.querySelector<HTMLElement>("#root");
 if (!root) {
   throw new Error("Root element not found");
 }
-
-// Pre-populate feature flags in the query cache so they're available immediately.
-await queryClient.ensureQueryData(featureFlagsQueryOptions);
 
 createRoot(root).render(
   <StrictMode>

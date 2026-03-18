@@ -1,9 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { SourcesPage } from "@/components/collection/sources-page";
+import { Skeleton } from "@/components/ui/skeleton";
 import { sourcesQueryOptions } from "@/hooks/use-sources";
 
 export const Route = createFileRoute("/_authenticated/collections/sources")({
   loader: ({ context }) => context.queryClient.ensureQueryData(sourcesQueryOptions),
   component: SourcesPage,
+  pendingComponent: SourcesPending,
 });
+
+function SourcesPending() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
+}

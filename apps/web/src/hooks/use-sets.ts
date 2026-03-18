@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
@@ -10,7 +10,7 @@ export const setsQueryOptions = queryOptions({
 });
 
 export function useSets() {
-  return useQuery(setsQueryOptions);
+  return useSuspenseQuery(setsQueryOptions);
 }
 
 export function useUpdateSet() {

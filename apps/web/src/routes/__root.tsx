@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/header";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { SWUpdateProvider } from "@/hooks/use-sw-update";
+import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 
 const TanStackRouterDevtools = import.meta.env.PROD
   ? () => null
@@ -20,6 +21,9 @@ const TanStackRouterDevtools = import.meta.env.PROD
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
+  beforeLoad: async ({ context }) => {
+    await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
+  },
   component: RootComponent,
   notFoundComponent: RouterNotFoundFallback,
 });

@@ -1,5 +1,5 @@
 import type { Printing, CatalogResponse } from "@openrift/shared";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { queryKeys } from "@/lib/query-keys";
@@ -20,8 +20,6 @@ export class ApiError extends Error {
 interface UseCardsResult {
   allCards: Printing[];
   setInfoList: SetInfo[];
-  isLoading: boolean;
-  error: Error | null;
 }
 
 async function checkHealth(): Promise<HealthStatus> {
@@ -58,26 +56,20 @@ export const catalogQueryOptions = queryOptions({
 });
 
 export function useCards(): UseCardsResult {
-  const catalogQuery = useQuery(catalogQueryOptions);
+  const { data: catalog } = useSuspenseQuery(catalogQueryOptions);
 
-  const isEmpty = catalogQuery.data !== undefined && catalogQuery.data.printings.length === 0;
-  const isLoading = !isEmpty && catalogQuery.isLoading;
-  const error = isEmpty ? new ApiError("No cards available", "db_empty") : catalogQuery.error;
+  if (catalog.printings.length === 0) {
+    throw new ApiError("No cards available", "db_empty");
+  }
 
-  const catalog = catalogQuery.data;
+  const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
+  const allCards: Printing[] = catalog.printings.map((p) => ({
+    ...p,
+    setSlug: slugById.get(p.setId) ?? "",
+    card: catalog.cards[p.cardId],
+  }));
 
-  const allCards: Printing[] = catalog
-    ? (() => {
-        const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
-        return catalog.printings.map((p) => ({
-          ...p,
-          setSlug: slugById.get(p.setId) ?? "",
-          card: catalog.cards[p.cardId],
-        }));
-      })()
-    : [];
+  const setInfoList: SetInfo[] = catalog.sets;
 
-  const setInfoList: SetInfo[] = catalog ? catalog.sets : [];
-
-  return { allCards, setInfoList, isLoading, error: error as Error | null };
+  return { allCards, setInfoList };
 }

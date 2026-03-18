@@ -1,8 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { cardSourceDetailQueryOptions } from "@/hooks/use-card-sources";
+
+function AdminPending() {
+  return (
+    <div className="space-y-4 p-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
+}
+
+function AdminError({ error }: { error: Error }) {
+  return <p className="p-4 text-sm text-destructive">Failed to load: {error.message}</p>;
+}
 
 export const Route = createFileRoute("/_authenticated/admin/cards_/$cardId")({
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(cardSourceDetailQueryOptions(params.cardId)),
+  pendingComponent: AdminPending,
+  errorComponent: AdminError,
 });

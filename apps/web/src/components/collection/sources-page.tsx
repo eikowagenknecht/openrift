@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useCreateSource, useDeleteSource, useSources, useUpdateSource } from "@/hooks/use-sources";
 
 export function SourcesPage() {
-  const { data: sources, isLoading } = useSources();
+  const { data: sources } = useSources();
   const createSource = useCreateSource();
   const updateSource = useUpdateSource();
   const deleteSource = useDeleteSource();
@@ -70,12 +70,6 @@ export function SourcesPage() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">Loading…</div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -126,12 +120,12 @@ export function SourcesPage() {
       )}
 
       <div className="divide-y rounded-lg border">
-        {(!sources || sources.length === 0) && (
+        {sources.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No sources yet. Create one to track where your cards come from.
           </p>
         )}
-        {sources?.map((source) => (
+        {sources.map((source) => (
           <div key={source.id} className="flex items-center gap-3 px-4 py-3">
             {editingId === source.id ? (
               <form

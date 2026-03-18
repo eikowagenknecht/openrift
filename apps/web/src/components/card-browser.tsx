@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCardData } from "@/hooks/use-card-data";
 import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
 import { useCardFilters } from "@/hooks/use-card-filters";
-import { ApiError, useCards } from "@/hooks/use-cards";
+import { useCards } from "@/hooks/use-cards";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
 import { useDisplayStore } from "@/stores/display-store";
@@ -24,7 +24,7 @@ const CardDetail = lazy(async () => {
 
 export function CardBrowser() {
   const showImages = useDisplayStore((s) => s.showImages);
-  const { allCards, setInfoList, isLoading, error } = useCards();
+  const { allCards, setInfoList } = useCards();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
@@ -75,57 +75,6 @@ export function CardBrowser() {
     view === "cards" && selectedCard
       ? (deferredSortedCards.find((c) => c.card.id === selectedCard.card.id)?.id ?? selectedCard.id)
       : selectedCard?.id;
-
-  if (error) {
-    const healthStatus = error instanceof ApiError ? error.healthStatus : null;
-    let title = "Failed to load cards.";
-    let hint: string | null = null;
-
-    if (healthStatus === "db_unreachable") {
-      title = "The database isn't running.";
-      hint = "docker compose up db -d";
-    } else if (healthStatus === "db_not_migrated") {
-      title = "The database hasn't been set up yet.";
-      hint = "bun db:migrate && bun db:seed";
-    } else if (healthStatus === "db_empty") {
-      title = "The database is empty.";
-      hint = "bun db:seed";
-    }
-
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-32">
-        <p className="text-muted-foreground">{title}</p>
-        {hint && (
-          <code className="bg-muted text-muted-foreground rounded px-3 py-1.5 text-sm">{hint}</code>
-        )}
-        <button
-          type="button"
-          className="text-sm underline"
-          onClick={() => globalThis.location.reload()}
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-[calc(100svh-3.5rem)] space-y-4">
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <div className="flex items-start gap-6">
-          <Skeleton className="hidden wide:block h-[60svh] w-[400px] shrink-0 rounded-lg" />
-          <div className="min-w-0 flex-1">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-              {Array.from({ length: 20 }, (_, i) => (
-                <Skeleton key={i} className="aspect-[744/1039] rounded-lg" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-[calc(100svh-3.5rem)] space-y-4">

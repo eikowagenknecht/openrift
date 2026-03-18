@@ -294,7 +294,7 @@ export function CardSourceUploadPage() {
         </CardContent>
       </Card>
       <ExportCardsCard />
-      {sourceNames && sourceNames.length > 0 && (
+      {sourceNames.length > 0 && (
         <ManageSourcesCard sourceNames={sourceNames} sourceStats={sourceStats} />
       )}
     </div>
@@ -370,12 +370,12 @@ function ManageSourcesCard({
   sourceStats,
 }: {
   sourceNames: string[];
-  sourceStats?: SourceStatsResponse[];
+  sourceStats: SourceStatsResponse[];
 }) {
   const deleteSource = useDeleteSource();
   const { favorites, toggleFavorite } = useFavoriteSources();
   const [confirming, setConfirming] = useState<string | null>(null);
-  const statsBySource = new Map(sourceStats?.map((s) => [s.source, s]));
+  const statsBySource = new Map(sourceStats.map((s) => [s.source, s]));
   const sortedNames = [...sourceNames].sort((a, b) => {
     const aFav = favorites.has(a);
     const bFav = favorites.has(b);

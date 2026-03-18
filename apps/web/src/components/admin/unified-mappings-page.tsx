@@ -21,7 +21,6 @@ import { useEffect, useRef, useState } from "react";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -675,7 +674,7 @@ function UnmatchedSection({
 
 export function UnifiedMappingsPage() {
   const [showAll, setShowAll] = useState(false);
-  const { data, isLoading, error } = useUnifiedMappings(showAll);
+  const { data } = useUnifiedMappings(showAll);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   // Per-marketplace mutations
@@ -690,9 +689,9 @@ export function UnifiedMappingsPage() {
   const tcgAssignToCard = useUnifiedAssignToCard("tcgplayer");
   const cmAssignToCard = useUnifiedAssignToCard("cardmarket");
 
-  const allCards = data?.allCards ?? [];
+  const allCards = data.allCards;
 
-  const groups = (data?.groups ?? []).toSorted((a, b) =>
+  const groups = data.groups.toSorted((a, b) =>
     primarySourceId(a).localeCompare(primarySourceId(b)),
   );
   const orderedCardIds = groups.map((g) => g.cardId);
@@ -842,23 +841,6 @@ export function UnifiedMappingsPage() {
     { enabled: Boolean(expandedGroup) && !isSaving },
   );
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">Loading products…</p>
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -936,12 +918,12 @@ export function UnifiedMappingsPage() {
       )}
 
       {/* Unmatched products */}
-      {((data?.unmatchedProducts.tcgplayer.length ?? 0) > 0 ||
-        (data?.unmatchedProducts.cardmarket.length ?? 0) > 0) && (
+      {(data.unmatchedProducts.tcgplayer.length > 0 ||
+        data.unmatchedProducts.cardmarket.length > 0) && (
         <div className="mt-6 space-y-6">
           <UnmatchedSection
             marketplace="tcgplayer"
-            products={data?.unmatchedProducts.tcgplayer ?? []}
+            products={data.unmatchedProducts.tcgplayer}
             allCards={allCards}
             onIgnore={(p) => tcgIgnore.mutate(p)}
             isIgnoring={tcgIgnore.isPending}
@@ -950,7 +932,7 @@ export function UnifiedMappingsPage() {
           />
           <UnmatchedSection
             marketplace="cardmarket"
-            products={data?.unmatchedProducts.cardmarket ?? []}
+            products={data.unmatchedProducts.cardmarket}
             allCards={allCards}
             onIgnore={(p) => cmIgnore.mutate(p)}
             isIgnoring={cmIgnore.isPending}

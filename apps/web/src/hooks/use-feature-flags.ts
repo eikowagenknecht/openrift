@@ -1,4 +1,4 @@
-import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -21,7 +21,7 @@ export const adminFeatureFlagsQueryOptions = queryOptions({
 });
 
 export function useFeatureFlags() {
-  return useQuery(adminFeatureFlagsQueryOptions);
+  return useSuspenseQuery(adminFeatureFlagsQueryOptions);
 }
 
 export function useToggleFeatureFlag() {
