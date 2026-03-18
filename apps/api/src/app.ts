@@ -39,6 +39,7 @@ export interface AppDeps {
   services?: Partial<Services>;
 }
 
+/** 10 requests per minute per IP for sensitive auth endpoints */
 const authRateLimit = rateLimiter<{ Variables: Variables }>({
   windowMs: 60_000,
   limit: 10,
@@ -62,17 +63,9 @@ export function createApp(deps: AppDeps) {
 
   const app = new Hono<{ Variables: Variables }>()
 
-    // ── Inject dependencies into every request context ───────────────────────
-    .use("/api/*", async (c, next) => {
-      c.set("db", db);
-      c.set("io", deps.io ?? defaultIo);
-      c.set("auth", auth);
-      c.set("config", config);
-      c.set("repos", createRepos(db));
-      c.set("services", services);
-      await next();
-    })
-
+    // ── Global error handler ────────────────────────────────────────────────
+    // Normalizes all thrown errors into a consistent { error, code, details? } JSON shape.
+    // In dev mode, details (stack traces, Zod issues) are included for debugging.
     // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Hono's onError API takes a callback
     .onError((err, c) => {
       if (err instanceof AppError) {
@@ -117,6 +110,8 @@ export function createApp(deps: AppDeps) {
       return c.json(body, 500);
     })
 
+    // ── Global middleware ───────────────────────────────────────────────────
+    // CORS runs first so preflight OPTIONS requests are handled before any other work.
     .use(
       "/api/*",
       cors({
@@ -125,6 +120,19 @@ export function createApp(deps: AppDeps) {
       }),
     )
 
+    // Make shared dependencies (db, repos, services, etc.) available via c.get() in all routes.
+    .use("/api/*", async (c, next) => {
+      c.set("db", db);
+      c.set("io", deps.io ?? defaultIo);
+      c.set("auth", auth);
+      c.set("config", config);
+      c.set("repos", createRepos(db));
+      c.set("services", services);
+      await next();
+    })
+
+    // ── Auth ────────────────────────────────────────────────────────────────
+    // Apply rate limiting only to sensitive auth endpoints (sign-in, sign-up, etc.).
     .use("/api/auth/*", async (c, next) => {
       if (rateLimitedAuthPrefixes.some((p) => c.req.path.startsWith(p))) {
         return authRateLimit(c, next);
@@ -138,6 +146,8 @@ export function createApp(deps: AppDeps) {
     .get("/api/auth/*", (c) => auth.handler(c.req.raw))
     .post("/api/auth/*", (c) => auth.handler(c.req.raw))
 
+    // Resolve the current user session (if any) so routes can access c.get("user").
+    // Runs on all /api/* routes — public routes simply see user as null.
     .use("/api/*", async (c, next) => {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       c.set("user", session?.user ?? null);
@@ -145,11 +155,13 @@ export function createApp(deps: AppDeps) {
       await next();
     })
 
+    // ── Public routes (no auth required) ───────────────────────────────────
     .route("/api", healthRoute)
     .route("/api", catalogRoute)
     .route("/api", pricesRoute)
     .route("/api", featureFlagsRoute)
-    .route("/api", adminRoute)
+
+    // ── Authenticated routes (require a valid session) ────────────────────
     .route("/api", collectionsRoute)
     .route("/api", sourcesRoute)
     .route("/api", copiesRoute)
@@ -157,7 +169,10 @@ export function createApp(deps: AppDeps) {
     .route("/api", decksRoute)
     .route("/api", wishListsRoute)
     .route("/api", tradeListsRoute)
-    .route("/api", shoppingListRoute);
+    .route("/api", shoppingListRoute)
+
+    // ── Admin routes (require admin role) ────────────────────────────────
+    .route("/api", adminRoute);
 
   return app;
 }
