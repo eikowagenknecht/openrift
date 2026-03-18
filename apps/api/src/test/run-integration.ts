@@ -59,6 +59,16 @@ const TEST_USERS: TestUser[] = [
   // Public read-endpoint tests (prices + catalog)
   { id: "a0000000-0023-4000-a000-000000000001", email: "user-0023@test.com", isAdmin: false },
   { id: "a0000000-0024-4000-a000-000000000001", email: "user-0024@test.com", isAdmin: false },
+  // Repository integration tests
+  { id: "a0000000-0025-4000-a000-000000000001", email: "repo-0025@test.com", isAdmin: false },
+  { id: "a0000000-0026-4000-a000-000000000001", email: "repo-0026@test.com", isAdmin: false },
+  { id: "a0000000-0027-4000-a000-000000000001", email: "repo-0027@test.com", isAdmin: false },
+  { id: "a0000000-0028-4000-a000-000000000001", email: "repo-0028@test.com", isAdmin: false },
+  { id: "a0000000-0029-4000-a000-000000000001", email: "repo-0029@test.com", isAdmin: false },
+  { id: "a0000000-0030-4000-a000-000000000001", email: "repo-0030@test.com", isAdmin: false },
+  { id: "a0000000-0031-4000-a000-000000000001", email: "repo-0031@test.com", isAdmin: true },
+  { id: "a0000000-0032-4000-a000-000000000001", email: "repo-0032@test.com", isAdmin: false },
+  { id: "a0000000-0033-4000-a000-000000000001", email: "repo-0033@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -92,6 +102,16 @@ const PARALLEL_FILES = [
   "src/routes/admin/operations.integration.test.ts",
   "src/routes/admin/images.integration.test.ts",
   "src/routes/card-sources/images.integration.test.ts",
+  // Repository integration tests
+  "src/repositories/activities.integration.test.ts",
+  "src/repositories/collections.integration.test.ts",
+  "src/repositories/copies.integration.test.ts",
+  "src/repositories/decks.integration.test.ts",
+  "src/repositories/sources.integration.test.ts",
+  "src/repositories/marketplace.integration.test.ts",
+  "src/repositories/feature-flags.integration.test.ts",
+  "src/repositories/trade-lists.integration.test.ts",
+  "src/repositories/wish-lists.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */
