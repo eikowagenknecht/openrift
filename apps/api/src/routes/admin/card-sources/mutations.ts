@@ -207,7 +207,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing source not found");
     }
 
-    const target = await mut.getPrintingDifferentiatorsBySlug(printingId);
+    const target = await mut.getPrintingDifferentiatorsById(printingId);
 
     if (!target) {
       throw new AppError(404, "NOT_FOUND", "Target printing not found");
@@ -228,22 +228,17 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "printingSourceIds[] required");
     }
 
-    // Resolve slug → uuid if linking (printingId is null when unlinking)
-    let printingUuid: string | null = null;
-    if (printingId) {
-      const p = await mut.getPrintingIdBySlug(printingId);
-      if (!p) {
-        throw new AppError(404, "NOT_FOUND", "Target printing not found");
-      }
-      printingUuid = p.id;
-    }
-
-    await mut.linkPrintingSources(printingSourceIds, printingUuid);
+    await mut.linkPrintingSources(printingSourceIds, printingId);
 
     // Persist or remove link overrides so links survive delete + re-upload
-    await (printingId
-      ? mut.upsertPrintingLinkOverrides(printingSourceIds, printingId)
-      : mut.removePrintingLinkOverrides(printingSourceIds));
+    if (printingId) {
+      const p = await mut.getPrintingSlugById(printingId);
+      if (p) {
+        await mut.upsertPrintingLinkOverrides(printingSourceIds, p.slug);
+      }
+    } else {
+      await mut.removePrintingLinkOverrides(printingSourceIds);
+    }
 
     return c.body(null, 204);
   })
