@@ -42,9 +42,7 @@ describe("buildPrintingId", () => {
   });
 
   it("includes promo type slug when provided", () => {
-    expect(buildPrintingId("OGN-001", "Common", "promo", "foil")).toBe(
-      "OGN-001:common:foil:promo",
-    );
+    expect(buildPrintingId("OGN-001", "Common", "promo", "foil")).toBe("OGN-001:common:foil:promo");
   });
 
   it("includes specific promo type slug", () => {
@@ -58,9 +56,7 @@ describe("buildPrintingId", () => {
   });
 
   it("preserves finish value", () => {
-    expect(buildPrintingId("OGN-105", "Showcase", null, "normal")).toBe(
-      "OGN-105:showcase:normal:",
-    );
+    expect(buildPrintingId("OGN-105", "Showcase", null, "normal")).toBe("OGN-105:showcase:normal:");
   });
 });
 

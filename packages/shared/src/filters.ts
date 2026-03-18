@@ -311,8 +311,11 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
     promoTypes: [
       ...new Map(
         printings
-          .filter((p) => p.promoType !== null)
-          .map((p) => [p.promoType!.slug, p.promoType!]),
+          .filter(
+            (p): p is typeof p & { promoType: NonNullable<typeof p.promoType> } =>
+              p.promoType !== null,
+          )
+          .map((p) => [p.promoType.slug, p.promoType]),
       ).values(),
     ].sort((a, b) => a.slug.localeCompare(b.slug)),
     energy: boundsOf(energies),

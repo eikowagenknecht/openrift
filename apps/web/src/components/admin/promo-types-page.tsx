@@ -80,9 +80,7 @@ export function PromoTypesPage() {
                 <TableCell>
                   <Input
                     value={newType.slug}
-                    onChange={(e) =>
-                      setNewType({ ...newType, slug: e.target.value.toLowerCase() })
-                    }
+                    onChange={(e) => setNewType({ ...newType, slug: e.target.value.toLowerCase() })}
                     placeholder="nexus-night"
                     className="h-8 w-48 font-mono"
                   />
@@ -143,9 +141,7 @@ export function PromoTypesPage() {
                 slug={pt.slug}
                 label={pt.label}
                 sortOrder={pt.sortOrder}
-                onUpdate={(updates) =>
-                  updateMutation.mutate({ id: pt.id, ...updates })
-                }
+                onUpdate={(updates) => updateMutation.mutate({ id: pt.id, ...updates })}
                 onDelete={() => deleteMutation.mutate(pt.id)}
                 isUpdating={updateMutation.isPending}
                 isDeleting={deleteMutation.isPending}
@@ -186,11 +182,7 @@ function PromoTypeRow({
       <TableRow>
         <TableCell className="font-mono text-sm">{slug}</TableCell>
         <TableCell>
-          <Input
-            value={editLabel}
-            onChange={(e) => setEditLabel(e.target.value)}
-            className="h-8"
-          />
+          <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-8" />
         </TableCell>
         <TableCell className="text-center">
           <Input

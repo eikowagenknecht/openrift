@@ -116,7 +116,7 @@ export function catalogRepo(db: Kysely<Database>) {
         printedEffectText: row.printedEffectText,
         flavorText: row.flavorText,
         promoType: row.promoTypeId
-          ? { id: row.promoTypeId, slug: row.promoTypeSlug!, label: row.promoTypeLabel! }
+          ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
           : null,
       }));
     },
