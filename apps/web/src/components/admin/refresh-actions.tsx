@@ -1,7 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { client } from "@/lib/rpc-client";
 
-import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface CronStatus {
@@ -57,13 +55,3 @@ export const clearActions = {
     description: "Delete all Cardmarket price sources, snapshots, and staging data",
   },
 } as const;
-
-// ── Hook ────────────────────────────────────────────────────────────────────
-
-export function useCronStatus() {
-  return useQuery({
-    queryKey: queryKeys.admin.cronStatus,
-    queryFn: () => rpc(client.api.admin["cron-status"].$get()),
-    refetchInterval: 60_000,
-  });
-}
