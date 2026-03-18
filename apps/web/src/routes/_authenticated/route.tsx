@@ -1,10 +1,10 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-import { authClient } from "@/lib/auth-client";
+import { sessionQueryOptions } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: async ({ location }) => {
-    const { data: session } = await authClient.getSession();
+  beforeLoad: async ({ location, context }) => {
+    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
     if (!session?.user) {
       throw redirect({
         to: "/login",
