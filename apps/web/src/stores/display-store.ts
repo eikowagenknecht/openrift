@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 
 import type { CardFields } from "@/lib/card-fields";
 import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
+import { cookieStorage } from "@/lib/cookie-storage";
 
 interface DisplayState {
   showImages: boolean;
@@ -48,6 +49,7 @@ export const useDisplayStore = create<DisplayState>()(
     }),
     {
       name: "display-settings",
+      storage: cookieStorage,
       partialize: (state) => ({
         showImages: state.showImages,
         richEffects: state.richEffects,
