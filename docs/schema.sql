@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict t0elzRhQFdXviJJix0b1dmW8hAScZh2mRCRKYkO33LIqn46wvzU2pAbqAf0YsMv
+\restrict cmhWaQXt9WIx9KLzj5KRdVFmTTPAJiIGbWl9nW05QHqyhPOd73NcenM5hNcB8wh
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -81,6 +81,31 @@ CREATE FUNCTION public.prevent_nonempty_collection_delete() RETURNS trigger
           OLD.id;
       END IF;
       RETURN OLD;
+    END;
+    $$;
+
+
+--
+-- Name: printing_sources_set_group_key(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.printing_sources_set_group_key() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      NEW.group_key :=
+        COALESCE(NEW.set_id, '') || '|' ||
+        COALESCE(NEW.rarity, '') || '|' ||
+        CASE
+          WHEN NEW.finish IS NOT NULL THEN NEW.finish
+          WHEN NEW.rarity IS NULL THEN ''
+          WHEN NEW.rarity IN ('Common', 'Uncommon') THEN 'normal'
+          ELSE 'foil'
+        END || '|' ||
+        COALESCE(NEW.promo_type_id::text, '') || '|' ||
+        COALESCE(NEW.art_variant, 'normal') || '|' ||
+        COALESCE(NEW.is_signed::text, 'false');
+      RETURN NEW;
     END;
     $$;
 
@@ -559,6 +584,7 @@ CREATE TABLE public.printing_sources (
     printing_id uuid,
     source_entity_id text NOT NULL,
     promo_type_id uuid,
+    group_key text DEFAULT ''::text NOT NULL,
     CONSTRAINT chk_printing_sources_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_printing_sources_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_printing_sources_no_empty_artist CHECK ((artist <> ''::text)),
@@ -664,6 +690,20 @@ CREATE TABLE public.sets (
     CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
     CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
+);
+
+
+--
+-- Name: source_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.source_settings (
+    source text NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_hidden boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT source_settings_source_check CHECK ((source <> ''::text))
 );
 
 
@@ -1085,6 +1125,14 @@ ALTER TABLE ONLY public.sets
 
 
 --
+-- Name: source_settings source_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.source_settings
+    ADD CONSTRAINT source_settings_pkey PRIMARY KEY (source);
+
+
+--
 -- Name: sources sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1412,6 +1460,13 @@ CREATE UNIQUE INDEX idx_printing_sources_card_source_printing ON public.printing
 
 
 --
+-- Name: idx_printing_sources_group_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printing_sources_group_key ON public.printing_sources USING btree (card_source_id, group_key);
+
+
+--
 -- Name: idx_printing_sources_printing_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1542,6 +1597,13 @@ CREATE TRIGGER trg_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.car
 --
 
 CREATE TRIGGER trg_prevent_nonempty_collection_delete BEFORE DELETE ON public.collections FOR EACH ROW EXECUTE FUNCTION public.prevent_nonempty_collection_delete();
+
+
+--
+-- Name: printing_sources trg_printing_sources_group_key; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_printing_sources_group_key BEFORE INSERT OR UPDATE OF set_id, art_variant, is_signed, promo_type_id, rarity, finish ON public.printing_sources FOR EACH ROW EXECUTE FUNCTION public.printing_sources_set_group_key();
 
 
 --
@@ -1844,5 +1906,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict t0elzRhQFdXviJJix0b1dmW8hAScZh2mRCRKYkO33LIqn46wvzU2pAbqAf0YsMv
+\unrestrict cmhWaQXt9WIx9KLzj5KRdVFmTTPAJiIGbWl9nW05QHqyhPOd73NcenM5hNcB8wh
 

@@ -7,6 +7,7 @@ import type {
   Rarity,
   SuperType,
 } from "@openrift/shared";
+import { formatSourceIds } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   CheckCircle2Icon,
@@ -54,12 +55,6 @@ import { StagedProductCard } from "./staged-product-card";
 import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function primarySourceId(group: UnifiedMappingGroup): string {
-  return group.printings.reduce((best, p) =>
-    p.sourceId.localeCompare(best.sourceId) < 0 ? p : best,
-  ).sourceId;
-}
 
 /**
  * Build a per-marketplace MappingGroup for the suggestion algorithm.
@@ -691,9 +686,8 @@ export function UnifiedMappingsPage() {
 
   const allCards = data.allCards;
 
-  const groups = data.groups.toSorted((a, b) =>
-    primarySourceId(a).localeCompare(primarySourceId(b)),
-  );
+  // API returns groups pre-sorted by primarySourceId
+  const groups = data.groups;
   const orderedCardIds = groups.map((g) => g.cardId);
 
   // Auto-expand
@@ -1012,16 +1006,7 @@ function UnifiedCardGroupRow({
           <span className="text-muted-foreground">{group.cardSlug}</span> {group.cardName}
         </TableCell>
         <TableCell className="text-muted-foreground">
-          {(() => {
-            const counts = new Map<string, number>();
-            for (const p of group.printings) {
-              counts.set(p.sourceId, (counts.get(p.sourceId) ?? 0) + 1);
-            }
-            return [...counts.entries()]
-              .toSorted(([a], [b]) => a.localeCompare(b))
-              .map(([id, n]) => (n > 1 ? `${id} ×${n}` : id))
-              .join(", ");
-          })()}
+          {formatSourceIds(group.printings.map((p) => p.sourceId))}
         </TableCell>
         <TableCell className="text-center">
           <MarketplaceStatusBadge label="TCG" group={group} marketplace="tcgplayer" />

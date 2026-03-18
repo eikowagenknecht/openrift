@@ -70,6 +70,7 @@ export interface UnifiedMappingGroup {
   setId: string;
   setName: string;
   printings: UnifiedMappingPrinting[];
+  primarySourceId: string;
   tcgplayer: { stagedProducts: StagedProduct[]; assignedProducts: StagedProduct[] };
   cardmarket: { stagedProducts: StagedProduct[]; assignedProducts: StagedProduct[] };
 }
