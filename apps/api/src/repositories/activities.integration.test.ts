@@ -2,18 +2,21 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
 import { activitiesRepo } from "./activities.js";
+import { collectionsRepo } from "./collections.js";
 
 const ctx = createDbContext("a0000000-0025-4000-a000-000000000001");
 
 describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
   const { db, userId } = ctx!;
   const repo = activitiesRepo(db);
+  const collections = collectionsRepo(db);
 
   // Seed printing IDs from the OGS set
   const printingId1 = "019cf052-e020-7222-b8bf-3c9fc2151abc"; // OGS-001
   const printingId2 = "019cf052-e01f-7f65-8d7a-a28fddcf5d61"; // OGS-002
 
   const createdActivityIds: string[] = [];
+  let inboxId: string;
 
   afterAll(async () => {
     // Clean up activity items first (FK constraint), then activities
@@ -21,6 +24,21 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
       await db.deleteFrom("activityItems").where("activityId", "in", createdActivityIds).execute();
       await db.deleteFrom("activities").where("id", "in", createdActivityIds).execute();
     }
+    if (inboxId) {
+      await db.deleteFrom("collections").where("id", "=", inboxId).execute();
+    }
+  });
+
+  it("setup: creates an inbox collection", async () => {
+    const col = await collections.create({
+      userId,
+      name: "Inbox",
+      description: null,
+      availableForDeckbuilding: true,
+      isInbox: true,
+      sortOrder: 0,
+    });
+    inboxId = col.id;
   });
 
   // ---------------------------------------------------------------------------
@@ -30,7 +48,7 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
   it("creates an activity and retrieves it by id", async () => {
     const id = await repo.create({
       userId,
-      type: "import",
+      type: "acquisition",
       name: "Test Import",
       date: new Date(),
       description: null,
@@ -45,7 +63,7 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
     expect(activity).toBeDefined();
     expect(activity!.id).toBe(id);
     expect(activity!.userId).toBe(userId);
-    expect(activity!.type).toBe("import");
+    expect(activity!.type).toBe("acquisition");
     expect(activity!.name).toBe("Test Import");
     expect(activity!.isAuto).toBe(false);
   });
@@ -57,7 +75,7 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
   it("returns undefined when queried with a different userId", async () => {
     const id = await repo.create({
       userId,
-      type: "import",
+      type: "acquisition",
       name: "Private Activity",
       date: new Date(),
       description: null,
@@ -76,7 +94,7 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
   it("lists activities for a user, newest first", async () => {
     const id1 = await repo.create({
       userId,
-      type: "import",
+      type: "acquisition",
       name: "First",
       date: new Date("2026-01-01"),
       description: null,
@@ -86,7 +104,7 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
 
     const id2 = await repo.create({
       userId,
-      type: "import",
+      type: "acquisition",
       name: "Second",
       date: new Date("2026-01-02"),
       description: null,
@@ -132,7 +150,7 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
   it("creates activity items and retrieves them with details", async () => {
     const activityId = await repo.create({
       userId,
-      type: "import",
+      type: "acquisition",
       name: "Import with items",
       date: new Date(),
       description: null,
@@ -144,26 +162,26 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
       {
         activityId,
         userId,
-        activityType: "import",
+        activityType: "acquisition",
         copyId: null,
         printingId: printingId1,
-        action: "add",
+        action: "added",
         fromCollectionId: null,
         fromCollectionName: null,
-        toCollectionId: null,
+        toCollectionId: inboxId,
         toCollectionName: "Inbox",
         metadataSnapshot: null,
       },
       {
         activityId,
         userId,
-        activityType: "import",
+        activityType: "acquisition",
         copyId: null,
         printingId: printingId2,
-        action: "add",
+        action: "added",
         fromCollectionId: null,
         fromCollectionName: null,
-        toCollectionId: null,
+        toCollectionId: inboxId,
         toCollectionName: "Inbox",
         metadataSnapshot: null,
       },
@@ -175,8 +193,8 @@ describe.skipIf(!ctx)("activitiesRepo (integration)", () => {
     // Verify joined data is present
     for (const item of items) {
       expect(item.activityId).toBe(activityId);
-      expect(item.activityType).toBe("import");
-      expect(item.action).toBe("add");
+      expect(item.activityType).toBe("acquisition");
+      expect(item.action).toBe("added");
       expect(item.cardName).toBeDefined();
       expect(item.cardType).toBeDefined();
       expect(item.setId).toBeDefined();

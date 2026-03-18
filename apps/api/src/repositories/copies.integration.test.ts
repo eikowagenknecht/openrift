@@ -179,7 +179,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
 
     for (const row of counts) {
       expect(row.printingId).toBeDefined();
-      expect(typeof row.count).toBe("number");
+      expect(Number(row.count)).toBeGreaterThanOrEqual(1);
       expect(row.count).toBeGreaterThanOrEqual(1);
     }
   });
@@ -231,7 +231,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     for (const row of counts) {
       expect(row.cardId).toBeDefined();
       expect(row.printingId).toBeDefined();
-      expect(typeof row.count).toBe("number");
+      expect(Number(row.count)).toBeGreaterThanOrEqual(1);
     }
   });
 
