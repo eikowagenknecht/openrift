@@ -59,7 +59,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
   describe("POST /admin/feature-flags", () => {
     it("creates a flag with defaults", async () => {
       const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "ffl-deck-builder" }));
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(201);
     });
 
     it("creates a flag with enabled and description", async () => {
@@ -70,7 +70,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
           description: "Toggle dark mode UI",
         }),
       );
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(201);
     });
 
     it("rejects duplicate key with 409", async () => {

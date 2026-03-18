@@ -19,28 +19,28 @@ export function featureFlagsRepo(db: Kysely<Database>) {
       return db.selectFrom("featureFlags").selectAll().orderBy("key").execute();
     },
 
-    /** @returns The flag row if it exists, or `undefined`. */
-    getByKey(key: string): Promise<Pick<Selectable<FeatureFlagsTable>, "key"> | undefined> {
-      return db.selectFrom("featureFlags").select("key").where("key", "=", key).executeTakeFirst();
-    },
-
-    /** @returns The newly created flag row. */
+    /** @returns The newly created flag row, or `undefined` if the key already exists. */
     create(values: {
       key: string;
       enabled: boolean;
       description: string | null;
-    }): Promise<Selectable<FeatureFlagsTable>> {
-      return db.insertInto("featureFlags").values(values).returningAll().executeTakeFirstOrThrow();
+    }): Promise<Selectable<FeatureFlagsTable> | undefined> {
+      return db
+        .insertInto("featureFlags")
+        .values(values)
+        .onConflict((oc) => oc.column("key").doNothing())
+        .returningAll()
+        .executeTakeFirst();
     },
 
     /** @returns The updated flag row, or `undefined` if not found. */
     update(
       key: string,
-      updates: Record<string, unknown>,
+      updates: { enabled?: boolean; description?: string | null },
     ): Promise<Selectable<FeatureFlagsTable> | undefined> {
       return db
         .updateTable("featureFlags")
-        .set(updates)
+        .set({ ...updates, updatedAt: new Date() })
         .where("key", "=", key)
         .returningAll()
         .executeTakeFirst();

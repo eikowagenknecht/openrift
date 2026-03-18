@@ -33,11 +33,13 @@ describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
       enabled: true,
       description: "Integration test flag A",
     });
-    createdKeys.push(flag.key);
 
-    expect(flag.key).toBe("test-flag-0031-a");
-    expect(flag.enabled).toBe(true);
-    expect(flag.description).toBe("Integration test flag A");
+    expect(flag).toBeDefined();
+    createdKeys.push(flag!.key);
+
+    expect(flag!.key).toBe("test-flag-0031-a");
+    expect(flag!.enabled).toBe(true);
+    expect(flag!.description).toBe("Integration test flag A");
   });
 
   it("creates a flag with null description", async () => {
@@ -46,24 +48,21 @@ describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
       enabled: false,
       description: null,
     });
-    createdKeys.push(flag.key);
 
-    expect(flag.key).toBe("test-flag-0031-b");
-    expect(flag.enabled).toBe(false);
-    expect(flag.description).toBeNull();
+    expect(flag).toBeDefined();
+    createdKeys.push(flag!.key);
+
+    expect(flag!.key).toBe("test-flag-0031-b");
+    expect(flag!.enabled).toBe(false);
+    expect(flag!.description).toBeNull();
   });
 
-  // ── getByKey ────────────────────────────────────────────────────────────
-
-  it("returns a flag by key when it exists", async () => {
-    const result = await repo.getByKey("test-flag-0031-a");
-
-    expect(result).toBeDefined();
-    expect(result!.key).toBe("test-flag-0031-a");
-  });
-
-  it("returns undefined for a nonexistent key", async () => {
-    const result = await repo.getByKey("nonexistent-flag-0031");
+  it("returns undefined for a duplicate key", async () => {
+    const result = await repo.create({
+      key: "test-flag-0031-a",
+      enabled: false,
+      description: null,
+    });
 
     expect(result).toBeUndefined();
   });

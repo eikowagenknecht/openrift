@@ -12,16 +12,19 @@ import type { Variables } from "../../types.js";
 const createFlagSchema = z.object({
   key: z
     .string()
-    .min(1)
     .regex(/^[a-z][a-z0-9]+(-[a-z0-9]+)*$/, "Key must be kebab-case (e.g. deck-builder)"),
   description: z.string().nullable().optional(),
   enabled: z.boolean().optional(),
 });
 
-const updateFlagSchema = z.object({
-  enabled: z.boolean().optional(),
-  description: z.string().nullable().optional(),
-});
+const updateFlagSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    description: z.string().nullable().optional(),
+  })
+  .refine((o) => o.enabled !== undefined || o.description !== undefined, {
+    message: "At least one field (enabled, description) must be provided",
+  });
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
@@ -36,8 +39,8 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
       key: r.key,
       enabled: r.enabled,
       description: r.description,
-      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
-      updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
     }));
     return c.json({ flags });
   })
@@ -48,18 +51,16 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
     const { featureFlags: flagsRepo } = c.get("repos");
     const { key, description, enabled } = c.req.valid("json");
 
-    const existing = await flagsRepo.getByKey(key);
-    if (existing) {
-      throw new AppError(409, "CONFLICT", `Flag "${key}" already exists`);
-    }
-
-    await flagsRepo.create({
+    const created = await flagsRepo.create({
       key,
       enabled: enabled ?? false,
       description: description ?? null,
     });
+    if (!created) {
+      throw new AppError(409, "CONFLICT", `Flag "${key}" already exists`);
+    }
 
-    return c.body(null, 204);
+    return c.body(null, 201);
   })
 
   // ── Admin: PATCH /admin/feature-flags/:key ──────────────────────────────────
@@ -73,20 +74,10 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
       const { key } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const existing = await flagsRepo.getByKey(key);
-      if (!existing) {
+      const updated = await flagsRepo.update(key, body);
+      if (!updated) {
         throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
       }
-
-      const updates: Record<string, unknown> = { updated_at: new Date() };
-      if (body.enabled !== undefined) {
-        updates.enabled = body.enabled;
-      }
-      if (body.description !== undefined) {
-        updates.description = body.description;
-      }
-
-      await flagsRepo.update(key, updates);
 
       return c.body(null, 204);
     },
