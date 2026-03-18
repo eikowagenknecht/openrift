@@ -1,7 +1,7 @@
 import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "./db/index.js";
+import type { Database } from "../db/index.js";
 
 /**
  * Resolve card_id dynamically: direct card name match → alias match → printing source match.

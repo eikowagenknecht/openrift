@@ -1,7 +1,6 @@
 import type { Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 
-import { resolveCardId } from "../db-helpers.js";
 import type {
   CardSourcesTable,
   CardsTable,
@@ -10,6 +9,7 @@ import type {
   PrintingSourcesTable,
   PrintingsTable,
 } from "../db/index.js";
+import { resolveCardId } from "./query-helpers.js";
 
 /**
  * Reusable WHERE filter: exclude card_sources that appear in ignored_card_sources.

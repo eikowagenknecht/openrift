@@ -1,7 +1,6 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { imageUrl } from "../db-helpers.js";
 import type {
   CardsTable,
   Database,
@@ -9,6 +8,7 @@ import type {
   PrintingsTable,
   SetsTable,
 } from "../db/index.js";
+import { imageUrl } from "./query-helpers.js";
 
 /** Card columns returned by the catalog (excludes normName and timestamps). */
 type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt">;

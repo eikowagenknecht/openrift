@@ -11,6 +11,12 @@ type Trx = Transaction<Database> | Kysely<Database>;
  */
 export function setsRepo(db: Kysely<Database>) {
   return {
+    /** @returns Whether at least one set exists (used for health checks). */
+    async hasAny(): Promise<boolean> {
+      const row = await db.selectFrom("sets").select("id").limit(1).executeTakeFirst();
+      return row !== undefined;
+    },
+
     /** @returns All sets ordered by sort order. */
     listAll(): Promise<Selectable<SetsTable>[]> {
       return db.selectFrom("sets").selectAll().orderBy("sortOrder").execute();

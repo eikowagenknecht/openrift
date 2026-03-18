@@ -1,8 +1,8 @@
 import type { ActivityAction, ActivityType, CardType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 
-import { imageUrl } from "../db-helpers.js";
 import type { ActivitiesTable, ActivityItemsTable, Database, PrintingsTable } from "../db/index.js";
+import { imageUrl } from "./query-helpers.js";
 
 /** Activity item row with printing, card, and image details. */
 type ActivityItemRow = Pick<

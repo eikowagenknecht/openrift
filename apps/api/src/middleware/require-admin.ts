@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 import { AppError } from "../errors.js";
+import { adminsRepo } from "../repositories/admins.js";
 import type { Variables } from "../types.js";
 
 const ADMIN_CACHE_TTL = 30_000; // 30 seconds
@@ -14,13 +15,9 @@ async function isAdmin(db: Kysely<Database>, userId: string): Promise<boolean> {
     return true;
   }
 
-  const row = await db
-    .selectFrom("admins")
-    .select("userId")
-    .where("userId", "=", userId)
-    .executeTakeFirst();
+  const found = await adminsRepo(db).isAdmin(userId);
 
-  if (row) {
+  if (found) {
     adminCache.set(userId, Date.now() + ADMIN_CACHE_TTL);
     return true;
   }

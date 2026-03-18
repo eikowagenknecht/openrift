@@ -1,9 +1,17 @@
-import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
+import { extractKeywords } from "@openrift/shared/keywords";
+import type {
+  ArtVariant,
+  CardType,
+  Domain,
+  Finish,
+  Rarity,
+  SuperType,
+} from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable, Transaction, UpdateResult } from "kysely";
 import { sql } from "kysely";
 
-import { resolveCardId } from "../db-helpers.js";
 import type { CardSourcesTable, CardsTable, Database, PrintingSourcesTable } from "../db/index.js";
+import { resolveCardId } from "./query-helpers.js";
 
 type Trx = Transaction<Database> | Kysely<Database>;
 
@@ -510,6 +518,79 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     async deleteBySource(source: string): Promise<number> {
       const result = await db.deleteFrom("cardSources").where("source", "=", source).execute();
       return Number(result[0].numDeletedRows);
+    },
+
+    // ── Accept new card from sources ─────────────────────────────────────────
+
+    /**
+     * Create a new card from source data,
+     * then link all card_sources with the given normalized name to the new card.
+     * Printings are accepted separately via acceptNewPrintingFromSource.
+     */
+    async acceptNewCardFromSources(
+      trx: Transaction<Database>,
+      cardFields: {
+        id: string;
+        name: string;
+        type: CardType;
+        superTypes?: SuperType[];
+        domains: Domain[];
+        might?: number | null;
+        energy?: number | null;
+        power?: number | null;
+        mightBonus?: number | null;
+        rulesText?: string | null;
+        effectText?: string | null;
+        tags?: string[];
+      },
+      normalizedName: string,
+    ): Promise<void> {
+      const keywords = [
+        ...extractKeywords(cardFields.rulesText ?? ""),
+        ...extractKeywords(cardFields.effectText ?? ""),
+      ].filter((v, i, a) => a.indexOf(v) === i);
+
+      const { id: cardUuid } = await trx
+        .insertInto("cards")
+        .values({
+          slug: cardFields.id,
+          name: cardFields.name,
+          type: cardFields.type,
+          superTypes: cardFields.superTypes ?? [],
+          domains: cardFields.domains,
+          might: cardFields.might ?? null,
+          energy: cardFields.energy ?? null,
+          power: cardFields.power ?? null,
+          mightBonus: cardFields.mightBonus ?? null,
+          keywords,
+          rulesText: cardFields.rulesText ?? null,
+          effectText: cardFields.effectText ?? null,
+          tags: cardFields.tags ?? [],
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+
+      await trx
+        .insertInto("cardNameAliases")
+        .values({ normName: normalizedName, cardId: cardUuid })
+        .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId: cardUuid }))
+        .execute();
+    },
+
+    /**
+     * Create name aliases for every distinct spelling of the normalized name,
+     * so that resolveCardId() can match card_sources to this card dynamically.
+     */
+    async createNameAliases(
+      trx: Transaction<Database>,
+      normalizedName: string,
+      cardId: string,
+    ): Promise<void> {
+      await trx
+        .insertInto("cardNameAliases")
+        .values({ normName: normalizedName, cardId: cardId })
+        .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId: cardId }))
+        .execute();
     },
   };
 }
