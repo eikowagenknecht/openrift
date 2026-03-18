@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 
 import { ErrorBoundary, RouterErrorFallback } from "./components/error-fallback";
-import { loadFeatureFlags } from "./lib/feature-flags";
+import { featureFlagsQueryOptions } from "./lib/feature-flags";
 import { routeTree } from "./routeTree.gen";
 
 // oxlint-disable-next-line import/no-unassigned-import -- CSS side-effect import
@@ -62,8 +62,8 @@ if (!root) {
   throw new Error("Root element not found");
 }
 
-// Fetch feature flags before rendering so featureEnabled() is ready synchronously.
-await loadFeatureFlags();
+// Pre-populate feature flags in the query cache so they're available immediately.
+await queryClient.ensureQueryData(featureFlagsQueryOptions);
 
 createRoot(root).render(
   <StrictMode>

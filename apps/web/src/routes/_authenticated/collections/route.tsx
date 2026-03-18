@@ -3,7 +3,8 @@ import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-r
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { featureEnabled } from "@/lib/feature-flags";
+import type { FeatureFlags } from "@/lib/feature-flags";
+import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 
 const pageTitles: Record<string, string> = {
   "/_authenticated/collections/": "All Cards",
@@ -11,8 +12,11 @@ const pageTitles: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/_authenticated/collections")({
-  beforeLoad: () => {
-    if (!featureEnabled("collection")) {
+  beforeLoad: async ({ context }) => {
+    const flags = (await context.queryClient.ensureQueryData(
+      featureFlagsQueryOptions,
+    )) as FeatureFlags;
+    if (!featureEnabled(flags, "collection")) {
       throw redirect({ to: "/cards" });
     }
   },

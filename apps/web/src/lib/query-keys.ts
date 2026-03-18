@@ -3,6 +3,9 @@ import type { TimeRange } from "@openrift/shared";
 import type { SourceMappingConfig } from "@/components/admin/price-mappings-types";
 
 export const queryKeys = {
+  featureFlags: {
+    all: ["feature-flags"] as const,
+  },
   catalog: {
     all: ["catalog"] as const,
   },
