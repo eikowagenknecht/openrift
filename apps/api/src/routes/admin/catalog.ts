@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import type { AdminSetResponse, MarketplaceGroupResponse } from "@openrift/shared";
-import { slugParamSchema } from "@openrift/shared/schemas";
+import { idParamSchema } from "@openrift/shared/schemas";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod/v4";
@@ -24,15 +24,18 @@ function listGroups(marketplace: "cardmarket" | "tcgplayer") {
     const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
     const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
 
-    const items: MarketplaceGroupResponse[] = groups.map((g) => ({
-      marketplace,
-      groupId: g.groupId,
-      name: g.name,
-      abbreviation: g.abbreviation,
-      stagedCount: countMap.get(g.groupId) ?? 0,
-      assignedCount: assignedMap.get(g.groupId) ?? 0,
-    }));
-    return c.json({ groups: items });
+    return c.json({
+      groups: groups.map(
+        (g): MarketplaceGroupResponse => ({
+          marketplace,
+          groupId: g.groupId,
+          name: g.name,
+          abbreviation: g.abbreviation,
+          stagedCount: countMap.get(g.groupId) ?? 0,
+          assignedCount: assignedMap.get(g.groupId) ?? 0,
+        }),
+      ),
+    });
   };
 }
 
@@ -60,7 +63,7 @@ const createSetSchema = z.object({
 });
 
 const reorderSetsSchema = z.object({
-  ids: z.array(z.string()).min(1),
+  ids: z.array(z.uuid()).min(1),
 });
 
 // ── Route ───────────────────────────────────────────────────────────────────
@@ -107,22 +110,25 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     const cardCountMap = new Map(cardCounts.map((r) => [r.setId, r.cardCount]));
     const printingCountMap = new Map(printingCounts.map((r) => [r.setId, r.printingCount]));
 
-    const items: AdminSetResponse[] = sets.map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      printedTotal: s.printedTotal,
-      sortOrder: s.sortOrder,
-      releasedAt: s.releasedAt,
-      cardCount: cardCountMap.get(s.id) ?? 0,
-      printingCount: printingCountMap.get(s.id) ?? 0,
-    }));
-    return c.json({ sets: items });
+    return c.json({
+      sets: sets.map(
+        (s): AdminSetResponse => ({
+          id: s.id,
+          slug: s.slug,
+          name: s.name,
+          printedTotal: s.printedTotal,
+          sortOrder: s.sortOrder,
+          releasedAt: s.releasedAt,
+          cardCount: cardCountMap.get(s.id) ?? 0,
+          printingCount: printingCountMap.get(s.id) ?? 0,
+        }),
+      ),
+    });
   })
 
   .patch(
     "/sets/:id",
-    zValidator("param", slugParamSchema),
+    zValidator("param", idParamSchema),
     zValidator("json", updateSetSchema),
     async (c) => {
       const { sets: setsRepo } = c.get("repos");
@@ -142,32 +148,28 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     const { sets: setsRepo } = c.get("repos");
     const { id, name, printedTotal, releasedAt } = c.req.valid("json");
 
-    const created = await setsRepo.createIfNotExists({ slug: id, name, printedTotal, releasedAt });
-    if (!created) {
+    const setId = await setsRepo.createIfNotExists({ slug: id, name, printedTotal, releasedAt });
+    if (!setId) {
       throw new AppError(409, "CONFLICT", `Set with ID "${id}" already exists`);
     }
 
-    return c.body(null, 201);
+    return c.json({ id: setId }, 201);
   })
 
-  .delete("/sets/:id", zValidator("param", slugParamSchema), async (c) => {
+  .delete("/sets/:id", zValidator("param", idParamSchema), async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { id } = c.req.valid("param");
 
-    const set = await setsRepo.getBySlugWithPrintingCount(id);
-    if (!set) {
-      throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
-    }
-
-    if (set.printingCount > 0) {
+    const printingCount = await setsRepo.printingCount(id);
+    if (printingCount > 0) {
       throw new AppError(
         409,
         "CONFLICT",
-        `Cannot delete set "${id}" — it still has ${set.printingCount} printing(s). Remove them first.`,
+        `Cannot delete set "${id}" — it still has ${printingCount} printing(s). Remove them first.`,
       );
     }
 
-    await setsRepo.deleteById(set.id);
+    await setsRepo.deleteById(id);
 
     return c.body(null, 204);
   })
@@ -192,8 +194,8 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       );
     }
 
-    const knownSlugs = new Set(allSets.map((s) => s.slug));
-    const unknown = ids.filter((slug) => !knownSlugs.has(slug));
+    const knownIds = new Set(allSets.map((s) => s.id));
+    const unknown = ids.filter((id) => !knownIds.has(id));
     if (unknown.length > 0) {
       throw new AppError(400, "BAD_REQUEST", `Unknown set IDs: ${unknown.join(", ")}`);
     }

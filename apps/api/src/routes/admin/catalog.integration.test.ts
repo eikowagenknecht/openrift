@@ -43,6 +43,9 @@ if (ctx) {
 // Tests
 // ---------------------------------------------------------------------------
 
+// Store UUIDs returned by POST so subsequent tests can use them
+const setIds: Record<string, string> = {};
+
 describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = ctx!;
@@ -64,6 +67,8 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
+      const json = await res.json();
+      setIds["CAT-core-set"] = json.id;
     });
 
     it("creates a second set", async () => {
@@ -76,6 +81,8 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(201);
+      const json = await res.json();
+      setIds["CAT-expansion-one"] = json.id;
     });
 
     it("returns 409 for duplicate slug", async () => {
@@ -159,7 +166,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
   describe("PATCH /admin/sets/:id", () => {
     it("updates a set", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/sets/CAT-core-set", {
+        req("PATCH", `/admin/sets/${setIds["CAT-core-set"]}`, {
           name: "CAT Core Set Revised",
           printedTotal: 210,
           releasedAt: "2025-02-01",
@@ -183,14 +190,16 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
   describe("PUT /admin/sets/reorder", () => {
     it("reorders sets", async () => {
-      // Get all sets to include in the reorder (must include all slugs)
+      // Get all sets to include in the reorder (must include all UUIDs)
       const getRes = await app.fetch(req("GET", "/admin/sets"));
       const getJson = await getRes.json();
-      const allSlugs = getJson.sets.map((s: { slug: string }) => s.slug);
+      const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
 
       // Move CAT-expansion-one before CAT-core-set by reversing the order
-      const reordered = allSlugs.filter((s: string) => !s.startsWith("CAT-"));
-      reordered.push("CAT-expansion-one", "CAT-core-set");
+      const coreId = setIds["CAT-core-set"];
+      const expId = setIds["CAT-expansion-one"];
+      const reordered = allIds.filter((id) => id !== coreId && id !== expId);
+      reordered.push(expId, coreId);
 
       const res = await app.fetch(
         req("PUT", "/admin/sets/reorder", {
@@ -212,7 +221,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
     it("rejects partial reorder (400)", async () => {
       const res = await app.fetch(
         req("PUT", "/admin/sets/reorder", {
-          ids: ["CAT-core-set"],
+          ids: [setIds["CAT-core-set"]],
         }),
       );
       expect(res.status).toBe(400);
@@ -222,13 +231,13 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
   // ── DELETE /admin/sets/:id ──────────────────────────────────────────────
 
   describe("DELETE /admin/sets/:id", () => {
-    it("returns 404 for non-existent set", async () => {
+    it("returns 400 for non-UUID id", async () => {
       const res = await app.fetch(req("DELETE", "/admin/sets/CAT-does-not-exist"));
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(400);
     });
 
     it("deletes an empty set", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/sets/CAT-expansion-one"));
+      const res = await app.fetch(req("DELETE", `/admin/sets/${setIds["CAT-expansion-one"]}`));
       expect(res.status).toBe(204);
     });
 
@@ -241,7 +250,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
     });
 
     it("deletes the remaining test set", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/sets/CAT-core-set"));
+      const res = await app.fetch(req("DELETE", `/admin/sets/${setIds["CAT-core-set"]}`));
       expect(res.status).toBe(204);
     });
   });

@@ -93,7 +93,7 @@ export function setsRepo(db: Kysely<Database>) {
       name: string;
       printedTotal: number | null;
       releasedAt?: string | null;
-    }): Promise<boolean> {
+    }): Promise<string | null> {
       const result = await db
         .insertInto("sets")
         .values({
@@ -104,9 +104,10 @@ export function setsRepo(db: Kysely<Database>) {
           sortOrder: sql<number>`coalesce((select max(sort_order) from sets), 0) + 1`,
         })
         .onConflict((oc) => oc.column("slug").doNothing())
+        .returning("id")
         .executeTakeFirst();
 
-      return (result?.numInsertedOrUpdatedRows ?? 0n) > 0n;
+      return result?.id ?? null;
     },
 
     /**
@@ -114,13 +115,13 @@ export function setsRepo(db: Kysely<Database>) {
      * @returns `true` if a row was updated.
      */
     async update(
-      slug: string,
+      id: string,
       values: { name: string; printedTotal: number | null; releasedAt: string | null },
     ): Promise<boolean> {
       const result = await db
         .updateTable("sets")
         .set({ ...values, updatedAt: sql`now()` })
-        .where("slug", "=", slug)
+        .where("id", "=", id)
         .executeTakeFirst();
       return (result?.numUpdatedRows ?? 0n) > 0n;
     },
@@ -175,16 +176,16 @@ export function setsRepo(db: Kysely<Database>) {
     },
 
     /** Reorders sets by slug list. Each slug gets sortOrder = index + 1. */
-    async reorder(slugs: string[]): Promise<void> {
-      if (slugs.length === 0) {
+    async reorder(ids: string[]): Promise<void> {
+      if (ids.length === 0) {
         return;
       }
-      const values = sql.join(slugs.map((slug, i) => sql`(${slug}::text, ${i + 1}::int)`));
+      const values = sql.join(ids.map((id, i) => sql`(${id}::uuid, ${i + 1}::int)`));
       await sql`
         update sets
         set sort_order = d.new_order, updated_at = now()
-        from (values ${values}) as d(slug, new_order)
-        where sets.slug = d.slug
+        from (values ${values}) as d(id, new_order)
+        where sets.id = d.id
       `.execute(db);
     },
 
