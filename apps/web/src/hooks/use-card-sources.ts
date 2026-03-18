@@ -22,7 +22,7 @@ export function useCardSourceList(filter: string, source?: string, set?: string)
   return useSuspenseQuery(cardSourceListQueryOptions(filter, source, set));
 }
 
-export const allCardsQueryOptions = queryOptions({
+const allCardsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cardSources.allCards,
   queryFn: () => rpc(client.api.admin["card-sources"]["all-cards"].$get()),
 });
