@@ -928,7 +928,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                           onClick={() =>
                                             linkPrintingSources.mutate({
                                               printingSourceIds: [row.id],
-                                              printingId: p.slug as string,
+                                              printingId: p.id as string,
                                             })
                                           }
                                         >
@@ -1004,7 +1004,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                             onClick={() =>
                                               linkPrintingSources.mutate({
                                                 printingSourceIds: [row.id],
-                                                printingId: p.slug as string,
+                                                printingId: p.id as string,
                                               })
                                             }
                                           >
@@ -1027,7 +1027,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                             onClick={() =>
                                               copyPrintingSource.mutate({
                                                 id: row.id,
-                                                printingId: p.slug as string,
+                                                printingId: p.id as string,
                                               })
                                             }
                                           >
@@ -1365,7 +1365,7 @@ function NewPrintingGroupCard({
                             {existingPrintings.map((p) => (
                               <DropdownMenuItem
                                 key={`link-${p.slug as string}`}
-                                onClick={() => onLink(p.slug as string, [row.id])}
+                                onClick={() => onLink(p.id as string, [row.id])}
                               >
                                 {p.slug as string}
                               </DropdownMenuItem>
@@ -1381,7 +1381,7 @@ function NewPrintingGroupCard({
                             {existingPrintings.map((p) => (
                               <DropdownMenuItem
                                 key={`copy-${p.slug as string}`}
-                                onClick={() => onCopy(row.id, p.slug as string)}
+                                onClick={() => onCopy(row.id, p.id as string)}
                               >
                                 {p.slug as string}
                               </DropdownMenuItem>

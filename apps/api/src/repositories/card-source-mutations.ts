@@ -221,12 +221,12 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
       return db.selectFrom("printingSources").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing's differentiator fields by slug. */
-    getPrintingDifferentiatorsBySlug(slug: string) {
+    /** @returns A printing's differentiator fields by UUID. */
+    getPrintingDifferentiatorsById(id: string) {
       return db
         .selectFrom("printings")
         .select(["id", "finish", "artVariant", "isSigned", "promoTypeId", "rarity"])
-        .where("slug", "=", slug)
+        .where("id", "=", id)
         .executeTakeFirst();
     },
 
@@ -270,9 +270,9 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
     // ── Printing source linking ───────────────────────────────────────────────
 
-    /** @returns A printing's UUID by slug. */
-    getPrintingIdBySlug(slug: string): Promise<{ id: string } | undefined> {
-      return db.selectFrom("printings").select("id").where("slug", "=", slug).executeTakeFirst();
+    /** @returns A printing's slug by UUID. */
+    getPrintingSlugById(id: string): Promise<{ slug: string } | undefined> {
+      return db.selectFrom("printings").select("slug").where("id", "=", id).executeTakeFirst();
     },
 
     /** Bulk-link (or unlink) printing sources to a printing UUID. */
