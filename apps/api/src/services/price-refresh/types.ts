@@ -1,16 +1,11 @@
-import type { PriceRefreshResponse, PriceRefreshUpsertCounts } from "@openrift/shared";
+import type { PriceRefreshUpsertCounts } from "@openrift/shared";
 
 // ── Row-count types ─────────────────────────────────────────────────────
 
-export type UpsertRowCounts = PriceRefreshUpsertCounts;
-
 export interface UpsertCounts {
-  snapshots: UpsertRowCounts;
-  staging: UpsertRowCounts;
+  snapshots: PriceRefreshUpsertCounts;
+  staging: PriceRefreshUpsertCounts;
 }
-
-/** @see PriceRefreshResponse — shared contract */
-export type PriceRefreshResult = PriceRefreshResponse;
 
 // ── Price upsert config ─────────────────────────────────────────────────
 

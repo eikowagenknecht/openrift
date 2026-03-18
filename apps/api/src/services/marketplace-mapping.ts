@@ -1,3 +1,4 @@
+import type { StagedProductResponse } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 
@@ -199,7 +200,7 @@ function buildResponseGroups(
   overrideMap: Map<string, { cardId: string }>,
   mappedProductInfo: Map<string, ProductInfo>,
   groupNameMap: Map<number, string>,
-  mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => Record<string, unknown>,
+  mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => StagedProductResponse,
 ) {
   return [...cardGroups.values()].map((group) => {
     const key = group.cardId;
@@ -230,7 +231,7 @@ function buildResponseGroups(
             avg7Cents: info.avg7Cents,
             avg30Cents: info.avg30Cents,
             isOverride: false,
-            groupId: p.sourceGroupId,
+            groupId: p.sourceGroupId ?? undefined,
             groupName: p.sourceGroupId
               ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
               : undefined,
@@ -326,7 +327,10 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
   }
 
   // 7. Map staged rows to product format
-  const mapStagedRow = (row: StagingRow, extra?: { isOverride?: boolean }) => ({
+  const mapStagedRow = (
+    row: StagingRow,
+    extra?: { isOverride?: boolean },
+  ): StagedProductResponse => ({
     externalId: row.externalId ?? "",
     productName: row.productName,
     finish: row.finish,
