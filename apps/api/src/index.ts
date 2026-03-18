@@ -62,7 +62,7 @@ if (config.cron.enabled) {
 
 // ── 3. Start server ─────────────────────────────────────────────────────────
 
-const app = createApp({ db, auth, config });
+const app = createApp({ db, auth, config, log });
 
 Bun.serve({ fetch: app.fetch, port: config.port });
 log.info(`API server listening on http://localhost:${config.port}`);
