@@ -25,6 +25,19 @@ function notIgnoredCard(alias: string) {
 }
 
 /**
+ * Reusable WHERE filter: exclude card_sources whose source is hidden in source_settings.
+ * @param alias — the card_sources table alias used in the query (e.g. "cs", "cardSources")
+ * @returns SQL boolean expression for NOT EXISTS subquery
+ */
+function notHiddenSource(alias: string) {
+  return sql<SqlBool>`NOT EXISTS (
+    SELECT 1 FROM source_settings ss
+    WHERE ss.source = ${sql.ref(`${alias}.source`)}
+      AND ss.is_hidden = true
+  )`;
+}
+
+/**
  * Reusable WHERE filter: exclude printing_sources that appear in ignored_printing_sources.
  * @param alias — the printing_sources table alias used in the query (e.g. "ps", "printingSources")
  * @param csAlias — the card_sources table alias to resolve the source name
@@ -95,12 +108,13 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Distinct source names, ordered alphabetically. */
+    /** @returns Distinct source names (excluding hidden), ordered alphabetically. */
     async distinctSourceNames(): Promise<string[]> {
       const rows = await db
         .selectFrom("cardSources")
         .select("source")
         .distinct()
+        .where(notHiddenSource("cardSources"))
         .orderBy("source")
         .execute();
       return rows.map((r) => r.source);
@@ -120,6 +134,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
           ),
         ])
         .where(notIgnoredCard("cs"))
+        .where(notHiddenSource("cs"))
         .groupBy("cs.source")
         .orderBy("cs.source")
         .execute();
@@ -175,6 +190,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
           sql<boolean>`bool_or(ps.id IS NOT NULL AND s.id IS NULL)`.as("hasUnknownSet"),
         ])
         .where(notIgnoredCard("cs"))
+        .where(notHiddenSource("cs"))
         .groupBy(sql`COALESCE((${rcid})::text, cs.norm_name)`);
 
       if (source) {
@@ -400,6 +416,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .selectAll()
         .where("cardSources.normName", "in", normNames)
         .where(notIgnoredCard("cardSources"))
+        .where(notHiddenSource("cardSources"))
         .orderBy("source")
         .execute();
     },
@@ -428,6 +445,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
           ]),
         )
         .where(notIgnoredCard("cardSources"))
+        .where(notHiddenSource("cardSources"))
         .orderBy("source")
         .execute();
     },
@@ -496,6 +514,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .selectAll()
         .where("cardSources.normName", "=", normName)
         .where(notIgnoredCard("cardSources"))
+        .where(notHiddenSource("cardSources"))
         .orderBy("source")
         .execute();
     },
