@@ -1,3 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/admin/marketplace-groups")({});
+import { marketplaceGroupsQueryOptions } from "@/hooks/use-marketplace-groups";
+
+export const Route = createFileRoute("/_authenticated/admin/marketplace-groups")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(marketplaceGroupsQueryOptions),
+});

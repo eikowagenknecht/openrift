@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -9,11 +9,13 @@ export type MarketplaceGroup = InferResponseType<
   (typeof client.api.admin)["marketplace-groups"]["$get"]
 >["groups"][number];
 
+export const marketplaceGroupsQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.marketplaceGroups,
+  queryFn: () => rpc(client.api.admin["marketplace-groups"].$get()),
+});
+
 export function useMarketplaceGroups() {
-  return useQuery({
-    queryKey: queryKeys.admin.marketplaceGroups,
-    queryFn: () => rpc(client.api.admin["marketplace-groups"].$get()),
-  });
+  return useQuery(marketplaceGroupsQueryOptions);
 }
 
 export function useUpdateMarketplaceGroup() {

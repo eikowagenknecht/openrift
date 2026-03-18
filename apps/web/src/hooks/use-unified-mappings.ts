@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
   AssignableCard,
@@ -17,8 +17,8 @@ interface UnifiedMappingsResponse {
   allCards: AssignableCard[];
 }
 
-export function useUnifiedMappings(showAll = false) {
-  return useQuery({
+export function unifiedMappingsQueryOptions(showAll = false) {
+  return queryOptions({
     queryKey: queryKeys.admin.unifiedMappings.byFilter(showAll),
     queryFn: () =>
       rpc(
@@ -28,6 +28,10 @@ export function useUnifiedMappings(showAll = false) {
         // Server uses unknown[] for stagedProducts — cast to local types
       ) as unknown as Promise<UnifiedMappingsResponse>,
   });
+}
+
+export function useUnifiedMappings(showAll = false) {
+  return useQuery(unifiedMappingsQueryOptions(showAll));
 }
 
 // Mutations invalidate both the unified query and the per-marketplace queries.

@@ -1,3 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/admin/sources")({});
+import { sourceStatsQueryOptions } from "@/hooks/use-card-sources";
+
+export const Route = createFileRoute("/_authenticated/admin/sources")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(sourceStatsQueryOptions),
+});

@@ -1,13 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 
+export const ignoredProductsQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.ignoredProducts,
+  queryFn: () => rpc(client.api.admin["ignored-products"].$get()),
+});
+
 export function useIgnoredProducts() {
-  return useQuery({
-    queryKey: queryKeys.admin.ignoredProducts,
-    queryFn: () => rpc(client.api.admin["ignored-products"].$get()),
-  });
+  return useQuery(ignoredProductsQueryOptions);
 }
 
 export function useUnignoreProduct() {
