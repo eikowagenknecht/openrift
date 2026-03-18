@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
@@ -70,18 +71,22 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return query.execute();
     },
 
-    /** Update a marketplace group's name. */
+    /**
+     * Update a marketplace group's name.
+     * @returns `true` if a row was updated.
+     */
     async updateGroupName(
       marketplace: string,
       groupId: number,
       name: string | null,
-    ): Promise<void> {
-      await db
+    ): Promise<boolean> {
+      const result = await db
         .updateTable("marketplaceGroups")
-        .set({ name, updatedAt: new Date() })
+        .set({ name, updatedAt: sql`now()` })
         .where("marketplace", "=", marketplace)
         .where("groupId", "=", groupId)
-        .execute();
+        .executeTakeFirst();
+      return (result?.numUpdatedRows ?? 0n) > 0n;
     },
 
     // ── Ignored products ────────────────────────────────────────────────────

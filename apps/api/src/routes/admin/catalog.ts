@@ -85,7 +85,10 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       const { id } = c.req.valid("param");
       const { name } = c.req.valid("json");
 
-      await mktAdmin.updateGroupName("cardmarket", id, name);
+      const updated = await mktAdmin.updateGroupName("cardmarket", id, name);
+      if (!updated) {
+        throw new AppError(404, "NOT_FOUND", `Cardmarket group ${id} not found`);
+      }
 
       return c.body(null, 204);
     },
@@ -127,7 +130,10 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       const { id } = c.req.valid("param");
       const { name, printedTotal, releasedAt } = c.req.valid("json");
 
-      await setsRepo.update(id, { name, printedTotal, releasedAt });
+      const updated = await setsRepo.update(id, { name, printedTotal, releasedAt });
+      if (!updated) {
+        throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
+      }
 
       return c.body(null, 204);
     },
@@ -154,11 +160,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
     }
 
-    const [cardCount, printingCount] = await Promise.all([
-      setsRepo.cardCount(set.id),
-      setsRepo.printingCount(set.id),
-    ]);
-
+    const printingCount = await setsRepo.printingCount(set.id);
     if (printingCount > 0) {
       throw new AppError(
         409,
@@ -167,15 +169,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       );
     }
 
-    if (cardCount > 0) {
-      throw new AppError(
-        409,
-        "CONFLICT",
-        `Cannot delete set "${id}" — it still has ${cardCount} card(s) linked via printings. Remove them first.`,
-      );
-    }
-
-    await setsRepo.deleteBySlug(id);
+    await setsRepo.deleteById(set.id);
 
     return c.body(null, 204);
   })
@@ -186,6 +180,11 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     const { sets: setsRepo } = c.get("repos");
     const { ids } = c.req.valid("json");
 
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size !== ids.length) {
+      throw new AppError(400, "BAD_REQUEST", "Duplicate set IDs in reorder list.");
+    }
+
     const allSets = await setsRepo.listAll();
     if (ids.length !== allSets.length) {
       throw new AppError(
@@ -193,6 +192,12 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
         "BAD_REQUEST",
         `Expected ${allSets.length} set IDs but received ${ids.length}. All sets must be included in the reorder.`,
       );
+    }
+
+    const knownSlugs = new Set(allSets.map((s) => s.slug));
+    const unknown = ids.filter((slug) => !knownSlugs.has(slug));
+    if (unknown.length > 0) {
+      throw new AppError(400, "BAD_REQUEST", `Unknown set IDs: ${unknown.join(", ")}`);
     }
 
     await setsRepo.reorder(ids);

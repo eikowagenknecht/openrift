@@ -93,21 +93,25 @@ export function setsRepo(db: Kysely<Database>) {
       return (result?.numInsertedOrUpdatedRows ?? 0n) > 0n;
     },
 
-    /** Updates a set by slug. */
+    /**
+     * Updates a set by slug.
+     * @returns `true` if a row was updated.
+     */
     async update(
       slug: string,
       values: { name: string; printedTotal: number | null; releasedAt: string | null },
-    ): Promise<void> {
-      await db
+    ): Promise<boolean> {
+      const result = await db
         .updateTable("sets")
-        .set({ ...values, updatedAt: new Date() })
+        .set({ ...values, updatedAt: sql`now()` })
         .where("slug", "=", slug)
-        .execute();
+        .executeTakeFirst();
+      return (result?.numUpdatedRows ?? 0n) > 0n;
     },
 
-    /** Deletes a set by slug. */
-    async deleteBySlug(slug: string): Promise<void> {
-      await db.deleteFrom("sets").where("slug", "=", slug).execute();
+    /** Deletes a set by UUID. */
+    async deleteById(id: string): Promise<void> {
+      await db.deleteFrom("sets").where("id", "=", id).execute();
     },
 
     /** @returns The count of distinct cards in a set (by set UUID). */
@@ -156,15 +160,16 @@ export function setsRepo(db: Kysely<Database>) {
 
     /** Reorders sets by slug list. Each slug gets sortOrder = index + 1. */
     async reorder(slugs: string[]): Promise<void> {
-      await db.transaction().execute(async (tx) => {
-        for (let i = 0; i < slugs.length; i++) {
-          await tx
-            .updateTable("sets")
-            .set({ sortOrder: i + 1, updatedAt: new Date() })
-            .where("slug", "=", slugs[i])
-            .execute();
-        }
-      });
+      await sql`
+        update sets
+        set sort_order = d.new_order, updated_at = now()
+        from unnest(${sql.array(slugs, "text")}::text[], ${sql.array(
+          slugs.map((_, i) => i + 1),
+          "int4",
+        )}::int[])
+          as d(slug, new_order)
+        where sets.slug = d.slug
+      `.execute(db);
     },
 
     /**
