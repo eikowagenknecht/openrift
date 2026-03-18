@@ -1,3 +1,5 @@
+export type { ApiErrorResponse } from "./error.js";
+
 export type {
   CatalogCardResponse,
   CatalogPrintingResponse,

@@ -38,6 +38,7 @@ export { TIME_RANGE_DAYS } from "./pricing.js";
 export type {
   AdminPrintingImageResponse,
   AdminSetResponse,
+  ApiErrorResponse,
   AssignableCardResponse,
   CardSourceResponse,
   CardSourceSummaryResponse,

@@ -1,3 +1,4 @@
+import type { ApiErrorResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
@@ -75,22 +76,30 @@ export function createApp(deps: AppDeps) {
     // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Hono's onError API takes a callback
     .onError((err, c) => {
       if (err instanceof AppError) {
-        const body: Record<string, unknown> = { error: err.message, code: err.code };
-        if (err.details !== undefined) {
+        if (err.status >= 500) {
+          log.error({ err, method: c.req.method, path: c.req.path }, "AppError 5xx");
+        }
+        const body: ApiErrorResponse = { error: err.message, code: err.code };
+        if (config.isDev && err.details !== undefined) {
           body.details = err.details;
         }
         return c.json(body, err.status as ContentfulStatusCode);
       }
 
       if (err instanceof z.ZodError) {
-        return c.json(
-          { error: "Invalid request body", code: "VALIDATION_ERROR", details: err.issues },
-          400,
-        );
+        const body: ApiErrorResponse = {
+          error: "Invalid request body",
+          code: "VALIDATION_ERROR",
+        };
+        if (config.isDev) {
+          body.details = err.issues;
+        }
+        return c.json(body, 400);
       }
 
       if (err instanceof HTTPException) {
-        return err.getResponse();
+        const body: ApiErrorResponse = { error: err.message, code: "HTTP_ERROR" };
+        return c.json(body, err.status);
       }
 
       if (err instanceof SyntaxError) {
@@ -98,7 +107,14 @@ export function createApp(deps: AppDeps) {
       }
 
       log.error({ err, method: c.req.method, path: c.req.path }, "Unhandled error");
-      return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
+      const body: ApiErrorResponse = {
+        error: "Internal server error",
+        code: "INTERNAL_ERROR",
+      };
+      if (config.isDev) {
+        body.details = { message: err.message, stack: err.stack };
+      }
+      return c.json(body, 500);
     })
 
     .use(

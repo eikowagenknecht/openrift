@@ -7,6 +7,7 @@ export type {
   ActivityType,
   AdminPrintingImageResponse,
   AdminSetResponse,
+  ApiErrorResponse,
   ArtVariant,
   AssignableCardResponse,
   Card,
