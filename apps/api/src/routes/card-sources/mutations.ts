@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { CardSourceUploadResponse } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
@@ -686,7 +687,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       unchanged: result.unchanged,
       errors: result.errors,
       updatedCards: result.updatedCards,
-    });
+    } satisfies CardSourceUploadResponse);
   })
 
   // ── DELETE /by-source/:source ─────────────────────────────────────────────

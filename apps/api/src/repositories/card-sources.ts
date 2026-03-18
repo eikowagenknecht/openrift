@@ -296,21 +296,97 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Unlinked printing_sources (candidates) for matched cards. */
-    listCandidateSourceIds(
-      normNames: string[],
-    ): Promise<{ cardId: string | null; sourceId: string }[]> {
+    /** @returns Unlinked printing_sources with grouping fields for matched cards. */
+    listUnlinkedPrintingSourcesForCards(normNames: string[]): Promise<
+      {
+        cardId: string;
+        sourceId: string;
+        groupKey: string;
+        setId: string | null;
+        rarity: string | null;
+        finish: string | null;
+        artVariant: string | null;
+        isSigned: boolean | null;
+        promoTypeId: string | null;
+      }[]
+    > {
       if (normNames.length === 0) {
         return Promise.resolve([]);
       }
       return db
         .selectFrom("printingSources as ps")
         .innerJoin("cardSources as cs", "cs.id", "ps.cardSourceId")
-        .select([resolveCardId("cs").as("cardId"), "ps.sourceId"])
+        .select([
+          resolveCardId("cs").as("cardId"),
+          "ps.sourceId",
+          "ps.groupKey",
+          "ps.setId",
+          "ps.rarity",
+          "ps.finish",
+          "ps.artVariant",
+          "ps.isSigned",
+          "ps.promoTypeId",
+        ])
         .where("cs.normName", "in", normNames)
         .where("ps.printingId", "is", null)
-        .orderBy("ps.sourceId")
-        .execute() as Promise<{ cardId: string | null; sourceId: string }[]>;
+        .where(notHiddenSource("cs"))
+        .execute() as Promise<
+        {
+          cardId: string;
+          sourceId: string;
+          groupKey: string;
+          setId: string | null;
+          rarity: string | null;
+          finish: string | null;
+          artVariant: string | null;
+          isSigned: boolean | null;
+          promoTypeId: string | null;
+        }[]
+      >;
+    },
+
+    /** @returns Accepted printings with matching fields for given card IDs. Set ID returned as slug. */
+    listPrintingsForCards(cardIds: string[]): Promise<
+      {
+        id: string;
+        cardId: string;
+        setSlug: string | null;
+        rarity: string;
+        finish: string;
+        artVariant: string;
+        isSigned: boolean;
+        promoTypeId: string | null;
+      }[]
+    > {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printings")
+        .leftJoin("sets", "sets.id", "printings.setId")
+        .select([
+          "printings.id",
+          "printings.cardId",
+          "sets.slug as setSlug",
+          "printings.rarity",
+          "printings.finish",
+          "printings.artVariant",
+          "printings.isSigned",
+          "printings.promoTypeId",
+        ])
+        .where("printings.cardId", "in", cardIds)
+        .execute() as Promise<
+        {
+          id: string;
+          cardId: string;
+          setSlug: string | null;
+          rarity: string;
+          finish: string;
+          artVariant: string;
+          isSigned: boolean;
+          promoTypeId: string | null;
+        }[]
+      >;
     },
 
     /** @returns Card IDs that have at least one printing without an active front image. */

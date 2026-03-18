@@ -1,6 +1,7 @@
+import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
-import type { PriceRefreshResult, UpsertCounts } from "./types.js";
+import type { UpsertCounts } from "./types.js";
 
 /**
  * Log a human-readable breakdown of an upsert result (inserted / updated / unchanged)
@@ -32,7 +33,7 @@ export function logUpsertCounts(log: Logger, counts: UpsertCounts): void {
  */
 export function logFetchSummary(
   log: Logger,
-  counts: PriceRefreshResult["transformed"],
+  counts: PriceRefreshResponse["transformed"],
   ignoredCount: number,
 ): void {
   const ignoredSuffix = ignoredCount > 0 ? `, ${ignoredCount} ignored` : "";

@@ -8,6 +8,7 @@
  * Usage: bun scripts/refresh-tcgplayer-prices.ts
  */
 
+import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { groupIntoMap, toCents } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
@@ -16,7 +17,7 @@ import type { Database } from "../../db/types.js";
 import type { Fetch } from "../../io.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
-import type { GroupRow, PriceRefreshResult, PriceUpsertConfig, StagingRow } from "./types.js";
+import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
 // ── Upsert config ─────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ export async function refreshTcgplayerPrices(
   fetchFn: Fetch,
   db: Kysely<Database>,
   log: Logger,
-): Promise<PriceRefreshResult> {
+): Promise<PriceRefreshResponse> {
   const ignoredKeys = await loadIgnoredKeys(db, "tcgplayer");
 
   // Phase 1: Fetch
