@@ -13,10 +13,13 @@ export function createDb(connectionString: string) {
   const dialect = new PostgresJSDialect({
     postgres: postgres(connectionString, {
       types: {
+        // Override only `date` (OID 1082) so Postgres returns "2024-01-15"
+        // strings instead of Date objects. Timestamps (1114, 1184) are left
+        // as native Date objects deliberately.
         date: {
-          to: 1184,
+          to: 1082,
           from: [1082],
-          serialize: (x: string) => x,
+          serialize: (x: unknown) => (x instanceof Date ? x.toISOString() : String(x)),
           parse: (x: string) => x,
         },
       },
