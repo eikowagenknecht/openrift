@@ -14,7 +14,6 @@ import { createRepos, services as defaultServices } from "./deps.js";
 import { AppError } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
-import { setsRepo } from "./repositories/sets.js";
 import { activitiesRoute } from "./routes/activities.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { catalogRoute } from "./routes/catalog.js";
@@ -22,6 +21,7 @@ import { collectionsRoute } from "./routes/collections.js";
 import { copiesRoute } from "./routes/copies.js";
 import { decksRoute } from "./routes/decks.js";
 import { featureFlagsRoute } from "./routes/feature-flags.js";
+import { healthRoute } from "./routes/health.js";
 import { pricesRoute } from "./routes/prices.js";
 import { shoppingListRoute } from "./routes/shopping-list.js";
 import { sourcesRoute } from "./routes/sources.js";
@@ -129,24 +129,7 @@ export function createApp(deps: AppDeps) {
       await next();
     })
 
-    .get("/api/health", async (c) => {
-      try {
-        await db.selectNoFrom((eb) => eb.lit(1).as("one")).execute();
-      } catch {
-        return c.json({ status: "db_unreachable" }, 503);
-      }
-
-      try {
-        if (!(await setsRepo(db).hasAny())) {
-          return c.json({ status: "db_empty" }, 503);
-        }
-      } catch {
-        return c.json({ status: "db_not_migrated" }, 503);
-      }
-
-      return c.json({ status: "ok" });
-    })
-
+    .route("/api", healthRoute)
     .route("/api", catalogRoute)
     .route("/api", pricesRoute)
     .route("/api", featureFlagsRoute)

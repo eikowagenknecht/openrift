@@ -1,79 +1,24 @@
-import { createLogger } from "@openrift/shared/logger";
-import { describe, expect, it, beforeEach } from "vitest";
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createApp } from "./app.js";
+import { healthRoute } from "./routes/health.js";
 
 // ---------------------------------------------------------------------------
-// Mock deps
+// Mock repos
 // ---------------------------------------------------------------------------
 
-const mockState = {
-  tables: {} as Record<string, unknown[]>,
-  tableErrors: {} as Record<string, boolean>,
-  sqlFails: false,
+const mockSetsRepo = {
+  ping: vi.fn(() => Promise.resolve(true)),
+  hasAny: vi.fn(() => Promise.resolve(true)),
 };
 
-function createMockDb() {
-  return {
-    selectNoFrom: () => {
-      const chain: Record<string, unknown> = {
-        as: () => chain,
-        execute: () => {
-          if (mockState.sqlFails) {
-            throw new Error("connection refused");
-          }
-          return [{ one: 1 }];
-        },
-      };
-      return chain;
-    },
-    selectFrom: (table: string) => {
-      const chain: Record<string, unknown> = {
-        selectAll: () => chain,
-        select: () => chain,
-        orderBy: () => chain,
-        limit: () => chain,
-        execute: () => {
-          if (mockState.tableErrors[table]) {
-            throw new Error(`relation "${table}" does not exist`);
-          }
-          return mockState.tables[table] ?? [];
-        },
-        executeTakeFirst: () => {
-          if (mockState.tableErrors[table]) {
-            throw new Error(`relation "${table}" does not exist`);
-          }
-          return (mockState.tables[table] ?? [])[0];
-        },
-      };
-      return chain;
-    },
-  };
-}
-
-const mockAuth = {
-  handler: () => new Response("ok"),
-  api: { getSession: () => null },
-  $Infer: { Session: { user: null, session: null } },
-};
-
-const mockConfig = {
-  port: 3000,
-  databaseUrl: "postgres://mock",
-  corsOrigin: undefined,
-  auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
-  smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
-};
-
-// oxlint-disable -- test mocks don't match full types
-const app = createApp({
-  db: createMockDb() as any,
-  auth: mockAuth as any,
-  config: mockConfig as any,
-  log: createLogger("test", "silent"),
-});
-// oxlint-enable
+// oxlint-disable-next-line -- test mock doesn't match full Repos type
+const app = new Hono()
+  .use("*", async (c, next) => {
+    c.set("repos", { sets: mockSetsRepo } as never);
+    await next();
+  })
+  .route("/api", healthRoute);
 
 // ---------------------------------------------------------------------------
 // GET /api/health
@@ -81,14 +26,11 @@ const app = createApp({
 
 describe("GET /api/health", () => {
   beforeEach(() => {
-    mockState.tables = {};
-    mockState.tableErrors = {};
-    mockState.sqlFails = false;
+    mockSetsRepo.ping.mockReset().mockResolvedValue(true);
+    mockSetsRepo.hasAny.mockReset().mockResolvedValue(true);
   });
 
   it('returns { status: "ok" } when db is healthy and has data', async () => {
-    mockState.tables.sets = [{ id: "OGS" }];
-
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(200);
 
@@ -97,7 +39,7 @@ describe("GET /api/health", () => {
   });
 
   it('returns 503 { status: "db_unreachable" } when sql ping fails', async () => {
-    mockState.sqlFails = true;
+    mockSetsRepo.ping.mockResolvedValue(false);
 
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(503);
@@ -107,7 +49,7 @@ describe("GET /api/health", () => {
   });
 
   it('returns 503 { status: "db_not_migrated" } when sets table does not exist', async () => {
-    mockState.tableErrors.sets = true;
+    mockSetsRepo.hasAny.mockRejectedValue(new Error("relation does not exist"));
 
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(503);
@@ -117,7 +59,7 @@ describe("GET /api/health", () => {
   });
 
   it('returns 503 { status: "db_empty" } when sets table is empty', async () => {
-    mockState.tables.sets = [];
+    mockSetsRepo.hasAny.mockResolvedValue(false);
 
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(503);

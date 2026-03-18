@@ -11,6 +11,16 @@ type Trx = Transaction<Database> | Kysely<Database>;
  */
 export function setsRepo(db: Kysely<Database>) {
   return {
+    /** @returns Whether the database connection is alive. */
+    async ping(): Promise<boolean> {
+      try {
+        await db.selectNoFrom((eb) => eb.lit(1).as("one")).execute();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
     /** @returns Whether at least one set exists (used for health checks). */
     async hasAny(): Promise<boolean> {
       const row = await db.selectFrom("sets").select("id").limit(1).executeTakeFirst();
