@@ -39,10 +39,10 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { useIsAdmin } from "@/hooks/use-admin";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useSWUpdate } from "@/hooks/use-sw-update";
 import { signOut, useSession } from "@/lib/auth-client";
 import { parseChangelog } from "@/lib/changelog";
-import { featureEnabled } from "@/lib/feature-flags";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme-store";
@@ -86,6 +86,7 @@ export function Header() {
   const isHome = useMatch({ from: "/cards", shouldThrow: false });
   const gravatarUrl = useGravatarUrl(session?.user?.email);
 
+  const collectionEnabled = useFeatureEnabled("collection");
   const { checkForUpdate } = useSWUpdate();
   const [checking, setChecking] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -120,7 +121,7 @@ export function Header() {
                     Cards
                   </NavigationMenuLink>
                 </NavigationMenuItem>
-                {session?.user && featureEnabled("collection") && (
+                {session?.user && collectionEnabled && (
                   <NavigationMenuItem>
                     <NavigationMenuLink
                       render={<Link to="/collections" />}

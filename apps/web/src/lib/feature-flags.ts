@@ -1,36 +1,18 @@
-// Feature flags fetched from the API at app boot, with localStorage fallback.
+// Feature flags fetched via React Query — SSR-compatible.
 
-import { client } from "./rpc-client";
+import { queryOptions } from "@tanstack/react-query";
 
-type FeatureFlags = Record<string, boolean>;
+import { queryKeys } from "./query-keys";
+import { client, rpc } from "./rpc-client";
 
-const STORAGE_KEY = "openrift:feature-flags";
+export type FeatureFlags = Record<string, boolean>;
 
-let flags: FeatureFlags = {};
+export const featureFlagsQueryOptions = queryOptions({
+  queryKey: queryKeys.featureFlags.all,
+  queryFn: () => rpc(client.api["feature-flags"].$get()) as Promise<FeatureFlags>,
+  staleTime: 5 * 60 * 1000,
+});
 
-export function featureEnabled(key: string): boolean {
+export function featureEnabled(flags: FeatureFlags, key: string): boolean {
   return flags[key] === true;
-}
-
-export async function loadFeatureFlags(): Promise<void> {
-  try {
-    const res = await client.api["feature-flags"].$get();
-    if (res.ok) {
-      flags = (await res.json()) as FeatureFlags;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(flags));
-      return;
-    }
-  } catch {
-    // Network error — fall through to localStorage
-  }
-
-  // Offline / API unreachable — use last cached flags
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (cached) {
-      flags = JSON.parse(cached) as FeatureFlags;
-    }
-  } catch {
-    // Corrupted localStorage — start with no flags
-  }
 }
