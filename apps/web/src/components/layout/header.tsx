@@ -43,6 +43,7 @@ import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useSWUpdate } from "@/hooks/use-sw-update";
 import { signOut, useSession } from "@/lib/auth-client";
 import { parseChangelog } from "@/lib/changelog";
+import { COMMIT_HASH } from "@/lib/env";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme-store";
@@ -217,7 +218,7 @@ export function Header() {
               <DrawerTitle>What&apos;s new</DrawerTitle>
               <DrawerDescription>
                 Recent changes and improvements.{" "}
-                <span className="text-[10px] tabular-nums">{__COMMIT_HASH__}</span>{" "}
+                <span className="text-[10px] tabular-nums">{COMMIT_HASH}</span>{" "}
                 <button
                   type="button"
                   className="inline-flex cursor-pointer items-baseline gap-1 text-[10px] text-muted-foreground hover:text-foreground"

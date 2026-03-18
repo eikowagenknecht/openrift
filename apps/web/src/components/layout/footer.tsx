@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { siGithub } from "simple-icons";
 
+import { COMMIT_HASH } from "@/lib/env";
+
 export function Footer() {
   return (
     <footer className="mx-auto max-w-3xl px-4 py-4 text-center text-[11px] leading-relaxed text-muted-foreground/60">
@@ -26,7 +28,7 @@ export function Footer() {
           >
             <path d={siGithub.path} />
           </svg>
-          {__COMMIT_HASH__}
+          {COMMIT_HASH}
         </a>
       </p>
       <p className="mt-1">

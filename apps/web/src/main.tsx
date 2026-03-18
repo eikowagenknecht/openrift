@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { toast } from "sonner";
 
 import { ErrorBoundary } from "./components/error-fallback";
+import { createQueryClient } from "./lib/query-client";
 import { createAppRouter } from "./router";
 
 // oxlint-disable-next-line import/no-unassigned-import -- CSS side-effect import
@@ -36,13 +36,7 @@ import "./index.css";
   );
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    mutations: {
-      onError: (err) => toast.error(err.message),
-    },
-  },
-});
+const queryClient = createQueryClient();
 
 const router = createAppRouter(queryClient);
 

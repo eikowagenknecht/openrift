@@ -4,6 +4,7 @@ import { Component } from "react";
 import { createPortal } from "react-dom";
 
 import { buttonVariants } from "@/components/ui/button";
+import { DEV } from "@/lib/env";
 
 const HEADINGS = [
   "The Rift collapsed",
@@ -122,7 +123,7 @@ function ErrorFallback({ error }: { error: Error }) {
       <div className="text-muted-foreground select-none text-4xl font-medium">{emoji}</div>
       <h1 className="text-xl font-semibold">{heading}</h1>
       <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>
-      {import.meta.env.DEV && (
+      {DEV && (
         <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
           {error.message}
         </pre>
