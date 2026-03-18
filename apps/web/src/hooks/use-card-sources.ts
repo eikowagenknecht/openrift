@@ -327,7 +327,7 @@ export function useSourceStats() {
   return useSuspenseQuery(sourceStatsQueryOptions);
 }
 
-export const sourceNamesQueryOptions = queryOptions({
+const sourceNamesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cardSources.sourceNames,
   queryFn: () => rpc(client.api.admin["card-sources"]["source-names"].$get()),
 });
