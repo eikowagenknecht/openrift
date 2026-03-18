@@ -63,7 +63,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           releasedAt: "2025-01-15",
         }),
       );
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(201);
     });
 
     it("creates a second set", async () => {
@@ -75,7 +75,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           releasedAt: null,
         }),
       );
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(201);
     });
 
     it("returns 409 for duplicate slug", async () => {
@@ -208,30 +208,66 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(catSets[0].slug).toBe("CAT-expansion-one");
       expect(catSets[1].slug).toBe("CAT-core-set");
     });
+
+    it("rejects partial reorder (400)", async () => {
+      const res = await app.fetch(
+        req("PUT", "/admin/sets/reorder", {
+          ids: ["CAT-core-set"],
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+  });
+
+  // ── DELETE /admin/sets/:id ──────────────────────────────────────────────
+
+  describe("DELETE /admin/sets/:id", () => {
+    it("returns 404 for non-existent set", async () => {
+      const res = await app.fetch(req("DELETE", "/admin/sets/CAT-does-not-exist"));
+      expect(res.status).toBe(404);
+    });
+
+    it("deletes an empty set", async () => {
+      const res = await app.fetch(req("DELETE", "/admin/sets/CAT-expansion-one"));
+      expect(res.status).toBe(204);
+    });
+
+    it("set no longer appears in GET after deletion", async () => {
+      const res = await app.fetch(req("GET", "/admin/sets"));
+      const json = await res.json();
+
+      const deleted = json.sets.find((s: { slug: string }) => s.slug === "CAT-expansion-one");
+      expect(deleted).toBeUndefined();
+    });
+
+    it("deletes the remaining test set", async () => {
+      const res = await app.fetch(req("DELETE", "/admin/sets/CAT-core-set"));
+      expect(res.status).toBe(204);
+    });
   });
 
   // ── GET /admin/cardmarket-groups ──────────────────────────────────────────
 
   describe("GET /admin/cardmarket-groups", () => {
-    it("returns expansions including seeded group", async () => {
+    it("returns groups including seeded group", async () => {
       const res = await app.fetch(req("GET", "/admin/cardmarket-groups"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.expansions).toBeArray();
+      expect(json.groups).toBeArray();
 
-      const catExpansion = json.expansions.find((e: { groupId: number }) => e.groupId === 10_000);
-      expect(catExpansion).toBeDefined();
-      expect(catExpansion.name).toBe("CAT Test Expansion");
-      expect(catExpansion.stagedCount).toBe(0);
-      expect(catExpansion.assignedCount).toBe(0);
+      const catGroup = json.groups.find((g: { groupId: number }) => g.groupId === 10_000);
+      expect(catGroup).toBeDefined();
+      expect(catGroup.name).toBe("CAT Test Expansion");
+      expect(catGroup.stagedCount).toBe(0);
+      expect(catGroup.assignedCount).toBe(0);
     });
   });
 
   // ── PATCH /admin/cardmarket-groups/:id ────────────────────────────────────
 
   describe("PATCH /admin/cardmarket-groups/:id", () => {
-    it("updates expansion name", async () => {
+    it("updates group name", async () => {
       const res = await app.fetch(
         req("PATCH", "/admin/cardmarket-groups/10000", {
           name: "CAT Renamed Expansion",
@@ -244,8 +280,8 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       const res = await app.fetch(req("GET", "/admin/cardmarket-groups"));
       const json = await res.json();
 
-      const catExpansion = json.expansions.find((e: { groupId: number }) => e.groupId === 10_000);
-      expect(catExpansion.name).toBe("CAT Renamed Expansion");
+      const catGroup = json.groups.find((g: { groupId: number }) => g.groupId === 10_000);
+      expect(catGroup.name).toBe("CAT Renamed Expansion");
     });
   });
 

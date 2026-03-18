@@ -10,7 +10,15 @@ import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
-const updateExpansionSchema = z.object({
+const marketplaceParamSchema = z.object({
+  marketplace: z.enum(["cardmarket", "tcgplayer"]),
+});
+
+const numericIdParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const updateGroupNameSchema = z.object({
   name: z.string().nullable(),
 });
 
@@ -34,75 +42,58 @@ const reorderSetsSchema = z.object({
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const catalogRoute = new Hono<{ Variables: Variables }>()
+  .basePath("/admin")
 
-  // ── Cardmarket Expansions ────────────────────────────────────────────────────
+  // ── Marketplace Groups ──────────────────────────────────────────────────────
 
-  .get("/admin/cardmarket-groups", async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-
-    const [expansions, stagingCounts, assignedCounts] = await Promise.all([
-      mktAdmin.listGroupsByMarketplace("cardmarket", "groupId"),
-      mktAdmin.stagingCountsByMarketplaceGroup("cardmarket"),
-      mktAdmin.assignedCountsByMarketplaceGroup("cardmarket"),
-    ]);
-
-    const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
-    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
-
-    const items: MarketplaceGroupResponse[] = expansions.map((e) => ({
-      marketplace: "cardmarket",
-      groupId: e.groupId,
-      name: e.name,
-      abbreviation: null,
-      stagedCount: countMap.get(e.groupId) ?? 0,
-      assignedCount: assignedMap.get(e.groupId) ?? 0,
-    }));
-    return c.json({ expansions: items });
-  })
-
-  .patch(
-    "/admin/cardmarket-groups/:id",
-    zValidator("param", slugParamSchema),
-    zValidator("json", updateExpansionSchema),
+  .get(
+    "/:marketplace{cardmarket|tcgplayer}-groups",
+    zValidator("param", marketplaceParamSchema),
     async (c) => {
       const { marketplaceAdmin: mktAdmin } = c.get("repos");
-      const expansionId = Number(c.req.valid("param").id);
+      const { marketplace } = c.req.valid("param");
+
+      const [groups, stagingCounts, assignedCounts] = await Promise.all([
+        mktAdmin.listGroupsByMarketplace(marketplace),
+        mktAdmin.stagingCountsByMarketplaceGroup(marketplace),
+        mktAdmin.assignedCountsByMarketplaceGroup(marketplace),
+      ]);
+
+      const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
+      const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
+
+      const items: MarketplaceGroupResponse[] = groups.map((g) => ({
+        marketplace,
+        groupId: g.groupId,
+        name: g.name,
+        abbreviation: g.abbreviation,
+        stagedCount: countMap.get(g.groupId) ?? 0,
+        assignedCount: assignedMap.get(g.groupId) ?? 0,
+      }));
+      return c.json({ groups: items });
+    },
+  )
+
+  // Only cardmarket groups have editable names — tcgplayer group names come
+  // preset from the marketplace feed and are not user-editable.
+  .patch(
+    "/cardmarket-groups/:id",
+    zValidator("param", numericIdParamSchema),
+    zValidator("json", updateGroupNameSchema),
+    async (c) => {
+      const { marketplaceAdmin: mktAdmin } = c.get("repos");
+      const { id } = c.req.valid("param");
       const { name } = c.req.valid("json");
 
-      await mktAdmin.updateGroupName("cardmarket", expansionId, name);
+      await mktAdmin.updateGroupName("cardmarket", id, name);
 
       return c.body(null, 204);
     },
   )
 
-  // ── TCGPlayer Groups ─────────────────────────────────────────────────────────
-
-  .get("/admin/tcgplayer-groups", async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-
-    const [groups, stagingCounts, assignedCounts] = await Promise.all([
-      mktAdmin.listGroupsByMarketplace("tcgplayer", "name"),
-      mktAdmin.stagingCountsByMarketplaceGroup("tcgplayer"),
-      mktAdmin.assignedCountsByMarketplaceGroup("tcgplayer"),
-    ]);
-
-    const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
-    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
-
-    const items: MarketplaceGroupResponse[] = groups.map((g) => ({
-      marketplace: "tcgplayer",
-      groupId: g.groupId,
-      name: g.name,
-      abbreviation: g.abbreviation,
-      stagedCount: countMap.get(g.groupId) ?? 0,
-      assignedCount: assignedMap.get(g.groupId) ?? 0,
-    }));
-    return c.json({ groups: items });
-  })
-
   // ── Sets CRUD ─────────────────────────────────────────────────────────────────
 
-  .get("/admin/sets", async (c) => {
+  .get("/sets", async (c) => {
     const { sets: setsRepo } = c.get("repos");
 
     const [sets, cardCounts, printingCounts] = await Promise.all([
@@ -120,10 +111,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       name: s.name,
       printedTotal: s.printedTotal,
       sortOrder: s.sortOrder,
-      releasedAt:
-        (s.releasedAt as unknown) instanceof Date
-          ? (s.releasedAt as unknown as Date).toISOString().slice(0, 10)
-          : (s.releasedAt ?? null),
+      releasedAt: s.releasedAt ?? null,
       cardCount: cardCountMap.get(s.id) ?? 0,
       printingCount: printingCountMap.get(s.id) ?? 0,
     }));
@@ -131,7 +119,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
   })
 
   .patch(
-    "/admin/sets/:id",
+    "/sets/:id",
     zValidator("param", slugParamSchema),
     zValidator("json", updateSetSchema),
     async (c) => {
@@ -145,22 +133,19 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     },
   )
 
-  .post("/admin/sets", zValidator("json", createSetSchema), async (c) => {
+  .post("/sets", zValidator("json", createSetSchema), async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { id, name, printedTotal, releasedAt } = c.req.valid("json");
 
-    const existing = await setsRepo.getBySlug(id);
-    if (existing) {
+    const created = await setsRepo.createIfNotExists({ slug: id, name, printedTotal, releasedAt });
+    if (!created) {
       throw new AppError(409, "CONFLICT", `Set with ID "${id}" already exists`);
     }
 
-    const sortOrder = await setsRepo.nextSortOrder();
-    await setsRepo.create({ slug: id, name, printedTotal, releasedAt, sortOrder });
-
-    return c.body(null, 204);
+    return c.body(null, 201);
   })
 
-  .delete("/admin/sets/:id", zValidator("param", slugParamSchema), async (c) => {
+  .delete("/sets/:id", zValidator("param", slugParamSchema), async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { id } = c.req.valid("param");
 
@@ -169,12 +154,24 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
     }
 
-    const count = await setsRepo.printingCount(set.id);
-    if (count > 0) {
+    const [cardCount, printingCount] = await Promise.all([
+      setsRepo.cardCount(set.id),
+      setsRepo.printingCount(set.id),
+    ]);
+
+    if (printingCount > 0) {
       throw new AppError(
         409,
         "CONFLICT",
-        `Cannot delete set "${id}" — it still has ${count} printing(s). Remove them first.`,
+        `Cannot delete set "${id}" — it still has ${printingCount} printing(s). Remove them first.`,
+      );
+    }
+
+    if (cardCount > 0) {
+      throw new AppError(
+        409,
+        "CONFLICT",
+        `Cannot delete set "${id}" — it still has ${cardCount} card(s) linked via printings. Remove them first.`,
       );
     }
 
@@ -185,9 +182,19 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
 
   // ── Set reorder ───────────────────────────────────────────────────────────────
 
-  .put("/admin/sets/reorder", zValidator("json", reorderSetsSchema), async (c) => {
+  .put("/sets/reorder", zValidator("json", reorderSetsSchema), async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { ids } = c.req.valid("json");
+
+    const allSets = await setsRepo.listAll();
+    if (ids.length !== allSets.length) {
+      throw new AppError(
+        400,
+        "BAD_REQUEST",
+        `Expected ${allSets.length} set IDs but received ${ids.length}. All sets must be included in the reorder.`,
+      );
+    }
+
     await setsRepo.reorder(ids);
     return c.body(null, 204);
   });

@@ -1,4 +1,5 @@
 import type { Kysely, Selectable, Transaction } from "kysely";
+import { sql } from "kysely";
 
 import type { Database, SetsTable } from "../db/index.js";
 
@@ -66,6 +67,32 @@ export function setsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Atomically inserts a set if its slug doesn't already exist.
+     * Computes sortOrder inline (max + 1) to avoid race conditions.
+     * @returns `true` if a row was inserted, `false` if the slug already existed.
+     */
+    async createIfNotExists(values: {
+      slug: string;
+      name: string;
+      printedTotal: number | null;
+      releasedAt?: string | null;
+    }): Promise<boolean> {
+      const result = await db
+        .insertInto("sets")
+        .values({
+          slug: values.slug,
+          name: values.name,
+          printedTotal: values.printedTotal,
+          releasedAt: values.releasedAt ?? null,
+          sortOrder: sql<number>`coalesce((select max(sort_order) from sets), 0) + 1`,
+        })
+        .onConflict((oc) => oc.column("slug").doNothing())
+        .executeTakeFirst();
+
+      return (result?.numInsertedOrUpdatedRows ?? 0n) > 0n;
+    },
+
     /** Updates a set by slug. */
     async update(
       slug: string,
@@ -81,6 +108,16 @@ export function setsRepo(db: Kysely<Database>) {
     /** Deletes a set by slug. */
     async deleteBySlug(slug: string): Promise<void> {
       await db.deleteFrom("sets").where("slug", "=", slug).execute();
+    },
+
+    /** @returns The count of distinct cards in a set (by set UUID). */
+    async cardCount(setId: string): Promise<number> {
+      const { count } = await db
+        .selectFrom("printings")
+        .select((eb) => eb.cast<number>(eb.fn.count("cardId").distinct(), "integer").as("count"))
+        .where("setId", "=", setId)
+        .executeTakeFirstOrThrow();
+      return count;
     },
 
     /** @returns The count of printings in a set (by set UUID). */
