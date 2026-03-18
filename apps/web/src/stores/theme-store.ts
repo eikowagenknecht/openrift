@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { cookieStorage } from "@/lib/cookie-storage";
+
 type Theme = "light" | "dark";
 
 interface ThemeState {
@@ -32,11 +34,14 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: "theme",
+      storage: cookieStorage,
     },
   ),
 );
 
-// Apply the persisted theme on startup (after hydration from localStorage)
+// Apply the persisted theme on startup (after hydration from cookie)
 // and keep the DOM in sync with any future changes.
-useThemeStore.subscribe((state) => applyTheme(state.theme));
-applyTheme(useThemeStore.getState().theme);
+if (typeof document !== "undefined") {
+  useThemeStore.subscribe((state) => applyTheme(state.theme));
+  applyTheme(useThemeStore.getState().theme);
+}

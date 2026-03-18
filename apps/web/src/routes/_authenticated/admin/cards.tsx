@@ -10,9 +10,10 @@ export const Route = createFileRoute("/_authenticated/admin/cards")({
   validateSearch: (search: Record<string, unknown>): CardsSearch => ({
     set: typeof search.set === "string" ? search.set : undefined,
   }),
-  loader: async ({ context, search }) => {
+  loaderDeps: ({ search }) => ({ set: search.set }),
+  loader: async ({ context, deps }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(cardSourceListQueryOptions("all", undefined, search.set)),
+      context.queryClient.ensureQueryData(cardSourceListQueryOptions("all", undefined, deps.set)),
       context.queryClient.ensureQueryData(sourceNamesQueryOptions),
     ]);
   },
