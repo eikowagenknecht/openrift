@@ -1,4 +1,3 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -14,25 +13,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSourceNames } from "@/hooks/use-card-sources";
-import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface RehostResult {
-  total: number;
-  rehosted: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-}
-
-interface RegenerateResult {
-  total: number;
-  regenerated: number;
-  failed: number;
-  errors: string[];
-}
+import type { RehostResult, RegenerateResult } from "@/hooks/use-rehost";
+import {
+  useClearRehosted,
+  useRegenerateImages,
+  useRehostImages,
+  useRehostStatus,
+  useRestoreImageUrls,
+} from "@/hooks/use-rehost";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -44,13 +32,6 @@ function formatBytes(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const value = bytes / 1024 ** i;
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
-}
-
-function useRehostStatus() {
-  return useQuery({
-    queryKey: queryKeys.admin.rehostStatus,
-    queryFn: () => rpc(client.api.admin["rehost-status"].$get()),
-  });
 }
 
 // ── MutationStatus ────────────────────────────────────────────────────────────
@@ -109,58 +90,13 @@ function RehostSection() {
     totalFiles: number;
   } | null>(null);
 
-  const rehostMutation = useMutation({
-    mutationFn: async (): Promise<RehostResult> => {
-      const totals: RehostResult = { total: 0, rehosted: 0, skipped: 0, failed: 0, errors: [] };
-      for (;;) {
-        const batch = await rpc(client.api.admin["rehost-images"].$post({ query: {} }));
-        totals.total += batch.total;
-        totals.rehosted += batch.rehosted;
-        totals.skipped += batch.skipped;
-        totals.failed += batch.failed;
-        totals.errors.push(...batch.errors);
-        refetch();
-        if (batch.total === 0) {
-          break;
-        }
-      }
-      return totals;
-    },
-    onSuccess: () => refetch(),
+  const rehostMutation = useRehostImages(() => refetch());
+
+  const regenMutation = useRegenerateImages((processed, totalFiles) => {
+    setRegenProgress({ processed, totalFiles });
   });
 
-  const regenMutation = useMutation({
-    mutationFn: async (): Promise<RegenerateResult> => {
-      const totals: RegenerateResult = { total: 0, regenerated: 0, failed: 0, errors: [] };
-      let offset = 0;
-      for (;;) {
-        const batch = await rpc(
-          client.api.admin["regenerate-images"].$post({
-            query: { offset: String(offset) },
-          }),
-        );
-        totals.total += batch.total;
-        totals.regenerated += batch.regenerated;
-        totals.failed += batch.failed;
-        totals.errors.push(...batch.errors);
-        setRegenProgress({ processed: offset + batch.total, totalFiles: batch.totalFiles });
-        if (!batch.hasMore) {
-          break;
-        }
-        offset += batch.total;
-      }
-      return totals;
-    },
-    onSuccess: () => {
-      setRegenProgress(null);
-      refetch();
-    },
-  });
-
-  const clearMutation = useMutation({
-    mutationFn: () => rpc(client.api.admin["clear-rehosted"].$post()),
-    onSuccess: () => refetch(),
-  });
+  const clearMutation = useClearRehosted();
 
   if (!status) {
     return null;
@@ -195,7 +131,11 @@ function RehostSection() {
               size="sm"
               variant="outline"
               disabled={anyPending || !status.disk.totalBytes}
-              onClick={() => regenMutation.mutate()}
+              onClick={() =>
+                regenMutation.mutate(undefined, {
+                  onSuccess: () => setRegenProgress(null),
+                })
+              }
             >
               {regenMutation.isPending ? (
                 <LoaderIcon className="size-4 animate-spin" />
@@ -245,14 +185,9 @@ function RehostSection() {
 
 function RestoreUrlsSection() {
   const { data: sourceNames } = useSourceNames();
-  const { refetch } = useRehostStatus();
   const [selectedSource, setSelectedSource] = useState<string>("");
 
-  const restoreMutation = useMutation({
-    mutationFn: (source: string) =>
-      rpc(client.api.admin["restore-image-urls"].$post({ json: { source } })),
-    onSuccess: () => refetch(),
-  });
+  const restoreMutation = useRestoreImageUrls();
 
   return (
     <Card>

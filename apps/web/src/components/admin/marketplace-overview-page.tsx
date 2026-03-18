@@ -1,38 +1,15 @@
-import { useMutation } from "@tanstack/react-query";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
-import {
-  clearActions,
-  formatRelativeTime,
-  refreshActions,
-  useCronStatus,
-} from "@/components/admin/refresh-actions";
+import { formatRelativeTime } from "@/components/admin/refresh-actions";
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCronStatus } from "@/hooks/use-cron-status";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
-import { client, rpc } from "@/lib/rpc-client";
+import type { PriceResult } from "@/hooks/use-prices";
+import { useClearPrices, useRefreshPrices } from "@/hooks/use-prices";
 
 import { ConfirmClearButton } from "./confirm-clear-button";
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-interface PriceResult {
-  transformed: {
-    groups: number;
-    products: number;
-    prices: number;
-  };
-  upserted: {
-    snapshots: { total: number; new: number; updated: number; unchanged: number };
-    staging: { total: number; new: number; updated: number; unchanged: number };
-  };
-}
-
-interface ClearPriceResult {
-  source: string;
-  deleted: { snapshots: number; sources: number; staging: number };
-}
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
@@ -75,19 +52,10 @@ function PriceSection({
   cronKey: keyof CronStatus;
   cronStatus?: CronStatus;
 }) {
-  const key = cronKey;
-  const refreshAction = refreshActions[key];
-  const clearAction = clearActions[key];
   const nextRun = cronStatus?.[cronKey]?.nextRun;
 
-  const refreshMutation = useMutation({
-    mutationFn: async (): Promise<PriceResult | null> => (await rpc(refreshAction.post())) ?? null,
-  });
-
-  const clearMutation = useMutation({
-    mutationFn: (): Promise<ClearPriceResult> =>
-      rpc(client.api.admin["clear-prices"].$post({ json: { source: clearAction.source } })),
-  });
+  const refreshMutation = useRefreshPrices(cronKey);
+  const clearMutation = useClearPrices(cronKey);
 
   const anyPending = refreshMutation.isPending || clearMutation.isPending;
 
