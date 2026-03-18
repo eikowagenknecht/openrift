@@ -17,7 +17,7 @@ export interface PriceResult {
   };
 }
 
-export interface ClearPriceResult {
+interface ClearPriceResult {
   source: string;
   deleted: { snapshots: number; sources: number; staging: number };
 }
