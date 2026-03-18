@@ -9,7 +9,6 @@ import {
 import type { Selectable } from "kysely";
 
 import type { CardSourcesTable, PrintingSourcesTable } from "../db/index.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import { AppError } from "../errors.js";
 import type { cardSourcesRepo } from "../repositories/card-sources.js";
 
@@ -235,62 +234,55 @@ interface ListRow {
  * suggestions, source IDs, then sorts and shapes the response.
  * @returns Sorted card source list items shaped for the JSON response.
  */
-export async function buildCardSourceList(
-  repo: Repo,
-  filter: string,
-  source?: string,
-  set?: string,
-) {
-  const rows = await repo.listGroupedSources(filter, source, set);
+export async function buildCardSourceList(repo: Repo) {
+  const rows = await repo.listGroupedSources();
 
   const allRows: ListRow[] = [...rows];
 
-  // Include cards that have no card_sources (unless filtering for unmatched/source)
-  if (filter !== "unmatched" && !source) {
-    const cardIdsWithSources = new Set(rows.filter((r) => r.cardId).map((r) => r.cardId as string));
-    const orphanCards = await repo.listOrphanCards([...cardIdsWithSources], set);
+  // Include cards that have no card_sources (orphans)
+  const cardIdsWithSources = new Set(rows.filter((r) => r.cardId).map((r) => r.cardId as string));
+  const orphanCards = await repo.listOrphanCards([...cardIdsWithSources]);
 
-    for (const oc of orphanCards) {
-      allRows.push({
-        cardId: oc.id,
-        cardSlug: oc.slug,
-        name: oc.name,
-        groupKey: oc.id,
-        sourceCount: 0,
-        uncheckedCardCount: 0,
-        uncheckedPrintingCount: 0,
-        hasGallery: false,
-        minReleasedAt: null,
-        releasedSetSlug: null,
-        hasKnownSet: false,
-        hasUnknownSet: false,
-        _fromCard: true,
-      });
-    }
+  for (const oc of orphanCards) {
+    allRows.push({
+      cardId: oc.id,
+      cardSlug: oc.slug,
+      name: oc.name,
+      groupKey: oc.id,
+      sourceCount: 0,
+      uncheckedCardCount: 0,
+      uncheckedPrintingCount: 0,
+      hasGallery: false,
+      minReleasedAt: null,
+      releasedSetSlug: null,
+      hasKnownSet: false,
+      hasUnknownSet: false,
+      _fromCard: true,
+    });
+  }
 
-    // Fetch set release info for orphan cards via their printings
-    const orphanIds = orphanCards.map((oc) => oc.id);
-    if (orphanIds.length > 0) {
-      const orphanPrintings = await repo.listOrphanPrintingSetInfo(orphanIds);
-      for (const op of orphanPrintings) {
-        const row = allRows.find((r) => r.cardId === op.cardId && r._fromCard);
-        if (!row) {
-          continue;
+  // Fetch set release info for orphan cards via their printings
+  const orphanIds = orphanCards.map((oc) => oc.id);
+  if (orphanIds.length > 0) {
+    const orphanPrintings = await repo.listOrphanPrintingSetInfo(orphanIds);
+    for (const op of orphanPrintings) {
+      const row = allRows.find((r) => r.cardId === op.cardId && r._fromCard);
+      if (!row) {
+        continue;
+      }
+      const relDate = op.releasedAt ?? null;
+      if (relDate) {
+        if (!row.minReleasedAt || relDate < row.minReleasedAt) {
+          row.minReleasedAt = relDate as string | null;
+          row.releasedSetSlug = op.slug as string | null;
+        } else if (
+          relDate === row.minReleasedAt &&
+          (!row.releasedSetSlug || op.slug < row.releasedSetSlug)
+        ) {
+          row.releasedSetSlug = op.slug as string | null;
         }
-        const relDate = op.releasedAt ?? null;
-        if (relDate) {
-          if (!row.minReleasedAt || relDate < row.minReleasedAt) {
-            row.minReleasedAt = relDate as string | null;
-            row.releasedSetSlug = op.slug as string | null;
-          } else if (
-            relDate === row.minReleasedAt &&
-            (!row.releasedSetSlug || op.slug < row.releasedSetSlug)
-          ) {
-            row.releasedSetSlug = op.slug as string | null;
-          }
-        } else {
-          row.hasKnownSet = true;
-        }
+      } else {
+        row.hasKnownSet = true;
       }
     }
   }
@@ -449,6 +441,7 @@ export async function buildCardSourceList(
       uncheckedCardCount: Number(r.uncheckedCardCount),
       uncheckedPrintingCount: Number(r.uncheckedPrintingCount),
       hasGallery: Boolean(r.hasGallery),
+      releasedSetSlug: r.releasedSetSlug ?? null,
       hasMissingImage: r.cardId ? missingImageCardIds.has(r.cardId) : false,
       suggestedCard: r.cardId ? null : (suggestionMap.get(r.groupKey as string) ?? null),
       formattedSourceIds: formatSourceIds(sourceIds),

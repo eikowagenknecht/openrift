@@ -6,13 +6,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -20,13 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useAutoCheckSources,
-  useCardSourceList,
-  useLinkCard,
-  useSourceNames,
-} from "@/hooks/use-card-sources";
-import { useSourceSettings } from "@/hooks/use-source-settings";
+import { useAutoCheckSources, useCardSourceList, useLinkCard } from "@/hooks/use-card-sources";
 
 type Filter = "all" | "unchecked" | "unmatched" | "active";
 
@@ -34,25 +21,25 @@ export function CardSourcesListPage() {
   const { set: setSlug } = useSearch({ from: "/_authenticated/admin/cards" });
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
-  const [source, setSource] = useState<string>();
-  const { data: sourceNames } = useSourceNames();
-  const { data: sourceSettingsData } = useSourceSettings();
-  const settingsMap = new Map((sourceSettingsData?.sourceSettings ?? []).map((s) => [s.source, s]));
-  const visibleSourceNames = sourceNames
-    .filter((name) => !settingsMap.get(name)?.isHidden)
-    .sort((a, b) => {
-      const aOrder = settingsMap.get(a)?.sortOrder ?? 0;
-      const bOrder = settingsMap.get(b)?.sortOrder ?? 0;
-      if (aOrder !== bOrder) {
-        return aOrder - bOrder;
-      }
-      return a.localeCompare(b);
-    });
-  const { data } = useCardSourceList(filter, source, setSlug);
+  const { data } = useCardSourceList();
   const linkCard = useLinkCard();
   const autoCheck = useAutoCheckSources();
 
-  const rows = data;
+  const rows = data.filter((row) => {
+    if (setSlug && row.releasedSetSlug !== setSlug) {
+      return false;
+    }
+    if (filter === "unchecked") {
+      return row.uncheckedCardCount + row.uncheckedPrintingCount > 0;
+    }
+    if (filter === "unmatched") {
+      return !row.cardId;
+    }
+    if (filter === "active") {
+      return Boolean(row.cardId);
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-4">
@@ -77,23 +64,6 @@ export function CardSourcesListPage() {
           <CheckCheckIcon />
           {autoCheck.isPending ? "Checking..." : "Auto-check matching"}
         </Button>
-
-        <Select
-          value={source ?? ""}
-          onValueChange={(v) => setSource(!v || v === "__all__" ? undefined : v)}
-        >
-          <SelectTrigger size="sm" className="w-48">
-            <SelectValue placeholder="All sources" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All sources</SelectItem>
-            {visibleSourceNames.map((name) => (
-              <SelectItem key={name} value={name}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
         {setSlug && (
           <Badge variant="secondary" className="flex h-8 items-center gap-1">

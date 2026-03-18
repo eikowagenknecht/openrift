@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { cardSourceListQueryOptions, sourceNamesQueryOptions } from "@/hooks/use-card-sources";
+import { cardSourceListQueryOptions } from "@/hooks/use-card-sources";
 import { sourceSettingsQueryOptions } from "@/hooks/use-source-settings";
 
 interface CardsSearch {
@@ -25,11 +25,9 @@ export const Route = createFileRoute("/_authenticated/admin/cards")({
   validateSearch: (search: Record<string, unknown>): CardsSearch => ({
     set: typeof search.set === "string" ? search.set : undefined,
   }),
-  loaderDeps: ({ search }) => ({ set: search.set }),
-  loader: async ({ context, deps }) => {
+  loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(cardSourceListQueryOptions("all", undefined, deps.set)),
-      context.queryClient.ensureQueryData(sourceNamesQueryOptions),
+      context.queryClient.ensureQueryData(cardSourceListQueryOptions),
       context.queryClient.ensureQueryData(sourceSettingsQueryOptions),
     ]);
   },

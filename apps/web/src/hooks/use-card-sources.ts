@@ -4,22 +4,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export function cardSourceListQueryOptions(filter: string, source?: string, set?: string) {
-  const query: Record<string, string> = { filter };
-  if (source) {
-    query.source = source;
-  }
-  if (set) {
-    query.set = set;
-  }
-  return queryOptions({
-    queryKey: queryKeys.admin.cardSources.list(filter, source, set),
-    queryFn: () => rpc(client.api.admin["card-sources"].$get({ query })),
-  });
-}
+export const cardSourceListQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.cardSources.list,
+  queryFn: () => rpc(client.api.admin["card-sources"].$get()),
+});
 
-export function useCardSourceList(filter: string, source?: string, set?: string) {
-  return useSuspenseQuery(cardSourceListQueryOptions(filter, source, set));
+export function useCardSourceList() {
+  return useSuspenseQuery(cardSourceListQueryOptions);
 }
 
 /**
@@ -30,9 +21,16 @@ export function useNextUncheckedCard(currentCardId: string) {
   const queryClient = useQueryClient();
 
   async function fetchNext(): Promise<string | null> {
-    const rows = await queryClient.fetchQuery(cardSourceListQueryOptions("unchecked"));
+    const rows = await queryClient.fetchQuery(cardSourceListQueryOptions);
     const next = rows.find(
-      (r: { cardSlug: string | null }) => r.cardSlug && r.cardSlug !== currentCardId,
+      (r: {
+        cardSlug: string | null;
+        uncheckedCardCount: number;
+        uncheckedPrintingCount: number;
+      }) =>
+        r.cardSlug &&
+        r.cardSlug !== currentCardId &&
+        r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
     );
     return next?.cardSlug ?? null;
   }

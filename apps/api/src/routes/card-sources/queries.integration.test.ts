@@ -318,49 +318,25 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(unmatched.pendingSourceIds).toContain("CSQ-UNK-001");
     });
 
-    it("filter=unchecked returns items with unchecked sources plus orphan cards", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources?filter=unchecked"));
+    it("includes unchecked counts for CSQ Test Card", async () => {
+      const res = await app.fetch(req("GET", "/admin/card-sources"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toBeArray();
-      // Items with sources should have unchecked counts > 0
-      const withSources = json.filter(
-        (item: { sourceCount: number }) => Number(item.sourceCount) > 0,
-      );
-      for (const item of withSources) {
-        const total = Number(item.uncheckedCardCount) + Number(item.uncheckedPrintingCount);
-        expect(total).toBeGreaterThan(0);
-      }
-      // CSQ Test Card with unchecked sources should be present
       const testCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-001");
       expect(testCard).toBeDefined();
+      const total = Number(testCard.uncheckedCardCount) + Number(testCard.uncheckedPrintingCount);
+      expect(total).toBeGreaterThan(0);
     });
 
-    it("filter=unmatched returns only unmatched groups", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources?filter=unmatched"));
+    it("includes unmatched groups with cardId null", async () => {
+      const res = await app.fetch(req("GET", "/admin/card-sources"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toBeArray();
-      // Every item should have cardId === null
-      for (const item of json) {
-        expect(item.cardId).toBeNull();
-      }
-      // "CSQ Unknown Card" should be present
       const unmatched = json.find((r: { name: string }) => r.name === "CSQ Unknown Card");
       expect(unmatched).toBeDefined();
-    });
-
-    it("source=csq-spreadsheet filters by source", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources?source=csq-spreadsheet"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json).toBeArray();
-      // Only "CSQ Test Card" has a csq-spreadsheet source
-      expect(json).toHaveLength(1);
-      expect(json[0].name).toBe("CSQ Test Card");
+      expect(unmatched.cardId).toBeNull();
     });
   });
 

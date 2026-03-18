@@ -1,4 +1,3 @@
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import {
@@ -7,9 +6,7 @@ import {
   buildExport,
   buildUnmatchedDetail,
 } from "../../services/card-source-queries.js";
-// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias for bun runtime
 import type { Variables } from "../../types.js";
-import { cardSourcesQuerySchema } from "./schemas.js";
 
 export const queriesRoute = new Hono<{ Variables: Variables }>()
   .get("/all-cards", async (c) => {
@@ -27,10 +24,9 @@ export const queriesRoute = new Hono<{ Variables: Variables }>()
     return c.json(await cardSources.sourceStats());
   })
 
-  .get("/", zValidator("query", cardSourcesQuerySchema), async (c) => {
+  .get("/", async (c) => {
     const { cardSources } = c.get("repos");
-    const { filter, source, set } = c.req.valid("query");
-    return c.json(await buildCardSourceList(cardSources, filter ?? "all", source, set));
+    return c.json(await buildCardSourceList(cardSources));
   })
 
   .get("/export", async (c) => {

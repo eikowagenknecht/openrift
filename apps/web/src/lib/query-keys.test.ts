@@ -88,26 +88,8 @@ describe("queryKeys.admin.cardSources", () => {
     expect(queryKeys.admin.cardSources.all).toEqual(["admin", "card-sources"]);
   });
 
-  it("list with filter and source", () => {
-    expect(queryKeys.admin.cardSources.list("filter", "source")).toEqual([
-      "admin",
-      "card-sources",
-      "list",
-      "filter",
-      "source",
-      "all",
-    ]);
-  });
-
-  it("list with filter only defaults source to 'all'", () => {
-    expect(queryKeys.admin.cardSources.list("filter")).toEqual([
-      "admin",
-      "card-sources",
-      "list",
-      "filter",
-      "all",
-      "all",
-    ]);
+  it("list", () => {
+    expect(queryKeys.admin.cardSources.list).toEqual(["admin", "card-sources", "list"]);
   });
 
   it("detail", () => {
