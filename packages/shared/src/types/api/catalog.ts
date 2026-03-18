@@ -1,4 +1,4 @@
-import type { Card, PrintingImage } from "../catalog.js";
+import type { Card, PrintingImage, PromoType } from "../catalog.js";
 import type { ArtVariant, Finish, Rarity } from "../enums.js";
 
 export interface CatalogSetResponse {
@@ -19,7 +19,7 @@ export interface CatalogPrintingResponse {
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;
-  isPromo: boolean;
+  promoType: PromoType | null;
   finish: Finish;
   images: PrintingImage[];
   artist: string;

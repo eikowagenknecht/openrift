@@ -36,12 +36,14 @@ import { cn } from "@/lib/utils";
 import type { DiffSegment } from "@/lib/word-diff";
 import { wordDiff } from "@/lib/word-diff";
 
-interface FieldDef {
+export interface FieldDef {
   key: string;
   label: string;
   readOnly?: boolean;
   type?: "boolean";
   options?: readonly string[];
+  /** Options with distinct value/label pairs (e.g. UUID → human label). Takes precedence over `options`. */
+  labeledOptions?: readonly { value: string; label: string }[];
   /** Show another field's value in parentheses after the main value. */
   suffixKey?: string;
   /** When true, this field is hidden behind a collapsible toggle row. */
@@ -73,25 +75,35 @@ export const CARD_SOURCE_FIELDS: FieldDef[] = [
   { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
 ];
 
-export const PRINTING_SOURCE_FIELDS: FieldDef[] = [
-  { key: "sourceId", label: "Source ID" },
-  { key: "setId", label: "Set", suffixKey: "setName" },
-  { key: "collectorNumber", label: "Collector #" },
-  { key: "rarity", label: "Rarity", options: RARITY_ORDER },
-  { key: "artVariant", label: "Art Variant", options: ART_VARIANT_ORDER },
-  { key: "isSigned", label: "Signed", type: "boolean" },
-  { key: "isPromo", label: "Promo", type: "boolean" },
-  { key: "finish", label: "Finish", options: FINISH_ORDER },
-  { key: "artist", label: "Artist" },
-  { key: "publicCode", label: "Public Code" },
-  { key: "printedRulesText", label: "Printed Rules", multiline: true },
-  { key: "printedEffectText", label: "Printed Effect", multiline: true },
-  { key: "flavorText", label: "Flavor Text", multiline: true },
-  { key: "comment", label: "Comment" },
-  { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
-  { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
-  { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
-];
+/** Build printing source fields with promo type options populated from the database.
+ * @returns The field definitions for printing sources. */
+export function buildPrintingSourceFields(
+  promoTypes: readonly { value: string; label: string }[],
+): FieldDef[] {
+  return [
+    { key: "sourceId", label: "Source ID" },
+    { key: "setId", label: "Set", suffixKey: "setName" },
+    { key: "collectorNumber", label: "Collector #" },
+    { key: "rarity", label: "Rarity", options: RARITY_ORDER },
+    { key: "artVariant", label: "Art Variant", options: ART_VARIANT_ORDER },
+    { key: "isSigned", label: "Signed", type: "boolean" },
+    {
+      key: "promoTypeId",
+      label: "Promo Type",
+      labeledOptions: promoTypes.length > 0 ? promoTypes : undefined,
+    },
+    { key: "finish", label: "Finish", options: FINISH_ORDER },
+    { key: "artist", label: "Artist" },
+    { key: "publicCode", label: "Public Code" },
+    { key: "printedRulesText", label: "Printed Rules", multiline: true },
+    { key: "printedEffectText", label: "Printed Effect", multiline: true },
+    { key: "flavorText", label: "Flavor Text", multiline: true },
+    { key: "comment", label: "Comment" },
+    { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
+    { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
+    { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
+  ];
+}
 
 // ── Printing source grouping ──────────────────────────────────────────────────
 
@@ -115,7 +127,7 @@ export interface PrintingGroup {
     collectorNumber: number | null;
     artVariant: string;
     isSigned: boolean;
-    isPromo: boolean;
+    promoTypeId: string | null;
     rarity: string;
     finish: string;
   };
@@ -127,7 +139,7 @@ export function groupPrintingSources(printingSources: PrintingSourceResponse[]):
   for (const ps of printingSources) {
     const variant = ps.artVariant || ("normal" satisfies ArtVariant);
     const finish = resolveFinish(ps.finish, ps.rarity);
-    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.isPromo}|${ps.rarity}|${finish}`;
+    const key = `${ps.setId ?? ""}|${variant}|${ps.isSigned}|${ps.promoTypeId ?? ""}|${ps.rarity}|${finish}`;
     const group = groups.get(key) ?? [];
     group.push(ps);
     groups.set(key, group);
@@ -149,7 +161,7 @@ export function groupPrintingSources(printingSources: PrintingSourceResponse[]):
     if (ps.isSigned) {
       parts.push("signed");
     }
-    if (ps.isPromo) {
+    if (ps.promoTypeId) {
       parts.push("promo");
     }
     return {
@@ -160,7 +172,7 @@ export function groupPrintingSources(printingSources: PrintingSourceResponse[]):
         collectorNumber: ps.collectorNumber,
         artVariant: variant,
         isSigned: ps.isSigned,
-        isPromo: ps.isPromo,
+        promoTypeId: ps.promoTypeId,
         rarity: ps.rarity,
         finish,
       },
@@ -231,6 +243,40 @@ function hasValue(value: unknown): boolean {
   }
   if (Array.isArray(value)) {
     return value.length > 0;
+  }
+  return true;
+}
+
+function hasDropdown(field: FieldDef): boolean {
+  return (
+    (field.options !== undefined && field.options.length > 0) ||
+    (field.labeledOptions !== undefined && field.labeledOptions.length > 0)
+  );
+}
+
+function resolveLabel(field: FieldDef, value: unknown): string {
+  if (!hasValue(value)) {
+    return "\u2014";
+  }
+  if (field.labeledOptions) {
+    const match = field.labeledOptions.find((o) => o.value === String(value));
+    if (match) {
+      return match.label;
+    }
+  }
+  return String(value);
+}
+
+function isValidOption(field: FieldDef, value: unknown): boolean {
+  if (field.labeledOptions) {
+    return Array.isArray(value)
+      ? value.every((v) => field.labeledOptions?.some((o) => o.value === String(v)))
+      : field.labeledOptions.some((o) => o.value === String(value));
+  }
+  if (field.options) {
+    return Array.isArray(value)
+      ? value.every((v) => field.options?.includes(String(v)))
+      : field.options.includes(String(value));
   }
   return true;
 }
@@ -407,7 +453,7 @@ export function SourceSpreadsheet({
                     isMissing && "bg-red-50 dark:bg-red-950/20",
                     onActiveChange &&
                       !field.readOnly &&
-                      (field.type === "boolean" || field.options
+                      (field.type === "boolean" || hasDropdown(field)
                         ? "cursor-pointer hover:bg-muted/30"
                         : "cursor-text hover:bg-muted/30"),
                   )}
@@ -419,7 +465,7 @@ export function SourceSpreadsheet({
                       onActiveChange(field.key, activeValue !== true);
                       return;
                     }
-                    if (field.options) {
+                    if (hasDropdown(field)) {
                       setEditingField(field.key);
                       return;
                     }
@@ -433,7 +479,7 @@ export function SourceSpreadsheet({
                     });
                   }}
                 >
-                  {editingField === field.key && field.options ? (
+                  {editingField === field.key && hasDropdown(field) ? (
                     <Select
                       value={hasValue(activeValue) ? String(activeValue) : ""}
                       onValueChange={(v) => {
@@ -456,11 +502,17 @@ export function SourceSpreadsheet({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">— clear —</SelectItem>
-                        {field.options.map((opt) => (
-                          <SelectItem key={opt} value={opt}>
-                            {opt}
-                          </SelectItem>
-                        ))}
+                        {field.labeledOptions
+                          ? field.labeledOptions.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))
+                          : field.options?.map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
                       </SelectContent>
                     </Select>
                   ) : editingField === field.key && field.multiline ? (
@@ -526,10 +578,12 @@ export function SourceSpreadsheet({
                   ) : (
                     <span className={cn(isMissing ? "text-red-400" : "text-muted-foreground")}>
                       {activeRow
-                        ? formatValue(
-                            activeValue,
-                            field.suffixKey ? activeRow[field.suffixKey] : undefined,
-                          )
+                        ? field.labeledOptions
+                          ? resolveLabel(field, activeValue)
+                          : formatValue(
+                              activeValue,
+                              field.suffixKey ? activeRow[field.suffixKey] : undefined,
+                            )
                         : isMissing
                           ? "required"
                           : "\u2014"}
@@ -539,11 +593,9 @@ export function SourceSpreadsheet({
                 {sortedRows.map((row) => {
                   const sourceValue = (row as unknown as Record<string, unknown>)[field.key];
                   const invalidOption =
-                    field.options &&
+                    hasDropdown(field) &&
                     hasValue(sourceValue) &&
-                    (Array.isArray(sourceValue)
-                      ? sourceValue.some((v) => !field.options?.includes(String(v)))
-                      : !field.options.includes(String(sourceValue)));
+                    !isValidOption(field, sourceValue);
                   const isClickable =
                     !field.readOnly &&
                     !invalidOption &&
@@ -602,6 +654,8 @@ export function SourceSpreadsheet({
                         typeof sourceValue === "string" &&
                         typeof activeValue === "string" ? (
                         <DiffText segments={wordDiff(activeValue, String(sourceValue))} />
+                      ) : field.labeledOptions ? (
+                        resolveLabel(field, sourceValue)
                       ) : (
                         formatValue(
                           sourceValue,

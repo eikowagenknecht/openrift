@@ -11,7 +11,7 @@ export interface MappingPrinting {
   rarity: string;
   artVariant: string;
   isSigned: boolean;
-  isPromo: boolean;
+  promoTypeSlug: string | null;
   finish: string;
   collectorNumber: number;
   imageUrl: string | null;

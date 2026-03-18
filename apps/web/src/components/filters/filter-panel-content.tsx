@@ -31,8 +31,15 @@ export function FilterPanelContent({
   setDisplayLabel,
   layout = "inline",
 }: FilterPanelContentProps) {
-  const { filterState, ranges, toggleArrayFilter, toggleSigned, togglePromo, setRange } =
-    useCardFilters();
+  const {
+    filterState,
+    ranges,
+    toggleArrayFilter,
+    toggleSigned,
+    togglePromo,
+    togglePromoType,
+    setRange,
+  } = useCardFilters();
   return (
     <>
       <FilterSection
@@ -127,6 +134,20 @@ export function FilterPanelContent({
               </Badge>
             )}
           </div>
+          {filterState.promo === "true" && availableFilters.promoTypes.length > 1 && (
+            <div className="flex flex-1 flex-wrap gap-1">
+              {availableFilters.promoTypes.map((pt) => (
+                <Badge
+                  key={pt.slug}
+                  variant={filterState.promoTypes.includes(pt.slug) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => togglePromoType(pt.slug)}
+                >
+                  {pt.label}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <div

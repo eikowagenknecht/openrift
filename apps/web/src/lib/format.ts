@@ -31,8 +31,8 @@ export function formatPrintingLabel(printing: Printing, siblings?: Printing[]): 
   if (printing.isSigned && !allSame((c) => c.isSigned)) {
     parts.push("Signed");
   }
-  if (printing.isPromo && !allSame((c) => c.isPromo)) {
-    parts.push("Promo");
+  if (printing.promoType && !allSame((c) => c.promoType?.slug)) {
+    parts.push(printing.promoType.label);
   }
   return parts.length > 0 ? parts.join(" · ") : "Standard";
 }

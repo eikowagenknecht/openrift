@@ -6,6 +6,7 @@ import type {
   Finish,
   FilterRange,
   Printing,
+  PromoType,
   Rarity,
   SearchField,
   SortOption,
@@ -139,6 +140,27 @@ function matchesFlag(filter: boolean | null, actual: boolean): boolean {
   return filter === null || actual === filter;
 }
 
+function matchesPromo(
+  isPromo: boolean | null,
+  promoTypes: string[],
+  actualSlug: string | null,
+): boolean {
+  if (isPromo === null && promoTypes.length === 0) {
+    return true;
+  }
+  if (isPromo === false) {
+    return actualSlug === null;
+  }
+  if (isPromo === true) {
+    if (actualSlug === null) {
+      return false;
+    }
+    return promoTypes.length === 0 || promoTypes.includes(actualSlug);
+  }
+  // isPromo is null but promoTypes has values — filter by type
+  return actualSlug !== null && promoTypes.includes(actualSlug);
+}
+
 /**
  * Compares by a nullable numeric value, falling back to card name when values are missing or tied.
  *
@@ -211,7 +233,7 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
       includes(filters.artVariants, printing.artVariant || "normal") &&
       includes(filters.finishes, printing.finish) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
-      matchesFlag(filters.isPromo, printing.isPromo) &&
+      matchesPromo(filters.isPromo, filters.promoTypes, printing.promoType?.slug ?? null) &&
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&
       matchesRange(card.power, filters.power) &&
@@ -230,6 +252,7 @@ export interface AvailableFilters {
   finishes: Finish[];
   hasSigned: boolean;
   hasPromo: boolean;
+  promoTypes: PromoType[];
   energy: { min: number; max: number };
   might: { min: number; max: number };
   power: { min: number; max: number };
@@ -284,7 +307,17 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
     artVariants,
     finishes,
     hasSigned: printings.some((p) => p.isSigned),
-    hasPromo: printings.some((p) => p.isPromo),
+    hasPromo: printings.some((p) => p.promoType !== null),
+    promoTypes: [
+      ...new Map(
+        printings
+          .filter(
+            (p): p is typeof p & { promoType: NonNullable<typeof p.promoType> } =>
+              p.promoType !== null,
+          )
+          .map((p) => [p.promoType.slug, p.promoType]),
+      ).values(),
+    ].sort((a, b) => a.slug.localeCompare(b.slug)),
     energy: boundsOf(energies),
     might: boundsOf(mights),
     power: boundsOf(powers),

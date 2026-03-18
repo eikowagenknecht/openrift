@@ -11,6 +11,7 @@ import {
   LayersIcon,
   MapIcon,
   SettingsIcon,
+  TagIcon,
 } from "lucide-react";
 
 import {
@@ -31,6 +32,7 @@ const catalogPages = [
   { to: "/admin/sources" as const, icon: DatabaseIcon, title: "Sources" },
   { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
   { to: "/admin/ignored-sources" as const, icon: BanIcon, title: "Ignored Sources" },
+  { to: "/admin/promo-types" as const, icon: TagIcon, title: "Promo Types" },
 ];
 
 const marketplacePages = [

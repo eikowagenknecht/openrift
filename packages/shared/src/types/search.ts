@@ -49,4 +49,5 @@ export interface CardFilters {
   finishes: Finish[];
   isSigned: boolean | null;
   isPromo: boolean | null;
+  promoTypes: string[];
 }

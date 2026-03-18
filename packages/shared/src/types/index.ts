@@ -20,7 +20,7 @@ export {
   SUPER_TYPE_ORDER,
 } from "./enums.js";
 
-export type { Card, Printing, PrintingImage } from "./catalog.js";
+export type { Card, Printing, PrintingImage, PromoType } from "./catalog.js";
 
 export type {
   CardFilters,
@@ -49,6 +49,7 @@ export type {
   IgnoredProductResponse,
   MarketplaceGroupResponse,
   PrintingSourceResponse,
+  PromoTypeResponse,
   SourceStatsResponse,
 } from "./api/index.js";
 

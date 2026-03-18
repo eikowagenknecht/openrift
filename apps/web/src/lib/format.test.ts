@@ -24,7 +24,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
-    isPromo: false,
+    promoType: null,
     finish: "normal",
     images: [],
     artist: "",
@@ -217,7 +217,12 @@ describe("formatPriceCompact", () => {
 
 describe("formatPrintingLabel", () => {
   it("shows non-normal attributes when no siblings provided", () => {
-    const p = stub({ artVariant: "altart", finish: "foil", isSigned: true, isPromo: true });
+    const p = stub({
+      artVariant: "altart",
+      finish: "foil",
+      isSigned: true,
+      promoType: { id: "1", slug: "promo", label: "Promo" },
+    });
     expect(formatPrintingLabel(p)).toBe("Alt Art · Foil · Signed · Promo");
   });
 
@@ -233,8 +238,9 @@ describe("formatPrintingLabel", () => {
   });
 
   it("includes attributes that differ among siblings", () => {
-    const p = stub({ isSigned: true, isPromo: true });
-    const siblings = [p, stub({ isSigned: false, isPromo: true })];
+    const promoType = { id: "1", slug: "promo", label: "Promo" };
+    const p = stub({ isSigned: true, promoType });
+    const siblings = [p, stub({ isSigned: false, promoType })];
     expect(formatPrintingLabel(p, siblings)).toBe("Signed");
   });
 

@@ -31,15 +31,15 @@ export function groupIntoMap<K, T>(items: T[], keyFn: (item: T) => K): Map<K, T[
 
 /**
  * Build composite printing ID.
- * @returns Deterministic ID string: "{source_id}:{rarity}:{finish}:{promo|}"
+ * @returns Deterministic ID string: "{source_id}:{rarity}:{finish}:{promo_type_slug|}"
  */
 export function buildPrintingId(
   sourceId: string,
   rarity: string,
-  isPromo: boolean,
+  promoTypeSlug: string | null,
   finish: string,
 ): string {
-  return `${sourceId}:${rarity.toLowerCase()}:${finish}:${isPromo ? "promo" : ""}`;
+  return `${sourceId}:${rarity.toLowerCase()}:${finish}:${promoTypeSlug ?? ""}`;
 }
 
 /**
@@ -70,7 +70,7 @@ export function comparePrintings(
     rarity: Rarity | string;
     finish: Finish | string;
     isSigned: boolean;
-    isPromo?: boolean;
+    promoTypeSlug?: string | null;
   },
   b: {
     setId?: string | null;
@@ -79,10 +79,12 @@ export function comparePrintings(
     rarity: Rarity | string;
     finish: Finish | string;
     isSigned: boolean;
-    isPromo?: boolean;
+    promoTypeSlug?: string | null;
   },
 ): number {
   const av = (v: ArtVariant | null): ArtVariant => v || "normal";
+  const promoA = a.promoTypeSlug ?? "";
+  const promoB = b.promoTypeSlug ?? "";
   return (
     (a.setId ?? "").localeCompare(b.setId ?? "") ||
     a.collectorNumber - b.collectorNumber ||
@@ -90,7 +92,8 @@ export function comparePrintings(
     RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity) ||
     FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish) ||
     Number(a.isSigned) - Number(b.isSigned) ||
-    Number(a.isPromo ?? false) - Number(b.isPromo ?? false)
+    Number(promoA !== "") - Number(promoB !== "") ||
+    promoA.localeCompare(promoB)
   );
 }
 

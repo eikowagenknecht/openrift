@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict oEWIIZPiaabLpfGwP4jCUrNqBkCGda9N6lHkTwdO4wKa0BXHtU13hx8XJfePiKc
+\restrict t0elzRhQFdXviJJix0b1dmW8hAScZh2mRCRKYkO33LIqn46wvzU2pAbqAf0YsMv
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -545,7 +545,6 @@ CREATE TABLE public.printing_sources (
     rarity text,
     art_variant text,
     is_signed boolean,
-    is_promo boolean,
     finish text,
     artist text,
     public_code text,
@@ -559,6 +558,7 @@ CREATE TABLE public.printing_sources (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid,
     source_entity_id text NOT NULL,
+    promo_type_id uuid,
     CONSTRAINT chk_printing_sources_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_printing_sources_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_printing_sources_no_empty_artist CHECK ((artist <> ''::text)),
@@ -587,7 +587,6 @@ CREATE TABLE public.printings (
     rarity text NOT NULL,
     art_variant text NOT NULL,
     is_signed boolean DEFAULT false NOT NULL,
-    is_promo boolean DEFAULT false NOT NULL,
     finish text NOT NULL,
     artist text NOT NULL,
     public_code text NOT NULL,
@@ -601,6 +600,7 @@ CREATE TABLE public.printings (
     card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
     set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
     comment text,
+    promo_type_id uuid,
     CONSTRAINT chk_printings_art_variant CHECK ((art_variant = ANY (ARRAY['normal'::text, 'altart'::text, 'overnumbered'::text]))),
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_collector_number_positive CHECK ((collector_number > 0)),
@@ -613,6 +613,22 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_rarity CHECK ((rarity = ANY (ARRAY['Common'::text, 'Uncommon'::text, 'Rare'::text, 'Epic'::text, 'Showcase'::text]))),
     CONSTRAINT chk_printings_slug_not_empty CHECK ((slug <> ''::text)),
     CONSTRAINT chk_printings_source_id_not_empty CHECK ((source_id <> ''::text))
+);
+
+
+--
+-- Name: promo_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.promo_types (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT promo_types_label_check CHECK ((label <> ''::text)),
+    CONSTRAINT promo_types_slug_check CHECK ((slug <> ''::text))
 );
 
 
@@ -1029,6 +1045,22 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: promo_types promo_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.promo_types
+    ADD CONSTRAINT promo_types_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: promo_types promo_types_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.promo_types
+    ADD CONSTRAINT promo_types_slug_key UNIQUE (slug);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1121,7 +1153,7 @@ ALTER TABLE ONLY public.decks
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_variant UNIQUE (source_id, art_variant, is_signed, is_promo, rarity, finish);
+    ADD CONSTRAINT uq_printings_variant UNIQUE (source_id, art_variant, is_signed, promo_type_id, rarity, finish);
 
 
 --
@@ -1729,11 +1761,27 @@ ALTER TABLE ONLY public.printing_sources
 
 
 --
+-- Name: printing_sources printing_sources_promo_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_sources
+    ADD CONSTRAINT printing_sources_promo_type_id_fkey FOREIGN KEY (promo_type_id) REFERENCES public.promo_types(id);
+
+
+--
 -- Name: printings printings_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.printings
     ADD CONSTRAINT printings_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
+
+
+--
+-- Name: printings printings_promo_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT printings_promo_type_id_fkey FOREIGN KEY (promo_type_id) REFERENCES public.promo_types(id);
 
 
 --
@@ -1796,5 +1844,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict oEWIIZPiaabLpfGwP4jCUrNqBkCGda9N6lHkTwdO4wKa0BXHtU13hx8XJfePiKc
+\unrestrict t0elzRhQFdXviJJix0b1dmW8hAScZh2mRCRKYkO33LIqn46wvzU2pAbqAf0YsMv
 

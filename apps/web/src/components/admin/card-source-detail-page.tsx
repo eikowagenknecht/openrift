@@ -32,11 +32,11 @@ import { useEffect, useRef, useState } from "react";
 
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
-import type { PrintingGroup } from "@/components/admin/source-spreadsheet";
+import type { FieldDef, PrintingGroup } from "@/components/admin/source-spreadsheet";
 import {
   CARD_SOURCE_FIELDS,
-  PRINTING_SOURCE_FIELDS,
   SourceSpreadsheet,
+  buildPrintingSourceFields,
   groupPrintingSources,
 } from "@/components/admin/source-spreadsheet";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +84,7 @@ import {
 } from "@/hooks/use-card-sources";
 import { useFavoriteSources } from "@/hooks/use-favorite-sources";
 import { useIgnoreCardSource, useIgnorePrintingSource } from "@/hooks/use-ignored-sources";
+import { usePromoTypes } from "@/hooks/use-promo-types";
 import { cn } from "@/lib/utils";
 
 interface DetailData {
@@ -139,6 +140,15 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   const ignorePrintingSource = useIgnorePrintingSource();
   const linkPrintingSources = useLinkPrintingSources();
   const renamePrinting = useRenamePrinting();
+
+  // --- Promo types for dropdown ---
+  const { data: promoTypesData } = usePromoTypes();
+  const printingSourceFields = buildPrintingSourceFields(
+    (promoTypesData?.promoTypes ?? []).map((pt: { id: string; label: string }) => ({
+      value: pt.id,
+      label: pt.label,
+    })),
+  );
 
   // --- New-mode hooks ---
   const acceptNewCard = useAcceptNewCard();
@@ -258,7 +268,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
           (isWild || pVariant === d.artVariant) &&
           (!d.rarity || (p.rarity as string) === d.rarity) &&
           (p.isSigned as boolean) === d.isSigned &&
-          (p.isPromo as boolean) === d.isPromo &&
+          (p.promoTypeId as string | null) === (d.promoTypeId ?? null) &&
           (!d.finish || (p.finish as string) === d.finish)
         );
       });
@@ -691,7 +701,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             const expectedId = buildPrintingId(
               printing.sourceId as string,
               printing.rarity as string,
-              printing.isPromo as boolean,
+              (printing.promoTypeSlug as string | null) ?? null,
               printing.finish as string,
             );
             const isStale = printingSlug !== expectedId;
@@ -797,7 +807,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                     />
                     <div className="min-w-0 flex-1 space-y-3">
                       <SourceSpreadsheet
-                        fields={PRINTING_SOURCE_FIELDS}
+                        fields={printingSourceFields}
                         activeRow={printingWithImage}
                         sourceRows={allSources}
                         sourceLabels={sourceLabels}
@@ -1013,6 +1023,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               }}
               isAccepting={acceptPrintingGroup.isPending}
               isLinking={linkPrintingSources.isPending}
+              printingFields={printingSourceFields}
             />
           ))}
         </section>
@@ -1030,7 +1041,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             const guessedId = buildPrintingId(
               guessedSourceId,
               group.sources[0]?.rarity ?? ("Common" satisfies Rarity),
-              group.differentiators.isPromo,
+              null,
               group.differentiators.finish,
             );
 
@@ -1062,7 +1073,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                             const targetId = buildPrintingId(
                               targetSourceId,
                               target.sources[0]?.rarity ?? ("Common" satisfies Rarity),
-                              target.differentiators.isPromo,
+                              null,
                               target.differentiators.finish,
                             );
                             return (
@@ -1095,7 +1106,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                   />
                   <div className="min-w-0 flex-1">
                     <SourceSpreadsheet
-                      fields={PRINTING_SOURCE_FIELDS}
+                      fields={printingSourceFields}
                       activeRow={null}
                       sourceRows={group.sources}
                       sourceLabels={sourceLabels}
@@ -1121,7 +1132,7 @@ const REQUIRED_PRINTING_KEYS = [
   "rarity",
   "artVariant",
   "isSigned",
-  "isPromo",
+  "promoTypeId",
   "finish",
   "artist",
   "publicCode",
@@ -1143,6 +1154,7 @@ function NewPrintingGroupCard({
   onDelete,
   onIgnore,
   isAccepting,
+  printingFields,
 }: {
   cardId: string;
   group: PrintingGroup;
@@ -1160,6 +1172,7 @@ function NewPrintingGroupCard({
   onIgnore: (sourceEntityId: string, finish: string) => void;
   isAccepting: boolean;
   isLinking?: boolean;
+  printingFields: FieldDef[];
 }) {
   const [activePrinting, setActivePrinting] = useState<Record<string, unknown>>({});
   const hasRequired = REQUIRED_PRINTING_KEYS.every((k) => {
@@ -1167,12 +1180,12 @@ function NewPrintingGroupCard({
     return v !== undefined && v !== null && v !== "";
   });
 
-  // Generate ID in the same format as the DB: "sourceId:rarity:finish:promo"
+  // Generate ID in the same format as the DB: "sourceId:rarity:finish:promoSlug"
   const printingId = hasRequired
     ? buildPrintingId(
         activePrinting.sourceId as string,
         String(activePrinting.rarity ?? ("Common" satisfies Rarity)),
-        (activePrinting.isPromo as boolean) ?? false,
+        null,
         activePrinting.finish as string,
       )
     : "";
@@ -1189,7 +1202,7 @@ function NewPrintingGroupCard({
   const guessedId = buildPrintingId(
     guessedSourceId,
     group.sources[0]?.rarity ?? ("Common" satisfies Rarity),
-    d.isPromo,
+    null,
     d.finish,
   );
 
@@ -1244,7 +1257,7 @@ function NewPrintingGroupCard({
             />
             <div className="min-w-0 flex-1">
               <SourceSpreadsheet
-                fields={PRINTING_SOURCE_FIELDS}
+                fields={printingFields}
                 requiredKeys={REQUIRED_PRINTING_KEYS}
                 activeRow={Object.keys(activePrinting).length > 0 ? activePrinting : null}
                 sourceRows={group.sources}
@@ -1268,7 +1281,7 @@ function NewPrintingGroupCard({
                       onClick={() => {
                         const record = row as unknown as Record<string, unknown>;
                         const values: Record<string, unknown> = {};
-                        for (const field of PRINTING_SOURCE_FIELDS) {
+                        for (const field of printingFields) {
                           if (field.readOnly) {
                             continue;
                           }

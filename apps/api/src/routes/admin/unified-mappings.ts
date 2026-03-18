@@ -64,7 +64,7 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
             rarity: string;
             artVariant: string;
             isSigned: boolean;
-            isPromo: boolean;
+            promoTypeSlug: string | null;
             finish: string;
             collectorNumber: number;
             imageUrl: string | null;
@@ -95,7 +95,7 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
             rarity: p.rarity,
             artVariant: p.artVariant,
             isSigned: p.isSigned,
-            isPromo: p.isPromo,
+            promoTypeSlug: p.promoTypeSlug,
             finish: p.finish,
             collectorNumber: p.collectorNumber,
             imageUrl: p.imageUrl,
@@ -141,7 +141,7 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
               rarity: p.rarity,
               artVariant: p.artVariant,
               isSigned: p.isSigned,
-              isPromo: p.isPromo,
+              promoTypeSlug: p.promoTypeSlug,
               finish: p.finish,
               collectorNumber: p.collectorNumber,
               imageUrl: p.imageUrl,

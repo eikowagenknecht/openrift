@@ -23,7 +23,7 @@ function makePrinting(
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
-    isPromo: false,
+    promoType: null,
     finish: "normal",
     images: [{ face: "front", url: "thumb.jpg" }],
     artist: "Jane Doe",
@@ -69,6 +69,7 @@ function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
     finishes: [],
     isSigned: null,
     isPromo: null,
+    promoTypes: [],
     ...overrides,
   };
 }
@@ -516,12 +517,12 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Signed Card");
   });
 
-  // -- isPromo filter --
+  // -- promoType filter --
 
-  it("filters by isPromo", () => {
+  it("filters by isPromo=true", () => {
     const withPromo = [
       makePrinting({
-        isPromo: true,
+        promoType: { id: "1", slug: "promo", label: "Promo" },
         card: {
           id: "p",
           name: "Promo Card",
@@ -539,7 +540,7 @@ describe("filterCards", () => {
         },
       }),
       makePrinting({
-        isPromo: false,
+        promoType: null,
         card: {
           id: "r",
           name: "Regular Card",
@@ -721,11 +722,11 @@ describe("filterCards", () => {
   it("filters by isPromo=false excludes promo cards", () => {
     const cards = [
       makePrinting({
-        isPromo: true,
+        promoType: { id: "1", slug: "promo", label: "Promo" },
         card: { id: "p1", name: "Promo Card" },
       }),
       makePrinting({
-        isPromo: false,
+        promoType: null,
         card: { id: "p2", name: "Regular Card" },
       }),
     ];
@@ -1045,15 +1046,18 @@ describe("getAvailableFilters", () => {
 
   it("computes hasPromo true when promo printings exist", () => {
     const result = getAvailableFilters([
-      makePrinting({ isPromo: true }),
-      makePrinting({ isPromo: false }),
+      makePrinting({ promoType: { id: "1", slug: "promo", label: "Promo" } }),
+      makePrinting({ promoType: null }),
     ]);
     expect(result.hasPromo).toBe(true);
+    expect(result.promoTypes).toHaveLength(1);
+    expect(result.promoTypes[0].slug).toBe("promo");
   });
 
   it("computes hasPromo false when no promo printings", () => {
-    const result = getAvailableFilters([makePrinting({ isPromo: false })]);
+    const result = getAvailableFilters([makePrinting({ promoType: null })]);
     expect(result.hasPromo).toBe(false);
+    expect(result.promoTypes).toHaveLength(0);
   });
 
   it("handles printings with null energy/might/power", () => {
