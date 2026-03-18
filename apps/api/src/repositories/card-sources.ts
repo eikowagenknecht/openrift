@@ -1,3 +1,4 @@
+import type { SourceStatsResponse } from "@openrift/shared";
 import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -90,13 +91,7 @@ interface GroupedSourceRow {
   hasUnknownSet: boolean;
 }
 
-/** Row returned by `sourceStats`. */
-interface SourceStatRow {
-  source: string;
-  cardCount: number;
-  printingCount: number;
-  lastUpdated: string;
-}
+/** @see SourceStatsResponse — shared contract for GET /card-sources/source-stats */
 
 /** Row returned by `exportPrintings`. */
 interface ExportPrintingRow extends Selectable<PrintingsTable> {
@@ -128,20 +123,19 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Distinct source names (excluding hidden), ordered alphabetically. */
+    /** @returns Distinct source names, ordered alphabetically. */
     async distinctSourceNames(): Promise<string[]> {
       const rows = await db
         .selectFrom("cardSources")
         .select("source")
         .distinct()
-        .where(notHiddenSource("cardSources"))
         .orderBy("source")
         .execute();
       return rows.map((r) => r.source);
     },
 
     /** @returns Per-source card count, printing count, and last-updated timestamp. */
-    async sourceStats(): Promise<SourceStatRow[]> {
+    async sourceStats(): Promise<SourceStatsResponse[]> {
       const rows = await db
         .selectFrom("cardSources as cs")
         .leftJoin("printingSources as ps", "ps.cardSourceId", "cs.id")
@@ -154,7 +148,6 @@ export function cardSourcesRepo(db: Kysely<Database>) {
           ),
         ])
         .where(notIgnoredCard("cs"))
-        .where(notHiddenSource("cs"))
         .groupBy("cs.source")
         .orderBy("cs.source")
         .execute();
