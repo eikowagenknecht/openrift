@@ -259,7 +259,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
     /** @returns Set release info for orphan cards via their printings. */
     listOrphanPrintingSetInfo(
       cardIds: string[],
-    ): Promise<{ cardId: string; slug: string; releasedAt: string | Date | null }[]> {
+    ): Promise<{ cardId: string; slug: string; releasedAt: string | null }[]> {
       if (cardIds.length === 0) {
         return Promise.resolve([]);
       }
