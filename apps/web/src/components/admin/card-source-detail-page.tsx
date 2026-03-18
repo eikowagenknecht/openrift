@@ -1193,7 +1193,6 @@ const REQUIRED_PRINTING_KEYS = [
   "rarity",
   "artVariant",
   "isSigned",
-  "promoTypeId",
   "finish",
   "artist",
   "publicCode",
