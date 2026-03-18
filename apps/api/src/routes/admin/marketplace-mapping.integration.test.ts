@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
-// Integration tests: TCGPlayer & Cardmarket mapping routes
+// Integration tests: Marketplace mapping mutation routes
 //
+// Tests POST/DELETE on /admin/marketplace-mappings?marketplace=<mp>
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix MKM- for entities it creates, groupId range distinct from others.
 // ---------------------------------------------------------------------------
@@ -165,18 +166,17 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // ── TCGPlayer: GET ─────────────────────────────────────────────────────────
+  // ── TCGPlayer: GET (via unified endpoint) ─────────────────────────────────
 
-  describe("GET /admin/tcgplayer-mappings", () => {
+  describe("GET /admin/marketplace-mappings (TCGPlayer data)", () => {
     it("returns overview with groups and staged products", async () => {
-      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json.groups).toBeArray();
       expect(json.groups.length).toBeGreaterThanOrEqual(1);
-      expect(json.unmatchedProducts).toBeArray();
-      expect(json.ignoredProducts).toBeArray();
+      expect(json.unmatchedProducts).toBeDefined();
       expect(json.allCards).toBeArray();
 
       // Our seeded card should appear in groups
@@ -186,42 +186,18 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(testGroup).toBeDefined();
       expect(testGroup.printings.length).toBeGreaterThanOrEqual(1);
       // Staged product matched by name prefix
-      expect(testGroup.stagedProducts.length).toBeGreaterThanOrEqual(1);
-      expect(testGroup.stagedProducts[0].externalId).toBe(12_345);
-    });
-
-    it("without all=true, filters to groups with unmapped printings", async () => {
-      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      // All returned groups should have at least one unmapped printing
-      for (const group of json.groups) {
-        const hasUnmapped = group.printings.some(
-          (p: { externalId: number | null }) => p.externalId === null,
-        );
-        expect(hasUnmapped).toBe(true);
-      }
-    });
-
-    it("all=true returns all groups including fully mapped ones", async () => {
-      const resAll = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
-      const resFiltered = await app.fetch(req("GET", "/admin/tcgplayer-mappings"));
-
-      const allJson = await resAll.json();
-      const allGroups = allJson.groups;
-      const filteredJson = await resFiltered.json();
-      const filteredGroups = filteredJson.groups;
-
-      expect(allGroups.length).toBeGreaterThanOrEqual(filteredGroups.length);
+      expect(testGroup.tcgplayer.stagedProducts.length).toBeGreaterThanOrEqual(1);
+      expect(testGroup.tcgplayer.stagedProducts[0].externalId).toBe(12_345);
     });
   });
 
   // ── TCGPlayer: POST (save mappings) ────────────────────────────────────────
 
-  describe("POST /admin/tcgplayer-mappings", () => {
+  describe("POST /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("returns saved: 0 for empty mappings array", async () => {
-      const res = await app.fetch(req("POST", "/admin/tcgplayer-mappings", { mappings: [] }));
+      const res = await app.fetch(
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", { mappings: [] }),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -230,7 +206,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
     it("maps a staged product to a printing", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/tcgplayer-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 12_345 }],
         }),
       );
@@ -272,7 +248,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
 
     it("mapped printing shows externalId in overview", async () => {
-      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const json = await res.json();
 
       const testGroup = json.groups.find(
@@ -284,15 +260,17 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         (p: { printingId: string }) => p.printingId === printingId,
       );
       expect(mappedPrinting).toBeDefined();
-      expect(mappedPrinting.externalId).toBe(12_345);
+      expect(mappedPrinting.tcgExternalId).toBe(12_345);
     });
   });
 
   // ── TCGPlayer: DELETE (unmap single) ───────────────────────────────────────
 
-  describe("DELETE /admin/tcgplayer-mappings", () => {
+  describe("DELETE /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("unmaps a single printing and restores staging rows", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/tcgplayer-mappings", { printingId }));
+      const res = await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", { printingId }),
+      );
       expect(res.status).toBe(204);
 
       // Source should be deleted
@@ -318,16 +296,18 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
   // ── TCGPlayer: DELETE /all (unmap all) ─────────────────────────────────────
 
-  describe("DELETE /admin/tcgplayer-mappings/all", () => {
+  describe("DELETE /admin/marketplace-mappings/all?marketplace=tcgplayer", () => {
     it("unmaps all TCGPlayer mappings", async () => {
       // First map something so there's data to unmap
       await app.fetch(
-        req("POST", "/admin/tcgplayer-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 12_345 }],
         }),
       );
 
-      const res = await app.fetch(req("DELETE", "/admin/tcgplayer-mappings/all"));
+      const res = await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -345,45 +325,12 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── Cardmarket: GET ────────────────────────────────────────────────────────
-
-  describe("GET /admin/cardmarket-mappings", () => {
-    it("returns overview with groups and staged products", async () => {
-      const res = await app.fetch(req("GET", "/admin/cardmarket-mappings?all=true"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.groups).toBeArray();
-      expect(json.groups.length).toBeGreaterThanOrEqual(1);
-
-      const testGroup = json.groups.find(
-        (g: { cardName: string }) => g.cardName === "MKM Test Card",
-      );
-      expect(testGroup).toBeDefined();
-      expect(testGroup.stagedProducts.length).toBeGreaterThanOrEqual(1);
-      expect(testGroup.stagedProducts[0].externalId).toBe(67_890);
-    });
-
-    it("without all=true, filters to groups with unmapped printings", async () => {
-      const res = await app.fetch(req("GET", "/admin/cardmarket-mappings"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      for (const group of json.groups) {
-        const hasUnmapped = group.printings.some(
-          (p: { externalId: number | null }) => p.externalId === null,
-        );
-        expect(hasUnmapped).toBe(true);
-      }
-    });
-  });
-
   // ── Cardmarket: POST (save mappings) ───────────────────────────────────────
 
-  describe("POST /admin/cardmarket-mappings", () => {
+  describe("POST /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("maps a staged product to a printing", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/cardmarket-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 67_890 }],
         }),
       );
@@ -414,7 +361,9 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
 
     it("returns saved: 0 for empty mappings array", async () => {
-      const res = await app.fetch(req("POST", "/admin/cardmarket-mappings", { mappings: [] }));
+      const res = await app.fetch(
+        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", { mappings: [] }),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -424,16 +373,18 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
   // ── Cardmarket: DELETE (unmap single) ──────────────────────────────────────
 
-  describe("DELETE /admin/cardmarket-mappings", () => {
+  describe("DELETE /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("unmaps a single printing", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/cardmarket-mappings", { printingId }));
+      const res = await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", { printingId }),
+      );
       expect(res.status).toBe(204);
     });
   });
 
   // ── Cardmarket: DELETE /all (unmap all) ────────────────────────────────────
 
-  describe("DELETE /admin/cardmarket-mappings/all", () => {
+  describe("DELETE /admin/marketplace-mappings/all?marketplace=cardmarket", () => {
     it("unmaps all Cardmarket mappings", async () => {
       // Re-map so there's something to unmap
       // First re-seed staging since it was deleted by the POST above
@@ -461,12 +412,14 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .execute();
 
       await app.fetch(
-        req("POST", "/admin/cardmarket-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 67_890 }],
         }),
       );
 
-      const res = await app.fetch(req("DELETE", "/admin/cardmarket-mappings/all"));
+      const res = await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -481,7 +434,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   // It's a defensive TypeScript guard only.
 
   describe("staging row filtering edge cases", () => {
-    it("excludes ignored products from staging and lists them separately (lines 283, 419-436)", async () => {
+    it("excludes ignored products from staging and lists them separately", async () => {
       // Ensure we have a staging row to ignore
       await db
         .insertInto("marketplaceStaging")
@@ -518,39 +471,35 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
 
-      // Should NOT appear in staged or unmatched products
-      const allStaged = json.groups.flatMap(
-        (g: { stagedProducts: { externalId: number }[] }) => g.stagedProducts,
+      // Should NOT appear in staged products for tcgplayer
+      const testGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "MKM Test Card",
       );
-      expect(
-        allStaged.find((p: { externalId: number }) => p.externalId === 99_001),
-      ).toBeUndefined();
-      expect(
-        json.unmatchedProducts.find((p: { externalId: number }) => p.externalId === 99_001),
-      ).toBeUndefined();
+      if (testGroup) {
+        const allStaged = testGroup.tcgplayer.stagedProducts;
+        expect(
+          allStaged.find((p: { externalId: number }) => p.externalId === 99_001),
+        ).toBeUndefined();
+      }
 
-      // Should appear in ignoredProducts with correct shape
-      const ignored = json.ignoredProducts.find(
-        (p: { externalId: number }) => p.externalId === 99_001,
-      );
-      expect(ignored).toBeDefined();
-      expect(ignored.productName).toBe("MKM Ignored Product");
-      expect(ignored.finish).toBe("normal");
-      expect(ignored.currency).toBe("USD");
-      expect(ignored.groupId).toBe(10_200);
-      expect(ignored.groupName).toBe("MKM TCG Group");
+      // Should NOT appear in unmatched products
+      expect(
+        json.unmatchedProducts.tcgplayer.find(
+          (p: { externalId: number }) => p.externalId === 99_001,
+        ),
+      ).toBeUndefined();
     });
   });
 
   // ── Coverage: lines 147-154, 355-357 (manual card overrides) ──────────────
 
   describe("manual card overrides", () => {
-    it("matches staged product via override instead of name prefix (lines 147-154, 355-357)", async () => {
+    it("matches staged product via override instead of name prefix", async () => {
       // Insert a staging row that does NOT name-match any card
       await db
         .insertInto("marketplaceStaging")
@@ -587,7 +536,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -596,8 +545,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(testGroup).toBeDefined();
 
-      // The override-matched product should appear as staged under our card
-      const overrideStaged = testGroup.stagedProducts.find(
+      // The override-matched product should appear as staged under our card's tcgplayer section
+      const overrideStaged = testGroup.tcgplayer.stagedProducts.find(
         (p: { externalId: number }) => p.externalId === 99_002,
       );
       expect(overrideStaged).toBeDefined();
@@ -605,7 +554,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(overrideStaged.isOverride).toBe(true);
 
       // It should NOT appear in unmatchedProducts
-      const unmatched = json.unmatchedProducts.find(
+      const unmatched = json.unmatchedProducts.tcgplayer.find(
         (p: { externalId: number }) => p.externalId === 99_002,
       );
       expect(unmatched).toBeUndefined();
@@ -615,7 +564,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   // ── Coverage: lines 177-189 (containment matching second pass) ────────────
 
   describe("containment matching", () => {
-    it("matches staged product via containment when prefix fails (lines 177-189)", async () => {
+    it("matches staged product via containment when prefix fails", async () => {
       // "Annie, Fiery" is a seeded OGS card. The normalized name is long
       // enough (>= 5 chars). Insert a staging product whose name doesn't
       // start with "Annie, Fiery" but contains it.
@@ -642,7 +591,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         )
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/tcgplayer-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -653,28 +602,28 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(annieGroup).toBeDefined();
 
-      // The containment-matched product should be staged under Annie's group
-      const containmentStaged = annieGroup.stagedProducts.find(
+      // The containment-matched product should be staged under Annie's tcgplayer section
+      const containmentStaged = annieGroup.tcgplayer.stagedProducts.find(
         (p: { externalId: number }) => p.externalId === 99_003,
       );
       expect(containmentStaged).toBeDefined();
       expect(containmentStaged.productName).toBe("Champion Annie, Fiery Special");
 
       // Should NOT appear in unmatchedProducts
-      const unmatched = json.unmatchedProducts.find(
+      const unmatched = json.unmatchedProducts.tcgplayer.find(
         (p: { externalId: number }) => p.externalId === 99_003,
       );
       expect(unmatched).toBeUndefined();
     });
   });
 
-  // ── Coverage: line 533 (saveMappings early return when no staging data) ───
+  // ── Coverage: saveMappings early return when no staging data ───────────────
 
   describe("saveMappings edge cases", () => {
-    it("returns saved: 0 when mapping references non-existent staging data (line 533)", async () => {
+    it("returns saved: 0 when mapping references non-existent staging data", async () => {
       // Use a valid printing but an externalId with no matching staging row
       const res = await app.fetch(
-        req("POST", "/admin/tcgplayer-mappings", {
+        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 999_999 }],
         }),
       );

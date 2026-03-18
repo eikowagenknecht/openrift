@@ -10,7 +10,6 @@ import { ignoredProductsRoute } from "./ignored-products.js";
 import { ignoredSourcesRoute } from "./ignored-sources.js";
 import { imagesRoute } from "./images.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
-import { cardmarketMappingsRoute, tcgplayerMappingsRoute } from "./marketplace-mapping.js";
 import { operationsRoute } from "./operations.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 
@@ -39,8 +38,6 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
 
   // ── Mount sub-routes ──────────────────────────────────────────────────────
 
-  .route("/", tcgplayerMappingsRoute)
-  .route("/", cardmarketMappingsRoute)
   .route("/", adminFeatureFlagsRoute)
   .route("/", ignoredProductsRoute)
   .route("/", ignoredSourcesRoute)
