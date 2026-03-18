@@ -3,7 +3,7 @@ import { siDiscord, siGoogle } from "simple-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldGroup, FieldSeparator } from "@/components/ui/field";
-import { IS_PREVIEW } from "@/lib/api-base";
+import { isPreview } from "@/lib/api-base";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export function AuthFormCard({
 }
 
 export function SocialAuthButtons({ redirectTo }: { redirectTo?: string }) {
-  if (IS_PREVIEW) {
+  if (isPreview()) {
     return null;
   }
   return (

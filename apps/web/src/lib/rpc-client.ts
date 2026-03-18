@@ -4,11 +4,17 @@ import { hc } from "hono/client";
 
 import { ApiError } from "./api-client";
 
-export const client = hc<AppType>("/", {
-  init: {
-    credentials: "include",
-  },
-});
+/**
+ * Factory for the Hono RPC client. On the server, pass an absolute URL
+ * (e.g. "http://localhost:3000"); on the client, "/" is fine since the
+ * dev proxy / Cloudflare Worker forwards /api/* to the backend.
+ * @returns A typed Hono RPC client instance.
+ */
+function createRpcClient(baseUrl: string) {
+  return hc<AppType>(baseUrl, { init: { credentials: "include" } });
+}
+
+export const client = createRpcClient("/");
 
 /** Extract the data type from a Hono ClientResponse (distributes over status code unions). */
 type ExtractData<T> = T extends ClientResponse<infer D, number, string> ? D : never;
