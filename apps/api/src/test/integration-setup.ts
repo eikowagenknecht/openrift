@@ -44,6 +44,9 @@ export async function dropTempDb(databaseUrl: string, name: string): Promise<voi
     return;
   }
   const sql = postgres(replaceDbName(databaseUrl, "postgres"), { onnotice: noop });
+  await sql.unsafe(
+    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${name}' AND pid <> pg_backend_pid()`,
+  );
   await sql.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
   await sql.end();
 }

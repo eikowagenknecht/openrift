@@ -38,6 +38,22 @@ export function setsRepo(db: Kysely<Database>) {
       return db.selectFrom("sets").select("id").where("slug", "=", slug).executeTakeFirst();
     },
 
+    /** @returns A set's UUID and printing count by slug, or undefined. */
+    getBySlugWithPrintingCount(
+      slug: string,
+    ): Promise<{ id: string; printingCount: number } | undefined> {
+      return db
+        .selectFrom("sets")
+        .leftJoin("printings", "printings.setId", "sets.id")
+        .select((eb) => [
+          "sets.id",
+          eb.cast<number>(eb.fn.countAll("printings"), "integer").as("printingCount"),
+        ])
+        .where("sets.slug", "=", slug)
+        .groupBy("sets.id")
+        .executeTakeFirst();
+    },
+
     /** @returns The next sort order (max + 1). */
     async nextSortOrder(): Promise<number> {
       const { max } = await db
@@ -160,14 +176,14 @@ export function setsRepo(db: Kysely<Database>) {
 
     /** Reorders sets by slug list. Each slug gets sortOrder = index + 1. */
     async reorder(slugs: string[]): Promise<void> {
+      if (slugs.length === 0) {
+        return;
+      }
+      const values = sql.join(slugs.map((slug, i) => sql`(${slug}::text, ${i + 1}::int)`));
       await sql`
         update sets
         set sort_order = d.new_order, updated_at = now()
-        from unnest(${sql.array(slugs, "text")}::text[], ${sql.array(
-          slugs.map((_, i) => i + 1),
-          "int4",
-        )}::int[])
-          as d(slug, new_order)
+        from (values ${values}) as d(slug, new_order)
         where sets.slug = d.slug
       `.execute(db);
     },

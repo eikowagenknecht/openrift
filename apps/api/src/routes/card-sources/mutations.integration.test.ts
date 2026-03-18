@@ -31,6 +31,7 @@ let psForAcceptNewNoArtistId = "";
 let psForAcceptNewNoPublicCodeId = "";
 let psForAcceptNewAlreadyLinkedId = "";
 let csForAcceptNewId = "";
+let promoTypeId = "";
 
 if (ctx) {
   const { db } = ctx;
@@ -42,6 +43,14 @@ if (ctx) {
     .returning("id")
     .execute();
   setId = setRow.id;
+
+  // Promo type (for accept-printing promo test) — seeded by migration 034
+  const promoTypeRow = await db
+    .selectFrom("promoTypes")
+    .select("id")
+    .where("slug", "=", "promo")
+    .executeTakeFirstOrThrow();
+  promoTypeId = promoTypeRow.id;
 
   // Card
   const [cardRow] = await db
@@ -77,7 +86,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Artist A",
       publicCode: "CSM",
@@ -102,7 +111,7 @@ if (ctx) {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "foil",
       artist: "Artist A",
       publicCode: "CSM",
@@ -176,7 +185,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Artist A",
       publicCode: "CSM",
@@ -204,7 +213,7 @@ if (ctx) {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Test Artist",
       publicCode: "CSM",
@@ -256,7 +265,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Accept Artist",
       publicCode: "CSM",
@@ -284,7 +293,7 @@ if (ctx) {
       rarity: "InvalidRarity",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Accept Artist",
       publicCode: "CSM",
@@ -312,7 +321,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "badfinish",
       artist: "Accept Artist",
       publicCode: "CSM",
@@ -340,7 +349,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Accept Artist",
       publicCode: "CSM",
@@ -368,7 +377,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: null,
       publicCode: "CSM",
@@ -396,7 +405,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Accept Artist",
       publicCode: null,
@@ -424,7 +433,7 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      isPromo: false,
+      promoTypeId: null,
       finish: "normal",
       artist: "Accept Artist",
       publicCode: "CSM",
@@ -1182,7 +1191,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Uncommon",
           artVariant: "normal",
           isSigned: false,
-          isPromo: false,
+          promoTypeId: null,
           finish: "normal",
           artist: "AP Artist",
           publicCode: "CSM",
@@ -1254,7 +1263,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Epic",
           artVariant: "normal",
           isSigned: false,
-          isPromo: false,
+          promoTypeId: null,
           finish: "foil",
           artist: "Custom Artist",
           publicCode: "CSM",
@@ -1302,7 +1311,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: true,
-          isPromo: true,
+          promoTypeId: promoTypeId,
           finish: "foil",
           artist: "Promo Artist",
           publicCode: "CSM",
@@ -1325,7 +1334,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             rarity: "Common",
             finish: "foil",
             isSigned: true,
-            isPromo: true,
+            promoTypeId: promoTypeId,
             artist: "Promo Artist",
             publicCode: "CSM",
           },
@@ -1335,17 +1344,17 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      // promo flag results in a "promo" suffix in the slug
+      // promo type slug results in a "promo" suffix in the slug
       expect(json.printingId).toBe("CSM-AP-PROMO:common:foil:promo");
 
-      // Verify isSigned/isPromo on the printing
+      // Verify isSigned/promoTypeId on the printing
       const p = await db
         .selectFrom("printings")
-        .select(["isSigned", "isPromo"])
+        .select(["isSigned", "promoTypeId"])
         .where("slug", "=", json.printingId)
         .executeTakeFirstOrThrow();
       expect(p.isSigned).toBe(true);
-      expect(p.isPromo).toBe(true);
+      expect(p.promoTypeId).toBe(promoTypeId);
     });
 
     it("returns 400 for empty printingSourceIds", async () => {
@@ -1392,7 +1401,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          isPromo: false,
+          promoTypeId: null,
           finish: "normal",
           artist: "A",
           publicCode: "X",

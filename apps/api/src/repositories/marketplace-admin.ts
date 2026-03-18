@@ -135,6 +135,34 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Delete multiple ignored products in a single query.
+     *
+     * @returns Count of deleted rows.
+     */
+    async deleteIgnoredProducts(
+      marketplace: string,
+      products: { externalId: number; finish: string }[],
+    ): Promise<number> {
+      if (products.length === 0) {
+        return 0;
+      }
+
+      const result = await db
+        .deleteFrom("marketplaceIgnoredProducts")
+        .where("marketplace", "=", marketplace)
+        .where((eb) =>
+          eb.or(
+            products.map((p) =>
+              eb.and([eb("externalId", "=", p.externalId), eb("finish", "=", p.finish)]),
+            ),
+          ),
+        )
+        .execute();
+
+      return Number(result[0].numDeletedRows);
+    },
+
     // ── Staging card overrides ──────────────────────────────────────────────
 
     /** Upsert a staging card override. */

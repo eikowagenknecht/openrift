@@ -116,7 +116,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rarity: "Common",
         artVariant: "normal",
         isSigned: false,
-        isPromo: false,
+        promoTypeId: null,
         finish: "normal",
         artist: "Test Artist",
         publicCode: "IGT-001/010",
@@ -1228,7 +1228,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(ps.printedRulesText).toBe("Printed rules here.");
     expect(ps.printedEffectText).toBe("Printed effect here.");
     expect(ps.isSigned).toBe(true);
-    expect(ps.isPromo).toBe(true);
+    expect(ps.promoTypeId).not.toBeNull();
     expect(ps.finish).toBe("foil");
     expect(ps.artVariant).toBe("altart");
   });
