@@ -17,19 +17,6 @@ const ignoreProductsSchema = z.object({
   products: z.array(ignoreProductItemSchema).min(1),
 });
 
-const stagingCardOverrideSchema = z.object({
-  source: z.enum(["tcgplayer", "cardmarket"]),
-  externalId: z.number(),
-  finish: z.string(),
-  cardId: z.string(),
-});
-
-const deleteOverrideSchema = z.object({
-  source: z.enum(["tcgplayer", "cardmarket"]),
-  externalId: z.number(),
-  finish: z.string(),
-});
-
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
@@ -81,7 +68,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
       await mktAdmin.insertIgnoredProducts(values);
     }
 
-    return c.json({ ignored: products.length });
+    return c.json({ ignored: values.length });
   })
 
   // ── DELETE /admin/ignored-products ──────────────────────────────────────────
@@ -90,38 +77,10 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { source, products } = c.req.valid("json");
 
-    for (const p of products) {
-      await mktAdmin.deleteIgnoredProduct(source, p.externalId, p.finish);
-    }
+    const deleted = await mktAdmin.deleteIgnoredProducts(
+      source,
+      products.map((p) => ({ externalId: p.externalId, finish: p.finish })),
+    );
 
-    return c.json({ unignored: products.length });
-  })
-
-  // ── Staging card overrides (manual product → card association) ───────────────
-
-  .post(
-    "/admin/staging-card-overrides",
-    zValidator("json", stagingCardOverrideSchema),
-    async (c) => {
-      const { marketplaceAdmin: mktAdmin } = c.get("repos");
-      const { source, externalId, finish, cardId } = c.req.valid("json");
-
-      await mktAdmin.upsertStagingCardOverride({
-        marketplace: source,
-        externalId,
-        finish,
-        cardId,
-      });
-
-      return c.body(null, 204);
-    },
-  )
-
-  .delete("/admin/staging-card-overrides", zValidator("json", deleteOverrideSchema), async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { source, externalId, finish } = c.req.valid("json");
-
-    await mktAdmin.deleteStagingCardOverride(source, externalId, finish);
-
-    return c.body(null, 204);
+    return c.json({ unignored: deleted });
   });

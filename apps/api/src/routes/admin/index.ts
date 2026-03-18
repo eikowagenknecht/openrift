@@ -13,6 +13,7 @@ import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { operationsRoute } from "./operations.js";
 import { adminPromoTypesRoute } from "./promo-types.js";
 import { adminSourceSettingsRoute } from "./source-settings.js";
+import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 
 export const adminRoute = new Hono<{ Variables: Variables }>()
@@ -50,6 +51,7 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
   .route("/", unifiedMappingsRoute)
   .route("/", adminPromoTypesRoute)
   .route("/", adminSourceSettingsRoute)
+  .route("/", stagingCardOverridesRoute)
 
   // ── Card source routes ────────────────────────────────────────────────────
 

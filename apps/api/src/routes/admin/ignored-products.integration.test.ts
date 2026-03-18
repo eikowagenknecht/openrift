@@ -81,7 +81,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       expect(json.ignored).toBe(1);
     });
 
-    it("returns ignored count but does not insert for non-existent staging ID", async () => {
+    it("returns 0 ignored count for non-existent staging ID", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           source: "tcgplayer",
@@ -91,7 +91,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.ignored).toBe(1);
+      expect(json.ignored).toBe(0);
 
       // Verify it was not actually inserted
       const rows = await db
