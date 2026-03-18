@@ -1,6 +1,5 @@
-import type { Printing } from "@openrift/shared";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
-import { Suspense, lazy, useDeferredValue, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useDeferredValue, useRef } from "react";
 
 import { CardGrid } from "@/components/cards/card-grid";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
@@ -10,6 +9,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardData } from "@/hooks/use-card-data";
+import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
 import { useCardFilters } from "@/hooks/use-card-filters";
 import { ApiError, useCards } from "@/hooks/use-cards";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -35,24 +35,6 @@ export function CardBrowser() {
 
   const { filters, sortBy, sortDir, view, setSearch } = useCardFilters();
 
-  const [selectedCard, setSelectedCard] = useState<Printing | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  // Lock body scroll when mobile overlay is active
-  useEffect(() => {
-    if (!detailOpen) {
-      return;
-    }
-    const mq = globalThis.matchMedia("(max-width: 767px)");
-    if (!mq.matches) {
-      return;
-    }
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [detailOpen]);
-
   const {
     availableFilters,
     sortedCards,
@@ -77,31 +59,15 @@ export function CardBrowser() {
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;
 
-  // Close card detail when the user presses the browser back button on mobile
-  useEffect(() => {
-    if (!detailOpen) {
-      return;
-    }
-    const mq = globalThis.matchMedia("(max-width: 767px)");
-    if (!mq.matches) {
-      return;
-    }
-
-    history.pushState({ cardDetail: true }, "");
-
-    globalThis.addEventListener("popstate", closeDetail);
-    return () => globalThis.removeEventListener("popstate", closeDetail);
-  }, [detailOpen]);
-
-  const closeDetail = () => {
-    setSelectedCard(null);
-    setDetailOpen(false);
-  };
-
-  const handleCardClick = (printing: Printing) => {
-    setSelectedCard(printing);
-    setDetailOpen(true);
-  };
+  const {
+    selectedCard,
+    setSelectedCard,
+    detailOpen,
+    handleCardClick,
+    handleDetailClose,
+    handlePrevCard,
+    handleNextCard,
+  } = useCardDetailNav(sortedCards, view);
 
   const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.card.id) ?? []) : [];
 
@@ -109,30 +75,6 @@ export function CardBrowser() {
     view === "cards" && selectedCard
       ? (deferredSortedCards.find((c) => c.card.id === selectedCard.card.id)?.id ?? selectedCard.id)
       : selectedCard?.id;
-
-  const selectedIndex = selectedCard
-    ? view === "cards"
-      ? sortedCards.findIndex((c) => c.card.id === selectedCard.card.id)
-      : sortedCards.findIndex((c) => c.id === selectedCard.id)
-    : -1;
-
-  const handlePrevCard =
-    selectedIndex > 0 ? () => setSelectedCard(sortedCards[selectedIndex - 1]) : undefined;
-
-  const handleNextCard =
-    selectedIndex >= 0 && selectedIndex < sortedCards.length - 1
-      ? () => setSelectedCard(sortedCards[selectedIndex + 1])
-      : undefined;
-
-  const handleDetailClose = () => {
-    // If we pushed a history entry for mobile, pop it instead of leaving a
-    // stale entry in the stack.
-    if (history.state?.cardDetail) {
-      history.back();
-    } else {
-      closeDetail();
-    }
-  };
 
   if (error) {
     const healthStatus = error instanceof ApiError ? error.healthStatus : null;
