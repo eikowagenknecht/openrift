@@ -1,5 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import type { MarketplaceGroupResponse } from "@openrift/shared";
+import { marketplaceGroupParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -7,11 +8,6 @@ import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
-
-const marketplaceGroupParamSchema = z.object({
-  marketplace: z.string().min(1),
-  id: z.coerce.number().int(),
-});
 
 const updateGroupSchema = z.object({
   name: z.string().nullable(),
