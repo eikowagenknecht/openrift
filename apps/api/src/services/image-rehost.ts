@@ -164,6 +164,37 @@ export async function renameRehostFiles(
   }
 }
 
+/**
+ * Rename all rehosted image files for a printing whose slug changed.
+ * Queries the printing's images, renames the files on disk, and updates the DB URLs.
+ * @returns Resolves when all files and DB records have been updated.
+ */
+export async function renamePrintingImages(
+  io: Io,
+  repo: PrintingImagesRepo,
+  printingId: string,
+  oldSlug: string,
+  newSlug: string,
+): Promise<void> {
+  if (oldSlug === newSlug) {
+    return;
+  }
+
+  const images = await repo.listRehostedByPrintingId(printingId);
+  if (images.length === 0) {
+    return;
+  }
+
+  const oldFileBase = printingIdToFileBase(oldSlug);
+  const newFileBase = printingIdToFileBase(newSlug);
+
+  for (const img of images) {
+    const newRehostedUrl = img.rehostedUrl.replace(oldFileBase, newFileBase);
+    await renameRehostFiles(io, img.rehostedUrl, newRehostedUrl);
+    await repo.updateRehostedUrl(img.id, newRehostedUrl);
+  }
+}
+
 const BATCH_SIZE = 10;
 
 export async function rehostImages(

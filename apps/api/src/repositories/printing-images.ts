@@ -96,7 +96,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
     async updateRehostedUrl(imageId: string, rehostedUrl: string | null): Promise<void> {
       await db
         .updateTable("printingImages")
-        .set({ rehostedUrl, updatedAt: new Date() })
+        .set({ rehostedUrl })
         .where("id", "=", imageId)
         .execute();
     },
@@ -105,7 +105,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
     async deactivate(imageId: string, trx?: Trx): Promise<void> {
       await (trx ?? db)
         .updateTable("printingImages")
-        .set({ isActive: false, updatedAt: new Date() })
+        .set({ isActive: false })
         .where("id", "=", imageId)
         .execute();
     },
@@ -114,7 +114,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
     async setActive(imageId: string, active: boolean, trx?: Trx): Promise<void> {
       await (trx ?? db)
         .updateTable("printingImages")
-        .set({ isActive: active, updatedAt: new Date() })
+        .set({ isActive: active })
         .where("id", "=", imageId)
         .execute();
     },
@@ -127,7 +127,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
     ): Promise<void> {
       await trx
         .updateTable("printingImages")
-        .set({ rehostedUrl, updatedAt: new Date() })
+        .set({ rehostedUrl })
         .where("id", "=", imageId)
         .execute();
     },
@@ -136,7 +136,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
     async deactivateActiveFront(printingId: string, trx?: Trx): Promise<void> {
       await (trx ?? db)
         .updateTable("printingImages")
-        .set({ isActive: false, updatedAt: new Date() })
+        .set({ isActive: false })
         .where("printingId", "=", printingId)
         .where("face", "=", "front")
         .where("isActive", "=", true)
@@ -176,7 +176,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
             oc.columns(["printingId", "face", "source"]).doUpdateSet({
               originalUrl: imageUrl,
               isActive: true,
-              updatedAt: new Date(),
             }),
           )
           .execute();
@@ -193,7 +192,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
           .onConflict((oc) =>
             oc.columns(["printingId", "face", "source"]).doUpdateSet({
               originalUrl: imageUrl,
-              updatedAt: new Date(),
             }),
           )
           .execute();
@@ -232,7 +230,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
           oc.columns(["printingId", "face", "source"]).doUpdateSet({
             isActive: values.mode === "main",
             rehostedUrl: values.rehostedUrl,
-            updatedAt: new Date(),
           }),
         )
         .execute();
@@ -245,7 +242,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
     async clearAllRehostedUrls(): Promise<number> {
       const result = await db
         .updateTable("printingImages")
-        .set({ rehostedUrl: null, updatedAt: new Date() })
+        .set({ rehostedUrl: null })
         .where("rehostedUrl", "is not", null)
         .execute();
       return Number(result[0].numUpdatedRows);
@@ -328,10 +325,20 @@ export function printingImagesRepo(db: Kysely<Database>) {
           AND ps.image_url IS NOT NULL
           AND cs.source = ${source}
         ON CONFLICT (printing_id, face, source) DO UPDATE
-          SET original_url = EXCLUDED.original_url, updated_at = now()
+          SET original_url = EXCLUDED.original_url
           WHERE printing_images.original_url IS NULL
       `.execute(db);
       return Number(result.numAffectedRows ?? 0);
+    },
+
+    /** @returns Rehosted images for a printing (id + rehostedUrl, only non-null). */
+    listRehostedByPrintingId(printingId: string): Promise<{ id: string; rehostedUrl: string }[]> {
+      return db
+        .selectFrom("printingImages")
+        .select(["id", "rehostedUrl"])
+        .where("printingId", "=", printingId)
+        .where("rehostedUrl", "is not", null)
+        .execute() as Promise<{ id: string; rehostedUrl: string }[]>;
     },
 
     /** @returns A printing source by ID (all columns). */
