@@ -37,14 +37,16 @@ export function CardPlaceholderImage({
       style={bgStyle}
     >
       {/* Top-left: energy circle */}
-      <div className="absolute top-2 left-2">
-        <div className="flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
-          {energy}
+      {energy !== null && energy !== undefined && (
+        <div className="absolute top-2 left-2">
+          <div className="flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
+            {energy}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Top-right: might */}
-      {might !== null && might !== undefined && might > 0 && (
+      {might !== null && might !== undefined && (
         <div className="absolute top-2 right-2 flex size-8 items-center justify-center gap-0.5 rounded-full bg-black/70 text-sm font-bold text-white">
           <img src="/images/might.svg" alt="Might" className="size-3.5" />
           {might}
