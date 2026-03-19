@@ -739,7 +739,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
 
     /** @returns Card sources for detail page, explicit columns. */
     cardSourcesForDetail(
-      normName: string,
+      normName: string | string[],
     ): Promise<
       Pick<
         Selectable<CardSourcesTable>,
@@ -783,7 +783,7 @@ export function cardSourcesRepo(db: Kysely<Database>) {
           "extraData",
           "checkedAt",
         ])
-        .where("cardSources.normName", "=", normName)
+        .where("cardSources.normName", Array.isArray(normName) ? "in" : "=", normName)
         .where(notIgnoredCard("cardSources"))
         .where(notHiddenSource("cardSources"))
         .orderBy("source")
