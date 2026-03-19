@@ -1,5 +1,6 @@
 import type { CardType, DeckFormat, DeckZone } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
 
@@ -135,8 +136,11 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Owned copy count per card from deckbuilding-available collections. */
-    availableCopiesByCard(userId: string): Promise<{ cardId: string; count: number }[]> {
+    /** @returns Owned copy count per card from deckbuilding-available collections, filtered to the given card IDs. */
+    availableCopiesByCard(
+      userId: string,
+      cardIds: string[],
+    ): Promise<{ cardId: string; count: number }[]> {
       return db
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
@@ -147,6 +151,7 @@ export function decksRepo(db: Kysely<Database>) {
         ])
         .where("cp.userId", "=", userId)
         .where("col.availableForDeckbuilding", "=", true)
+        .where("p.cardId", "in", cardIds)
         .groupBy("p.cardId")
         .execute();
     },
@@ -166,9 +171,10 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
+        // Touch the parent deck so its updated_at advances via trigger
         await trx
           .updateTable("decks")
-          .set({ updatedAt: new Date() })
+          .set({ updatedAt: sql`now()` })
           .where("id", "=", deckId)
           .execute();
       });

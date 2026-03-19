@@ -1,5 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
-import type { DeckAvailabilityItemResponse, DeckDetailResponse } from "@openrift/shared";
+import type {
+  DeckAvailabilityItemResponse,
+  DeckDetailResponse,
+  DeckFormat,
+  DeckZone,
+} from "@openrift/shared";
 import {
   createDeckSchema,
   decksQuerySchema,
@@ -16,6 +21,46 @@ import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { Variables } from "../../types.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../../utils/mappers.js";
+
+const formatRules: Record<DeckFormat, { minMain?: number; maxSideboard?: number }> = {
+  standard: { minMain: 40, maxSideboard: 8 },
+  freeform: {},
+};
+
+function validateFormatRules(
+  format: DeckFormat,
+  cards: { zone: DeckZone; quantity: number }[],
+): void {
+  const rules = formatRules[format];
+  if (!rules.minMain && !rules.maxSideboard) {
+    return;
+  }
+
+  let mainCount = 0;
+  let sideboardCount = 0;
+  for (const entry of cards) {
+    if (entry.zone === "main") {
+      mainCount += entry.quantity;
+    } else if (entry.zone === "sideboard") {
+      sideboardCount += entry.quantity;
+    }
+  }
+
+  if (rules.minMain && mainCount < rules.minMain) {
+    throw new AppError(
+      400,
+      "BAD_REQUEST",
+      `${format[0].toUpperCase()}${format.slice(1)} format requires at least ${rules.minMain} main deck cards`,
+    );
+  }
+  if (rules.maxSideboard && sideboardCount > rules.maxSideboard) {
+    throw new AppError(
+      400,
+      "BAD_REQUEST",
+      `${format[0].toUpperCase()}${format.slice(1)} format allows at most ${rules.maxSideboard} sideboard cards`,
+    );
+  }
+}
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -60,12 +105,13 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const deck = await decks.getByIdForUser(id, userId);
+    const [deck, cardRows] = await Promise.all([
+      decks.getByIdForUser(id, userId),
+      decks.cardsWithDetails(id, userId),
+    ]);
     if (!deck) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
-
-    const cardRows = await decks.cardsWithDetails(id, userId);
 
     const detail: DeckDetailResponse = {
       deck: toDeck(deck),
@@ -122,30 +168,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
 
-      // Validate format rules
-      if (deck.format === "standard") {
-        const mainCount = body.cards
-          .filter((entry) => entry.zone === "main")
-          .reduce((sum, entry) => sum + entry.quantity, 0);
-        const sideboardCount = body.cards
-          .filter((entry) => entry.zone === "sideboard")
-          .reduce((sum, entry) => sum + entry.quantity, 0);
-
-        if (mainCount < 40) {
-          throw new AppError(
-            400,
-            "BAD_REQUEST",
-            "Standard format requires at least 40 main deck cards",
-          );
-        }
-        if (sideboardCount > 8) {
-          throw new AppError(
-            400,
-            "BAD_REQUEST",
-            "Standard format allows at most 8 sideboard cards",
-          );
-        }
-      }
+      validateFormatRules(deck.format, body.cards);
 
       await decks.replaceCards(id, body.cards);
 
@@ -165,10 +188,10 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    const [deckCards, availableCopies] = await Promise.all([
-      decks.cardRequirements(id),
-      decks.availableCopiesByCard(userId),
-    ]);
+    const deckCards = await decks.cardRequirements(id);
+    const cardIds = deckCards.map((dc) => dc.cardId);
+    const availableCopies =
+      cardIds.length > 0 ? await decks.availableCopiesByCard(userId, cardIds) : [];
 
     const ownedByCard = new Map<string, number>();
     for (const row of availableCopies) {
