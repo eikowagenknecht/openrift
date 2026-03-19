@@ -368,7 +368,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
         promises.push(checkAllCardSources.mutateAsync(cardId));
       }
 
-      // Check all printing sources (each printing separately)
+      // Check all printing sources (each accepted printing separately)
       for (const printing of printings) {
         const printingId = printing.id as string;
         const relatedSources = printingSources.filter((ps) => ps.printingId === printingId);
@@ -384,6 +384,14 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               extraIds: extraIds.length > 0 ? extraIds : undefined,
             }),
           );
+        }
+      }
+
+      // Check all printing sources in new/ambiguous groups (no printingId yet)
+      for (const group of ambiguousGroups) {
+        const uncheckedIds = group.sources.filter((s) => !s.checkedAt).map((s) => s.id);
+        if (uncheckedIds.length > 0) {
+          promises.push(checkAllPrintingSources.mutateAsync({ extraIds: uncheckedIds }));
         }
       }
 
@@ -760,12 +768,12 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                 data-printing-id={printingId}
                 className={cn("rounded-md border", allChecked && "border-green-600/40")}
               >
-                <div className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium">
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 hover:opacity-70"
-                    onClick={() => togglePrinting(printingId)}
-                  >
+                {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
+                <div
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-70"
+                  onClick={() => togglePrinting(printingId)}
+                >
+                  <span className="flex items-center gap-2">
                     {isExpanded ? (
                       <ChevronDownIcon className="size-4" />
                     ) : (
@@ -784,7 +792,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                         no image
                       </Badge>
                     )}
-                  </button>
+                  </span>
                   {isStale && (
                     <>
                       <span className="text-muted-foreground">&rarr; {expectedId}</span>
@@ -1245,12 +1253,12 @@ function NewPrintingGroupCard({
         group.sources.every((s) => s.checkedAt) ? "border-green-600/40" : "border-yellow-500/60",
       )}
     >
-      <div className="flex flex-wrap items-center gap-3 px-3 py-2">
-        <button
-          type="button"
-          className="flex items-center gap-2 text-sm font-medium hover:opacity-70"
-          onClick={onToggle}
-        >
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
+      <div
+        className="flex cursor-pointer flex-wrap items-center gap-3 px-3 py-2 hover:opacity-70"
+        onClick={onToggle}
+      >
+        <span className="flex items-center gap-2 text-sm font-medium">
           {isExpanded ? (
             <ChevronDownIcon className="size-4" />
           ) : (
@@ -1261,8 +1269,9 @@ function NewPrintingGroupCard({
             {group.sources.length} source
             {group.sources.length === 1 ? "" : "s"}
           </span>
-        </button>
-        <div className="flex flex-wrap items-end gap-2">
+        </span>
+        {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- stopPropagation wrapper, not interactive */}
+        <div className="flex flex-wrap items-end gap-2" onClick={(e) => e.stopPropagation()}>
           {group.sources.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
