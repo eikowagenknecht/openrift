@@ -204,7 +204,9 @@ export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummary
     const ids: string[] = [];
     for (const cs of group) {
       for (const ps of psByCardSourceId.get(cs.id) ?? []) {
-        ids.push(ps.sourceId);
+        if (!ps.checkedAt) {
+          ids.push(ps.sourceId);
+        }
       }
     }
     return ids;
@@ -364,9 +366,10 @@ export async function buildExport(repo: Repo) {
 export async function buildCardSourceDetail(repo: Repo, identifier: string) {
   const card = await repo.cardForDetail(identifier);
 
-  // If matched, look up by card's normName; otherwise treat identifier as normName
-  const normName = card ? card.normName : identifier;
-  const sources = await repo.cardSourcesForDetail(normName);
+  // If matched, look up by card's normName + aliases; otherwise treat identifier as normName
+  const aliases = card ? await repo.cardNameAliases(card.id) : [];
+  const normNames = aliases.length > 0 ? aliases.map((a) => a.normName) : [identifier];
+  const sources = await repo.cardSourcesForDetail(normNames);
   const sourceIds = sources.map((s) => s.id);
   const printingSources =
     sourceIds.length > 0 ? await repo.printingSourcesForDetail(sourceIds) : [];
