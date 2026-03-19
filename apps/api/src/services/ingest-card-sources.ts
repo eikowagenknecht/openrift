@@ -51,6 +51,15 @@ const CARD_FIELD_MAP: Record<string, string> = {
 
 const CARD_FIELDS = Object.keys(CARD_FIELD_MAP);
 
+function camelCaseKeys(obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const camel = k.replaceAll(/_([a-z])/g, (_, c) => c.toUpperCase());
+    out[camel] = v;
+  }
+  return out;
+}
+
 function normalize(value: unknown): unknown {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -58,12 +67,12 @@ function normalize(value: unknown): unknown {
   if (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))) {
     return Number(value);
   }
-  if (
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    Object.keys(value as object).length === 0
-  ) {
-    return null;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    if (Object.keys(obj).length === 0) {
+      return null;
+    }
+    return camelCaseKeys(obj);
   }
   return value;
 }
@@ -303,7 +312,6 @@ export async function ingestCardSources(
             tags: card.tags,
             sourceEntityId: card.source_entity_id,
             checkedAt: null,
-            updatedAt: new Date(),
           };
           if (card.source_id !== undefined) {
             cardUpdate.sourceId = card.source_id ?? null;
@@ -429,7 +437,6 @@ export async function ingestCardSources(
             const psUpdate: Record<string, unknown> = {
               ...printingFields,
               checkedAt: null,
-              updatedAt: new Date(),
             };
             if (!existingPS.printingId && resolvedPrintingId) {
               psUpdate.printingId = resolvedPrintingId;
@@ -438,7 +445,6 @@ export async function ingestCardSources(
           } else if (resolvedPrintingId && !existingPS.printingId) {
             await repo.updatePrintingSource(existingPS.id, {
               printingId: resolvedPrintingId,
-              updatedAt: new Date(),
             });
           }
         } else {
