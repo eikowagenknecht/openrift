@@ -1,4 +1,5 @@
 import type { RehostImageResponse } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -17,6 +18,7 @@ import { useSourceNames } from "@/hooks/use-card-sources";
 import type { RegenerateAccumulator } from "@/hooks/use-rehost";
 import {
   useClearRehosted,
+  useMissingImages,
   useRegenerateImages,
   useRehostImages,
   useRehostStatus,
@@ -250,11 +252,49 @@ function RestoreUrlsSection() {
   );
 }
 
+// ── MissingImagesSection ──────────────────────────────────────────────────────
+
+function MissingImagesSection() {
+  const { data: cards } = useMissingImages();
+
+  if (!cards || cards.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Missing Images</CardTitle>
+        <CardDescription>
+          {cards.length} {cards.length === 1 ? "card has" : "cards have"} printings without an
+          active front-face image.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <ul className="space-y-1 text-sm">
+          {cards.map((card) => (
+            <li key={card.cardId}>
+              <Link
+                to="/admin/cards/$cardSlug"
+                params={{ cardSlug: card.slug }}
+                className="text-muted-foreground hover:underline"
+              >
+                <span className="text-muted-foreground/60">{card.slug}</span> {card.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ImagesPage() {
   return (
     <div className="space-y-4">
+      <MissingImagesSection />
       <RehostSection />
       <RestoreUrlsSection />
     </div>

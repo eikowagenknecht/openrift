@@ -1,6 +1,7 @@
 export type {
   ActivitiesTable,
   ActivityItemsTable,
+  CardNameAliasesTable,
   CardSourcesTable,
   CardsTable,
   CollectionsTable,

@@ -17,7 +17,7 @@ const pageTitles: Record<string, string> = {
   "/_authenticated/admin/settings": "Settings",
   "/_authenticated/admin/feature-flags": "Feature Flags",
   "/_authenticated/admin/scan": "Scan Test",
-  "/_authenticated/admin/cards_/$cardId": "Card Source",
+  "/_authenticated/admin/cards_/$cardSlug": "Card Source",
   "/_authenticated/admin/cards_/new/$name": "New Card",
   "/_authenticated/admin/error-test": "Error Test",
 };

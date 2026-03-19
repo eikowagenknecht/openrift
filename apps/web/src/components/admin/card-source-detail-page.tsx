@@ -6,7 +6,7 @@ import type {
   Rarity,
   SourceSettingResponse,
 } from "@openrift/shared";
-import { buildPrintingId, mostCommonValue } from "@openrift/shared";
+import { buildPrintingId } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -103,7 +103,7 @@ interface DetailData {
 }
 
 interface UnmatchedData {
-  name: string;
+  displayName: string;
   sources: CardSourceResponse[];
   printingSources: PrintingSourceResponse[];
   printingSourceGroups: PrintingSourceGroupResponse[];
@@ -151,10 +151,11 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   const linkPrintingSources = useLinkPrintingSources();
   const renamePrinting = useRenamePrinting();
 
-  // --- Promo types for dropdown ---
+  // --- Promo types for dropdown + slug lookup ---
   const { data: promoTypesData } = usePromoTypes();
+  const promoTypes = promoTypesData?.promoTypes ?? [];
   const printingSourceFields = buildPrintingSourceFields(
-    (promoTypesData?.promoTypes ?? []).map((pt: { id: string; label: string }) => ({
+    promoTypes.map((pt: { id: string; label: string }) => ({
       value: pt.id,
       label: pt.label,
     })),
@@ -271,12 +272,10 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   // Build PrintingGroup[] from API groups (for components that still need the old shape)
   const printingSourceById = new Map(printingSources.map((ps) => [ps.id, ps]));
   const apiToLocalGroup = (g: PrintingSourceGroupResponse): PrintingGroup => ({
-    key: g.groupKey,
-    label: g.label,
-    differentiators: g.differentiators,
     sources: g.sourceIds
       .map((id) => printingSourceById.get(id))
       .filter(Boolean) as PrintingSourceResponse[],
+    expectedPrintingId: g.expectedPrintingId,
   });
 
   // Existing-mode: split into auto-matched and ambiguous groups
@@ -287,25 +286,10 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
         ambiguousGroups: [] as PrintingGroup[],
       };
     }
-    const matched = new Map<string, PrintingGroup[]>();
-    const ambiguous: PrintingGroup[] = [];
-    for (const ag of apiGroups) {
-      const localGroup = apiToLocalGroup(ag);
-      if (ag.matchedPrintingId) {
-        const existing = matched.get(ag.matchedPrintingId) ?? [];
-        existing.push(localGroup);
-        matched.set(ag.matchedPrintingId, existing);
-      } else if (ag.candidatePrintingIds.length > 0) {
-        for (const pid of ag.candidatePrintingIds) {
-          const existing = matched.get(pid) ?? [];
-          existing.push(localGroup);
-          matched.set(pid, existing);
-        }
-      } else {
-        ambiguous.push(localGroup);
-      }
-    }
-    return { autoMatchedByPrinting: matched, ambiguousGroups: ambiguous };
+    return {
+      autoMatchedByPrinting: new Map<string, PrintingGroup[]>(),
+      ambiguousGroups: apiGroups.map((g) => apiToLocalGroup(g)),
+    };
   })();
 
   // Use API-provided expectedCardId / defaultCardId
@@ -342,7 +326,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
       },
       {
         onSuccess: () => {
-          void navigate({ to: "/admin/cards/$cardId", params: { cardId: id } });
+          void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: id } });
         },
       },
     );
@@ -357,7 +341,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
       { name: identifier, cardId: targetId },
       {
         onSuccess: () => {
-          void navigate({ to: "/admin/cards/$cardId", params: { cardId: targetId } });
+          void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: targetId } });
         },
       },
     );
@@ -406,7 +390,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
 
       const nextCardId = await fetchNext();
       if (nextCardId) {
-        void navigate({ to: "/admin/cards/$cardId", params: { cardId: nextCardId } });
+        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: nextCardId } });
       } else {
         toast.success("All cards reviewed!");
         void navigate({ to: "/admin/cards" });
@@ -460,8 +444,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       {
                         onSuccess: () => {
                           void navigate({
-                            to: "/admin/cards/$cardId",
-                            params: { cardId: expectedCardId },
+                            to: "/admin/cards/$cardSlug",
+                            params: { cardSlug: expectedCardId },
                           });
                         },
                       },
@@ -481,7 +465,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
       ) : (
         <div>
           <h2 className="text-lg font-semibold">
-            {(unmatchedData as NonNullable<typeof unmatchedData>).name}
+            {(unmatchedData as NonNullable<typeof unmatchedData>).displayName}
           </h2>
           <p className="text-sm text-muted-foreground">
             Candidate card &mdash; {sources.length} source
@@ -594,8 +578,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                     {
                       onSuccess: () => {
                         void navigate({
-                          to: "/admin/cards/$cardId",
-                          params: { cardId: newId },
+                          to: "/admin/cards/$cardSlug",
+                          params: { cardSlug: newId },
                         });
                       },
                     },
@@ -621,8 +605,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                     {
                       onSuccess: () => {
                         void navigate({
-                          to: "/admin/cards/$cardId",
-                          params: { cardId: newId },
+                          to: "/admin/cards/$cardSlug",
+                          params: { cardSlug: newId },
                         });
                       },
                     },
@@ -698,7 +682,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       {
                         onSuccess: () => {
                           checkCardSource.mutate(row.id);
-                          void navigate({ to: "/admin/cards/$cardId", params: { cardId: id } });
+                          void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: id } });
                         },
                       },
                     );
@@ -736,7 +720,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               onClick={() => {
                 const allKeys = [
                   ...printings.map((p) => p.id as string),
-                  ...ambiguousGroups.map((g) => g.key),
+                  ...ambiguousGroups.map((g) => g.expectedPrintingId),
                 ];
                 setExpandedPrintings((prev) =>
                   prev.size === allKeys.length ? new Set() : new Set(allKeys),
@@ -764,12 +748,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               ...printing,
               imageUrl: activeImage?.originalUrl ?? null,
             };
-            const expectedId = buildPrintingId(
-              printing.sourceId as string,
-              printing.rarity as string,
-              (printing.promoTypeSlug as string | null) ?? null,
-              printing.finish as string,
-            );
+            const expectedId = printing.expectedPrintingId as string;
             const isStale = printingSlug !== expectedId;
 
             const allChecked = allSources.every((ps) => ps.checkedAt);
@@ -1052,14 +1031,14 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
           {/* Unmatched printing sources — only groups with 0 or 2+ printing matches */}
           {ambiguousGroups.map((group) => (
             <NewPrintingGroupCard
-              key={group.key}
+              key={group.expectedPrintingId}
               cardId={cardId}
               group={group}
               existingPrintings={printings}
               sourceLabels={sourceLabels}
               sourceSettings={sourceSettings}
-              isExpanded={expandedPrintings.has(group.key)}
-              onToggle={() => togglePrinting(group.key)}
+              isExpanded={expandedPrintings.has(group.expectedPrintingId)}
+              onToggle={() => togglePrinting(group.expectedPrintingId)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
               onUncheck={(id) => uncheckPrintingSource.mutate(id)}
               onAccept={(printingFields, printingSourceIds) => {
@@ -1102,16 +1081,10 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
         <section className="space-y-3">
           <h3 className="font-medium">Printings</h3>
           {newModeGroups.map((group) => {
-            const guessedSourceId = mostCommonValue(group.sources.map((s) => s.sourceId));
-            const guessedId = buildPrintingId(
-              guessedSourceId,
-              group.sources[0]?.rarity ?? ("Common" satisfies Rarity),
-              null,
-              group.differentiators.finish,
-            );
+            const guessedId = group.expectedPrintingId;
 
             return (
-              <div key={group.key} className="rounded-md border border-dashed">
+              <div key={group.expectedPrintingId} className="rounded-md border border-dashed">
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="text-sm font-medium">
                     {guessedId} &mdash; {group.sources.length} source
@@ -1126,29 +1099,30 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-max">
                         {newModeGroups
-                          .filter((g) => g.key !== group.key)
+                          .filter((g) => g.expectedPrintingId !== group.expectedPrintingId)
                           .map((target) => {
-                            const targetSourceId = mostCommonValue(
-                              target.sources.map((s) => s.sourceId),
-                            );
-                            const targetId = buildPrintingId(
-                              targetSourceId,
-                              target.sources[0]?.rarity ?? ("Common" satisfies Rarity),
-                              null,
-                              target.differentiators.finish,
-                            );
+                            const targetId = target.expectedPrintingId;
                             return (
                               <DropdownMenuItem
-                                key={target.key}
+                                key={target.expectedPrintingId}
                                 disabled={reassignPrinting.isPending}
-                                onClick={() =>
+                                onClick={() => {
+                                  const t = target.sources[0];
                                   group.sources.forEach((s) =>
                                     reassignPrinting.mutate({
                                       id: s.id,
-                                      fields: target.differentiators,
+                                      fields: {
+                                        setId: t.setId,
+                                        collectorNumber: t.collectorNumber,
+                                        artVariant: t.artVariant,
+                                        isSigned: t.isSigned,
+                                        promoTypeId: t.promoTypeId,
+                                        rarity: t.rarity,
+                                        finish: t.finish,
+                                      },
                                     }),
-                                  )
-                                }
+                                  );
+                                }}
                               >
                                 <ArrowRightIcon className="mr-2 size-3.5" />
                                 Merge into {targetId}
@@ -1250,15 +1224,7 @@ function NewPrintingGroupCard({
       )
     : "";
 
-  // Guess the most likely ID from source data before fields are selected
-  const { differentiators: d } = group;
-  const guessedSourceId = mostCommonValue(group.sources.map((s) => s.sourceId));
-  const guessedId = buildPrintingId(
-    guessedSourceId,
-    group.sources[0]?.rarity ?? ("Common" satisfies Rarity),
-    null,
-    d.finish,
-  );
+  const guessedId = group.expectedPrintingId;
 
   return (
     <div className="rounded-md border border-dashed">

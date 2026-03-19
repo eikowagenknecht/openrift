@@ -58,6 +58,11 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── Restore original URLs from a card source ──────────────────────────────
 
+  .get("/missing-images", async (c) => {
+    const { cardSources } = c.get("repos");
+    return c.json(await cardSources.listCardsWithMissingImages());
+  })
+
   .post("/restore-image-urls", zValidator("json", restoreImageUrlsSchema), async (c) => {
     const { printingImages } = c.get("repos");
     const { source } = c.req.valid("json");
