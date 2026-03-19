@@ -124,7 +124,7 @@ export function collectionsRepo(db: Kysely<Database>) {
     ): Promise<void> {
       await trx
         .updateTable("copies")
-        .set({ collectionId: toCollectionId, updatedAt: new Date() })
+        .set({ collectionId: toCollectionId })
         .where("collectionId", "=", fromCollectionId)
         .execute();
     },

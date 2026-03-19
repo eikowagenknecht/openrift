@@ -140,7 +140,6 @@ export function marketplaceMappingRepo(db: Db) {
             externalId: sql<number>`excluded.external_id`,
             groupId: sql<number>`excluded.group_id`,
             productName: sql<string>`excluded.product_name`,
-            updatedAt: new Date(),
           }),
         )
         .returning(["id", "printingId"])

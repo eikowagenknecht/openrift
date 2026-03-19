@@ -19,9 +19,7 @@ export function sourceSettingsRepo(db: Kysely<Database>) {
           await tx
             .insertInto("sourceSettings")
             .values({ source: sources[i], sortOrder: i + 1, isHidden: false })
-            .onConflict((oc) =>
-              oc.column("source").doUpdateSet({ sortOrder: i + 1, updatedAt: new Date() }),
-            )
+            .onConflict((oc) => oc.column("source").doUpdateSet({ sortOrder: i + 1 }))
             .execute();
         }
       });
@@ -39,7 +37,6 @@ export function sourceSettingsRepo(db: Kysely<Database>) {
           oc.column("source").doUpdateSet({
             ...(updates.sortOrder === undefined ? {} : { sortOrder: updates.sortOrder }),
             ...(updates.isHidden === undefined ? {} : { isHidden: updates.isHidden }),
-            updatedAt: new Date(),
           }),
         )
         .returningAll()

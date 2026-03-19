@@ -35,7 +35,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
       return sql`
         UPDATE card_sources cs
-        SET checked_at = ${now}, updated_at = ${now}
+        SET checked_at = ${now}
         FROM cards c
         WHERE c.id = (${rcid})
           AND cs.checked_at IS NULL
@@ -62,7 +62,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
       return sql`
         UPDATE printing_sources ps
-        SET checked_at = ${now}, updated_at = ${now}
+        SET checked_at = ${now}
         FROM printings p
         LEFT JOIN sets s ON s.id = p.set_id
         WHERE ps.printing_id = p.id
@@ -92,7 +92,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     checkCardSource(cardSourceId: string): Promise<UpdateResult> {
       return db
         .updateTable("cardSources")
-        .set({ checkedAt: new Date(), updatedAt: new Date() })
+        .set({ checkedAt: new Date() })
         .where("id", "=", cardSourceId)
         .executeTakeFirst();
     },
@@ -104,7 +104,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     uncheckCardSource(cardSourceId: string): Promise<UpdateResult> {
       return db
         .updateTable("cardSources")
-        .set({ checkedAt: null, updatedAt: new Date() })
+        .set({ checkedAt: null })
         .where("id", "=", cardSourceId)
         .executeTakeFirst();
     },
@@ -136,7 +136,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
       const results = await db
         .updateTable("cardSources")
-        .set({ checkedAt: now, updatedAt: now })
+        .set({ checkedAt: now })
         .where((eb) =>
           eb.or([
             eb("cardSources.normName", "in", normNames),
@@ -158,7 +158,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     checkPrintingSource(id: string): Promise<UpdateResult> {
       return db
         .updateTable("printingSources")
-        .set({ checkedAt: new Date(), updatedAt: new Date() })
+        .set({ checkedAt: new Date() })
         .where("id", "=", id)
         .executeTakeFirst();
     },
@@ -170,7 +170,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     uncheckPrintingSource(id: string): Promise<UpdateResult> {
       return db
         .updateTable("printingSources")
-        .set({ checkedAt: null, updatedAt: new Date() })
+        .set({ checkedAt: null })
         .where("id", "=", id)
         .executeTakeFirst();
     },
@@ -182,7 +182,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     async checkAllPrintingSources(printingId: string, extraIds?: string[]): Promise<number> {
       const results = await db
         .updateTable("printingSources")
-        .set({ checkedAt: new Date(), updatedAt: new Date() })
+        .set({ checkedAt: new Date() })
         .where((eb) =>
           eb.or([
             eb("printingId", "=", printingId),
@@ -201,11 +201,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
      * @returns Update result.
      */
     patchPrintingSource(id: string, updates: Record<string, unknown>): Promise<UpdateResult> {
-      return db
-        .updateTable("printingSources")
-        .set({ ...updates, updatedAt: new Date() })
-        .where("id", "=", id)
-        .executeTakeFirst();
+      return db.updateTable("printingSources").set(updates).where("id", "=", id).executeTakeFirst();
     },
 
     /**
@@ -282,7 +278,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     ): Promise<void> {
       await db
         .updateTable("printingSources")
-        .set({ printingId: printingUuid, updatedAt: new Date() })
+        .set({ printingId: printingUuid })
         .where("id", "in", printingSourceIds)
         .execute();
     },
@@ -295,7 +291,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     ): Promise<void> {
       await trx
         .updateTable("printingSources")
-        .set({ printingId: printingUuid, checkedAt: new Date(), updatedAt: new Date() })
+        .set({ printingId: printingUuid, checkedAt: new Date() })
         .where("id", "in", printingSourceIds)
         .execute();
     },
@@ -371,11 +367,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
     /** Rename a card's slug. */
     async renameCardSlug(oldSlug: string, newSlug: string): Promise<void> {
-      await db
-        .updateTable("cards")
-        .set({ slug: newSlug, updatedAt: new Date() })
-        .where("slug", "=", oldSlug)
-        .execute();
+      await db.updateTable("cards").set({ slug: newSlug }).where("slug", "=", oldSlug).execute();
     },
 
     /** @returns A card's rulesText and effectText by slug. */
@@ -391,11 +383,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
     /** Update arbitrary fields on a card by slug. */
     async updateCardBySlug(slug: string, updates: Record<string, unknown>): Promise<void> {
-      await db
-        .updateTable("cards")
-        .set({ ...updates, updatedAt: new Date() })
-        .where("slug", "=", slug)
-        .execute();
+      await db.updateTable("cards").set(updates).where("slug", "=", slug).execute();
     },
 
     // ── Printing mutations ────────────────────────────────────────────────────
@@ -404,7 +392,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     async updatePrintingBySlug(slug: string, field: string, value: unknown): Promise<void> {
       await db
         .updateTable("printings")
-        .set({ [field]: value, updatedAt: new Date() })
+        .set({ [field]: value })
         .where("slug", "=", slug)
         .execute();
     },
@@ -413,7 +401,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     async renamePrintingSlug(oldSlug: string, newSlug: string): Promise<void> {
       await db
         .updateTable("printings")
-        .set({ slug: newSlug, updatedAt: new Date() })
+        .set({ slug: newSlug })
         .where("slug", "=", oldSlug)
         .execute();
     },

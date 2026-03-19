@@ -5,7 +5,7 @@ export type FieldMapping = Record<string, string | ((value: unknown) => [string,
 // Build a PATCH updates object from a parsed request body and a field mapping.
 // Each key in fieldMap is a camelCase body field. The value is either a string
 // (the snake_case column name) or a transform fn returning [column, dbValue].
-// Throws 400 if no fields are present. Automatically appends updated_at.
+// Throws 400 if no fields are present.
 export function buildPatchUpdates(
   body: Record<string, unknown>,
   fieldMap: FieldMapping,
@@ -27,6 +27,5 @@ export function buildPatchUpdates(
     throw new AppError(400, "BAD_REQUEST", "No fields to update");
   }
 
-  updates.updatedAt = new Date();
   return updates;
 }

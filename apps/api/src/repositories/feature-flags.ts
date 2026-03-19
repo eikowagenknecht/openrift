@@ -40,7 +40,7 @@ export function featureFlagsRepo(db: Kysely<Database>) {
     ): Promise<Selectable<FeatureFlagsTable> | undefined> {
       return db
         .updateTable("featureFlags")
-        .set({ ...updates, updatedAt: new Date() })
+        .set(updates)
         .where("key", "=", key)
         .returningAll()
         .executeTakeFirst();

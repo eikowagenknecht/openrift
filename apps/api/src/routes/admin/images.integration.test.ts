@@ -221,7 +221,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       // Ensure no images have rehostedUrl without originalUrl (would violate chk_printing_images_has_url)
       await db
         .updateTable("printingImages")
-        .set({ originalUrl: "https://example.com/placeholder.png", updatedAt: new Date() })
+        .set({ originalUrl: "https://example.com/placeholder.png" })
         .where("rehostedUrl", "is not", null)
         .where("originalUrl", "is", null)
         .execute();

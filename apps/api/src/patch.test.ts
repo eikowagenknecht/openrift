@@ -6,7 +6,6 @@ describe("buildPatchUpdates", () => {
   it("maps string field mappings to column names", () => {
     const result = buildPatchUpdates({ name: "Alice" }, { name: "display_name" });
     expect(result.display_name).toBe("Alice");
-    expect(result.updatedAt).toBeInstanceOf(Date);
   });
 
   it("applies transform functions for callable mappings", () => {
@@ -15,7 +14,6 @@ describe("buildPatchUpdates", () => {
       { tags: (v) => ["tag_list", (v as string[]).join(",")] },
     );
     expect(result.tag_list).toBe("a,b");
-    expect(result.updatedAt).toBeInstanceOf(Date);
   });
 
   it("skips undefined/missing body fields", () => {
@@ -34,10 +32,8 @@ describe("buildPatchUpdates", () => {
     );
   });
 
-  it("always includes updatedAt in the result", () => {
-    const before = new Date();
+  it("does not include updatedAt (handled by DB trigger)", () => {
     const result = buildPatchUpdates({ name: "Bob" }, { name: "display_name" });
-    expect(result.updatedAt).toBeInstanceOf(Date);
-    expect((result.updatedAt as Date).getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(result).not.toHaveProperty("updatedAt");
   });
 });
