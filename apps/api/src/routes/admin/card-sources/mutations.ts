@@ -1,14 +1,16 @@
 import { zValidator } from "@hono/zod-validator";
 import type { CardSourceUploadResponse } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
-import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
-import { buildPrintingId, normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
 
 import { AppError } from "../../../errors.js";
-import { setsRepo } from "../../../repositories/sets.js";
-import { printingIdToFileBase, renameRehostFiles } from "../../../services/image-rehost.js";
+import {
+  acceptPrinting,
+  renamePrinting,
+  updatePrintingPromoType,
+} from "../../../services/printing-admin.js";
 import type { Variables } from "../../../types.js";
 import {
   acceptFieldSchema,
@@ -377,76 +379,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     // When promoTypeId changes, rebuild the printing slug and rename rehosted files
     if (field === "promoTypeId") {
-      const db = c.get("db");
-      const io = c.get("io");
-
-      // Fetch current printing + set slug + active front image
-      const printing = await db
-        .selectFrom("printings as p")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .select(["p.id", "p.slug", "p.sourceId", "p.rarity", "p.finish", "s.slug as setSlug"])
-        .where("p.slug", "=", printingSlug)
-        .executeTakeFirst();
-      if (!printing) {
-        throw new AppError(404, "NOT_FOUND", "Printing not found");
-      }
-
-      // Resolve new promo type slug (null value clears promo type)
-      let promoTypeSlug: string | null = null;
-      if (normalizedValue) {
-        const pt = await db
-          .selectFrom("promoTypes")
-          .select("slug")
-          .where("id", "=", normalizedValue as string)
-          .executeTakeFirst();
-        if (!pt) {
-          throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
-        }
-        promoTypeSlug = pt.slug;
-      }
-
-      const newSlug = buildPrintingId(
-        printing.sourceId,
-        printing.rarity,
-        promoTypeSlug,
-        printing.finish,
+      const { printingImages, promoTypes } = c.get("repos");
+      await updatePrintingPromoType(
+        c.get("db"),
+        c.get("io"),
+        { printingImages, promoTypes },
+        printingSlug,
+        (normalizedValue as string) || null,
       );
-
-      // Update promoTypeId and slug together
-      await db
-        .updateTable("printings")
-        .set({
-          promoTypeId: (normalizedValue as string) || null,
-          slug: newSlug,
-          updatedAt: new Date(),
-        })
-        .where("id", "=", printing.id)
-        .execute();
-
-      // Rename rehosted files for all images of this printing
-      if (newSlug !== printing.slug) {
-        const images = await db
-          .selectFrom("printingImages")
-          .select(["id", "rehostedUrl"])
-          .where("printingId", "=", printing.id)
-          .where("rehostedUrl", "is not", null)
-          .execute();
-
-        const oldFileBase = printingIdToFileBase(printing.slug);
-        const newFileBase = printingIdToFileBase(newSlug);
-        for (const img of images) {
-          // WHERE filter guarantees rehostedUrl is not null
-          const rehostedUrl = img.rehostedUrl as string;
-          const newRehostedUrl = rehostedUrl.replace(oldFileBase, newFileBase);
-          await renameRehostFiles(io, rehostedUrl, newRehostedUrl);
-          await db
-            .updateTable("printingImages")
-            .set({ rehostedUrl: newRehostedUrl, updatedAt: new Date() })
-            .where("id", "=", img.id)
-            .execute();
-        }
-      }
-
       return c.body(null, 204);
     }
 
@@ -457,7 +397,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/rename ────────────────────────────────────
   .post("/printing/:printingId/rename", zValidator("json", renameSchema), async (c) => {
-    const { cardSourceMutations: mut } = c.get("repos");
+    const { cardSourceMutations, printingImages } = c.get("repos");
     const printingSlug = c.req.param("printingId");
     const { newId } = c.req.valid("json");
 
@@ -469,46 +409,12 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       return c.body(null, 204);
     }
 
-    const trimmedId = newId.trim();
-    const db = c.get("db");
-    const io = c.get("io");
-
-    // Fetch printing ID for image lookup
-    const printing = await db
-      .selectFrom("printings")
-      .select("id")
-      .where("slug", "=", printingSlug)
-      .executeTakeFirst();
-    if (!printing) {
-      throw new AppError(404, "NOT_FOUND", "Printing not found");
-    }
-
-    // UUID PK is immutable — only the slug changes
-    await mut.renamePrintingSlug(printingSlug, trimmedId);
-
-    // Rename rehosted files to match the new slug
-    const images = await db
-      .selectFrom("printingImages")
-      .select(["id", "rehostedUrl"])
-      .where("printingId", "=", printing.id)
-      .where("rehostedUrl", "is not", null)
-      .execute();
-
-    if (images.length > 0) {
-      const oldFileBase = printingIdToFileBase(printingSlug);
-      const newFileBase = printingIdToFileBase(trimmedId);
-      for (const img of images) {
-        // WHERE filter guarantees rehostedUrl is not null
-        const rehostedUrl = img.rehostedUrl as string;
-        const newRehostedUrl = rehostedUrl.replace(oldFileBase, newFileBase);
-        await renameRehostFiles(io, rehostedUrl, newRehostedUrl);
-        await db
-          .updateTable("printingImages")
-          .set({ rehostedUrl: newRehostedUrl, updatedAt: new Date() })
-          .where("id", "=", img.id)
-          .execute();
-      }
-    }
+    await renamePrinting(
+      c.get("io"),
+      { cardSourceMutations, printingImages },
+      printingSlug,
+      newId.trim(),
+    );
 
     return c.body(null, 204);
   })
@@ -560,110 +466,17 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /:cardId/accept-printing ─────────────────────────────────────────
   // Create a new printing from admin-selected fields, link all sources in the group
   .post("/:cardId/accept-printing", zValidator("json", acceptPrintingSchema), async (c) => {
-    const db = c.get("db");
-    const { cardSourceMutations: mut, printingImages } = c.get("repos");
+    const { cardSourceMutations, printingImages, promoTypes } = c.get("repos");
     const cardSlug = c.req.param("cardId");
     const { printingFields, printingSourceIds } = c.req.valid("json");
 
-    if (printingSourceIds.length === 0) {
-      throw new AppError(400, "BAD_REQUEST", "printingFields and printingSourceIds[] required");
-    }
-    if (!printingFields.setId) {
-      throw new AppError(400, "BAD_REQUEST", "printingFields.setId is required");
-    }
-
-    // Verify card exists (resolve slug → uuid)
-    const card = await mut.getCardIdBySlug(cardSlug);
-
-    if (!card) {
-      throw new AppError(404, "NOT_FOUND", "Card not found");
-    }
-
-    // Resolve promo type slug from ID for printing ID generation
-    let promoTypeSlug: string | null = null;
-    if (printingFields.promoTypeId) {
-      const pt = await db
-        .selectFrom("promoTypes")
-        .select("slug")
-        .where("id", "=", printingFields.promoTypeId)
-        .executeTakeFirst();
-      if (!pt) {
-        throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
-      }
-      promoTypeSlug = pt.slug;
-    }
-
-    const printingId =
-      printingFields.id ||
-      buildPrintingId(
-        printingFields.sourceId,
-        printingFields.rarity ?? ("Common" satisfies Rarity),
-        promoTypeSlug,
-        printingFields.finish ?? ("normal" satisfies Finish),
-      );
-
-    // Get source name from the first printing_source's card_source
-    const firstPs = await mut.getSourceNameForPrintingSource(printingSourceIds[0]);
-
-    await db.transaction().execute(async (trx) => {
-      if (printingFields.setId) {
-        await setsRepo(trx).upsert(
-          printingFields.setId,
-          printingFields.setName ?? printingFields.setId,
-          trx,
-        );
-      }
-
-      let setUuid = "";
-      if (printingFields.setId) {
-        const setRow = await mut.getSetIdBySlug(printingFields.setId, trx);
-        setUuid = setRow?.id ?? "";
-      }
-
-      // Normalize rarity to title case (source data may be lowercase)
-      const rawRarity = String(printingFields.rarity || ("Common" satisfies Rarity));
-      const normalizedRarity = RARITY_ORDER.find(
-        (r) => r.toLowerCase() === rawRarity.toLowerCase(),
-      );
-      if (!normalizedRarity) {
-        throw new AppError(
-          400,
-          "BAD_REQUEST",
-          `Invalid rarity "${rawRarity}". Must be one of: ${RARITY_ORDER.join(", ")}`,
-        );
-      }
-
-      const insertedId = await mut.upsertPrinting(trx, {
-        slug: printingId,
-        cardId: card.id,
-        setId: setUuid,
-        sourceId: printingFields.sourceId,
-        collectorNumber: printingFields.collectorNumber,
-        rarity: normalizedRarity as Rarity,
-        artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
-        isSigned: printingFields.isSigned ?? false,
-        promoTypeId: printingFields.promoTypeId ?? null,
-        finish: (printingFields.finish ?? "normal") as Finish,
-        artist: printingFields.artist,
-        publicCode: printingFields.publicCode,
-        printedRulesText: printingFields.printedRulesText ?? null,
-        printedEffectText: printingFields.printedEffectText ?? null,
-        flavorText: printingFields.flavorText ?? null,
-      });
-
-      // Insert image from the first source
-      if (printingFields.imageUrl) {
-        await printingImages.insertImage(
-          trx,
-          insertedId,
-          printingFields.imageUrl,
-          firstPs?.source ?? "import",
-        );
-      }
-
-      // Link all printing_sources in the group
-      await mut.linkAndCheckPrintingSources(printingSourceIds, insertedId, trx);
-    });
+    const printingId = await acceptPrinting(
+      c.get("db"),
+      { cardSourceMutations, printingImages, promoTypes },
+      cardSlug,
+      printingFields,
+      printingSourceIds,
+    );
 
     return c.json({ printingId });
   })
