@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-19
+
+- feat: Unmatched card sources now show a suggested card link based on name similarity
+
 ## 2026-03-17
 
 - feat: Card sources with missing images now show a "missing image" badge in the admin list

@@ -251,6 +251,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
 
   // --- Existing-mode computed values ---
   const sourceLabels = Object.fromEntries(sources.map((s) => [s.id, s.source]));
+  const sourceNames = Object.fromEntries(sources.map((s) => [s.id, s.name]));
 
   function togglePrinting(id: string) {
     setExpandedPrintings((prev) => {
@@ -861,6 +862,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                         activeRow={printingWithImage}
                         sourceRows={allSources}
                         sourceLabels={sourceLabels}
+                        sourceNames={sourceNames}
                         sourceSettings={sourceSettings}
                         onCellClick={(field, value) => {
                           acceptPrintingField.mutate({ printingId: printingSlug, field, value });
@@ -1036,6 +1038,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               group={group}
               existingPrintings={printings}
               sourceLabels={sourceLabels}
+              sourceNames={sourceNames}
               sourceSettings={sourceSettings}
               isExpanded={expandedPrintings.has(group.expectedPrintingId)}
               onToggle={() => togglePrinting(group.expectedPrintingId)}
@@ -1145,6 +1148,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       activeRow={null}
                       sourceRows={group.sources}
                       sourceLabels={sourceLabels}
+                      sourceNames={sourceNames}
                       sourceSettings={sourceSettings}
                       onCheck={(id) => checkPrintingSource.mutate(id)}
                       onUncheck={(id) => uncheckPrintingSource.mutate(id)}
@@ -1177,6 +1181,7 @@ function NewPrintingGroupCard({
   group,
   existingPrintings,
   sourceLabels,
+  sourceNames,
   sourceSettings,
   isExpanded,
   onToggle,
@@ -1194,6 +1199,7 @@ function NewPrintingGroupCard({
   group: PrintingGroup;
   existingPrintings: Record<string, unknown>[];
   sourceLabels: Record<string, string>;
+  sourceNames: Record<string, string>;
   sourceSettings: SourceSettingResponse[];
   isExpanded: boolean;
   onToggle: () => void;
@@ -1282,6 +1288,7 @@ function NewPrintingGroupCard({
                 activeRow={Object.keys(activePrinting).length > 0 ? activePrinting : null}
                 sourceRows={group.sources}
                 sourceLabels={sourceLabels}
+                sourceNames={sourceNames}
                 sourceSettings={sourceSettings}
                 onCellClick={(field, value) => {
                   setActivePrinting((prev) => ({ ...prev, [field]: value }));

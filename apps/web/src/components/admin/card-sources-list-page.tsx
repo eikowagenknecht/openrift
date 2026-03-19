@@ -1,6 +1,6 @@
 import { formatSourceIds } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
-import { CheckCheckIcon } from "lucide-react";
+import { CheckCheckIcon, LinkIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAutoCheckSources, useCardSourceList } from "@/hooks/use-card-sources";
+import { useAutoCheckSources, useCardSourceList, useLinkCard } from "@/hooks/use-card-sources";
 
 type Filter = "unchecked" | "unmatched" | "matched" | null;
 
@@ -22,6 +22,7 @@ export function CardSourcesListPage() {
   const [filter, setFilter] = useState<Filter>(null);
   const { data } = useCardSourceList();
   const autoCheck = useAutoCheckSources();
+  const linkCard = useLinkCard();
 
   const counts = {
     unchecked: data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0).length,
@@ -109,6 +110,25 @@ export function CardSourcesListPage() {
                     <div className="flex items-center gap-1">
                       {row.cardSlug ? (
                         <Badge variant="outline">Active</Badge>
+                      ) : row.suggestedCardSlug ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-xs"
+                          disabled={linkCard.isPending}
+                          onClick={() => {
+                            const slug = row.suggestedCardSlug;
+                            if (slug) {
+                              linkCard.mutate({
+                                name: row.normalizedName,
+                                cardId: slug,
+                              });
+                            }
+                          }}
+                        >
+                          <LinkIcon className="mr-1 size-3" />
+                          {row.suggestedCardSlug}
+                        </Button>
                       ) : (
                         <Badge variant="secondary">New</Badge>
                       )}
