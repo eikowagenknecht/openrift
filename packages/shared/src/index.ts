@@ -29,6 +29,7 @@ export type {
   DeckAvailabilityItemResponse,
   DeckCardResponse,
   DeckDetailResponse,
+  DeckFormat,
   DeckResponse,
   DeckZone,
   Domain,
