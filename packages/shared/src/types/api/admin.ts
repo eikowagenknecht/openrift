@@ -72,6 +72,7 @@ export interface CardSourceSummaryResponse {
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasGallery: boolean;
+  suggestedCardSlug: string | null;
 }
 
 export interface SourceStatsResponse {

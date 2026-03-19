@@ -263,8 +263,23 @@ export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummary
       uncheckedCardCount: group?.filter((cs) => !cs.checkedAt).length ?? 0,
       uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group) : 0,
       hasGallery: group?.some((cs) => cs.source === "gallery") ?? false,
+      suggestedCardSlug: null,
     };
   });
+
+  // For unmatched rows, suggest a card whose normName is the longest prefix —
+  // e.g. "yoneblademaster" is a prefix of "yoneblademasterovernumbered"
+  function findSuggestedCard(normName: string): string | null {
+    let bestSlug: string | null = null;
+    let bestLen = 0;
+    for (const card of cards) {
+      if (normName.startsWith(card.normName) && card.normName.length > bestLen) {
+        bestSlug = card.slug;
+        bestLen = card.normName.length;
+      }
+    }
+    return bestSlug;
+  }
 
   // Card sources that didn't match any card — these need a card to be created or linked
   for (const [normName, group] of csGroupsByNormName) {
@@ -278,6 +293,7 @@ export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummary
       uncheckedCardCount: group.filter((cs) => !cs.checkedAt).length,
       uncheckedPrintingCount: uncheckedPrintingCountForGroup(group),
       hasGallery: group.some((cs) => cs.source === "gallery"),
+      suggestedCardSlug: findSuggestedCard(normName),
     });
   }
 

@@ -119,8 +119,10 @@ interface SourceSpreadsheetProps {
   fields: FieldDef[];
   activeRow: Record<string, unknown> | null;
   sourceRows: (CardSourceResponse | PrintingSourceResponse)[];
-  /** Map from cardSourceId → source name, used to label PrintingSourceResponse columns. */
+  /** Map from cardSourceId → source name (e.g. "gallery"), used to label columns. */
   sourceLabels?: Record<string, string>;
+  /** Map from cardSourceId → card source name (e.g. "Yone - Blademaster (Overnumbered)"). */
+  sourceNames?: Record<string, string>;
   /** Source settings for sort order and visibility. Hidden sources are excluded. */
   sourceSettings?: SourceSettingResponse[];
   /** Field keys that must be selected before the card can be accepted. */
@@ -254,6 +256,7 @@ export function SourceSpreadsheet({
   activeRow,
   sourceRows,
   sourceLabels,
+  sourceNames,
   sourceSettings,
   requiredKeys,
   onCellClick,
@@ -325,7 +328,14 @@ export function SourceSpreadsheet({
                 )}
               >
                 <div className="flex items-center gap-1">
-                  <span className="min-w-0 break-words">{getSourceLabel(row, sourceLabels)}</span>
+                  <span className="min-w-0 break-words">
+                    {getSourceLabel(row, sourceLabels)}
+                    {"cardSourceId" in row && sourceNames?.[row.cardSourceId] && (
+                      <span className="ml-1 text-muted-foreground">
+                        ({sourceNames[row.cardSourceId]})
+                      </span>
+                    )}
+                  </span>
                   {isChecked(row) && (
                     <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
                   )}
@@ -394,7 +404,8 @@ export function SourceSpreadsheet({
                       return;
                     }
                     if (field.type === "boolean") {
-                      onActiveChange(field.key, activeValue !== true);
+                      // null → false (No) → true (Yes) → false cycle
+                      onActiveChange(field.key, activeValue === null ? false : !activeValue);
                       return;
                     }
                     if (hasDropdown(field)) {
