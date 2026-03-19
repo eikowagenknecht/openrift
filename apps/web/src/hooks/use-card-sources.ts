@@ -140,7 +140,7 @@ export function useUncheckPrintingSource() {
 
 export function useCheckAllPrintingSources() {
   return useMutationWithInvalidation({
-    mutationFn: ({ printingId, extraIds }: { printingId: string; extraIds?: string[] }) =>
+    mutationFn: ({ printingId, extraIds }: { printingId?: string; extraIds?: string[] }) =>
       rpc(
         client.api.admin["card-sources"]["printing-sources"]["check-all"].$post({
           json: { printingId, extraIds },

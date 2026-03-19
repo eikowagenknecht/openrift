@@ -179,13 +179,16 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
      * Mark all printing sources for a given printing (and optional extra IDs) as checked.
      * @returns The total number of rows updated.
      */
-    async checkAllPrintingSources(printingId: string, extraIds?: string[]): Promise<number> {
+    async checkAllPrintingSources(printingId?: string, extraIds?: string[]): Promise<number> {
+      if (!printingId && !extraIds?.length) {
+        return 0;
+      }
       const results = await db
         .updateTable("printingSources")
         .set({ checkedAt: new Date() })
         .where((eb) =>
           eb.or([
-            eb("printingId", "=", printingId),
+            ...(printingId ? [eb("printingId", "=", printingId)] : []),
             ...(extraIds?.length ? [eb("id", "in", extraIds)] : []),
           ]),
         )

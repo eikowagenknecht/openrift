@@ -11,7 +11,7 @@ import {
 export { cardFieldRules, printingFieldRules } from "../../../db/schemas.js";
 
 export const checkAllPrintingSourcesSchema = z.object({
-  printingId: z.string(),
+  printingId: z.string().optional(),
   extraIds: z.array(z.string()).optional(),
 });
 

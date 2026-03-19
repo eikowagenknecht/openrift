@@ -1043,9 +1043,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               isExpanded={expandedPrintings.has(group.expectedPrintingId)}
               onToggle={() => togglePrinting(group.expectedPrintingId)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
-              onCheckAll={(sourceIds) =>
-                checkAllPrintingSources.mutate({ printingId: "", extraIds: sourceIds })
-              }
+              onCheckAll={(sourceIds) => checkAllPrintingSources.mutate({ extraIds: sourceIds })}
               isCheckingAll={checkAllPrintingSources.isPending}
               onUncheck={(id) => uncheckPrintingSource.mutate(id)}
               onAccept={(printingFields, printingSourceIds) => {
