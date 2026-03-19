@@ -174,8 +174,11 @@ export function cardSourcesRepo(db: Kysely<Database>) {
       Pick<Selectable<PrintingSourcesTable>, "cardSourceId" | "sourceId" | "checkedAt">[]
     > {
       return db
-        .selectFrom("printingSources")
-        .select(["cardSourceId", "sourceId", "checkedAt"])
+        .selectFrom("printingSources as ps")
+        .innerJoin("cardSources as cs", "cs.id", "ps.cardSourceId")
+        .select(["ps.cardSourceId", "ps.sourceId", "ps.checkedAt"])
+        .where(notIgnoredPrinting("ps", "cs"))
+        .where(notHiddenSource("cs"))
         .execute();
     },
 
