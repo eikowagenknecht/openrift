@@ -1,5 +1,4 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
@@ -12,16 +11,6 @@ import type { Database } from "../db/index.js";
 export function marketplaceAdminRepo(db: Kysely<Database>) {
   return {
     // ── Marketplace groups ──────────────────────────────────────────────────
-
-    /** @returns Groups for a specific marketplace, ordered by name. */
-    listGroupsByMarketplace(marketplace: string) {
-      return db
-        .selectFrom("marketplaceGroups")
-        .select(["groupId", "name", "abbreviation"])
-        .where("marketplace", "=", marketplace)
-        .orderBy("name")
-        .execute();
-    },
 
     /** @returns All groups across all marketplaces. */
     listAllGroups() {
@@ -82,7 +71,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     ): Promise<boolean> {
       const result = await db
         .updateTable("marketplaceGroups")
-        .set({ name, updatedAt: sql`now()` })
+        .set({ name })
         .where("marketplace", "=", marketplace)
         .where("groupId", "=", groupId)
         .executeTakeFirst();

@@ -1,5 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import type { SourceSettingResponse } from "@openrift/shared";
+import { sourceParamSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -15,10 +16,6 @@ const updateSchema = z.object({
 
 const reorderSchema = z.object({
   sources: z.array(z.string().min(1)).min(1),
-});
-
-const sourceParamSchema = z.object({
-  source: z.string().min(1),
 });
 
 // ── Route ───────────────────────────────────────────────────────────────────

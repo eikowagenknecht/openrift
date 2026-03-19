@@ -1,7 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
-import type { AdminSetResponse, MarketplaceGroupResponse } from "@openrift/shared";
+import type { AdminSetResponse } from "@openrift/shared";
 import { idParamSchema } from "@openrift/shared/schemas";
-import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 
@@ -9,45 +8,7 @@ import { setFieldRules } from "../../db/schemas.js";
 import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function listGroups(marketplace: "cardmarket" | "tcgplayer") {
-  return async (c: Context<{ Variables: Variables }>) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-
-    const [groups, stagingCounts, assignedCounts] = await Promise.all([
-      mktAdmin.listGroupsByMarketplace(marketplace),
-      mktAdmin.stagingCountsByMarketplaceGroup(marketplace),
-      mktAdmin.assignedCountsByMarketplaceGroup(marketplace),
-    ]);
-
-    const countMap = new Map(stagingCounts.map((r) => [r.groupId, r.count]));
-    const assignedMap = new Map(assignedCounts.map((r) => [r.groupId, r.count]));
-
-    return c.json({
-      groups: groups.map(
-        (g): MarketplaceGroupResponse => ({
-          marketplace,
-          groupId: g.groupId,
-          name: g.name,
-          abbreviation: g.abbreviation,
-          stagedCount: countMap.get(g.groupId) ?? 0,
-          assignedCount: assignedMap.get(g.groupId) ?? 0,
-        }),
-      ),
-    });
-  };
-}
-
 // ── Schemas ─────────────────────────────────────────────────────────────────
-
-const numericIdParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
-});
-
-const updateGroupNameSchema = z.object({
-  name: z.string().nullable(),
-});
 
 const updateSetSchema = z.object({
   name: setFieldRules.name,
@@ -69,31 +30,6 @@ const reorderSetsSchema = z.object({
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const catalogRoute = new Hono<{ Variables: Variables }>()
-
-  // ── Marketplace Groups ──────────────────────────────────────────────────────
-
-  .get("/cardmarket-groups", listGroups("cardmarket"))
-  .get("/tcgplayer-groups", listGroups("tcgplayer"))
-
-  // Only cardmarket groups have editable names — tcgplayer group names come
-  // preset from the marketplace feed and are not user-editable.
-  .patch(
-    "/cardmarket-groups/:id",
-    zValidator("param", numericIdParamSchema),
-    zValidator("json", updateGroupNameSchema),
-    async (c) => {
-      const { marketplaceAdmin: mktAdmin } = c.get("repos");
-      const { id } = c.req.valid("param");
-      const { name } = c.req.valid("json");
-
-      const updated = await mktAdmin.updateGroupName("cardmarket", id, name);
-      if (!updated) {
-        throw new AppError(404, "NOT_FOUND", `Cardmarket group ${id} not found`);
-      }
-
-      return c.body(null, 204);
-    },
-  )
 
   // ── Sets CRUD ─────────────────────────────────────────────────────────────────
 
