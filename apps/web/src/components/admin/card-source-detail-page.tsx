@@ -1043,6 +1043,10 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               isExpanded={expandedPrintings.has(group.expectedPrintingId)}
               onToggle={() => togglePrinting(group.expectedPrintingId)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
+              onCheckAll={(sourceIds) =>
+                checkAllPrintingSources.mutate({ printingId: "", extraIds: sourceIds })
+              }
+              isCheckingAll={checkAllPrintingSources.isPending}
               onUncheck={(id) => uncheckPrintingSource.mutate(id)}
               onAccept={(printingFields, printingSourceIds) => {
                 acceptPrintingGroup.mutate(
@@ -1186,6 +1190,8 @@ function NewPrintingGroupCard({
   isExpanded,
   onToggle,
   onCheck,
+  onCheckAll,
+  isCheckingAll,
   onUncheck,
   onAccept,
   onLink,
@@ -1204,6 +1210,8 @@ function NewPrintingGroupCard({
   isExpanded: boolean;
   onToggle: () => void;
   onCheck: (id: string) => void;
+  onCheckAll: (sourceIds: string[]) => void;
+  isCheckingAll: boolean;
   onUncheck: (id: string) => void;
   onAccept: (printingFields: Record<string, unknown>, printingSourceIds: string[]) => void;
   onLink: (printingId: string, printingSourceIds: string[]) => void;
@@ -1233,7 +1241,12 @@ function NewPrintingGroupCard({
   const guessedId = group.expectedPrintingId;
 
   return (
-    <div className="rounded-md border border-dashed">
+    <div
+      className={cn(
+        "rounded-md border border-dashed",
+        group.sources.every((s) => s.checkedAt) ? "border-green-600/40" : "border-yellow-500/60",
+      )}
+    >
       <div className="flex flex-wrap items-center gap-3 px-3 py-2">
         <button
           type="button"
@@ -1251,7 +1264,22 @@ function NewPrintingGroupCard({
             {group.sources.length === 1 ? "" : "s"}
           </span>
         </button>
-        <div className="ml-auto flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          {group.sources.some((s) => !s.checkedAt) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs"
+              disabled={isCheckingAll}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCheckAll(group.sources.filter((s) => !s.checkedAt).map((s) => s.id));
+              }}
+            >
+              <CheckCheckIcon className="mr-1 size-3" />
+              Check {group.sources.filter((s) => !s.checkedAt).length} unchecked
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
