@@ -157,7 +157,7 @@ export function copiesRepo(db: Kysely<Database>) {
     async moveBatch(copyIds: string[], userId: string, toCollectionId: string): Promise<void> {
       await db
         .updateTable("copies")
-        .set({ collectionId: toCollectionId, updatedAt: new Date() })
+        .set({ collectionId: toCollectionId })
         .where("id", "in", copyIds)
         .where("userId", "=", userId)
         .execute();

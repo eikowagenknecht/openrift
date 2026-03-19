@@ -120,7 +120,7 @@ export function setsRepo(db: Kysely<Database>) {
     ): Promise<boolean> {
       const result = await db
         .updateTable("sets")
-        .set({ ...values, updatedAt: sql`now()` })
+        .set(values)
         .where("id", "=", id)
         .executeTakeFirst();
       return (result?.numUpdatedRows ?? 0n) > 0n;
@@ -183,7 +183,7 @@ export function setsRepo(db: Kysely<Database>) {
       const values = sql.join(ids.map((id, i) => sql`(${id}::uuid, ${i + 1}::int)`));
       await sql`
         update sets
-        set sort_order = d.new_order, updated_at = now()
+        set sort_order = d.new_order
         from (values ${values}) as d(id, new_order)
         where sets.id = d.id
       `.execute(db);

@@ -100,7 +100,6 @@ export function priceRefreshRepo(db: Db) {
           oc.columns(["marketplace", "groupId"]).doUpdateSet({
             name: sql<string>`coalesce(excluded.name, marketplace_groups.name)`,
             abbreviation: sql<string>`coalesce(excluded.abbreviation, marketplace_groups.abbreviation)`,
-            updatedAt: sql<Date>`now()`,
           }),
         )
         .execute();
@@ -201,7 +200,6 @@ export function priceRefreshRepo(db: Db) {
       const stagingUpdateSet = {
         groupId: sql<number>`excluded.group_id`,
         ...PRICE_EXCLUDED_SET,
-        updatedAt: sql<Date>`now()`,
       };
       const distinctWhere = buildDistinctWhere("marketplace_staging", [
         "group_id",

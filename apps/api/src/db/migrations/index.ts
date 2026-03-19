@@ -39,6 +39,7 @@ import * as m033 from "./033-printing-link-overrides.js";
 import * as m034 from "./034-promo-types.js";
 import * as m035 from "./035-source-settings.js";
 import * as m036 from "./036-printing-source-group-key.js";
+import * as m037 from "./037-auto-updated-at.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -77,4 +78,5 @@ export const migrations: Record<string, Migration> = {
   "034-promo-types": m034,
   "035-source-settings": m035,
   "036-printing-source-group-key": m036,
+  "037-auto-updated-at": m037,
 };
