@@ -1,20 +1,12 @@
-import type {
-  ArtVariant,
-  CardFace,
-  CardType,
-  Domain,
-  Finish,
-  Rarity,
-  SuperType,
-} from "../enums.js";
+import type { CardFace } from "../enums.js";
 
 export interface CardSourceResponse {
   id: string;
   source: string;
   name: string;
-  type: CardType | null;
-  superTypes: SuperType[];
-  domains: Domain[];
+  type: string | null;
+  superTypes: string[];
+  domains: string[];
   might: number | null;
   energy: number | null;
   power: number | null;
@@ -27,8 +19,6 @@ export interface CardSourceResponse {
   sourceEntityId: string;
   extraData: unknown | null;
   checkedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface PrintingSourceResponse {
@@ -39,11 +29,11 @@ export interface PrintingSourceResponse {
   setId: string | null;
   setName: string | null;
   collectorNumber: number | null;
-  rarity: Rarity | null;
-  artVariant: ArtVariant | null;
+  rarity: string | null;
+  artVariant: string | null;
   isSigned: boolean | null;
   promoTypeId: string | null;
-  finish: Finish | null;
+  finish: string | null;
   artist: string | null;
   publicCode: string | null;
   printedRulesText: string | null;
@@ -54,26 +44,12 @@ export interface PrintingSourceResponse {
   extraData: unknown | null;
   groupKey: string;
   checkedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface PrintingSourceGroupResponse {
-  groupKey: string;
-  label: string;
   mostCommonSourceId: string;
-  differentiators: {
-    setId: string | null;
-    collectorNumber: number | null;
-    artVariant: string;
-    isSigned: boolean;
-    promoTypeId: string | null;
-    rarity: string;
-    finish: string;
-  };
   sourceIds: string[];
-  matchedPrintingId: string | null;
-  candidatePrintingIds: string[];
+  expectedPrintingId: string;
 }
 
 export interface AdminPrintingImageResponse {
@@ -84,27 +60,18 @@ export interface AdminPrintingImageResponse {
   originalUrl: string | null;
   rehostedUrl: string | null;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface CardSourceSummaryResponse {
-  cardId: string | null;
   cardSlug: string | null;
   name: string;
   normalizedName: string;
   sourceIds: string[];
-  pendingSourceIds: string[];
-  candidateSourceIds: string[];
+  stagingSourceIds: string[];
   sourceCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasGallery: boolean;
-  releasedSetSlug: string | null;
-  hasMissingImage: boolean;
-  suggestedCard: { id: string; slug: string; name: string } | null;
-  formattedSourceIds: string;
-  formattedPendingSourceIds: string;
 }
 
 export interface SourceStatsResponse {

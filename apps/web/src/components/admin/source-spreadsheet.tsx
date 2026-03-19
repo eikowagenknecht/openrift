@@ -109,18 +109,8 @@ export function buildPrintingSourceFields(
 }
 
 export interface PrintingGroup {
-  key: string;
-  label: string;
-  differentiators: {
-    setId: string | null;
-    collectorNumber: number | null;
-    artVariant: string;
-    isSigned: boolean;
-    promoTypeId: string | null;
-    rarity: string;
-    finish: string;
-  };
   sources: PrintingSourceResponse[];
+  expectedPrintingId: string;
 }
 
 // ── Spreadsheet component ────────────────────────────────────────────────────

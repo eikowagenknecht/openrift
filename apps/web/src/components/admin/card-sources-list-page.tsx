@@ -1,5 +1,6 @@
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { CheckCheckIcon, LinkIcon, XIcon } from "lucide-react";
+import { formatSourceIds } from "@openrift/shared/utils";
+import { Link } from "@tanstack/react-router";
+import { CheckCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -13,30 +14,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAutoCheckSources, useCardSourceList, useLinkCard } from "@/hooks/use-card-sources";
+import { useAutoCheckSources, useCardSourceList } from "@/hooks/use-card-sources";
 
-type Filter = "all" | "unchecked" | "unmatched" | "active";
+type Filter = "unchecked" | "unmatched" | "matched" | null;
 
 export function CardSourcesListPage() {
-  const { set: setSlug } = useSearch({ from: "/_authenticated/admin/cards" });
-  const navigate = useNavigate();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(null);
   const { data } = useCardSourceList();
-  const linkCard = useLinkCard();
   const autoCheck = useAutoCheckSources();
 
+  const counts = {
+    unchecked: data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0).length,
+    unmatched: data.filter((r) => !r.cardSlug).length,
+    matched: data.filter((r) => r.cardSlug).length,
+  };
+
   const rows = data.filter((row) => {
-    if (setSlug && row.releasedSetSlug !== setSlug) {
-      return false;
-    }
     if (filter === "unchecked") {
       return row.uncheckedCardCount + row.uncheckedPrintingCount > 0;
     }
     if (filter === "unmatched") {
-      return !row.cardId;
+      return !row.cardSlug;
     }
-    if (filter === "active") {
-      return Boolean(row.cardId);
+    if (filter === "matched") {
+      return Boolean(row.cardSlug);
     }
     return true;
   });
@@ -65,39 +66,22 @@ export function CardSourcesListPage() {
           {autoCheck.isPending ? "Checking..." : "Auto-check matching"}
         </Button>
 
-        {setSlug && (
-          <Badge variant="secondary" className="flex h-8 items-center gap-1">
-            Set: {setSlug}
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => navigate({ to: "/admin/cards", search: {} })}
-            >
-              <XIcon className="size-3" />
-            </button>
-          </Badge>
-        )}
-
-        {(["all", "active", "unchecked", "unmatched"] as const).map((f) => {
-          const label =
-            f === "all"
-              ? "All"
-              : f === "active"
-                ? "Active only"
-                : f === "unchecked"
-                  ? "Needs review"
-                  : "Candidates only";
-          return (
-            <Button
-              key={f}
-              variant={filter === f ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter(f)}
-            >
-              {label}
-            </Button>
-          );
-        })}
+        {(
+          [
+            ["unchecked", "Review", counts.unchecked],
+            ["unmatched", "New", counts.unmatched],
+            ["matched", "Active", counts.matched],
+          ] as const
+        ).map(([f, label, count]) => (
+          <Button
+            key={f}
+            variant={filter === f ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(filter === f ? null : f)}
+          >
+            {label} ({count})
+          </Button>
+        ))}
       </div>
 
       {rows.length === 0 ? (
@@ -116,37 +100,26 @@ export function CardSourcesListPage() {
             {rows.map((row) => {
               const total = row.uncheckedCardCount + row.uncheckedPrintingCount;
               const suggestedCardId =
-                !row.cardSlug && row.pendingSourceIds.length > 0
-                  ? row.pendingSourceIds[0].replace(/(?<=\d)[a-z*]+$/, "")
+                !row.cardSlug && row.stagingSourceIds.length > 0
+                  ? row.stagingSourceIds[0].replace(/(?<=\d)[a-z*]+$/, "")
                   : null;
               return (
                 <TableRow key={row.cardSlug ?? row.name}>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      {row.cardId ? (
+                      {row.cardSlug ? (
                         <Badge variant="outline">Active</Badge>
-                      ) : row.suggestedCard ? (
-                        <SuggestedMatch
-                          cardName={row.suggestedCard.name}
-                          isPending={linkCard.isPending}
-                          onLink={() =>
-                            linkCard.mutate({
-                              name: row.normalizedName,
-                              cardId: row.suggestedCard?.slug ?? "",
-                            })
-                          }
-                        />
                       ) : (
-                        <Badge variant="secondary">Candidate</Badge>
+                        <Badge variant="secondary">New</Badge>
                       )}
-                      {total > 0 && <Badge variant="destructive">Unchecked</Badge>}
+                      {total > 0 && <Badge variant="destructive">Review</Badge>}
                     </div>
                   </TableCell>
                   <TableCell>
                     <Link
-                      to={row.cardId ? "/admin/cards/$cardId" : "/admin/cards/new/$name"}
+                      to={row.cardSlug ? "/admin/cards/$cardSlug" : "/admin/cards/new/$name"}
                       params={
-                        row.cardSlug ? { cardId: row.cardSlug } : { name: row.normalizedName }
+                        row.cardSlug ? { cardSlug: row.cardSlug } : { name: row.normalizedName }
                       }
                       className="font-medium hover:underline"
                     >
@@ -162,41 +135,33 @@ export function CardSourcesListPage() {
                       {row.name}
                     </Link>
                     {row.hasGallery && <Badge className="ml-2 text-xs">gallery</Badge>}
-                    {row.hasMissingImage && (
-                      <Badge variant="destructive" className="ml-2 text-xs">
-                        missing image
-                      </Badge>
-                    )}
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     <span>
-                      {row.formattedSourceIds && (
+                      {row.sourceIds.length > 0 && (
                         <>
-                          {row.formattedSourceIds.split(", ").map((id, i, arr) => (
-                            <span key={id} className="text-muted-foreground">
-                              {id}
-                              {(i < arr.length - 1 ||
-                                row.pendingSourceIds.length > 0 ||
-                                row.candidateSourceIds.length > 0) &&
-                                ", "}
-                            </span>
-                          ))}
+                          {formatSourceIds(row.sourceIds)
+                            .split(", ")
+                            .map((id, i, arr) => (
+                              <span key={id} className="text-muted-foreground">
+                                {id}
+                                {(i < arr.length - 1 || row.stagingSourceIds.length > 0) && ", "}
+                              </span>
+                            ))}
                         </>
                       )}
-                      {row.pendingSourceIds.map((id, i) => (
-                        <span key={`p-${id}`} className="italic text-muted-foreground/50">
-                          {id}
-                          {(i < row.pendingSourceIds.length - 1 ||
-                            row.candidateSourceIds.length > 0) &&
-                            ", "}
-                        </span>
-                      ))}
-                      {row.candidateSourceIds.map((id, i) => (
-                        <span key={`c-${id}`} className="italic text-muted-foreground/50">
-                          {id}
-                          {i < row.candidateSourceIds.length - 1 && ", "}
-                        </span>
-                      ))}
+                      {row.stagingSourceIds.length > 0 && (
+                        <>
+                          {formatSourceIds(row.stagingSourceIds)
+                            .split(", ")
+                            .map((id, i, arr) => (
+                              <span key={`s-${id}`} className="italic text-muted-foreground/50">
+                                {id}
+                                {i < arr.length - 1 && ", "}
+                              </span>
+                            ))}
+                        </>
+                      )}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -208,34 +173,6 @@ export function CardSourcesListPage() {
           </TableBody>
         </Table>
       )}
-    </div>
-  );
-}
-
-function SuggestedMatch({
-  cardName,
-  isPending,
-  onLink,
-}: {
-  cardName: string;
-  isPending: boolean;
-  onLink: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-1">
-      <Badge variant="secondary" className="truncate">
-        {cardName}
-      </Badge>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-6 shrink-0 text-xs"
-        disabled={isPending}
-        onClick={onLink}
-      >
-        <LinkIcon className="mr-1 size-3" />
-        Link
-      </Button>
     </div>
   );
 }

@@ -4,10 +4,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cardSourceListQueryOptions } from "@/hooks/use-card-sources";
 import { sourceSettingsQueryOptions } from "@/hooks/use-source-settings";
 
-interface CardsSearch {
-  set?: string;
-}
-
 function AdminPending() {
   return (
     <div className="space-y-4 p-4">
@@ -22,9 +18,6 @@ function AdminError({ error }: { error: Error }) {
 }
 
 export const Route = createFileRoute("/_authenticated/admin/cards")({
-  validateSearch: (search: Record<string, unknown>): CardsSearch => ({
-    set: typeof search.set === "string" ? search.set : undefined,
-  }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(cardSourceListQueryOptions),

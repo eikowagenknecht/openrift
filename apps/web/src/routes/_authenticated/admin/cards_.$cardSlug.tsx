@@ -18,10 +18,10 @@ function AdminError({ error }: { error: Error }) {
   return <p className="p-4 text-sm text-destructive">Failed to load: {error.message}</p>;
 }
 
-export const Route = createFileRoute("/_authenticated/admin/cards_/$cardId")({
+export const Route = createFileRoute("/_authenticated/admin/cards_/$cardSlug")({
   loader: async ({ context, params }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(cardSourceDetailQueryOptions(params.cardId)),
+      context.queryClient.ensureQueryData(cardSourceDetailQueryOptions(params.cardSlug)),
       context.queryClient.ensureQueryData(adminPromoTypesQueryOptions),
       context.queryClient.ensureQueryData(sourceSettingsQueryOptions),
     ]);

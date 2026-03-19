@@ -3,6 +3,7 @@ import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type {
+  CardNameAliasesTable,
   CardSourcesTable,
   CardsTable,
   Database,
@@ -75,22 +76,6 @@ function notIgnoredPrinting(alias: string, csAlias: string) {
 
 // ── Row types for aggregate / joined queries ────────────────────────────────
 
-/** Row returned by `listGroupedSources`. */
-interface GroupedSourceRow {
-  cardId: string | null;
-  cardSlug: string | null;
-  name: string;
-  groupKey: string;
-  sourceCount: number;
-  uncheckedCardCount: number;
-  uncheckedPrintingCount: number;
-  hasGallery: boolean;
-  minReleasedAt: string | null;
-  releasedSetSlug: string | null;
-  hasKnownSet: boolean;
-  hasUnknownSet: boolean;
-}
-
 /** @see SourceStatsResponse — shared contract for GET /card-sources/source-stats */
 
 /** Row returned by `exportPrintings`. */
@@ -120,6 +105,77 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .selectFrom("cards")
         .select(["id", "slug", "name", "type"])
         .orderBy("name")
+        .execute();
+    },
+
+    /** @returns All cards with fields needed for the card source list. */
+    listCardsForSourceList(): Promise<
+      Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "normName">[]
+    > {
+      return db
+        .selectFrom("cards")
+        .select(["id", "slug", "name", "normName"])
+        .orderBy("slug")
+        .execute();
+    },
+
+    /** @returns All card name aliases — e.g. { normName: "firebal", cardId: "uuid-123" } */
+    listAliasesForSourceList(): Promise<
+      Pick<Selectable<CardNameAliasesTable>, "normName" | "cardId">[]
+    > {
+      return db.selectFrom("cardNameAliases").select(["normName", "cardId"]).execute();
+    },
+
+    /** @returns All card sources with fields needed for the card source list. */
+    listCardSourcesForSourceList(): Promise<
+      Pick<Selectable<CardSourcesTable>, "id" | "normName" | "name" | "source" | "checkedAt">[]
+    > {
+      return db
+        .selectFrom("cardSources")
+        .select(["id", "normName", "name", "source", "checkedAt"])
+        .where(notIgnoredCard("cardSources"))
+        .where(notHiddenSource("cardSources"))
+        .orderBy("name")
+        .execute();
+    },
+
+    /** @returns All printings with fields needed for the card source list. */
+    listPrintingsForSourceList(): Promise<
+      Pick<Selectable<PrintingsTable>, "cardId" | "sourceId">[]
+    > {
+      return db.selectFrom("printings").select(["cardId", "sourceId"]).execute();
+    },
+
+    /** @returns Cards where at least one printing has no active front-face image. */
+    listCardsWithMissingImages(): Promise<{ cardId: string; slug: string; name: string }[]> {
+      return db
+        .selectFrom("printings as p")
+        .innerJoin("cards as c", "c.id", "p.cardId")
+        .select(["p.cardId", "c.slug", "c.name"])
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("printingImages as pi")
+                .select(sql.lit(1).as("one"))
+                .whereRef("pi.printingId", "=", "p.id")
+                .where("pi.face", "=", "front")
+                .where("pi.isActive", "=", true),
+            ),
+          ),
+        )
+        .groupBy(["p.cardId", "c.slug", "c.name"])
+        .orderBy("c.name")
+        .execute();
+    },
+
+    /** @returns All printing sources with fields needed for the card source list. */
+    listPrintingSourcesForSourceList(): Promise<
+      Pick<Selectable<PrintingSourcesTable>, "cardSourceId" | "sourceId" | "checkedAt">[]
+    > {
+      return db
+        .selectFrom("printingSources")
+        .select(["cardSourceId", "sourceId", "checkedAt"])
         .execute();
     },
 
@@ -161,72 +217,6 @@ export function cardSourcesRepo(db: Kysely<Database>) {
     },
 
     // ── GET / — grouped list sub-queries ──────────────────────────────────
-
-    /**
-     * Main aggregate query: card_sources grouped by resolved card_id (matched)
-     * or normalized name (unmatched), with source/unchecked counts and set info.
-     * @returns Grouped source rows with aggregate counts and set tier info.
-     */
-    async listGroupedSources(): Promise<GroupedSourceRow[]> {
-      const rcid = resolveCardId("cs");
-      const rows = await db
-        .selectFrom("cardSources as cs")
-        .leftJoin("printingSources as ps", "ps.cardSourceId", "cs.id")
-        .leftJoin("sets as s", "s.slug", "ps.setId")
-        .leftJoin("cards as c", (jb) => jb.on(sql`c.id = (${rcid})`))
-        .select((eb) => [
-          sql<string | null>`max((${rcid})::text)`.as("cardId"),
-          eb.fn.max("c.slug").as("cardSlug"),
-          eb.fn.coalesce(eb.fn.max("c.name"), eb.fn.min("cs.name")).as("name"),
-          sql<string>`COALESCE((${rcid})::text, cs.norm_name)`.as("groupKey"),
-          eb.cast<number>(eb.fn.count("cs.source").distinct(), "integer").as("sourceCount"),
-          eb
-            .cast<number>(
-              eb.fn
-                // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CaseBuilder.then(), not Promise
-                .count(eb.case().when("cs.checkedAt", "is", null).then(eb.ref("cs.id")).end())
-                .distinct(),
-              "integer",
-            )
-            .as("uncheckedCardCount"),
-          eb
-            .cast<number>(
-              eb.fn
-                .count(
-                  eb
-                    .case()
-                    .when(eb.and([eb("ps.checkedAt", "is", null), eb("ps.id", "is not", null)]))
-                    // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CaseBuilder.then(), not Promise
-                    .then(eb.ref("ps.id"))
-                    .end(),
-                )
-                .distinct(),
-              "integer",
-            )
-            .as("uncheckedPrintingCount"),
-          eb.fn.agg<boolean>("bool_or", [eb("cs.source", "=", "gallery")]).as("hasGallery"),
-          eb.fn
-            .min(eb.cast<string>(eb.ref("s.releasedAt"), "text"))
-            .filterWhere("s.releasedAt", "is not", null)
-            .as("minReleasedAt"),
-          eb.fn.min("s.slug").filterWhere("s.releasedAt", "is not", null).as("releasedSetSlug"),
-          eb.fn
-            .agg<boolean>("bool_or", [
-              eb.and([eb("s.id", "is not", null), eb("s.releasedAt", "is", null)]),
-            ])
-            .as("hasKnownSet"),
-          eb.fn
-            .agg<boolean>("bool_or", [
-              eb.and([eb("ps.id", "is not", null), eb("s.id", "is", null)]),
-            ])
-            .as("hasUnknownSet"),
-        ])
-        .where(notIgnoredCard("cs"))
-        .where(notHiddenSource("cs"))
-        .groupBy(sql`COALESCE((${rcid})::text, cs.norm_name)`)
-        .execute();
-      return rows as unknown as GroupedSourceRow[];
-    },
 
     /** @returns Cards that have no card_sources (orphans). */
     listOrphanCards(
@@ -435,6 +425,53 @@ export function cardSourcesRepo(db: Kysely<Database>) {
       return db.selectFrom("cards").selectAll().where("slug", "=", slug).executeTakeFirst();
     },
 
+    /** @returns Card detail fields for the card source detail page. */
+    cardForDetail(
+      slug: string,
+    ): Promise<
+      | Pick<
+          Selectable<CardsTable>,
+          | "id"
+          | "slug"
+          | "name"
+          | "normName"
+          | "type"
+          | "superTypes"
+          | "domains"
+          | "might"
+          | "energy"
+          | "power"
+          | "mightBonus"
+          | "keywords"
+          | "rulesText"
+          | "effectText"
+          | "tags"
+        >
+      | undefined
+    > {
+      return db
+        .selectFrom("cards")
+        .select([
+          "id",
+          "slug",
+          "name",
+          "normName",
+          "type",
+          "superTypes",
+          "domains",
+          "might",
+          "energy",
+          "power",
+          "mightBonus",
+          "keywords",
+          "rulesText",
+          "effectText",
+          "tags",
+        ])
+        .where("slug", "=", slug)
+        .executeTakeFirst();
+    },
+
     /** @returns Name aliases for a card. */
     cardNameAliases(cardId: string): Promise<{ normName: string }[]> {
       return db
@@ -504,6 +541,33 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Printings for detail page, without timestamps. */
+    printingsForDetail(cardId: string) {
+      return db
+        .selectFrom("printings")
+        .select([
+          "id",
+          "slug",
+          "cardId",
+          "setId",
+          "sourceId",
+          "collectorNumber",
+          "rarity",
+          "artVariant",
+          "isSigned",
+          "promoTypeId",
+          "finish",
+          "artist",
+          "publicCode",
+          "printedRulesText",
+          "printedEffectText",
+          "flavorText",
+          "comment",
+        ])
+        .where("cardId", "=", cardId)
+        .execute();
+    },
+
     /**
      * @returns Printing sources for given card source IDs, excluding ignored.
      * Ordered by setId, finish, isSigned, sourceId.
@@ -527,6 +591,83 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Printing sources for detail page, without timestamps. */
+    printingSourcesForDetail(
+      cardSourceIds: string[],
+    ): Promise<
+      Pick<
+        Selectable<PrintingSourcesTable>,
+        | "id"
+        | "cardSourceId"
+        | "printingId"
+        | "sourceId"
+        | "setId"
+        | "setName"
+        | "collectorNumber"
+        | "rarity"
+        | "artVariant"
+        | "isSigned"
+        | "promoTypeId"
+        | "finish"
+        | "artist"
+        | "publicCode"
+        | "printedRulesText"
+        | "printedEffectText"
+        | "imageUrl"
+        | "flavorText"
+        | "sourceEntityId"
+        | "extraData"
+        | "groupKey"
+        | "checkedAt"
+      >[]
+    > {
+      if (cardSourceIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printingSources as ps")
+        .innerJoin("cardSources as cs_parent", "cs_parent.id", "ps.cardSourceId")
+        .select([
+          "ps.id",
+          "ps.cardSourceId",
+          "ps.printingId",
+          "ps.sourceId",
+          "ps.setId",
+          "ps.setName",
+          "ps.collectorNumber",
+          "ps.rarity",
+          "ps.artVariant",
+          "ps.isSigned",
+          "ps.promoTypeId",
+          "ps.finish",
+          "ps.artist",
+          "ps.publicCode",
+          "ps.printedRulesText",
+          "ps.printedEffectText",
+          "ps.imageUrl",
+          "ps.flavorText",
+          "ps.sourceEntityId",
+          "ps.extraData",
+          "ps.groupKey",
+          "ps.checkedAt",
+        ])
+        .where("ps.cardSourceId", "in", cardSourceIds)
+        .where(notIgnoredPrinting("ps", "cs_parent"))
+        .orderBy("ps.setId")
+        .orderBy("ps.finish")
+        .orderBy("ps.isSigned")
+        .orderBy("ps.sourceId")
+        .execute();
+    },
+
+    /** @returns Promo type ID → slug mapping for given IDs. */
+    promoTypeSlugsByIds(ids: string[]): Promise<{ id: string; slug: string }[]> {
+      if (ids.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db.selectFrom("promoTypes").select(["id", "slug"]).where("id", "in", ids).execute();
+    },
+
     /** @returns Printing images for given printing IDs, ordered by createdAt. */
     printingImagesForPrintings(printingIds: string[]): Promise<Selectable<PrintingImagesTable>[]> {
       if (printingIds.length === 0) {
@@ -540,12 +681,46 @@ export function cardSourcesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Printing images for detail page, only fields the frontend needs. */
+    printingImagesForDetail(
+      printingIds: string[],
+    ): Promise<
+      Pick<
+        Selectable<PrintingImagesTable>,
+        "id" | "printingId" | "face" | "source" | "originalUrl" | "rehostedUrl" | "isActive"
+      >[]
+    > {
+      if (printingIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printingImages")
+        .select(["id", "printingId", "face", "source", "originalUrl", "rehostedUrl", "isActive"])
+        .where("printingId", "in", printingIds)
+        .orderBy("createdAt", "asc")
+        .execute();
+    },
+
     /** @returns Set UUID → slug mappings. */
     setSlugsByIds(setIds: string[]): Promise<{ id: string; slug: string }[]> {
       if (setIds.length === 0) {
         return Promise.resolve([]);
       }
       return db.selectFrom("sets").select(["id", "slug"]).where("id", "in", setIds).execute();
+    },
+
+    /** @returns Set slug + release date for given IDs. */
+    setInfoByIds(
+      setIds: string[],
+    ): Promise<{ id: string; slug: string; releasedAt: string | null }[]> {
+      if (setIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("sets")
+        .select(["id", "slug", "releasedAt"])
+        .where("id", "in", setIds)
+        .execute();
     },
 
     // ── GET /new/:name — unmatched detail sub-queries ─────────────────────
@@ -555,6 +730,59 @@ export function cardSourcesRepo(db: Kysely<Database>) {
       return db
         .selectFrom("cardSources")
         .selectAll()
+        .where("cardSources.normName", "=", normName)
+        .where(notIgnoredCard("cardSources"))
+        .where(notHiddenSource("cardSources"))
+        .orderBy("source")
+        .execute();
+    },
+
+    /** @returns Card sources for detail page, explicit columns. */
+    cardSourcesForDetail(
+      normName: string,
+    ): Promise<
+      Pick<
+        Selectable<CardSourcesTable>,
+        | "id"
+        | "source"
+        | "name"
+        | "type"
+        | "superTypes"
+        | "domains"
+        | "might"
+        | "energy"
+        | "power"
+        | "mightBonus"
+        | "rulesText"
+        | "effectText"
+        | "tags"
+        | "sourceId"
+        | "sourceEntityId"
+        | "extraData"
+        | "checkedAt"
+      >[]
+    > {
+      return db
+        .selectFrom("cardSources")
+        .select([
+          "id",
+          "source",
+          "name",
+          "type",
+          "superTypes",
+          "domains",
+          "might",
+          "energy",
+          "power",
+          "mightBonus",
+          "rulesText",
+          "effectText",
+          "tags",
+          "sourceId",
+          "sourceEntityId",
+          "extraData",
+          "checkedAt",
+        ])
         .where("cardSources.normName", "=", normName)
         .where(notIgnoredCard("cardSources"))
         .where(notHiddenSource("cardSources"))

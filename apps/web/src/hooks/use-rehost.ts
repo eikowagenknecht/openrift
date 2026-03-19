@@ -19,6 +19,13 @@ export function useRehostStatus() {
   });
 }
 
+export function useMissingImages() {
+  return useQuery({
+    queryKey: queryKeys.admin.missingImages,
+    queryFn: () => rpc(client.api.admin["missing-images"].$get()),
+  });
+}
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export function useRehostImages(onBatchComplete?: () => void) {
