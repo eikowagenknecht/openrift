@@ -92,9 +92,9 @@ export function CardSourcesListPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-28">Status</TableHead>
-              <TableHead>Card Name</TableHead>
-              <TableHead>Printing IDs</TableHead>
-              <TableHead className="w-28">Sources</TableHead>
+              <TableHead>Card</TableHead>
+              <TableHead>Printings</TableHead>
+              <TableHead className="w-28">Card Sources</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
