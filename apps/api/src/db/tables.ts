@@ -77,7 +77,7 @@ export interface CardsTable {
 /**
  * Physical printing of a game card.
  *
- * The `slug` is a composite key: "{source_id}:{rarity (lowercase)}:{finish}:{promo_type_slug|}".
+ * The `slug` is a composite key: "{short_code}:{rarity (lowercase)}:{finish}:{promo_type_slug|}".
  * @see printingFieldRules in `schemas.ts` for Zod validation of CHECK constraints
  */
 export interface PrintingsTable {
@@ -87,7 +87,7 @@ export interface PrintingsTable {
   cardId: string;
   setId: string;
   /** CHECK: <> '' */
-  sourceId: string;
+  shortCode: string;
   /** CHECK: > 0 */
   collectorNumber: number;
   rarity: Rarity;
@@ -123,8 +123,8 @@ export interface MarketplaceGroupsTable {
   updatedAt: UpdatedAt;
 }
 
-/** @see marketplaceSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
-export interface MarketplaceSourcesTable {
+/** @see marketplaceProductFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+export interface MarketplaceProductsTable {
   id: Generated<string>;
   /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
   marketplace: string;
@@ -142,7 +142,7 @@ export interface MarketplaceSourcesTable {
 /** @see marketplaceSnapshotFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface MarketplaceSnapshotsTable {
   id: Generated<string>;
-  sourceId: string;
+  productId: string;
   recordedAt: CreatedAt;
   /** CHECK: >= 0 */
   marketCents: number;
@@ -272,7 +272,7 @@ export interface CollectionsTable {
   updatedAt: UpdatedAt;
 }
 
-export interface SourcesTable {
+export interface AcquisitionSourcesTable {
   id: Generated<string>;
   userId: string;
   name: string;
@@ -286,7 +286,7 @@ export interface CopiesTable {
   userId: string;
   printingId: string;
   collectionId: string;
-  sourceId: string | null;
+  acquisitionSourceId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -395,13 +395,13 @@ export interface TradeListItemsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Card sources (migration 018) ────────────────────────────────────────────
+// ─── Candidate cards (migration 018, renamed in 038) ─────────────────────────
 
-/** @see cardSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
-export interface CardSourcesTable {
+/** @see candidateCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+export interface CandidateCardsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
-  source: string;
+  provider: string;
   /** CHECK: <> '' */
   name: string;
   normName: Generated<string>;
@@ -423,9 +423,9 @@ export interface CardSourcesTable {
   effectText: string | null;
   tags: string[];
   /** CHECK: <> '' */
-  sourceId: string | null;
+  shortCode: string | null;
   /** CHECK: <> '' */
-  sourceEntityId: string;
+  externalId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
   checkedAt: Date | null;
@@ -433,13 +433,13 @@ export interface CardSourcesTable {
   updatedAt: UpdatedAt;
 }
 
-/** @see printingSourceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
-export interface PrintingSourcesTable {
+/** @see candidatePrintingFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+export interface CandidatePrintingsTable {
   id: Generated<string>;
-  cardSourceId: string;
+  candidateCardId: string;
   printingId: string | null;
   /** CHECK: <> '' */
-  sourceId: string;
+  shortCode: string;
   /** CHECK: <> '' */
   setId: string | null;
   /** CHECK: <> '' */
@@ -467,7 +467,7 @@ export interface PrintingSourcesTable {
   /** CHECK: <> '' */
   flavorText: string | null;
   /** CHECK: <> '' */
-  sourceEntityId: string;
+  externalId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
   groupKey: ColumnType<string, string | undefined, string | undefined>;
@@ -476,23 +476,23 @@ export interface PrintingSourcesTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Ignored sources (migration 031) ─────────────────────────────────────────
+// ─── Ignored candidates (migration 031, renamed in 038) ──────────────────────
 
-export interface IgnoredCardSourcesTable {
+export interface IgnoredCandidateCardsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
-  source: string;
+  provider: string;
   /** CHECK: <> '' */
-  sourceEntityId: string;
+  externalId: string;
   createdAt: CreatedAt;
 }
 
-export interface IgnoredPrintingSourcesTable {
+export interface IgnoredCandidatePrintingsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
-  source: string;
+  provider: string;
   /** CHECK: <> '' */
-  sourceEntityId: string;
+  externalId: string;
   /** CHECK: <> '' */
   finish: string | null;
   createdAt: CreatedAt;
@@ -500,7 +500,7 @@ export interface IgnoredPrintingSourcesTable {
 
 export interface PrintingLinkOverridesTable {
   /** CHECK: <> '' */
-  sourceEntityId: string;
+  externalId: string;
   finish: string;
   /** CHECK: <> '' */
   printingSlug: string;
@@ -516,7 +516,7 @@ export interface PrintingImagesTable {
   printingId: string;
   face: CardFace;
   /** CHECK: <> '' */
-  source: string;
+  provider: string;
   /** CHECK: <> '' */
   originalUrl: string | null;
   /** CHECK: <> '' */
@@ -545,11 +545,11 @@ export interface PromoTypesTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Source settings (migration 035) ──────────────────────────────────────────
+// ─── Provider settings (migration 035, renamed in 038) ───────────────────────
 
-export interface SourceSettingsTable {
-  /** PK — matches card_sources.source */
-  source: string;
+export interface ProviderSettingsTable {
+  /** PK — matches candidate_cards.provider */
+  provider: string;
   sortOrder: number;
   isHidden: boolean;
   createdAt: CreatedAt;
@@ -576,7 +576,7 @@ export interface Database {
 
   // Unified marketplace pricing (migration 022)
   marketplaceGroups: MarketplaceGroupsTable;
-  marketplaceSources: MarketplaceSourcesTable;
+  marketplaceProducts: MarketplaceProductsTable;
   marketplaceSnapshots: MarketplaceSnapshotsTable;
   marketplaceStaging: MarketplaceStagingTable;
   marketplaceIgnoredProducts: MarketplaceIgnoredProductsTable;
@@ -593,7 +593,7 @@ export interface Database {
 
   // Collection tracking (migration 009)
   collections: CollectionsTable;
-  sources: SourcesTable;
+  acquisitionSources: AcquisitionSourcesTable;
   copies: CopiesTable;
   activities: ActivitiesTable;
   activityItems: ActivityItemsTable;
@@ -604,14 +604,14 @@ export interface Database {
   tradeLists: TradeListsTable;
   tradeListItems: TradeListItemsTable;
 
-  // Card sources (migration 018)
-  cardSources: CardSourcesTable;
-  printingSources: PrintingSourcesTable;
+  // Candidate cards (migration 018, renamed in 038)
+  candidateCards: CandidateCardsTable;
+  candidatePrintings: CandidatePrintingsTable;
   cardNameAliases: CardNameAliasesTable;
 
-  // Ignored sources (migration 031)
-  ignoredCardSources: IgnoredCardSourcesTable;
-  ignoredPrintingSources: IgnoredPrintingSourcesTable;
+  // Ignored candidates (migration 031, renamed in 038)
+  ignoredCandidateCards: IgnoredCandidateCardsTable;
+  ignoredCandidatePrintings: IgnoredCandidatePrintingsTable;
 
   // Printing link overrides (migration 033)
   printingLinkOverrides: PrintingLinkOverridesTable;
@@ -622,8 +622,8 @@ export interface Database {
   // Promo types (migration 034)
   promoTypes: PromoTypesTable;
 
-  // Source settings (migration 035)
-  sourceSettings: SourceSettingsTable;
+  // Provider settings (migration 035, renamed in 038)
+  providerSettings: ProviderSettingsTable;
 
   // Feature flags (migration 014)
   featureFlags: FeatureFlagsTable;

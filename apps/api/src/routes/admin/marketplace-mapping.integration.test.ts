@@ -60,7 +60,7 @@ if (ctx) {
       slug: "MKM-001:common:normal:",
       cardId: cardId,
       setId: setId,
-      sourceId: "MKM-001",
+      shortCode: "MKM-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -85,7 +85,7 @@ if (ctx) {
       slug: "MKM-001:common:foil:",
       cardId: cardId,
       setId: setId,
-      sourceId: "MKM-001",
+      shortCode: "MKM-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -229,7 +229,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // marketplace_sources row should exist
       const sourceRow = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
         .where("printingId", "=", printingId)
@@ -241,7 +241,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const snapshots = await db
         .selectFrom("marketplaceSnapshots")
         .selectAll()
-        .where("sourceId", "=", sourceRow?.id as string)
+        .where("productId", "=", sourceRow?.id as string)
         .execute();
       expect(snapshots.length).toBeGreaterThanOrEqual(1);
       expect(snapshots[0].marketCents).toBe(100);
@@ -275,7 +275,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // Source should be deleted
       const sourceRow = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
         .where("printingId", "=", printingId)
@@ -315,7 +315,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // No more sources with external_id should exist for TCGPlayer for our printing
       const sources = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .selectAll()
         .where("marketplace", "=", "tcgplayer")
         .where("printingId", "=", printingId)
@@ -341,7 +341,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // Verify source was created
       const sourceRow = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .selectAll()
         .where("marketplace", "=", "cardmarket")
         .where("printingId", "=", printingId)

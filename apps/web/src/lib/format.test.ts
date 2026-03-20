@@ -17,7 +17,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
   return {
     id: "00000000-0000-0000-0000-000000000001",
     slug: "OGS-001:common:normal:",
-    sourceId: "OGS-001",
+    shortCode: "OGS-001",
     setId: "",
     setSlug: "",
     collectorNumber: 1,
@@ -58,7 +58,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
 
 describe("formatCardId", () => {
   it("returns the source id", () => {
-    expect(formatCardId(stub({ sourceId: "OGS-042" }))).toBe("OGS-042");
+    expect(formatCardId(stub({ shortCode: "OGS-042" }))).toBe("OGS-042");
   });
 });
 
@@ -68,15 +68,15 @@ describe("formatCardId", () => {
 
 describe("formatCardIdCompact", () => {
   it("returns suffix after last dash prefixed with #", () => {
-    expect(formatCardIdCompact(stub({ sourceId: "OGS-042" }))).toBe("#042");
+    expect(formatCardIdCompact(stub({ shortCode: "OGS-042" }))).toBe("#042");
   });
 
   it("handles multi-dash ids (uses last dash)", () => {
-    expect(formatCardIdCompact(stub({ sourceId: "SET-A-123" }))).toBe("#123");
+    expect(formatCardIdCompact(stub({ shortCode: "SET-A-123" }))).toBe("#123");
   });
 
   it("returns full id with # when no dash present", () => {
-    expect(formatCardIdCompact(stub({ sourceId: "NODASH" }))).toBe("#NODASH");
+    expect(formatCardIdCompact(stub({ shortCode: "NODASH" }))).toBe("#NODASH");
   });
 });
 

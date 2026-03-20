@@ -21,7 +21,7 @@ export function useCopies(collectionId?: string) {
 export function useAddCopies() {
   return useMutationWithInvalidation({
     mutationFn: (body: {
-      copies: { printingId: string; collectionId?: string; sourceId?: string }[];
+      copies: { printingId: string; collectionId?: string; acquisitionSourceId?: string }[];
     }) => rpc(client.api.copies.$post({ json: body })),
     invalidates: [queryKeys.copies.all, queryKeys.ownedCount.all, queryKeys.collections.all],
   });

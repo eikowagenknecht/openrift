@@ -1,10 +1,10 @@
 import type {
   AdminPrintingImageResponse,
-  CardSourceResponse,
-  PrintingSourceGroupResponse,
-  PrintingSourceResponse,
+  CandidateCardResponse,
+  CandidatePrintingGroupResponse,
+  CandidatePrintingResponse,
   Rarity,
-  SourceSettingResponse,
+  ProviderSettingResponse,
 } from "@openrift/shared";
 import { buildPrintingId } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
@@ -35,14 +35,14 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
+import {
+  CANDIDATE_CARD_FIELDS,
+  CandidateSpreadsheet,
+  buildCandidatePrintingFields,
+} from "@/components/admin/candidate-spreadsheet";
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
-import type { FieldDef, PrintingGroup } from "@/components/admin/source-spreadsheet";
-import {
-  CARD_SOURCE_FIELDS,
-  SourceSpreadsheet,
-  buildPrintingSourceFields,
-} from "@/components/admin/source-spreadsheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,61 +65,61 @@ import {
   useActivatePrintingImage,
   useAddImageFromUrl,
   useAllCards,
-  useCardSourceDetail,
-  useCheckAllCardSources,
-  useCheckAllPrintingSources,
-  useCheckCardSource,
-  useCheckPrintingSource,
-  useUncheckCardSource,
-  useUncheckPrintingSource,
-  useCopyPrintingSource,
+  useCandidateDetail,
+  useCheckAllCandidateCards,
+  useCheckAllCandidatePrintings,
+  useCheckCandidateCard,
+  useCheckCandidatePrinting,
+  useUncheckCandidateCard,
+  useUncheckCandidatePrinting,
+  useCopyCandidatePrinting,
   useDeletePrintingImage,
-  useDeletePrintingSource,
+  useDeleteCandidatePrinting,
   useLinkCard,
   useNextUncheckedCard,
-  useLinkPrintingSources,
-  useReassignPrintingSource,
+  useLinkCandidatePrintings,
+  useReassignCandidatePrinting,
   useRehostPrintingImage,
   useRenameCard,
   useRenamePrinting,
-  useSetPrintingSourceImage,
+  useSetCandidatePrintingImage,
   useUnmatchedCardDetail,
   useUnrehostPrintingImage,
   useUploadPrintingImage,
-} from "@/hooks/use-card-sources";
-import { useIgnoreCardSource, useIgnorePrintingSource } from "@/hooks/use-ignored-sources";
+} from "@/hooks/use-candidates";
+import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
 import { usePromoTypes } from "@/hooks/use-promo-types";
-import { useSourceSettings } from "@/hooks/use-source-settings";
+import { useProviderSettings } from "@/hooks/use-provider-settings";
 import { cn } from "@/lib/utils";
 
 interface DetailData {
   card: Record<string, unknown>;
-  sources: CardSourceResponse[];
+  sources: CandidateCardResponse[];
   printings: Record<string, unknown>[];
-  printingSources: PrintingSourceResponse[];
-  printingSourceGroups: PrintingSourceGroupResponse[];
+  candidatePrintings: CandidatePrintingResponse[];
+  printingSourceGroups: CandidatePrintingGroupResponse[];
   expectedCardId: string;
   printingImages: AdminPrintingImageResponse[];
 }
 
 interface UnmatchedData {
   displayName: string;
-  sources: CardSourceResponse[];
-  printingSources: PrintingSourceResponse[];
-  printingSourceGroups: PrintingSourceGroupResponse[];
+  sources: CandidateCardResponse[];
+  candidatePrintings: CandidatePrintingResponse[];
+  printingSourceGroups: CandidatePrintingGroupResponse[];
   defaultCardId: string;
 }
 
-interface CardSourceDetailPageProps {
+interface CandidateDetailPageProps {
   mode: "existing" | "new";
   identifier: string;
 }
 
-export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageProps) {
+export function CandidateDetailPage({ mode, identifier }: CandidateDetailPageProps) {
   const navigate = useNavigate();
 
   // --- Data fetching (both called, only one enabled via empty-string trick) ---
-  const existingQuery = useCardSourceDetail(mode === "existing" ? identifier : "") as {
+  const existingQuery = useCandidateDetail(mode === "existing" ? identifier : "") as {
     data: DetailData | undefined;
     isLoading: boolean;
     isError: boolean;
@@ -130,31 +130,31 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   };
 
   // --- Shared hooks ---
-  const checkCardSource = useCheckCardSource();
-  const uncheckCardSource = useUncheckCardSource();
-  const checkPrintingSource = useCheckPrintingSource();
-  const uncheckPrintingSource = useUncheckPrintingSource();
-  const { data: sourceSettingsData } = useSourceSettings();
-  const sourceSettings = sourceSettingsData?.sourceSettings ?? [];
+  const checkCandidateCard = useCheckCandidateCard();
+  const uncheckCandidateCard = useUncheckCandidateCard();
+  const checkPrintingSource = useCheckCandidatePrinting();
+  const uncheckPrintingSource = useUncheckCandidatePrinting();
+  const { data: providerSettingsData } = useProviderSettings();
+  const providerSettings = providerSettingsData?.providerSettings ?? [];
 
   // --- Existing-mode hooks ---
-  const checkAllCardSources = useCheckAllCardSources();
-  const checkAllPrintingSources = useCheckAllPrintingSources();
+  const checkAllCardSources = useCheckAllCandidateCards();
+  const checkAllCandidatePrintings = useCheckAllCandidatePrintings();
   const acceptCardField = useAcceptCardField();
   const acceptPrintingField = useAcceptPrintingField();
   const renameCard = useRenameCard();
   const acceptPrintingGroup = useAcceptPrintingGroup();
-  const copyPrintingSource = useCopyPrintingSource();
-  const deletePrintingSource = useDeletePrintingSource();
-  const ignoreCardSource = useIgnoreCardSource();
-  const ignorePrintingSource = useIgnorePrintingSource();
-  const linkPrintingSources = useLinkPrintingSources();
+  const copyPrintingSource = useCopyCandidatePrinting();
+  const deletePrintingSource = useDeleteCandidatePrinting();
+  const ignoreCardSource = useIgnoreCandidateCard();
+  const ignorePrintingSource = useIgnoreCandidatePrinting();
+  const linkPrintingSources = useLinkCandidatePrintings();
   const renamePrinting = useRenamePrinting();
 
   // --- Promo types for dropdown + slug lookup ---
   const { data: promoTypesData } = usePromoTypes();
   const promoTypes = promoTypesData?.promoTypes ?? [];
-  const printingSourceFields = buildPrintingSourceFields(
+  const printingSourceFields = buildCandidatePrintingFields(
     promoTypes.map((pt: { id: string; label: string }) => ({
       value: pt.id,
       label: pt.label,
@@ -164,7 +164,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   // --- New-mode hooks ---
   const acceptNewCard = useAcceptNewCard();
   const linkCard = useLinkCard();
-  const reassignPrinting = useReassignPrintingSource();
+  const reassignPrinting = useReassignCandidatePrinting();
   const { data: allCards } = useAllCards();
 
   // --- Existing-mode state ---
@@ -235,12 +235,12 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   // At this point, one of the two queries has data
   const unmatchedData = unmatchedQuery.data;
 
-  const sources: CardSourceResponse[] = isExisting
+  const sources: CandidateCardResponse[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).sources
     : (unmatchedData as NonNullable<typeof unmatchedData>).sources;
-  const printingSources: PrintingSourceResponse[] = isExisting
-    ? (existingData as NonNullable<typeof existingData>).printingSources
-    : (unmatchedData as NonNullable<typeof unmatchedData>).printingSources;
+  const candidatePrintings: CandidatePrintingResponse[] = isExisting
+    ? (existingData as NonNullable<typeof existingData>).candidatePrintings
+    : (unmatchedData as NonNullable<typeof unmatchedData>).candidatePrintings;
   const printings: Record<string, unknown>[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).printings
     : [];
@@ -250,7 +250,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   const cardId = isExisting ? identifier : "";
 
   // --- Existing-mode computed values ---
-  const sourceLabels = Object.fromEntries(sources.map((s) => [s.id, s.source]));
+  const sourceLabels = Object.fromEntries(sources.map((s) => [s.id, s.provider]));
   const sourceNames = Object.fromEntries(sources.map((s) => [s.id, s.name]));
 
   function togglePrinting(id: string) {
@@ -266,16 +266,16 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
   }
 
   // Use API-provided printing source groups for auto-matching
-  const apiGroups: PrintingSourceGroupResponse[] = isExisting
+  const apiGroups: CandidatePrintingGroupResponse[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).printingSourceGroups
     : (unmatchedData as NonNullable<typeof unmatchedData>).printingSourceGroups;
 
   // Build PrintingGroup[] from API groups (for components that still need the old shape)
-  const printingSourceById = new Map(printingSources.map((ps) => [ps.id, ps]));
-  const apiToLocalGroup = (g: PrintingSourceGroupResponse): PrintingGroup => ({
-    sources: g.sourceIds
-      .map((id) => printingSourceById.get(id))
-      .filter(Boolean) as PrintingSourceResponse[],
+  const candidatePrintingById = new Map(candidatePrintings.map((ps) => [ps.id, ps]));
+  const apiToLocalGroup = (g: CandidatePrintingGroupResponse): PrintingGroup => ({
+    candidates: g.shortCodes
+      .map((id: string) => candidatePrintingById.get(id))
+      .filter(Boolean) as CandidatePrintingResponse[],
     expectedPrintingId: g.expectedPrintingId,
   });
 
@@ -353,7 +353,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
 
   const hasUnchecked =
     isExisting &&
-    (sources.some((s) => !s.checkedAt) || printingSources.some((ps) => !ps.checkedAt));
+    (sources.some((s) => !s.checkedAt) || candidatePrintings.some((ps) => !ps.checkedAt));
 
   async function handleCheckAllAndNext() {
     if (!isExisting || isCheckingAll) {
@@ -371,15 +371,15 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
       // Check all printing sources (each accepted printing separately)
       for (const printing of printings) {
         const printingId = printing.id as string;
-        const relatedSources = printingSources.filter((ps) => ps.printingId === printingId);
+        const relatedSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
         const autoGroups = autoMatchedByPrinting.get(printingId);
-        const autoSources = autoGroups ? autoGroups.flatMap((g) => g.sources) : [];
+        const autoSources = autoGroups ? autoGroups.flatMap((g) => g.candidates) : [];
         const allSources = [...relatedSources, ...autoSources];
 
         if (allSources.some((ps) => !ps.checkedAt)) {
           const extraIds = autoSources.map((s) => s.id);
           promises.push(
-            checkAllPrintingSources.mutateAsync({
+            checkAllCandidatePrintings.mutateAsync({
               printingId,
               extraIds: extraIds.length > 0 ? extraIds : undefined,
             }),
@@ -389,9 +389,9 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
 
       // Check all printing sources in new/ambiguous groups (no printingId yet)
       for (const group of ambiguousGroups) {
-        const uncheckedIds = group.sources.filter((s) => !s.checkedAt).map((s) => s.id);
+        const uncheckedIds = group.candidates.filter((s) => !s.checkedAt).map((s) => s.id);
         if (uncheckedIds.length > 0) {
-          promises.push(checkAllPrintingSources.mutateAsync({ extraIds: uncheckedIds }));
+          promises.push(checkAllCandidatePrintings.mutateAsync({ extraIds: uncheckedIds }));
         }
       }
 
@@ -556,13 +556,13 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             Click a cell to select it for the new card. The Active column shows your selections.
           </p>
         )}
-        <SourceSpreadsheet
+        <CandidateSpreadsheet
           fields={
             isExisting
-              ? CARD_SOURCE_FIELDS.map((f) =>
+              ? CANDIDATE_CARD_FIELDS.map((f) =>
                   f.key === "sourceId" ? { ...f, readOnly: false } : f,
                 )
-              : CARD_SOURCE_FIELDS
+              : CANDIDATE_CARD_FIELDS
           }
           requiredKeys={isExisting ? undefined : ["name", "type", "domains"]}
           activeRow={
@@ -575,8 +575,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                 ? activeCard
                 : null
           }
-          sourceRows={sources}
-          sourceSettings={sourceSettings}
+          candidateRows={sources}
+          providerSettings={providerSettings}
           onCellClick={(field, value) => {
             if (isExisting) {
               if (field === "sourceId") {
@@ -632,15 +632,15 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               );
             }
           }}
-          onCheck={(sourceId) => checkCardSource.mutate(sourceId)}
-          onUncheck={(sourceId) => uncheckCardSource.mutate(sourceId)}
+          onCheck={(sourceId) => checkCandidateCard.mutate(sourceId)}
+          onUncheck={(sourceId) => uncheckCandidateCard.mutate(sourceId)}
           columnActions={(row) =>
             isExisting ? (
               <>
                 <DropdownMenuItem
                   onClick={() => {
                     const record = row as unknown as Record<string, unknown>;
-                    for (const field of CARD_SOURCE_FIELDS) {
+                    for (const field of CANDIDATE_CARD_FIELDS) {
                       if (field.readOnly) {
                         continue;
                       }
@@ -657,8 +657,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                 <DropdownMenuItem
                   onClick={() =>
                     ignoreCardSource.mutate({
-                      source: (row as CardSourceResponse).source,
-                      sourceEntityId: row.sourceEntityId,
+                      provider: (row as CandidateCardResponse).provider,
+                      externalId: row.externalId,
                     })
                   }
                 >
@@ -673,7 +673,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                   onClick={() => {
                     const record = row as unknown as Record<string, unknown>;
                     const values: Record<string, unknown> = {};
-                    for (const field of CARD_SOURCE_FIELDS) {
+                    for (const field of CANDIDATE_CARD_FIELDS) {
                       if (field.readOnly) {
                         continue;
                       }
@@ -690,7 +690,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       { name: identifier, cardFields: { id, ...values } },
                       {
                         onSuccess: () => {
-                          checkCardSource.mutate(row.id);
+                          checkCandidateCard.mutate(row.id);
                           void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: id } });
                         },
                       },
@@ -703,8 +703,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                 <DropdownMenuItem
                   onClick={() =>
                     ignoreCardSource.mutate({
-                      source: (row as CardSourceResponse).source,
-                      sourceEntityId: row.sourceEntityId,
+                      provider: (row as CandidateCardResponse).provider,
+                      externalId: row.externalId,
                     })
                   }
                 >
@@ -745,9 +745,9 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
             const printingId = printing.id as string;
             const printingSlug = printing.slug as string;
             const isExpanded = expandedPrintings.has(printingId);
-            const relatedSources = printingSources.filter((ps) => ps.printingId === printingId);
+            const relatedSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
             const autoGroups = autoMatchedByPrinting.get(printingId);
-            const autoSources = autoGroups ? autoGroups.flatMap((g) => g.sources) : [];
+            const autoSources = autoGroups ? autoGroups.flatMap((g) => g.candidates) : [];
             const allSources = [...relatedSources, ...autoSources];
             const autoSourceIds = new Set(autoSources.map((s) => s.id));
             const activeImage = printingImages.find(
@@ -816,11 +816,11 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       variant="outline"
                       size="sm"
                       className="h-6 text-xs"
-                      disabled={checkAllPrintingSources.isPending}
+                      disabled={checkAllCandidatePrintings.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
                         const extraIds = autoSources.map((s) => s.id);
-                        checkAllPrintingSources.mutate({
+                        checkAllCandidatePrintings.mutate({
                           printingId,
                           extraIds: extraIds.length > 0 ? extraIds : undefined,
                         });
@@ -837,7 +837,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       printingId={printingId}
                       printingSlug={printingSlug}
                       images={printingImages.filter((pi) => pi.printingId === printingId)}
-                      sourceSettings={sourceSettings}
+                      providerSettings={providerSettings}
                       sourceImages={[
                         ...allSources
                           .filter(
@@ -850,7 +850,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                           )
                           .reduce((acc, ps) => {
                             const url = ps.imageUrl as string;
-                            const src = sourceLabels[ps.cardSourceId] ?? "unknown";
+                            const src = sourceLabels[ps.candidateCardId] ?? "unknown";
                             const existing = acc.get(url);
                             if (existing) {
                               if (!existing.source.split(", ").includes(src)) {
@@ -865,13 +865,13 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                       ]}
                     />
                     <div className="min-w-0 flex-1 space-y-3">
-                      <SourceSpreadsheet
+                      <CandidateSpreadsheet
                         fields={printingSourceFields}
                         activeRow={printingWithImage}
-                        sourceRows={allSources}
-                        sourceLabels={sourceLabels}
-                        sourceNames={sourceNames}
-                        sourceSettings={sourceSettings}
+                        candidateRows={allSources}
+                        providerLabels={sourceLabels}
+                        providerNames={sourceNames}
+                        providerSettings={providerSettings}
                         onCellClick={(field, value) => {
                           acceptPrintingField.mutate({ printingId: printingSlug, field, value });
                         }}
@@ -894,7 +894,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                               <DropdownMenuItem
                                 onClick={() =>
                                   linkPrintingSources.mutate({
-                                    printingSourceIds: [row.id],
+                                    candidatePrintingIds: [row.id],
                                     printingId,
                                   })
                                 }
@@ -916,7 +916,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                           key={`autolink-${p.slug as string}`}
                                           onClick={() =>
                                             linkPrintingSources.mutate({
-                                              printingSourceIds: [row.id],
+                                              candidatePrintingIds: [row.id],
                                               printingId: p.id as string,
                                             })
                                           }
@@ -934,11 +934,12 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                               <DropdownMenuItem
                                 onClick={() =>
                                   ignorePrintingSource.mutate({
-                                    source:
-                                      sourceLabels[(row as PrintingSourceResponse).cardSourceId] ??
-                                      "",
-                                    sourceEntityId: row.sourceEntityId,
-                                    finish: (row as PrintingSourceResponse).finish,
+                                    provider:
+                                      sourceLabels[
+                                        (row as CandidatePrintingResponse).candidateCardId
+                                      ] ?? "",
+                                    externalId: row.externalId,
+                                    finish: (row as CandidatePrintingResponse).finish,
                                   })
                                 }
                               >
@@ -951,7 +952,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                               <DropdownMenuItem
                                 onClick={() =>
                                   linkPrintingSources.mutate({
-                                    printingSourceIds: [row.id],
+                                    candidatePrintingIds: [row.id],
                                     printingId: null,
                                   })
                                 }
@@ -966,11 +967,12 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                               <DropdownMenuItem
                                 onClick={() =>
                                   ignorePrintingSource.mutate({
-                                    source:
-                                      sourceLabels[(row as PrintingSourceResponse).cardSourceId] ??
-                                      "",
-                                    sourceEntityId: row.sourceEntityId,
-                                    finish: (row as PrintingSourceResponse).finish,
+                                    provider:
+                                      sourceLabels[
+                                        (row as CandidatePrintingResponse).candidateCardId
+                                      ] ?? "",
+                                    externalId: row.externalId,
+                                    finish: (row as CandidatePrintingResponse).finish,
                                   })
                                 }
                               >
@@ -992,7 +994,7 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                             key={`move-${p.slug as string}`}
                                             onClick={() =>
                                               linkPrintingSources.mutate({
-                                                printingSourceIds: [row.id],
+                                                candidatePrintingIds: [row.id],
                                                 printingId: p.id as string,
                                               })
                                             }
@@ -1045,18 +1047,18 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               cardId={cardId}
               group={group}
               existingPrintings={printings}
-              sourceLabels={sourceLabels}
-              sourceNames={sourceNames}
-              sourceSettings={sourceSettings}
+              providerLabels={sourceLabels}
+              providerNames={sourceNames}
+              providerSettings={providerSettings}
               isExpanded={expandedPrintings.has(group.expectedPrintingId)}
               onToggle={() => togglePrinting(group.expectedPrintingId)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
-              onCheckAll={(sourceIds) => checkAllPrintingSources.mutate({ extraIds: sourceIds })}
-              isCheckingAll={checkAllPrintingSources.isPending}
+              onCheckAll={(sourceIds) => checkAllCandidatePrintings.mutate({ extraIds: sourceIds })}
+              isCheckingAll={checkAllCandidatePrintings.isPending}
               onUncheck={(id) => uncheckPrintingSource.mutate(id)}
-              onAccept={(printingFields, printingSourceIds) => {
+              onAccept={(printingFields, candidatePrintingIds) => {
                 acceptPrintingGroup.mutate(
-                  { cardId, printingFields, printingSourceIds },
+                  { cardId, printingFields, candidatePrintingIds },
                   {
                     onSuccess: (data) => {
                       pendingScrollTarget.current = (data as { printingId: string }).printingId;
@@ -1064,8 +1066,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                   },
                 );
               }}
-              onLink={(pid, printingSourceIds) => {
-                linkPrintingSources.mutate({ printingId: pid, printingSourceIds });
+              onLink={(pid, candidatePrintingIds) => {
+                linkPrintingSources.mutate({ printingId: pid, candidatePrintingIds });
               }}
               onCopy={(id, pid) => {
                 copyPrintingSource.mutate({ id, printingId: pid });
@@ -1073,14 +1075,14 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               onDelete={(id) => {
                 deletePrintingSource.mutate(id);
               }}
-              onIgnore={(sourceEntityId, finish) => {
+              onIgnore={(externalId, finish) => {
                 ignorePrintingSource.mutate({
-                  source:
+                  provider:
                     sourceLabels[
-                      group.sources.find((s) => s.sourceEntityId === sourceEntityId)
-                        ?.cardSourceId ?? ""
+                      group.candidates.find((s) => s.externalId === externalId)?.candidateCardId ??
+                        ""
                     ] ?? "",
-                  sourceEntityId,
+                  externalId,
                   finish,
                 });
               }}
@@ -1100,8 +1102,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
               <div key={group.expectedPrintingId} className="rounded-md border border-dashed">
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="text-sm font-medium">
-                    {guessedId} &mdash; {group.sources.length} source
-                    {group.sources.length === 1 ? "" : "s"}
+                    {guessedId} &mdash; {group.candidates.length} source
+                    {group.candidates.length === 1 ? "" : "s"}
                   </span>
                   {newModeGroups.length > 1 && (
                     <DropdownMenu>
@@ -1120,8 +1122,8 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                                 key={target.expectedPrintingId}
                                 disabled={reassignPrinting.isPending}
                                 onClick={() => {
-                                  const t = target.sources[0];
-                                  group.sources.forEach((s) =>
+                                  const t = target.candidates[0];
+                                  group.candidates.forEach((s) =>
                                     reassignPrinting.mutate({
                                       id: s.id,
                                       fields: {
@@ -1148,18 +1150,18 @@ export function CardSourceDetailPage({ mode, identifier }: CardSourceDetailPageP
                 </div>
                 <div className="flex gap-3 border-t p-3">
                   <GroupImagePreview
-                    sources={group.sources}
-                    sourceLabels={sourceLabels}
-                    sourceSettings={sourceSettings}
+                    sources={group.candidates}
+                    providerLabels={sourceLabels}
+                    providerSettings={providerSettings}
                   />
                   <div className="min-w-0 flex-1">
-                    <SourceSpreadsheet
+                    <CandidateSpreadsheet
                       fields={printingSourceFields}
                       activeRow={null}
-                      sourceRows={group.sources}
-                      sourceLabels={sourceLabels}
-                      sourceNames={sourceNames}
-                      sourceSettings={sourceSettings}
+                      candidateRows={group.candidates}
+                      providerLabels={sourceLabels}
+                      providerNames={sourceNames}
+                      providerSettings={providerSettings}
                       onCheck={(id) => checkPrintingSource.mutate(id)}
                       onUncheck={(id) => uncheckPrintingSource.mutate(id)}
                     />
@@ -1190,9 +1192,9 @@ function NewPrintingGroupCard({
   cardId: _cardId,
   group,
   existingPrintings,
-  sourceLabels,
-  sourceNames,
-  sourceSettings,
+  providerLabels,
+  providerNames,
+  providerSettings,
   isExpanded,
   onToggle,
   onCheck,
@@ -1210,20 +1212,20 @@ function NewPrintingGroupCard({
   cardId: string;
   group: PrintingGroup;
   existingPrintings: Record<string, unknown>[];
-  sourceLabels: Record<string, string>;
-  sourceNames: Record<string, string>;
-  sourceSettings: SourceSettingResponse[];
+  providerLabels: Record<string, string>;
+  providerNames: Record<string, string>;
+  providerSettings: ProviderSettingResponse[];
   isExpanded: boolean;
   onToggle: () => void;
   onCheck: (id: string) => void;
   onCheckAll: (sourceIds: string[]) => void;
   isCheckingAll: boolean;
   onUncheck: (id: string) => void;
-  onAccept: (printingFields: Record<string, unknown>, printingSourceIds: string[]) => void;
-  onLink: (printingId: string, printingSourceIds: string[]) => void;
+  onAccept: (printingFields: Record<string, unknown>, candidatePrintingIds: string[]) => void;
+  onLink: (printingId: string, candidatePrintingIds: string[]) => void;
   onCopy: (id: string, printingId: string) => void;
   onDelete: (id: string) => void;
-  onIgnore: (sourceEntityId: string, finish: string) => void;
+  onIgnore: (externalId: string, finish: string) => void;
   isAccepting: boolean;
   isLinking?: boolean;
   printingFields: FieldDef[];
@@ -1250,7 +1252,7 @@ function NewPrintingGroupCard({
     <div
       className={cn(
         "rounded-md border border-dashed",
-        group.sources.every((s) => s.checkedAt) ? "border-green-600/40" : "border-yellow-500/60",
+        group.candidates.every((s) => s.checkedAt) ? "border-green-600/40" : "border-yellow-500/60",
       )}
     >
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
@@ -1266,13 +1268,13 @@ function NewPrintingGroupCard({
           )}
           <span>
             New: <span className="text-muted-foreground">{printingId || guessedId}</span> &mdash;{" "}
-            {group.sources.length} source
-            {group.sources.length === 1 ? "" : "s"}
+            {group.candidates.length} source
+            {group.candidates.length === 1 ? "" : "s"}
           </span>
         </span>
         {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- stopPropagation wrapper, not interactive */}
         <div className="flex flex-wrap items-end gap-2" onClick={(e) => e.stopPropagation()}>
-          {group.sources.some((s) => !s.checkedAt) && (
+          {group.candidates.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
               size="sm"
@@ -1280,11 +1282,11 @@ function NewPrintingGroupCard({
               disabled={isCheckingAll}
               onClick={(e) => {
                 e.stopPropagation();
-                onCheckAll(group.sources.filter((s) => !s.checkedAt).map((s) => s.id));
+                onCheckAll(group.candidates.filter((s) => !s.checkedAt).map((s) => s.id));
               }}
             >
               <CheckCheckIcon className="mr-1 size-3" />
-              Check {group.sources.filter((s) => !s.checkedAt).length} unchecked
+              Check {group.candidates.filter((s) => !s.checkedAt).length} unchecked
             </Button>
           )}
           <Button
@@ -1294,7 +1296,7 @@ function NewPrintingGroupCard({
             onClick={() =>
               onAccept(
                 { id: printingId, ...activePrinting },
-                group.sources.map((s) => s.id),
+                group.candidates.map((s) => s.id),
               )
             }
           >
@@ -1312,19 +1314,19 @@ function NewPrintingGroupCard({
           )}
           <div className="flex gap-3 border-t p-3">
             <GroupImagePreview
-              sources={group.sources}
-              sourceLabels={sourceLabels}
-              sourceSettings={sourceSettings}
+              sources={group.candidates}
+              providerLabels={providerLabels}
+              providerSettings={providerSettings}
             />
             <div className="min-w-0 flex-1">
-              <SourceSpreadsheet
+              <CandidateSpreadsheet
                 fields={printingFields}
                 requiredKeys={REQUIRED_PRINTING_KEYS}
                 activeRow={Object.keys(activePrinting).length > 0 ? activePrinting : null}
-                sourceRows={group.sources}
-                sourceLabels={sourceLabels}
-                sourceNames={sourceNames}
-                sourceSettings={sourceSettings}
+                candidateRows={group.candidates}
+                providerLabels={providerLabels}
+                providerNames={providerNames}
+                providerSettings={providerSettings}
                 onCellClick={(field, value) => {
                   setActivePrinting((prev) => ({ ...prev, [field]: value }));
                 }}
@@ -1404,10 +1406,7 @@ function NewPrintingGroupCard({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() =>
-                        onIgnore(
-                          row.sourceEntityId,
-                          (row as unknown as Record<string, string>).finish,
-                        )
+                        onIgnore(row.externalId, (row as unknown as Record<string, string>).finish)
                       }
                     >
                       <BanIcon className="mr-2 size-3.5" />
@@ -1428,12 +1427,12 @@ function NewPrintingGroupCard({
 
 function GroupImagePreview({
   sources,
-  sourceLabels,
-  sourceSettings,
+  providerLabels,
+  providerSettings,
 }: {
-  sources: PrintingSourceResponse[];
-  sourceLabels: Record<string, string>;
-  sourceSettings: SourceSettingResponse[];
+  sources: CandidatePrintingResponse[];
+  providerLabels: Record<string, string>;
+  providerSettings: ProviderSettingResponse[];
 }) {
   // Deduplicate source images by URL, collecting source labels
   const sourceImages = [
@@ -1441,7 +1440,7 @@ function GroupImagePreview({
       .filter((ps) => ps.imageUrl)
       .reduce((acc, ps) => {
         const url = ps.imageUrl as string;
-        const src = sourceLabels[ps.cardSourceId] ?? "unknown";
+        const src = providerLabels[ps.candidateCardId] ?? "unknown";
         const existing = acc.get(url);
         if (existing) {
           if (!existing.source.split(", ").includes(src)) {
@@ -1456,7 +1455,7 @@ function GroupImagePreview({
   ];
 
   // Sort by sort_order, then alphabetical
-  const settingsMap = new Map(sourceSettings.map((s) => [s.source, s]));
+  const settingsMap = new Map(providerSettings.map((s) => [s.provider, s]));
   sourceImages.sort((a, b) => {
     const aOrder = settingsMap.get(a.source)?.sortOrder ?? 0;
     const bOrder = settingsMap.get(b.source)?.sortOrder ?? 0;
@@ -1561,13 +1560,13 @@ function PrintingImageSwitcher({
   printingSlug,
   images,
   sourceImages,
-  sourceSettings,
+  providerSettings,
 }: {
   printingId: string;
   printingSlug: string;
   images: AdminPrintingImageResponse[];
   sourceImages: SourceImage[];
-  sourceSettings: SourceSettingResponse[];
+  providerSettings: ProviderSettingResponse[];
 }) {
   const deletePrintingImage = useDeletePrintingImage();
   const activatePrintingImage = useActivatePrintingImage();
@@ -1575,10 +1574,10 @@ function PrintingImageSwitcher({
   const unrehostPrintingImage = useUnrehostPrintingImage();
   const addImageFromUrl = useAddImageFromUrl();
   const uploadPrintingImage = useUploadPrintingImage();
-  const setPrintingSourceImage = useSetPrintingSourceImage();
+  const setPrintingSourceImage = useSetCandidatePrintingImage();
 
   // Sort images + source images by sort_order, then alphabetical by source name
-  const settingsMap = new Map(sourceSettings.map((s) => [s.source, s]));
+  const settingsMap = new Map(providerSettings.map((s) => [s.provider, s]));
   const orderSort = (aLabel: string, bLabel: string) => {
     const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;
     const bOrder = settingsMap.get(bLabel)?.sortOrder ?? 0;
@@ -1587,7 +1586,7 @@ function PrintingImageSwitcher({
     }
     return aLabel.localeCompare(bLabel);
   };
-  const sortedImages = [...images].sort((a, b) => orderSort(a.source, b.source));
+  const sortedImages = [...images].sort((a, b) => orderSort(a.provider, b.provider));
   const sortedSourceImages = [...sourceImages].sort((a, b) => orderSort(a.source, b.source));
 
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -1635,7 +1634,7 @@ function PrintingImageSwitcher({
                 setImgError(false);
               }}
             >
-              {img.source}
+              {img.provider}
               {img.rehostedUrl ? null : <span className="text-orange-500"> !</span>}
             </button>
           );
@@ -1777,7 +1776,7 @@ function PrintingImageSwitcher({
               External
             </Badge>
           )}
-          <span className="text-[10px] text-muted-foreground">{effectiveImage.source}</span>
+          <span className="text-[10px] text-muted-foreground">{effectiveImage.provider}</span>
           <div className="ml-auto flex items-center gap-0.5">
             {effectiveImage.isActive ? (
               <Button
@@ -1857,7 +1856,7 @@ function PrintingImageSwitcher({
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
-                  { printingSourceId: effectiveSource.printingSourceId, mode: "main" },
+                  { candidatePrintingId: effectiveSource.printingSourceId, mode: "main" },
                   { onSuccess: () => setSelectedId(null) },
                 )
               }
@@ -1872,7 +1871,7 @@ function PrintingImageSwitcher({
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
-                  { printingSourceId: effectiveSource.printingSourceId, mode: "additional" },
+                  { candidatePrintingId: effectiveSource.printingSourceId, mode: "additional" },
                   { onSuccess: () => setSelectedId(null) },
                 )
               }

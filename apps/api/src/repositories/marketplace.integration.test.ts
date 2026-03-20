@@ -58,7 +58,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     const snap1 = await db
       .insertInto("marketplaceSnapshots")
       .values({
-        sourceId: annieTcgSourceId,
+        productId: annieTcgSourceId,
         marketCents: 100,
         lowCents: 80,
         midCents: 95,
@@ -72,7 +72,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     const snap2 = await db
       .insertInto("marketplaceSnapshots")
       .values({
-        sourceId: annieTcgSourceId,
+        productId: annieTcgSourceId,
         marketCents: 120,
         lowCents: 90,
         midCents: 110,

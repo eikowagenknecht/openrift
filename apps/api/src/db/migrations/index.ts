@@ -40,6 +40,7 @@ import * as m034 from "./034-promo-types.js";
 import * as m035 from "./035-source-settings.js";
 import * as m036 from "./036-printing-source-group-key.js";
 import * as m037 from "./037-auto-updated-at.js";
+import * as m038 from "./038-rename-source-concepts.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -79,4 +80,5 @@ export const migrations: Record<string, Migration> = {
   "035-source-settings": m035,
   "036-printing-source-group-key": m036,
   "037-auto-updated-at": m037,
+  "038-rename-source-concepts": m038,
 };

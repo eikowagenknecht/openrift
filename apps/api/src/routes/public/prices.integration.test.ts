@@ -63,7 +63,7 @@ if (ctx) {
       slug: "PRC-001:common:normal:",
       cardId,
       setId,
-      sourceId: "PRC-001",
+      shortCode: "PRC-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -88,7 +88,7 @@ if (ctx) {
       slug: "PRC-002:common:normal:",
       cardId,
       setId,
-      sourceId: "PRC-002",
+      shortCode: "PRC-002",
       collectorNumber: 2,
       rarity: "Common",
       artVariant: "normal",
@@ -108,7 +108,7 @@ if (ctx) {
 
   // TCGPlayer marketplace source for printingId
   const [tcgRow] = await db
-    .insertInto("marketplaceSources")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace: "tcgplayer",
       externalId: 90_001,
@@ -122,7 +122,7 @@ if (ctx) {
 
   // Cardmarket marketplace source for printingId
   const [cmRow] = await db
-    .insertInto("marketplaceSources")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace: "cardmarket",
       externalId: 90_002,
@@ -142,7 +142,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      sourceId: tcgSourceId,
+      productId: tcgSourceId,
       recordedAt: daysAgo(2),
       marketCents: 250,
       lowCents: 120,
@@ -159,7 +159,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      sourceId: tcgSourceId,
+      productId: tcgSourceId,
       recordedAt: daysAgo(15),
       marketCents: 200,
       lowCents: 100,
@@ -176,7 +176,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      sourceId: tcgSourceId,
+      productId: tcgSourceId,
       recordedAt: daysAgo(60),
       marketCents: 150,
       lowCents: 80,
@@ -193,7 +193,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      sourceId: tcgSourceId,
+      productId: tcgSourceId,
       recordedAt: daysAgo(120),
       marketCents: 100,
       lowCents: 50,
@@ -210,7 +210,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      sourceId: cmSourceId,
+      productId: cmSourceId,
       recordedAt: daysAgo(2),
       marketCents: 180,
       lowCents: 100,

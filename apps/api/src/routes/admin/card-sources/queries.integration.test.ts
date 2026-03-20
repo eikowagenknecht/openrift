@@ -84,7 +84,7 @@ if (ctx) {
       slug: "CSQ-001:common:normal:",
       cardId: card1Id,
       setId: setId,
-      sourceId: "CSQ-001",
+      shortCode: "CSQ-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -104,9 +104,9 @@ if (ctx) {
 
   // Create card sources (matched — name matches card1 via norm_name trigger)
   const [cs1] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "csq-spreadsheet",
+      provider: "csq-spreadsheet",
       name: "CSQ Test Card",
       type: "Unit",
       superTypes: [],
@@ -118,8 +118,8 @@ if (ctx) {
       rulesText: "Flash",
       effectText: null,
       tags: [],
-      sourceId: "CSQ-001",
-      sourceEntityId: "CSQ-001",
+      shortCode: "CSQ-001",
+      externalId: "CSQ-001",
       extraData: null,
     })
     .returning("id")
@@ -128,9 +128,9 @@ if (ctx) {
 
   // Create card source (unmatched — no card with this name)
   const [cs2] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "csq-gallery",
+      provider: "csq-gallery",
       name: "CSQ Unknown Card",
       type: "Rune",
       superTypes: [],
@@ -142,8 +142,8 @@ if (ctx) {
       rulesText: null,
       effectText: null,
       tags: [],
-      sourceId: null,
-      sourceEntityId: "test-entity",
+      shortCode: null,
+      externalId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -152,11 +152,11 @@ if (ctx) {
 
   // Create printing sources (matched)
   await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: cs1Id,
+      candidateCardId: cs1Id,
       printingId: printing1Id,
-      sourceId: "CSQ-001",
+      shortCode: "CSQ-001",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
       collectorNumber: 1,
@@ -171,18 +171,18 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csq-test.png",
       flavorText: null,
-      sourceEntityId: "test-entity",
+      externalId: "test-entity",
       extraData: null,
     })
     .execute();
 
   // Printing source for unmatched card
   await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: cs2Id,
+      candidateCardId: cs2Id,
       printingId: null,
-      sourceId: "CSQ-UNK-001",
+      shortCode: "CSQ-UNK-001",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
       collectorNumber: 99,
@@ -197,7 +197,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: "test-entity",
+      externalId: "test-entity",
       extraData: null,
     })
     .execute();
@@ -272,13 +272,13 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       const json = await res.json();
       expect(json).toBeArray();
 
-      const gallery = json.find((s: { source: string }) => s.source === "csq-gallery");
+      const gallery = json.find((s: { provider: string }) => s.provider === "csq-gallery");
       expect(gallery).toBeDefined();
       expect(gallery.cardCount).toBe(1);
       expect(gallery.printingCount).toBe(1);
       expect(gallery.lastUpdated).toBeString();
 
-      const spreadsheet = json.find((s: { source: string }) => s.source === "csq-spreadsheet");
+      const spreadsheet = json.find((s: { provider: string }) => s.provider === "csq-spreadsheet");
       expect(spreadsheet).toBeDefined();
       expect(spreadsheet.cardCount).toBe(1);
       expect(spreadsheet.printingCount).toBe(1);
@@ -400,29 +400,29 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       );
       expect(spreadsheetSource).toBeDefined();
       expect(spreadsheetSource.name).toBe("CSQ Test Card");
-      expect(spreadsheetSource.sourceId).toBe("CSQ-001");
+      expect(spreadsheetSource.shortCode).toBe("CSQ-001");
 
       // Printings
       expect(json.printings).toBeArray();
       expect(json.printings).toHaveLength(1);
-      expect(json.printings[0].sourceId).toBe("CSQ-001");
+      expect(json.printings[0].shortCode).toBe("CSQ-001");
       expect(json.printings[0].rarity).toBe("Common");
       expect(json.printings[0].setId).toBe("CSQ-TEST");
     });
 
-    it("response includes printingSources", async () => {
+    it("response includes candidatePrintings", async () => {
       const res = await app.fetch(req("GET", "/admin/card-sources/CSQ-001"));
       const json = await res.json();
 
-      expect(json.printingSources).toBeArray();
-      expect(json.printingSources.length).toBeGreaterThanOrEqual(1);
+      expect(json.candidatePrintings).toBeArray();
+      expect(json.candidatePrintings.length).toBeGreaterThanOrEqual(1);
 
-      const ps = json.printingSources[0];
-      expect(ps.sourceId).toBe("CSQ-001");
+      const ps = json.candidatePrintings[0];
+      expect(ps.shortCode).toBe("CSQ-001");
       expect(ps.setId).toBe("CSQ-TEST");
       expect(ps.rarity).toBe("Common");
       expect(ps.imageUrl).toBe("https://example.com/csq-test.png");
-      expect(ps.cardSourceId).toBeString();
+      expect(ps.candidateCardId).toBeString();
       expect(ps.createdAt).toBeString();
       expect(ps.updatedAt).toBeString();
     });
@@ -459,11 +459,11 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.sources[0].domains).toEqual(["Chaos"]);
 
       // Printing sources
-      expect(json.printingSources).toBeArray();
-      expect(json.printingSources).toHaveLength(1);
-      expect(json.printingSources[0].sourceId).toBe("CSQ-UNK-001");
-      expect(json.printingSources[0].rarity).toBe("Rare");
-      expect(json.printingSources[0].collectorNumber).toBe(99);
+      expect(json.candidatePrintings).toBeArray();
+      expect(json.candidatePrintings).toHaveLength(1);
+      expect(json.candidatePrintings[0].shortCode).toBe("CSQ-UNK-001");
+      expect(json.candidatePrintings[0].rarity).toBe("Rare");
+      expect(json.candidatePrintings[0].collectorNumber).toBe(99);
     });
 
     it("returns 404 for non-existent normalized name", async () => {

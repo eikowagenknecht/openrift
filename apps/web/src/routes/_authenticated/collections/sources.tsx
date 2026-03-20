@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { SourcesPage } from "@/components/collection/sources-page";
 import { Skeleton } from "@/components/ui/skeleton";
-import { sourcesQueryOptions } from "@/hooks/use-sources";
+import { acquisitionSourcesQueryOptions } from "@/hooks/use-acquisition-sources";
 
 export const Route = createFileRoute("/_authenticated/collections/sources")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(sourcesQueryOptions),
+  loader: ({ context }) => context.queryClient.ensureQueryData(acquisitionSourcesQueryOptions),
   component: SourcesPage,
   pendingComponent: SourcesPending,
 });

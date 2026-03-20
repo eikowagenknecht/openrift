@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { cardSourceFieldRules } from "./schemas.js";
+import { candidateCardFieldRules } from "./schemas.js";
 
-// The noEmptyJsonb schema is used by cardSourceFieldRules.extraData
-const noEmptyJsonb = cardSourceFieldRules.extraData;
+// The noEmptyJsonb schema is used by candidateCardFieldRules.extraData
+const noEmptyJsonb = candidateCardFieldRules.extraData;
 
 describe("noEmptyJsonb", () => {
   it("passes for null", () => {

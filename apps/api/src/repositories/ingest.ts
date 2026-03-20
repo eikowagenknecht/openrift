@@ -1,6 +1,6 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { CardSourcesTable, Database, PrintingSourcesTable } from "../db/index.js";
+import type { CandidateCardsTable, Database, CandidatePrintingsTable } from "../db/index.js";
 
 type Db = Kysely<Database>;
 
@@ -14,9 +14,9 @@ export function ingestRepo(db: Db) {
   return {
     // ── Bulk reads ────────────────────────────────────────────────────────────
 
-    /** @returns All card sources for a given source name. */
-    allCardSourcesForSource(source: string): Promise<Selectable<CardSourcesTable>[]> {
-      return db.selectFrom("cardSources").selectAll().where("source", "=", source).execute();
+    /** @returns All candidate cards for a given provider name. */
+    allCandidateCardsForProvider(provider: string): Promise<Selectable<CandidateCardsTable>[]> {
+      return db.selectFrom("candidateCards").selectAll().where("provider", "=", provider).execute();
     },
 
     /** @returns All cards (id + normName) for name resolution. */
@@ -34,61 +34,61 @@ export function ingestRepo(db: Db) {
       return db.selectFrom("printings").select(["id", "slug"]).execute();
     },
 
-    /** @returns All printing sources for the given card source IDs. */
-    printingSourcesByCardSourceIds(
-      cardSourceIds: string[],
-    ): Promise<Selectable<PrintingSourcesTable>[]> {
+    /** @returns All candidate printings for the given candidate card IDs. */
+    candidatePrintingsByCandidateCardIds(
+      candidateCardIds: string[],
+    ): Promise<Selectable<CandidatePrintingsTable>[]> {
       return db
-        .selectFrom("printingSources")
+        .selectFrom("candidatePrintings")
         .selectAll()
-        .where("cardSourceId", "in", cardSourceIds)
+        .where("candidateCardId", "in", candidateCardIds)
         .execute();
     },
 
-    /** @returns Ignored card source entity IDs for a source. */
-    ignoredCardSources(source: string): Promise<{ sourceEntityId: string }[]> {
+    /** @returns Ignored candidate card external IDs for a provider. */
+    ignoredCandidateCards(provider: string): Promise<{ externalId: string }[]> {
       return db
-        .selectFrom("ignoredCardSources")
-        .select(["source", "sourceEntityId"])
-        .where("source", "=", source)
+        .selectFrom("ignoredCandidateCards")
+        .select(["provider", "externalId"])
+        .where("provider", "=", provider)
         .execute();
     },
 
     /** @returns All printing link overrides (manual links that survive re-uploads). */
     allPrintingLinkOverrides(): Promise<
-      { sourceEntityId: string; finish: string; printingSlug: string }[]
+      { externalId: string; finish: string; printingSlug: string }[]
     > {
       return db
         .selectFrom("printingLinkOverrides")
-        .select(["sourceEntityId", "finish", "printingSlug"])
+        .select(["externalId", "finish", "printingSlug"])
         .execute();
     },
 
-    /** @returns Ignored printing source entries for a source. */
-    ignoredPrintingSources(
-      source: string,
-    ): Promise<{ sourceEntityId: string; finish: string | null }[]> {
+    /** @returns Ignored candidate printing entries for a provider. */
+    ignoredCandidatePrintings(
+      provider: string,
+    ): Promise<{ externalId: string; finish: string | null }[]> {
       return db
-        .selectFrom("ignoredPrintingSources")
-        .select(["source", "sourceEntityId", "finish"])
-        .where("source", "=", source)
+        .selectFrom("ignoredCandidatePrintings")
+        .select(["provider", "externalId", "finish"])
+        .where("provider", "=", provider)
         .execute();
     },
 
     // ── Writes ──────────────────────────────────────────────────────────────
 
-    /** Update a card source by ID. */
-    async updateCardSource(id: string, updates: Record<string, unknown>): Promise<void> {
-      await db.updateTable("cardSources").set(updates).where("id", "=", id).execute();
+    /** Update a candidate card by ID. */
+    async updateCandidateCard(id: string, updates: Record<string, unknown>): Promise<void> {
+      await db.updateTable("candidateCards").set(updates).where("id", "=", id).execute();
     },
 
     /**
-     * Insert a new card source.
-     * @returns The inserted card source ID.
+     * Insert a new candidate card.
+     * @returns The inserted candidate card ID.
      */
-    async insertCardSource(values: Record<string, unknown>): Promise<string> {
+    async insertCandidateCard(values: Record<string, unknown>): Promise<string> {
       const [inserted] = await db
-        .insertInto("cardSources")
+        .insertInto("candidateCards")
         // oxlint-disable-next-line typescript/no-explicit-any -- optional fields built dynamically
         .values(values as any)
         .returning("id")
@@ -96,15 +96,15 @@ export function ingestRepo(db: Db) {
       return inserted.id;
     },
 
-    /** Update a printing source by ID. */
-    async updatePrintingSource(id: string, updates: Record<string, unknown>): Promise<void> {
-      await db.updateTable("printingSources").set(updates).where("id", "=", id).execute();
+    /** Update a candidate printing by ID. */
+    async updateCandidatePrinting(id: string, updates: Record<string, unknown>): Promise<void> {
+      await db.updateTable("candidatePrintings").set(updates).where("id", "=", id).execute();
     },
 
-    /** Insert a new printing source. */
-    async insertPrintingSource(values: Record<string, unknown>): Promise<void> {
+    /** Insert a new candidate printing. */
+    async insertCandidatePrinting(values: Record<string, unknown>): Promise<void> {
       await db
-        .insertInto("printingSources")
+        .insertInto("candidatePrintings")
         // oxlint-disable-next-line typescript/no-explicit-any -- spread fields typed separately
         .values(values as any)
         .execute();

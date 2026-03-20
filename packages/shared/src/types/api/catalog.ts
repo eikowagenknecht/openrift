@@ -13,7 +13,7 @@ export type CatalogCardResponse = Card;
 export interface CatalogPrintingResponse {
   id: string;
   slug: string;
-  sourceId: string;
+  shortCode: string;
   setId: string;
   collectorNumber: number;
   rarity: Rarity;

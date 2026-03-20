@@ -1,4 +1,4 @@
-import type { SourceSettingResponse, SourceStatsResponse } from "@openrift/shared";
+import type { ProviderSettingResponse, ProviderStatsResponse } from "@openrift/shared";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -28,30 +28,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  useDeleteSource,
-  useSourceNames,
-  useSourceStats,
-  useUploadCardSources,
-} from "@/hooks/use-card-sources";
+  useDeleteProvider,
+  useProviderNames,
+  useProviderStats,
+  useUploadCandidates,
+} from "@/hooks/use-candidates";
 import {
-  useReorderSourceSettings,
-  useSourceSettings,
-  useUpdateSourceSetting,
-} from "@/hooks/use-source-settings";
+  useReorderProviderSettings,
+  useProviderSettings,
+  useUpdateProviderSetting,
+} from "@/hooks/use-provider-settings";
 import { client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
-export function CardSourceUploadPage() {
+export function CandidateUploadPage() {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [source, setSource] = useState("");
-  const [sourceOpen, setSourceOpen] = useState(false);
+  const [provider, setProvider] = useState("");
+  const [providerOpen, setProviderOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileData, setFileData] = useState<unknown[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
 
-  const upload = useUploadCardSources();
-  const { data: sourceNames } = useSourceNames();
-  const { data: sourceStats } = useSourceStats();
+  const upload = useUploadCandidates();
+  const { data: providerNames } = useProviderNames();
+  const { data: providerStats } = useProviderStats();
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -63,8 +63,8 @@ export function CardSourceUploadPage() {
     setParseError(null);
     setFileData(null);
 
-    if (!source) {
-      setSource(file.name.replace(/\.json$/i, ""));
+    if (!provider) {
+      setProvider(file.name.replace(/\.json$/i, ""));
     }
 
     const text = await file.text();
@@ -83,14 +83,14 @@ export function CardSourceUploadPage() {
   }
 
   function handleUpload() {
-    if (!fileData || !source.trim()) {
+    if (!fileData || !provider.trim()) {
       return;
     }
     upload.mutate(
-      { source: source.trim(), candidates: fileData },
+      { provider: provider.trim(), candidates: fileData },
       {
         onSuccess: () => {
-          setSource("");
+          setProvider("");
           setFileData(null);
           setFileName(null);
           if (fileRef.current) {
@@ -107,11 +107,11 @@ export function CardSourceUploadPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UploadIcon className="size-5 shrink-0" />
-            Upload Card Sources
+            Upload Candidates
           </CardTitle>
           <CardDescription>
-            Upload a JSON file with card data from an external source. Each card will be staged for
-            review and comparison against existing data.
+            Upload a JSON file with candidate data from an external provider. Each card will be
+            staged for review and comparison against existing data.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -139,12 +139,12 @@ export function CardSourceUploadPage() {
 
           <div className="space-y-2">
             <Label>
-              Source name <span className="text-red-500">*</span>
+              Provider name <span className="text-red-500">*</span>
             </Label>
-            <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
+            <Popover open={providerOpen} onOpenChange={setProviderOpen}>
               <PopoverTrigger className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50">
-                <span className={source ? "text-foreground" : "text-muted-foreground"}>
-                  {source || "Select or type a source name..."}
+                <span className={provider ? "text-foreground" : "text-muted-foreground"}>
+                  {provider || "Select or type a provider name..."}
                 </span>
                 <ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
               </PopoverTrigger>
@@ -158,31 +158,31 @@ export function CardSourceUploadPage() {
                   }}
                 >
                   <CommandInput
-                    placeholder="Type or select a source..."
-                    value={source}
-                    onValueChange={setSource}
+                    placeholder="Type or select a provider..."
+                    value={provider}
+                    onValueChange={setProvider}
                     onFocus={(e) => e.target.select()}
                   />
                   <CommandList>
                     <CommandEmpty className="py-3 text-center text-sm text-muted-foreground">
-                      No existing sources found.
+                      No existing providers found.
                     </CommandEmpty>
                     {(() => {
-                      const PINNED_SOURCES = ["gallery"];
-                      const allNames = sourceNames
-                        ? [...new Set([...PINNED_SOURCES, ...sourceNames])]
-                        : PINNED_SOURCES;
+                      const PINNED_PROVIDERS = ["gallery"];
+                      const allNames = providerNames
+                        ? [...new Set([...PINNED_PROVIDERS, ...providerNames])]
+                        : PINNED_PROVIDERS;
                       return (
                         allNames.length > 0 && (
-                          <CommandGroup heading="Existing sources">
+                          <CommandGroup heading="Existing providers">
                             {allNames.map((name) => (
                               <CommandItem
                                 key={name}
                                 value={name}
-                                data-checked={source === name || undefined}
+                                data-checked={provider === name || undefined}
                                 onSelect={(val) => {
-                                  setSource(val);
-                                  setSourceOpen(false);
+                                  setProvider(val);
+                                  setProviderOpen(false);
                                 }}
                               >
                                 {name}
@@ -192,19 +192,19 @@ export function CardSourceUploadPage() {
                         )
                       );
                     })()}
-                    {source.trim() &&
-                      !["gallery", ...(sourceNames ?? [])].some(
-                        (n) => n.toLowerCase() === source.trim().toLowerCase(),
+                    {provider.trim() &&
+                      !["gallery", ...(providerNames ?? [])].some(
+                        (n) => n.toLowerCase() === provider.trim().toLowerCase(),
                       ) && (
                         <CommandGroup>
                           <CommandItem
-                            value={`__create__${source.trim()}`}
+                            value={`__create__${provider.trim()}`}
                             onSelect={() => {
-                              setSource(source.trim());
-                              setSourceOpen(false);
+                              setProvider(provider.trim());
+                              setProviderOpen(false);
                             }}
                           >
-                            Create &ldquo;{source.trim()}&rdquo;
+                            Create &ldquo;{provider.trim()}&rdquo;
                           </CommandItem>
                         </CommandGroup>
                       )}
@@ -217,7 +217,10 @@ export function CardSourceUploadPage() {
             </p>
           </div>
 
-          <Button disabled={!fileData || !source.trim() || upload.isPending} onClick={handleUpload}>
+          <Button
+            disabled={!fileData || !provider.trim() || upload.isPending}
+            onClick={handleUpload}
+          >
             {upload.isPending ? (
               <>
                 <LoaderIcon className="size-4 animate-spin" />
@@ -254,7 +257,7 @@ export function CardSourceUploadPage() {
                       <thead className="sticky top-0 bg-muted">
                         <tr className="text-left">
                           <th className="px-2 py-1">Card</th>
-                          <th className="px-2 py-1">Source ID</th>
+                          <th className="px-2 py-1">Short Code</th>
                           <th className="px-2 py-1">Field</th>
                           <th className="px-2 py-1">From</th>
                           <th className="px-2 py-1">To</th>
@@ -263,10 +266,10 @@ export function CardSourceUploadPage() {
                       <tbody className="divide-y">
                         {upload.data.updatedCards.flatMap((card) =>
                           card.fields.map((f) => (
-                            <tr key={`${card.sourceId ?? card.name}-${f.field}`}>
+                            <tr key={`${card.shortCode ?? card.name}-${f.field}`}>
                               <td className="px-2 py-1 font-medium">{card.name}</td>
                               <td className="px-2 py-1 text-muted-foreground">
-                                {card.sourceId ?? "—"}
+                                {card.shortCode ?? "\u2014"}
                               </td>
                               <td className="px-2 py-1">{f.field}</td>
                               <td
@@ -301,8 +304,8 @@ export function CardSourceUploadPage() {
         </CardContent>
       </Card>
       <ExportCardsCard />
-      {sourceNames.length > 0 && (
-        <ManageSourcesCard sourceNames={sourceNames} sourceStats={sourceStats} />
+      {providerNames.length > 0 && (
+        <ManageProvidersCard providerNames={providerNames} providerStats={providerStats} />
       )}
     </div>
   );
@@ -316,7 +319,7 @@ function ExportCardsCard() {
     setExporting(true);
     setError(null);
     try {
-      const res = await client.api.admin["card-sources"].export.$get();
+      const res = await client.api.admin["candidates"].export.$get();
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(
@@ -372,23 +375,23 @@ function ExportCardsCard() {
   );
 }
 
-function ManageSourcesCard({
-  sourceNames,
-  sourceStats,
+function ManageProvidersCard({
+  providerNames,
+  providerStats,
 }: {
-  sourceNames: string[];
-  sourceStats: SourceStatsResponse[];
+  providerNames: string[];
+  providerStats: ProviderStatsResponse[];
 }) {
-  const deleteSource = useDeleteSource();
-  const { data: settingsData } = useSourceSettings();
-  const updateSetting = useUpdateSourceSetting();
-  const reorderMutation = useReorderSourceSettings();
+  const deleteProvider = useDeleteProvider();
+  const { data: settingsData } = useProviderSettings();
+  const updateSetting = useUpdateProviderSetting();
+  const reorderMutation = useReorderProviderSettings();
   const [confirming, setConfirming] = useState<string | null>(null);
-  const statsBySource = new Map(sourceStats.map((s) => [s.source, s]));
+  const statsByProvider = new Map(providerStats.map((s) => [s.provider, s]));
   const settingsMap = new Map(
-    (settingsData?.sourceSettings ?? []).map((s: SourceSettingResponse) => [s.source, s]),
+    (settingsData?.providerSettings ?? []).map((s: ProviderSettingResponse) => [s.provider, s]),
   );
-  const sortedNames = [...sourceNames].sort((a, b) => {
+  const sortedNames = [...providerNames].sort((a, b) => {
     const aOrder = settingsMap.get(a)?.sortOrder ?? 0;
     const bOrder = settingsMap.get(b)?.sortOrder ?? 0;
     if (aOrder !== bOrder) {
@@ -397,7 +400,7 @@ function ManageSourcesCard({
     return a.localeCompare(b);
   });
 
-  function moveSource(index: number, direction: -1 | 1) {
+  function moveProvider(index: number, direction: -1 | 1) {
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= sortedNames.length) {
       return;
@@ -412,16 +415,16 @@ function ManageSourcesCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Trash2Icon className="size-5 shrink-0" />
-          Manage Sources
+          Manage Providers
         </CardTitle>
         <CardDescription>
-          Control visibility, sort order, and deletion of source data.
+          Control visibility, sort order, and deletion of provider data.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
           {sortedNames.map((name, index) => {
-            const stats = statsBySource.get(name);
+            const stats = statsByProvider.get(name);
             const setting = settingsMap.get(name);
             const isHidden = setting?.isHidden ?? false;
             return (
@@ -439,7 +442,7 @@ function ManageSourcesCard({
                       size="icon"
                       className="h-6 w-6"
                       disabled={index === 0 || reorderMutation.isPending}
-                      onClick={() => moveSource(index, -1)}
+                      onClick={() => moveProvider(index, -1)}
                     >
                       <ArrowUpIcon className="h-3.5 w-3.5" />
                     </Button>
@@ -448,7 +451,7 @@ function ManageSourcesCard({
                       size="icon"
                       className="h-6 w-6"
                       disabled={index === sortedNames.length - 1 || reorderMutation.isPending}
-                      onClick={() => moveSource(index, 1)}
+                      onClick={() => moveProvider(index, 1)}
                     >
                       <ArrowDownIcon className="h-3.5 w-3.5" />
                     </Button>
@@ -456,8 +459,8 @@ function ManageSourcesCard({
                   <button
                     type="button"
                     className="text-muted-foreground hover:text-foreground"
-                    onClick={() => updateSetting.mutate({ source: name, isHidden: !isHidden })}
-                    title={isHidden ? "Show source" : "Hide source"}
+                    onClick={() => updateSetting.mutate({ provider: name, isHidden: !isHidden })}
+                    title={isHidden ? "Show provider" : "Hide provider"}
                   >
                     {isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                   </button>
@@ -467,7 +470,7 @@ function ManageSourcesCard({
                   {stats && (
                     <span className="text-sm text-muted-foreground">
                       {stats.cardCount} cards, {stats.printingCount} printings
-                      {" · "}
+                      {" \u00B7 "}
                       {new Date(stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19)}
                     </span>
                   )}
@@ -477,14 +480,14 @@ function ManageSourcesCard({
                       <Button
                         size="sm"
                         variant="destructive"
-                        disabled={deleteSource.isPending}
+                        disabled={deleteProvider.isPending}
                         onClick={() => {
-                          deleteSource.mutate(name, {
+                          deleteProvider.mutate(name, {
                             onSuccess: () => setConfirming(null),
                           });
                         }}
                       >
-                        {deleteSource.isPending ? (
+                        {deleteProvider.isPending ? (
                           <LoaderIcon className="size-4 animate-spin" />
                         ) : (
                           "Confirm"
@@ -493,7 +496,7 @@ function ManageSourcesCard({
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={deleteSource.isPending}
+                        disabled={deleteProvider.isPending}
                         onClick={() => setConfirming(null)}
                       >
                         Cancel
@@ -510,17 +513,18 @@ function ManageSourcesCard({
             );
           })}
         </div>
-        {deleteSource.isSuccess && (
+        {deleteProvider.isSuccess && (
           <p className="mt-3 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
             <CheckIcon className="size-4" />
-            Deleted {deleteSource.data.deleted} card sources from &ldquo;{deleteSource.data.source}
+            Deleted {deleteProvider.data.deleted} candidates from &ldquo;
+            {deleteProvider.data.provider}
             &rdquo;
           </p>
         )}
-        {deleteSource.isError && (
+        {deleteProvider.isError && (
           <p className="mt-3 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
             <XIcon className="size-4" />
-            {deleteSource.error.message}
+            {deleteProvider.error.message}
           </p>
         )}
       </CardContent>

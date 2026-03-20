@@ -89,7 +89,7 @@ async function seedMarketplaceData(marketplace: string) {
       slug: `OPS-${marketplace}-${suffix}:common:normal:`,
       cardId: card.id,
       setId: set.id,
-      sourceId: `OPS-${marketplace}-${suffix}`,
+      shortCode: `OPS-${marketplace}-${suffix}`,
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -124,7 +124,7 @@ async function seedMarketplaceData(marketplace: string) {
 
   // marketplace_sources
   const [source] = await db
-    .insertInto("marketplaceSources")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace,
       printingId: printing.id,
@@ -139,7 +139,7 @@ async function seedMarketplaceData(marketplace: string) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      sourceId: source.id,
+      productId: source.id,
       recordedAt: new Date(),
       marketCents: 100,
       lowCents: 50,
@@ -176,7 +176,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     it("returns 401 for unauthenticated request to clear-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const res = await unauthCtx!.app.fetch(
-        req("POST", "/admin/clear-prices", { source: "tcgplayer" }),
+        req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }),
       );
       expect(res.status).toBe(401);
     });
@@ -196,7 +196,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     it("returns 403 for non-admin user on clear-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const res = await nonAdminCtx!.app.fetch(
-        req("POST", "/admin/clear-prices", { source: "tcgplayer" }),
+        req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }),
       );
       expect(res.status).toBe(403);
     });
@@ -218,7 +218,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
   describe("POST /admin/clear-prices (validation)", () => {
     it("returns 400 for invalid source value", async () => {
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { source: "invalid" }));
+      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "invalid" }));
       expect(res.status).toBe(400);
     });
 
@@ -239,23 +239,23 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     it("clears tcgplayer marketplace data and returns counts", async () => {
       await seedMarketplaceData("tcgplayer");
 
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { source: "tcgplayer" }));
+      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.source).toBe("tcgplayer");
+      expect(json.marketplace).toBe("tcgplayer");
       expect(json.deleted).toBeDefined();
       expect(typeof json.deleted.snapshots).toBe("number");
-      expect(typeof json.deleted.sources).toBe("number");
+      expect(typeof json.deleted.products).toBe("number");
       expect(typeof json.deleted.staging).toBe("number");
       expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
-      expect(json.deleted.sources).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.products).toBeGreaterThanOrEqual(1);
       expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for tcgplayer after clearing", async () => {
       const sources = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .select("id")
         .where("marketplace", "=", "tcgplayer")
         .execute();
@@ -271,13 +271,13 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
     it("returns zero counts when clearing already-empty tcgplayer data", async () => {
       // Tables are already empty from the previous clear
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { source: "tcgplayer" }));
+      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.source).toBe("tcgplayer");
+      expect(json.marketplace).toBe("tcgplayer");
       expect(json.deleted.snapshots).toBe(0);
-      expect(json.deleted.sources).toBe(0);
+      expect(json.deleted.products).toBe(0);
       expect(json.deleted.staging).toBe(0);
     });
   });
@@ -288,23 +288,25 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     it("clears cardmarket marketplace data and returns counts", async () => {
       await seedMarketplaceData("cardmarket");
 
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { source: "cardmarket" }));
+      const res = await app.fetch(
+        req("POST", "/admin/clear-prices", { marketplace: "cardmarket" }),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.source).toBe("cardmarket");
+      expect(json.marketplace).toBe("cardmarket");
       expect(json.deleted).toBeDefined();
       expect(typeof json.deleted.snapshots).toBe("number");
-      expect(typeof json.deleted.sources).toBe("number");
+      expect(typeof json.deleted.products).toBe("number");
       expect(typeof json.deleted.staging).toBe("number");
       expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
-      expect(json.deleted.sources).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.products).toBeGreaterThanOrEqual(1);
       expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for cardmarket after clearing", async () => {
       const sources = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .select("id")
         .where("marketplace", "=", "cardmarket")
         .execute();
@@ -319,13 +321,15 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     });
 
     it("returns zero counts when clearing already-empty cardmarket data", async () => {
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { source: "cardmarket" }));
+      const res = await app.fetch(
+        req("POST", "/admin/clear-prices", { marketplace: "cardmarket" }),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.source).toBe("cardmarket");
+      expect(json.marketplace).toBe("cardmarket");
       expect(json.deleted.snapshots).toBe(0);
-      expect(json.deleted.sources).toBe(0);
+      expect(json.deleted.products).toBe(0);
       expect(json.deleted.staging).toBe(0);
     });
   });
@@ -339,12 +343,12 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       await seedMarketplaceData("cardmarket");
 
       // Clear only tcgplayer
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { source: "tcgplayer" }));
+      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
       // Verify tcgplayer is cleared
       const tcgSources = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .select("id")
         .where("marketplace", "=", "tcgplayer")
         .execute();
@@ -352,7 +356,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
       // Verify cardmarket is untouched
       const cmSources = await db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .select("id")
         .where("marketplace", "=", "cardmarket")
         .execute();
@@ -366,7 +370,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(cmStaging.length).toBeGreaterThanOrEqual(1);
 
       // Clean up cardmarket for subsequent tests
-      await app.fetch(req("POST", "/admin/clear-prices", { source: "cardmarket" }));
+      await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "cardmarket" }));
     });
   });
 

@@ -14,7 +14,7 @@ import type {
 
 interface PrintingRow {
   printingId: string;
-  sourceId: string;
+  shortCode: string;
   rarity: string;
   artVariant: string;
   isSigned: boolean;
@@ -59,7 +59,7 @@ function buildCardIndex(
     might: number | null;
     printingId: string;
     setId: string;
-    sourceId: string;
+    shortCode: string;
     rarity: string;
     setName: string;
     artVariant: string;
@@ -95,7 +95,7 @@ function buildCardIndex(
     }
     group.printings.push({
       printingId: row.printingId,
-      sourceId: row.sourceId,
+      shortCode: row.shortCode,
       rarity: row.rarity,
       artVariant: row.artVariant,
       isSigned: row.isSigned,
@@ -399,7 +399,7 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
     setName: g.setName,
     printings: g.printings.map((p) => ({
       printingId: p.printingId,
-      sourceId: p.sourceId,
+      shortCode: p.shortCode,
       finish: p.finish,
       collectorNumber: p.collectorNumber,
       isSigned: p.isSigned,
@@ -472,11 +472,11 @@ export async function saveMappings(
 
     // 4. Batch-upsert sources (1 query instead of N)
     const sourceResults = await repo.upsertSources(sourceValues, tx);
-    const sourceIdByPrinting = new Map(sourceResults.map((r) => [r.printingId, r.id]));
+    const productIdByPrinting = new Map(sourceResults.map((r) => [r.printingId, r.id]));
 
     // 5. Batch-insert snapshots (1 query instead of N×M)
     const snapshotRows: {
-      sourceId: string;
+      productId: string;
       recordedAt: Date;
       marketCents: number;
       lowCents: number | null;
@@ -488,8 +488,8 @@ export async function saveMappings(
       avg30Cents: number | null;
     }[] = [];
     for (const sv of sourceValues) {
-      const sourceId = sourceIdByPrinting.get(sv.printingId);
-      if (sourceId === undefined) {
+      const productId = productIdByPrinting.get(sv.printingId);
+      if (productId === undefined) {
         continue;
       }
       const finish = finishByPrinting.get(sv.printingId);
@@ -499,7 +499,7 @@ export async function saveMappings(
       const rows = stagingByKey.get(`${sv.externalId}::${finish}`) ?? [];
       for (const row of rows) {
         snapshotRows.push({
-          sourceId: sourceId,
+          productId: productId,
           recordedAt: row.recordedAt,
           marketCents: row.marketCents,
           lowCents: row.lowCents,
@@ -551,13 +551,13 @@ export async function unmapPrinting(
     }
 
     const printing = await repo.getPrintingFinish(printingId, tx);
-    const snapshots = await repo.snapshotsBySourceId(ps.id, tx);
+    const snapshots = await repo.snapshotsByProductId(ps.id, tx);
 
     for (const snap of snapshots) {
       await config.insertStagingFromSnapshot(tx, ps, printing.finish, snap);
     }
 
-    await repo.deleteSnapshotsBySourceId(ps.id, tx);
+    await repo.deleteSnapshotsByProductId(ps.id, tx);
     await repo.deleteSourceById(ps.id, tx);
   });
 }

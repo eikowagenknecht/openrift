@@ -200,7 +200,7 @@ describe("upsertPriceData", () => {
 
     const db = {
       selectFrom(table: string) {
-        if (table === "marketplaceSources as src") {
+        if (table === "marketplaceProducts as src") {
           return makeChain(sources);
         }
         // COUNT query for marketplaceSnapshots or marketplaceStaging

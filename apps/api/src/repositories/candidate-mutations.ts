@@ -10,31 +10,36 @@ import type {
 import type { DeleteResult, Kysely, Selectable, Transaction, UpdateResult } from "kysely";
 import { sql } from "kysely";
 
-import type { CardSourcesTable, CardsTable, Database, PrintingSourcesTable } from "../db/index.js";
+import type {
+  CandidateCardsTable,
+  CardsTable,
+  Database,
+  CandidatePrintingsTable,
+} from "../db/index.js";
 import { resolveCardId } from "./query-helpers.js";
 
 type Trx = Transaction<Database> | Kysely<Database>;
 
 /**
- * Mutation queries for card sources, printing sources, cards, and printings
+ * Mutation queries for candidate cards, candidate printings, cards, and printings
  * used by the admin card-source management routes.
  *
  * @returns An object with mutation methods bound to the given `db`.
  */
-export function cardSourceMutationsRepo(db: Kysely<Database>) {
+export function candidateMutationsRepo(db: Kysely<Database>) {
   return {
     // ── Auto-check ────────────────────────────────────────────────────────────
 
     /**
-     * Bulk auto-check card sources whose fields match their resolved card.
+     * Bulk auto-check candidate cards whose fields match their resolved card.
      * @returns Number of affected rows.
      */
-    autoCheckCardSources(now: Date): Promise<{ numAffectedRows: bigint }> {
+    autoCheckCandidateCards(now: Date): Promise<{ numAffectedRows: bigint }> {
       const rcid = resolveCardId("cs");
       const n = (ref: string) => sql`COALESCE(NULLIF(${sql.ref(ref)}, ''), NULL)`;
 
       return sql`
-        UPDATE card_sources cs
+        UPDATE candidate_cards cs
         SET checked_at = ${now}
         FROM cards c
         WHERE c.id = (${rcid})
@@ -54,20 +59,20 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Bulk auto-check printing sources whose fields match their linked printing.
+     * Bulk auto-check candidate printings whose fields match their linked printing.
      * @returns Number of affected rows.
      */
-    autoCheckPrintingSources(now: Date): Promise<{ numAffectedRows: bigint }> {
+    autoCheckCandidatePrintings(now: Date): Promise<{ numAffectedRows: bigint }> {
       const n = (ref: string) => sql`COALESCE(NULLIF(${sql.ref(ref)}, ''), NULL)`;
 
       return sql`
-        UPDATE printing_sources ps
+        UPDATE candidate_printings ps
         SET checked_at = ${now}
         FROM printings p
         LEFT JOIN sets s ON s.id = p.set_id
         WHERE ps.printing_id = p.id
           AND ps.checked_at IS NULL
-          AND ps.source_id         IS NOT DISTINCT FROM p.source_id
+          AND ps.short_code          IS NOT DISTINCT FROM p.short_code
           AND ps.set_id            IS NOT DISTINCT FROM s.slug
           AND ps.collector_number  IS NOT DISTINCT FROM p.collector_number
           AND LOWER(ps.rarity)     IS NOT DISTINCT FROM LOWER(p.rarity)
@@ -83,65 +88,65 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
       `.execute(db) as Promise<{ numAffectedRows: bigint }>;
     },
 
-    // ── Card source checks ────────────────────────────────────────────────────
+    // ── Candidate card checks ────────────────────────────────────────────────────
 
     /**
-     * Mark a single card source as checked.
+     * Mark a single candidate card as checked.
      * @returns Update result.
      */
-    checkCardSource(cardSourceId: string): Promise<UpdateResult> {
+    checkCandidateCard(candidateCardId: string): Promise<UpdateResult> {
       return db
-        .updateTable("cardSources")
+        .updateTable("candidateCards")
         .set({ checkedAt: new Date() })
-        .where("id", "=", cardSourceId)
+        .where("id", "=", candidateCardId)
         .executeTakeFirst();
     },
 
     /**
-     * Clear checked_at on a single card source.
+     * Clear checked_at on a single candidate card.
      * @returns Update result.
      */
-    uncheckCardSource(cardSourceId: string): Promise<UpdateResult> {
+    uncheckCandidateCard(candidateCardId: string): Promise<UpdateResult> {
       return db
-        .updateTable("cardSources")
+        .updateTable("candidateCards")
         .set({ checkedAt: null })
-        .where("id", "=", cardSourceId)
+        .where("id", "=", candidateCardId)
         .executeTakeFirst();
     },
 
     /**
-     * Mark all card sources with matching normalized names OR linked to the
-     * given card via printing_sources → printings as checked.
+     * Mark all candidate cards with matching normalized names OR linked to the
+     * given card via candidate_printings → printings as checked.
      * @returns The total number of rows updated.
      */
-    async checkAllCardSources(normNames: string[], cardId: string): Promise<number> {
+    async checkAllCandidateCards(normNames: string[], cardId: string): Promise<number> {
       const now = new Date();
-      // Card sources linked because their printing_sources already have a printingId
+      // Candidate cards linked because their candidate_printings already have a printingId
       const linkedByPrintingId = db
-        .selectFrom("printingSources")
-        .innerJoin("printings", "printings.id", "printingSources.printingId")
-        .select("printingSources.cardSourceId")
+        .selectFrom("candidatePrintings")
+        .innerJoin("printings", "printings.id", "candidatePrintings.printingId")
+        .select("candidatePrintings.candidateCardId")
         .where("printings.cardId", "=", cardId);
 
-      // Card sources linked because their printing_sources have a sourceId matching
-      // a printing's sourceId (same logic as the display query)
-      const printingSourceIds = db
+      // Candidate cards linked because their candidate_printings have a shortCode matching
+      // a printing's shortCode (same logic as the display query)
+      const printingShortCodes = db
         .selectFrom("printings")
-        .select("sourceId")
+        .select("shortCode")
         .where("cardId", "=", cardId);
-      const linkedBySourceId = db
-        .selectFrom("printingSources as ps_match")
-        .select("ps_match.cardSourceId")
-        .where("ps_match.sourceId", "in", printingSourceIds);
+      const linkedByShortCode = db
+        .selectFrom("candidatePrintings as ps_match")
+        .select("ps_match.candidateCardId")
+        .where("ps_match.shortCode", "in", printingShortCodes);
 
       const results = await db
-        .updateTable("cardSources")
+        .updateTable("candidateCards")
         .set({ checkedAt: now })
         .where((eb) =>
           eb.or([
-            eb("cardSources.normName", "in", normNames),
-            eb("cardSources.id", "in", linkedByPrintingId),
-            eb("cardSources.id", "in", linkedBySourceId),
+            eb("candidateCards.normName", "in", normNames),
+            eb("candidateCards.id", "in", linkedByPrintingId),
+            eb("candidateCards.id", "in", linkedByShortCode),
           ]),
         )
         .where("checkedAt", "is", null)
@@ -149,42 +154,42 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
       return results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
     },
 
-    // ── Printing source checks ────────────────────────────────────────────────
+    // ── Candidate printing checks ────────────────────────────────────────────────
 
     /**
-     * Mark a single printing source as checked.
+     * Mark a single candidate printing as checked.
      * @returns Update result.
      */
-    checkPrintingSource(id: string): Promise<UpdateResult> {
+    checkCandidatePrinting(id: string): Promise<UpdateResult> {
       return db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ checkedAt: new Date() })
         .where("id", "=", id)
         .executeTakeFirst();
     },
 
     /**
-     * Clear checked_at on a single printing source.
+     * Clear checked_at on a single candidate printing.
      * @returns Update result.
      */
-    uncheckPrintingSource(id: string): Promise<UpdateResult> {
+    uncheckCandidatePrinting(id: string): Promise<UpdateResult> {
       return db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ checkedAt: null })
         .where("id", "=", id)
         .executeTakeFirst();
     },
 
     /**
-     * Mark all printing sources for a given printing (and optional extra IDs) as checked.
+     * Mark all candidate printings for a given printing (and optional extra IDs) as checked.
      * @returns The total number of rows updated.
      */
-    async checkAllPrintingSources(printingId?: string, extraIds?: string[]): Promise<number> {
+    async checkAllCandidatePrintings(printingId?: string, extraIds?: string[]): Promise<number> {
       if (!printingId && !extraIds?.length) {
         return 0;
       }
       const results = await db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ checkedAt: new Date() })
         .where((eb) =>
           eb.or([
@@ -197,27 +202,35 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
       return results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
     },
 
-    // ── Printing source mutations ─────────────────────────────────────────────
+    // ── Candidate printing mutations ─────────────────────────────────────────────
 
     /**
-     * Patch allowed fields on a printing source.
+     * Patch allowed fields on a candidate printing.
      * @returns Update result.
      */
-    patchPrintingSource(id: string, updates: Record<string, unknown>): Promise<UpdateResult> {
-      return db.updateTable("printingSources").set(updates).where("id", "=", id).executeTakeFirst();
+    patchCandidatePrinting(id: string, updates: Record<string, unknown>): Promise<UpdateResult> {
+      return db
+        .updateTable("candidatePrintings")
+        .set(updates)
+        .where("id", "=", id)
+        .executeTakeFirst();
     },
 
     /**
-     * Delete a printing source by ID.
+     * Delete a candidate printing by ID.
      * @returns Delete result.
      */
-    deletePrintingSource(id: string): Promise<DeleteResult> {
-      return db.deleteFrom("printingSources").where("id", "=", id).executeTakeFirst();
+    deleteCandidatePrinting(id: string): Promise<DeleteResult> {
+      return db.deleteFrom("candidatePrintings").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing source by ID (all columns). */
-    getPrintingSourceById(id: string): Promise<Selectable<PrintingSourcesTable> | undefined> {
-      return db.selectFrom("printingSources").selectAll().where("id", "=", id).executeTakeFirst();
+    /** @returns A candidate printing by ID (all columns). */
+    getCandidatePrintingById(id: string): Promise<Selectable<CandidatePrintingsTable> | undefined> {
+      return db
+        .selectFrom("candidatePrintings")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirst();
     },
 
     /** @returns A printing's differentiator fields by UUID. */
@@ -229,9 +242,9 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** Copy a printing source and link it to a different printing. */
-    async copyPrintingSource(
-      ps: Selectable<PrintingSourcesTable>,
+    /** Copy a candidate printing and link it to a different printing. */
+    async copyCandidatePrinting(
+      ps: Selectable<CandidatePrintingsTable>,
       target: {
         id: string;
         rarity: string | null;
@@ -242,11 +255,11 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
       },
     ): Promise<void> {
       await db
-        .insertInto("printingSources")
+        .insertInto("candidatePrintings")
         .values({
-          cardSourceId: ps.cardSourceId,
+          candidateCardId: ps.candidateCardId,
           printingId: target.id,
-          sourceId: ps.sourceId,
+          shortCode: ps.shortCode,
           setId: ps.setId,
           setName: ps.setName,
           collectorNumber: ps.collectorNumber,
@@ -261,75 +274,73 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
           printedEffectText: ps.printedEffectText,
           imageUrl: ps.imageUrl,
           flavorText: ps.flavorText,
-          sourceEntityId: ps.sourceEntityId,
+          externalId: ps.externalId,
           extraData: ps.extraData,
         })
         .execute();
     },
 
-    // ── Printing source linking ───────────────────────────────────────────────
+    // ── Candidate printing linking ───────────────────────────────────────────────
 
     /** @returns A printing's slug by UUID. */
     getPrintingSlugById(id: string): Promise<{ slug: string } | undefined> {
       return db.selectFrom("printings").select("slug").where("id", "=", id).executeTakeFirst();
     },
 
-    /** Bulk-link (or unlink) printing sources to a printing UUID. */
-    async linkPrintingSources(
-      printingSourceIds: string[],
+    /** Bulk-link (or unlink) candidate printings to a printing UUID. */
+    async linkCandidatePrintings(
+      candidatePrintingIds: string[],
       printingUuid: string | null,
     ): Promise<void> {
       await db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ printingId: printingUuid })
-        .where("id", "in", printingSourceIds)
+        .where("id", "in", candidatePrintingIds)
         .execute();
     },
 
-    /** Link printing sources to a printing UUID and mark as checked. Used within transactions. */
-    async linkAndCheckPrintingSources(
-      printingSourceIds: string[],
+    /** Link candidate printings to a printing UUID and mark as checked. Used within transactions. */
+    async linkAndCheckCandidatePrintings(
+      candidatePrintingIds: string[],
       printingUuid: string,
       trx: Trx,
     ): Promise<void> {
       await trx
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ printingId: printingUuid, checkedAt: new Date() })
-        .where("id", "in", printingSourceIds)
+        .where("id", "in", candidatePrintingIds)
         .execute();
     },
 
-    /** Upsert printing link overrides for the given printing source IDs. */
+    /** Upsert printing link overrides for the given candidate printing IDs. */
     async upsertPrintingLinkOverrides(
-      printingSourceIds: string[],
+      candidatePrintingIds: string[],
       printingSlug: string,
     ): Promise<void> {
       const rows = await db
-        .selectFrom("printingSources")
-        .select(["sourceEntityId", "finish"])
-        .where("id", "in", printingSourceIds)
+        .selectFrom("candidatePrintings")
+        .select(["externalId", "finish"])
+        .where("id", "in", candidatePrintingIds)
         .execute();
       for (const row of rows) {
         await db
           .insertInto("printingLinkOverrides")
           .values({
-            sourceEntityId: row.sourceEntityId,
+            externalId: row.externalId,
             finish: row.finish ?? "",
             printingSlug,
           })
-          .onConflict((oc) =>
-            oc.columns(["sourceEntityId", "finish"]).doUpdateSet({ printingSlug }),
-          )
+          .onConflict((oc) => oc.columns(["externalId", "finish"]).doUpdateSet({ printingSlug }))
           .execute();
       }
     },
 
-    /** Remove printing link overrides for the given printing source IDs (unlink). */
-    async removePrintingLinkOverrides(printingSourceIds: string[]): Promise<void> {
+    /** Remove printing link overrides for the given candidate printing IDs (unlink). */
+    async removePrintingLinkOverrides(candidatePrintingIds: string[]): Promise<void> {
       const rows = await db
-        .selectFrom("printingSources")
-        .select(["sourceEntityId", "finish"])
-        .where("id", "in", printingSourceIds)
+        .selectFrom("candidatePrintings")
+        .select(["externalId", "finish"])
+        .where("id", "in", candidatePrintingIds)
         .execute();
       if (rows.length === 0) {
         return;
@@ -337,7 +348,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
       for (const row of rows) {
         await db
           .deleteFrom("printingLinkOverrides")
-          .where("sourceEntityId", "=", row.sourceEntityId)
+          .where("externalId", "=", row.externalId)
           .where("finish", "=", row.finish ?? "")
           .execute();
       }
@@ -411,15 +422,15 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
     // ── Accept printing ───────────────────────────────────────────────────────
 
-    /** @returns The source name from the card_source linked to a printing_source. */
-    getSourceNameForPrintingSource(
-      printingSourceId: string,
-    ): Promise<{ source: string } | undefined> {
+    /** @returns The provider name from the candidate_card linked to a candidate_printing. */
+    getProviderNameForCandidatePrinting(
+      candidatePrintingId: string,
+    ): Promise<{ provider: string } | undefined> {
       return db
-        .selectFrom("printingSources")
-        .innerJoin("cardSources", "cardSources.id", "printingSources.cardSourceId")
-        .select("cardSources.source")
-        .where("printingSources.id", "=", printingSourceId)
+        .selectFrom("candidatePrintings")
+        .innerJoin("candidateCards", "candidateCards.id", "candidatePrintings.candidateCardId")
+        .select("candidateCards.provider")
+        .where("candidatePrintings.id", "=", candidatePrintingId)
         .executeTakeFirst();
     },
 
@@ -438,7 +449,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
         slug: string;
         cardId: string;
         setId: string;
-        sourceId: string;
+        shortCode: string;
         collectorNumber: number;
         rarity: Rarity;
         artVariant: ArtVariant;
@@ -471,13 +482,13 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
     // ── Accept new (single source) helpers ────────────────────────────────────
 
-    /** @returns Card source name and source for a card source ID. */
-    getCardSourceNameAndSource(
+    /** @returns Candidate card name and provider for a candidate card ID. */
+    getCandidateCardNameAndProvider(
       id: string,
-    ): Promise<Pick<Selectable<CardSourcesTable>, "name" | "source"> | undefined> {
+    ): Promise<Pick<Selectable<CandidateCardsTable>, "name" | "provider"> | undefined> {
       return db
-        .selectFrom("cardSources")
-        .select(["name", "source"])
+        .selectFrom("candidateCards")
+        .select(["name", "provider"])
         .where("id", "=", id)
         .executeTakeFirst();
     },
@@ -500,14 +511,17 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    // ── Delete by source ──────────────────────────────────────────────────────
+    // ── Delete by provider ──────────────────────────────────────────────────────
 
     /**
-     * Delete all card sources for a given source name.
+     * Delete all candidate cards for a given provider name.
      * @returns Number of deleted rows.
      */
-    async deleteBySource(source: string): Promise<number> {
-      const result = await db.deleteFrom("cardSources").where("source", "=", source).execute();
+    async deleteByProvider(provider: string): Promise<number> {
+      const result = await db
+        .deleteFrom("candidateCards")
+        .where("provider", "=", provider)
+        .execute();
       return Number(result[0].numDeletedRows);
     },
 
@@ -515,7 +529,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
     /**
      * Create a new card from source data,
-     * then link all card_sources with the given normalized name to the new card.
+     * then link all candidate_cards with the given normalized name to the new card.
      * Printings are accepted separately via acceptNewPrintingFromSource.
      */
     async acceptNewCardFromSources(
@@ -570,7 +584,7 @@ export function cardSourceMutationsRepo(db: Kysely<Database>) {
 
     /**
      * Create name aliases for every distinct spelling of the normalized name,
-     * so that resolveCardId() can match card_sources to this card dynamically.
+     * so that resolveCardId() can match candidate_cards to this card dynamically.
      */
     async createNameAliases(
       trx: Transaction<Database>,

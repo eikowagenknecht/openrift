@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { CardSourceUploadPage } from "@/components/admin/card-source-upload-page";
+import { CandidateUploadPage } from "@/components/admin/candidate-upload-page";
 
 export const Route = createLazyFileRoute("/_authenticated/admin/sources")({
-  component: CardSourceUploadPage,
+  component: CandidateUploadPage,
 });

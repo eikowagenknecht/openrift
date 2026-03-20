@@ -6,7 +6,7 @@ import type {
   DeckAvailabilityItemResponse,
   DeckCardResponse,
   DeckResponse,
-  SourceResponse,
+  AcquisitionSourceResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,
   TradeListResponse,
@@ -21,7 +21,7 @@ import type {
   ActivitiesTable,
   CollectionsTable,
   DecksTable,
-  SourcesTable,
+  AcquisitionSourcesTable,
   TradeListItemsTable,
   TradeListsTable,
   WishListItemsTable,
@@ -58,7 +58,7 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
   };
 }
 
-export function toSource(row: Selectable<SourcesTable>): SourceResponse {
+export function toSource(row: Selectable<AcquisitionSourcesTable>): AcquisitionSourceResponse {
   return {
     id: row.id,
     name: row.name,
@@ -131,7 +131,7 @@ export function toCopy(row: {
   id: string;
   printingId: string;
   collectionId: string;
-  sourceId: string | null;
+  acquisitionSourceId: string | null;
   cardId: string;
   setId: string;
   collectorNumber: number;
@@ -150,7 +150,7 @@ export function toCopy(row: {
     id: row.id,
     printingId: row.printingId,
     collectionId: row.collectionId,
-    sourceId: row.sourceId,
+    acquisitionSourceId: row.acquisitionSourceId,
     cardId: row.cardId,
     setId: row.setId,
     collectorNumber: row.collectorNumber,

@@ -5,7 +5,7 @@ import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface CardMetaLabelProps {
-  sourceId: string;
+  shortCode: string;
   name: string;
   type: CardType;
   superTypes: string[];
@@ -30,7 +30,7 @@ const ALL_FIELDS: CardFields = {
  * @returns The label element, or null if all fields are hidden.
  */
 export function CardMetaLabel({
-  sourceId,
+  shortCode,
   name,
   type,
   superTypes,
@@ -59,7 +59,7 @@ export function CardMetaLabel({
             <div className="flex min-h-4 items-center justify-between gap-1 text-xs text-muted-foreground">
               {showNumber && (
                 <span className="truncate font-medium">
-                  #{sourceId.slice(sourceId.lastIndexOf("-") + 1)}
+                  #{shortCode.slice(shortCode.lastIndexOf("-") + 1)}
                 </span>
               )}
               {(showType || showRarity) && (
@@ -96,7 +96,7 @@ export function CardMetaLabel({
             // when overflow:hidden is set (via truncate), causing 1px shorter elements on iOS Safari.
             // See https://bugs.webkit.org/show_bug.cgi?id=225695, https://iamvdo.me/en/blog/css-font-metrics-line-height-and-vertical-align
             <p className="min-h-4 truncate text-xs font-medium sm:min-h-5 sm:text-sm">
-              {showNumber && <span className="text-muted-foreground">{sourceId}</span>}
+              {showNumber && <span className="text-muted-foreground">{shortCode}</span>}
               {showNumber && showTitle && " "}
               {showTitle && name}
             </p>

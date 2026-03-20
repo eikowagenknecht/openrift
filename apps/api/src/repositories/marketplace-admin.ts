@@ -44,7 +44,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     /** @returns Assigned (mapped) product counts per marketplace+groupId. */
     assignedCountsByMarketplaceGroup(marketplace?: string) {
       let query = db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .select((eb) => [
           "marketplace" as const,
           "groupId" as const,
@@ -198,14 +198,14 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       const snapshots = await db
         .deleteFrom("marketplaceSnapshots")
         .where(
-          "sourceId",
+          "productId",
           "in",
-          db.selectFrom("marketplaceSources").select("id").where("marketplace", "=", marketplace),
+          db.selectFrom("marketplaceProducts").select("id").where("marketplace", "=", marketplace),
         )
         .execute();
 
       const sources = await db
-        .deleteFrom("marketplaceSources")
+        .deleteFrom("marketplaceProducts")
         .where("marketplace", "=", marketplace)
         .execute();
 

@@ -4,13 +4,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export const cardSourceListQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cardSources.list,
-  queryFn: () => rpc(client.api.admin["card-sources"].$get()),
+export const candidateListQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.candidates.list,
+  queryFn: () => rpc(client.api.admin["candidates"].$get()),
 });
 
-export function useCardSourceList() {
-  return useSuspenseQuery(cardSourceListQueryOptions);
+export function useCandidateList() {
+  return useSuspenseQuery(candidateListQueryOptions);
 }
 
 /**
@@ -21,7 +21,7 @@ export function useNextUncheckedCard(currentCardId: string) {
   const queryClient = useQueryClient();
 
   async function fetchNext(): Promise<string | null> {
-    const rows = await queryClient.fetchQuery(cardSourceListQueryOptions);
+    const rows = await queryClient.fetchQuery(candidateListQueryOptions);
     const next = rows.find(
       (r: {
         cardSlug: string | null;
@@ -39,32 +39,32 @@ export function useNextUncheckedCard(currentCardId: string) {
 }
 
 const allCardsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cardSources.allCards,
-  queryFn: () => rpc(client.api.admin["card-sources"]["all-cards"].$get()),
+  queryKey: queryKeys.admin.candidates.allCards,
+  queryFn: () => rpc(client.api.admin["candidates"]["all-cards"].$get()),
 });
 
 export function useAllCards() {
   return useSuspenseQuery(allCardsQueryOptions);
 }
 
-export function cardSourceDetailQueryOptions(cardId: string) {
+export function candidateDetailQueryOptions(cardId: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.cardSources.detail(cardId),
-    queryFn: () => rpc(client.api.admin["card-sources"][":cardId"].$get({ param: { cardId } })),
+    queryKey: queryKeys.admin.candidates.detail(cardId),
+    queryFn: () => rpc(client.api.admin["candidates"][":cardId"].$get({ param: { cardId } })),
   });
 }
 
-export function useCardSourceDetail(cardId: string) {
+export function useCandidateDetail(cardId: string) {
   return useQuery({
-    ...cardSourceDetailQueryOptions(cardId),
+    ...candidateDetailQueryOptions(cardId),
     enabled: Boolean(cardId),
   });
 }
 
 export function unmatchedCardDetailQueryOptions(name: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.cardSources.unmatched(name),
-    queryFn: () => rpc(client.api.admin["card-sources"].new[":name"].$get({ param: { name } })),
+    queryKey: queryKeys.admin.candidates.unmatched(name),
+    queryFn: () => rpc(client.api.admin["candidates"].new[":name"].$get({ param: { name } })),
   });
 }
 
@@ -75,78 +75,78 @@ export function useUnmatchedCardDetail(name: string) {
   });
 }
 
-export function useAutoCheckSources() {
+export function useAutoCheckCandidates() {
   return useMutationWithInvalidation({
-    mutationFn: () => rpc(client.api.admin["card-sources"]["auto-check"].$post()),
-    invalidates: [queryKeys.admin.cardSources.all],
+    mutationFn: () => rpc(client.api.admin["candidates"]["auto-check"].$post()),
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useCheckCardSource() {
+export function useCheckCandidateCard() {
   return useMutationWithInvalidation({
-    mutationFn: (cardSourceId: string) =>
+    mutationFn: (candidateCardId: string) =>
       rpc(
-        client.api.admin["card-sources"][":cardSourceId"].check.$post({
-          param: { cardSourceId },
+        client.api.admin["candidates"][":candidateCardId"].check.$post({
+          param: { candidateCardId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useUncheckCardSource() {
+export function useUncheckCandidateCard() {
   return useMutationWithInvalidation({
-    mutationFn: (cardSourceId: string) =>
+    mutationFn: (candidateCardId: string) =>
       rpc(
-        client.api.admin["card-sources"][":cardSourceId"].uncheck.$post({
-          param: { cardSourceId },
+        client.api.admin["candidates"][":candidateCardId"].uncheck.$post({
+          param: { candidateCardId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useCheckAllCardSources() {
+export function useCheckAllCandidateCards() {
   return useMutationWithInvalidation({
     mutationFn: (cardId: string) =>
-      rpc(client.api.admin["card-sources"][":cardId"]["check-all"].$post({ param: { cardId } })),
-    invalidates: [queryKeys.admin.cardSources.all],
+      rpc(client.api.admin["candidates"][":cardId"]["check-all"].$post({ param: { cardId } })),
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useCheckPrintingSource() {
+export function useCheckCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) =>
       rpc(
-        client.api.admin["card-sources"]["printing-sources"][":id"].check.$post({
+        client.api.admin["candidates"]["candidate-printings"][":id"].check.$post({
           param: { id },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useUncheckPrintingSource() {
+export function useUncheckCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) =>
       rpc(
-        client.api.admin["card-sources"]["printing-sources"][":id"].uncheck.$post({
+        client.api.admin["candidates"]["candidate-printings"][":id"].uncheck.$post({
           param: { id },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useCheckAllPrintingSources() {
+export function useCheckAllCandidatePrintings() {
   return useMutationWithInvalidation({
     mutationFn: ({ printingId, extraIds }: { printingId?: string; extraIds?: string[] }) =>
       rpc(
-        client.api.admin["card-sources"]["printing-sources"]["check-all"].$post({
+        client.api.admin["candidates"]["candidate-printings"]["check-all"].$post({
           json: { printingId, extraIds },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -154,12 +154,12 @@ export function useRenameCard() {
   return useMutationWithInvalidation({
     mutationFn: ({ cardId, newId }: { cardId: string; newId: string }) =>
       rpc(
-        client.api.admin["card-sources"][":cardId"].rename.$post({
+        client.api.admin["candidates"][":cardId"].rename.$post({
           param: { cardId },
           json: { newId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -167,12 +167,12 @@ export function useAcceptCardField() {
   return useMutationWithInvalidation({
     mutationFn: ({ cardId, field, value }: { cardId: string; field: string; value: unknown }) =>
       rpc(
-        client.api.admin["card-sources"][":cardId"]["accept-field"].$post({
+        client.api.admin["candidates"][":cardId"]["accept-field"].$post({
           param: { cardId },
           json: { field, value },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -188,12 +188,12 @@ export function useAcceptPrintingField() {
       value: unknown;
     }) =>
       rpc(
-        client.api.admin["card-sources"].printing[":printingId"]["accept-field"].$post({
+        client.api.admin["candidates"].printing[":printingId"]["accept-field"].$post({
           param: { printingId },
           json: { field, value },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -201,12 +201,12 @@ export function useRenamePrinting() {
   return useMutationWithInvalidation({
     mutationFn: ({ printingId, newId }: { printingId: string; newId: string }) =>
       rpc(
-        client.api.admin["card-sources"].printing[":printingId"].rename.$post({
+        client.api.admin["candidates"].printing[":printingId"].rename.$post({
           param: { printingId },
           json: { newId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -215,12 +215,12 @@ export function useAcceptNewCard() {
     // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- admin sends dynamic card field data, validated by API
     mutationFn: ({ name, cardFields }: { name: string; cardFields: Record<string, unknown> }) =>
       rpc(
-        client.api.admin["card-sources"].new[":name"].accept.$post({
+        client.api.admin["candidates"].new[":name"].accept.$post({
           param: { name },
           json: { cardFields } as any,
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -228,54 +228,54 @@ export function useLinkCard() {
   return useMutationWithInvalidation({
     mutationFn: ({ name, cardId }: { name: string; cardId: string }) =>
       rpc(
-        client.api.admin["card-sources"].new[":name"].link.$post({
+        client.api.admin["candidates"].new[":name"].link.$post({
           param: { name },
           json: { cardId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useReassignPrintingSource() {
+export function useReassignCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: ({ id, fields }: { id: string; fields: Record<string, unknown> }) =>
       rpc(
-        client.api.admin["card-sources"]["printing-sources"][":id"].$patch({
+        client.api.admin["candidates"]["candidate-printings"][":id"].$patch({
           param: { id },
           json: fields,
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useDeletePrintingSource() {
+export function useDeleteCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) =>
-      rpc(client.api.admin["card-sources"]["printing-sources"][":id"].$delete({ param: { id } })),
-    invalidates: [queryKeys.admin.cardSources.all],
+      rpc(client.api.admin["candidates"]["candidate-printings"][":id"].$delete({ param: { id } })),
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useCopyPrintingSource() {
+export function useCopyCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: ({ id, printingId }: { id: string; printingId: string }) =>
       rpc(
-        client.api.admin["card-sources"]["printing-sources"][":id"].copy.$post({
+        client.api.admin["candidates"]["candidate-printings"][":id"].copy.$post({
           param: { id },
           json: { printingId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useLinkPrintingSources() {
+export function useLinkCandidatePrintings() {
   return useMutationWithInvalidation({
-    mutationFn: (payload: { printingSourceIds: string[]; printingId: string | null }) =>
-      rpc(client.api.admin["card-sources"]["printing-sources"].link.$post({ json: payload })),
-    invalidates: [queryKeys.admin.cardSources.all],
+    mutationFn: (payload: { candidatePrintingIds: string[]; printingId: string | null }) =>
+      rpc(client.api.admin["candidates"]["candidate-printings"].link.$post({ json: payload })),
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -285,66 +285,66 @@ export function useAcceptPrintingGroup() {
     mutationFn: ({
       cardId,
       printingFields,
-      printingSourceIds,
+      candidatePrintingIds,
     }: {
       cardId: string;
       printingFields: Record<string, unknown>;
-      printingSourceIds: string[];
+      candidatePrintingIds: string[];
     }) => {
       const fields = { ...printingFields };
       if (typeof fields.collectorNumber === "string") {
         fields.collectorNumber = Number(fields.collectorNumber);
       }
       return rpc(
-        client.api.admin["card-sources"][":cardId"]["accept-printing"].$post({
+        client.api.admin["candidates"][":cardId"]["accept-printing"].$post({
           param: { cardId },
-          json: { printingFields: fields, printingSourceIds } as any,
+          json: { printingFields: fields, candidatePrintingIds } as any,
         }),
       );
     },
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useDeleteSource() {
+export function useDeleteProvider() {
   return useMutationWithInvalidation({
-    mutationFn: (source: string) =>
+    mutationFn: (provider: string) =>
       rpc(
-        client.api.admin["card-sources"]["by-source"][":source"].$delete({
-          param: { source },
+        client.api.admin["candidates"]["by-provider"][":provider"].$delete({
+          param: { provider },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export const sourceStatsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cardSources.sourceStats,
-  queryFn: () => rpc(client.api.admin["card-sources"]["source-stats"].$get()),
+export const providerStatsQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.candidates.providerStats,
+  queryFn: () => rpc(client.api.admin["candidates"]["provider-stats"].$get()),
 });
 
-export function useSourceStats() {
-  return useSuspenseQuery(sourceStatsQueryOptions);
+export function useProviderStats() {
+  return useSuspenseQuery(providerStatsQueryOptions);
 }
 
-const sourceNamesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cardSources.sourceNames,
-  queryFn: () => rpc(client.api.admin["card-sources"]["source-names"].$get()),
+const providerNamesQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.candidates.providerNames,
+  queryFn: () => rpc(client.api.admin["candidates"]["provider-names"].$get()),
 });
 
-export function useSourceNames() {
-  return useSuspenseQuery(sourceNamesQueryOptions);
+export function useProviderNames() {
+  return useSuspenseQuery(providerNamesQueryOptions);
 }
 
 export function useDeletePrintingImage() {
   return useMutationWithInvalidation({
     mutationFn: (imageId: string) =>
       rpc(
-        client.api.admin["card-sources"]["printing-images"][":imageId"].$delete({
+        client.api.admin["candidates"]["printing-images"][":imageId"].$delete({
           param: { imageId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -352,12 +352,12 @@ export function useActivatePrintingImage() {
   return useMutationWithInvalidation({
     mutationFn: ({ imageId, active }: { imageId: string; active: boolean }) =>
       rpc(
-        client.api.admin["card-sources"]["printing-images"][":imageId"].activate.$post({
+        client.api.admin["candidates"]["printing-images"][":imageId"].activate.$post({
           param: { imageId },
           json: { active },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -365,11 +365,11 @@ export function useRehostPrintingImage() {
   return useMutationWithInvalidation({
     mutationFn: (imageId: string) =>
       rpc(
-        client.api.admin["card-sources"]["printing-images"][":imageId"].rehost.$post({
+        client.api.admin["candidates"]["printing-images"][":imageId"].rehost.$post({
           param: { imageId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -377,11 +377,11 @@ export function useUnrehostPrintingImage() {
   return useMutationWithInvalidation({
     mutationFn: (imageId: string) =>
       rpc(
-        client.api.admin["card-sources"]["printing-images"][":imageId"].unrehost.$post({
+        client.api.admin["candidates"]["printing-images"][":imageId"].unrehost.$post({
           param: { imageId },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -397,12 +397,12 @@ export function useAddImageFromUrl() {
       mode?: "main" | "additional";
     }) =>
       rpc(
-        client.api.admin["card-sources"].printing[":printingId"]["add-image-url"].$post({
+        client.api.admin["candidates"].printing[":printingId"]["add-image-url"].$post({
           param: { printingId },
           json: body,
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
@@ -411,48 +411,48 @@ export function useUploadPrintingImage() {
     mutationFn: ({
       printingId,
       file,
-      source,
+      provider,
       mode,
     }: {
       printingId: string;
       file: File;
-      source?: string;
+      provider?: string;
       mode?: "main" | "additional";
     }) =>
       rpc(
-        client.api.admin["card-sources"].printing[":printingId"]["upload-image"].$post({
+        client.api.admin["candidates"].printing[":printingId"]["upload-image"].$post({
           param: { printingId },
-          form: { file, source, mode },
+          form: { file, provider, mode },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useSetPrintingSourceImage() {
+export function useSetCandidatePrintingImage() {
   return useMutationWithInvalidation({
     mutationFn: ({
-      printingSourceId,
+      candidatePrintingId,
       mode,
     }: {
-      printingSourceId: string;
+      candidatePrintingId: string;
       mode: "main" | "additional";
     }) =>
       rpc(
-        client.api.admin["card-sources"]["printing-sources"][":id"]["set-image"].$post({
-          param: { id: printingSourceId },
+        client.api.admin["candidates"]["candidate-printings"][":id"]["set-image"].$post({
+          param: { id: candidatePrintingId },
           json: { mode },
         }),
       ),
-    invalidates: [queryKeys.admin.cardSources.all],
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }
 
-export function useUploadCardSources() {
+export function useUploadCandidates() {
   return useMutationWithInvalidation({
     // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- candidates shape varies by source, validated by API
-    mutationFn: (payload: { source: string; candidates: unknown[] }) =>
-      rpc(client.api.admin["card-sources"].upload.$post({ json: payload as any })),
-    invalidates: [queryKeys.admin.cardSources.all],
+    mutationFn: (payload: { provider: string; candidates: unknown[] }) =>
+      rpc(client.api.admin["candidates"].upload.$post({ json: payload as any })),
+    invalidates: [queryKeys.admin.candidates.all],
   });
 }

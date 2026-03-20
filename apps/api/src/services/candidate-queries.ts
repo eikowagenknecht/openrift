@@ -1,25 +1,25 @@
 import type {
-  CardSourceResponse,
-  CardSourceSummaryResponse,
-  PrintingSourceGroupResponse,
-  PrintingSourceResponse,
+  CandidateCardResponse,
+  CandidateCardSummaryResponse,
+  CandidatePrintingGroupResponse,
+  CandidatePrintingResponse,
 } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import { buildPrintingId, mostCommonValue } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
-import type { CardSourcesTable, PrintingSourcesTable } from "../db/index.js";
-import type { cardSourcesRepo } from "../repositories/card-sources.js";
+import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
+import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 
-type Repo = ReturnType<typeof cardSourcesRepo>;
+type Repo = ReturnType<typeof candidateCardsRepo>;
 
 // ── Shared response-shaping helpers ─────────────────────────────────────────
 
-function formatCardSource(
+function formatCandidateCard(
   s: Pick<
-    Selectable<CardSourcesTable>,
+    Selectable<CandidateCardsTable>,
     | "id"
-    | "source"
+    | "provider"
     | "name"
     | "type"
     | "superTypes"
@@ -31,12 +31,12 @@ function formatCardSource(
     | "rulesText"
     | "effectText"
     | "tags"
-    | "sourceId"
-    | "sourceEntityId"
+    | "shortCode"
+    | "externalId"
     | "extraData"
     | "checkedAt"
   >,
-): CardSourceResponse {
+): CandidateCardResponse {
   return {
     ...s,
     keywords: [
@@ -47,13 +47,13 @@ function formatCardSource(
   };
 }
 
-function formatPrintingSource(
+function formatCandidatePrinting(
   ps: Pick<
-    Selectable<PrintingSourcesTable>,
+    Selectable<CandidatePrintingsTable>,
     | "id"
-    | "cardSourceId"
+    | "candidateCardId"
     | "printingId"
-    | "sourceId"
+    | "shortCode"
     | "setId"
     | "setName"
     | "collectorNumber"
@@ -68,12 +68,12 @@ function formatPrintingSource(
     | "printedEffectText"
     | "imageUrl"
     | "flavorText"
-    | "sourceEntityId"
+    | "externalId"
     | "extraData"
     | "groupKey"
     | "checkedAt"
   >,
-): PrintingSourceResponse {
+): CandidatePrintingResponse {
   return {
     ...ps,
     checkedAt: ps.checkedAt?.toISOString() ?? null,
@@ -82,21 +82,21 @@ function formatPrintingSource(
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
-/** Strip variant suffix from a source ID — e.g. "OGN-001a" → "OGN-001"
- * @returns The source ID with trailing letters/asterisks removed. */
-function stripVariantSuffix(sourceId: string): string {
-  return sourceId.replace(/(?<=\d)[a-z*]+$/, "");
+/** Strip variant suffix from a short code — e.g. "OGN-001a" → "OGN-001"
+ * @returns The short code with trailing letters/asterisks removed. */
+function stripVariantSuffix(shortCode: string): string {
+  return shortCode.replace(/(?<=\d)[a-z*]+$/, "");
 }
 
 /**
- * Pick the canonical source ID that should become the card slug.
+ * Pick the canonical short code that should become the card slug.
  * Prefers the earliest-released, normal-variant accepted printing.
- * Falls back to first printing source group, then current card slug.
- * @returns The expected card slug derived from source data.
+ * Falls back to first candidate printing group, then current card slug.
+ * @returns The expected card slug derived from candidate data.
  */
 function deriveExpectedCardId(
   printings: {
-    sourceId: string;
+    shortCode: string;
     setId: string;
     artVariant: string;
     isSigned: boolean;
@@ -104,7 +104,7 @@ function deriveExpectedCardId(
     finish: string;
   }[],
   setReleasedAtMap: Map<string, string | null>,
-  printingSourceGroups: PrintingSourceGroupResponse[],
+  candidatePrintingGroups: CandidatePrintingGroupResponse[],
   currentSlug?: string,
 ): string {
   if (printings.length > 0) {
@@ -132,11 +132,11 @@ function deriveExpectedCardId(
       return dateA.localeCompare(dateB);
     });
 
-    return stripVariantSuffix(sorted[0].sourceId);
+    return stripVariantSuffix(sorted[0].shortCode);
   }
 
-  if (printingSourceGroups.length > 0) {
-    return stripVariantSuffix(printingSourceGroups[0].mostCommonSourceId);
+  if (candidatePrintingGroups.length > 0) {
+    return stripVariantSuffix(candidatePrintingGroups[0].mostCommonShortCode);
   }
 
   return currentSlug ?? "";
@@ -154,70 +154,70 @@ function resolveFinish(finish: string | null, rarity: string | null): string {
   return rarity === "Common" || rarity === "Uncommon" ? "normal" : "foil";
 }
 
-export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummaryResponse[]> {
-  const [cards, cardSources, printings, printingSources, aliases] = await Promise.all([
+export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardSummaryResponse[]> {
+  const [cards, candidateCards, printings, candidatePrintings, aliases] = await Promise.all([
     repo.listCardsForSourceList(),
-    repo.listCardSourcesForSourceList(),
+    repo.listCandidateCardsForSourceList(),
     repo.listPrintingsForSourceList(),
-    repo.listPrintingSourcesForSourceList(),
+    repo.listCandidatePrintingsForSourceList(),
     repo.listAliasesForSourceList(),
   ]);
 
   // Accepted printings live on cards — e.g. { cardUUID → ["OGN-001a", "OGN-001b"] }
-  const sourceIdsByCardId = new Map<string, string[]>();
+  const shortCodesByCardId = new Map<string, string[]>();
   for (const p of printings) {
-    let arr = sourceIdsByCardId.get(p.cardId);
+    let arr = shortCodesByCardId.get(p.cardId);
     if (!arr) {
       arr = [];
-      sourceIdsByCardId.set(p.cardId, arr);
+      shortCodesByCardId.set(p.cardId, arr);
     }
-    arr.push(p.sourceId);
+    arr.push(p.shortCode);
   }
 
-  // Card sources from different imports share a normName —
-  // e.g. { "fireball" → [cs from gallery, cs from ocr] }
-  // cs is an object in the shape: { id, name, normName, source, checkedAt, ... }
-  const csGroupsByNormName = new Map<string, typeof cardSources>();
-  for (const cs of cardSources) {
-    let arr = csGroupsByNormName.get(cs.normName);
+  // Candidate cards from different imports share a normName —
+  // e.g. { "fireball" → [cc from gallery, cc from ocr] }
+  // cc is an object in the shape: { id, name, normName, provider, checkedAt, ... }
+  const ccGroupsByNormName = new Map<string, typeof candidateCards>();
+  for (const cc of candidateCards) {
+    let arr = ccGroupsByNormName.get(cc.normName);
     if (!arr) {
       arr = [];
-      csGroupsByNormName.set(cs.normName, arr);
+      ccGroupsByNormName.set(cc.normName, arr);
     }
-    arr.push(cs);
+    arr.push(cc);
   }
 
-  // Printing sources not yet accepted — e.g. { cardSourceUUID → [{sourceId: "OGN-001a*", checkedAt: null}, ...] }
-  const psByCardSourceId = new Map<string, typeof printingSources>();
-  for (const ps of printingSources) {
-    let arr = psByCardSourceId.get(ps.cardSourceId);
+  // Candidate printings not yet accepted — e.g. { candidateCardUUID → [{shortCode: "OGN-001a*", checkedAt: null}, ...] }
+  const cpByCandidateCardId = new Map<string, typeof candidatePrintings>();
+  for (const cp of candidatePrintings) {
+    let arr = cpByCandidateCardId.get(cp.candidateCardId);
     if (!arr) {
       arr = [];
-      psByCardSourceId.set(ps.cardSourceId, arr);
+      cpByCandidateCardId.set(cp.candidateCardId, arr);
     }
-    arr.push(ps);
+    arr.push(cp);
   }
 
-  // Collects all staging source IDs across a normName group —
+  // Collects all staging short codes across a normName group —
   // duplicates are kept so the frontend can show counts (e.g. "OGN-001a* ×2")
-  function stagingIdsForGroup(group: typeof cardSources): string[] {
+  function stagingIdsForGroup(group: typeof candidateCards): string[] {
     const ids: string[] = [];
-    for (const cs of group) {
-      for (const ps of psByCardSourceId.get(cs.id) ?? []) {
-        if (!ps.checkedAt) {
-          ids.push(ps.sourceId);
+    for (const cc of group) {
+      for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
+        if (!cp.checkedAt) {
+          ids.push(cp.shortCode);
         }
       }
     }
     return ids;
   }
 
-  // Count printing sources without checkedAt across a normName group
-  function uncheckedPrintingCountForGroup(group: typeof cardSources): number {
+  // Count candidate printings without checkedAt across a normName group
+  function uncheckedPrintingCountForGroup(group: typeof candidateCards): number {
     let count = 0;
-    for (const cs of group) {
-      for (const ps of psByCardSourceId.get(cs.id) ?? []) {
-        if (!ps.checkedAt) {
+    for (const cc of group) {
+      for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
+        if (!cp.checkedAt) {
           count++;
         }
       }
@@ -225,7 +225,7 @@ export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummary
     return count;
   }
 
-  // Aliases let a card match card sources under a different name —
+  // Aliases let a card match candidate cards under a different name —
   // e.g. card "Fireball" (normName "fireball") has alias "firbal" so it also claims that group
   const aliasNormNamesByCardId = new Map<string, string[]>();
   for (const a of aliases) {
@@ -237,21 +237,21 @@ export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummary
     arr.push(a.normName);
   }
 
-  // Match card source groups to cards by normName (+ aliases) and delete matched entries —
-  // whatever's left in csGroupsByNormName afterwards has no card yet (candidates)
-  const results: CardSourceSummaryResponse[] = cards.map((card) => {
-    // Collect all card source groups that match this card's name or aliases
-    const allGroups: typeof cardSources = [];
-    const directGroup = csGroupsByNormName.get(card.normName);
+  // Match candidate card groups to cards by normName (+ aliases) and delete matched entries —
+  // whatever's left in ccGroupsByNormName afterwards has no card yet (candidates)
+  const results: CandidateCardSummaryResponse[] = cards.map((card) => {
+    // Collect all candidate card groups that match this card's name or aliases
+    const allGroups: typeof candidateCards = [];
+    const directGroup = ccGroupsByNormName.get(card.normName);
     if (directGroup) {
       allGroups.push(...directGroup);
-      csGroupsByNormName.delete(card.normName);
+      ccGroupsByNormName.delete(card.normName);
     }
     for (const aliasNorm of aliasNormNamesByCardId.get(card.id) ?? []) {
-      const aliasGroup = csGroupsByNormName.get(aliasNorm);
+      const aliasGroup = ccGroupsByNormName.get(aliasNorm);
       if (aliasGroup) {
         allGroups.push(...aliasGroup);
-        csGroupsByNormName.delete(aliasNorm);
+        ccGroupsByNormName.delete(aliasNorm);
       }
     }
     const group = allGroups.length > 0 ? allGroups : null;
@@ -259,12 +259,12 @@ export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummary
       cardSlug: card.slug,
       name: card.name,
       normalizedName: card.normName,
-      sourceIds: sourceIdsByCardId.get(card.id) ?? [],
-      stagingSourceIds: group ? stagingIdsForGroup(group) : [],
+      shortCodes: shortCodesByCardId.get(card.id) ?? [],
+      stagingShortCodes: group ? stagingIdsForGroup(group) : [],
       sourceCount: group?.length ?? 0,
-      uncheckedCardCount: group?.filter((cs) => !cs.checkedAt).length ?? 0,
+      uncheckedCardCount: group?.filter((cc) => !cc.checkedAt).length ?? 0,
       uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group) : 0,
-      hasGallery: group?.some((cs) => cs.source === "gallery") ?? false,
+      hasGallery: group?.some((cc) => cc.provider === "gallery") ?? false,
       suggestedCardSlug: null,
     };
   });
@@ -283,18 +283,18 @@ export async function buildCardSourceList(repo: Repo): Promise<CardSourceSummary
     return bestSlug;
   }
 
-  // Card sources that didn't match any card — these need a card to be created or linked
-  for (const [normName, group] of csGroupsByNormName) {
+  // Candidate cards that didn't match any card — these need a card to be created or linked
+  for (const [normName, group] of ccGroupsByNormName) {
     results.push({
       cardSlug: null,
       name: group[0].name,
       normalizedName: normName,
-      sourceIds: [],
-      stagingSourceIds: stagingIdsForGroup(group),
+      shortCodes: [],
+      stagingShortCodes: stagingIdsForGroup(group),
       sourceCount: group.length,
-      uncheckedCardCount: group.filter((cs) => !cs.checkedAt).length,
+      uncheckedCardCount: group.filter((cc) => !cc.checkedAt).length,
       uncheckedPrintingCount: uncheckedPrintingCountForGroup(group),
-      hasGallery: group.some((cs) => cs.source === "gallery"),
+      hasGallery: group.some((cc) => cc.provider === "gallery"),
       suggestedCardSlug: findSuggestedCard(normName),
     });
   }
@@ -331,12 +331,12 @@ export async function buildExport(repo: Repo) {
       rules_text: card.rulesText ?? null,
       effect_text: card.effectText ?? null,
       tags: card.tags,
-      source_id: card.slug,
-      source_entity_id: card.id,
+      short_code: card.slug,
+      external_id: card.id,
       extra_data: null,
     },
     printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
-      source_id: p.sourceId,
+      short_code: p.shortCode,
       set_id: p.setSlug,
       set_name: p.setName,
       collector_number: p.collectorNumber,
@@ -350,7 +350,7 @@ export async function buildExport(repo: Repo) {
       printed_effect_text: p.printedEffectText,
       image_url: p.originalUrl ?? p.rehostedUrl ?? null,
       flavor_text: p.flavorText,
-      source_entity_id: p.id,
+      external_id: p.id,
       extra_data: null,
     })),
   }));
@@ -361,18 +361,18 @@ export async function buildExport(repo: Repo) {
 /**
  * Unified detail view — tries slug lookup first, falls back to normName.
  * Both matched (existing card) and unmatched (candidate) use this.
- * @returns Card detail with sources, printings, printing sources, groups, and images.
+ * @returns Card detail with candidates, printings, candidate printings, groups, and images.
  */
-export async function buildCardSourceDetail(repo: Repo, identifier: string) {
+export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   const card = await repo.cardForDetail(identifier);
 
   // If matched, look up by card's normName + aliases; otherwise treat identifier as normName
   const aliases = card ? await repo.cardNameAliases(card.id) : [];
   const normNames = aliases.length > 0 ? aliases.map((a) => a.normName) : [identifier];
-  const sources = await repo.cardSourcesForDetail(normNames);
-  const sourceIds = sources.map((s) => s.id);
-  const printingSources =
-    sourceIds.length > 0 ? await repo.printingSourcesForDetail(sourceIds) : [];
+  const candidates = await repo.candidateCardsForDetail(normNames);
+  const candidateIds = candidates.map((s) => s.id);
+  const candidatePrintings =
+    candidateIds.length > 0 ? await repo.candidatePrintingsForDetail(candidateIds) : [];
 
   // Accepted printings only exist for matched cards
   const printings = card ? await repo.printingsForDetail(card.id) : [];
@@ -388,7 +388,7 @@ export async function buildCardSourceDetail(repo: Repo, identifier: string) {
     ...new Set(
       [
         ...printings.map((p) => p.promoTypeId),
-        ...printingSources.map((ps) => ps.promoTypeId),
+        ...candidatePrintings.map((cp) => cp.promoTypeId),
       ].filter(Boolean),
     ),
   ] as string[];
@@ -399,7 +399,7 @@ export async function buildCardSourceDetail(repo: Repo, identifier: string) {
     ...p,
     setSlug: setSlugMap.get(setId) ?? setId,
     expectedPrintingId: buildPrintingId(
-      p.sourceId,
+      p.shortCode,
       p.rarity,
       p.promoTypeId ? (promoSlugMap.get(p.promoTypeId) ?? null) : null,
       p.finish,
@@ -411,33 +411,33 @@ export async function buildCardSourceDetail(repo: Repo, identifier: string) {
   const printingImages =
     printingIds.length > 0 ? await repo.printingImagesForDetail(printingIds) : [];
 
-  // Only group unlinked printing sources — linked ones are already shown under their accepted printing
-  const unlinkedPS = printingSources.filter((ps) => !ps.printingId);
-  const psGroupMap = new Map<string, typeof unlinkedPS>();
-  for (const ps of unlinkedPS) {
-    let arr = psGroupMap.get(ps.groupKey);
+  // Only group unlinked candidate printings — linked ones are already shown under their accepted printing
+  const unlinkedCP = candidatePrintings.filter((cp) => !cp.printingId);
+  const cpGroupMap = new Map<string, typeof unlinkedCP>();
+  for (const cp of unlinkedCP) {
+    let arr = cpGroupMap.get(cp.groupKey);
     if (!arr) {
       arr = [];
-      psGroupMap.set(ps.groupKey, arr);
+      cpGroupMap.set(cp.groupKey, arr);
     }
-    arr.push(ps);
+    arr.push(cp);
   }
 
   // Build one group per distinct printing variant — the UI shows these as rows
   // the admin can accept as new printings or match to existing ones
-  const filteredGroups: PrintingSourceGroupResponse[] = [];
-  for (const [, groupSources] of psGroupMap) {
-    // All sources in a group share the same variant traits; use the first as representative
-    const first = groupSources[0];
-    const mcSourceId = mostCommonValue(groupSources.map((s) => s.sourceId));
+  const filteredGroups: CandidatePrintingGroupResponse[] = [];
+  for (const [, groupCandidates] of cpGroupMap) {
+    // All candidates in a group share the same variant traits; use the first as representative
+    const first = groupCandidates[0];
+    const mcShortCode = mostCommonValue(groupCandidates.map((s) => s.shortCode));
     const rarity = first.rarity ?? "";
     const finish = resolveFinish(first.finish, first.rarity);
     const promoTypeSlug = first.promoTypeId ? (promoSlugMap.get(first.promoTypeId) ?? null) : null;
 
     filteredGroups.push({
-      mostCommonSourceId: mcSourceId,
-      sourceIds: groupSources.map((s) => s.id),
-      expectedPrintingId: buildPrintingId(mcSourceId, rarity, promoTypeSlug, finish),
+      mostCommonShortCode: mcShortCode,
+      shortCodes: groupCandidates.map((s) => s.id),
+      expectedPrintingId: buildPrintingId(mcShortCode, rarity, promoTypeSlug, finish),
     });
   }
 
@@ -460,30 +460,30 @@ export async function buildCardSourceDetail(repo: Repo, identifier: string) {
           tags: card.tags,
         }
       : null,
-    // Card name if matched, shortest source name if unmatched (sources may have slight name variations)
+    // Card name if matched, shortest candidate name if unmatched (candidates may have slight name variations)
     displayName: card
       ? card.name
-      : sources.length > 0
-        ? sources.reduce(
+      : candidates.length > 0
+        ? candidates.reduce(
             (best, s) => (s.name.length < best.length ? s.name : best),
-            sources[0].name,
+            candidates[0].name,
           )
         : identifier,
-    sources: sources.map((s) => formatCardSource(s)),
+    sources: candidates.map((s) => formatCandidateCard(s)),
     printings: formattedPrintings.sort((a, b) =>
       a.expectedPrintingId.localeCompare(b.expectedPrintingId),
     ),
-    printingSources: printingSources.map((ps) => formatPrintingSource(ps)),
+    printingSources: candidatePrintings.map((cp) => formatCandidatePrinting(cp)),
     printingSourceGroups: filteredGroups,
     expectedCardId: deriveExpectedCardId(printings, setReleasedAtMap, filteredGroups, card?.slug),
     printingImages,
   };
 }
 
-/** @deprecated Use buildCardSourceDetail which handles both matched and unmatched.
- * @returns Unmatched detail reshaped from buildCardSourceDetail. */
+/** @deprecated Use buildCandidateCardDetail which handles both matched and unmatched.
+ * @returns Unmatched detail reshaped from buildCandidateCardDetail. */
 export async function buildUnmatchedDetail(repo: Repo, normName: string) {
-  const result = await buildCardSourceDetail(repo, normName);
+  const result = await buildCandidateCardDetail(repo, normName);
   return {
     displayName: result.displayName,
     sources: result.sources,

@@ -91,7 +91,7 @@ if (ctx) {
       slug: printingSlug,
       cardId: card.id,
       setId: set.id,
-      sourceId: "CSI-001",
+      shortCode: "CSI-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -111,9 +111,9 @@ if (ctx) {
 
   // Seed card source
   const [cs] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "csi-source",
+      provider: "csi-source",
       name: "CSI Test Card",
       type: "Unit",
       superTypes: [],
@@ -125,8 +125,8 @@ if (ctx) {
       rulesText: null,
       effectText: null,
       tags: [],
-      sourceId: "CSI-001",
-      sourceEntityId: "CSI-001",
+      shortCode: "CSI-001",
+      externalId: "CSI-001",
       extraData: null,
     })
     .returning("id")
@@ -134,11 +134,11 @@ if (ctx) {
 
   // Printing source WITH image and linked to printing
   const [ps] = await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: cs.id,
+      candidateCardId: cs.id,
       printingId: printingId,
-      sourceId: "CSI-001",
+      shortCode: "CSI-001",
       setId: "CSI",
       setName: "CSI Test Set",
       collectorNumber: 1,
@@ -153,7 +153,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csi-test.png",
       flavorText: null,
-      sourceEntityId: "CSI-001",
+      externalId: "CSI-001",
       extraData: null,
     })
     .returning("id")
@@ -162,9 +162,9 @@ if (ctx) {
 
   // Second card source (needed for unique constraint on card_source_id + printing_id)
   const [cs2] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "csi-source-2",
+      provider: "csi-source-2",
       name: "CSI Test Card",
       type: "Unit",
       superTypes: [],
@@ -176,8 +176,8 @@ if (ctx) {
       rulesText: null,
       effectText: null,
       tags: [],
-      sourceId: "CSI-001",
-      sourceEntityId: "CSI-001",
+      shortCode: "CSI-001",
+      externalId: "CSI-001",
       extraData: null,
     })
     .returning("id")
@@ -185,11 +185,11 @@ if (ctx) {
 
   // Printing source WITHOUT image (for 400 test)
   const [psNoImage] = await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: cs2.id,
+      candidateCardId: cs2.id,
       printingId: printingId,
-      sourceId: "CSI-001b",
+      shortCode: "CSI-001b",
       setId: "CSI",
       setName: "CSI Test Set",
       collectorNumber: 1,
@@ -204,7 +204,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: "CSI-001b",
+      externalId: "CSI-001b",
       extraData: null,
     })
     .returning("id")
@@ -213,11 +213,11 @@ if (ctx) {
 
   // Printing source NOT linked to a printing (for 400 test)
   const [psUnlinked] = await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: cs.id,
+      candidateCardId: cs.id,
       printingId: null,
-      sourceId: "CSI-002",
+      shortCode: "CSI-002",
       setId: "CSI",
       setName: "CSI Test Set",
       collectorNumber: 2,
@@ -232,7 +232,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csi-test2.png",
       flavorText: null,
-      sourceEntityId: "CSI-002",
+      externalId: "CSI-002",
       extraData: null,
     })
     .returning("id")
@@ -274,7 +274,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       expect(active!.originalUrl).toBe("https://example.com/csi-test.png");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(active!.source).toBe("csi-source");
+      expect(active!.provider).toBe("csi-source");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       mainImageId = active!.id;
     });
@@ -282,9 +282,9 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("sets image as additional for a linked printing source", async () => {
       // Use a different source to avoid upsert conflict
       const [cs2] = await db
-        .insertInto("cardSources")
+        .insertInto("candidateCards")
         .values({
-          source: "csi-alt-source",
+          provider: "csi-alt-source",
           name: "CSI Test Card",
           type: "Unit",
           superTypes: [],
@@ -296,19 +296,19 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           rulesText: null,
           effectText: null,
           tags: [],
-          sourceId: "CSI-001-ALT",
-          sourceEntityId: "CSI-001-ALT",
+          shortCode: "CSI-001-ALT",
+          externalId: "CSI-001-ALT",
           extraData: null,
         })
         .returning("id")
         .execute();
 
       const [psAlt] = await db
-        .insertInto("printingSources")
+        .insertInto("candidatePrintings")
         .values({
-          cardSourceId: cs2.id,
+          candidateCardId: cs2.id,
           printingId: printingId,
-          sourceId: "CSI-001-ALT",
+          shortCode: "CSI-001-ALT",
           setId: "CSI",
           setName: "CSI Test Set",
           collectorNumber: 1,
@@ -323,7 +323,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           printedEffectText: null,
           imageUrl: "https://example.com/csi-test-alt.png",
           flavorText: null,
-          sourceEntityId: "CSI-001-ALT",
+          externalId: "CSI-001-ALT",
           extraData: null,
         })
         .returning("id")
@@ -341,7 +341,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("source", "=", "csi-alt-source")
+        .where("provider", "=", "csi-alt-source")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(false);
@@ -576,7 +576,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .values({
           printingId: printingId,
           face: "front",
-          source: "csi-no-url-source",
+          provider: "csi-no-url-source",
           originalUrl: null,
           rehostedUrl: "/card-images/CSI/placeholder",
           isActive: false,
@@ -707,7 +707,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing/${printingSlug}/add-image-url`, {
           url: "https://example.com/csi-new-image.png",
-          source: "csi-manual-test",
+          provider: "csi-manual-test",
           mode: "main",
         }),
       );
@@ -718,7 +718,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("source", "=", "csi-manual-test")
+        .where("provider", "=", "csi-manual-test")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].originalUrl).toBe("https://example.com/csi-new-image.png");
@@ -738,7 +738,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("source", "=", "manual")
+        .where("provider", "=", "manual")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(true);
@@ -766,7 +766,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `/admin/card-sources/printing/${printingSlug}/add-image-url`, {
           url: "https://example.com/csi-additional-image.png",
-          source: "csi-additional-test",
+          provider: "csi-additional-test",
           mode: "additional",
         }),
       );
@@ -777,7 +777,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("source", "=", "csi-additional-test")
+        .where("provider", "=", "csi-additional-test")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].originalUrl).toBe("https://example.com/csi-additional-image.png");
@@ -800,7 +800,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("uploads an image as main", async () => {
       const formData = new FormData();
       formData.append("file", new File([FAKE_BUFFER], "test.png", { type: "image/png" }));
-      formData.append("source", "csi-upload-test");
+      formData.append("provider", "csi-upload-test");
       formData.append("mode", "main");
 
       const request = new Request(
@@ -819,7 +819,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("source", "=", "csi-upload-test")
+        .where("provider", "=", "csi-upload-test")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(true);
@@ -829,7 +829,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("uploads an image as additional", async () => {
       const formData = new FormData();
       formData.append("file", new File([FAKE_BUFFER], "extra.png", { type: "image/png" }));
-      formData.append("source", "csi-upload-additional");
+      formData.append("provider", "csi-upload-additional");
       formData.append("mode", "additional");
 
       const request = new Request(
@@ -847,7 +847,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("source", "=", "csi-upload-additional")
+        .where("provider", "=", "csi-upload-additional")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(false);
@@ -875,7 +875,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("source", "=", "upload")
+        .where("provider", "=", "upload")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(true);

@@ -11,7 +11,7 @@ interface ReferenceData {
     id: string;
     cardId: string;
     setId: string;
-    sourceId: string;
+    shortCode: string;
     publicCode: string;
     finish: string;
     artVariant: string;

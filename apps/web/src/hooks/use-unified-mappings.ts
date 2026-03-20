@@ -70,7 +70,7 @@ export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket"
   return useUnifiedMutation(marketplace, (products: { externalId: number; finish: string }[]) =>
     rpc(
       client.api.admin["ignored-products"].$post({
-        json: { source: marketplace, products },
+        json: { marketplace, products },
       }),
     ),
   );
@@ -82,7 +82,7 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket") 
     (override: { externalId: number; finish: string; cardId: string }) =>
       rpc(
         client.api.admin["staging-card-overrides"].$post({
-          json: { source: marketplace, ...override },
+          json: { marketplace, ...override },
         }),
       ),
   );
@@ -92,7 +92,7 @@ export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarke
   return useUnifiedMutation(marketplace, (params: { externalId: number; finish: string }) =>
     rpc(
       client.api.admin["staging-card-overrides"].$delete({
-        json: { source: marketplace, ...params },
+        json: { marketplace, ...params },
       }),
     ),
   );

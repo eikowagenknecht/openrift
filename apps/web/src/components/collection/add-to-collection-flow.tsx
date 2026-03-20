@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 
 import { AddCardPopover } from "@/components/collection/add-card-popover";
 import { Button } from "@/components/ui/button";
+import { useCreateAcquisitionSource, useAcquisitionSources } from "@/hooks/use-acquisition-sources";
 import { useCollections } from "@/hooks/use-collections";
-import { useCreateSource, useSources } from "@/hooks/use-sources";
 
 export interface AddToCollectionFlowHandle {
   handleAddClick: (printing: Printing, anchorEl: HTMLElement) => void;
@@ -25,13 +25,13 @@ export function AddToCollectionFlow({
 }: AddToCollectionFlowProps) {
   const { data: collections } = useCollections();
   const collectionName = collections?.find((c) => c.id === collectionId)?.name ?? "Collection";
-  const { data: sources } = useSources();
+  const { data: sources } = useAcquisitionSources();
   const navigate = useNavigate();
 
   const [sourceId, setSourceId] = useState("");
   const [creatingSource, setCreatingSource] = useState(false);
   const [newSourceName, setNewSourceName] = useState("");
-  const createSource = useCreateSource();
+  const createSource = useCreateAcquisitionSource();
 
   const [popoverCard, setPopoverCard] = useState<Printing | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);

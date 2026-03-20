@@ -42,13 +42,13 @@ const SIZES = [
 /**
  * Convert a printing ID to a filesystem-safe filename base.
  *
- * Printing ID format: `{source_id}:{rarity}:{finish}:{promo_type_slug|}`
- * File format:        `{source_id}-{rarity}-{finish}-{promo_type_slug|n}`
+ * Printing ID format: `{short_code}:{rarity}:{finish}:{promo_type_slug|}`
+ * File format:        `{short_code}-{rarity}-{finish}-{promo_type_slug|n}`
  * @returns The filesystem-safe filename base
  */
 export function printingIdToFileBase(printingId: string): string {
-  const [sourceId, rarity, finish, promoSlug] = printingId.split(":");
-  return `${sourceId}-${rarity}-${finish}-${promoSlug || "n"}`;
+  const [shortCode, rarity, finish, promoSlug] = printingId.split(":");
+  return `${shortCode}-${rarity}-${finish}-${promoSlug || "n"}`;
 }
 
 function guessExtension(contentType: string | null, url: string): string {

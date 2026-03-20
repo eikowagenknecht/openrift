@@ -29,7 +29,7 @@ export const slugParamSchema = z.object({ id: z.string().min(1) });
 
 export const keyParamSchema = z.object({ key: z.string().min(1) });
 
-export const sourceParamSchema = z.object({ source: z.string().min(1) });
+export const providerParamSchema = z.object({ provider: z.string().min(1) });
 
 export const numericIdParamSchema = z.object({ id: z.coerce.number().int().positive() });
 
@@ -66,12 +66,12 @@ export const updateCollectionSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
-export const createSourceSchema = z.object({
+export const createAcquisitionSourceSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).nullish(),
 });
 
-export const updateSourceSchema = z.object({
+export const updateAcquisitionSourceSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).nullish(),
 });
@@ -82,7 +82,7 @@ export const addCopiesSchema = z.object({
       z.object({
         printingId: z.uuid(),
         collectionId: z.uuid().optional(),
-        sourceId: z.uuid().optional(),
+        acquisitionSourceId: z.uuid().optional(),
       }),
     )
     .min(1)

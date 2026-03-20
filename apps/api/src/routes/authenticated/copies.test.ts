@@ -56,7 +56,7 @@ const dbCopy = {
   id: "a0000000-0001-4000-a000-000000000020",
   printingId: "OGS-001:rare:normal:",
   collectionId: "a0000000-0001-4000-a000-000000000010",
-  sourceId: null,
+  acquisitionSourceId: null,
   createdAt: now,
   updatedAt: now,
   cardId: "OGS-001",
@@ -109,7 +109,12 @@ describe("POST /api/copies", () => {
 
   it("returns 201 with created copies", async () => {
     const created = [
-      { id: COPY_ID, printingId: PRINTING_ID, collectionId: COLLECTION_ID, sourceId: null },
+      {
+        id: COPY_ID,
+        printingId: PRINTING_ID,
+        collectionId: COLLECTION_ID,
+        acquisitionSourceId: null,
+      },
     ];
     mockAddCopies.mockResolvedValue(created);
     const res = await app.request("/api/copies", {

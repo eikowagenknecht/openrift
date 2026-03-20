@@ -43,8 +43,8 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
       await expectStatus("GET", `/collections/${COL_ID}`, 404);
     });
 
-    it("GET /sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("GET", `/sources/${SRC_ID}`, 404);
+    it("GET /acquisition-sources/:id returns 404 for another user's source", async () => {
+      await expectStatus("GET", `/acquisition-sources/${SRC_ID}`, 404);
     });
   });
 
@@ -57,20 +57,20 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
       await expectStatus("PATCH", `/decks/${DECK_ID}`, 404, { name: "Hijacked" });
     });
 
-    it("PATCH /sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("PATCH", `/sources/${SRC_ID}`, 404, { name: "Hijacked" });
+    it("PATCH /acquisition-sources/:id returns 404 for another user's source", async () => {
+      await expectStatus("PATCH", `/acquisition-sources/${SRC_ID}`, 404, { name: "Hijacked" });
     });
   });
 
   describe("delete", () => {
-    it("DELETE /sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("DELETE", `/sources/${SRC_ID}`, 404);
+    it("DELETE /acquisition-sources/:id returns 404 for another user's source", async () => {
+      await expectStatus("DELETE", `/acquisition-sources/${SRC_ID}`, 404);
     });
   });
 
   describe("list only returns own resources", () => {
     it("GET /sources returns empty array (user has no sources)", async () => {
-      const res = await app.fetch(req("GET", "/sources"));
+      const res = await app.fetch(req("GET", "/acquisition-sources"));
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json).toEqual([]);

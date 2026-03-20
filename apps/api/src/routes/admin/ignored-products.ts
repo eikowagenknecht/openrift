@@ -13,7 +13,7 @@ const ignoreProductItemSchema = z.object({
 });
 
 const ignoreProductsSchema = z.object({
-  source: z.enum(["tcgplayer", "cardmarket"]),
+  marketplace: z.enum(["tcgplayer", "cardmarket"]),
   products: z.array(ignoreProductItemSchema).min(1),
 });
 
@@ -44,11 +44,11 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
   .post("/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { source, products } = c.req.valid("json");
+    const { marketplace, products } = c.req.valid("json");
 
     // Look up product names from staging
     const externalIds = products.map((p) => p.externalId);
-    const stagingRows = await mktAdmin.getStagingProductNames(source, externalIds);
+    const stagingRows = await mktAdmin.getStagingProductNames(marketplace, externalIds);
 
     const nameMap = new Map<number, string>();
     for (const row of stagingRows) {
@@ -61,7 +61,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
     const values = products
       .filter((p) => nameMap.has(p.externalId))
       .map((p) => ({
-        marketplace: source,
+        marketplace,
         externalId: p.externalId,
         finish: p.finish,
         productName: nameMap.get(p.externalId) ?? "",
@@ -78,10 +78,10 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
   .delete("/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { source, products } = c.req.valid("json");
+    const { marketplace, products } = c.req.valid("json");
 
     const deleted = await mktAdmin.deleteIgnoredProducts(
-      source,
+      marketplace,
       products.map((p) => ({ externalId: p.externalId, finish: p.finish })),
     );
 

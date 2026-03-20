@@ -40,7 +40,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      sourceId: SEED_TCG_SOURCE_ID,
+      productId: SEED_TCG_SOURCE_ID,
       recordedAt: new Date("2026-03-15T10:00:00Z"),
       marketCents: 350,
       lowCents: 200,
@@ -142,7 +142,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(printing.slug).toBeString();
       expect(printing.cardId).toBe("019cf052-e00a-7256-ab8d-6e39b367029d");
       expect(printing.setId).toBe(SEED_SET_ID);
-      expect(printing.sourceId).toBe("OGS-001");
+      expect(printing.shortCode).toBe("OGS-001");
       expect(printing.collectorNumber).toBe(1);
       expect(printing.rarity).toBe("Epic");
       expect(printing.artVariant).toBe("normal");
@@ -161,10 +161,10 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(json.printings.length).toBeGreaterThanOrEqual(24);
 
       // Verify a sampling of printings by source IDs
-      const sourceIds = json.printings.map((p: { sourceId: string }) => p.sourceId);
-      expect(sourceIds).toContain("OGS-001");
-      expect(sourceIds).toContain("OGS-012");
-      expect(sourceIds).toContain("OGS-024");
+      const shortCodes = json.printings.map((p: { shortCode: string }) => p.shortCode);
+      expect(shortCodes).toContain("OGS-001");
+      expect(shortCodes).toContain("OGS-012");
+      expect(shortCodes).toContain("OGS-024");
     });
 
     it("printings include images array when images exist", async () => {
@@ -190,7 +190,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         (p: { id: string }) =>
           p.id !== SEED_PRINTING_ID &&
           // Filter to seed printings (OGS source IDs)
-          p.sourceId.startsWith("OGS-"),
+          p.shortCode.startsWith("OGS-"),
       );
       expect(otherPrinting).toBeDefined();
       expect(otherPrinting.images).toBeArray();

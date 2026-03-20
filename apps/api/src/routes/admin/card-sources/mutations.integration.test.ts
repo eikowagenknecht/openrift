@@ -75,7 +75,7 @@ if (ctx) {
       slug: "CSM-001:common:normal:",
       cardId: cardId,
       setId: setId,
-      sourceId: "CSM-001",
+      shortCode: "CSM-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -100,7 +100,7 @@ if (ctx) {
       slug: "CSM-001:rare:foil:",
       cardId: cardId,
       setId: setId,
-      sourceId: "CSM-001",
+      shortCode: "CSM-001",
       collectorNumber: 1,
       rarity: "Rare",
       artVariant: "normal",
@@ -120,9 +120,9 @@ if (ctx) {
 
   // Card source (matched to card by name)
   const [csRow] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "csm-spreadsheet",
+      provider: "csm-spreadsheet",
       name: "CSM Test Card",
       type: "Unit",
       superTypes: [],
@@ -134,8 +134,8 @@ if (ctx) {
       rulesText: "Flash",
       effectText: null,
       tags: [],
-      sourceId: "CSM-001",
-      sourceEntityId: "CSM-001",
+      shortCode: "CSM-001",
+      externalId: "CSM-001",
       extraData: null,
     })
     .returning("id")
@@ -144,9 +144,9 @@ if (ctx) {
 
   // Card source (unmatched)
   const [csUnmatchedRow] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "csm-gallery",
+      provider: "csm-gallery",
       name: "CSM New Card",
       type: "Spell",
       superTypes: [],
@@ -158,8 +158,8 @@ if (ctx) {
       rulesText: null,
       effectText: null,
       tags: [],
-      sourceId: null,
-      sourceEntityId: "test-entity",
+      shortCode: null,
+      externalId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -168,11 +168,11 @@ if (ctx) {
 
   // Printing source (linked to printing)
   const [psRow] = await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: csId,
+      candidateCardId: csId,
       printingId: printingId,
-      sourceId: "CSM-001",
+      shortCode: "CSM-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
       collectorNumber: 1,
@@ -187,7 +187,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/csm-test.png",
       flavorText: null,
-      sourceEntityId: "test-entity",
+      externalId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -196,11 +196,11 @@ if (ctx) {
 
   // Printing source (unlinked)
   const [psUnlinkedRow] = await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: csUnmatchedId,
+      candidateCardId: csUnmatchedId,
       printingId: null,
-      sourceId: "CSM-NEW-001",
+      shortCode: "CSM-NEW-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
       collectorNumber: 99,
@@ -215,7 +215,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: null,
       flavorText: null,
-      sourceEntityId: "test-entity",
+      externalId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -224,9 +224,9 @@ if (ctx) {
 
   // Card source for accept-new tests (matched to existing card by name)
   const [csForAcceptNew] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "csm-accept-new-src",
+      provider: "csm-accept-new-src",
       name: "CSM Test Card",
       type: "Unit",
       superTypes: [],
@@ -238,8 +238,8 @@ if (ctx) {
       rulesText: "Flash",
       effectText: null,
       tags: [],
-      sourceId: "CSM-ACCEPT-001",
-      sourceEntityId: "CSM-ACCEPT-001",
+      shortCode: "CSM-ACCEPT-001",
+      externalId: "CSM-ACCEPT-001",
       extraData: null,
     })
     .returning("id")
@@ -248,11 +248,11 @@ if (ctx) {
 
   // Printing source for accept-new: valid, unlinked
   const [psAcceptNew] = await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: csForAcceptNewId,
+      candidateCardId: csForAcceptNewId,
       printingId: null,
-      sourceId: "CSM-ACCEPT-001",
+      shortCode: "CSM-ACCEPT-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
       collectorNumber: 50,
@@ -267,7 +267,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/accept-new.png",
       flavorText: "Some flavor",
-      sourceEntityId: "test-entity",
+      externalId: "test-entity",
       extraData: null,
     })
     .returning("id")
@@ -293,8 +293,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.cardSourcesChecked).toBeGreaterThanOrEqual(1);
-      expect(json.printingSourcesChecked).toBeGreaterThanOrEqual(1);
+      expect(json.candidateCardsChecked).toBeGreaterThanOrEqual(1);
+      expect(json.candidatePrintingsChecked).toBeGreaterThanOrEqual(1);
     });
 
     it("second call marks 0 (already checked)", async () => {
@@ -302,8 +302,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.cardSourcesChecked).toBe(0);
-      expect(json.printingSourcesChecked).toBe(0);
+      expect(json.candidateCardsChecked).toBe(0);
+      expect(json.candidatePrintingsChecked).toBe(0);
     });
   });
 
@@ -312,7 +312,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardSourceId/check", () => {
     it("marks a card source as checked", async () => {
       // Reset checkedAt so the test is meaningful
-      await db.updateTable("cardSources").set({ checkedAt: null }).where("id", "=", csId).execute();
+      await db
+        .updateTable("candidateCards")
+        .set({ checkedAt: null })
+        .where("id", "=", csId)
+        .execute();
 
       const res = await app.fetch(req("POST", `${P}/${csId}/check`));
       expect(res.status).toBe(204);
@@ -331,7 +335,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("marks a printing source as checked", async () => {
       // Reset checkedAt
       await db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ checkedAt: null })
         .where("id", "=", psId)
         .execute();
@@ -353,7 +357,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("marks all printing sources for a printing as checked", async () => {
       // Reset
       await db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ checkedAt: null })
         .where("printingId", "=", printingId)
         .execute();
@@ -368,12 +372,12 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("marks extra IDs alongside the printing", async () => {
       // Reset both the printing-linked and an extra source
       await db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ checkedAt: null })
         .where("printingId", "=", printingId)
         .execute();
       await db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({ checkedAt: null })
         .where("id", "=", psForAcceptNewId)
         .execute();
@@ -396,7 +400,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/check-all", () => {
     it("marks all card sources for a card slug as checked", async () => {
       // Reset
-      await db.updateTable("cardSources").set({ checkedAt: null }).where("id", "=", csId).execute();
+      await db
+        .updateTable("candidateCards")
+        .set({ checkedAt: null })
+        .where("id", "=", csId)
+        .execute();
 
       const res = await app.fetch(req("POST", `${P}/${cardSlug}/check-all`));
       expect(res.status).toBe(200);
@@ -422,7 +430,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify update persisted
       const row = await db
-        .selectFrom("printingSources")
+        .selectFrom("candidatePrintings")
         .select("rarity")
         .where("id", "=", psId)
         .executeTakeFirstOrThrow();
@@ -437,31 +445,31 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           isSigned: true,
           collectorNumber: 42,
           setId: "CSM-TEST",
-          sourceId: "CSM-PATCHED",
+          shortCode: "CSM-PATCHED",
         }),
       );
       expect(res.status).toBe(204);
 
       const row = await db
-        .selectFrom("printingSources")
-        .select(["artVariant", "finish", "isSigned", "collectorNumber", "setId", "sourceId"])
+        .selectFrom("candidatePrintings")
+        .select(["artVariant", "finish", "isSigned", "collectorNumber", "setId", "shortCode"])
         .where("id", "=", psId)
         .executeTakeFirstOrThrow();
       expect(row.artVariant).toBe("altart");
       expect(row.finish).toBe("foil");
       expect(row.isSigned).toBe(true);
       expect(row.collectorNumber).toBe(42);
-      expect(row.sourceId).toBe("CSM-PATCHED");
+      expect(row.shortCode).toBe("CSM-PATCHED");
 
       // Restore for subsequent tests
       await db
-        .updateTable("printingSources")
+        .updateTable("candidatePrintings")
         .set({
           artVariant: "normal",
           finish: "normal",
           isSigned: false,
           collectorNumber: 1,
-          sourceId: "CSM-001",
+          shortCode: "CSM-001",
           rarity: "Common",
         })
         .where("id", "=", psId)
@@ -495,7 +503,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify a new printing_source was created linked to printing2
       const copies = await db
-        .selectFrom("printingSources")
+        .selectFrom("candidatePrintings")
         .select("id")
         .where("printingId", "=", printing2Id)
         .execute();
@@ -536,7 +544,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify link
       const row = await db
-        .selectFrom("printingSources")
+        .selectFrom("candidatePrintings")
         .select("printingId")
         .where("id", "=", psUnlinkedId)
         .executeTakeFirstOrThrow();
@@ -554,7 +562,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify unlinked
       const row = await db
-        .selectFrom("printingSources")
+        .selectFrom("candidatePrintings")
         .select("printingId")
         .where("id", "=", psUnlinkedId)
         .executeTakeFirstOrThrow();
@@ -952,9 +960,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("links unmatched sources to an existing card", async () => {
       // Create another unmatched card source for this test
       await db
-        .insertInto("cardSources")
+        .insertInto("candidateCards")
         .values({
-          source: "csm-gallery",
+          provider: "csm-gallery",
           name: "CSM Another Unmatched",
           type: "Rune",
           superTypes: [],
@@ -966,8 +974,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rulesText: null,
           effectText: null,
           tags: [],
-          sourceId: null,
-          sourceEntityId: "test-entity",
+          shortCode: null,
+          externalId: "test-entity",
           extraData: null,
         })
         .execute();
@@ -1006,11 +1014,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("creates a new printing and links sources", async () => {
       // Create a dedicated printing source for this test
       const [apPs] = await db
-        .insertInto("printingSources")
+        .insertInto("candidatePrintings")
         .values({
-          cardSourceId: csForAcceptNewId,
+          candidateCardId: csForAcceptNewId,
           printingId: null,
-          sourceId: "CSM-AP-001",
+          shortCode: "CSM-AP-001",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
           collectorNumber: 60,
@@ -1025,7 +1033,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: "https://example.com/ap.png",
           flavorText: "AP Flavor",
-          sourceEntityId: "test-entity",
+          externalId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1034,7 +1042,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-printing`, {
           printingFields: {
-            sourceId: "CSM-AP-001",
+            shortCode: "CSM-AP-001",
             setId: "CSM-TEST",
             setName: "CSM Test Set",
             collectorNumber: 60,
@@ -1068,7 +1076,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify the printing source was linked and checked
       const ps = await db
-        .selectFrom("printingSources")
+        .selectFrom("candidatePrintings")
         .select(["printingId", "checkedAt"])
         .where("id", "=", apPs.id)
         .executeTakeFirstOrThrow();
@@ -1078,11 +1086,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("accepts a printing with custom id override", async () => {
       const [apPs2] = await db
-        .insertInto("printingSources")
+        .insertInto("candidatePrintings")
         .values({
-          cardSourceId: csForAcceptNewId,
+          candidateCardId: csForAcceptNewId,
           printingId: null,
-          sourceId: "CSM-AP-CUSTOM",
+          shortCode: "CSM-AP-CUSTOM",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
           collectorNumber: 61,
@@ -1097,7 +1105,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          sourceEntityId: "test-entity",
+          externalId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1107,7 +1115,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         req("POST", `${P}/${cardSlug}/accept-printing`, {
           printingFields: {
             id: "CSM-CUSTOM-ID",
-            sourceId: "CSM-AP-CUSTOM",
+            shortCode: "CSM-AP-CUSTOM",
             setId: "CSM-TEST",
             collectorNumber: 61,
             rarity: "Epic",
@@ -1126,11 +1134,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("accepts a printing with promo and signed flags", async () => {
       const [apPs3] = await db
-        .insertInto("printingSources")
+        .insertInto("candidatePrintings")
         .values({
-          cardSourceId: csForAcceptNewId,
+          candidateCardId: csForAcceptNewId,
           printingId: null,
-          sourceId: "CSM-AP-PROMO",
+          shortCode: "CSM-AP-PROMO",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
           collectorNumber: 62,
@@ -1145,7 +1153,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          sourceEntityId: "test-entity",
+          externalId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1154,7 +1162,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-printing`, {
           printingFields: {
-            sourceId: "CSM-AP-PROMO",
+            shortCode: "CSM-AP-PROMO",
             setId: "CSM-TEST",
             collectorNumber: 62,
             rarity: "Common",
@@ -1187,7 +1195,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-printing`, {
           printingFields: {
-            sourceId: "CSM-AP-X",
+            shortCode: "CSM-AP-X",
             collectorNumber: 70,
             artist: "X",
             publicCode: "X",
@@ -1202,7 +1210,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/NONEXISTENT-CARD/accept-printing`, {
           printingFields: {
-            sourceId: "CSM-AP-X",
+            shortCode: "CSM-AP-X",
             setId: "CSM",
             collectorNumber: 70,
             artist: "X",
@@ -1216,11 +1224,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("upserts set when setId is a new slug", async () => {
       const [apPs4] = await db
-        .insertInto("printingSources")
+        .insertInto("candidatePrintings")
         .values({
-          cardSourceId: csForAcceptNewId,
+          candidateCardId: csForAcceptNewId,
           printingId: null,
-          sourceId: "CSM-AP-NEWSET",
+          shortCode: "CSM-AP-NEWSET",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
           collectorNumber: 71,
@@ -1235,7 +1243,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          sourceEntityId: "test-entity",
+          externalId: "test-entity",
           extraData: null,
         })
         .returning("id")
@@ -1244,7 +1252,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-printing`, {
           printingFields: {
-            sourceId: "CSM-AP-NEWSET",
+            shortCode: "CSM-AP-NEWSET",
             setId: "CSM-NEW-SET",
             setName: "CSM Brand New Set",
             collectorNumber: 71,
@@ -1291,13 +1299,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
                 rules_text: null,
                 effect_text: null,
                 tags: [],
-                source_id: "CSM-UPLOAD-001",
-                source_entity_id: "CSM-UPLOAD-001",
+                short_code: "CSM-UPLOAD-001",
+                external_id: "CSM-UPLOAD-001",
               },
               printings: [
                 {
-                  source_id: "CSM-UPLOAD-001",
-                  source_entity_id: "CSM-UPLOAD-001",
+                  short_code: "CSM-UPLOAD-001",
+                  external_id: "CSM-UPLOAD-001",
                   set_id: "CSM-TEST",
                   set_name: "CSM Test Set",
                   collector_number: 10,
@@ -1356,7 +1364,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Verify gone
       const row = await db
-        .selectFrom("printingSources")
+        .selectFrom("candidatePrintings")
         .select("id")
         .where("id", "=", psUnlinkedId)
         .executeTakeFirst();

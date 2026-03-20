@@ -22,7 +22,7 @@ interface MappingOverviewResult {
     setName: string;
     printings: {
       printingId: string;
-      sourceId: string;
+      shortCode: string;
       rarity: string;
       artVariant: string;
       isSigned: boolean;
@@ -43,7 +43,7 @@ interface MappingOverviewResult {
     setName: string;
     printings: {
       printingId: string;
-      sourceId: string;
+      shortCode: string;
       finish: string;
       collectorNumber: number;
       isSigned: boolean;
@@ -74,7 +74,7 @@ export async function buildUnifiedMappingsResponse(
   ]);
 
   // Merge by cardId — combine data from both marketplaces per card
-  const mergedMap = new Map<string, Omit<UnifiedMappingGroupResponse, "primarySourceId">>();
+  const mergedMap = new Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">>();
 
   // Index TCGplayer groups by cardId
   for (const group of tcgResult.groups) {
@@ -91,7 +91,7 @@ export async function buildUnifiedMappingsResponse(
       setName: group.setName,
       printings: group.printings.map((p) => ({
         printingId: p.printingId,
-        sourceId: p.sourceId,
+        shortCode: p.shortCode,
         rarity: p.rarity,
         artVariant: p.artVariant,
         isSigned: p.isSigned,
@@ -137,7 +137,7 @@ export async function buildUnifiedMappingsResponse(
         setName: group.setName,
         printings: group.printings.map((p) => ({
           printingId: p.printingId,
-          sourceId: p.sourceId,
+          shortCode: p.shortCode,
           rarity: p.rarity,
           artVariant: p.artVariant,
           isSigned: p.isSigned,
@@ -157,15 +157,15 @@ export async function buildUnifiedMappingsResponse(
     }
   }
 
-  // Compute primarySourceId for each group and pre-sort
+  // Compute primaryShortCode for each group and pre-sort
   const allGroupsWithPrimary: UnifiedMappingGroupResponse[] = [...mergedMap.values()].map((g) => ({
     ...g,
-    primarySourceId: g.printings.reduce(
-      (best, p) => (p.sourceId.localeCompare(best) < 0 ? p.sourceId : best),
-      g.printings[0]?.sourceId ?? "",
+    primaryShortCode: g.printings.reduce(
+      (best, p) => (p.shortCode.localeCompare(best) < 0 ? p.shortCode : best),
+      g.printings[0]?.shortCode ?? "",
     ),
   }));
-  allGroupsWithPrimary.sort((a, b) => a.primarySourceId.localeCompare(b.primarySourceId));
+  allGroupsWithPrimary.sort((a, b) => a.primaryShortCode.localeCompare(b.primaryShortCode));
 
   // Filter after merge so both marketplaces have complete data
   const filteredGroups = showAll

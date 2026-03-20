@@ -19,7 +19,7 @@ function createMockDb(
       id: string;
       printingId: string;
       collectionId: string;
-      sourceId: string | null;
+      acquisitionSourceId: string | null;
     }[];
     collections?: { id: string; name: string }[];
     targetCollection?: { id: string; name: string } | undefined;
@@ -28,7 +28,7 @@ function createMockDb(
       printingId: string;
       collectionId: string;
       collectionName: string;
-      sourceId?: string | null;
+      acquisitionSourceId?: string | null;
     }[];
   } = {},
 ) {
@@ -186,7 +186,7 @@ describe("addCopies", () => {
           id: "copy-1",
           printingId: "p-1",
           collectionId: "inbox-id",
-          sourceId: null,
+          acquisitionSourceId: null,
         },
       ],
       collections: [{ id: "inbox-id", name: "Inbox" }],
@@ -197,7 +197,7 @@ describe("addCopies", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("copy-1");
     expect(result[0].collectionId).toBe("inbox-id");
-    expect(result[0].sourceId).toBeNull();
+    expect(result[0].acquisitionSourceId).toBeNull();
   });
 
   it("validates that explicit collections belong to the user", async () => {
@@ -222,17 +222,17 @@ describe("addCopies", () => {
           id: "copy-1",
           printingId: "p-1",
           collectionId: "col-1",
-          sourceId: "src-1",
+          acquisitionSourceId: "src-1",
         },
       ],
       collections: [{ id: "col-1", name: "Main" }],
     });
 
     const result = await addCopies(db as any, "user-1", [
-      { printingId: "p-1", collectionId: "col-1", sourceId: "src-1" },
+      { printingId: "p-1", collectionId: "col-1", acquisitionSourceId: "src-1" },
     ]);
 
-    expect(result[0].sourceId).toBe("src-1");
+    expect(result[0].acquisitionSourceId).toBe("src-1");
   });
 
   it("completes the full flow including activity logging", async () => {
@@ -242,7 +242,7 @@ describe("addCopies", () => {
           id: "copy-1",
           printingId: "p-1",
           collectionId: "inbox-id",
-          sourceId: null,
+          acquisitionSourceId: null,
         },
       ],
       collections: [{ id: "inbox-id", name: "Inbox" }],
@@ -308,7 +308,7 @@ describe("disposeCopies", () => {
           printingId: "p-1",
           collectionId: "col-1",
           collectionName: "Main",
-          sourceId: "src-1",
+          acquisitionSourceId: "src-1",
         },
       ],
     });
@@ -326,7 +326,7 @@ describe("disposeCopies", () => {
           printingId: "p-1",
           collectionId: "col-1",
           collectionName: "Main",
-          sourceId: "src-1",
+          acquisitionSourceId: "src-1",
         },
       ],
     });

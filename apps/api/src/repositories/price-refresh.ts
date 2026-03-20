@@ -55,7 +55,7 @@ export function priceRefreshRepo(db: Db) {
           "id",
           "cardId",
           "setId",
-          "sourceId",
+          "shortCode",
           "publicCode",
           "finish",
           "artVariant",
@@ -110,7 +110,7 @@ export function priceRefreshRepo(db: Db) {
     /** @returns Marketplace sources joined with printing finish. */
     sourcesWithFinish(marketplace: string) {
       return db
-        .selectFrom("marketplaceSources as src")
+        .selectFrom("marketplaceProducts as src")
         .innerJoin("printings as p", "p.id", "src.printingId")
         .select(["src.id", "src.printingId", "src.externalId", "p.finish"])
         .where("src.marketplace", "=", marketplace)
@@ -123,7 +123,7 @@ export function priceRefreshRepo(db: Db) {
     async countSnapshots(marketplace: string): Promise<number> {
       const result = await db
         .selectFrom("marketplaceSnapshots as snap")
-        .innerJoin("marketplaceSources as src", "src.id", "snap.sourceId")
+        .innerJoin("marketplaceProducts as src", "src.id", "snap.productId")
         .select(sql<number>`count(*)::int`.as("count"))
         .where("src.marketplace", "=", marketplace)
         .executeTakeFirstOrThrow();
@@ -148,7 +148,7 @@ export function priceRefreshRepo(db: Db) {
      */
     async upsertSnapshots(
       batch: {
-        sourceId: string;
+        productId: string;
         recordedAt: Date;
         marketCents: number;
         lowCents: number | null;
@@ -166,7 +166,7 @@ export function priceRefreshRepo(db: Db) {
         .values(batch)
         .onConflict((oc) =>
           oc
-            .columns(["sourceId", "recordedAt"])
+            .columns(["productId", "recordedAt"])
             .doUpdateSet(PRICE_EXCLUDED_SET)
             .where(distinctWhere),
         )

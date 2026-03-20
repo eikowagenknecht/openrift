@@ -250,7 +250,7 @@ export function CardThumbnail({
         // ⚠ mt-2.5 is mirrored as LABEL_WRAPPER_MT in card-grid.tsx — update both together
         <div className="relative z-10 mt-2.5">
           <CardMetaLabel
-            sourceId={printing.sourceId}
+            shortCode={printing.shortCode}
             name={card.name}
             type={card.type}
             superTypes={card.superTypes}

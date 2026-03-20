@@ -2,29 +2,29 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import type { IngestCard, IngestPrinting } from "../routes/admin/card-sources/schemas.js";
 import { createTestContext } from "../test/integration-context.js";
-import { ingestCardSources } from "./ingest-card-sources.js";
+import { ingestCandidates } from "./ingest-candidates.js";
 
-// Helpers — default source_entity_id from source_id (cards) or source_id (printings)
+// Helpers — default external_id from short_code (cards) or short_code (printings)
 // so every test object satisfies the NOT NULL constraint without repeating it.
-type CardInput = Omit<IngestCard, "source_entity_id" | "printings"> & {
-  source_entity_id?: string;
+type CardInput = Omit<IngestCard, "external_id" | "printings"> & {
+  external_id?: string;
   printings?: PrintingInput[];
 };
-type PrintingInput = Omit<IngestPrinting, "source_entity_id"> & { source_entity_id?: string };
+type PrintingInput = Omit<IngestPrinting, "external_id"> & { external_id?: string };
 
 function card(input: CardInput): IngestCard {
   return {
     ...input,
-    source_entity_id: input.source_entity_id ?? input.source_id ?? input.name,
+    external_id: input.external_id ?? input.short_code ?? input.name,
     printings: (input.printings ?? []).map((p) => ({
       ...p,
-      source_entity_id: p.source_entity_id ?? p.source_id,
+      external_id: p.external_id ?? p.short_code,
     })),
   };
 }
 
 // ---------------------------------------------------------------------------
-// Integration tests: ingestCardSources service
+// Integration tests: ingestCandidates service
 //
 // Uses the shared integration database (same as price-refresh tests).
 // Reuses user 0022 solely for the DB handle — this service has no user scope.
@@ -36,7 +36,7 @@ const ctx = createTestContext(USER_ID);
 // Unique source name to avoid collisions with seed data / other tests
 const SOURCE = "ingest-test";
 
-describe.skipIf(!ctx)("ingestCardSources integration", () => {
+describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf; db is only used inside it() callbacks
   const db = ctx?.db ?? (null as any);
 
@@ -49,25 +49,25 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   beforeAll(async () => {
     // Clean up any leftover data from previous runs
     await db
-      .deleteFrom("printingSources")
+      .deleteFrom("candidatePrintings")
       .where(
-        "cardSourceId",
+        "candidateCardId",
         "in",
-        db.selectFrom("cardSources").select("id").where("source", "=", SOURCE),
+        db.selectFrom("candidateCards").select("id").where("provider", "=", SOURCE),
       )
       .execute();
-    await db.deleteFrom("cardSources").where("source", "=", SOURCE).execute();
+    await db.deleteFrom("candidateCards").where("provider", "=", SOURCE).execute();
 
     // Also clean up the "ingest-test-batch" source used in the batch test
     await db
-      .deleteFrom("printingSources")
+      .deleteFrom("candidatePrintings")
       .where(
-        "cardSourceId",
+        "candidateCardId",
         "in",
-        db.selectFrom("cardSources").select("id").where("source", "=", "ingest-test-batch"),
+        db.selectFrom("candidateCards").select("id").where("provider", "=", "ingest-test-batch"),
       )
       .execute();
-    await db.deleteFrom("cardSources").where("source", "=", "ingest-test-batch").execute();
+    await db.deleteFrom("candidateCards").where("provider", "=", "ingest-test-batch").execute();
 
     // Seed: set + card + printing for resolution tests
     const insertedSet = await db
@@ -111,7 +111,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         slug: "IGT-001:common:normal:",
         cardId: seedCardId,
         setId: seedSetId,
-        sourceId: "IGT-001",
+        shortCode: "IGT-001",
         collectorNumber: 1,
         rarity: "Common",
         artVariant: "normal",
@@ -163,12 +163,14 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   // ── Basic validation ────────────────────────────────────────────────────
 
   it("throws on empty source name", async () => {
-    await expect(ingestCardSources(db, "", [])).rejects.toThrow("source name must not be empty");
-    await expect(ingestCardSources(db, "   ", [])).rejects.toThrow("source name must not be empty");
+    await expect(ingestCandidates(db, "", [])).rejects.toThrow("provider name must not be empty");
+    await expect(ingestCandidates(db, "   ", [])).rejects.toThrow(
+      "provider name must not be empty",
+    );
   });
 
   it("returns zeros for empty cards array", async () => {
-    const result = await ingestCardSources(db, SOURCE, []);
+    const result = await ingestCandidates(db, SOURCE, []);
     expect(result).toEqual({
       newCards: 0,
       updates: 0,
@@ -180,8 +182,8 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   // ── Insert new card sources ─────────────────────────────────────────────
 
-  it("inserts a new card_source with no printings", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+  it("inserts a new candidate_card with no printings", async () => {
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Solo Card",
         type: "Unit",
@@ -194,7 +196,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "SOLO-001",
+        short_code: "SOLO-001",
         printings: [],
       }),
     ]);
@@ -206,10 +208,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
     // Verify in DB
     const row = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .selectAll()
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "SOLO-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "SOLO-001")
       .executeTakeFirst();
     expect(row).toBeDefined();
     expect(row?.name).toBe("Solo Card");
@@ -217,8 +219,8 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(row?.might).toBe(3);
   });
 
-  it("inserts a new card_source with printings", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+  it("inserts a new candidate_card with printings", async () => {
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Card With Printings",
         type: "Spell",
@@ -231,10 +233,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: "Deal 3 damage.",
         effect_text: null,
         tags: ["burn"],
-        source_id: "CWP-001",
+        short_code: "CWP-001",
         printings: [
           {
-            source_id: "CWP-001-P1",
+            short_code: "CWP-001-P1",
             set_id: "SET-A",
             collector_number: 1,
             rarity: "Common",
@@ -255,30 +257,30 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.newCards).toBe(1);
     expect(result.errors).toHaveLength(0);
 
-    // Verify printing_source was inserted
+    // Verify candidate_printing was inserted
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .selectAll()
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "CWP-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "CWP-001")
       .executeTakeFirstOrThrow();
 
     const ps = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .execute();
     expect(ps).toHaveLength(1);
-    expect(ps[0].sourceId).toBe("CWP-001-P1");
+    expect(ps[0].shortCode).toBe("CWP-001-P1");
     expect(ps[0].artist).toBe("Bob Ross");
     expect(ps[0].imageUrl).toBe("https://example.com/img.png");
   });
 
   // ── Update existing card source ─────────────────────────────────────────
 
-  it("updates an existing card_source when fields change", async () => {
+  it("updates an existing candidate_card when fields change", async () => {
     // First ingest
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Evolving Card",
         type: "Unit",
@@ -291,13 +293,13 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "EVO-001",
+        short_code: "EVO-001",
         printings: [],
       }),
     ]);
 
     // Second ingest with changed fields
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Evolving Card",
         type: "Unit",
@@ -310,7 +312,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: "New rules text.",
         effect_text: null,
         tags: ["elite"],
-        source_id: "EVO-001",
+        short_code: "EVO-001",
         printings: [],
       }),
     ]);
@@ -320,7 +322,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.unchanged).toBe(0);
     expect(result.updatedCards).toHaveLength(1);
     expect(result.updatedCards[0].name).toBe("Evolving Card");
-    expect(result.updatedCards[0].sourceId).toBe("EVO-001");
+    expect(result.updatedCards[0].shortCode).toBe("EVO-001");
 
     // getChangedFields compares using CARD_FIELDS (camelCase) against the incoming
     // IngestCard object (snake_case). Only fields with matching keys are compared:
@@ -338,9 +340,9 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(mightDiff?.to).toBe(5);
   });
 
-  it("returns unchanged when card_source has not changed", async () => {
+  it("returns unchanged when candidate_card has not changed", async () => {
     // First ingest
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Stable Card",
         type: "Rune",
@@ -353,13 +355,13 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "STABLE-001",
+        short_code: "STABLE-001",
         printings: [],
       }),
     ]);
 
     // Second ingest with identical data
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Stable Card",
         type: "Rune",
@@ -372,7 +374,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "STABLE-001",
+        short_code: "STABLE-001",
         printings: [],
       }),
     ]);
@@ -385,7 +387,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   // ── Validation errors ───────────────────────────────────────────────────
 
   it("records validation error for card with negative might", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Bad Might Card",
         type: "Unit",
@@ -398,7 +400,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BAD-001",
+        short_code: "BAD-001",
         printings: [],
       }),
     ]);
@@ -410,7 +412,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   });
 
   it("records validation error for card with empty name", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "",
         type: "Unit",
@@ -423,7 +425,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BAD-002",
+        short_code: "BAD-002",
         printings: [],
       }),
     ]);
@@ -433,8 +435,8 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.errors[0]).toContain("name");
   });
 
-  it("records validation error for printing with empty source_id", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+  it("records validation error for printing with empty short_code", async () => {
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Valid Card With Bad Printing",
         type: "Unit",
@@ -447,10 +449,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BADPRINT-001",
+        short_code: "BADPRINT-001",
         printings: [
           {
-            source_id: "",
+            short_code: "",
             set_id: "SET-X",
             collector_number: 1,
             rarity: "Common",
@@ -470,14 +472,14 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     // The card itself is inserted successfully, but the printing fails validation
     expect(result.newCards).toBe(1);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain("source_id");
+    expect(result.errors[0]).toContain("short_code");
   });
 
   // ── Printing updates ────────────────────────────────────────────────────
 
-  it("updates printing_source when fields change", async () => {
+  it("updates candidate_printing when fields change", async () => {
     // First ingest with a printing
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Print Update Card",
         type: "Unit",
@@ -490,10 +492,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "PU-001",
+        short_code: "PU-001",
         printings: [
           {
-            source_id: "PU-001-P1",
+            short_code: "PU-001-P1",
             set_id: "SET-PU",
             collector_number: 5,
             rarity: "Uncommon",
@@ -510,22 +512,22 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
       }),
     ]);
 
-    // Get the initial printing_source
+    // Get the initial candidate_printing
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("id")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "PU-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "PU-001")
       .executeTakeFirstOrThrow();
     const psBefore = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
     expect(psBefore.artist).toBe("Original Artist");
 
     // Second ingest with changed artist
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Print Update Card",
         type: "Unit",
@@ -538,10 +540,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "PU-001",
+        short_code: "PU-001",
         printings: [
           {
-            source_id: "PU-001-P1",
+            short_code: "PU-001-P1",
             set_id: "SET-PU",
             collector_number: 5,
             rarity: "Uncommon",
@@ -559,17 +561,17 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     ]);
 
     const psAfter = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
     expect(psAfter.artist).toBe("New Artist");
     expect(psAfter.updatedAt.getTime()).toBeGreaterThan(psBefore.updatedAt.getTime());
   });
 
-  it("does not update printing_source when nothing changed", async () => {
+  it("does not update candidate_printing when nothing changed", async () => {
     // First ingest
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Print Stable Card",
         type: "Gear",
@@ -582,10 +584,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "PS-001",
+        short_code: "PS-001",
         printings: [
           {
-            source_id: "PS-001-P1",
+            short_code: "PS-001-P1",
             set_id: "SET-PS",
             collector_number: 10,
             rarity: "Rare",
@@ -603,19 +605,19 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     ]);
 
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("id")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "PS-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "PS-001")
       .executeTakeFirstOrThrow();
     const psBefore = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
 
     // Second ingest with identical data
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Print Stable Card",
         type: "Gear",
@@ -628,10 +630,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "PS-001",
+        short_code: "PS-001",
         printings: [
           {
-            source_id: "PS-001-P1",
+            short_code: "PS-001-P1",
             set_id: "SET-PS",
             collector_number: 10,
             rarity: "Rare",
@@ -649,9 +651,9 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     ]);
 
     const psAfter = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
     // updatedAt should NOT have changed (no write occurred)
     expect(psAfter.updatedAt.getTime()).toBe(psBefore.updatedAt.getTime());
@@ -659,10 +661,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   // ── Card resolution ─────────────────────────────────────────────────────
 
-  it("resolves card by normName and assigns printingId to printing_source", async () => {
+  it("resolves card by normName and assigns printingId to candidate_printing", async () => {
     // "Ingest Alpha" normalizes to "ingestalpha" which matches our seed card
     // The printing slug "IGT-001:common:normal:" should match our seed printing
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Ingest Alpha",
         type: "Unit",
@@ -675,10 +677,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "RESOLVE-001",
+        short_code: "RESOLVE-001",
         printings: [
           {
-            source_id: "IGT-001",
+            short_code: "IGT-001",
             set_id: "IGT",
             collector_number: 1,
             rarity: "Common",
@@ -699,25 +701,25 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.errors).toHaveLength(0);
 
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("id")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "RESOLVE-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "RESOLVE-001")
       .executeTakeFirstOrThrow();
 
     const ps = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
 
-    // The printing_source should have been linked to our seed printing
+    // The candidate_printing should have been linked to our seed printing
     expect(ps.printingId).toBe(seedPrintingId);
   });
 
   it("resolves card by alias when normName does not match directly", async () => {
     // "Ingest Beta Alias" normalizes to "ingestbetaalias" which matches the alias we seeded
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Ingest Beta Alias",
         type: "Spell",
@@ -730,7 +732,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: "Deal 2 damage.",
         effect_text: null,
         tags: [],
-        source_id: "ALIAS-001",
+        short_code: "ALIAS-001",
         printings: [],
       }),
     ]);
@@ -739,11 +741,11 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  // ── Lookup by source_id vs name ─────────────────────────────────────────
+  // ── Lookup by short_code vs name ─────────────────────────────────────────
 
-  it("finds existing card_source by source_id rather than name", async () => {
-    // Insert with source_id
-    await ingestCardSources(db, SOURCE, [
+  it("finds existing candidate_card by short_code rather than name", async () => {
+    // Insert with short_code
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Name One",
         type: "Unit",
@@ -756,13 +758,13 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "SID-LOOKUP",
+        short_code: "SID-LOOKUP",
         printings: [],
       }),
     ]);
 
-    // Re-ingest same source_id but different name — should update, not insert
-    const result = await ingestCardSources(db, SOURCE, [
+    // Re-ingest same short_code but different name — should update, not insert
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Name Two",
         type: "Unit",
@@ -775,7 +777,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "SID-LOOKUP",
+        short_code: "SID-LOOKUP",
         printings: [],
       }),
     ]);
@@ -784,20 +786,20 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.updates).toBe(1);
     expect(result.updatedCards[0].fields.some((f) => f.field === "name")).toBe(true);
 
-    // Verify only one card_source exists for this source_id
+    // Verify only one candidate_card exists for this short_code
     const rows = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .selectAll()
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "SID-LOOKUP")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "SID-LOOKUP")
       .execute();
     expect(rows).toHaveLength(1);
     expect(rows[0].name).toBe("Name Two");
   });
 
-  it("finds existing card_source by name when source_id is absent", async () => {
-    // Insert without source_id
-    await ingestCardSources(db, SOURCE, [
+  it("finds existing candidate_card by name when short_code is absent", async () => {
+    // Insert without short_code
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Name Only Card",
         type: "Unit",
@@ -815,7 +817,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     ]);
 
     // Re-ingest same name — should be unchanged (not a new insert)
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Name Only Card",
         type: "Unit",
@@ -839,7 +841,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   // ── jsonOrNull / extra_data handling ─────────────────────────────────────
 
   it("stores extra_data as null when given an empty object", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Extra Data Empty Card",
         type: "Unit",
@@ -852,7 +854,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "EXTRA-001",
+        short_code: "EXTRA-001",
         extra_data: {},
         printings: [],
       }),
@@ -861,16 +863,16 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.newCards).toBe(1);
 
     const row = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("extraData")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "EXTRA-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "EXTRA-001")
       .executeTakeFirstOrThrow();
     expect(row.extraData).toBeNull();
   });
 
   it("stores non-empty extra_data as-is", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Extra Data Real Card",
         type: "Unit",
@@ -883,7 +885,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "EXTRA-002",
+        short_code: "EXTRA-002",
         extra_data: { foo: "bar", count: 42 },
         printings: [],
       }),
@@ -892,10 +894,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.newCards).toBe(1);
 
     const row = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("extraData")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "EXTRA-002")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "EXTRA-002")
       .executeTakeFirstOrThrow();
     expect(row.extraData).toEqual({ foo: "bar", count: 42 });
   });
@@ -906,7 +908,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     const batchSource = "ingest-test-batch";
 
     // Phase 1: insert two cards
-    await ingestCardSources(db, batchSource, [
+    await ingestCandidates(db, batchSource, [
       card({
         name: "Batch Unchanged",
         type: "Unit",
@@ -919,7 +921,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BATCH-001",
+        short_code: "BATCH-001",
         printings: [],
       }),
       card({
@@ -934,13 +936,13 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BATCH-002",
+        short_code: "BATCH-002",
         printings: [],
       }),
     ]);
 
     // Phase 2: mixed batch
-    const result = await ingestCardSources(db, batchSource, [
+    const result = await ingestCandidates(db, batchSource, [
       // Unchanged
       card({
         name: "Batch Unchanged",
@@ -954,7 +956,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BATCH-001",
+        short_code: "BATCH-001",
         printings: [],
       }),
       // Updated (changed energy from 3 → 5; energy is a snake_case-matching field)
@@ -970,7 +972,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BATCH-002",
+        short_code: "BATCH-002",
         printings: [],
       }),
       // New card
@@ -986,7 +988,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BATCH-003",
+        short_code: "BATCH-003",
         printings: [],
       }),
       // Validation error (negative energy)
@@ -1002,7 +1004,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "BATCH-004",
+        short_code: "BATCH-004",
         printings: [],
       }),
     ]);
@@ -1018,7 +1020,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   it("treats empty string as equivalent to null for card fields", async () => {
     // Insert with rules_text = null
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Normalize Test Card",
         type: "Unit",
@@ -1031,13 +1033,13 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "NORM-001",
+        short_code: "NORM-001",
         printings: [],
       }),
     ]);
 
     // Re-ingest with rules_text = "" — emptyToNull converts to null, so should be unchanged
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Normalize Test Card",
         type: "Unit",
@@ -1050,7 +1052,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: "",
         effect_text: null,
         tags: [],
-        source_id: "NORM-001",
+        short_code: "NORM-001",
         printings: [],
       }),
     ]);
@@ -1062,9 +1064,9 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
 
   // ── Printing: printingId is null when card cannot be resolved ─────────
 
-  it("inserts printing_source with printingId=null when card name is unresolvable", async () => {
+  it("inserts candidate_printing with printingId=null when card name is unresolvable", async () => {
     // Card name "Totally Unknown Card" doesn't match any card normName or alias
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Totally Unknown Card",
         type: "Unit",
@@ -1077,10 +1079,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "UNKNOWN-001",
+        short_code: "UNKNOWN-001",
         printings: [
           {
-            source_id: "UNK-001-P1",
+            short_code: "UNK-001-P1",
             set_id: "SET-UNK",
             collector_number: 1,
             rarity: "Common",
@@ -1098,26 +1100,26 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     ]);
 
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("id")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "UNKNOWN-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "UNKNOWN-001")
       .executeTakeFirstOrThrow();
 
     const ps = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
 
     // Card can't be resolved → printingId stays null
     expect(ps.printingId).toBeNull();
   });
 
-  // ── source_entity_id and optional fields ────────────────────────────────
+  // ── external_id and optional fields ────────────────────────────────
 
-  it("stores source_entity_id on card_source and printing_source", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+  it("stores external_id on candidate_card and candidate_printing", async () => {
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Entity ID Card",
         type: "Unit",
@@ -1130,11 +1132,11 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "ENTITY-001",
-        source_entity_id: "entity-abc-123",
+        short_code: "ENTITY-001",
+        external_id: "entity-abc-123",
         printings: [
           {
-            source_id: "ENTITY-001-P1",
+            short_code: "ENTITY-001-P1",
             set_id: "SET-E",
             collector_number: 1,
             rarity: "Common",
@@ -1146,7 +1148,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
             public_code: "E-001/100",
             printed_rules_text: null,
             printed_effect_text: null,
-            source_entity_id: "entity-print-456",
+            external_id: "entity-print-456",
           },
         ],
       }),
@@ -1155,25 +1157,25 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.newCards).toBe(1);
 
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .selectAll()
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "ENTITY-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "ENTITY-001")
       .executeTakeFirstOrThrow();
-    expect(cs.sourceEntityId).toBe("entity-abc-123");
+    expect(cs.externalId).toBe("entity-abc-123");
 
     const ps = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
-    expect(ps.sourceEntityId).toBe("entity-print-456");
+    expect(ps.externalId).toBe("entity-print-456");
   });
 
   // ── Printing with flavor_text and set_name ──────────────────────────────
 
   it("stores optional printing fields: flavor_text, set_name, image_url", async () => {
-    await ingestCardSources(db, SOURCE, [
+    await ingestCandidates(db, SOURCE, [
       card({
         name: "Full Printing Card",
         type: "Unit",
@@ -1186,10 +1188,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "FULL-PRINT-001",
+        short_code: "FULL-PRINT-001",
         printings: [
           {
-            source_id: "FP-001-P1",
+            short_code: "FP-001-P1",
             set_id: "SET-FP",
             set_name: "Full Print Set",
             collector_number: 7,
@@ -1210,16 +1212,16 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     ]);
 
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("id")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "FULL-PRINT-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "FULL-PRINT-001")
       .executeTakeFirstOrThrow();
 
     const ps = await db
-      .selectFrom("printingSources")
+      .selectFrom("candidatePrintings")
       .selectAll()
-      .where("cardSourceId", "=", cs.id)
+      .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
 
     expect(ps.setName).toBe("Full Print Set");
@@ -1236,7 +1238,7 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
   // ── Validation: printing with collector_number=0 is caught by Zod ─────
 
   it("records printing validation error for collector_number=0", async () => {
-    const result = await ingestCardSources(db, SOURCE, [
+    const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Zero Collector Card",
         type: "Unit",
@@ -1249,10 +1251,10 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
         rules_text: null,
         effect_text: null,
         tags: [],
-        source_id: "ZEROCOL-001",
+        short_code: "ZEROCOL-001",
         printings: [
           {
-            source_id: "ZEROCOL-001-P1",
+            short_code: "ZEROCOL-001-P1",
             set_id: "SET-ZC",
             collector_number: 0,
             rarity: "Common",
@@ -1275,16 +1277,16 @@ describe.skipIf(!ctx)("ingestCardSources integration", () => {
     expect(result.errors[0]).toContain("ZEROCOL-001-P1");
     expect(result.errors[0]).toContain("collector_number");
 
-    // Verify no printing_source was created
+    // Verify no candidate_printing was created
     const cs = await db
-      .selectFrom("cardSources")
+      .selectFrom("candidateCards")
       .select("id")
-      .where("source", "=", SOURCE)
-      .where("sourceId", "=", "ZEROCOL-001")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "ZEROCOL-001")
       .executeTakeFirstOrThrow();
     const ps = await db
-      .selectFrom("printingSources")
-      .where("cardSourceId", "=", cs.id)
+      .selectFrom("candidatePrintings")
+      .where("candidateCardId", "=", cs.id)
       .selectAll()
       .execute();
     expect(ps).toHaveLength(0);

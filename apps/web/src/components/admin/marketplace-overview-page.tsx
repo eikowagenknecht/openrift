@@ -105,7 +105,7 @@ function PriceSection({
           {clearMutation.isSuccess && (
             <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
               <CheckIcon className="size-4" />
-              Cleared {clearMutation.data.deleted.sources} sources,{" "}
+              Cleared {clearMutation.data.deleted.products} products,{" "}
               {clearMutation.data.deleted.snapshots} snapshots, {clearMutation.data.deleted.staging}{" "}
               staging rows
             </p>

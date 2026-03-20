@@ -6,13 +6,13 @@ import type { Kysely } from "kysely";
 import type { Database } from "../db/index.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
-import type { cardSourceMutationsRepo } from "../repositories/card-source-mutations.js";
+import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { setsRepo } from "../repositories/sets.js";
 import { renamePrintingImages } from "./image-rehost.js";
 
-type CardSourceMutationsRepo = ReturnType<typeof cardSourceMutationsRepo>;
+type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
 
@@ -35,7 +35,7 @@ export async function updatePrintingPromoType(
   const printing = await db
     .selectFrom("printings as p")
     .innerJoin("sets as s", "s.id", "p.setId")
-    .select(["p.id", "p.slug", "p.sourceId", "p.rarity", "p.finish", "s.slug as setSlug"])
+    .select(["p.id", "p.slug", "p.shortCode", "p.rarity", "p.finish", "s.slug as setSlug"])
     .where("p.slug", "=", printingSlug)
     .executeTakeFirst();
 
@@ -53,7 +53,7 @@ export async function updatePrintingPromoType(
   }
 
   const newSlug = buildPrintingId(
-    printing.sourceId,
+    printing.shortCode,
     printing.rarity,
     promoTypeSlug,
     printing.finish,
@@ -80,7 +80,7 @@ export async function updatePrintingPromoType(
 export async function renamePrinting(
   io: Io,
   repos: {
-    cardSourceMutations: CardSourceMutationsRepo;
+    candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
   },
   printingSlug: string,
@@ -91,7 +91,7 @@ export async function renamePrinting(
     throw new AppError(404, "NOT_FOUND", "Printing not found");
   }
 
-  await repos.cardSourceMutations.renamePrintingSlug(printingSlug, newSlug);
+  await repos.candidateMutations.renamePrintingSlug(printingSlug, newSlug);
   await renamePrintingImages(io, repos.printingImages, printing.id, printingSlug, newSlug);
 }
 
@@ -99,7 +99,7 @@ export async function renamePrinting(
 
 interface AcceptPrintingFields {
   id?: string;
-  sourceId: string;
+  shortCode: string;
   setId?: string;
   setName?: string | null;
   collectorNumber: number;
@@ -123,7 +123,7 @@ interface AcceptPrintingFields {
 export async function acceptPrinting(
   db: Kysely<Database>,
   repos: {
-    cardSourceMutations: CardSourceMutationsRepo;
+    candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
     promoTypes: PromoTypesRepo;
   },
@@ -138,7 +138,7 @@ export async function acceptPrinting(
     throw new AppError(400, "BAD_REQUEST", "printingFields.setId is required");
   }
 
-  const mut = repos.cardSourceMutations;
+  const mut = repos.candidateMutations;
 
   const card = await mut.getCardIdBySlug(cardSlug);
   if (!card) {
@@ -157,13 +157,13 @@ export async function acceptPrinting(
   const printingId =
     printingFields.id ||
     buildPrintingId(
-      printingFields.sourceId,
+      printingFields.shortCode,
       printingFields.rarity ?? ("Common" satisfies Rarity),
       promoTypeSlug,
       printingFields.finish ?? ("normal" satisfies Finish),
     );
 
-  const firstPs = await mut.getSourceNameForPrintingSource(printingSourceIds[0]);
+  const firstPs = await mut.getProviderNameForCandidatePrinting(printingSourceIds[0]);
 
   await db.transaction().execute(async (trx) => {
     if (printingFields.setId) {
@@ -194,7 +194,7 @@ export async function acceptPrinting(
       slug: printingId,
       cardId: card.id,
       setId: setUuid,
-      sourceId: printingFields.sourceId,
+      shortCode: printingFields.shortCode,
       collectorNumber: printingFields.collectorNumber,
       rarity: normalizedRarity as Rarity,
       artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
@@ -213,11 +213,11 @@ export async function acceptPrinting(
         trx,
         insertedId,
         printingFields.imageUrl,
-        firstPs?.source ?? "import",
+        firstPs?.provider ?? "import",
       );
     }
 
-    await mut.linkAndCheckPrintingSources(printingSourceIds, insertedId, trx);
+    await mut.linkAndCheckCandidatePrintings(printingSourceIds, insertedId, trx);
   });
 
   return printingId;

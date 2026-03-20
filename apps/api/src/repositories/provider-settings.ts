@@ -2,39 +2,39 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-export function sourceSettingsRepo(db: Kysely<Database>) {
+export function providerSettingsRepo(db: Kysely<Database>) {
   return {
     listAll() {
       return db
-        .selectFrom("sourceSettings")
+        .selectFrom("providerSettings")
         .selectAll()
         .orderBy("sortOrder")
-        .orderBy("source")
+        .orderBy("provider")
         .execute();
     },
 
-    async reorder(sources: string[]) {
+    async reorder(providers: string[]) {
       await db.transaction().execute(async (tx) => {
-        for (let i = 0; i < sources.length; i++) {
+        for (let i = 0; i < providers.length; i++) {
           await tx
-            .insertInto("sourceSettings")
-            .values({ source: sources[i], sortOrder: i + 1, isHidden: false })
-            .onConflict((oc) => oc.column("source").doUpdateSet({ sortOrder: i + 1 }))
+            .insertInto("providerSettings")
+            .values({ provider: providers[i], sortOrder: i + 1, isHidden: false })
+            .onConflict((oc) => oc.column("provider").doUpdateSet({ sortOrder: i + 1 }))
             .execute();
         }
       });
     },
 
-    upsert(source: string, updates: { sortOrder?: number; isHidden?: boolean }) {
+    upsert(provider: string, updates: { sortOrder?: number; isHidden?: boolean }) {
       return db
-        .insertInto("sourceSettings")
+        .insertInto("providerSettings")
         .values({
-          source,
+          provider,
           sortOrder: updates.sortOrder ?? 0,
           isHidden: updates.isHidden ?? false,
         })
         .onConflict((oc) =>
-          oc.column("source").doUpdateSet({
+          oc.column("provider").doUpdateSet({
             ...(updates.sortOrder === undefined ? {} : { sortOrder: updates.sortOrder }),
             ...(updates.isHidden === undefined ? {} : { isHidden: updates.isHidden }),
           }),

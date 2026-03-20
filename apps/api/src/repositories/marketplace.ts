@@ -1,6 +1,6 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, MarketplaceSnapshotsTable, MarketplaceSourcesTable } from "../db/index.js";
+import type { Database, MarketplaceSnapshotsTable, MarketplaceProductsTable } from "../db/index.js";
 
 /**
  * Read-only queries for marketplace prices and snapshots.
@@ -19,8 +19,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
      */
     latestPrices(): Promise<{ printingId: string; marketCents: number }[]> {
       return db
-        .selectFrom("marketplaceSources as ps")
-        .innerJoin("marketplaceSnapshots as snap", "snap.sourceId", "ps.id")
+        .selectFrom("marketplaceProducts as ps")
+        .innerJoin("marketplaceSnapshots as snap", "snap.productId", "ps.id")
         .innerJoin("printings as p", "p.id", "ps.printingId")
         .where("ps.marketplace", "=", "tcgplayer")
         .distinctOn("ps.id")
@@ -33,9 +33,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
     /** @returns Marketplace sources (TCGPlayer / Cardmarket) linked to a printing. */
     sourcesForPrinting(
       printingId: string,
-    ): Promise<Pick<Selectable<MarketplaceSourcesTable>, "id" | "externalId" | "marketplace">[]> {
+    ): Promise<Pick<Selectable<MarketplaceProductsTable>, "id" | "externalId" | "marketplace">[]> {
       return db
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .select(["id", "externalId", "marketplace"])
         .where("printingId", "=", printingId)
         .execute();
@@ -43,7 +43,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
 
     /** @returns Snapshots for a single source, optionally filtered by a cutoff date, ordered chronologically. */
     snapshots(
-      sourceId: string,
+      productId: string,
       cutoff: Date | null,
     ): Promise<
       Pick<
@@ -72,7 +72,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
           "avg7Cents",
           "avg30Cents",
         ])
-        .where("sourceId", "=", sourceId)
+        .where("productId", "=", productId)
         .orderBy("recordedAt", "asc");
       if (cutoff) {
         query = query.where("recordedAt", ">=", cutoff);

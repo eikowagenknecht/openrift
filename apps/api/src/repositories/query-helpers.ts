@@ -4,19 +4,19 @@ import { sql } from "kysely";
 import type { Database } from "../db/index.js";
 
 /**
- * Resolve card_id dynamically: direct card name match → alias match → printing source match.
- * card_sources no longer stores card_id — matching is always derived from the
+ * Resolve card_id dynamically: direct card name match → alias match → candidate printing match.
+ * candidate_cards no longer stores card_id — matching is always derived from the
  * card name or a previously-created card_name_alias.
  * Uses indexed norm_name columns for fast equality lookups.
  *
- * @param alias — the card_sources table alias used in the query (e.g. "cs")
+ * @param alias — the candidate_cards table alias used in the query (e.g. "cs")
  * @returns A raw SQL expression resolving to the card UUID or NULL.
  */
 export const resolveCardId = (alias: string): RawBuilder<string | null> =>
   sql<string | null>`COALESCE(
     (SELECT c_res.id FROM cards c_res WHERE c_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
     (SELECT cna_res.card_id FROM card_name_aliases cna_res WHERE cna_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
-    (SELECT p_res.card_id FROM printing_sources ps_res JOIN printings p_res ON p_res.source_id = ps_res.source_id JOIN card_sources cs_res ON cs_res.id = ps_res.card_source_id WHERE cs_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1)
+    (SELECT p_res.card_id FROM candidate_printings ps_res JOIN printings p_res ON p_res.short_code = ps_res.short_code JOIN candidate_cards cs_res ON cs_res.id = ps_res.candidate_card_id WHERE cs_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1)
   )`;
 
 /**

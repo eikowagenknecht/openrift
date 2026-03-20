@@ -89,7 +89,7 @@ if (ctx) {
       slug: "IMG-001:common:normal:",
       cardId: card.id,
       setId: set.id,
-      sourceId: "IMG-001",
+      shortCode: "IMG-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -109,9 +109,9 @@ if (ctx) {
 
   // Seed card_sources + printing_sources with image URLs
   const [cs] = await db
-    .insertInto("cardSources")
+    .insertInto("candidateCards")
     .values({
-      source: "img-source",
+      provider: "img-source",
       name: "IMG Test Card",
       type: "Unit",
       superTypes: [],
@@ -123,19 +123,19 @@ if (ctx) {
       rulesText: null,
       effectText: null,
       tags: [],
-      sourceId: "IMG-001",
-      sourceEntityId: "IMG-001",
+      shortCode: "IMG-001",
+      externalId: "IMG-001",
       extraData: null,
     })
     .returning("id")
     .execute();
 
   await db
-    .insertInto("printingSources")
+    .insertInto("candidatePrintings")
     .values({
-      cardSourceId: cs.id,
+      candidateCardId: cs.id,
       printingId: printingId,
-      sourceId: "IMG-001",
+      shortCode: "IMG-001",
       setId: "IMG",
       setName: "IMG Test Set",
       collectorNumber: 1,
@@ -150,7 +150,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/img-test.png",
       flavorText: null,
-      sourceEntityId: "IMG-001",
+      externalId: "IMG-001",
     })
     .execute();
 }
@@ -257,20 +257,20 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
   describe("POST /admin/restore-image-urls", () => {
     it("restores image URLs from printing sources and returns count", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/restore-image-urls", { source: "img-source" }),
+        req("POST", "/admin/restore-image-urls", { provider: "img-source" }),
       );
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.source).toBe("img-source");
+      expect(json.provider).toBe("img-source");
       expect(json.updated).toBeNumber();
 
       // Verify a printing_images row was created
       const images = await db
         .selectFrom("printingImages")
-        .select(["printingId", "face", "source", "originalUrl", "isActive"])
+        .select(["printingId", "face", "provider", "originalUrl", "isActive"])
         .where("printingId", "=", printingId)
-        .where("source", "=", "img-source")
+        .where("provider", "=", "img-source")
         .execute();
       expect(images).toHaveLength(1);
       expect(images[0].face).toBe("front");
@@ -278,8 +278,8 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(images[0].isActive).toBe(true);
     });
 
-    it("returns 400 with empty source", async () => {
-      const res = await app.fetch(req("POST", "/admin/restore-image-urls", { source: "" }));
+    it("returns 400 with empty provider", async () => {
+      const res = await app.fetch(req("POST", "/admin/restore-image-urls", { provider: "" }));
       expect(res.status).toBe(400);
     });
   });

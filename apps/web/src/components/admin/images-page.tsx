@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSourceNames } from "@/hooks/use-card-sources";
+import { useProviderNames } from "@/hooks/use-candidates";
 import type { RegenerateAccumulator } from "@/hooks/use-rehost";
 import {
   useClearRehosted,
@@ -187,7 +187,7 @@ function RehostSection() {
 // ── RestoreUrlsSection ────────────────────────────────────────────────────────
 
 function RestoreUrlsSection() {
-  const { data: sourceNames } = useSourceNames();
+  const { data: sourceNames } = useProviderNames();
   const [selectedSource, setSelectedSource] = useState<string>("");
 
   const restoreMutation = useRestoreImageUrls();
@@ -237,7 +237,7 @@ function RestoreUrlsSection() {
             <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
               <CheckIcon className="size-4" />
               Restored {restoreMutation.data.updated} image URLs from &ldquo;
-              {restoreMutation.data.source}&rdquo;
+              {restoreMutation.data.provider}&rdquo;
             </p>
           )}
           {restoreMutation.isError && (

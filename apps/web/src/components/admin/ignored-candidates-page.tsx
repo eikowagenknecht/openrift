@@ -11,34 +11,34 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  useIgnoredSources,
-  useUnignoreCardSource,
-  useUnignorePrintingSource,
-} from "@/hooks/use-ignored-sources";
+  useIgnoredCandidates,
+  useUnignoreCandidateCard,
+  useUnignoreCandidatePrinting,
+} from "@/hooks/use-ignored-candidates";
 
-export function IgnoredSourcesPage() {
-  const { data } = useIgnoredSources();
-  const unignoreCard = useUnignoreCardSource();
-  const unignorePrinting = useUnignorePrintingSource();
+export function IgnoredCandidatesPage() {
+  const { data } = useIgnoredCandidates();
+  const unignoreCard = useUnignoreCandidateCard();
+  const unignorePrinting = useUnignoreCandidatePrinting();
   const { cards, printings } = data;
 
   return (
     <div className="space-y-8">
-      {/* Card sources */}
+      {/* Candidate cards */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Ignored Card Sources</h2>
+        <h2 className="text-sm font-semibold">Ignored Candidate Cards</h2>
         <p className="text-sm text-muted-foreground">
           {cards.length === 0
-            ? "No ignored card sources."
-            : `${cards.length} ignored card source${cards.length === 1 ? "" : "s"}`}
+            ? "No ignored candidate cards."
+            : `${cards.length} ignored candidate card${cards.length === 1 ? "" : "s"}`}
         </p>
         {cards.length > 0 && (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-36">Source</TableHead>
-                  <TableHead>Entity ID</TableHead>
+                  <TableHead className="w-36">Provider</TableHead>
+                  <TableHead>External ID</TableHead>
                   <TableHead className="w-36">Ignored At</TableHead>
                   <TableHead className="w-20" />
                 </TableRow>
@@ -47,9 +47,9 @@ export function IgnoredSourcesPage() {
                 {cards.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <Badge variant="outline">{r.source}</Badge>
+                      <Badge variant="outline">{r.provider}</Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{r.sourceEntityId}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.externalId}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {r.createdAt.slice(0, 16).replace("T", " ")}
                     </TableCell>
@@ -60,8 +60,8 @@ export function IgnoredSourcesPage() {
                         className="h-7 px-2 text-xs"
                         onClick={() =>
                           unignoreCard.mutate({
-                            source: r.source,
-                            sourceEntityId: r.sourceEntityId,
+                            provider: r.provider,
+                            externalId: r.externalId,
                           })
                         }
                         disabled={unignoreCard.isPending}
@@ -78,21 +78,21 @@ export function IgnoredSourcesPage() {
         )}
       </section>
 
-      {/* Printing sources */}
+      {/* Candidate printings */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Ignored Printing Sources</h2>
+        <h2 className="text-sm font-semibold">Ignored Candidate Printings</h2>
         <p className="text-sm text-muted-foreground">
           {printings.length === 0
-            ? "No ignored printing sources."
-            : `${printings.length} ignored printing source${printings.length === 1 ? "" : "s"}`}
+            ? "No ignored candidate printings."
+            : `${printings.length} ignored candidate printing${printings.length === 1 ? "" : "s"}`}
         </p>
         {printings.length > 0 && (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-36">Source</TableHead>
-                  <TableHead>Entity ID</TableHead>
+                  <TableHead className="w-36">Provider</TableHead>
+                  <TableHead>External ID</TableHead>
                   <TableHead className="w-24">Finish</TableHead>
                   <TableHead className="w-36">Ignored At</TableHead>
                   <TableHead className="w-20" />
@@ -102,9 +102,9 @@ export function IgnoredSourcesPage() {
                 {printings.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <Badge variant="outline">{r.source}</Badge>
+                      <Badge variant="outline">{r.provider}</Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{r.sourceEntityId}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.externalId}</TableCell>
                     <TableCell>
                       {r.finish ? (
                         <Badge variant="outline">{r.finish}</Badge>
@@ -122,8 +122,8 @@ export function IgnoredSourcesPage() {
                         className="h-7 px-2 text-xs"
                         onClick={() =>
                           unignorePrinting.mutate({
-                            source: r.source,
-                            sourceEntityId: r.sourceEntityId,
+                            provider: r.provider,
+                            externalId: r.externalId,
                             finish: r.finish ?? null,
                           })
                         }

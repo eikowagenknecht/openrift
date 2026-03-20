@@ -60,7 +60,8 @@ Scripts that produce candidate JSON conform to this schema, using OpenRift's own
 ```typescript
 interface CandidateCard {
   card: {
-    source_id: string;
+    external_id: string;
+    short_code: string;
     name: string;
     type: CardType;
     super_types: string[];
@@ -75,7 +76,8 @@ interface CandidateCard {
     effect_text: string;
   };
   printings: {
-    source_id: string;
+    external_id: string;
+    short_code: string;
     set_id: string;
     set_name?: string; // required if set doesn't exist yet
     collector_number: number;
@@ -106,10 +108,10 @@ Two staging tables mirror the structure of `cards` and `printings`, with additio
 CREATE TABLE candidate_cards (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   status          text NOT NULL DEFAULT 'pending',
-  source          text NOT NULL DEFAULT '',
+  provider        text NOT NULL DEFAULT '',
   match_card_id   text REFERENCES cards(id),
   -- card fields (same as cards table)
-  source_id       text NOT NULL,
+  short_code      text,
   name            text NOT NULL,
   type            text NOT NULL,
   super_types     text[] NOT NULL DEFAULT '{}',
@@ -137,7 +139,7 @@ CREATE TABLE candidate_printings (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   candidate_card_id    uuid NOT NULL REFERENCES candidate_cards(id) ON DELETE CASCADE,
   -- printing fields (same as printings table)
-  source_id            text NOT NULL,
+  short_code           text NOT NULL,
   set_id               text NOT NULL,
   set_name             text,
   collector_number     integer NOT NULL,
@@ -167,7 +169,7 @@ CREATE TABLE card_name_aliases (
 Relational staging tables (rather than JSONB) give us DB-level constraints on staged data, simple admin edits via UPDATE, and straightforward diffing against existing cards via SQL JOINs.
 
 - **`match_card_id`** is computed server-side on upload (see detection logic below). NULL means new card; non-NULL means update candidate.
-- **`source`** is a free-form label (e.g., a batch name or date).
+- **`provider`** is a free-form label (e.g., a batch name or date).
 - **`set_name`** on candidate printings is only needed when the `set_id` doesn't exist yet.
 
 ### New vs. Update Detection

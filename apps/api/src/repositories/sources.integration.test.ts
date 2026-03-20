@@ -1,20 +1,20 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
-import { sourcesRepo } from "./sources.js";
+import { acquisitionSourcesRepo } from "./acquisition-sources.js";
 
 const ctx = createDbContext("a0000000-0029-4000-a000-000000000001");
 
-describe.skipIf(!ctx)("sourcesRepo (integration)", () => {
+describe.skipIf(!ctx)("acquisitionSourcesRepo (integration)", () => {
   const { db, userId } = ctx!;
-  const repo = sourcesRepo(db);
+  const repo = acquisitionSourcesRepo(db);
 
   // Track IDs for cleanup
   const createdSourceIds: string[] = [];
 
   afterAll(async () => {
     for (const id of createdSourceIds.toReversed()) {
-      await db.deleteFrom("sources").where("id", "=", id).execute();
+      await db.deleteFrom("acquisitionSources").where("id", "=", id).execute();
     }
   });
 

@@ -7,7 +7,7 @@ import { imageUrl, selectCopyWithCard } from "./query-helpers.js";
 /** Denormalized copy row with printing, card, and image details. */
 type CopyRow = Pick<
   Selectable<CopiesTable>,
-  "id" | "printingId" | "collectionId" | "sourceId" | "createdAt" | "updatedAt"
+  "id" | "printingId" | "collectionId" | "acquisitionSourceId" | "createdAt" | "updatedAt"
 > &
   Pick<
     Selectable<PrintingsTable>,
@@ -29,7 +29,7 @@ const COPY_SELECT = [
   "cp.id",
   "cp.printingId",
   "cp.collectionId",
-  "cp.sourceId",
+  "cp.acquisitionSourceId",
   "cp.createdAt",
   "cp.updatedAt",
   "p.cardId",
@@ -118,14 +118,16 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The inserted copy rows with `id`, `printingId`, `collectionId`, and `sourceId`. */
+    /** @returns The inserted copy rows with `id`, `printingId`, `collectionId`, and `acquisitionSourceId`. */
     insertBatch(
       values: Insertable<CopiesTable>[],
-    ): Promise<Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "sourceId">[]> {
+    ): Promise<
+      Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "acquisitionSourceId">[]
+    > {
       return db
         .insertInto("copies")
         .values(values)
-        .returning(["id", "printingId", "collectionId", "sourceId"])
+        .returning(["id", "printingId", "collectionId", "acquisitionSourceId"])
         .execute();
     },
 
@@ -134,7 +136,10 @@ export function copiesRepo(db: Kysely<Database>) {
       copyIds: string[],
       userId: string,
     ): Promise<
-      (Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "sourceId"> & {
+      (Pick<
+        Selectable<CopiesTable>,
+        "id" | "printingId" | "collectionId" | "acquisitionSourceId"
+      > & {
         collectionName: string;
       })[]
     > {
@@ -145,7 +150,7 @@ export function copiesRepo(db: Kysely<Database>) {
           "cp.id",
           "cp.printingId",
           "cp.collectionId",
-          "cp.sourceId",
+          "cp.acquisitionSourceId",
           "col.name as collectionName",
         ])
         .where("cp.id", "in", copyIds)

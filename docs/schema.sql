@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict cmhWaQXt9WIx9KLzj5KRdVFmTTPAJiIGbWl9nW05QHqyhPOd73NcenM5hNcB8wh
+\restrict AGxjBm1Sbd3S4MftHGvi140yzpcEsGF0NauIhGcdc1RiWQkwRwa3CY6msO0wLLJ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -20,6 +20,59 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: public; Type: SCHEMA; Schema: -; Owner: -
+--
+
+-- *not* creating schema, since initdb creates it
+
+
+--
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON SCHEMA public IS '';
+
+
+--
+-- Name: candidate_cards_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.candidate_cards_set_norm_name() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      NEW.norm_name := lower(regexp_replace(NEW.name, '[^a-zA-Z0-9]', '', 'g'));
+      RETURN NEW;
+    END;
+    $$;
+
+
+--
+-- Name: candidate_printings_set_group_key(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.candidate_printings_set_group_key() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      NEW.group_key :=
+        COALESCE(NEW.set_id, '') || '|' ||
+        COALESCE(NEW.rarity, '') || '|' ||
+        CASE
+          WHEN NEW.finish IS NOT NULL THEN NEW.finish
+          WHEN NEW.rarity IS NULL THEN ''
+          WHEN NEW.rarity IN ('Common', 'Uncommon') THEN 'normal'
+          ELSE 'foil'
+        END || '|' ||
+        COALESCE(NEW.promo_type_id::text, '') || '|' ||
+        COALESCE(NEW.art_variant, 'normal') || '|' ||
+        COALESCE(NEW.is_signed::text, 'false');
+      RETURN NEW;
+    END;
+    $$;
+
+
+--
 -- Name: card_name_aliases_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -29,20 +82,6 @@ CREATE FUNCTION public.card_name_aliases_set_norm_name() RETURNS trigger
     BEGIN
       -- norm_name is set directly by the application; this trigger is a safety net
       -- in case someone inserts with a raw value that needs normalising.
-      RETURN NEW;
-    END;
-    $$;
-
-
---
--- Name: card_sources_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.card_sources_set_norm_name() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-    BEGIN
-      NEW.norm_name := lower(regexp_replace(NEW.name, '[^a-zA-Z0-9]', '', 'g'));
       RETURN NEW;
     END;
     $$;
@@ -86,25 +125,14 @@ CREATE FUNCTION public.prevent_nonempty_collection_delete() RETURNS trigger
 
 
 --
--- Name: printing_sources_set_group_key(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.printing_sources_set_group_key() RETURNS trigger
+CREATE FUNCTION public.set_updated_at() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
     BEGIN
-      NEW.group_key :=
-        COALESCE(NEW.set_id, '') || '|' ||
-        COALESCE(NEW.rarity, '') || '|' ||
-        CASE
-          WHEN NEW.finish IS NOT NULL THEN NEW.finish
-          WHEN NEW.rarity IS NULL THEN ''
-          WHEN NEW.rarity IN ('Common', 'Uncommon') THEN 'normal'
-          ELSE 'foil'
-        END || '|' ||
-        COALESCE(NEW.promo_type_id::text, '') || '|' ||
-        COALESCE(NEW.art_variant, 'normal') || '|' ||
-        COALESCE(NEW.is_signed::text, 'false');
+      NEW.updated_at := now();
       RETURN NEW;
     END;
     $$;
@@ -132,6 +160,20 @@ CREATE TABLE public.accounts (
     password text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: acquisition_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.acquisition_sources (
+    id uuid DEFAULT uuidv7() CONSTRAINT sources_id_not_null NOT NULL,
+    user_id text CONSTRAINT sources_user_id_not_null NOT NULL,
+    name text CONSTRAINT sources_name_not_null NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT sources_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT sources_updated_at_not_null NOT NULL
 );
 
 
@@ -189,52 +231,99 @@ CREATE TABLE public.admins (
 
 
 --
--- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
+-- Name: candidate_cards; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.card_name_aliases (
-    card_id uuid CONSTRAINT card_name_aliases_new_card_id_not_null NOT NULL,
-    norm_name text NOT NULL
-);
-
-
---
--- Name: card_sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.card_sources (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    source text NOT NULL,
-    source_id text,
-    source_entity_id text NOT NULL,
-    name text NOT NULL,
+CREATE TABLE public.candidate_cards (
+    id uuid DEFAULT uuidv7() CONSTRAINT card_sources_id_not_null NOT NULL,
+    provider text CONSTRAINT card_sources_source_not_null NOT NULL,
+    short_code text,
+    external_id text CONSTRAINT card_sources_source_entity_id_not_null NOT NULL,
+    name text CONSTRAINT card_sources_name_not_null NOT NULL,
     type text,
-    super_types text[] DEFAULT '{}'::text[] NOT NULL,
-    domains text[] NOT NULL,
+    super_types text[] DEFAULT '{}'::text[] CONSTRAINT card_sources_super_types_not_null NOT NULL,
+    domains text[] CONSTRAINT card_sources_domains_not_null NOT NULL,
     might integer,
     energy integer,
     power integer,
     might_bonus integer,
     rules_text text,
     effect_text text,
-    tags text[] DEFAULT '{}'::text[] NOT NULL,
+    tags text[] DEFAULT '{}'::text[] CONSTRAINT card_sources_tags_not_null NOT NULL,
     extra_data jsonb,
     checked_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    norm_name text NOT NULL,
-    CONSTRAINT chk_card_sources_energy_non_negative CHECK ((energy >= 0)),
-    CONSTRAINT chk_card_sources_might_bonus_non_negative CHECK ((might_bonus >= 0)),
-    CONSTRAINT chk_card_sources_might_non_negative CHECK ((might >= 0)),
-    CONSTRAINT chk_card_sources_name_not_empty CHECK ((name <> ''::text)),
-    CONSTRAINT chk_card_sources_no_empty_effect_text CHECK ((effect_text <> ''::text)),
-    CONSTRAINT chk_card_sources_no_empty_extra_data CHECK (((extra_data <> '{}'::jsonb) AND (extra_data <> 'null'::jsonb))),
-    CONSTRAINT chk_card_sources_no_empty_rules_text CHECK ((rules_text <> ''::text)),
-    CONSTRAINT chk_card_sources_no_empty_source_entity_id CHECK ((source_entity_id <> ''::text)),
-    CONSTRAINT chk_card_sources_no_empty_source_id CHECK ((source_id <> ''::text)),
-    CONSTRAINT chk_card_sources_no_empty_type CHECK ((type <> ''::text)),
-    CONSTRAINT chk_card_sources_power_non_negative CHECK ((power >= 0)),
-    CONSTRAINT chk_card_sources_source_not_empty CHECK ((source <> ''::text))
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT card_sources_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT card_sources_updated_at_not_null NOT NULL,
+    norm_name text CONSTRAINT card_sources_norm_name_not_null NOT NULL,
+    CONSTRAINT chk_candidate_cards_energy_non_negative CHECK ((energy >= 0)),
+    CONSTRAINT chk_candidate_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
+    CONSTRAINT chk_candidate_cards_might_non_negative CHECK ((might >= 0)),
+    CONSTRAINT chk_candidate_cards_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_candidate_cards_no_empty_effect_text CHECK ((effect_text <> ''::text)),
+    CONSTRAINT chk_candidate_cards_no_empty_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_candidate_cards_no_empty_extra_data CHECK (((extra_data <> '{}'::jsonb) AND (extra_data <> 'null'::jsonb))),
+    CONSTRAINT chk_candidate_cards_no_empty_rules_text CHECK ((rules_text <> ''::text)),
+    CONSTRAINT chk_candidate_cards_no_empty_short_code CHECK ((short_code <> ''::text)),
+    CONSTRAINT chk_candidate_cards_no_empty_type CHECK ((type <> ''::text)),
+    CONSTRAINT chk_candidate_cards_power_non_negative CHECK ((power >= 0)),
+    CONSTRAINT chk_candidate_cards_provider_not_empty CHECK ((provider <> ''::text))
+);
+
+
+--
+-- Name: candidate_printings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.candidate_printings (
+    id uuid DEFAULT uuidv7() CONSTRAINT printing_sources_id_not_null NOT NULL,
+    candidate_card_id uuid CONSTRAINT printing_sources_card_source_id_not_null NOT NULL,
+    short_code text CONSTRAINT printing_sources_source_id_not_null NOT NULL,
+    set_id text,
+    set_name text,
+    collector_number integer,
+    rarity text,
+    art_variant text,
+    is_signed boolean,
+    finish text,
+    artist text,
+    public_code text,
+    printed_rules_text text,
+    printed_effect_text text DEFAULT ''::text,
+    flavor_text text DEFAULT ''::text,
+    image_url text,
+    extra_data jsonb,
+    checked_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT printing_sources_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT printing_sources_updated_at_not_null NOT NULL,
+    printing_id uuid,
+    external_id text CONSTRAINT printing_sources_source_entity_id_not_null NOT NULL,
+    promo_type_id uuid,
+    group_key text DEFAULT ''::text CONSTRAINT printing_sources_group_key_not_null NOT NULL,
+    CONSTRAINT chk_candidate_printings_collector_number_positive CHECK ((collector_number > 0)),
+    CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_extra_data CHECK (((extra_data <> '{}'::jsonb) AND (extra_data <> 'null'::jsonb))),
+    CONSTRAINT chk_candidate_printings_no_empty_finish CHECK ((finish <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_image_url CHECK ((image_url <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_rarity CHECK ((rarity <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_set_id CHECK ((set_id <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_set_name CHECK ((set_name <> ''::text)),
+    CONSTRAINT chk_candidate_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
+    CONSTRAINT chk_candidate_printings_short_code_not_empty CHECK ((short_code <> ''::text))
+);
+
+
+--
+-- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_name_aliases (
+    card_id uuid CONSTRAINT card_name_aliases_new_card_id_not_null NOT NULL,
+    norm_name text NOT NULL
 );
 
 
@@ -302,7 +391,7 @@ CREATE TABLE public.copies (
     id uuid DEFAULT uuidv7() NOT NULL,
     user_id text NOT NULL,
     collection_id uuid NOT NULL,
-    source_id uuid,
+    acquisition_source_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT copies_new_printing_id_not_null NOT NULL
@@ -358,32 +447,32 @@ CREATE TABLE public.feature_flags (
 
 
 --
--- Name: ignored_card_sources; Type: TABLE; Schema: public; Owner: -
+-- Name: ignored_candidate_cards; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.ignored_card_sources (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    source text NOT NULL,
-    source_entity_id text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_ignored_card_sources_entity_id_not_empty CHECK ((source_entity_id <> ''::text)),
-    CONSTRAINT chk_ignored_card_sources_source_not_empty CHECK ((source <> ''::text))
+CREATE TABLE public.ignored_candidate_cards (
+    id uuid DEFAULT uuidv7() CONSTRAINT ignored_card_sources_id_not_null NOT NULL,
+    provider text CONSTRAINT ignored_card_sources_source_not_null NOT NULL,
+    external_id text CONSTRAINT ignored_card_sources_source_entity_id_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT ignored_card_sources_created_at_not_null NOT NULL,
+    CONSTRAINT chk_ignored_candidate_cards_external_id_not_empty CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_ignored_candidate_cards_provider_not_empty CHECK ((provider <> ''::text))
 );
 
 
 --
--- Name: ignored_printing_sources; Type: TABLE; Schema: public; Owner: -
+-- Name: ignored_candidate_printings; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.ignored_printing_sources (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    source text NOT NULL,
-    source_entity_id text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
+CREATE TABLE public.ignored_candidate_printings (
+    id uuid DEFAULT uuidv7() CONSTRAINT ignored_printing_sources_id_not_null NOT NULL,
+    provider text CONSTRAINT ignored_printing_sources_source_not_null NOT NULL,
+    external_id text CONSTRAINT ignored_printing_sources_source_entity_id_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT ignored_printing_sources_created_at_not_null NOT NULL,
     finish text,
-    CONSTRAINT chk_ignored_printing_sources_entity_id_not_empty CHECK ((source_entity_id <> ''::text)),
-    CONSTRAINT chk_ignored_printing_sources_no_empty_finish CHECK ((finish <> ''::text)),
-    CONSTRAINT chk_ignored_printing_sources_source_not_empty CHECK ((source <> ''::text))
+    CONSTRAINT chk_ignored_candidate_printings_external_id_not_empty CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_ignored_candidate_printings_no_empty_finish CHECK ((finish <> ''::text)),
+    CONSTRAINT chk_ignored_candidate_printings_provider_not_empty CHECK ((provider <> ''::text))
 );
 
 
@@ -437,6 +526,25 @@ CREATE TABLE public.marketplace_ignored_products (
 
 
 --
+-- Name: marketplace_products; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.marketplace_products (
+    marketplace text CONSTRAINT marketplace_sources_marketplace_not_null NOT NULL,
+    external_id integer CONSTRAINT marketplace_sources_external_id_not_null NOT NULL,
+    group_id integer CONSTRAINT marketplace_sources_group_id_not_null NOT NULL,
+    product_name text CONSTRAINT marketplace_sources_product_name_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_updated_at_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    printing_id uuid NOT NULL,
+    CONSTRAINT chk_marketplace_products_external_id_positive CHECK ((external_id > 0)),
+    CONSTRAINT chk_marketplace_products_marketplace_not_empty CHECK ((marketplace <> ''::text)),
+    CONSTRAINT chk_marketplace_products_product_name_not_empty CHECK ((product_name <> ''::text))
+);
+
+
+--
 -- Name: marketplace_snapshots; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -451,7 +559,7 @@ CREATE TABLE public.marketplace_snapshots (
     avg7_cents integer,
     avg30_cents integer,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_snapshots_new_id_not_null NOT NULL,
-    source_id uuid CONSTRAINT marketplace_snapshots_new_source_id_not_null NOT NULL,
+    product_id uuid NOT NULL,
     CONSTRAINT chk_marketplace_snapshots_avg1_cents_non_negative CHECK ((avg1_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_avg30_cents_non_negative CHECK ((avg30_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_avg7_cents_non_negative CHECK ((avg7_cents >= 0)),
@@ -460,25 +568,6 @@ CREATE TABLE public.marketplace_snapshots (
     CONSTRAINT chk_marketplace_snapshots_market_cents_non_negative CHECK ((market_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_mid_cents_non_negative CHECK ((mid_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_trend_cents_non_negative CHECK ((trend_cents >= 0))
-);
-
-
---
--- Name: marketplace_sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.marketplace_sources (
-    marketplace text NOT NULL,
-    external_id integer NOT NULL,
-    group_id integer NOT NULL,
-    product_name text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_sources_new_id_not_null NOT NULL,
-    printing_id uuid CONSTRAINT marketplace_sources_new_printing_id_not_null NOT NULL,
-    CONSTRAINT chk_marketplace_sources_external_id_positive CHECK ((external_id > 0)),
-    CONSTRAINT chk_marketplace_sources_marketplace_not_empty CHECK ((marketplace <> ''::text)),
-    CONSTRAINT chk_marketplace_sources_product_name_not_empty CHECK ((product_name <> ''::text))
 );
 
 
@@ -527,7 +616,7 @@ CREATE TABLE public.marketplace_staging_card_overrides (
 CREATE TABLE public.printing_images (
     id uuid DEFAULT uuidv7() NOT NULL,
     face text DEFAULT 'front'::text NOT NULL,
-    source text NOT NULL,
+    provider text CONSTRAINT printing_images_source_not_null NOT NULL,
     original_url text,
     rehosted_url text,
     is_active boolean DEFAULT false NOT NULL,
@@ -538,7 +627,7 @@ CREATE TABLE public.printing_images (
     CONSTRAINT chk_printing_images_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
     CONSTRAINT chk_printing_images_no_empty_original_url CHECK ((original_url <> ''::text)),
     CONSTRAINT chk_printing_images_no_empty_rehosted_url CHECK ((rehosted_url <> ''::text)),
-    CONSTRAINT chk_printing_images_source_not_empty CHECK ((source <> ''::text))
+    CONSTRAINT chk_printing_images_provider_not_empty CHECK ((provider <> ''::text))
 );
 
 
@@ -547,59 +636,12 @@ CREATE TABLE public.printing_images (
 --
 
 CREATE TABLE public.printing_link_overrides (
-    source_entity_id text NOT NULL,
+    external_id text CONSTRAINT printing_link_overrides_source_entity_id_not_null NOT NULL,
     finish text NOT NULL,
     printing_slug text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_plo_no_empty_printing_slug CHECK ((printing_slug <> ''::text)),
-    CONSTRAINT chk_plo_no_empty_source_entity_id CHECK ((source_entity_id <> ''::text))
-);
-
-
---
--- Name: printing_sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.printing_sources (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    card_source_id uuid NOT NULL,
-    source_id text NOT NULL,
-    set_id text,
-    set_name text,
-    collector_number integer,
-    rarity text,
-    art_variant text,
-    is_signed boolean,
-    finish text,
-    artist text,
-    public_code text,
-    printed_rules_text text,
-    printed_effect_text text DEFAULT ''::text,
-    flavor_text text DEFAULT ''::text,
-    image_url text,
-    extra_data jsonb,
-    checked_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    printing_id uuid,
-    source_entity_id text NOT NULL,
-    promo_type_id uuid,
-    group_key text DEFAULT ''::text NOT NULL,
-    CONSTRAINT chk_printing_sources_collector_number_positive CHECK ((collector_number > 0)),
-    CONSTRAINT chk_printing_sources_no_empty_art_variant CHECK ((art_variant <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_artist CHECK ((artist <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_extra_data CHECK (((extra_data <> '{}'::jsonb) AND (extra_data <> 'null'::jsonb))),
-    CONSTRAINT chk_printing_sources_no_empty_finish CHECK ((finish <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_image_url CHECK ((image_url <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_rarity CHECK ((rarity <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_set_id CHECK ((set_id <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_set_name CHECK ((set_name <> ''::text)),
-    CONSTRAINT chk_printing_sources_no_empty_source_entity_id CHECK ((source_entity_id <> ''::text)),
-    CONSTRAINT chk_printing_sources_public_code_not_empty CHECK ((public_code <> ''::text)),
-    CONSTRAINT chk_printing_sources_source_id_not_empty CHECK ((source_id <> ''::text))
+    CONSTRAINT chk_plo_no_empty_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_plo_no_empty_printing_slug CHECK ((printing_slug <> ''::text))
 );
 
 
@@ -608,7 +650,7 @@ CREATE TABLE public.printing_sources (
 --
 
 CREATE TABLE public.printings (
-    source_id text NOT NULL,
+    short_code text CONSTRAINT printings_source_id_not_null NOT NULL,
     collector_number integer NOT NULL,
     rarity text NOT NULL,
     art_variant text NOT NULL,
@@ -637,8 +679,8 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
     CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
     CONSTRAINT chk_printings_rarity CHECK ((rarity = ANY (ARRAY['Common'::text, 'Uncommon'::text, 'Rare'::text, 'Epic'::text, 'Showcase'::text]))),
-    CONSTRAINT chk_printings_slug_not_empty CHECK ((slug <> ''::text)),
-    CONSTRAINT chk_printings_source_id_not_empty CHECK ((source_id <> ''::text))
+    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text)),
+    CONSTRAINT chk_printings_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -655,6 +697,20 @@ CREATE TABLE public.promo_types (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT promo_types_label_check CHECK ((label <> ''::text)),
     CONSTRAINT promo_types_slug_check CHECK ((slug <> ''::text))
+);
+
+
+--
+-- Name: provider_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.provider_settings (
+    provider text CONSTRAINT source_settings_source_not_null NOT NULL,
+    sort_order integer DEFAULT 0 CONSTRAINT source_settings_sort_order_not_null NOT NULL,
+    is_hidden boolean DEFAULT false CONSTRAINT source_settings_is_hidden_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_updated_at_not_null NOT NULL,
+    CONSTRAINT provider_settings_provider_check CHECK ((provider <> ''::text))
 );
 
 
@@ -690,34 +746,6 @@ CREATE TABLE public.sets (
     CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
     CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
-);
-
-
---
--- Name: source_settings; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.source_settings (
-    source text NOT NULL,
-    sort_order integer DEFAULT 0 NOT NULL,
-    is_hidden boolean DEFAULT false NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT source_settings_source_check CHECK ((source <> ''::text))
-);
-
-
---
--- Name: sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.sources (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    user_id text NOT NULL,
-    name text NOT NULL,
-    description text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -845,19 +873,27 @@ ALTER TABLE ONLY public.admins
 
 
 --
+-- Name: candidate_cards candidate_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_cards
+    ADD CONSTRAINT candidate_cards_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: candidate_printings candidate_printings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_printings
+    ADD CONSTRAINT candidate_printings_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: card_name_aliases card_name_aliases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_name_aliases
     ADD CONSTRAINT card_name_aliases_pkey PRIMARY KEY (norm_name);
-
-
---
--- Name: card_sources card_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.card_sources
-    ADD CONSTRAINT card_sources_pkey PRIMARY KEY (id);
 
 
 --
@@ -933,19 +969,19 @@ ALTER TABLE ONLY public.feature_flags
 
 
 --
--- Name: ignored_card_sources ignored_card_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ignored_candidate_cards ignored_candidate_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.ignored_card_sources
-    ADD CONSTRAINT ignored_card_sources_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ignored_candidate_cards
+    ADD CONSTRAINT ignored_candidate_cards_pkey PRIMARY KEY (id);
 
 
 --
--- Name: ignored_printing_sources ignored_printing_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ignored_candidate_printings ignored_candidate_printings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.ignored_printing_sources
-    ADD CONSTRAINT ignored_printing_sources_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ignored_candidate_printings
+    ADD CONSTRAINT ignored_candidate_printings_pkey PRIMARY KEY (id);
 
 
 --
@@ -997,26 +1033,26 @@ ALTER TABLE ONLY public.marketplace_snapshots
 
 
 --
--- Name: marketplace_snapshots marketplace_snapshots_source_id_recorded_at_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_snapshots marketplace_snapshots_product_id_recorded_at_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.marketplace_snapshots
-    ADD CONSTRAINT marketplace_snapshots_source_id_recorded_at_key UNIQUE (source_id, recorded_at);
+    ADD CONSTRAINT marketplace_snapshots_product_id_recorded_at_key UNIQUE (product_id, recorded_at);
 
 
 --
--- Name: marketplace_sources marketplace_sources_marketplace_printing_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_products marketplace_sources_marketplace_printing_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.marketplace_sources
+ALTER TABLE ONLY public.marketplace_products
     ADD CONSTRAINT marketplace_sources_marketplace_printing_id_key UNIQUE (marketplace, printing_id);
 
 
 --
--- Name: marketplace_sources marketplace_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_products marketplace_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.marketplace_sources
+ALTER TABLE ONLY public.marketplace_products
     ADD CONSTRAINT marketplace_sources_pkey PRIMARY KEY (id);
 
 
@@ -1057,15 +1093,7 @@ ALTER TABLE ONLY public.printing_images
 --
 
 ALTER TABLE ONLY public.printing_link_overrides
-    ADD CONSTRAINT printing_link_overrides_pkey PRIMARY KEY (source_entity_id, finish);
-
-
---
--- Name: printing_sources printing_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.printing_sources
-    ADD CONSTRAINT printing_sources_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT printing_link_overrides_pkey PRIMARY KEY (external_id, finish);
 
 
 --
@@ -1101,6 +1129,14 @@ ALTER TABLE ONLY public.promo_types
 
 
 --
+-- Name: provider_settings provider_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.provider_settings
+    ADD CONSTRAINT provider_settings_pkey PRIMARY KEY (provider);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1125,18 +1161,10 @@ ALTER TABLE ONLY public.sets
 
 
 --
--- Name: source_settings source_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: acquisition_sources sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.source_settings
-    ADD CONSTRAINT source_settings_pkey PRIMARY KEY (source);
-
-
---
--- Name: sources sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sources
+ALTER TABLE ONLY public.acquisition_sources
     ADD CONSTRAINT sources_pkey PRIMARY KEY (id);
 
 
@@ -1201,14 +1229,14 @@ ALTER TABLE ONLY public.decks
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_variant UNIQUE (source_id, art_variant, is_signed, promo_type_id, rarity, finish);
+    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, promo_type_id, rarity, finish);
 
 
 --
--- Name: sources uq_sources_id_user; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: acquisition_sources uq_sources_id_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.sources
+ALTER TABLE ONLY public.acquisition_sources
     ADD CONSTRAINT uq_sources_id_user UNIQUE (id, user_id);
 
 
@@ -1292,6 +1320,13 @@ CREATE INDEX idx_accounts_user_id ON public.accounts USING btree (user_id);
 
 
 --
+-- Name: idx_acquisition_sources_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_acquisition_sources_user_id ON public.acquisition_sources USING btree (user_id);
+
+
+--
 -- Name: idx_activities_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1313,31 +1348,52 @@ CREATE INDEX idx_activity_items_copy ON public.activity_items USING btree (copy_
 
 
 --
--- Name: idx_card_sources_norm_name; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_candidate_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_card_sources_norm_name ON public.card_sources USING btree (norm_name);
-
-
---
--- Name: idx_card_sources_source_name_no_sid; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_card_sources_source_name_no_sid ON public.card_sources USING btree (source, name) WHERE (source_id IS NULL);
+CREATE INDEX idx_candidate_cards_norm_name ON public.candidate_cards USING btree (norm_name);
 
 
 --
--- Name: idx_card_sources_source_source_id; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_candidate_cards_provider_name_no_sid; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_card_sources_source_source_id ON public.card_sources USING btree (source, source_id) WHERE (source_id IS NOT NULL);
+CREATE UNIQUE INDEX idx_candidate_cards_provider_name_no_sid ON public.candidate_cards USING btree (provider, name) WHERE (short_code IS NULL);
 
 
 --
--- Name: idx_card_sources_unchecked; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_candidate_cards_provider_short_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_card_sources_unchecked ON public.card_sources USING btree (checked_at) WHERE (checked_at IS NULL);
+CREATE UNIQUE INDEX idx_candidate_cards_provider_short_code ON public.candidate_cards USING btree (provider, short_code) WHERE (short_code IS NOT NULL);
+
+
+--
+-- Name: idx_candidate_cards_unchecked; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_candidate_cards_unchecked ON public.candidate_cards USING btree (checked_at) WHERE (checked_at IS NULL);
+
+
+--
+-- Name: idx_candidate_printings_candidate_card; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_candidate_printings_candidate_card ON public.candidate_printings USING btree (candidate_card_id);
+
+
+--
+-- Name: idx_candidate_printings_candidate_card_printing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_candidate_printings_candidate_card_printing ON public.candidate_printings USING btree (candidate_card_id, printing_id) WHERE (printing_id IS NOT NULL);
+
+
+--
+-- Name: idx_candidate_printings_group_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_candidate_printings_group_key ON public.candidate_printings USING btree (candidate_card_id, group_key);
 
 
 --
@@ -1355,17 +1411,17 @@ CREATE INDEX idx_collections_user_id ON public.collections USING btree (user_id)
 
 
 --
+-- Name: idx_copies_acquisition_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_copies_acquisition_source ON public.copies USING btree (acquisition_source_id);
+
+
+--
 -- Name: idx_copies_collection; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_copies_collection ON public.copies USING btree (collection_id);
-
-
---
--- Name: idx_copies_source; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_copies_source ON public.copies USING btree (source_id);
 
 
 --
@@ -1390,31 +1446,31 @@ CREATE INDEX idx_decks_user_id ON public.decks USING btree (user_id);
 
 
 --
--- Name: idx_ignored_card_sources_source_entity; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ignored_candidate_cards_provider_external; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_ignored_card_sources_source_entity ON public.ignored_card_sources USING btree (source, source_entity_id);
-
-
---
--- Name: idx_ignored_printing_sources_source_entity_finish; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_ignored_printing_sources_source_entity_finish ON public.ignored_printing_sources USING btree (source, source_entity_id, COALESCE(finish, ''::text));
+CREATE UNIQUE INDEX idx_ignored_candidate_cards_provider_external ON public.ignored_candidate_cards USING btree (provider, external_id);
 
 
 --
--- Name: idx_marketplace_snapshots_source_id_recorded_at; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ignored_candidate_printings_provider_external_finish; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_marketplace_snapshots_source_id_recorded_at ON public.marketplace_snapshots USING btree (source_id, recorded_at);
+CREATE UNIQUE INDEX idx_ignored_candidate_printings_provider_external_finish ON public.ignored_candidate_printings USING btree (provider, external_id, COALESCE(finish, ''::text));
+
+
+--
+-- Name: idx_marketplace_snapshots_product_id_recorded_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_marketplace_snapshots_product_id_recorded_at ON public.marketplace_snapshots USING btree (product_id, recorded_at);
 
 
 --
 -- Name: idx_marketplace_sources_printing_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_marketplace_sources_printing_id ON public.marketplace_sources USING btree (printing_id);
+CREATE INDEX idx_marketplace_sources_printing_id ON public.marketplace_products USING btree (printing_id);
 
 
 --
@@ -1439,38 +1495,17 @@ CREATE INDEX idx_printing_images_printing_id ON public.printing_images USING btr
 
 
 --
--- Name: idx_printing_images_source; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_printing_images_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_printing_images_source ON public.printing_images USING btree (printing_id, face, source);
-
-
---
--- Name: idx_printing_sources_card_source; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_printing_sources_card_source ON public.printing_sources USING btree (card_source_id);
-
-
---
--- Name: idx_printing_sources_card_source_printing; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_printing_sources_card_source_printing ON public.printing_sources USING btree (card_source_id, printing_id) WHERE (printing_id IS NOT NULL);
-
-
---
--- Name: idx_printing_sources_group_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_printing_sources_group_key ON public.printing_sources USING btree (card_source_id, group_key);
+CREATE UNIQUE INDEX idx_printing_images_provider ON public.printing_images USING btree (printing_id, face, provider);
 
 
 --
 -- Name: idx_printing_sources_printing_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_printing_sources_printing_id ON public.printing_sources USING btree (printing_id);
+CREATE INDEX idx_printing_sources_printing_id ON public.candidate_printings USING btree (printing_id);
 
 
 --
@@ -1506,13 +1541,6 @@ CREATE UNIQUE INDEX idx_sessions_token ON public.sessions USING btree (token);
 --
 
 CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
-
-
---
--- Name: idx_sources_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sources_user_id ON public.sources USING btree (user_id);
 
 
 --
@@ -1579,10 +1607,17 @@ CREATE UNIQUE INDEX uq_wish_list_items_printing ON public.wish_list_items USING 
 
 
 --
--- Name: card_sources trg_card_sources_norm_name; Type: TRIGGER; Schema: public; Owner: -
+-- Name: candidate_cards trg_candidate_cards_norm_name; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_card_sources_norm_name BEFORE INSERT OR UPDATE OF name ON public.card_sources FOR EACH ROW EXECUTE FUNCTION public.card_sources_set_norm_name();
+CREATE TRIGGER trg_candidate_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.candidate_cards FOR EACH ROW EXECUTE FUNCTION public.candidate_cards_set_norm_name();
+
+
+--
+-- Name: candidate_printings trg_candidate_printings_group_key; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_candidate_printings_group_key BEFORE INSERT OR UPDATE OF set_id, art_variant, is_signed, promo_type_id, rarity, finish ON public.candidate_printings FOR EACH ROW EXECUTE FUNCTION public.candidate_printings_set_group_key();
 
 
 --
@@ -1600,10 +1635,199 @@ CREATE TRIGGER trg_prevent_nonempty_collection_delete BEFORE DELETE ON public.co
 
 
 --
--- Name: printing_sources trg_printing_sources_group_key; Type: TRIGGER; Schema: public; Owner: -
+-- Name: accounts trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_printing_sources_group_key BEFORE INSERT OR UPDATE OF set_id, art_variant, is_signed, promo_type_id, rarity, finish ON public.printing_sources FOR EACH ROW EXECUTE FUNCTION public.printing_sources_set_group_key();
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.accounts FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: acquisition_sources trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.acquisition_sources FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: activities trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.activities FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: admins trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.admins FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: candidate_cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_cards FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: candidate_printings trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_printings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.cards FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: collections trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.collections FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: copies trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.copies FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: deck_cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_cards FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: decks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.decks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: feature_flags trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.feature_flags FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: marketplace_groups trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_groups FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: marketplace_ignored_products trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_ignored_products FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: marketplace_products trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_products FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: marketplace_staging trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_staging FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: printing_images trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.printing_images FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: printings trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.printings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: promo_types trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.promo_types FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: provider_settings trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.provider_settings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: sessions trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: sets trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: trade_list_items trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.trade_list_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: trade_lists trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.trade_lists FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: users trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: verifications trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.verifications FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: wish_list_items trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.wish_list_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: wish_lists trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.wish_lists FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -1636,6 +1860,14 @@ ALTER TABLE ONLY public.activity_items
 
 ALTER TABLE ONLY public.admins
     ADD CONSTRAINT admins_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: candidate_printings candidate_printings_candidate_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_printings
+    ADD CONSTRAINT candidate_printings_candidate_card_id_fkey FOREIGN KEY (candidate_card_id) REFERENCES public.candidate_cards(id) ON DELETE CASCADE;
 
 
 --
@@ -1727,19 +1959,19 @@ ALTER TABLE ONLY public.activity_items
 
 
 --
+-- Name: copies fk_copies_acquisition_source_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.copies
+    ADD CONSTRAINT fk_copies_acquisition_source_user FOREIGN KEY (acquisition_source_id, user_id) REFERENCES public.acquisition_sources(id, user_id) ON DELETE SET NULL (acquisition_source_id);
+
+
+--
 -- Name: copies fk_copies_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.copies
     ADD CONSTRAINT fk_copies_collection_user FOREIGN KEY (collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE CASCADE;
-
-
---
--- Name: copies fk_copies_source_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.copies
-    ADD CONSTRAINT fk_copies_source_user FOREIGN KEY (source_id, user_id) REFERENCES public.sources(id, user_id) ON DELETE SET NULL (source_id);
 
 
 --
@@ -1767,26 +1999,26 @@ ALTER TABLE ONLY public.wish_list_items
 
 
 --
--- Name: marketplace_snapshots marketplace_snapshots_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_snapshots marketplace_snapshots_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.marketplace_snapshots
-    ADD CONSTRAINT marketplace_snapshots_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.marketplace_sources(id);
+    ADD CONSTRAINT marketplace_snapshots_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.marketplace_products(id);
 
 
 --
--- Name: marketplace_sources marketplace_sources_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_products marketplace_sources_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.marketplace_sources
+ALTER TABLE ONLY public.marketplace_products
     ADD CONSTRAINT marketplace_sources_group_fkey FOREIGN KEY (marketplace, group_id) REFERENCES public.marketplace_groups(marketplace, group_id);
 
 
 --
--- Name: marketplace_sources marketplace_sources_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_products marketplace_sources_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.marketplace_sources
+ALTER TABLE ONLY public.marketplace_products
     ADD CONSTRAINT marketplace_sources_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
 
 
@@ -1807,26 +2039,18 @@ ALTER TABLE ONLY public.printing_images
 
 
 --
--- Name: printing_sources printing_sources_card_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: candidate_printings printing_sources_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.printing_sources
-    ADD CONSTRAINT printing_sources_card_source_id_fkey FOREIGN KEY (card_source_id) REFERENCES public.card_sources(id) ON DELETE CASCADE;
-
-
---
--- Name: printing_sources printing_sources_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.printing_sources
+ALTER TABLE ONLY public.candidate_printings
     ADD CONSTRAINT printing_sources_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
 
 
 --
--- Name: printing_sources printing_sources_promo_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: candidate_printings printing_sources_promo_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.printing_sources
+ALTER TABLE ONLY public.candidate_printings
     ADD CONSTRAINT printing_sources_promo_type_id_fkey FOREIGN KEY (promo_type_id) REFERENCES public.promo_types(id);
 
 
@@ -1863,10 +2087,10 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- Name: sources sources_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: acquisition_sources sources_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.sources
+ALTER TABLE ONLY public.acquisition_sources
     ADD CONSTRAINT sources_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
@@ -1906,5 +2130,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict cmhWaQXt9WIx9KLzj5KRdVFmTTPAJiIGbWl9nW05QHqyhPOd73NcenM5hNcB8wh
+\unrestrict AGxjBm1Sbd3S4MftHGvi140yzpcEsGF0NauIhGcdc1RiWQkwRwa3CY6msO0wLLJ
 

@@ -86,7 +86,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           slug: printingSlug,
           cardId,
           setId,
-          sourceId: "UPS-001",
+          shortCode: "UPS-001",
           collectorNumber: 1,
           rarity: "Common",
           artVariant: "normal",
@@ -103,7 +103,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           slug: printingSlug2,
           cardId,
           setId,
-          sourceId: "UPS-001",
+          shortCode: "UPS-001",
           collectorNumber: 1,
           rarity: "Common",
           artVariant: "normal",
@@ -124,7 +124,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
     // Seed marketplace sources (created via admin mapping in production)
     await db
-      .insertInto("marketplaceSources")
+      .insertInto("marketplaceProducts")
       .values([
         {
           marketplace: "cardmarket",

@@ -14,8 +14,8 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
     /** @returns The latest snapshot rows for mapped printings in a given marketplace. */
     snapshotsByMarketplace(marketplace: string, printingIds: string[]) {
       return db
-        .selectFrom("marketplaceSources as ps")
-        .innerJoin("marketplaceSnapshots as snap", "snap.sourceId", "ps.id")
+        .selectFrom("marketplaceProducts as ps")
+        .innerJoin("marketplaceSnapshots as snap", "snap.productId", "ps.id")
         .select([
           "ps.printingId",
           "ps.productName",
@@ -38,7 +38,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
     /** Upsert a snapshot row from staging data. */
     async insertSnapshot(
       tx: Transaction<Database>,
-      sourceId: string,
+      productId: string,
       row: {
         recordedAt: Date;
         marketCents: number;
@@ -54,7 +54,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
       await tx
         .insertInto("marketplaceSnapshots")
         .values({
-          sourceId,
+          productId,
           recordedAt: row.recordedAt,
           marketCents: row.marketCents,
           lowCents: row.lowCents,
@@ -66,7 +66,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
           avg30Cents: row.avg30Cents,
         })
         .onConflict((oc) =>
-          oc.columns(["sourceId", "recordedAt"]).doUpdateSet({
+          oc.columns(["productId", "recordedAt"]).doUpdateSet({
             marketCents: sql<number>`excluded.market_cents`,
             lowCents: sql<number | null>`excluded.low_cents`,
             midCents: sql<number | null>`excluded.mid_cents`,
@@ -129,9 +129,9 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
           market_cents, low_cents, mid_cents, high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents)
         SELECT s.marketplace, s.external_id, s.group_id, s.product_name, p.finish, snap.recorded_at,
           snap.market_cents, snap.low_cents, snap.mid_cents, snap.high_cents, snap.trend_cents, snap.avg1_cents, snap.avg7_cents, snap.avg30_cents
-        FROM marketplace_sources s
+        FROM marketplace_products s
         JOIN printings p ON p.id = s.printing_id
-        JOIN marketplace_snapshots snap ON snap.source_id = s.id
+        JOIN marketplace_snapshots snap ON snap.product_id = s.id
         WHERE s.marketplace = ${marketplace}
           AND s.external_id IS NOT NULL
         ON CONFLICT (marketplace, external_id, finish, recorded_at) DO NOTHING

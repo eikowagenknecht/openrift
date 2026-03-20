@@ -57,7 +57,7 @@ const dbPrintingRow = {
   slug: "OGS-001:rare:normal:",
   cardId: "OGS-001",
   setId: "OGS",
-  sourceId: "OGS-001",
+  shortCode: "OGS-001",
   collectorNumber: 1,
   rarity: "Rare",
   artVariant: "normal",
@@ -193,7 +193,7 @@ describe("GET /api/catalog", () => {
     const printing = json.printings[0];
 
     expect(printing.id).toBe("OGS-001:rare:normal:");
-    expect(printing.sourceId).toBe("OGS-001");
+    expect(printing.shortCode).toBe("OGS-001");
     expect(printing.collectorNumber).toBe(1);
     expect(printing.publicCode).toBe("ABCD");
     expect(printing.artVariant).toBe("normal");
@@ -248,7 +248,7 @@ describe("GET /api/catalog", () => {
       id: "S2-001:rare:normal",
       slug: "S2-001:rare:normal",
       cardId: "S2-001",
-      sourceId: "S2-001",
+      shortCode: "S2-001",
       setId: "S2",
     };
     seedDefaults({

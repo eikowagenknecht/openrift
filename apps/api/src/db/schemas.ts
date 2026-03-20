@@ -2,9 +2,9 @@ import { z } from "zod";
 
 /* oxlint-disable no-unused-vars -- imported for JSDoc @link cross-references */
 import type {
-  CardSourcesTable,
+  CandidateCardsTable,
+  CandidatePrintingsTable,
   CardsTable,
-  PrintingSourcesTable,
   PrintingsTable,
   SetsTable,
 } from "./tables.js";
@@ -58,7 +58,7 @@ export const cardFieldRules = {
 /** Mirrors DB CHECK constraints on the `printings` table. @see {@link PrintingsTable} */
 export const printingFieldRules = {
   slug: z.string().min(1),
-  sourceId: z.string().min(1),
+  shortCode: z.string().min(1),
   collectorNumber: z.number().int().positive(),
   rarity: z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]),
   artVariant: z.enum(["normal", "altart", "overnumbered"]),
@@ -71,11 +71,11 @@ export const printingFieldRules = {
   comment: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
-// ── Card sources ──────────────────────────────────────────────────────────
+// ── Candidate cards ──────────────────────────────────────────────────────
 
-/** Mirrors DB CHECK constraints on the `card_sources` table. @see {@link CardSourcesTable} */
-export const cardSourceFieldRules = {
-  source: z.string().min(1),
+/** Mirrors DB CHECK constraints on the `candidate_cards` table. @see {@link CandidateCardsTable} */
+export const candidateCardFieldRules = {
+  provider: z.string().min(1),
   name: z.string().min(1),
   type: z.string().min(1).nullable(),
   might: z.number().min(0).nullable(),
@@ -84,14 +84,14 @@ export const cardSourceFieldRules = {
   mightBonus: z.number().min(0).nullable(),
   rulesText: z.string().min(1).nullable(),
   effectText: z.string().min(1).nullable(),
-  sourceId: z.string().min(1).nullable(),
-  sourceEntityId: z.string().min(1),
+  shortCode: z.string().min(1).nullable(),
+  externalId: z.string().min(1),
   extraData: noEmptyJsonb,
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB CHECK constraints on the `printing_sources` table. @see {@link PrintingSourcesTable} */
-export const printingSourceFieldRules = {
-  sourceId: z.string().min(1),
+/** Mirrors DB CHECK constraints on the `candidate_printings` table. @see {@link CandidatePrintingsTable} */
+export const candidatePrintingFieldRules = {
+  shortCode: z.string().min(1),
   setId: z.string().min(1).nullable(),
   setName: z.string().min(1).nullable(),
   collectorNumber: z.number().int().positive().nullable(),
@@ -104,6 +104,6 @@ export const printingSourceFieldRules = {
   printedEffectText: z.string().min(1).nullable(),
   imageUrl: z.string().min(1).nullable(),
   flavorText: z.string().min(1).nullable(),
-  sourceEntityId: z.string().min(1),
+  externalId: z.string().min(1),
   extraData: noEmptyJsonb,
 } satisfies Record<string, z.ZodType>;

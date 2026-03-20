@@ -3,13 +3,13 @@ import type { Kysely } from "kysely";
 import { z } from "zod";
 
 import type { Database } from "../db/index.js";
-import { cardSourceFieldRules, printingSourceFieldRules } from "../db/schemas.js";
+import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
 import { ingestRepo } from "../repositories/ingest.js";
 import type { IngestCard } from "../routes/admin/card-sources/schemas.js";
 
 interface UpdatedCardDetail {
   name: string;
-  sourceId: string | null;
+  shortCode: string | null;
   fields: { field: string; from: unknown; to: unknown }[];
 }
 
@@ -44,8 +44,8 @@ const CARD_FIELD_MAP: Record<string, string> = {
   rulesText: "rules_text",
   effectText: "effect_text",
   tags: "tags",
-  sourceId: "source_id",
-  sourceEntityId: "source_entity_id",
+  shortCode: "short_code",
+  externalId: "external_id",
   extraData: "extra_data",
 };
 
@@ -78,34 +78,34 @@ function normalize(value: unknown): unknown {
 }
 
 // Validation schemas built from DB field rules — validates values as they'll be written
-const cardSourceValidator = z.object({
-  name: cardSourceFieldRules.name,
-  type: cardSourceFieldRules.type,
-  might: cardSourceFieldRules.might,
-  energy: cardSourceFieldRules.energy,
-  power: cardSourceFieldRules.power,
-  might_bonus: cardSourceFieldRules.mightBonus,
-  rules_text: cardSourceFieldRules.rulesText,
-  effect_text: cardSourceFieldRules.effectText,
-  source_id: cardSourceFieldRules.sourceId,
-  source_entity_id: cardSourceFieldRules.sourceEntityId,
+const candidateCardValidator = z.object({
+  name: candidateCardFieldRules.name,
+  type: candidateCardFieldRules.type,
+  might: candidateCardFieldRules.might,
+  energy: candidateCardFieldRules.energy,
+  power: candidateCardFieldRules.power,
+  might_bonus: candidateCardFieldRules.mightBonus,
+  rules_text: candidateCardFieldRules.rulesText,
+  effect_text: candidateCardFieldRules.effectText,
+  short_code: candidateCardFieldRules.shortCode,
+  external_id: candidateCardFieldRules.externalId,
 });
 
-const printingSourceValidator = z.object({
-  source_id: printingSourceFieldRules.sourceId,
-  set_id: printingSourceFieldRules.setId,
-  set_name: printingSourceFieldRules.setName,
-  collector_number: printingSourceFieldRules.collectorNumber,
-  rarity: printingSourceFieldRules.rarity,
-  art_variant: printingSourceFieldRules.artVariant,
-  finish: printingSourceFieldRules.finish,
-  artist: printingSourceFieldRules.artist,
-  public_code: printingSourceFieldRules.publicCode,
-  printed_rules_text: printingSourceFieldRules.printedRulesText,
-  printed_effect_text: printingSourceFieldRules.printedEffectText,
-  image_url: printingSourceFieldRules.imageUrl,
-  flavor_text: printingSourceFieldRules.flavorText,
-  source_entity_id: printingSourceFieldRules.sourceEntityId,
+const candidatePrintingValidator = z.object({
+  short_code: candidatePrintingFieldRules.shortCode,
+  set_id: candidatePrintingFieldRules.setId,
+  set_name: candidatePrintingFieldRules.setName,
+  collector_number: candidatePrintingFieldRules.collectorNumber,
+  rarity: candidatePrintingFieldRules.rarity,
+  art_variant: candidatePrintingFieldRules.artVariant,
+  finish: candidatePrintingFieldRules.finish,
+  artist: candidatePrintingFieldRules.artist,
+  public_code: candidatePrintingFieldRules.publicCode,
+  printed_rules_text: candidatePrintingFieldRules.printedRulesText,
+  printed_effect_text: candidatePrintingFieldRules.printedEffectText,
+  image_url: candidatePrintingFieldRules.imageUrl,
+  flavor_text: candidatePrintingFieldRules.flavorText,
+  external_id: candidatePrintingFieldRules.externalId,
 });
 
 function getChangedFields(
@@ -130,10 +130,10 @@ function getChangedFields(
 }
 
 /**
- * Ingest card data from a named source into card_sources / printing_sources.
+ * Ingest card data from a named provider into candidate_cards / candidate_printings.
  *
  * Card matching is done dynamically via card name / card_name_aliases — there
- * is no stored card_id on card_sources.
+ * is no stored card_id on candidate_cards.
  *
  * The entire import runs in a single transaction so that a failure in any card
  * rolls back the whole batch (all-or-nothing).
@@ -143,13 +143,13 @@ function getChangedFields(
  *
  * @returns Counts of new, updated, unchanged cards and any errors.
  */
-export async function ingestCardSources(
+export async function ingestCandidates(
   db: Kysely<Database>,
-  source: string,
+  provider: string,
   cards: IngestCard[],
 ): Promise<IngestResult> {
-  if (!source.trim()) {
-    throw new Error("source name must not be empty");
+  if (!provider.trim()) {
+    throw new Error("provider name must not be empty");
   }
 
   let newCards = 0;
@@ -163,17 +163,17 @@ export async function ingestCardSources(
 
     // ── Phase 1: Bulk-fetch all existing data ──────────────────────────────
 
-    // 1a. All existing card_sources for this source (keyed by source_id or name)
-    const existingCSRows = await repo.allCardSourcesForSource(source);
+    // 1a. All existing candidate_cards for this provider (keyed by short_code or name)
+    const existingCCRows = await repo.allCandidateCardsForProvider(provider);
 
-    // Index by (sourceId) and by (name where sourceId is null)
-    const csBySid = new Map<string, (typeof existingCSRows)[number]>();
-    const csByName = new Map<string, (typeof existingCSRows)[number]>();
-    for (const row of existingCSRows) {
-      if (row.sourceId) {
-        csBySid.set(row.sourceId, row);
+    // Index by (shortCode) and by (name where shortCode is null)
+    const ccByShortCode = new Map<string, (typeof existingCCRows)[number]>();
+    const ccByName = new Map<string, (typeof existingCCRows)[number]>();
+    for (const row of existingCCRows) {
+      if (row.shortCode) {
+        ccByShortCode.set(row.shortCode, row);
       } else {
-        csByName.set(row.name, row);
+        ccByName.set(row.name, row);
       }
     }
 
@@ -198,38 +198,38 @@ export async function ingestCardSources(
       printingBySlug.set(p.slug, p.id);
     }
 
-    // 1e. All existing printing_sources for card_sources owned by this source.
-    // We need the card_source_ids first, so collect from the existing rows.
-    const existingCSIds = new Set(existingCSRows.map((r) => r.id));
-    let existingPSRows: Awaited<ReturnType<typeof repo.printingSourcesByCardSourceIds>> = [];
-    if (existingCSIds.size > 0) {
-      existingPSRows = await repo.printingSourcesByCardSourceIds([...existingCSIds]);
+    // 1e. All existing candidate_printings for candidate_cards owned by this provider.
+    // We need the candidate_card_ids first, so collect from the existing rows.
+    const existingCCIds = new Set(existingCCRows.map((r) => r.id));
+    let existingCPRows: Awaited<ReturnType<typeof repo.candidatePrintingsByCandidateCardIds>> = [];
+    if (existingCCIds.size > 0) {
+      existingCPRows = await repo.candidatePrintingsByCandidateCardIds([...existingCCIds]);
     }
 
-    // Index printing_sources two ways:
-    // - by (cardSourceId, printingId) for rows with a printingId
-    // - by (cardSourceId, sourceId, finish) for rows without
-    const psByPrintingId = new Map<string, (typeof existingPSRows)[number]>();
-    const psBySourceFinish = new Map<string, (typeof existingPSRows)[number]>();
-    for (const ps of existingPSRows) {
-      if (ps.printingId) {
-        psByPrintingId.set(`${ps.cardSourceId}:${ps.printingId}`, ps);
+    // Index candidate_printings two ways:
+    // - by (candidateCardId, printingId) for rows with a printingId
+    // - by (candidateCardId, shortCode, finish) for rows without
+    const cpByPrintingId = new Map<string, (typeof existingCPRows)[number]>();
+    const cpByShortCodeFinish = new Map<string, (typeof existingCPRows)[number]>();
+    for (const cp of existingCPRows) {
+      if (cp.printingId) {
+        cpByPrintingId.set(`${cp.candidateCardId}:${cp.printingId}`, cp);
       }
-      psBySourceFinish.set(`${ps.cardSourceId}:${ps.sourceId}:${ps.finish}`, ps);
+      cpByShortCodeFinish.set(`${cp.candidateCardId}:${cp.shortCode}:${cp.finish}`, cp);
     }
 
-    // 1f. Ignored sources — load once and build lookup sets
-    const ignoredCardRows = await repo.ignoredCardSources(source);
-    const ignoredCards = new Set(ignoredCardRows.map((r) => r.sourceEntityId));
+    // 1f. Ignored candidates — load once and build lookup sets
+    const ignoredCardRows = await repo.ignoredCandidateCards(provider);
+    const ignoredCards = new Set(ignoredCardRows.map((r) => r.externalId));
 
-    const ignoredPrintingRows = await repo.ignoredPrintingSources(source);
+    const ignoredPrintingRows = await repo.ignoredCandidatePrintings(provider);
     // Key: "entityId" for all-finish ignores, "entityId:finish" for specific finish
     const ignoredPrintings = new Set<string>();
     for (const r of ignoredPrintingRows) {
       if (r.finish === null) {
-        ignoredPrintings.add(r.sourceEntityId);
+        ignoredPrintings.add(r.externalId);
       } else {
-        ignoredPrintings.add(`${r.sourceEntityId}:${r.finish}`);
+        ignoredPrintings.add(`${r.externalId}:${r.finish}`);
       }
     }
 
@@ -238,7 +238,7 @@ export async function ingestCardSources(
     // Key: "entityId:finish" → printing slug
     const linkOverrides = new Map<string, string>();
     for (const r of overrideRows) {
-      linkOverrides.set(`${r.sourceEntityId}:${r.finish}`, r.printingSlug);
+      linkOverrides.set(`${r.externalId}:${r.finish}`, r.printingSlug);
     }
 
     // 1h. Default promo type ID (for is_promo=true in upload data)
@@ -253,7 +253,7 @@ export async function ingestCardSources(
 
     for (const card of cards) {
       // Validate card data against DB CHECK constraints (using normalized values)
-      const cardValidation = cardSourceValidator.safeParse({
+      const cardValidation = candidateCardValidator.safeParse({
         name: card.name,
         type: card.type,
         might: card.might,
@@ -262,8 +262,8 @@ export async function ingestCardSources(
         might_bonus: card.might_bonus,
         rules_text: emptyToNull(card.rules_text),
         effect_text: emptyToNull(card.effect_text),
-        source_id: card.source_id ?? null,
-        source_entity_id: card.source_entity_id,
+        short_code: card.short_code ?? null,
+        external_id: card.external_id,
       });
       if (!cardValidation.success) {
         errors.push(
@@ -272,21 +272,21 @@ export async function ingestCardSources(
         continue;
       }
 
-      // Skip ignored card sources
-      if (ignoredCards.has(card.source_entity_id)) {
+      // Skip ignored candidate cards
+      if (ignoredCards.has(card.external_id)) {
         continue;
       }
 
-      // Look up existing card_source from pre-fetched data
-      const existingCardSource = card.source_id
-        ? csBySid.get(card.source_id)
-        : csByName.get(card.name);
+      // Look up existing candidate_card from pre-fetched data
+      const existingCandidateCard = card.short_code
+        ? ccByShortCode.get(card.short_code)
+        : ccByName.get(card.name);
 
-      let cardSourceId: string;
+      let candidateCardId: string;
 
-      if (existingCardSource) {
+      if (existingCandidateCard) {
         const changedFields = getChangedFields(
-          existingCardSource as unknown as Record<string, unknown>,
+          existingCandidateCard as unknown as Record<string, unknown>,
           card as unknown as Record<string, unknown>,
           CARD_FIELDS,
           CARD_FIELD_MAP,
@@ -295,7 +295,7 @@ export async function ingestCardSources(
         if (changedFields.length > 0) {
           updatedCards.push({
             name: card.name,
-            sourceId: card.source_id ?? null,
+            shortCode: card.short_code ?? null,
             fields: changedFields,
           });
           const cardUpdate: Record<string, unknown> = {
@@ -310,24 +310,24 @@ export async function ingestCardSources(
             rulesText: emptyToNull(card.rules_text),
             effectText: emptyToNull(card.effect_text),
             tags: card.tags,
-            sourceEntityId: card.source_entity_id,
+            externalId: card.external_id,
             checkedAt: null,
           };
-          if (card.source_id !== undefined) {
-            cardUpdate.sourceId = card.source_id ?? null;
+          if (card.short_code !== undefined) {
+            cardUpdate.shortCode = card.short_code ?? null;
           }
           if (card.extra_data !== undefined) {
             cardUpdate.extraData = jsonOrNull(card.extra_data);
           }
-          await repo.updateCardSource(existingCardSource.id, cardUpdate);
+          await repo.updateCandidateCard(existingCandidateCard.id, cardUpdate);
           updates++;
         } else {
           unchanged++;
         }
-        cardSourceId = existingCardSource.id;
+        candidateCardId = existingCandidateCard.id;
       } else {
         const cardInsert: Record<string, unknown> = {
-          source,
+          provider,
           name: card.name,
           type: card.type,
           superTypes: card.super_types,
@@ -339,15 +339,15 @@ export async function ingestCardSources(
           rulesText: emptyToNull(card.rules_text),
           effectText: emptyToNull(card.effect_text),
           tags: card.tags,
-          sourceEntityId: card.source_entity_id,
+          externalId: card.external_id,
         };
-        if (card.source_id !== undefined) {
-          cardInsert.sourceId = card.source_id ?? null;
+        if (card.short_code !== undefined) {
+          cardInsert.shortCode = card.short_code ?? null;
         }
         if (card.extra_data !== undefined) {
           cardInsert.extraData = jsonOrNull(card.extra_data);
         }
-        cardSourceId = await repo.insertCardSource(cardInsert);
+        candidateCardId = await repo.insertCandidateCard(cardInsert);
         newCards++;
       }
 
@@ -357,8 +357,8 @@ export async function ingestCardSources(
 
       for (const p of card.printings) {
         // Validate printing data against DB CHECK constraints (using normalized values)
-        const printingValidation = printingSourceValidator.safeParse({
-          source_id: p.source_id,
+        const printingValidation = candidatePrintingValidator.safeParse({
+          short_code: p.short_code,
           set_id: p.set_id,
           set_name: p.set_name ?? null,
           collector_number: p.collector_number,
@@ -371,43 +371,43 @@ export async function ingestCardSources(
           printed_effect_text: emptyToNull(p.printed_effect_text),
           image_url: p.image_url ?? null,
           flavor_text: p.flavor_text ?? null,
-          source_entity_id: p.source_entity_id,
+          external_id: p.external_id,
         });
         if (!printingValidation.success) {
           errors.push(
-            `Printing "${p.source_id}" for card "${card.name}": ${printingValidation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+            `Printing "${p.short_code}" for card "${card.name}": ${printingValidation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
           );
           continue;
         }
 
-        // Skip ignored printing sources (check all-finish ignore, then specific finish)
+        // Skip ignored candidate printings (check all-finish ignore, then specific finish)
         if (
-          ignoredPrintings.has(p.source_entity_id) ||
-          ignoredPrintings.has(`${p.source_entity_id}:${p.finish}`)
+          ignoredPrintings.has(p.external_id) ||
+          ignoredPrintings.has(`${p.external_id}:${p.finish}`)
         ) {
           continue;
         }
 
         const printingSlug =
           effectiveCardId && p.rarity && p.finish
-            ? buildPrintingId(p.source_id, p.rarity, p.is_promo ? "promo" : null, p.finish)
+            ? buildPrintingId(p.short_code, p.rarity, p.is_promo ? "promo" : null, p.finish)
             : null;
 
         // Check for a manual link override (survives delete + re-upload)
-        const overrideSlug = linkOverrides.get(`${p.source_entity_id}:${p.finish ?? ""}`);
+        const overrideSlug = linkOverrides.get(`${p.external_id}:${p.finish ?? ""}`);
         const resolvedPrintingId = overrideSlug
           ? (printingBySlug.get(overrideSlug) ?? null)
           : printingSlug
             ? (printingBySlug.get(printingSlug) ?? null)
             : null;
 
-        // Look up existing printing_source from pre-fetched maps
-        const existingPS = resolvedPrintingId
-          ? psByPrintingId.get(`${cardSourceId}:${resolvedPrintingId}`)
-          : psBySourceFinish.get(`${cardSourceId}:${p.source_id}:${p.finish}`);
+        // Look up existing candidate_printing from pre-fetched maps
+        const existingCP = resolvedPrintingId
+          ? cpByPrintingId.get(`${candidateCardId}:${resolvedPrintingId}`)
+          : cpByShortCodeFinish.get(`${candidateCardId}:${p.short_code}:${p.finish}`);
 
         const printingFields = {
-          sourceId: p.source_id,
+          shortCode: p.short_code,
           setId: p.set_id,
           setName: p.set_name ?? null,
           collectorNumber: p.collector_number,
@@ -422,34 +422,34 @@ export async function ingestCardSources(
           printedEffectText: emptyToNull(p.printed_effect_text),
           imageUrl: p.image_url ?? null,
           flavorText: p.flavor_text ?? null,
-          sourceEntityId: p.source_entity_id,
+          externalId: p.external_id,
           extraData: jsonOrNull(p.extra_data),
         };
 
-        if (existingPS) {
+        if (existingCP) {
           const pChangedFields = getChangedFields(
-            existingPS as unknown as Record<string, unknown>,
+            existingCP as unknown as Record<string, unknown>,
             printingFields as unknown as Record<string, unknown>,
             Object.keys(printingFields),
           );
 
           if (pChangedFields.length > 0) {
-            const psUpdate: Record<string, unknown> = {
+            const cpUpdate: Record<string, unknown> = {
               ...printingFields,
               checkedAt: null,
             };
-            if (!existingPS.printingId && resolvedPrintingId) {
-              psUpdate.printingId = resolvedPrintingId;
+            if (!existingCP.printingId && resolvedPrintingId) {
+              cpUpdate.printingId = resolvedPrintingId;
             }
-            await repo.updatePrintingSource(existingPS.id, psUpdate);
-          } else if (resolvedPrintingId && !existingPS.printingId) {
-            await repo.updatePrintingSource(existingPS.id, {
+            await repo.updateCandidatePrinting(existingCP.id, cpUpdate);
+          } else if (resolvedPrintingId && !existingCP.printingId) {
+            await repo.updateCandidatePrinting(existingCP.id, {
               printingId: resolvedPrintingId,
             });
           }
         } else {
-          await repo.insertPrintingSource({
-            cardSourceId,
+          await repo.insertCandidatePrinting({
+            candidateCardId,
             printingId: resolvedPrintingId,
             ...printingFields,
           });

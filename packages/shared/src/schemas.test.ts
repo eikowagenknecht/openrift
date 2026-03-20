@@ -5,7 +5,7 @@ import {
   addCopiesSchema,
   createCollectionSchema,
   createDeckSchema,
-  createSourceSchema,
+  createAcquisitionSourceSchema,
   createTradeListItemSchema,
   createTradeListSchema,
   createWishListItemSchema,
@@ -20,7 +20,7 @@ import {
   updateCollectionSchema,
   updateDeckCardsSchema,
   updateDeckSchema,
-  updateSourceSchema,
+  updateAcquisitionSourceSchema,
   updateTradeListSchema,
   updateWishListItemSchema,
   updateWishListSchema,
@@ -83,25 +83,25 @@ describe("updateCollectionSchema", () => {
   });
 });
 
-describe("createSourceSchema", () => {
+describe("createAcquisitionSourceSchema", () => {
   it("accepts valid source", () => {
-    expect(createSourceSchema.safeParse({ name: "LGS" }).success).toBe(true);
+    expect(createAcquisitionSourceSchema.safeParse({ name: "LGS" }).success).toBe(true);
   });
 
   it("accepts description", () => {
-    expect(createSourceSchema.safeParse({ name: "LGS", description: "Local store" }).success).toBe(
-      true,
-    );
+    expect(
+      createAcquisitionSourceSchema.safeParse({ name: "LGS", description: "Local store" }).success,
+    ).toBe(true);
   });
 
   it("rejects empty name", () => {
-    expect(createSourceSchema.safeParse({ name: "" }).success).toBe(false);
+    expect(createAcquisitionSourceSchema.safeParse({ name: "" }).success).toBe(false);
   });
 });
 
-describe("updateSourceSchema", () => {
+describe("updateAcquisitionSourceSchema", () => {
   it("accepts partial update", () => {
-    expect(updateSourceSchema.safeParse({ description: "Updated" }).success).toBe(true);
+    expect(updateAcquisitionSourceSchema.safeParse({ description: "Updated" }).success).toBe(true);
   });
 });
 
@@ -113,13 +113,13 @@ describe("addCopiesSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts copies with optional collectionId and sourceId", () => {
+  it("accepts copies with optional collectionId and acquisitionSourceId", () => {
     const result = addCopiesSchema.safeParse({
       copies: [
         {
           printingId: "550e8400-e29b-41d4-a716-446655440000",
           collectionId: "550e8400-e29b-41d4-a716-446655440001",
-          sourceId: "550e8400-e29b-41d4-a716-446655440002",
+          acquisitionSourceId: "550e8400-e29b-41d4-a716-446655440002",
         },
       ],
     });

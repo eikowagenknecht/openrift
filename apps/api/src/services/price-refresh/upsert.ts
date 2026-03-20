@@ -79,7 +79,7 @@ function countRows(
 // ── Main upsert ────────────────────────────────────────────────────────────
 
 interface SnapshotInsertRow extends PriceColumns {
-  sourceId: string;
+  productId: string;
   recordedAt: Date;
 }
 
@@ -103,17 +103,17 @@ export async function upsertPriceData(
 
   // ── Source lookup (single query for both snapshot building & ID mapping) ─
 
-  const dbSources = await repo.sourcesWithFinish(marketplace);
+  const dbProducts = await repo.sourcesWithFinish(marketplace);
 
-  const sourceIdLookup = new Map<string, string>();
-  for (const row of dbSources) {
-    sourceIdLookup.set(row.printingId, row.id);
+  const productIdLookup = new Map<string, string>();
+  for (const row of dbProducts) {
+    productIdLookup.set(row.printingId, row.id);
   }
 
   // ── Build snapshots from staging + source mappings ─────────────────────
 
   const printingByExtIdFinish = groupIntoMap(
-    dbSources,
+    dbProducts,
     (src) => `${src.externalId}::${src.finish}`,
   );
 
@@ -125,13 +125,13 @@ export async function upsertPriceData(
       continue;
     }
     for (const src of sources) {
-      const sourceId = sourceIdLookup.get(src.printingId);
-      if (sourceId === undefined) {
+      const productId = productIdLookup.get(src.printingId);
+      if (productId === undefined) {
         continue;
       }
-      const snapKey = `${sourceId}|${staging.recordedAt.toISOString()}`;
+      const snapKey = `${productId}|${staging.recordedAt.toISOString()}`;
       uniqueSnapshots.set(snapKey, {
-        sourceId: sourceId,
+        productId: productId,
         recordedAt: staging.recordedAt,
         ...pickPrices(staging),
       });
@@ -139,7 +139,7 @@ export async function upsertPriceData(
   }
 
   if (uniqueSnapshots.size > 0) {
-    log.info(`${uniqueSnapshots.size} snapshots for ${dbSources.length} mapped sources`);
+    log.info(`${uniqueSnapshots.size} snapshots for ${dbProducts.length} mapped products`);
   }
 
   const snapshotRows = [...uniqueSnapshots.values()];

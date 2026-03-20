@@ -38,7 +38,7 @@ export function formatPrintingLabel(printing: Printing, siblings?: Printing[]): 
 }
 
 export function formatCardId(printing: Printing): string {
-  return printing.sourceId;
+  return printing.shortCode;
 }
 
 /**
@@ -46,8 +46,8 @@ export function formatCardId(printing: Printing): string {
  * @returns The numeric suffix prefixed with `#`.
  */
 export function formatCardIdCompact(printing: Printing): string {
-  const dashIndex = printing.sourceId.lastIndexOf("-");
-  return `#${dashIndex === -1 ? printing.sourceId : printing.sourceId.slice(dashIndex + 1)}`;
+  const dashIndex = printing.shortCode.lastIndexOf("-");
+  return `#${dashIndex === -1 ? printing.shortCode : printing.shortCode.slice(dashIndex + 1)}`;
 }
 
 export function formatPublicCode(printing: Printing): string {

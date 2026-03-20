@@ -23,7 +23,7 @@ export function useUnignoreProduct() {
       rpc(
         client.api.admin["ignored-products"].$delete({
           json: {
-            source: product.marketplace,
+            marketplace: product.marketplace,
             products: [{ externalId: product.externalId, finish: product.finish }],
           },
         }),

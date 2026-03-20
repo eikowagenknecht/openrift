@@ -1,4 +1,4 @@
-export interface SourceResponse {
+export interface AcquisitionSourceResponse {
   id: string;
   name: string;
   description: string | null;

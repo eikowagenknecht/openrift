@@ -14,10 +14,10 @@ const log = createLogger("admin");
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
-const clearPriceSourceSchema = z.enum(["tcgplayer", "cardmarket"]);
+const clearPriceMarketplaceSchema = z.enum(["tcgplayer", "cardmarket"]);
 
 const clearPricesSchema = z.object({
-  source: clearPriceSourceSchema,
+  marketplace: clearPriceMarketplaceSchema,
 });
 
 // ── Route ───────────────────────────────────────────────────────────────────
@@ -28,10 +28,13 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
 
   .post("/clear-prices", zValidator("json", clearPricesSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { source } = c.req.valid("json");
+    const { marketplace } = c.req.valid("json");
 
-    const deleted = await mktAdmin.clearPriceData(source);
-    return c.json({ source, deleted } satisfies ClearPricesResponse);
+    const { snapshots, sources, staging } = await mktAdmin.clearPriceData(marketplace);
+    return c.json({
+      marketplace,
+      deleted: { snapshots, products: sources, staging },
+    } satisfies ClearPricesResponse);
   })
 
   // ── Manual refresh endpoints ────────────────────────────────────────────────

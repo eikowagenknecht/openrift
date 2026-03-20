@@ -10,14 +10,14 @@ import { ensureInbox } from "./inbox.js";
 interface AddCopyInput {
   printingId: string;
   collectionId?: string;
-  sourceId?: string;
+  acquisitionSourceId?: string;
 }
 
 interface AddCopyResult {
   id: string;
   printingId: string;
   collectionId: string;
-  sourceId: string | null;
+  acquisitionSourceId: string | null;
 }
 
 /**
@@ -49,7 +49,7 @@ export async function addCopies(
       userId: userId,
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
-      sourceId: item.sourceId ?? null,
+      acquisitionSourceId: item.acquisitionSourceId ?? null,
     }));
 
     const copyRows = await copies_.insertBatch(copyValues);
@@ -79,7 +79,7 @@ export async function addCopies(
     id: r.id,
     printingId: r.printingId,
     collectionId: r.collectionId,
-    sourceId: r.sourceId ?? null,
+    acquisitionSourceId: r.acquisitionSourceId ?? null,
   }));
 }
 
@@ -167,7 +167,7 @@ export async function disposeCopies(
         fromCollectionName: copy.collectionName,
         metadataSnapshot: {
           copyId: copy.id,
-          sourceId: copy.sourceId,
+          acquisitionSourceId: copy.acquisitionSourceId,
         },
       })),
     });

@@ -22,36 +22,36 @@ import {
   uploadImageFormSchema,
 } from "./schemas.js";
 
-// ── POST /printing-sources/:id/set-image ────────────────────────────────────
+// ── POST /candidate-printings/:id/set-image ────────────────────────────────────
 export const imagesRoute = new Hono<{ Variables: Variables }>()
-  .post("/printing-sources/:id/set-image", zValidator("json", setImageSchema), async (c) => {
+  .post("/candidate-printings/:id/set-image", zValidator("json", setImageSchema), async (c) => {
     const db = c.get("db");
     const { printingImages } = c.get("repos");
     const { id } = c.req.param();
     const { mode } = c.req.valid("json");
 
-    const ps = await printingImages.getPrintingSourceById(id);
+    const ps = await printingImages.getCandidatePrintingById(id);
 
     if (!ps) {
-      throw new AppError(404, "NOT_FOUND", "Printing source not found");
+      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
     }
 
     if (!ps.printingId) {
-      throw new AppError(400, "BAD_REQUEST", "Printing source not linked to a printing");
+      throw new AppError(400, "BAD_REQUEST", "Candidate printing not linked to a printing");
     }
 
     if (!ps.imageUrl) {
-      throw new AppError(400, "BAD_REQUEST", "Printing source has no image URL");
+      throw new AppError(400, "BAD_REQUEST", "Candidate printing has no image URL");
     }
 
-    const cs = await printingImages.getCardSourceSource(ps.cardSourceId);
+    const cs = await printingImages.getCandidateCardProvider(ps.candidateCardId);
 
     await db.transaction().execute(async (trx) => {
       await printingImages.insertImage(
         trx,
         ps.printingId as string,
         ps.imageUrl,
-        cs?.source ?? "import",
+        cs?.provider ?? "import",
         mode,
       );
     });
@@ -202,10 +202,10 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     }
 
     const mode = body.mode ?? "main";
-    const source = body.source?.trim() || "manual";
+    const provider = body.provider?.trim() || "manual";
 
     await db.transaction().execute(async (trx) => {
-      await printingImages.insertImage(trx, printing.id, body.url.trim(), source, mode);
+      await printingImages.insertImage(trx, printing.id, body.url.trim(), provider, mode);
     });
 
     return c.body(null, 204);
@@ -229,7 +229,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const body = c.req.valid("form");
       const file = body.file;
       const mode = body.mode === "additional" ? ("additional" as const) : ("main" as const);
-      const source = body.source?.trim() || "upload";
+      const provider = body.provider?.trim() || "upload";
 
       const buffer = Buffer.from(await file.arrayBuffer());
       const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
@@ -248,7 +248,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
         await printingImages.insertUploadedImage(trx, {
           id: imageId,
           printingId: printing.id,
-          source,
+          provider,
           rehostedUrl,
           mode,
         });

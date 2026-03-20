@@ -16,12 +16,12 @@ import { AppError } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
 import { adminRoute } from "./routes/admin/index.js";
+import { acquisitionSourcesRoute } from "./routes/authenticated/acquisition-sources.js";
 import { activitiesRoute } from "./routes/authenticated/activities.js";
 import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
 import { shoppingListRoute } from "./routes/authenticated/shopping-list.js";
-import { sourcesRoute } from "./routes/authenticated/sources.js";
 import { tradeListsRoute } from "./routes/authenticated/trade-lists.js";
 import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
 import { catalogRoute } from "./routes/public/catalog.js";
@@ -163,7 +163,7 @@ export function createApp(deps: AppDeps) {
 
     // ── Authenticated routes (require a valid session) ────────────────────
     .route("/api", collectionsRoute)
-    .route("/api", sourcesRoute)
+    .route("/api", acquisitionSourcesRoute)
     .route("/api", copiesRoute)
     .route("/api", activitiesRoute)
     .route("/api", decksRoute)

@@ -4,9 +4,9 @@ import { requireEnv } from "./env.js";
 const { db } = createDb(requireEnv("DATABASE_URL"));
 
 const row = await db
-  .selectFrom("cardSources")
+  .selectFrom("candidateCards")
   .selectAll()
-  .where("source", "=", "riftbinder")
+  .where("provider", "=", "riftbinder")
   .where("name", "=", "Jinx Rebel")
   .executeTakeFirst();
 
@@ -28,8 +28,8 @@ const FIELDS = [
   "rulesText",
   "effectText",
   "tags",
-  "sourceId",
-  "sourceEntityId",
+  "shortCode",
+  "externalId",
   "extraData",
 ] as const;
 

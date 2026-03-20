@@ -2,35 +2,35 @@ import { z } from "zod";
 
 import {
   cardFieldRules,
-  cardSourceFieldRules,
+  candidateCardFieldRules,
   printingFieldRules,
-  printingSourceFieldRules,
+  candidatePrintingFieldRules,
   setFieldRules,
 } from "../../../db/schemas.js";
 
 export { cardFieldRules, printingFieldRules } from "../../../db/schemas.js";
 
-export const checkAllPrintingSourcesSchema = z.object({
+export const checkAllCandidatePrintingsSchema = z.object({
   printingId: z.string().optional(),
   extraIds: z.array(z.string()).optional(),
 });
 
-export const patchPrintingSourceSchema = z.object({
-  artVariant: printingSourceFieldRules.artVariant.optional(),
+export const patchCandidatePrintingSchema = z.object({
+  artVariant: candidatePrintingFieldRules.artVariant.optional(),
   isSigned: z.boolean().optional(),
-  finish: printingSourceFieldRules.finish.optional(),
-  collectorNumber: printingSourceFieldRules.collectorNumber.optional(),
-  setId: printingSourceFieldRules.setId.optional(),
-  sourceId: printingSourceFieldRules.sourceId.optional(),
-  rarity: printingSourceFieldRules.rarity.optional(),
+  finish: candidatePrintingFieldRules.finish.optional(),
+  collectorNumber: candidatePrintingFieldRules.collectorNumber.optional(),
+  setId: candidatePrintingFieldRules.setId.optional(),
+  shortCode: candidatePrintingFieldRules.shortCode.optional(),
+  rarity: candidatePrintingFieldRules.rarity.optional(),
 });
 
-export const copyPrintingSourceSchema = z.object({
+export const copyCandidatePrintingSchema = z.object({
   printingId: z.string(),
 });
 
-export const linkPrintingSourcesSchema = z.object({
-  printingSourceIds: z.array(z.string()),
+export const linkCandidatePrintingsSchema = z.object({
+  candidatePrintingIds: z.array(z.string()),
   printingId: z.string().nullable(),
 });
 
@@ -67,7 +67,7 @@ export const linkUnmatchedSchema = z.object({
 export const acceptPrintingSchema = z.object({
   printingFields: z.object({
     id: z.string().optional(),
-    sourceId: printingFieldRules.sourceId,
+    shortCode: printingFieldRules.shortCode,
     setId: setFieldRules.slug.optional(),
     setName: setFieldRules.name.optional().nullable(),
     collectorNumber: printingFieldRules.collectorNumber,
@@ -81,9 +81,9 @@ export const acceptPrintingSchema = z.object({
     printedRulesText: printingFieldRules.printedRulesText.optional(),
     printedEffectText: printingFieldRules.printedEffectText.optional(),
     flavorText: printingFieldRules.flavorText.optional(),
-    imageUrl: printingSourceFieldRules.imageUrl.optional(),
+    imageUrl: candidatePrintingFieldRules.imageUrl.optional(),
   }),
-  printingSourceIds: z.array(z.string()),
+  candidatePrintingIds: z.array(z.string()),
 });
 
 export const setImageSchema = z.object({
@@ -96,13 +96,13 @@ export const activateImageSchema = z.object({
 
 export const addImageUrlSchema = z.object({
   url: z.string(),
-  source: z.string().optional(),
+  provider: z.string().optional(),
   mode: z.enum(["main", "additional"]).optional(),
 });
 
 export const uploadImageFormSchema = z.object({
   file: z.instanceof(File),
-  source: z.string().optional(),
+  provider: z.string().optional(),
   mode: z.enum(["main", "additional"]).optional(),
 });
 
@@ -119,7 +119,7 @@ const nullStr = z.string().nullable().optional().default(null);
 const nullNum = z.number().nullable().optional().default(null);
 
 const ingestPrintingSchema = z.object({
-  source_id: z.string(),
+  short_code: z.string(),
   set_id: nullStr,
   set_name: nullStr,
   collector_number: nullNum,
@@ -134,25 +134,25 @@ const ingestPrintingSchema = z.object({
   printed_effect_text: nullStr,
   image_url: nullStr,
   flavor_text: nullStr,
-  source_entity_id: z.string(),
+  external_id: z.string(),
   extra_data: z.unknown().nullable().optional().default(null),
 });
 
 const ingestCardFieldsSchema = z.object({
-  name: cardSourceFieldRules.name,
-  type: cardSourceFieldRules.type.optional().default(null),
+  name: candidateCardFieldRules.name,
+  type: candidateCardFieldRules.type.optional().default(null),
   super_types: z.array(z.string()).optional().default([]),
   domains: z.array(z.string()).optional().default([]),
-  might: cardSourceFieldRules.might.optional().default(null),
-  energy: cardSourceFieldRules.energy.optional().default(null),
-  power: cardSourceFieldRules.power.optional().default(null),
-  might_bonus: cardSourceFieldRules.mightBonus.optional().default(null),
-  rules_text: cardSourceFieldRules.rulesText.optional().default(null),
-  effect_text: cardSourceFieldRules.effectText.optional().default(null),
+  might: candidateCardFieldRules.might.optional().default(null),
+  energy: candidateCardFieldRules.energy.optional().default(null),
+  power: candidateCardFieldRules.power.optional().default(null),
+  might_bonus: candidateCardFieldRules.mightBonus.optional().default(null),
+  rules_text: candidateCardFieldRules.rulesText.optional().default(null),
+  effect_text: candidateCardFieldRules.effectText.optional().default(null),
   tags: z.array(z.string()).optional().default([]),
-  source_id: cardSourceFieldRules.sourceId.optional().default(null),
-  source_entity_id: cardSourceFieldRules.sourceEntityId,
-  extra_data: cardSourceFieldRules.extraData.optional().default(null),
+  short_code: candidateCardFieldRules.shortCode.optional().default(null),
+  external_id: candidateCardFieldRules.externalId,
+  extra_data: candidateCardFieldRules.extraData.optional().default(null),
 });
 
 export type IngestPrinting = z.infer<typeof ingestPrintingSchema>;
@@ -160,8 +160,8 @@ export type IngestCard = z.infer<typeof ingestCardFieldsSchema> & {
   printings: IngestPrinting[];
 };
 
-export const uploadCardSourcesSchema = z.object({
-  source: z.string().min(1),
+export const uploadCandidatesSchema = z.object({
+  provider: z.string().min(1),
   candidates: z
     .array(
       z

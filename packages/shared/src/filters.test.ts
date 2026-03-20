@@ -16,7 +16,7 @@ function makePrinting(
   return {
     id: "00000000-0000-0000-0000-000000000001",
     slug: "SET1-001:common:normal:",
-    sourceId: "SET1-001",
+    shortCode: "SET1-001",
     setId: "00000000-0000-0000-0000-0000000000a1",
     setSlug: "Set Alpha",
     collectorNumber: 1,
@@ -190,7 +190,7 @@ describe("filterCards", () => {
   const printings = [
     makePrinting({
       id: "SET1-001:rare:normal:",
-      sourceId: "SET1-001",
+      shortCode: "SET1-001",
       setSlug: "Set Alpha",
       rarity: "Rare",
       artVariant: "normal",
@@ -215,7 +215,7 @@ describe("filterCards", () => {
     }),
     makePrinting({
       id: "SET1-002:common:foil:",
-      sourceId: "SET1-002",
+      shortCode: "SET1-002",
       setSlug: "Set Alpha",
       rarity: "Common",
       artVariant: "normal",
@@ -240,7 +240,7 @@ describe("filterCards", () => {
     }),
     makePrinting({
       id: "SET2-001:epic:normal:",
-      sourceId: "SET2-001a",
+      shortCode: "SET2-001a",
       setSlug: "Set Beta",
       rarity: "Epic",
       artVariant: "altart",
@@ -317,7 +317,7 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Fire Dragon");
   });
 
-  it("search by id prefix matches sourceId", () => {
+  it("search by id prefix matches shortCode", () => {
     const result = filterCards(printings, emptyFilters({ search: "id:SET2" }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Mind Weaver");
@@ -1141,7 +1141,7 @@ describe("sortCards", () => {
   const printings = [
     makePrinting({
       id: "SET1-003:epic:normal:",
-      sourceId: "SET1-003",
+      shortCode: "SET1-003",
       rarity: "Epic",
       card: {
         id: "SET1-003",
@@ -1161,7 +1161,7 @@ describe("sortCards", () => {
     }),
     makePrinting({
       id: "SET1-001:rare:normal:",
-      sourceId: "SET1-001",
+      shortCode: "SET1-001",
       rarity: "Common",
       card: {
         id: "SET1-001",
@@ -1181,7 +1181,7 @@ describe("sortCards", () => {
     }),
     makePrinting({
       id: "SET1-002:common:foil:",
-      sourceId: "SET1-002",
+      shortCode: "SET1-002",
       rarity: "Rare",
       card: {
         id: "SET1-002",
@@ -1212,9 +1212,9 @@ describe("sortCards", () => {
     expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 
-  it("sorts by id (sourceId string comparison)", () => {
+  it("sorts by id (shortCode string comparison)", () => {
     const result = sortCards(printings, "id");
-    expect(result.map((p) => p.sourceId)).toEqual(["SET1-001", "SET1-002", "SET1-003"]);
+    expect(result.map((p) => p.shortCode)).toEqual(["SET1-001", "SET1-002", "SET1-003"]);
   });
 
   it("sorts by energy, breaking ties by name", () => {

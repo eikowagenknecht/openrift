@@ -63,7 +63,7 @@ Physical product variations of a game card (art, rarity, finish, etc.). One card
 | `id`                  | text        | primary key (composite, see below)                       |
 | `card_id`             | text        | not null, FK → cards.id                                  |
 | `set_id`              | text        | not null, FK → sets.id                                   |
-| `source_id`           | text        | not null                                                 |
+| `short_code`          | text        | not null                                                 |
 | `collector_number`    | integer     | not null                                                 |
 | `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase, Promo) |
 | `art_variant`         | text        | not null                                                 |
@@ -77,9 +77,9 @@ Physical product variations of a game card (art, rarity, finish, etc.). One card
 | `created_at`          | timestamptz | not null, default now()                                  |
 | `updated_at`          | timestamptz | not null, default now()                                  |
 
-**Composite ID format:** `{source_id}:{rarity}:{finish}:{promo|}` — e.g. `OGN-027:common:foil:`. This makes IDs deterministic and reproducible across refresh runs.
+**Composite ID format:** `{short_code}:{rarity}:{finish}:{promo|}` — e.g. `OGN-027:common:foil:`. This makes IDs deterministic and reproducible across refresh runs.
 
-Indexes: `card_id`, `set_id`, `rarity`. Unique constraint on `(source_id, art_variant, is_signed, is_promo, rarity, finish)`.
+Indexes: `card_id`, `set_id`, `rarity`. Unique constraint on `(short_code, art_variant, is_signed, is_promo, rarity, finish)`.
 
 All FKs use `NO ACTION` on delete — deleting a card or set is blocked while printings reference it. This is intentional: printings are the primary unit of ownership (collections, wishlists) so they must never be silently removed.
 
@@ -218,10 +218,10 @@ Email verification tokens. Rows are deleted by better-auth after use, and expire
 
 Card data is ingested via JSON upload through the admin API (`POST /api/admin/card-sources/upload`). External scripts produce JSON files conforming to `candidateUploadSchema`, which are uploaded through the admin UI or API directly. See `docs/adr/008-supplemental-card-import.md` for design rationale.
 
-- JSON payload contains a `source` label and an array of `candidates`, each with card metadata and printings
-- Validated against `candidateUploadSchema` / `candidateCardSchema` (defined in `packages/shared/src/schemas.ts`)
-- Ingested by `ingestCardSources()` which matches by `(source, source_id)` or `(source, name)`, inserting new records or updating changed ones
-- New card sources are staged with `card_id = null` until linked in the admin UI
+- JSON payload contains a `provider` label and an array of `candidates`, each with card metadata and printings
+- Validated against `uploadCandidatesSchema` (defined in `apps/api/src/routes/admin/card-sources/schemas.ts`)
+- Ingested by `ingestCandidates()` which matches by `(provider, short_code)` or `(provider, name)`, inserting new records or updating changed ones
+- New candidate cards are staged with `card_id = null` until linked in the admin UI
 - All operations are transactional per-card
 
 ## Price Refresh

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { ignoredSourcesQueryOptions } from "@/hooks/use-ignored-sources";
+import { ignoredCandidatesQueryOptions } from "@/hooks/use-ignored-candidates";
 
 function AdminPending() {
   return (
@@ -17,7 +17,7 @@ function AdminError({ error }: { error: Error }) {
 }
 
 export const Route = createFileRoute("/_authenticated/admin/ignored-sources")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(ignoredSourcesQueryOptions),
+  loader: ({ context }) => context.queryClient.ensureQueryData(ignoredCandidatesQueryOptions),
   pendingComponent: AdminPending,
   errorComponent: AdminError,
 });

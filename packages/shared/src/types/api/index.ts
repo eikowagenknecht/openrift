@@ -23,7 +23,7 @@ export type {
   DeckResponse,
 } from "./deck.js";
 
-export type { SourceResponse } from "./source.js";
+export type { AcquisitionSourceResponse } from "./source.js";
 
 export type {
   TradeListDetailResponse,
@@ -55,9 +55,11 @@ export type {
   AdminPrintingImageResponse,
   AdminSetResponse,
   AssignableCardResponse,
-  CardSourceResponse,
-  CardSourceSummaryResponse,
-  CardSourceUploadResponse,
+  CandidateCardResponse,
+  CandidateCardSummaryResponse,
+  CandidateCardUploadResponse,
+  CandidatePrintingGroupResponse,
+  CandidatePrintingResponse,
   ClearPricesResponse,
   ClearRehostedResponse,
   FeatureFlagResponse,
@@ -66,17 +68,15 @@ export type {
   MarketplaceGroupResponse,
   PriceRefreshResponse,
   PriceRefreshUpsertCounts,
-  PrintingSourceGroupResponse,
-  PrintingSourceResponse,
   PromoTypeResponse,
+  ProviderSettingResponse,
+  ProviderStatsResponse,
   RegenerateImageResponse,
   RehostImageResponse,
   RehostStatusDiskStats,
   RehostStatusResponse,
   RehostStatusSetStats,
   RestoreImageUrlsResponse,
-  SourceSettingResponse,
-  SourceStatsResponse,
   StagedProductResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,

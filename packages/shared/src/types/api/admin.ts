@@ -1,8 +1,8 @@
 import type { CardFace } from "../enums.js";
 
-export interface CardSourceResponse {
+export interface CandidateCardResponse {
   id: string;
-  source: string;
+  provider: string;
   name: string;
   type: string | null;
   superTypes: string[];
@@ -15,17 +15,17 @@ export interface CardSourceResponse {
   rulesText: string | null;
   effectText: string | null;
   tags: string[];
-  sourceId: string | null;
-  sourceEntityId: string;
+  shortCode: string | null;
+  externalId: string;
   extraData: unknown | null;
   checkedAt: string | null;
 }
 
-export interface PrintingSourceResponse {
+export interface CandidatePrintingResponse {
   id: string;
-  cardSourceId: string;
+  candidateCardId: string;
   printingId: string | null;
-  sourceId: string;
+  shortCode: string;
   setId: string | null;
   setName: string | null;
   collectorNumber: number | null;
@@ -40,15 +40,15 @@ export interface PrintingSourceResponse {
   printedEffectText: string | null;
   imageUrl: string | null;
   flavorText: string | null;
-  sourceEntityId: string;
+  externalId: string;
   extraData: unknown | null;
   groupKey: string;
   checkedAt: string | null;
 }
 
-export interface PrintingSourceGroupResponse {
-  mostCommonSourceId: string;
-  sourceIds: string[];
+export interface CandidatePrintingGroupResponse {
+  mostCommonShortCode: string;
+  shortCodes: string[];
   expectedPrintingId: string;
 }
 
@@ -56,18 +56,18 @@ export interface AdminPrintingImageResponse {
   id: string;
   printingId: string;
   face: CardFace;
-  source: string;
+  provider: string;
   originalUrl: string | null;
   rehostedUrl: string | null;
   isActive: boolean;
 }
 
-export interface CardSourceSummaryResponse {
+export interface CandidateCardSummaryResponse {
   cardSlug: string | null;
   name: string;
   normalizedName: string;
-  sourceIds: string[];
-  stagingSourceIds: string[];
+  shortCodes: string[];
+  stagingShortCodes: string[];
   sourceCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
@@ -75,25 +75,25 @@ export interface CardSourceSummaryResponse {
   suggestedCardSlug: string | null;
 }
 
-export interface SourceStatsResponse {
-  source: string;
+export interface ProviderStatsResponse {
+  provider: string;
   cardCount: number;
   printingCount: number;
   lastUpdated: string;
 }
 
-interface CardSourceUploadUpdatedCard {
+interface CandidateCardUploadUpdatedCard {
   name: string;
-  sourceId: string | null;
+  shortCode: string | null;
   fields: { field: string; from: unknown; to: unknown }[];
 }
 
-export interface CardSourceUploadResponse {
+export interface CandidateCardUploadResponse {
   newCards: number;
   updates: number;
   unchanged: number;
   errors: string[];
-  updatedCards: CardSourceUploadUpdatedCard[];
+  updatedCards: CandidateCardUploadUpdatedCard[];
 }
 
 // ── Admin list response types ───────────────────────────────────────────────
@@ -135,8 +135,8 @@ export interface PromoTypeResponse {
   updatedAt: string;
 }
 
-export interface SourceSettingResponse {
-  source: string;
+export interface ProviderSettingResponse {
+  provider: string;
   sortOrder: number;
   isHidden: boolean;
 }
@@ -173,7 +173,7 @@ export interface ClearRehostedResponse {
 }
 
 export interface RestoreImageUrlsResponse {
-  source: string;
+  provider: string;
   updated: number;
 }
 
@@ -220,15 +220,15 @@ export interface PriceRefreshResponse {
 }
 
 export interface ClearPricesResponse {
-  source: string;
-  deleted: { snapshots: number; sources: number; staging: number };
+  marketplace: string;
+  deleted: { snapshots: number; products: number; staging: number };
 }
 
 // ── Unified marketplace mappings response types ─────────────────────────────
 
 export interface MappingPrintingResponse {
   printingId: string;
-  sourceId: string;
+  shortCode: string;
   rarity: string;
   artVariant: string;
   isSigned: boolean;
@@ -278,7 +278,7 @@ export interface UnifiedMappingGroupResponse {
   setId: string;
   setName: string;
   printings: UnifiedMappingPrintingResponse[];
-  primarySourceId: string;
+  primaryShortCode: string;
   tcgplayer: {
     stagedProducts: StagedProductResponse[];
     assignedProducts: StagedProductResponse[];
@@ -296,7 +296,7 @@ export interface AssignableCardResponse {
   setName: string;
   printings: {
     printingId: string;
-    sourceId: string;
+    shortCode: string;
     finish: string;
     collectorNumber: number;
     isSigned: boolean;

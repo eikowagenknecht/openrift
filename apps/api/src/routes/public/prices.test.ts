@@ -61,7 +61,7 @@ const dbMarketplaceSourceCM = {
 
 const dbSnapshot = {
   id: "snap-1",
-  sourceId: "ms-tcg-1",
+  productId: "ms-tcg-1",
   recordedAt: new Date("2026-03-01"),
   marketCents: 275,
   lowCents: 200,

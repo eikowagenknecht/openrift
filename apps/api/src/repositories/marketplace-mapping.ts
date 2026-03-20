@@ -48,7 +48,7 @@ export function marketplaceMappingRepo(db: Db) {
         .selectFrom("cards as c")
         .innerJoin("printings as p", "p.cardId", "c.id")
         .innerJoin("sets as s", "s.id", "p.setId")
-        .leftJoin("marketplaceSources as ps", (join) =>
+        .leftJoin("marketplaceProducts as ps", (join) =>
           join.onRef("ps.printingId", "=", "p.id").on("ps.marketplace", "=", marketplace),
         )
         .leftJoin("printingImages as pi", (join) =>
@@ -69,7 +69,7 @@ export function marketplaceMappingRepo(db: Db) {
           "c.might",
           "p.id as printingId",
           "s.slug as setId",
-          "p.sourceId",
+          "p.shortCode",
           "p.rarity",
           "s.name as setName",
           "p.artVariant",
@@ -83,7 +83,7 @@ export function marketplaceMappingRepo(db: Db) {
         ])
         .orderBy("s.slug")
         .orderBy("c.name")
-        .orderBy("p.sourceId")
+        .orderBy("p.shortCode")
         .orderBy("p.finish", "desc")
         .execute();
     },
@@ -133,7 +133,7 @@ export function marketplaceMappingRepo(db: Db) {
       trx: Db,
     ) {
       return trx
-        .insertInto("marketplaceSources")
+        .insertInto("marketplaceProducts")
         .values(values)
         .onConflict((oc) =>
           oc.columns(["marketplace", "printingId"]).doUpdateSet({
@@ -149,7 +149,7 @@ export function marketplaceMappingRepo(db: Db) {
     /** Batch-insert snapshots with conflict resolution. */
     async insertSnapshots(
       rows: {
-        sourceId: string;
+        productId: string;
         recordedAt: Date;
         marketCents: number;
         lowCents: number | null;
@@ -166,7 +166,7 @@ export function marketplaceMappingRepo(db: Db) {
         .insertInto("marketplaceSnapshots")
         .values(rows)
         .onConflict((oc) =>
-          oc.columns(["sourceId", "recordedAt"]).doUpdateSet({
+          oc.columns(["productId", "recordedAt"]).doUpdateSet({
             marketCents: sql<number>`excluded.market_cents`,
             lowCents: sql<number | null>`excluded.low_cents`,
             midCents: sql<number | null>`excluded.mid_cents`,
@@ -199,7 +199,7 @@ export function marketplaceMappingRepo(db: Db) {
     /** @returns A marketplace source by marketplace + printingId. */
     getSource(marketplace: string, printingId: string, trx: Db) {
       return trx
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .selectAll()
         .where("marketplace", "=", marketplace)
         .where("printingId", "=", printingId)
@@ -215,23 +215,23 @@ export function marketplaceMappingRepo(db: Db) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns All snapshots for a source ID. */
-    snapshotsBySourceId(sourceId: string, trx: Db) {
+    /** @returns All snapshots for a product ID. */
+    snapshotsByProductId(productId: string, trx: Db) {
       return trx
         .selectFrom("marketplaceSnapshots")
         .selectAll()
-        .where("sourceId", "=", sourceId)
+        .where("productId", "=", productId)
         .execute();
     },
 
-    /** Delete all snapshots for a source ID. */
-    async deleteSnapshotsBySourceId(sourceId: string, trx: Db): Promise<void> {
-      await trx.deleteFrom("marketplaceSnapshots").where("sourceId", "=", sourceId).execute();
+    /** Delete all snapshots for a product ID. */
+    async deleteSnapshotsByProductId(productId: string, trx: Db): Promise<void> {
+      await trx.deleteFrom("marketplaceSnapshots").where("productId", "=", productId).execute();
     },
 
     /** Delete a marketplace source by ID. */
     async deleteSourceById(id: string, trx: Db): Promise<void> {
-      await trx.deleteFrom("marketplaceSources").where("id", "=", id).execute();
+      await trx.deleteFrom("marketplaceProducts").where("id", "=", id).execute();
     },
 
     // ── unmapAll queries ────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ export function marketplaceMappingRepo(db: Db) {
     /** @returns Count of mapped sources for a marketplace. */
     async countMappedSources(marketplace: string, trx: Db): Promise<number> {
       const result = await trx
-        .selectFrom("marketplaceSources")
+        .selectFrom("marketplaceProducts")
         .select(sql<number>`count(*)::int`.as("count"))
         .where("marketplace", "=", marketplace)
         .where("externalId", "is not", null)
@@ -251,8 +251,8 @@ export function marketplaceMappingRepo(db: Db) {
     async deleteSnapshotsForMappedSources(marketplace: string, trx: Db): Promise<void> {
       await sql`
         DELETE FROM marketplace_snapshots
-        WHERE source_id IN (
-          SELECT id FROM marketplace_sources
+        WHERE product_id IN (
+          SELECT id FROM marketplace_products
           WHERE marketplace = ${marketplace} AND external_id IS NOT NULL
         )
       `.execute(trx);
@@ -261,7 +261,7 @@ export function marketplaceMappingRepo(db: Db) {
     /** Delete all mapped marketplace sources. */
     async deleteMappedSources(marketplace: string, trx: Db): Promise<void> {
       await trx
-        .deleteFrom("marketplaceSources")
+        .deleteFrom("marketplaceProducts")
         .where("marketplace", "=", marketplace)
         .where("externalId", "is not", null)
         .execute();

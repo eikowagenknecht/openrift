@@ -84,7 +84,7 @@ const dbCopy = {
   id: "a0000000-0001-4000-a000-000000000020",
   printingId: "OGS-001:rare:normal:",
   collectionId: dbCollection.id,
-  sourceId: null,
+  acquisitionSourceId: null,
   createdAt: now,
   updatedAt: now,
   cardId: "OGS-001",

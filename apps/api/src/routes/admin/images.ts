@@ -14,7 +14,7 @@ import type { Variables } from "../../types.js";
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
 const restoreImageUrlsSchema = z.object({
-  source: z.string().min(1),
+  provider: z.string().min(1),
 });
 
 // ── Route ───────────────────────────────────────────────────────────────────
@@ -59,13 +59,13 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   // ── Restore original URLs from a card source ──────────────────────────────
 
   .get("/missing-images", async (c) => {
-    const { cardSources } = c.get("repos");
-    return c.json(await cardSources.listCardsWithMissingImages());
+    const { candidateCards } = c.get("repos");
+    return c.json(await candidateCards.listCardsWithMissingImages());
   })
 
   .post("/restore-image-urls", zValidator("json", restoreImageUrlsSchema), async (c) => {
     const { printingImages } = c.get("repos");
-    const { source } = c.req.valid("json");
-    const updated = await printingImages.restoreFromSources(source);
-    return c.json({ source, updated } satisfies RestoreImageUrlsResponse);
+    const { provider } = c.req.valid("json");
+    const updated = await printingImages.restoreFromSources(provider);
+    return c.json({ provider, updated } satisfies RestoreImageUrlsResponse);
   });

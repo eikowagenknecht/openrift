@@ -7,7 +7,7 @@ import type {
   Rarity,
   SuperType,
 } from "@openrift/shared";
-import { formatSourceIds } from "@openrift/shared";
+import { formatShortCodes } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   CheckCircle2Icon,
@@ -89,7 +89,7 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
   return {
     id: p.printingId,
     slug: p.printingId,
-    sourceId: p.sourceId,
+    shortCode: p.shortCode,
     setId: group.setName,
     setSlug: group.setName,
     collectorNumber: p.collectorNumber,
@@ -100,7 +100,7 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     finish: p.finish as Finish,
     images: p.imageUrl ? [{ face: "front", url: p.imageUrl }] : [],
     artist: "",
-    publicCode: p.sourceId,
+    publicCode: p.shortCode,
     printedRulesText: null,
     printedEffectText: null,
     flavorText: null,
@@ -686,7 +686,7 @@ export function UnifiedMappingsPage() {
 
   const allCards = data.allCards;
 
-  // API returns groups pre-sorted by primarySourceId
+  // API returns groups pre-sorted by primaryShortCode
   const groups = data.groups;
   const orderedCardIds = groups.map((g) => g.cardId);
 
@@ -1006,7 +1006,7 @@ function UnifiedCardGroupRow({
           <span className="text-muted-foreground">{group.cardSlug}</span> {group.cardName}
         </TableCell>
         <TableCell className="text-muted-foreground">
-          {formatSourceIds(group.printings.map((p) => p.sourceId))}
+          {formatShortCodes(group.printings.map((p) => p.shortCode))}
         </TableCell>
         <TableCell className="text-center">
           <MarketplaceStatusBadge label="TCG" group={group} marketplace="tcgplayer" />

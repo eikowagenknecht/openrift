@@ -16,8 +16,8 @@ export const queryKeys = {
     all: ["copies"] as const,
     byCollection: (id: string) => ["copies", id] as const,
   },
-  sources: {
-    all: ["sources"] as const,
+  acquisitionSources: {
+    all: ["acquisition-sources"] as const,
   },
   ownedCount: {
     all: ["ownedCount"] as const,
@@ -29,14 +29,14 @@ export const queryKeys = {
   admin: {
     me: ["admin", "me"] as const,
     sets: ["admin", "sets"] as const,
-    cardSources: {
-      all: ["admin", "card-sources"] as const,
-      list: ["admin", "card-sources", "list"] as const,
-      detail: (cardId: string) => ["admin", "card-sources", "detail", cardId] as const,
-      unmatched: (name: string) => ["admin", "card-sources", "unmatched", name] as const,
-      allCards: ["admin", "card-sources", "all-cards"] as const,
-      sourceNames: ["admin", "card-sources", "source-names"] as const,
-      sourceStats: ["admin", "card-sources", "source-stats"] as const,
+    candidates: {
+      all: ["admin", "candidates"] as const,
+      list: ["admin", "candidates", "list"] as const,
+      detail: (cardId: string) => ["admin", "candidates", "detail", cardId] as const,
+      unmatched: (name: string) => ["admin", "candidates", "unmatched", name] as const,
+      allCards: ["admin", "candidates", "all-cards"] as const,
+      providerNames: ["admin", "candidates", "provider-names"] as const,
+      providerStats: ["admin", "candidates", "provider-stats"] as const,
     },
     marketplaceGroups: ["admin", "marketplace-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
@@ -53,8 +53,8 @@ export const queryKeys = {
       byFilter: (showAll: boolean) => ["admin", "unified-mappings", { all: showAll }] as const,
     },
     ignoredProducts: ["admin", "ignored-products"] as const,
-    ignoredSources: ["admin", "ignored-sources"] as const,
+    ignoredCandidates: ["admin", "ignored-candidates"] as const,
     promoTypes: ["admin", "promo-types"] as const,
-    sourceSettings: ["admin", "source-settings"] as const,
+    providerSettings: ["admin", "provider-settings"] as const,
   },
 } as const;

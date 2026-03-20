@@ -7,14 +7,14 @@ import type { Variables } from "../../types.js";
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
 const stagingCardOverrideSchema = z.object({
-  source: z.enum(["tcgplayer", "cardmarket"]),
+  marketplace: z.enum(["tcgplayer", "cardmarket"]),
   externalId: z.number(),
   finish: z.string(),
   cardId: z.string(),
 });
 
 const deleteOverrideSchema = z.object({
-  source: z.enum(["tcgplayer", "cardmarket"]),
+  marketplace: z.enum(["tcgplayer", "cardmarket"]),
   externalId: z.number(),
   finish: z.string(),
 });
@@ -27,10 +27,10 @@ export const stagingCardOverridesRoute = new Hono<{ Variables: Variables }>()
 
   .post("/staging-card-overrides", zValidator("json", stagingCardOverrideSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { source, externalId, finish, cardId } = c.req.valid("json");
+    const { marketplace, externalId, finish, cardId } = c.req.valid("json");
 
     await mktAdmin.upsertStagingCardOverride({
-      marketplace: source,
+      marketplace,
       externalId,
       finish,
       cardId,
@@ -43,9 +43,9 @@ export const stagingCardOverridesRoute = new Hono<{ Variables: Variables }>()
 
   .delete("/staging-card-overrides", zValidator("json", deleteOverrideSchema), async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { source, externalId, finish } = c.req.valid("json");
+    const { marketplace, externalId, finish } = c.req.valid("json");
 
-    await mktAdmin.deleteStagingCardOverride(source, externalId, finish);
+    await mktAdmin.deleteStagingCardOverride(marketplace, externalId, finish);
 
     return c.body(null, 204);
   });

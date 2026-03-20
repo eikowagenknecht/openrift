@@ -125,7 +125,7 @@ export function useScrollIndicator({
       // During drag: only update the card ID label.
       if (isDraggingRef.current) {
         if (cardIdRef.current) {
-          cardIdRef.current.textContent = firstCard.sourceId;
+          cardIdRef.current.textContent = firstCard.shortCode;
         }
         return;
       }
@@ -144,12 +144,12 @@ export function useScrollIndicator({
       globalThis.clearTimeout(hideTimerRef.current);
       dragTopRef.current = indicatorTop;
       setIndicator((prev) => {
-        const sameCard = prev.cardId === firstCard.sourceId;
+        const sameCard = prev.cardId === firstCard.shortCode;
         const sameTop = Math.abs(prev.indicatorTop - indicatorTop) < 0.5;
         if (prev.visible && sameCard && sameTop) {
           return prev;
         }
-        return { ...prev, cardId: firstCard.sourceId, indicatorTop, visible: true };
+        return { ...prev, cardId: firstCard.shortCode, indicatorTop, visible: true };
       });
       hideTimerRef.current = globalThis.setTimeout(() => {
         if (!isHoveredRef.current) {
@@ -252,7 +252,7 @@ export function useScrollIndicator({
             }
             const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
             if (rowEnd > threshold) {
-              cardId = row.items[0]?.sourceId ?? "";
+              cardId = row.items[0]?.shortCode ?? "";
               matchedRow = i;
               break;
             }

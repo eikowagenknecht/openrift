@@ -71,7 +71,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("ignores a product that exists in staging", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
-          source: "tcgplayer",
+          marketplace: "tcgplayer",
           products: [{ externalId: 10_401, finish: "normal" }],
         }),
       );
@@ -84,7 +84,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("returns 0 ignored count for non-existent staging ID", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
-          source: "tcgplayer",
+          marketplace: "tcgplayer",
           products: [{ externalId: 99_999, finish: "normal" }],
         }),
       );
@@ -105,7 +105,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("returns 400 for invalid source", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
-          source: "invalid",
+          marketplace: "invalid",
           products: [{ externalId: 10_401, finish: "normal" }],
         }),
       );
@@ -137,7 +137,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("un-ignores a product", async () => {
       const res = await app.fetch(
         req("DELETE", "/admin/ignored-products", {
-          source: "tcgplayer",
+          marketplace: "tcgplayer",
           products: [{ externalId: 10_401, finish: "normal" }],
         }),
       );
@@ -163,7 +163,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("creates an override", async () => {
       const res = await app.fetch(
         req("POST", "/admin/staging-card-overrides", {
-          source: "tcgplayer",
+          marketplace: "tcgplayer",
           externalId: 10_401,
           finish: "normal",
           cardId,
@@ -190,7 +190,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("removes an override", async () => {
       const res = await app.fetch(
         req("DELETE", "/admin/staging-card-overrides", {
-          source: "tcgplayer",
+          marketplace: "tcgplayer",
           externalId: 10_401,
           finish: "normal",
         }),

@@ -50,7 +50,7 @@ export function StagedProductCard({
           .map((g) => {
             const firstId = g.printings.reduce((best, p) =>
               p.collectorNumber < best.collectorNumber ? p : best,
-            ).sourceId;
+            ).shortCode;
             return { id: g.cardId, label: g.cardName, sublabel: firstId, detail: g.setName };
           })
       : [];

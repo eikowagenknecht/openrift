@@ -83,7 +83,7 @@ const cards = await sql<Record<string, unknown>[]>`
 `;
 
 const printings = await sql<Record<string, unknown>[]>`
-  SELECT p.id, p.card_id, p.set_id, p.source_id, p.collector_number, p.rarity,
+  SELECT p.id, p.card_id, p.set_id, p.short_code, p.collector_number, p.rarity,
     p.art_variant, p.is_signed, p.is_promo, p.finish, p.artist, p.public_code,
     p.printed_rules_text, p.printed_effect_text, p.flavor_text, p.slug, p.comment
   FROM printings p
@@ -100,7 +100,7 @@ const marketplaceGroups = await sql<Record<string, unknown>[]>`
 
 const marketplaceSources = await sql<Record<string, unknown>[]>`
   SELECT ms.id, ms.marketplace, ms.group_id, ms.external_id, ms.product_name, ms.printing_id
-  FROM marketplace_sources ms
+  FROM marketplace_products ms
   JOIN printings p ON p.id = ms.printing_id
   JOIN sets s ON s.id = p.set_id
   WHERE s.slug = ${SET_SLUG}
@@ -132,7 +132,7 @@ const seedSql = [
   toInsert("cards", cards),
   toInsert("printings", printings),
   toInsert("marketplace_groups", marketplaceGroups),
-  toInsert("marketplace_sources", marketplaceSources),
+  toInsert("marketplace_products", marketplaceSources),
   toInsert("card_name_aliases", cardNameAliases),
 ].join("\n");
 

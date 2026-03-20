@@ -67,9 +67,9 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
 
   it("inserts copies and lists them for a collection", async () => {
     const inserted = await copies.insertBatch([
-      { userId, printingId: printingId1, collectionId, sourceId: null },
-      { userId, printingId: printingId2, collectionId, sourceId: null },
-      { userId, printingId: printingId3, collectionId, sourceId: null },
+      { userId, printingId: printingId1, collectionId, acquisitionSourceId: null },
+      { userId, printingId: printingId2, collectionId, acquisitionSourceId: null },
+      { userId, printingId: printingId3, collectionId, acquisitionSourceId: null },
     ]);
     for (const row of inserted) {
       insertedCopyIds.push(row.id);
@@ -241,7 +241,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   it("deletes copies by ids for the owning user", async () => {
     // Insert a copy specifically to delete
     const [toDelete] = await copies.insertBatch([
-      { userId, printingId: printingId1, collectionId, sourceId: null },
+      { userId, printingId: printingId1, collectionId, acquisitionSourceId: null },
     ]);
 
     await copies.deleteBatch([toDelete.id], userId);

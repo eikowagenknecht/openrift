@@ -31,15 +31,15 @@ export function groupIntoMap<K, T>(items: T[], keyFn: (item: T) => K): Map<K, T[
 
 /**
  * Build composite printing ID.
- * @returns Deterministic ID string: "{source_id}:{rarity}:{finish}:{promo_type_slug|}"
+ * @returns Deterministic ID string: "{short_code}:{rarity}:{finish}:{promo_type_slug|}"
  */
 export function buildPrintingId(
-  sourceId: string,
+  shortCode: string,
   rarity: string,
   promoTypeSlug: string | null,
   finish: string,
 ): string {
-  return `${sourceId}:${rarity.toLowerCase()}:${finish}:${promoTypeSlug ?? ""}`;
+  return `${shortCode}:${rarity.toLowerCase()}:${finish}:${promoTypeSlug ?? ""}`;
 }
 
 /**
@@ -179,10 +179,10 @@ export function mostCommonValue(items: string[]): string {
 }
 
 /**
- * Format source IDs as "OGN-027, OGN-027a ×2" (counted + alpha-sorted).
+ * Format short codes as "OGN-027, OGN-027a ×2" (counted + alpha-sorted).
  * @returns A formatted string, or `""` if the array is empty.
  */
-export function formatSourceIds(ids: string[]): string {
+export function formatShortCodes(ids: string[]): string {
   if (ids.length === 0) {
     return "";
   }

@@ -10,13 +10,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateSource, useDeleteSource, useSources, useUpdateSource } from "@/hooks/use-sources";
+import {
+  useCreateAcquisitionSource,
+  useDeleteAcquisitionSource,
+  useAcquisitionSources,
+  useUpdateAcquisitionSource,
+} from "@/hooks/use-acquisition-sources";
 
 export function SourcesPage() {
-  const { data: sources } = useSources();
-  const createSource = useCreateSource();
-  const updateSource = useUpdateSource();
-  const deleteSource = useDeleteSource();
+  const { data: sources } = useAcquisitionSources();
+  const createSource = useCreateAcquisitionSource();
+  const updateSource = useUpdateAcquisitionSource();
+  const deleteSource = useDeleteAcquisitionSource();
 
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");

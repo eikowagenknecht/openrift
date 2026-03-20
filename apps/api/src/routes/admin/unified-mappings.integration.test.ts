@@ -62,7 +62,7 @@ if (ctx) {
       slug: "UNM-001:common:normal:",
       cardId: cardId,
       setId: setId,
-      sourceId: "UNM-001",
+      shortCode: "UNM-001",
       collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
@@ -109,7 +109,7 @@ if (ctx) {
       slug: "UNM-002:rare:normal:",
       cardId: secondCardId,
       setId: setId,
-      sourceId: "UNM-002",
+      shortCode: "UNM-002",
       collectorNumber: 2,
       rarity: "Rare",
       artVariant: "normal",
@@ -583,7 +583,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         (p: { printingId: string }) => p.printingId === printingId,
       );
       expect(printing).toBeDefined();
-      expect(printing.sourceId).toBe("UNM-001");
+      expect(printing.shortCode).toBe("UNM-001");
       expect(printing.rarity).toBe("Common");
       expect(printing.artVariant).toBe("normal");
       expect(printing.isSigned).toBe(false);
@@ -630,7 +630,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       // allCards printing entries have specific fields
       const printing = alphaCard.printings[0];
       expect(printing.printingId).toBeString();
-      expect(printing.sourceId).toBeString();
+      expect(printing.shortCode).toBeString();
       expect(printing.finish).toBeString();
       expect(typeof printing.collectorNumber).toBe("number");
       expect(typeof printing.isSigned).toBe("boolean");

@@ -1,46 +1,46 @@
 import { Hono } from "hono";
 
 import {
-  buildCardSourceDetail,
-  buildCardSourceList,
+  buildCandidateCardDetail,
+  buildCandidateCardList,
   buildExport,
   buildUnmatchedDetail,
-} from "../../../services/card-source-queries.js";
+} from "../../../services/candidate-queries.js";
 import type { Variables } from "../../../types.js";
 
 export const queriesRoute = new Hono<{ Variables: Variables }>()
   .get("/all-cards", async (c) => {
-    const { cardSources } = c.get("repos");
-    return c.json(await cardSources.listAllCards());
+    const { candidateCards } = c.get("repos");
+    return c.json(await candidateCards.listAllCards());
   })
 
-  .get("/source-names", async (c) => {
-    const { cardSources } = c.get("repos");
-    return c.json(await cardSources.distinctSourceNames());
+  .get("/provider-names", async (c) => {
+    const { candidateCards } = c.get("repos");
+    return c.json(await candidateCards.distinctProviderNames());
   })
 
-  .get("/source-stats", async (c) => {
-    const { cardSources } = c.get("repos");
-    return c.json(await cardSources.sourceStats());
+  .get("/provider-stats", async (c) => {
+    const { candidateCards } = c.get("repos");
+    return c.json(await candidateCards.providerStats());
   })
 
   .get("/", async (c) => {
-    const { cardSources } = c.get("repos");
-    return c.json(await buildCardSourceList(cardSources));
+    const { candidateCards } = c.get("repos");
+    return c.json(await buildCandidateCardList(candidateCards));
   })
 
   .get("/export", async (c) => {
-    const { cardSources } = c.get("repos");
-    return c.json(await buildExport(cardSources));
+    const { candidateCards } = c.get("repos");
+    return c.json(await buildExport(candidateCards));
   })
 
   .get("/:cardId", async (c) => {
-    const { cardSources } = c.get("repos");
-    return c.json(await buildCardSourceDetail(cardSources, c.req.param("cardId")));
+    const { candidateCards } = c.get("repos");
+    return c.json(await buildCandidateCardDetail(candidateCards, c.req.param("cardId")));
   })
 
   .get("/new/:name", async (c) => {
-    const { cardSources } = c.get("repos");
+    const { candidateCards } = c.get("repos");
     const name = decodeURIComponent(c.req.param("name"));
-    return c.json(await buildUnmatchedDetail(cardSources, name));
+    return c.json(await buildUnmatchedDetail(candidateCards, name));
   });

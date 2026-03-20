@@ -1,4 +1,4 @@
-import { formatSourceIds } from "@openrift/shared/utils";
+import { formatShortCodes } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 import { CheckCheckIcon, LinkIcon } from "lucide-react";
 import { useState } from "react";
@@ -14,14 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAutoCheckSources, useCardSourceList, useLinkCard } from "@/hooks/use-card-sources";
+import { useAutoCheckCandidates, useCandidateList, useLinkCard } from "@/hooks/use-candidates";
 
 type Filter = "unchecked" | "unmatched" | "matched" | null;
 
-export function CardSourcesListPage() {
+export function CandidatesListPage() {
   const [filter, setFilter] = useState<Filter>(null);
-  const { data } = useCardSourceList();
-  const autoCheck = useAutoCheckSources();
+  const { data } = useCandidateList();
+  const autoCheck = useAutoCheckCandidates();
   const linkCard = useLinkCard();
 
   const counts = {
@@ -53,11 +53,11 @@ export function CardSourcesListPage() {
           onClick={() =>
             autoCheck.mutate(undefined, {
               onSuccess: (result) => {
-                const total = result.cardSourcesChecked + result.printingSourcesChecked;
+                const total = result.candidateCardsChecked + result.candidatePrintingsChecked;
                 toast(
                   total > 0
-                    ? `Auto-checked ${result.cardSourcesChecked} card + ${result.printingSourcesChecked} printing sources`
-                    : "No matching unchecked sources found",
+                    ? `Auto-checked ${result.candidateCardsChecked} candidate card + ${result.candidatePrintingsChecked} candidate printing sources`
+                    : "No matching unchecked candidates found",
                 );
               },
             })
@@ -86,7 +86,7 @@ export function CardSourcesListPage() {
       </div>
 
       {rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">No card sources found.</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">No candidates found.</p>
       ) : (
         <Table>
           <TableHeader>
@@ -94,15 +94,15 @@ export function CardSourcesListPage() {
               <TableHead className="w-28">Status</TableHead>
               <TableHead>Card</TableHead>
               <TableHead>Printings</TableHead>
-              <TableHead className="w-28">Card Sources</TableHead>
+              <TableHead className="w-28">Candidates</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row) => {
               const total = row.uncheckedCardCount + row.uncheckedPrintingCount;
               const suggestedCardId =
-                !row.cardSlug && row.stagingSourceIds.length > 0
-                  ? row.stagingSourceIds[0].replace(/(?<=\d)[a-z*]+$/, "")
+                !row.cardSlug && row.stagingShortCodes.length > 0
+                  ? row.stagingShortCodes[0].replace(/(?<=\d)[a-z*]+$/, "")
                   : null;
               return (
                 <TableRow key={row.cardSlug ?? row.name}>
@@ -158,21 +158,21 @@ export function CardSourcesListPage() {
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     <span>
-                      {row.sourceIds.length > 0 && (
+                      {row.shortCodes.length > 0 && (
                         <>
-                          {formatSourceIds(row.sourceIds)
+                          {formatShortCodes(row.shortCodes)
                             .split(", ")
                             .map((id, i, arr) => (
                               <span key={id} className="text-muted-foreground">
                                 {id}
-                                {(i < arr.length - 1 || row.stagingSourceIds.length > 0) && ", "}
+                                {(i < arr.length - 1 || row.stagingShortCodes.length > 0) && ", "}
                               </span>
                             ))}
                         </>
                       )}
-                      {row.stagingSourceIds.length > 0 && (
+                      {row.stagingShortCodes.length > 0 && (
                         <>
-                          {formatSourceIds(row.stagingSourceIds)
+                          {formatShortCodes(row.stagingShortCodes)
                             .split(", ")
                             .map((id, i, arr) => (
                               <span key={`s-${id}`} className="italic text-muted-foreground/50">

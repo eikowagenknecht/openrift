@@ -40,7 +40,7 @@ Deal 8 to a unit.', NULL, '{"Lux"}', 'finalspark'),
   ('019cf052-e00a-7394-af87-5b5f926f4b8d', 'OGS-024', 'Decisive Strike', 'Spell', '{"Signature"}', '{"Body","Order"}', NULL, 5, 1, NULL, '{"Action"}', '[Action] (Play on your turn or in showdowns.)
 Give friendly units +2 :rb_might: this turn.', NULL, '{"Garen"}', 'decisivestrike');
 
-INSERT INTO printings (id, card_id, set_id, source_id, collector_number, rarity, art_variant, is_signed, promo_type_id, finish, artist, public_code, printed_rules_text, printed_effect_text, flavor_text, slug, comment) VALUES
+INSERT INTO printings (id, card_id, set_id, short_code, collector_number, rarity, art_variant, is_signed, promo_type_id, finish, artist, public_code, printed_rules_text, printed_effect_text, flavor_text, slug, comment) VALUES
   ('019cf052-e020-7222-b8bf-3c9fc2151abc', '019cf052-e00a-7256-ab8d-6e39b367029d', '019cf052-e002-78ef-b032-cc585ba33eb3', 'OGS-001', 1, 'Epic', 'normal', FALSE, NULL, 'normal', 'Polar Engine Studio', 'OGS-001/024', 'Your spells and abilities deal 1 Bonus Damage. (Each instance of damage the spell deals is increased by 1.)', NULL, NULL, 'OGS-001:epic:normal:', NULL),
   ('019cf052-e01f-7f65-8d7a-a28fddcf5d61', '019cf052-e00a-72b3-9ad6-76b7a7937ed9', '019cf052-e002-78ef-b032-cc585ba33eb3', 'OGS-002', 2, 'Uncommon', 'normal', FALSE, NULL, 'normal', 'Kudos Productions', 'OGS-002/024', 'Deal 3 to all enemy units at a battlefield.', NULL, NULL, 'OGS-002:uncommon:normal:', NULL),
   ('019cf052-e020-7228-9093-13d47b91b4d9', '019cf052-e009-7e7a-8ef3-3d7af480b233', '019cf052-e002-78ef-b032-cc585ba33eb3', 'OGS-003', 3, 'Common', 'normal', FALSE, NULL, 'normal', 'Kudos Productions', 'OGS-003/024', '[Action] (Play on your turn or in showdowns.)
@@ -91,7 +91,7 @@ INSERT INTO marketplace_groups (id, marketplace, group_id, name, abbreviation) V
   ('019cf052-a5f7-7f97-afc5-5932e843ada4', 'tcgplayer', 24552, 'Riftbound Judge Promotional Cards', 'JDG'),
   ('019cf052-a5f7-7ef3-a786-b035a3219a7c', 'tcgplayer', 24560, 'Unleashed', 'UNL');
 
-INSERT INTO marketplace_sources (id, marketplace, group_id, external_id, product_name, printing_id) VALUES
+INSERT INTO marketplace_products (id, marketplace, group_id, external_id, product_name, printing_id) VALUES
   ('019cf052-a62e-71a4-af71-47bf427ddf16', 'cardmarket', 6289, 847523, 'Annie, Fiery', '019cf052-e020-7222-b8bf-3c9fc2151abc'),
   ('019cf052-a62e-71ae-ae8d-fe1e6efe87d2', 'cardmarket', 6289, 847524, 'Firestorm', '019cf052-e01f-7f65-8d7a-a28fddcf5d61'),
   ('019cf052-a62e-71b1-a843-8b3a1ba53f18', 'cardmarket', 6289, 847525, 'Incinerate', '019cf052-e020-7228-9093-13d47b91b4d9'),

@@ -96,7 +96,7 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
   if (field === "artist") {
     return printing.artist.toLowerCase().includes(lower);
   }
-  return printing.sourceId.toLowerCase().includes(lower);
+  return printing.shortCode.toLowerCase().includes(lower);
 }
 
 /**
@@ -342,7 +342,7 @@ export function sortCards(printings: Printing[], sortBy: SortOption): Printing[]
     return [...printings].sort((a, b) => a.card.name.localeCompare(b.card.name));
   }
   if (sortBy === "id") {
-    return [...printings].sort((a, b) => a.sourceId.localeCompare(b.sourceId));
+    return [...printings].sort((a, b) => a.shortCode.localeCompare(b.shortCode));
   }
   if (sortBy === "energy") {
     return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.card.energy));

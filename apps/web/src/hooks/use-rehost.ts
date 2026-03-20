@@ -102,8 +102,8 @@ export function useClearRehosted() {
 export function useRestoreImageUrls() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (source: string) =>
-      rpc(client.api.admin["restore-image-urls"].$post({ json: { source } })),
+    mutationFn: (provider: string) =>
+      rpc(client.api.admin["restore-image-urls"].$post({ json: { provider } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
     },

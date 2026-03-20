@@ -153,7 +153,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
       trx: Trx,
       printingId: string,
       imageUrl: string | null,
-      source: string,
+      provider: string,
       mode: "main" | "additional" = "main",
     ): Promise<void> {
       if (!imageUrl) {
@@ -168,12 +168,12 @@ export function printingImagesRepo(db: Kysely<Database>) {
           .values({
             printingId,
             face: "front",
-            source,
+            provider,
             originalUrl: imageUrl,
             isActive: true,
           })
           .onConflict((oc) =>
-            oc.columns(["printingId", "face", "source"]).doUpdateSet({
+            oc.columns(["printingId", "face", "provider"]).doUpdateSet({
               originalUrl: imageUrl,
               isActive: true,
             }),
@@ -185,12 +185,12 @@ export function printingImagesRepo(db: Kysely<Database>) {
           .values({
             printingId,
             face: "front",
-            source,
+            provider,
             originalUrl: imageUrl,
             isActive: false,
           })
           .onConflict((oc) =>
-            oc.columns(["printingId", "face", "source"]).doUpdateSet({
+            oc.columns(["printingId", "face", "provider"]).doUpdateSet({
               originalUrl: imageUrl,
             }),
           )
@@ -207,7 +207,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
       values: {
         id?: string;
         printingId: string;
-        source: string;
+        provider: string;
         rehostedUrl: string;
         mode: "main" | "additional";
       },
@@ -222,12 +222,12 @@ export function printingImagesRepo(db: Kysely<Database>) {
           ...(values.id ? { id: values.id } : {}),
           printingId: values.printingId,
           face: "front",
-          source: values.source,
+          provider: values.provider,
           isActive: values.mode === "main",
           rehostedUrl: values.rehostedUrl,
         })
         .onConflict((oc) =>
-          oc.columns(["printingId", "face", "source"]).doUpdateSet({
+          oc.columns(["printingId", "face", "provider"]).doUpdateSet({
             isActive: values.mode === "main",
             rehostedUrl: values.rehostedUrl,
           }),
@@ -310,21 +310,21 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Bulk upsert printing_images from printing_sources for a given card source.
+     * Bulk upsert printing_images from candidate_printings for a given provider.
      * Creates missing rows (face=front, is_active=true) and backfills original_url
      * where it's currently NULL.
      * @returns The number of affected rows.
      */
-    async restoreFromSources(source: string): Promise<number> {
+    async restoreFromSources(provider: string): Promise<number> {
       const result = await sql`
-        INSERT INTO printing_images (printing_id, face, source, original_url, is_active)
-        SELECT ps.printing_id, 'front', cs.source, ps.image_url, true
-        FROM printing_sources ps
-        JOIN card_sources cs ON cs.id = ps.card_source_id
+        INSERT INTO printing_images (printing_id, face, provider, original_url, is_active)
+        SELECT ps.printing_id, 'front', cs.provider, ps.image_url, true
+        FROM candidate_printings ps
+        JOIN candidate_cards cs ON cs.id = ps.candidate_card_id
         WHERE ps.printing_id IS NOT NULL
           AND ps.image_url IS NOT NULL
-          AND cs.source = ${source}
-        ON CONFLICT (printing_id, face, source) DO UPDATE
+          AND cs.provider = ${provider}
+        ON CONFLICT (printing_id, face, provider) DO UPDATE
           SET original_url = EXCLUDED.original_url
           WHERE printing_images.original_url IS NULL
       `.execute(db);
@@ -341,17 +341,21 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .execute() as Promise<{ id: string; rehostedUrl: string }[]>;
     },
 
-    /** @returns A printing source by ID (all columns). */
-    getPrintingSourceById(id: string) {
-      return db.selectFrom("printingSources").selectAll().where("id", "=", id).executeTakeFirst();
+    /** @returns A candidate printing by ID (all columns). */
+    getCandidatePrintingById(id: string) {
+      return db
+        .selectFrom("candidatePrintings")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirst();
     },
 
-    /** @returns The source name for a card source by ID. */
-    getCardSourceSource(cardSourceId: string): Promise<{ source: string } | undefined> {
+    /** @returns The provider name for a candidate card by ID. */
+    getCandidateCardProvider(candidateCardId: string): Promise<{ provider: string } | undefined> {
       return db
-        .selectFrom("cardSources")
-        .select("source")
-        .where("id", "=", cardSourceId)
+        .selectFrom("candidateCards")
+        .select("provider")
+        .where("id", "=", candidateCardId)
         .executeTakeFirst();
     },
 

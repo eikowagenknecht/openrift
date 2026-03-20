@@ -13,19 +13,19 @@ interface UseCardDataParams {
   ownedCountByPrinting: Record<string, number> | undefined;
 }
 
-// In "cards" mode, deduplicate by cardId — keep the printing with the lowest sourceId.
+// In "cards" mode, deduplicate by cardId — keep the printing with the lowest shortCode.
 function deduplicateByCard(filteredCards: Printing[]): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of filteredCards) {
     const existing = seen.get(printing.card.id);
-    if (!existing || printing.sourceId.localeCompare(existing.sourceId) < 0) {
+    if (!existing || printing.shortCode.localeCompare(existing.shortCode) < 0) {
       seen.set(printing.card.id, printing);
     }
   }
   return [...seen.values()];
 }
 
-// Group all printings by cardId and sort each group by sourceId.
+// Group all printings by cardId and sort each group by shortCode.
 function groupPrintingsByCardId(allCards: Printing[]): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
   for (const p of allCards) {
@@ -37,7 +37,7 @@ function groupPrintingsByCardId(allCards: Printing[]): Map<string, Printing[]> {
     group.push(p);
   }
   for (const group of map.values()) {
-    group.sort((a, b) => a.sourceId.localeCompare(b.sourceId));
+    group.sort((a, b) => a.shortCode.localeCompare(b.shortCode));
   }
   return map;
 }

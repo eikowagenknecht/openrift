@@ -3,16 +3,16 @@ import { Hono } from "hono";
 import { cronJobs } from "../../cron-jobs.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
-import { cardSourcesRoute } from "./card-sources/index.js";
+import { candidatesRoute } from "./card-sources/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
+import { ignoredCandidatesRoute } from "./ignored-candidates.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
-import { ignoredSourcesRoute } from "./ignored-sources.js";
 import { imagesRoute } from "./images.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { operationsRoute } from "./operations.js";
 import { adminPromoTypesRoute } from "./promo-types.js";
-import { adminSourceSettingsRoute } from "./source-settings.js";
+import { adminProviderSettingsRoute } from "./provider-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 
@@ -43,13 +43,13 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
 
   .route("/admin", adminFeatureFlagsRoute)
   .route("/admin", ignoredProductsRoute)
-  .route("/admin", ignoredSourcesRoute)
+  .route("/admin", ignoredCandidatesRoute)
   .route("/admin", catalogRoute)
   .route("/admin", operationsRoute)
   .route("/admin", imagesRoute)
   .route("/admin", marketplaceGroupsRoute)
   .route("/admin", unifiedMappingsRoute)
   .route("/admin", adminPromoTypesRoute)
-  .route("/admin", adminSourceSettingsRoute)
+  .route("/admin", adminProviderSettingsRoute)
   .route("/admin", stagingCardOverridesRoute)
-  .route("/admin", cardSourcesRoute);
+  .route("/admin", candidatesRoute);

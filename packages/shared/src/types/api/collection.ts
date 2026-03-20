@@ -14,7 +14,7 @@ export interface CopyResponse {
   id: string;
   printingId: string;
   collectionId: string;
-  sourceId: string | null;
+  acquisitionSourceId: string | null;
   cardId: string;
   setId: string;
   collectorNumber: number;

@@ -1,5 +1,9 @@
 import { zValidator } from "@hono/zod-validator";
-import { createSourceSchema, idParamSchema, updateSourceSchema } from "@openrift/shared/schemas";
+import {
+  createAcquisitionSourceSchema,
+  idParamSchema,
+  updateAcquisitionSourceSchema,
+} from "@openrift/shared/schemas";
 import { Hono } from "hono";
 
 import { AppError } from "../../errors.js";
@@ -12,23 +16,23 @@ import { toSource } from "../../utils/mappers.js";
 
 const patchFields: FieldMapping = { name: "name", description: "description" };
 
-export const sourcesRoute = new Hono<{ Variables: Variables }>()
-  .use("/sources/*", requireAuth)
-  .use("/sources", requireAuth)
+export const acquisitionSourcesRoute = new Hono<{ Variables: Variables }>()
+  .use("/acquisition-sources/*", requireAuth)
+  .use("/acquisition-sources", requireAuth)
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/sources", async (c) => {
-    const { sources } = c.get("repos");
-    const rows = await sources.listForUser(getUserId(c));
+  .get("/acquisition-sources", async (c) => {
+    const { acquisitionSources } = c.get("repos");
+    const rows = await acquisitionSources.listForUser(getUserId(c));
     return c.json(rows.map((row) => toSource(row)));
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/sources", zValidator("json", createSourceSchema), async (c) => {
-    const { sources } = c.get("repos");
+  .post("/acquisition-sources", zValidator("json", createAcquisitionSourceSchema), async (c) => {
+    const { acquisitionSources } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const row = await sources.create({
+    const row = await acquisitionSources.create({
       userId,
       name: body.name,
       description: body.description ?? null,
@@ -37,10 +41,10 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
-  .get("/sources/:id", zValidator("param", idParamSchema), async (c) => {
-    const { sources } = c.get("repos");
+  .get("/acquisition-sources/:id", zValidator("param", idParamSchema), async (c) => {
+    const { acquisitionSources } = c.get("repos");
     const { id } = c.req.valid("param");
-    const row = await sources.getByIdForUser(id, getUserId(c));
+    const row = await acquisitionSources.getByIdForUser(id, getUserId(c));
     if (!row) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
@@ -49,16 +53,16 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .patch(
-    "/sources/:id",
+    "/acquisition-sources/:id",
     zValidator("param", idParamSchema),
-    zValidator("json", updateSourceSchema),
+    zValidator("json", updateAcquisitionSourceSchema),
     async (c) => {
-      const { sources } = c.get("repos");
+      const { acquisitionSources } = c.get("repos");
       const userId = getUserId(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
       const updates = buildPatchUpdates(body, patchFields);
-      const row = await sources.update(id, userId, updates);
+      const row = await acquisitionSources.update(id, userId, updates);
       if (!row) {
         throw new AppError(404, "NOT_FOUND", "Not found");
       }
@@ -67,10 +71,10 @@ export const sourcesRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/sources/:id", zValidator("param", idParamSchema), async (c) => {
-    const { sources } = c.get("repos");
+  .delete("/acquisition-sources/:id", zValidator("param", idParamSchema), async (c) => {
+    const { acquisitionSources } = c.get("repos");
     const { id } = c.req.valid("param");
-    const result = await sources.deleteByIdForUser(id, getUserId(c));
+    const result = await acquisitionSources.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }

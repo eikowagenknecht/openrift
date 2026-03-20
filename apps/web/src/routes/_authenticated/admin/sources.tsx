@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { sourceStatsQueryOptions } from "@/hooks/use-card-sources";
-import { sourceSettingsQueryOptions } from "@/hooks/use-source-settings";
+import { providerStatsQueryOptions } from "@/hooks/use-candidates";
+import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 
 function AdminPending() {
   return (
@@ -20,8 +20,8 @@ function AdminError({ error }: { error: Error }) {
 export const Route = createFileRoute("/_authenticated/admin/sources")({
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(sourceStatsQueryOptions),
-      context.queryClient.ensureQueryData(sourceSettingsQueryOptions),
+      context.queryClient.ensureQueryData(providerStatsQueryOptions),
+      context.queryClient.ensureQueryData(providerSettingsQueryOptions),
     ]);
   },
   pendingComponent: AdminPending,

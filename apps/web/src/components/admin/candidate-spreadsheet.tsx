@@ -1,7 +1,7 @@
 import type {
-  CardSourceResponse,
-  PrintingSourceResponse,
-  SourceSettingResponse,
+  CandidateCardResponse,
+  CandidatePrintingResponse,
+  ProviderSettingResponse,
 } from "@openrift/shared";
 import {
   ART_VARIANT_ORDER,
@@ -45,7 +45,7 @@ export interface FieldDef {
   readOnly?: boolean;
   type?: "boolean";
   options?: readonly string[];
-  /** Options with distinct value/label pairs (e.g. UUID → human label). Takes precedence over `options`. */
+  /** Options with distinct value/label pairs (e.g. UUID -> human label). Takes precedence over `options`. */
   labeledOptions?: readonly { value: string; label: string }[];
   /** Show another field's value in parentheses after the main value. */
   suffixKey?: string;
@@ -53,14 +53,14 @@ export interface FieldDef {
   collapsible?: boolean;
   /** When true, renders a textarea that supports newlines instead of a single-line input. */
   multiline?: boolean;
-  /** When true, the value is a string[] — comma-separated input is split into an array on commit. */
+  /** When true, the value is a string[] -- comma-separated input is split into an array on commit. */
   array?: boolean;
 }
 
 const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
 const SUPER_TYPE_OPTIONS = SUPER_TYPE_ORDER;
 
-export const CARD_SOURCE_FIELDS: FieldDef[] = [
+export const CANDIDATE_CARD_FIELDS: FieldDef[] = [
   { key: "name", label: "Name" },
   { key: "type", label: "Type", options: CARD_TYPE_OPTIONS },
   { key: "superTypes", label: "Super Types", options: SUPER_TYPE_OPTIONS },
@@ -73,18 +73,18 @@ export const CARD_SOURCE_FIELDS: FieldDef[] = [
   { key: "rulesText", label: "Rules Text", multiline: true },
   { key: "effectText", label: "Effect Text", multiline: true },
   { key: "tags", label: "Tags", array: true },
-  { key: "sourceId", label: "Source ID", readOnly: true },
-  { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
+  { key: "shortCode", label: "Short Code", readOnly: true },
+  { key: "externalId", label: "External ID", readOnly: true },
   { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
 ];
 
-/** Build printing source fields with promo type options populated from the database.
- * @returns The field definitions for printing sources. */
-export function buildPrintingSourceFields(
+/** Build candidate printing fields with promo type options populated from the database.
+ * @returns The field definitions for candidate printings. */
+export function buildCandidatePrintingFields(
   promoTypes: readonly { value: string; label: string }[],
 ): FieldDef[] {
   return [
-    { key: "sourceId", label: "Source ID" },
+    { key: "shortCode", label: "Short Code" },
     { key: "setId", label: "Set", suffixKey: "setName" },
     { key: "collectorNumber", label: "Collector #" },
     { key: "rarity", label: "Rarity", options: RARITY_ORDER },
@@ -102,40 +102,40 @@ export function buildPrintingSourceFields(
     { key: "printedEffectText", label: "Printed Effect", multiline: true },
     { key: "flavorText", label: "Flavor Text", multiline: true },
     { key: "comment", label: "Comment" },
-    { key: "sourceEntityId", label: "Source Entity ID", readOnly: true },
+    { key: "externalId", label: "External ID", readOnly: true },
     { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
     { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
   ];
 }
 
 export interface PrintingGroup {
-  sources: PrintingSourceResponse[];
+  candidates: CandidatePrintingResponse[];
   expectedPrintingId: string;
 }
 
-// ── Spreadsheet component ────────────────────────────────────────────────────
+// -- Spreadsheet component ----------------------------------------------------
 
-interface SourceSpreadsheetProps {
+interface CandidateSpreadsheetProps {
   fields: FieldDef[];
   activeRow: Record<string, unknown> | null;
-  sourceRows: (CardSourceResponse | PrintingSourceResponse)[];
-  /** Map from cardSourceId → source name (e.g. "gallery"), used to label columns. */
-  sourceLabels?: Record<string, string>;
-  /** Map from cardSourceId → card source name (e.g. "Yone - Blademaster (Overnumbered)"). */
-  sourceNames?: Record<string, string>;
-  /** Source settings for sort order and visibility. Hidden sources are excluded. */
-  sourceSettings?: SourceSettingResponse[];
+  candidateRows: (CandidateCardResponse | CandidatePrintingResponse)[];
+  /** Map from candidateCardId -> provider name (e.g. "gallery"), used to label columns. */
+  providerLabels?: Record<string, string>;
+  /** Map from candidateCardId -> candidate card name (e.g. "Yone - Blademaster (Overnumbered)"). */
+  providerNames?: Record<string, string>;
+  /** Provider settings for sort order and visibility. Hidden providers are excluded. */
+  providerSettings?: ProviderSettingResponse[];
   /** Field keys that must be selected before the card can be accepted. */
   requiredKeys?: string[];
-  onCellClick?: (field: string, value: unknown, sourceId: string) => void;
+  onCellClick?: (field: string, value: unknown, candidateId: string) => void;
   /** Called to set or clear a value in the active column. Pass null to clear. */
   onActiveChange?: (field: string, value: unknown | null) => void;
-  onCheck?: (sourceId: string) => void;
-  onUncheck?: (sourceId: string) => void;
-  /** Render extra action buttons in each source column header. */
-  columnActions?: (row: CardSourceResponse | PrintingSourceResponse) => React.ReactNode;
-  /** Extra CSS classes for a source column header `<th>`. */
-  columnClassName?: (row: CardSourceResponse | PrintingSourceResponse) => string | undefined;
+  onCheck?: (candidateId: string) => void;
+  onUncheck?: (candidateId: string) => void;
+  /** Render extra action buttons in each candidate column header. */
+  columnActions?: (row: CandidateCardResponse | CandidatePrintingResponse) => React.ReactNode;
+  /** Extra CSS classes for a candidate column header `<th>`. */
+  columnClassName?: (row: CandidateCardResponse | CandidatePrintingResponse) => string | undefined;
 }
 
 /** Field keys where word-level diff highlighting is applied. */
@@ -230,34 +230,34 @@ function formatValue(value: unknown, suffix?: unknown): string {
   return text;
 }
 
-function getSourceLabel(
-  row: CardSourceResponse | PrintingSourceResponse,
-  sourceLabels?: Record<string, string>,
+function getProviderLabel(
+  row: CandidateCardResponse | CandidatePrintingResponse,
+  providerLabels?: Record<string, string>,
 ): string {
-  if ("source" in row) {
-    return row.source;
+  if ("provider" in row) {
+    return row.provider;
   }
-  return sourceLabels?.[row.cardSourceId] ?? `source-${row.id.slice(0, 8)}`;
+  return providerLabels?.[row.candidateCardId] ?? `provider-${row.id.slice(0, 8)}`;
 }
 
-function isChecked(row: CardSourceResponse | PrintingSourceResponse): boolean {
+function isChecked(row: CandidateCardResponse | CandidatePrintingResponse): boolean {
   return row.checkedAt !== null;
 }
 
 function isGallery(
-  row: CardSourceResponse | PrintingSourceResponse,
-  sourceLabels?: Record<string, string>,
+  row: CandidateCardResponse | CandidatePrintingResponse,
+  providerLabels?: Record<string, string>,
 ): boolean {
-  return getSourceLabel(row, sourceLabels) === "gallery";
+  return getProviderLabel(row, providerLabels) === "gallery";
 }
 
-export function SourceSpreadsheet({
+export function CandidateSpreadsheet({
   fields,
   activeRow,
-  sourceRows,
-  sourceLabels,
-  sourceNames,
-  sourceSettings,
+  candidateRows,
+  providerLabels,
+  providerNames,
+  providerSettings,
   requiredKeys,
   onCellClick,
   onActiveChange,
@@ -265,14 +265,16 @@ export function SourceSpreadsheet({
   onUncheck,
   columnActions,
   columnClassName,
-}: SourceSpreadsheetProps) {
-  const settingsMap = new Map(sourceSettings?.map((s) => [s.source, s]));
-  const hiddenSources = new Set(sourceSettings?.filter((s) => s.isHidden).map((s) => s.source));
-  const sortedRows = sourceRows
-    .filter((row) => !hiddenSources.has(getSourceLabel(row, sourceLabels)))
+}: CandidateSpreadsheetProps) {
+  const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
+  const hiddenProviders = new Set(
+    providerSettings?.filter((s) => s.isHidden).map((s) => s.provider),
+  );
+  const sortedRows = candidateRows
+    .filter((row) => !hiddenProviders.has(getProviderLabel(row, providerLabels)))
     .sort((a, b) => {
-      const aLabel = getSourceLabel(a, sourceLabels);
-      const bLabel = getSourceLabel(b, sourceLabels);
+      const aLabel = getProviderLabel(a, providerLabels);
+      const bLabel = getProviderLabel(b, providerLabels);
       const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;
       const bOrder = settingsMap.get(bLabel)?.sortOrder ?? 0;
       if (aOrder !== bOrder) {
@@ -322,17 +324,17 @@ export function SourceSpreadsheet({
                 key={row.id}
                 className={cn(
                   "w-[300px] border-l px-3 py-2 text-left font-medium",
-                  isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
+                  isGallery(row, providerLabels) && "bg-blue-50 dark:bg-blue-950/30",
                   isChecked(row) && "opacity-50",
                   columnClassName?.(row),
                 )}
               >
                 <div className="flex items-center gap-1">
                   <span className="min-w-0 break-words">
-                    {getSourceLabel(row, sourceLabels)}
-                    {"cardSourceId" in row && sourceNames?.[row.cardSourceId] && (
+                    {getProviderLabel(row, providerLabels)}
+                    {"candidateCardId" in row && providerNames?.[row.candidateCardId] && (
                       <span className="ml-1 text-muted-foreground">
-                        ({sourceNames[row.cardSourceId]})
+                        ({providerNames[row.candidateCardId]})
                       </span>
                     )}
                   </span>
@@ -404,7 +406,7 @@ export function SourceSpreadsheet({
                       return;
                     }
                     if (field.type === "boolean") {
-                      // null → false (No) → true (Yes) → false cycle
+                      // null -> false (No) -> true (Yes) -> false cycle
                       onActiveChange(field.key, activeValue === null ? false : !activeValue);
                       return;
                     }
@@ -534,17 +536,17 @@ export function SourceSpreadsheet({
                   )}
                 </td>
                 {sortedRows.map((row) => {
-                  const sourceValue = (row as unknown as Record<string, unknown>)[field.key];
+                  const candidateValue = (row as unknown as Record<string, unknown>)[field.key];
                   const invalidOption =
                     hasDropdown(field) &&
-                    hasValue(sourceValue) &&
-                    !isValidOption(field, sourceValue);
+                    hasValue(candidateValue) &&
+                    !isValidOption(field, candidateValue);
                   const isClickable =
                     !field.readOnly &&
                     !invalidOption &&
-                    hasValue(sourceValue) &&
+                    hasValue(candidateValue) &&
                     (activeRow === null ||
-                      JSON.stringify(sourceValue) !== JSON.stringify(activeValue));
+                      JSON.stringify(candidateValue) !== JSON.stringify(activeValue));
                   const isDifferent = isClickable && activeRow !== null;
 
                   return (
@@ -552,13 +554,13 @@ export function SourceSpreadsheet({
                       key={row.id}
                       title={
                         invalidOption
-                          ? `"${String(sourceValue)}" is not a valid ${field.label.toLowerCase()}`
+                          ? `"${String(candidateValue)}" is not a valid ${field.label.toLowerCase()}`
                           : undefined
                       }
                       className={cn(
                         "break-words border-l px-3 py-1.5",
                         field.multiline && "whitespace-pre-wrap",
-                        isGallery(row, sourceLabels) && "bg-blue-50 dark:bg-blue-950/30",
+                        isGallery(row, providerLabels) && "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
                         invalidOption && "bg-red-50 line-through dark:bg-red-950/30",
                         isDifferent && "bg-yellow-100 dark:bg-yellow-900/40",
@@ -568,40 +570,40 @@ export function SourceSpreadsheet({
                       )}
                       onClick={
                         isClickable && onCellClick
-                          ? () => onCellClick(field.key, sourceValue, row.id)
+                          ? () => onCellClick(field.key, candidateValue, row.id)
                           : undefined
                       }
                     >
-                      {field.key === "imageUrl" && typeof sourceValue === "string" ? (
+                      {field.key === "imageUrl" && typeof candidateValue === "string" ? (
                         <HoverCard>
                           <HoverCardTrigger
-                            href={sourceValue}
+                            href={candidateValue}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="block truncate text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                            title={sourceValue}
+                            title={candidateValue}
                             onClick={(e: React.MouseEvent) => e.stopPropagation()}
                           >
-                            {sourceValue}
+                            {candidateValue}
                           </HoverCardTrigger>
                           <HoverCardContent side="right" className="w-auto p-1">
                             <img
-                              src={sourceValue}
-                              alt="Source"
+                              src={candidateValue}
+                              alt="Candidate"
                               className="max-h-[80vh] max-w-[40vw] rounded object-contain"
                             />
                           </HoverCardContent>
                         </HoverCard>
                       ) : isDifferent &&
                         DIFF_FIELDS.has(field.key) &&
-                        typeof sourceValue === "string" &&
+                        typeof candidateValue === "string" &&
                         typeof activeValue === "string" ? (
-                        <DiffText segments={wordDiff(activeValue, String(sourceValue))} />
+                        <DiffText segments={wordDiff(activeValue, String(candidateValue))} />
                       ) : field.labeledOptions ? (
-                        resolveLabel(field, sourceValue)
+                        resolveLabel(field, candidateValue)
                       ) : (
                         formatValue(
-                          sourceValue,
+                          candidateValue,
                           field.suffixKey
                             ? (row as unknown as Record<string, unknown>)[field.suffixKey]
                             : undefined,
