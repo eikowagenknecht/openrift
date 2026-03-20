@@ -54,39 +54,36 @@ export function normalizeNameForMatching(name: string): string {
   return name.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
 }
 
+interface ComparablePrinting {
+  setId?: string | null;
+  setOrder?: number;
+  collectorNumber: number;
+  artVariant: ArtVariant | null;
+  rarity: Rarity | string;
+  finish: Finish | string;
+  isSigned: boolean;
+  promoTypeSlug?: string | null;
+}
+
 /**
  * Compare two printings for canonical ordering.
- * Sort order: set → collector number → art variant → rarity → finish → signed.
+ * Sort order: set (by `setOrder` when available, else `setId` string) →
+ * collector number → art variant → rarity → finish → signed → promo type.
  * Null/empty art variants are treated as "normal".
  * Use as a comparator for `.sort()` to get canonical printing order.
  *
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
  */
-export function comparePrintings(
-  a: {
-    setId?: string | null;
-    collectorNumber: number;
-    artVariant: ArtVariant | null;
-    rarity: Rarity | string;
-    finish: Finish | string;
-    isSigned: boolean;
-    promoTypeSlug?: string | null;
-  },
-  b: {
-    setId?: string | null;
-    collectorNumber: number;
-    artVariant: ArtVariant | null;
-    rarity: Rarity | string;
-    finish: Finish | string;
-    isSigned: boolean;
-    promoTypeSlug?: string | null;
-  },
-): number {
+export function comparePrintings(a: ComparablePrinting, b: ComparablePrinting): number {
   const av = (v: ArtVariant | null): ArtVariant => v || "normal";
   const promoA = a.promoTypeSlug ?? "";
   const promoB = b.promoTypeSlug ?? "";
+  const setCompare =
+    a.setOrder !== undefined && b.setOrder !== undefined
+      ? a.setOrder - b.setOrder
+      : (a.setId ?? "").localeCompare(b.setId ?? "");
   return (
-    (a.setId ?? "").localeCompare(b.setId ?? "") ||
+    setCompare ||
     a.collectorNumber - b.collectorNumber ||
     ART_VARIANT_ORDER.indexOf(av(a.artVariant)) - ART_VARIANT_ORDER.indexOf(av(b.artVariant)) ||
     RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity) ||
