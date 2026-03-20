@@ -360,7 +360,7 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
     CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text)),
     CONSTRAINT chk_cards_super_types_values CHECK ((super_types <@ ARRAY['Basic'::text, 'Champion'::text, 'Signature'::text, 'Token'::text])),
-    CONSTRAINT chk_cards_type CHECK ((type = ANY (ARRAY['Legend'::text, 'Unit'::text, 'Rune'::text, 'Spell'::text, 'Gear'::text, 'Battlefield'::text])))
+    CONSTRAINT chk_cards_type CHECK ((type = ANY (ARRAY['Legend'::text, 'Unit'::text, 'Rune'::text, 'Spell'::text, 'Gear'::text, 'Battlefield'::text, 'Buff'::text])))
 );
 
 
@@ -1380,13 +1380,6 @@ CREATE INDEX idx_candidate_cards_unchecked ON public.candidate_cards USING btree
 --
 
 CREATE INDEX idx_candidate_printings_candidate_card ON public.candidate_printings USING btree (candidate_card_id);
-
-
---
--- Name: idx_candidate_printings_candidate_card_printing; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_candidate_printings_candidate_card_printing ON public.candidate_printings USING btree (candidate_card_id, printing_id) WHERE (printing_id IS NOT NULL);
 
 
 --
