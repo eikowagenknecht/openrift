@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-20
+
+- fix: The "printed text differs" warning no longer appears when the printed text is identical to the canonical text
+
 ## 2026-03-19
 
 - feat: Unmatched card sources now show a suggested card link based on name similarity
