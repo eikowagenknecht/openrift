@@ -173,10 +173,16 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(db, SOURCE, []);
     expect(result).toEqual({
       newCards: 0,
+      removedCards: 0,
       updates: 0,
       unchanged: 0,
+      newPrintings: 0,
+      removedPrintings: 0,
+      printingUpdates: 0,
+      printingsUnchanged: 0,
       errors: [],
       updatedCards: [],
+      updatedPrintings: [],
     });
   });
 
