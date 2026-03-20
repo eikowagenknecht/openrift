@@ -249,6 +249,14 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   const canonicalName = isExisting
     ? ((existingData as NonNullable<typeof existingData>).card.name as string)
     : null;
+  // Collect printed rules/effect texts from accepted printings for mismatch warnings
+  const printedRulesTexts = new Set(
+    printings.map((p) => p.printedRulesText as string | null).filter(Boolean),
+  );
+  const printedEffectTexts = new Set(
+    printings.map((p) => p.printedEffectText as string | null).filter(Boolean),
+  );
+
   const sourceNames = Object.fromEntries(
     sources
       .filter((s) => s.name !== canonicalName)
@@ -567,6 +575,29 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           }
           candidateRows={sources}
           providerSettings={providerSettings}
+          cellWarning={
+            isExisting && printings.length > 0
+              ? (fieldKey, value) => {
+                  if (
+                    fieldKey === "rulesText" &&
+                    typeof value === "string" &&
+                    printedRulesTexts.size > 0 &&
+                    !printedRulesTexts.has(value)
+                  ) {
+                    return "This rules text doesn\u2019t match any printing\u2019s printed rules";
+                  }
+                  if (
+                    fieldKey === "effectText" &&
+                    typeof value === "string" &&
+                    printedEffectTexts.size > 0 &&
+                    !printedEffectTexts.has(value)
+                  ) {
+                    return "This effect text doesn\u2019t match any printing\u2019s printed effect";
+                  }
+                  return null;
+                }
+              : undefined
+          }
           onCellClick={(field, value) => {
             if (isExisting) {
               if (field === "shortCode") {
