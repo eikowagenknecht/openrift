@@ -183,6 +183,26 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
     enabled: mode === "existing" && !isCheckingAll,
   });
 
+  // Auto-expand "new" (ambiguous) printing groups on initial load
+  const initialExpandDone = useRef(false);
+  useEffect(() => {
+    if (initialExpandDone.current || !existingQuery.data) {
+      return;
+    }
+    const groups: CandidatePrintingGroupResponse[] =
+      (existingQuery.data as NonNullable<typeof existingQuery.data>).candidatePrintingGroups ?? [];
+    if (groups.length > 0) {
+      setExpandedPrintings((prev) => {
+        const next = new Set(prev);
+        for (const g of groups) {
+          next.add(g.expectedPrintingId);
+        }
+        return next;
+      });
+    }
+    initialExpandDone.current = true;
+  }, [existingQuery.data]);
+
   // After accepting a printing, expand it and scroll into view once data refetches
   const existingData = existingQuery.data;
   useEffect(() => {
