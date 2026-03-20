@@ -2,6 +2,7 @@
 
 ## 2026-03-20
 
+- feat: Optional fields in the candidate spreadsheet can now be cleared with an inline button
 - fix: The "printed text differs" warning no longer appears when the printed text is identical to the canonical text
 
 ## 2026-03-19

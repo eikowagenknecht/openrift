@@ -390,7 +390,7 @@ export function CandidateSpreadsheet({
                 </td>
                 <td
                   className={cn(
-                    "break-words border-l px-3 py-1.5",
+                    "group/active relative break-words border-l px-3 py-1.5",
                     field.multiline && "whitespace-pre-wrap",
                     field.readOnly && "bg-muted/30",
                     isMissing && "bg-red-50 dark:bg-red-950/20",
@@ -533,6 +533,22 @@ export function CandidateSpreadsheet({
                           : "\u2014"}
                     </span>
                   )}
+                  {onActiveChange &&
+                    !field.readOnly &&
+                    !isRequired &&
+                    hasValue(activeValue) &&
+                    editingField !== field.key && (
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 hidden rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground group-hover/active:inline-flex"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onActiveChange(field.key, null);
+                        }}
+                      >
+                        <XIcon className="size-3" />
+                      </button>
+                    )}
                 </td>
                 {sortedRows.map((row) => {
                   const candidateValue = (row as unknown as Record<string, unknown>)[field.key];
