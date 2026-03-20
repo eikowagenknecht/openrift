@@ -16,6 +16,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   EllipsisVerticalIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import { Fragment, useRef, useState } from "react";
@@ -74,6 +75,7 @@ export const CANDIDATE_CARD_FIELDS: FieldDef[] = [
   { key: "effectText", label: "Effect Text", multiline: true },
   { key: "mightBonus", label: "Might Bonus" },
   { key: "tags", label: "Tags", array: true },
+  { key: "comment", label: "Comment" },
   { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
 ];
 
@@ -135,6 +137,8 @@ interface CandidateSpreadsheetProps {
   columnActions?: (row: CandidateCardResponse | CandidatePrintingResponse) => React.ReactNode;
   /** Extra CSS classes for a candidate column header `<th>`. */
   columnClassName?: (row: CandidateCardResponse | CandidatePrintingResponse) => string | undefined;
+  /** Return a warning tooltip for a candidate cell; shown as a small icon. */
+  cellWarning?: (fieldKey: string, candidateValue: unknown) => string | null;
 }
 
 /** Field keys where word-level diff highlighting is applied. */
@@ -264,6 +268,7 @@ export function CandidateSpreadsheet({
   onUncheck,
   columnActions,
   columnClassName,
+  cellWarning,
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
   const hiddenProviders = new Set(
@@ -563,6 +568,10 @@ export function CandidateSpreadsheet({
                     (activeRow === null ||
                       JSON.stringify(candidateValue) !== JSON.stringify(activeValue));
                   const isDifferent = isClickable && activeRow !== null;
+                  const warningText =
+                    cellWarning && hasValue(candidateValue)
+                      ? cellWarning(field.key, candidateValue)
+                      : null;
 
                   return (
                     <td
@@ -589,6 +598,14 @@ export function CandidateSpreadsheet({
                           : undefined
                       }
                     >
+                      {warningText && (
+                        <span
+                          title={warningText}
+                          className="mr-1 inline-flex align-middle text-orange-500"
+                        >
+                          <TriangleAlertIcon className="size-3.5" />
+                        </span>
+                      )}
                       {field.key === "imageUrl" && typeof candidateValue === "string" ? (
                         <HoverCard>
                           <HoverCardTrigger
