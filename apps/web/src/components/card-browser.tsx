@@ -105,6 +105,7 @@ export function CardBrowser() {
             onCardClick={handleCardClick}
             onSiblingClick={handleCardClick}
             selectedCardId={gridSelectedId}
+            keyboardNavCardId={selectedCard?.id}
             priceRangeByCardId={priceRangeByCardId}
             view={view}
             siblingPrintings={siblingPrintings}

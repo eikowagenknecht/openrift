@@ -43,6 +43,7 @@ interface CardGridProps {
   onCardClick: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
   selectedCardId?: string;
+  keyboardNavCardId?: string;
   siblingPrintings?: Printing[];
   printingsByCardId?: Map<string, Printing[]>;
   priceRangeByCardId?: Map<string, { min: number; max: number }> | null;
@@ -58,6 +59,7 @@ export function CardGrid({
   onCardClick,
   onSiblingClick,
   selectedCardId,
+  keyboardNavCardId,
   siblingPrintings,
   printingsByCardId,
   priceRangeByCardId,
@@ -215,7 +217,7 @@ export function CardGrid({
   });
 
   useGridKeyboardNav({
-    selectedCardId,
+    selectedCardId: keyboardNavCardId ?? selectedCardId,
     virtualRows,
     columns,
     onCardClick,
