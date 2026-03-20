@@ -308,9 +308,13 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
     }
 
+    // Normalize null to empty array for array-typed fields (DB stores NOT NULL DEFAULT '{}')
+    const arrayFields = new Set(["superTypes", "tags"]);
+    const normalized = value === null && arrayFields.has(field) ? [] : value;
+
     const validator = cardFieldRules[field as keyof typeof cardFieldRules];
     if (validator) {
-      const parsed = validator.safeParse(value);
+      const parsed = validator.safeParse(normalized);
       if (!parsed.success) {
         throw new AppError(
           400,
@@ -320,7 +324,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    const updates: Record<string, unknown> = { [field]: value };
+    const updates: Record<string, unknown> = { [field]: normalized };
 
     // Recompute keywords when rulesText or effectText changes
     if (field === "rulesText" || field === "effectText") {

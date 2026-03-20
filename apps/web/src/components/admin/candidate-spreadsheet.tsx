@@ -24,6 +24,7 @@ import { Fragment, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -67,10 +68,10 @@ export const CANDIDATE_CARD_FIELDS: FieldDef[] = [
   { key: "energy", label: "Energy" },
   { key: "power", label: "Power" },
   { key: "might", label: "Might" },
-  { key: "superTypes", label: "Super Types", options: SUPER_TYPE_OPTIONS },
+  { key: "superTypes", label: "Super Types", options: SUPER_TYPE_OPTIONS, array: true },
   { key: "type", label: "Type", options: CARD_TYPE_OPTIONS },
   { key: "name", label: "Name" },
-  { key: "domains", label: "Domains", options: DOMAIN_ORDER },
+  { key: "domains", label: "Domains", options: DOMAIN_ORDER, array: true },
   { key: "rulesText", label: "Rules Text", multiline: true },
   { key: "effectText", label: "Effect Text", multiline: true },
   { key: "mightBonus", label: "Might Bonus" },
@@ -185,6 +186,10 @@ function hasDropdown(field: FieldDef): boolean {
     (field.options !== undefined && field.options.length > 0) ||
     (field.labeledOptions !== undefined && field.labeledOptions.length > 0)
   );
+}
+
+function isMultiSelect(field: FieldDef): boolean {
+  return field.array === true && hasDropdown(field);
 }
 
 function resolveLabel(field: FieldDef, value: unknown): string {
@@ -428,7 +433,52 @@ export function CandidateSpreadsheet({
                     });
                   }}
                 >
-                  {editingField === field.key && hasDropdown(field) ? (
+                  {editingField === field.key && isMultiSelect(field) ? (
+                    <DropdownMenu
+                      open
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setEditingField(null);
+                        }
+                      }}
+                    >
+                      <DropdownMenuTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="flex h-6 w-full items-center gap-1 rounded px-1 text-sm"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        }
+                      >
+                        {hasValue(activeValue) ? formatValue(activeValue) : "— select —"}
+                        <ChevronDownIcon className="ml-auto size-3.5 opacity-50" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {(field.options ?? []).map((opt) => {
+                          const selected = Array.isArray(activeValue) && activeValue.includes(opt);
+                          return (
+                            <DropdownMenuCheckboxItem
+                              key={opt}
+                              checked={selected}
+                              onSelect={(e) => e.preventDefault()}
+                              onCheckedChange={() => {
+                                const current = Array.isArray(activeValue)
+                                  ? (activeValue as string[])
+                                  : [];
+                                const next = selected
+                                  ? current.filter((v) => v !== opt)
+                                  : [...current, opt];
+                                onActiveChange?.(field.key, next.length > 0 ? next : null);
+                              }}
+                            >
+                              {opt}
+                            </DropdownMenuCheckboxItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : editingField === field.key && hasDropdown(field) ? (
                     <Select
                       value={hasValue(activeValue) ? String(activeValue) : ""}
                       onValueChange={(v) => {
