@@ -251,7 +251,22 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
 
   // --- Existing-mode computed values ---
   const sourceLabels = Object.fromEntries(sources.map((s) => [s.id, s.provider]));
-  const sourceNames = Object.fromEntries(sources.map((s) => [s.id, s.name]));
+  const canonicalName = isExisting
+    ? ((existingData as NonNullable<typeof existingData>).card.name as string)
+    : null;
+  const sourceNames = Object.fromEntries(
+    sources
+      .filter((s) => s.name !== canonicalName)
+      .map((s) => {
+        let label = s.name;
+        if (canonicalName) {
+          // Strip canonical name prefix, then trim surrounding parens, dashes, and whitespace
+          label = label.startsWith(canonicalName) ? label.slice(canonicalName.length) : label;
+          label = label.replaceAll(/^[\s\-–—(]+|[)\s]+$/g, "");
+        }
+        return [s.id, label];
+      }),
+  );
 
   function togglePrinting(id: string) {
     setExpandedPrintings((prev) => {
