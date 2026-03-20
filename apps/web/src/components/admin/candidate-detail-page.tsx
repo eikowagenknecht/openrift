@@ -564,7 +564,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                 )
               : CANDIDATE_CARD_FIELDS
           }
-          requiredKeys={isExisting ? undefined : ["name", "type", "domains"]}
+          requiredKeys={["shortCode", "name", "type", "domains"]}
           activeRow={
             isExisting
               ? {
