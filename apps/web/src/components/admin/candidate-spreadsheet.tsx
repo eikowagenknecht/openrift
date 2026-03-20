@@ -276,21 +276,16 @@ export function CandidateSpreadsheet({
   cellWarning,
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
-  const hiddenProviders = new Set(
-    providerSettings?.filter((s) => s.isHidden).map((s) => s.provider),
-  );
-  const sortedRows = candidateRows
-    .filter((row) => !hiddenProviders.has(getProviderLabel(row, providerLabels)))
-    .sort((a, b) => {
-      const aLabel = getProviderLabel(a, providerLabels);
-      const bLabel = getProviderLabel(b, providerLabels);
-      const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;
-      const bOrder = settingsMap.get(bLabel)?.sortOrder ?? 0;
-      if (aOrder !== bOrder) {
-        return aOrder - bOrder;
-      }
-      return aLabel.localeCompare(bLabel);
-    });
+  const sortedRows = [...candidateRows].sort((a, b) => {
+    const aLabel = getProviderLabel(a, providerLabels);
+    const bLabel = getProviderLabel(b, providerLabels);
+    const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;
+    const bOrder = settingsMap.get(bLabel)?.sortOrder ?? 0;
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+    return aLabel.localeCompare(bLabel);
+  });
 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(true);
