@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createTestContext, req } from "../../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
-// Integration tests: Card-sources query routes (/admin/card-sources/*)
+// Integration tests: Card-sources query routes (/admin/candidates/*)
 //
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix CSQ- for entities it creates.
@@ -15,7 +15,7 @@ const ctx = createTestContext(USER_ID);
 
 // Track IDs assigned by the DB for assertions
 let card1Id: string;
-let card2Id: string;
+let _card2Id: string;
 let setId: string;
 let printing1Id: string;
 let cs1Id: string;
@@ -75,7 +75,16 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  card2Id = card2.id;
+  _card2Id = card2.id;
+
+  // Create name aliases (every card must have at least its own normName as an alias)
+  await db
+    .insertInto("cardNameAliases")
+    .values([
+      { cardId: card1Id, normName: "csqtestcard" },
+      { cardId: card2.id, normName: "csqanothercard" },
+    ])
+    .execute();
 
   // Create printings
   const [printing1] = await db
@@ -209,13 +218,13 @@ if (ctx) {
 
 describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-  const { app } = ctx!;
+  const { app, db: testDb } = ctx!;
 
-  // ── GET /admin/card-sources/all-cards ─────────────────────────────────────
+  // ── GET /admin/candidates/all-cards ─────────────────────────────────────
 
-  describe("GET /admin/card-sources/all-cards", () => {
+  describe("GET /admin/candidates/all-cards", () => {
     it("returns all cards including CSQ cards", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/all-cards"));
+      const res = await app.fetch(req("GET", "/admin/candidates/all-cards"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -234,7 +243,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     });
 
     it("returns correct shape (id, slug, name, type)", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/all-cards"));
+      const res = await app.fetch(req("GET", "/admin/candidates/all-cards"));
       const json = await res.json();
 
       const csqCard = json.find((c: { slug: string }) => c.slug === "CSQ-001");
@@ -248,11 +257,11 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/card-sources/source-names ──────────────────────────────────
+  // ── GET /admin/candidates/provider-names ──────────────────────────────────
 
-  describe("GET /admin/card-sources/source-names", () => {
+  describe("GET /admin/candidates/provider-names", () => {
     it("returns distinct source names including CSQ sources", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/source-names"));
+      const res = await app.fetch(req("GET", "/admin/candidates/provider-names"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -262,11 +271,11 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/card-sources/source-stats ──────────────────────────────────
+  // ── GET /admin/candidates/provider-stats ──────────────────────────────────
 
-  describe("GET /admin/card-sources/source-stats", () => {
+  describe("GET /admin/candidates/provider-stats", () => {
     it("returns per-source counts for CSQ sources", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/source-stats"));
+      const res = await app.fetch(req("GET", "/admin/candidates/provider-stats"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -285,11 +294,11 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/card-sources/ ──────────────────────────────────────────────
+  // ── GET /admin/candidates/ ──────────────────────────────────────────────
 
-  describe("GET /admin/card-sources/", () => {
+  describe("GET /admin/candidates/", () => {
     it("returns CSQ cards and unmatched groups", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources"));
+      const res = await app.fetch(req("GET", "/admin/candidates"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -298,28 +307,28 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       // Find the matched card (CSQ Test Card)
       const testCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-001");
       expect(testCard).toBeDefined();
-      expect(testCard.cardId).toBe(card1Id);
+      expect(testCard.cardSlug).toBe("CSQ-001");
       expect(testCard.name).toBe("CSQ Test Card");
       expect(testCard.candidateCount).toBeGreaterThanOrEqual(1);
 
-      // Find the orphan card (CSQ Another Card — has no card_sources)
+      // Find the orphan card (CSQ Another Card — has no candidate_cards)
       const anotherCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-002");
       expect(anotherCard).toBeDefined();
-      expect(anotherCard.cardId).toBe(card2Id);
+      expect(anotherCard.cardSlug).toBe("CSQ-002");
       expect(anotherCard.candidateCount).toBe(0);
 
       // Find the unmatched group (CSQ Unknown Card)
       const unmatched = json.find(
-        (r: { cardId: string | null; name: string }) =>
-          r.cardId === null && r.name === "CSQ Unknown Card",
+        (r: { cardSlug: string | null; name: string }) =>
+          r.cardSlug === null && r.name === "CSQ Unknown Card",
       );
       expect(unmatched).toBeDefined();
       expect(unmatched.normalizedName).toBe("csqunknowncard");
-      expect(unmatched.pendingSourceIds).toContain("CSQ-UNK-001");
+      expect(unmatched.stagingShortCodes).toContain("CSQ-UNK-001");
     });
 
     it("includes unchecked counts for CSQ Test Card", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources"));
+      const res = await app.fetch(req("GET", "/admin/candidates"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -330,29 +339,29 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     });
 
     it("includes unmatched groups with cardId null", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources"));
+      const res = await app.fetch(req("GET", "/admin/candidates"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       const unmatched = json.find((r: { name: string }) => r.name === "CSQ Unknown Card");
       expect(unmatched).toBeDefined();
-      expect(unmatched.cardId).toBeNull();
+      expect(unmatched.cardSlug).toBeNull();
     });
   });
 
-  // ── GET /admin/card-sources/export ────────────────────────────────────────
+  // ── GET /admin/candidates/export ────────────────────────────────────────
 
-  describe("GET /admin/card-sources/export", () => {
+  describe("GET /admin/candidates/export", () => {
     it("returns all cards including CSQ cards with printings", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/export"));
+      const res = await app.fetch(req("GET", "/admin/candidates/export"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
       expect(json).toBeArray();
 
-      // Find CSQ cards in the export (export uses source_id which is the card slug)
-      const csqExport = json.filter((e: { card: { source_id: string } }) =>
-        e.card.source_id?.startsWith("CSQ-"),
+      // Find CSQ cards in the export (export uses short_code which is the card slug)
+      const csqExport = json.filter((e: { card: { short_code: string } }) =>
+        e.card.short_code?.startsWith("CSQ-"),
       );
       expect(csqExport).toHaveLength(2);
 
@@ -368,17 +377,17 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(sorted[1].card.name).toBe("CSQ Test Card");
       expect(sorted[1].printings).toBeArray();
       expect(sorted[1].printings).toHaveLength(1);
-      expect(sorted[1].printings[0].source_id).toBe("CSQ-001");
+      expect(sorted[1].printings[0].short_code).toBe("CSQ-001");
       expect(sorted[1].printings[0].set_id).toBe("CSQ-TEST");
       expect(sorted[1].printings[0].rarity).toBe("Common");
     });
   });
 
-  // ── GET /admin/card-sources/:cardId ───────────────────────────────────────
+  // ── GET /admin/candidates/:cardId ───────────────────────────────────────
 
-  describe("GET /admin/card-sources/:cardId", () => {
+  describe("GET /admin/candidates/:cardId", () => {
     it("returns card detail with sources and printings", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/CSQ-001"));
+      const res = await app.fetch(req("GET", "/admin/candidates/CSQ-001"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -396,7 +405,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.sources).toBeArray();
       expect(json.sources.length).toBeGreaterThanOrEqual(1);
       const spreadsheetSource = json.sources.find(
-        (s: { source: string }) => s.source === "csq-spreadsheet",
+        (s: { provider: string }) => s.provider === "csq-spreadsheet",
       );
       expect(spreadsheetSource).toBeDefined();
       expect(spreadsheetSource.name).toBe("CSQ Test Card");
@@ -411,7 +420,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     });
 
     it("response includes candidatePrintings", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/CSQ-001"));
+      const res = await app.fetch(req("GET", "/admin/candidates/CSQ-001"));
       const json = await res.json();
 
       expect(json.candidatePrintings).toBeArray();
@@ -423,37 +432,55 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(ps.rarity).toBe("Common");
       expect(ps.imageUrl).toBe("https://example.com/csq-test.png");
       expect(ps.candidateCardId).toBeString();
-      expect(ps.createdAt).toBeString();
-      expect(ps.updatedAt).toBeString();
+      expect(ps.checkedAt).toSatisfy((v: unknown) => v === null || typeof v === "string");
     });
 
     it("returns printingImages array", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/CSQ-001"));
+      const res = await app.fetch(req("GET", "/admin/candidates/CSQ-001"));
       const json = await res.json();
 
       expect(json.printingImages).toBeArray();
     });
 
-    it("returns 404 for non-existent card slug", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/NONEXISTENT"));
-      expect(res.status).toBe(404);
+    it("returns 500 when card exists but has no name alias", async () => {
+      // Temporarily delete the alias to simulate a broken state
+      await testDb.deleteFrom("cardNameAliases").where("normName", "=", "csqtestcard").execute();
+
+      const res = await app.fetch(req("GET", "/admin/candidates/CSQ-001"));
+      expect(res.status).toBe(500);
+
+      const json = await res.json();
+      expect(json.code).toBe("MISSING_ALIAS");
+
+      // Restore the alias for subsequent tests
+      await testDb
+        .insertInto("cardNameAliases")
+        .values({ cardId: card1Id, normName: "csqtestcard" })
+        .execute();
+    });
+
+    it("returns 200 with card null for non-existent card slug", async () => {
+      const res = await app.fetch(req("GET", "/admin/candidates/NONEXISTENT"));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.card).toBeNull();
     });
   });
 
-  // ── GET /admin/card-sources/new/:name ─────────────────────────────────────
+  // ── GET /admin/candidates/new/:name ─────────────────────────────────────
 
-  describe("GET /admin/card-sources/new/:name", () => {
+  describe("GET /admin/candidates/new/:name", () => {
     it("returns unmatched sources for a normalized name", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/new/csqunknowncard"));
+      const res = await app.fetch(req("GET", "/admin/candidates/new/csqunknowncard"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.name).toBe("CSQ Unknown Card");
+      expect(json.displayName).toBe("CSQ Unknown Card");
 
       // Sources
       expect(json.sources).toBeArray();
       expect(json.sources).toHaveLength(1);
-      expect(json.sources[0].source).toBe("csq-gallery");
+      expect(json.sources[0].provider).toBe("csq-gallery");
       expect(json.sources[0].name).toBe("CSQ Unknown Card");
       expect(json.sources[0].type).toBe("Rune");
       expect(json.sources[0].domains).toEqual(["Chaos"]);
@@ -466,9 +493,12 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.candidatePrintings[0].collectorNumber).toBe(99);
     });
 
-    it("returns 404 for non-existent normalized name", async () => {
-      const res = await app.fetch(req("GET", "/admin/card-sources/new/nonexistent"));
-      expect(res.status).toBe(404);
+    it("returns 200 with empty sources for non-existent normalized name", async () => {
+      const res = await app.fetch(req("GET", "/admin/candidates/new/nonexistent"));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.sources).toBeArray();
+      expect(json.sources).toHaveLength(0);
     });
   });
 });

@@ -279,7 +279,7 @@ if (ctx) {
 // Tests
 // ---------------------------------------------------------------------------
 
-const P = "/admin/card-sources";
+const P = "/admin/candidates";
 
 describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
@@ -331,7 +331,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
   // ── Single printing-source check ────────────────────────────────────────
 
-  describe("POST /printing-sources/:id/check", () => {
+  describe("POST /candidate-printings/:id/check", () => {
     it("marks a printing source as checked", async () => {
       // Reset checkedAt
       await db
@@ -340,20 +340,20 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", psId)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/printing-sources/${psId}/check`));
+      const res = await app.fetch(req("POST", `${P}/candidate-printings/${psId}/check`));
       expect(res.status).toBe(204);
     });
 
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("POST", `${P}/printing-sources/${fakeId}/check`));
+      const res = await app.fetch(req("POST", `${P}/candidate-printings/${fakeId}/check`));
       expect(res.status).toBe(404);
     });
   });
 
   // ── Printing-sources check-all ──────────────────────────────────────────
 
-  describe("POST /printing-sources/check-all", () => {
+  describe("POST /candidate-printings/check-all", () => {
     it("marks all printing sources for a printing as checked", async () => {
       // Reset
       await db
@@ -362,7 +362,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("printingId", "=", printingId)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/printing-sources/check-all`, { printingId }));
+      const res = await app.fetch(
+        req("POST", `${P}/candidate-printings/check-all`, { printingId }),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -383,7 +385,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/printing-sources/check-all`, {
+        req("POST", `${P}/candidate-printings/check-all`, {
           printingId,
           extraIds: [psForAcceptNewId],
         }),
@@ -421,10 +423,10 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
   // ── PATCH printing-source ───────────────────────────────────────────────
 
-  describe("PATCH /printing-sources/:id", () => {
+  describe("PATCH /candidate-printings/:id", () => {
     it("updates rarity on a printing source", async () => {
       const res = await app.fetch(
-        req("PATCH", `${P}/printing-sources/${psId}`, { rarity: "Rare" }),
+        req("PATCH", `${P}/candidate-printings/${psId}`, { rarity: "Rare" }),
       );
       expect(res.status).toBe(204);
 
@@ -439,7 +441,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates multiple fields at once", async () => {
       const res = await app.fetch(
-        req("PATCH", `${P}/printing-sources/${psId}`, {
+        req("PATCH", `${P}/candidate-printings/${psId}`, {
           artVariant: "altart",
           finish: "foil",
           isSigned: true,
@@ -477,14 +479,14 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("returns 400 for empty update", async () => {
-      const res = await app.fetch(req("PATCH", `${P}/printing-sources/${psId}`, {}));
+      const res = await app.fetch(req("PATCH", `${P}/candidate-printings/${psId}`, {}));
       expect(res.status).toBe(400);
     });
 
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
-        req("PATCH", `${P}/printing-sources/${fakeId}`, { rarity: "Rare" }),
+        req("PATCH", `${P}/candidate-printings/${fakeId}`, { rarity: "Rare" }),
       );
       expect(res.status).toBe(404);
     });
@@ -492,16 +494,16 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
   // ── Copy printing-source ────────────────────────────────────────────────
 
-  describe("POST /printing-sources/:id/copy", () => {
+  describe("POST /candidate-printings/:id/copy", () => {
     it("copies a printing source to another printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing-sources/${psId}/copy`, {
-          printingId: "CSM-001:rare:foil:",
+        req("POST", `${P}/candidate-printings/${psId}/copy`, {
+          printingId: printing2Id,
         }),
       );
       expect(res.status).toBe(204);
 
-      // Verify a new printing_source was created linked to printing2
+      // Verify a new candidate_printing was created linked to printing2
       const copies = await db
         .selectFrom("candidatePrintings")
         .select("id")
@@ -513,31 +515,32 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 404 for non-existent source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
-        req("POST", `${P}/printing-sources/${fakeId}/copy`, {
-          printingId: "CSM-001:rare:foil:",
+        req("POST", `${P}/candidate-printings/${fakeId}/copy`, {
+          printingId: printing2Id,
         }),
       );
       expect(res.status).toBe(404);
     });
 
     it("returns 404 for non-existent target printing", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000001";
       const res = await app.fetch(
-        req("POST", `${P}/printing-sources/${psId}/copy`, {
-          printingId: "NONEXISTENT:slug:",
+        req("POST", `${P}/candidate-printings/${psId}/copy`, {
+          printingId: fakeId,
         }),
       );
       expect(res.status).toBe(404);
     });
   });
 
-  // ── Link / unlink printing-sources ──────────────────────────────────────
+  // ── Link / unlink candidate-printings ──────────────────────────────────────
 
-  describe("POST /printing-sources/link", () => {
-    it("links printing sources to a printing by slug", async () => {
+  describe("POST /candidate-printings/link", () => {
+    it("links candidate printings to a printing by UUID", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing-sources/link`, {
-          printingSourceIds: [psUnlinkedId],
-          printingId: "CSM-001:rare:foil:",
+        req("POST", `${P}/candidate-printings/link`, {
+          candidatePrintingIds: [psUnlinkedId],
+          printingId: printing2Id,
         }),
       );
       expect(res.status).toBe(204);
@@ -553,8 +556,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("unlinks printing sources (printingId=null)", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing-sources/link`, {
-          printingSourceIds: [psUnlinkedId],
+        req("POST", `${P}/candidate-printings/link`, {
+          candidatePrintingIds: [psUnlinkedId],
           printingId: null,
         }),
       );
@@ -569,14 +572,16 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(row.printingId).toBeNull();
     });
 
-    it("returns 404 for non-existent target printing slug", async () => {
+    it("returns 500 for non-existent target printing UUID", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000001";
       const res = await app.fetch(
-        req("POST", `${P}/printing-sources/link`, {
-          printingSourceIds: [psUnlinkedId],
-          printingId: "NONEXISTENT:slug:",
+        req("POST", `${P}/candidate-printings/link`, {
+          candidatePrintingIds: [psUnlinkedId],
+          printingId: fakeId,
         }),
       );
-      expect(res.status).toBe(404);
+      // Link with non-existent UUID violates FK constraint
+      expect(res.status).toBe(500);
     });
   });
 
@@ -951,6 +956,14 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(card!.name).toBe("CSM New Card");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       expect(card!.type).toBe("Spell");
+
+      // Verify alias was created (every accepted card must have at least one)
+      const alias = await db
+        .selectFrom("cardNameAliases")
+        .select("cardId")
+        .where("normName", "=", "csmnewcard")
+        .executeTakeFirst();
+      expect(alias).toBeDefined();
     });
   });
 
@@ -1056,7 +1069,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             flavorText: "AP Flavor",
             imageUrl: "https://example.com/ap.png",
           },
-          printingSourceIds: [apPs.id],
+          candidatePrintingIds: [apPs.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1123,7 +1136,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "Custom Artist",
             publicCode: "CSM",
           },
-          printingSourceIds: [apPs2.id],
+          candidatePrintingIds: [apPs2.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1172,7 +1185,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "Promo Artist",
             publicCode: "CSM",
           },
-          printingSourceIds: [apPs3.id],
+          candidatePrintingIds: [apPs3.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1191,7 +1204,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(p.promoTypeId).toBe(promoTypeId);
     });
 
-    it("returns 400 for empty printingSourceIds", async () => {
+    it("returns 400 for empty candidatePrintingIds", async () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-printing`, {
           printingFields: {
@@ -1200,7 +1213,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "X",
             publicCode: "X",
           },
-          printingSourceIds: [],
+          candidatePrintingIds: [],
         }),
       );
       expect(res.status).toBe(400);
@@ -1216,7 +1229,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "X",
             publicCode: "X",
           },
-          printingSourceIds: [psId],
+          candidatePrintingIds: [psId],
         }),
       );
       expect(res.status).toBe(404);
@@ -1261,7 +1274,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "A",
             publicCode: "X",
           },
-          printingSourceIds: [apPs4.id],
+          candidatePrintingIds: [apPs4.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1284,7 +1297,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("uploads card sources and returns counts", async () => {
       const res = await app.fetch(
         req("POST", `${P}/upload`, {
-          source: "csm-test-upload",
+          provider: "csm-test-upload",
           candidates: [
             {
               card: {
@@ -1335,7 +1348,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 400 for empty source", async () => {
       const res = await app.fetch(
         req("POST", `${P}/upload`, {
-          source: "",
+          provider: "",
           candidates: [{ card: { name: "X", type: "Unit" }, printings: [] }],
         }),
       );
@@ -1345,7 +1358,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 400 for empty candidates", async () => {
       const res = await app.fetch(
         req("POST", `${P}/upload`, {
-          source: "csm-test-upload",
+          provider: "csm-test-upload",
           candidates: [],
         }),
       );
@@ -1356,10 +1369,10 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // ── Delete printing-source ──────────────────────────────────────────────
   // (placed near the end since it removes seed data)
 
-  describe("DELETE /printing-sources/:id", () => {
+  describe("DELETE /candidate-printings/:id", () => {
     it("deletes a printing source", async () => {
       // Use the unlinked one to avoid FK issues
-      const res = await app.fetch(req("DELETE", `${P}/printing-sources/${psUnlinkedId}`));
+      const res = await app.fetch(req("DELETE", `${P}/candidate-printings/${psUnlinkedId}`));
       expect(res.status).toBe(204);
 
       // Verify gone
@@ -1373,7 +1386,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("DELETE", `${P}/printing-sources/${fakeId}`));
+      const res = await app.fetch(req("DELETE", `${P}/candidate-printings/${fakeId}`));
       expect(res.status).toBe(404);
     });
   });
@@ -1381,18 +1394,18 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // ── Delete by source ────────────────────────────────────────────────────
   // (last — removes all card_sources for a source, cascading to printing_sources)
 
-  describe("DELETE /by-source/:source", () => {
+  describe("DELETE /by-provider/:source", () => {
     it("deletes all card sources for a source name", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-source/csm-spreadsheet`));
+      const res = await app.fetch(req("DELETE", `${P}/by-provider/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.source).toBe("csm-spreadsheet");
+      expect(json.provider).toBe("csm-spreadsheet");
       expect(json.deleted).toBeGreaterThanOrEqual(1);
     });
 
     it("returns 0 deleted for already-cleaned source", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-source/csm-spreadsheet`));
+      const res = await app.fetch(req("DELETE", `${P}/by-provider/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -1400,7 +1413,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("returns 400 for empty source", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-source/%20`));
+      const res = await app.fetch(req("DELETE", `${P}/by-provider/%20`));
       expect(res.status).toBe(400);
     });
   });

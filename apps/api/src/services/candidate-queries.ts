@@ -8,6 +8,7 @@ import { buildPrintingId, mostCommonValue } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
+import { AppError } from "../errors.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 
 type Repo = ReturnType<typeof candidateCardsRepo>;
@@ -363,6 +364,13 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
 
   // If matched, look up by card's normName + aliases; otherwise treat identifier as normName
   const aliases = card ? await repo.cardNameAliases(card.id) : [];
+  if (card && aliases.length === 0) {
+    throw new AppError(
+      500,
+      "MISSING_ALIAS",
+      `Card "${card.slug}" has no name aliases — this should never happen. Re-create the alias to fix.`,
+    );
+  }
   const normNames = aliases.length > 0 ? aliases.map((a) => a.normName) : [identifier];
   const candidates = await repo.candidateCardsForDetail(normNames);
   const candidateIds = candidates.map((s) => s.id);
