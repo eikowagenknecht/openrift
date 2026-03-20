@@ -14,7 +14,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   // - TCGPlayer source for Annie: '019cf052-a62c-7993-b36e-917d2cbf013a'
   // - Cardmarket source for Annie: '019cf052-a62e-71a4-af71-47bf427ddf16'
   const anniePrintingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
-  const annieTcgSourceId = "019cf052-a62c-7993-b36e-917d2cbf013a";
+  const annieTcgId = "019cf052-a62c-7993-b36e-917d2cbf013a";
 
   // Track snapshot IDs for cleanup
   const createdSnapshotIds: string[] = [];
@@ -58,7 +58,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     const snap1 = await db
       .insertInto("marketplaceSnapshots")
       .values({
-        productId: annieTcgSourceId,
+        productId: annieTcgId,
         marketCents: 100,
         lowCents: 80,
         midCents: 95,
@@ -72,7 +72,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     const snap2 = await db
       .insertInto("marketplaceSnapshots")
       .values({
-        productId: annieTcgSourceId,
+        productId: annieTcgId,
         marketCents: 120,
         lowCents: 90,
         midCents: 110,
@@ -83,7 +83,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .executeTakeFirstOrThrow();
     createdSnapshotIds.push(snap2.id);
 
-    const snaps = await repo.snapshots(annieTcgSourceId, null);
+    const snaps = await repo.snapshots(annieTcgId, null);
 
     expect(snaps.length).toBeGreaterThanOrEqual(2);
     // Verify ascending order
@@ -96,7 +96,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
 
   it("filters snapshots by cutoff date", async () => {
     const cutoff = new Date("2026-01-15T00:00:00Z");
-    const snaps = await repo.snapshots(annieTcgSourceId, cutoff);
+    const snaps = await repo.snapshots(annieTcgId, cutoff);
 
     // Should only include snap2 (Feb) and anything after cutoff
     for (const s of snaps) {

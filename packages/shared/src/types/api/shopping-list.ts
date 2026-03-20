@@ -1,6 +1,6 @@
 export interface ShoppingListSourceResponse {
   source: string;
-  sourceId: string;
+  demandSourceId: string;
   sourceName: string;
   needed: number;
 }

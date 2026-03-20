@@ -12,7 +12,7 @@ interface AddCardPopoverProps {
   printing: Printing;
   printings?: Printing[];
   collectionId: string;
-  sourceId?: string;
+  acquisitionSourceId?: string;
   onDone: () => void;
 }
 
@@ -20,7 +20,7 @@ export function AddCardPopover({
   printing,
   printings,
   collectionId,
-  sourceId,
+  acquisitionSourceId,
   onDone,
 }: AddCardPopoverProps) {
   const allPrintings = printings && printings.length > 1 ? printings : [printing];
@@ -32,7 +32,7 @@ export function AddCardPopover({
     const copies = Array.from({ length: quantity }, () => ({
       printingId: selectedPrinting.id,
       collectionId,
-      sourceId,
+      acquisitionSourceId,
     }));
 
     addCopies.mutate(

@@ -66,7 +66,7 @@ export interface MarketplaceConfig {
   /** Map a snapshot query result → unified product-info */
   mapSnapshotPrices(row: MappedSnapshotRow): ProductInfo;
   /** Insert a snapshot row from staging during the POST (map) operation */
-  insertSnapshot(tx: Transaction<Database>, sourceId: string, row: StagingRow): Promise<void>;
+  insertSnapshot(tx: Transaction<Database>, productId: string, row: StagingRow): Promise<void>;
   /** Insert a staging row from a snapshot during the DELETE (unmap) operation */
   insertStagingFromSnapshot(
     tx: Transaction<Database>,
@@ -102,7 +102,7 @@ function createMarketplaceConfig(opts: {
       ...mapPrices(row),
     }),
 
-    insertSnapshot: (tx, sourceId, row) => repo.insertSnapshot(tx, sourceId, row),
+    insertSnapshot: (tx, productId, row) => repo.insertSnapshot(tx, productId, row),
 
     insertStagingFromSnapshot: (tx, ps, finish, snap) =>
       repo.insertStagingFromSnapshot(tx, marketplace, ps, finish, snap),

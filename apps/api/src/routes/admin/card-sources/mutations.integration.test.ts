@@ -19,7 +19,7 @@ let cardId = "";
 const cardSlug = "CSM-001";
 let printingId = "";
 let printing2Id = "";
-let csId = "";
+let cardShortCode = "";
 let csUnmatchedId = "";
 let psId = "";
 let psUnlinkedId = "";
@@ -140,7 +140,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  csId = csRow.id;
+  cardShortCode = csRow.id;
 
   // Card source (unmatched)
   const [csUnmatchedRow] = await db
@@ -170,7 +170,7 @@ if (ctx) {
   const [psRow] = await db
     .insertInto("candidatePrintings")
     .values({
-      candidateCardId: csId,
+      candidateCardId: cardShortCode,
       printingId: printingId,
       shortCode: "CSM-001",
       setId: "CSM-TEST",
@@ -315,10 +315,10 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("candidateCards")
         .set({ checkedAt: null })
-        .where("id", "=", csId)
+        .where("id", "=", cardShortCode)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/${csId}/check`));
+      const res = await app.fetch(req("POST", `${P}/${cardShortCode}/check`));
       expect(res.status).toBe(204);
     });
 
@@ -403,7 +403,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("candidateCards")
         .set({ checkedAt: null })
-        .where("id", "=", csId)
+        .where("id", "=", cardShortCode)
         .execute();
 
       const res = await app.fetch(req("POST", `${P}/${cardSlug}/check-all`));

@@ -550,7 +550,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           fields={
             isExisting
               ? CANDIDATE_CARD_FIELDS.map((f) =>
-                  f.key === "sourceId" ? { ...f, readOnly: false } : f,
+                  f.key === "shortCode" ? { ...f, readOnly: false } : f,
                 )
               : CANDIDATE_CARD_FIELDS
           }
@@ -559,7 +559,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
             isExisting
               ? {
                   ...(existingData as NonNullable<typeof existingData>).card,
-                  sourceId: (existingData as NonNullable<typeof existingData>).card.slug,
+                  shortCode: (existingData as NonNullable<typeof existingData>).card.slug,
                 }
               : Object.keys(activeCard).length > 0
                 ? activeCard
@@ -569,7 +569,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           providerSettings={providerSettings}
           onCellClick={(field, value) => {
             if (isExisting) {
-              if (field === "sourceId") {
+              if (field === "shortCode") {
                 const newId = String(value).trim();
                 if (newId && newId !== cardId) {
                   renameCard.mutate(
@@ -596,7 +596,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               if (value === undefined) {
                 return;
               }
-              if (field === "sourceId") {
+              if (field === "shortCode") {
                 const newId = String(value).trim();
                 if (newId && newId !== cardId) {
                   renameCard.mutate(
@@ -622,8 +622,8 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               );
             }
           }}
-          onCheck={(sourceId) => checkCandidateCard.mutate(sourceId)}
-          onUncheck={(sourceId) => uncheckCandidateCard.mutate(sourceId)}
+          onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
+          onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
           columnActions={(row) =>
             isExisting ? (
               <>
@@ -824,10 +824,10 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                                 existing.source += `, ${src}`;
                               }
                             } else {
-                              acc.set(url, { printingSourceId: ps.id, url, source: src });
+                              acc.set(url, { candidatePrintingId: ps.id, url, source: src });
                             }
                             return acc;
-                          }, new Map<string, { printingSourceId: string; url: string; source: string }>())
+                          }, new Map<string, { candidatePrintingId: string; url: string; source: string }>())
                           .values(),
                       ]}
                     />
@@ -904,7 +904,9 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               isExpanded={expandedPrintings.has(group.expectedPrintingId)}
               onToggle={() => togglePrinting(group.expectedPrintingId)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
-              onCheckAll={(sourceIds) => checkAllCandidatePrintings.mutate({ extraIds: sourceIds })}
+              onCheckAll={(candidateIds) =>
+                checkAllCandidatePrintings.mutate({ extraIds: candidateIds })
+              }
               isCheckingAll={checkAllCandidatePrintings.isPending}
               onUncheck={(id) => uncheckPrintingSource.mutate(id)}
               onAccept={(printingFields, candidatePrintingIds) => {
@@ -1069,7 +1071,7 @@ function NewPrintingGroupCard({
   isExpanded: boolean;
   onToggle: () => void;
   onCheck: (id: string) => void;
-  onCheckAll: (sourceIds: string[]) => void;
+  onCheckAll: (candidateIds: string[]) => void;
   isCheckingAll: boolean;
   onUncheck: (id: string) => void;
   onAccept: (printingFields: Record<string, unknown>, candidatePrintingIds: string[]) => void;
@@ -1354,7 +1356,7 @@ function GroupImagePreview({
 // ── Printing image switcher (replaces the old table) ─────────────────────────
 
 interface SourceImage {
-  printingSourceId: string;
+  candidatePrintingId: string;
   url: string;
   source: string;
 }
@@ -1398,7 +1400,7 @@ function PrintingImageSwitcher({
   const sortedSourceImages = [...sourceImages].sort((a, b) => orderSort(a.source, b.source));
 
   const [selectedId, setSelectedId] = useState<string | null>(
-    () => sortedImages[0]?.id ?? sortedSourceImages[0]?.printingSourceId ?? null,
+    () => sortedImages[0]?.id ?? sortedSourceImages[0]?.candidatePrintingId ?? null,
   );
   const [resolution, setResolution] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
@@ -1409,7 +1411,7 @@ function PrintingImageSwitcher({
 
   // Determine what's selected: an accepted image, a source image, or nothing
   const selectedImage = images.find((img) => img.id === selectedId);
-  const selectedSource = sourceImages.find((si) => si.printingSourceId === selectedId);
+  const selectedSource = sourceImages.find((si) => si.candidatePrintingId === selectedId);
 
   // Default to the active image when nothing is explicitly selected
   const activeImage = images.find((img) => img.isActive);
@@ -1449,18 +1451,18 @@ function PrintingImageSwitcher({
         })}
         {sortedSourceImages.map((si) => (
           <button
-            key={si.printingSourceId}
+            key={si.candidatePrintingId}
             type="button"
             className={`rounded border border-dashed px-1.5 py-0.5 text-[10px] ${
-              effectiveSource?.printingSourceId === si.printingSourceId
+              effectiveSource?.candidatePrintingId === si.candidatePrintingId
                 ? "border-primary bg-primary/10"
                 : "text-muted-foreground"
             }`}
             onClick={() => {
               setSelectedId(
-                effectiveSource?.printingSourceId === si.printingSourceId
+                effectiveSource?.candidatePrintingId === si.candidatePrintingId
                   ? null
-                  : si.printingSourceId,
+                  : si.candidatePrintingId,
               );
               setResolution(null);
               setImgError(false);
@@ -1664,7 +1666,7 @@ function PrintingImageSwitcher({
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
-                  { candidatePrintingId: effectiveSource.printingSourceId, mode: "main" },
+                  { candidatePrintingId: effectiveSource.candidatePrintingId, mode: "main" },
                   { onSuccess: () => setSelectedId(null) },
                 )
               }
@@ -1679,7 +1681,7 @@ function PrintingImageSwitcher({
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
-                  { candidatePrintingId: effectiveSource.printingSourceId, mode: "additional" },
+                  { candidatePrintingId: effectiveSource.candidatePrintingId, mode: "additional" },
                   { onSuccess: () => setSelectedId(null) },
                 )
               }

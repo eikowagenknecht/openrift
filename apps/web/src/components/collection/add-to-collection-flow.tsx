@@ -28,7 +28,7 @@ export function AddToCollectionFlow({
   const { data: sources } = useAcquisitionSources();
   const navigate = useNavigate();
 
-  const [sourceId, setSourceId] = useState("");
+  const [acquisitionSourceId, setAcquisitionSourceId] = useState("");
   const [creatingSource, setCreatingSource] = useState(false);
   const [newSourceName, setNewSourceName] = useState("");
   const createSource = useCreateAcquisitionSource();
@@ -81,7 +81,7 @@ export function AddToCollectionFlow({
                   { name: trimmed },
                   {
                     onSuccess: (source) => {
-                      setSourceId(source.id);
+                      setAcquisitionSourceId(source.id);
                       setCreatingSource(false);
                       setNewSourceName("");
                     },
@@ -108,13 +108,13 @@ export function AddToCollectionFlow({
             </form>
           ) : (
             <select
-              value={sourceId}
+              value={acquisitionSourceId}
               onChange={(e) => {
                 if (e.target.value === "__new__") {
                   setCreatingSource(true);
-                  setSourceId("");
+                  setAcquisitionSourceId("");
                 } else {
-                  setSourceId(e.target.value);
+                  setAcquisitionSourceId(e.target.value);
                 }
               }}
               className="h-7 rounded border bg-background px-2 text-xs"
@@ -156,7 +156,7 @@ export function AddToCollectionFlow({
               printing={popoverCard}
               printings={printingsByCardId.get(popoverCard.card.id)}
               collectionId={collectionId}
-              sourceId={sourceId || undefined}
+              acquisitionSourceId={acquisitionSourceId || undefined}
               onDone={() => setPopoverCard(null)}
             />
           </div>,

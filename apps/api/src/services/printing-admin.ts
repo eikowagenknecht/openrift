@@ -129,10 +129,10 @@ export async function acceptPrinting(
   },
   cardSlug: string,
   printingFields: AcceptPrintingFields,
-  printingSourceIds: string[],
+  candidatePrintingIds: string[],
 ): Promise<string> {
-  if (printingSourceIds.length === 0) {
-    throw new AppError(400, "BAD_REQUEST", "printingFields and printingSourceIds[] required");
+  if (candidatePrintingIds.length === 0) {
+    throw new AppError(400, "BAD_REQUEST", "printingFields and candidatePrintingIds[] required");
   }
   if (!printingFields.setId) {
     throw new AppError(400, "BAD_REQUEST", "printingFields.setId is required");
@@ -163,7 +163,7 @@ export async function acceptPrinting(
       printingFields.finish ?? ("normal" satisfies Finish),
     );
 
-  const firstPs = await mut.getProviderNameForCandidatePrinting(printingSourceIds[0]);
+  const firstPs = await mut.getProviderNameForCandidatePrinting(candidatePrintingIds[0]);
 
   await db.transaction().execute(async (trx) => {
     if (printingFields.setId) {
@@ -217,7 +217,7 @@ export async function acceptPrinting(
       );
     }
 
-    await mut.linkAndCheckCandidatePrintings(printingSourceIds, insertedId, trx);
+    await mut.linkAndCheckCandidatePrintings(candidatePrintingIds, insertedId, trx);
   });
 
   return printingId;

@@ -31,7 +31,7 @@ export async function buildShoppingList(
 
   const deckDemands = deckCardRows.map((dc) => ({
     source: "deck" as const,
-    sourceId: dc.deckId,
+    demandSourceId: dc.deckId,
     sourceName: dc.deckName,
     cardId: dc.cardId,
     needed: dc.quantity,
@@ -39,7 +39,7 @@ export async function buildShoppingList(
 
   const wishDemands = wishItemRows.map((item) => ({
     source: "wish_list" as const,
-    sourceId: item.wishListId,
+    demandSourceId: item.wishListId,
     sourceName: item.wishListName,
     cardId: item.cardId,
     printingId: item.printingId,
@@ -80,7 +80,7 @@ export async function buildShoppingList(
       ...wishDemands.filter((d) => d.cardId === cardId),
     ].map((d) => ({
       source: d.source,
-      sourceId: d.sourceId,
+      demandSourceId: d.demandSourceId,
       sourceName: d.sourceName,
       needed: d.needed,
     }));
@@ -97,7 +97,7 @@ export async function buildShoppingList(
       .filter((d) => d.printingId === printingId)
       .map((d) => ({
         source: d.source,
-        sourceId: d.sourceId,
+        demandSourceId: d.demandSourceId,
         sourceName: d.sourceName,
         needed: d.needed,
       }));

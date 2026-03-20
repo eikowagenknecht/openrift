@@ -4,7 +4,7 @@ import { sql } from "kysely";
 /**
  * Printing schema updates:
  * - Replace unique constraint to include rarity (alongside is_promo)
- * - Rewrite slugs from 5-segment to 4-segment: "sourceId:rarity:finish:promo|"
+ * - Rewrite slugs from 5-segment to 4-segment: "shortCode:rarity:finish:promo|"
  * - Null out rehosted image URLs so they get re-rehosted with new filenames
  * - Add comment column to printings
  * - Make printed_effect_text / flavor_text nullable (empty strings → NULL)
