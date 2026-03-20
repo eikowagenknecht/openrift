@@ -1,8 +1,10 @@
 import type { Printing } from "@openrift/shared";
+import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { LANDSCAPE_ROTATION_STYLE, getCardImageUrl, needsCssRotation } from "@/lib/images";
+import { cn } from "@/lib/utils";
 
 export function CardImage({
   innerRef,
@@ -23,6 +25,8 @@ export function CardImage({
 }) {
   const { card } = printing;
   const imageUrl = printing.images[0]?.url ?? null;
+  const hasImage = showImages && imageUrl;
+  const [imgLoaded, setImgLoaded] = useState(false);
   return (
     <div
       ref={innerRef}
@@ -39,37 +43,40 @@ export function CardImage({
         transformStyle: "preserve-3d",
       }}
     >
-      {showImages && imageUrl ? (
-        needsCssRotation(imageUrl, orientation) ? (
-          <>
-            {/* Spacer provides portrait height since the rotated wrapper is absolute */}
-            <div className="w-full" style={{ aspectRatio: "744 / 1039" }} />
-            <div
-              className="absolute top-1/2 left-1/2 overflow-hidden"
-              style={LANDSCAPE_ROTATION_STYLE}
-            >
-              <img
-                src={getCardImageUrl(imageUrl, "full", orientation)}
-                alt={card.name}
-                className="size-full object-cover"
-              />
-            </div>
-          </>
+      <CardPlaceholderImage
+        name={card.name}
+        domain={card.domains}
+        energy={card.energy}
+        might={card.might}
+        className={hasImage && imgLoaded ? "invisible" : undefined}
+      />
+      {hasImage &&
+        (needsCssRotation(imageUrl, orientation) ? (
+          <div
+            className={cn(
+              "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
+              imgLoaded ? "opacity-100" : "opacity-0",
+            )}
+            style={LANDSCAPE_ROTATION_STYLE}
+          >
+            <img
+              src={getCardImageUrl(imageUrl, "full", orientation)}
+              alt={card.name}
+              className="size-full object-cover"
+              onLoad={() => setImgLoaded(true)}
+            />
+          </div>
         ) : (
           <img
             src={getCardImageUrl(imageUrl, "full", orientation)}
             alt={card.name}
-            className="block w-full"
+            className={cn(
+              "absolute inset-0 block w-full transition-opacity duration-300",
+              imgLoaded ? "opacity-100" : "opacity-0",
+            )}
+            onLoad={() => setImgLoaded(true)}
           />
-        )
-      ) : (
-        <CardPlaceholderImage
-          name={card.name}
-          domain={card.domains}
-          energy={card.energy}
-          might={card.might}
-        />
-      )}
+        ))}
       {showFoil && <FoilOverlay active={tiltActive} shimmer={showShimmer} />}
     </div>
   );
