@@ -51,7 +51,7 @@ export function CardSearchDropdown({
         autoFocus={autoFocus}
       />
       {showResults && search.length >= 2 && results.length > 0 && (
-        <div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+        <div className="absolute top-full z-50 mt-1 max-h-60 min-w-full w-max overflow-y-auto rounded-md border bg-popover shadow-md">
           {results.map((item) => (
             <button
               key={item.id}

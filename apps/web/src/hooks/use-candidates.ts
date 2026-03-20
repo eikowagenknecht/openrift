@@ -38,7 +38,7 @@ export function useNextUncheckedCard(currentCardId: string) {
   return { fetchNext };
 }
 
-const allCardsQueryOptions = queryOptions({
+export const allCardsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.candidates.allCards,
   queryFn: () => rpc(client.api.admin["candidates"]["all-cards"].$get()),
 });
@@ -287,6 +287,18 @@ export function useLinkCandidatePrintings() {
   return useMutationWithInvalidation({
     mutationFn: (payload: { candidatePrintingIds: string[]; printingId: string | null }) =>
       rpc(client.api.admin["candidates"]["candidate-printings"].link.$post({ json: payload })),
+    invalidates: [queryKeys.admin.candidates.all],
+  });
+}
+
+export function useDeletePrinting() {
+  return useMutationWithInvalidation({
+    mutationFn: (printingId: string) =>
+      rpc(
+        client.api.admin["candidates"].printing[":printingId"].$delete({
+          param: { printingId },
+        }),
+      ),
     invalidates: [queryKeys.admin.candidates.all],
   });
 }
