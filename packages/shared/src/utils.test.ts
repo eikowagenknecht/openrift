@@ -175,6 +175,20 @@ describe("comparePrintings", () => {
     expect(comparePrintings(b, a)).toBeGreaterThan(0);
   });
 
+  it("sorts by setOrder when provided, ignoring setId", () => {
+    const a = { ...base, setId: "ZZZ", setOrder: 0 };
+    const b = { ...base, setId: "AAA", setOrder: 1 };
+    expect(comparePrintings(a, b)).toBeLessThan(0);
+    expect(comparePrintings(b, a)).toBeGreaterThan(0);
+  });
+
+  it("falls back to setId when setOrder is not provided", () => {
+    const a = { ...base, setId: "AAA" };
+    const b = { ...base, setId: "ZZZ", setOrder: 0 };
+    // Only b has setOrder, so falls back to setId string comparison
+    expect(comparePrintings(a, b)).toBeLessThan(0);
+  });
+
   it("sorts by collectorNumber when setId is equal", () => {
     const a = { ...base, collectorNumber: 5 };
     const b = { ...base, collectorNumber: 10 };

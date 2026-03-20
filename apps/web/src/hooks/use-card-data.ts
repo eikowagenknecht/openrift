@@ -1,5 +1,5 @@
 import type { CardFilters, Printing, SortOption } from "@openrift/shared";
-import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
+import { comparePrintings, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 
@@ -13,20 +13,43 @@ interface UseCardDataParams {
   ownedCountByPrinting: Record<string, number> | undefined;
 }
 
-// In "cards" mode, deduplicate by cardId — keep the printing with the lowest shortCode.
-function deduplicateByCard(filteredCards: Printing[]): Printing[] {
+// In "cards" mode, deduplicate by cardId — keep the canonical printing per comparePrintings order
+// (earliest set by display order, then normal finish before foil, non-promo before promo, etc.).
+function deduplicateByCard(
+  filteredCards: Printing[],
+  setOrderMap: Map<string, number>,
+): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of filteredCards) {
     const existing = seen.get(printing.card.id);
-    if (!existing || printing.shortCode.localeCompare(existing.shortCode) < 0) {
+    if (existing) {
+      const cmp = comparePrintings(
+        {
+          ...printing,
+          setOrder: setOrderMap.get(printing.setId),
+          promoTypeSlug: printing.promoType?.slug,
+        },
+        {
+          ...existing,
+          setOrder: setOrderMap.get(existing.setId),
+          promoTypeSlug: existing.promoType?.slug,
+        },
+      );
+      if (cmp < 0) {
+        seen.set(printing.card.id, printing);
+      }
+    } else {
       seen.set(printing.card.id, printing);
     }
   }
   return [...seen.values()];
 }
 
-// Group all printings by cardId and sort each group by shortCode.
-function groupPrintingsByCardId(allCards: Printing[]): Map<string, Printing[]> {
+// Group all printings by cardId and sort each group by canonical printing order.
+function groupPrintingsByCardId(
+  allCards: Printing[],
+  setOrderMap: Map<string, number>,
+): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
   for (const p of allCards) {
     let group = map.get(p.card.id);
@@ -37,7 +60,12 @@ function groupPrintingsByCardId(allCards: Printing[]): Map<string, Printing[]> {
     group.push(p);
   }
   for (const group of map.values()) {
-    group.sort((a, b) => a.shortCode.localeCompare(b.shortCode));
+    group.sort((a, b) =>
+      comparePrintings(
+        { ...a, setOrder: setOrderMap.get(a.setId), promoTypeSlug: a.promoType?.slug },
+        { ...b, setOrder: setOrderMap.get(b.setId), promoTypeSlug: b.promoType?.slug },
+      ),
+    );
   }
   return map;
 }
@@ -106,16 +134,18 @@ export function useCardData({
 }: UseCardDataParams) {
   const setSlugToName = new Map(setInfoList.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
+  const setOrderMap = new Map(setInfoList.map((s, i) => [s.id, i]));
 
   const availableFilters = getAvailableFilters(allCards);
   const filteredCards = filterCards(allCards, filters);
 
-  const displayCards = view === "cards" ? deduplicateByCard(filteredCards) : filteredCards;
+  const displayCards =
+    view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
 
   const sorted = sortCards(displayCards, sortBy);
   const sortedCards = sortDir === "desc" ? sorted.toReversed() : sorted;
 
-  const printingsByCardId = groupPrintingsByCardId(allCards);
+  const printingsByCardId = groupPrintingsByCardId(allCards, setOrderMap);
 
   const priceRangeByCardId = view === "cards" ? computePriceRanges(printingsByCardId) : null;
 
