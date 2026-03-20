@@ -300,13 +300,13 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(testCard).toBeDefined();
       expect(testCard.cardId).toBe(card1Id);
       expect(testCard.name).toBe("CSQ Test Card");
-      expect(testCard.sourceCount).toBeGreaterThanOrEqual(1);
+      expect(testCard.candidateCount).toBeGreaterThanOrEqual(1);
 
       // Find the orphan card (CSQ Another Card — has no card_sources)
       const anotherCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-002");
       expect(anotherCard).toBeDefined();
       expect(anotherCard.cardId).toBe(card2Id);
-      expect(anotherCard.sourceCount).toBe(0);
+      expect(anotherCard.candidateCount).toBe(0);
 
       // Find the unmatched group (CSQ Unknown Card)
       const unmatched = json.find(

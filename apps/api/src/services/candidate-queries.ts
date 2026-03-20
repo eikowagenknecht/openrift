@@ -261,7 +261,7 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
       normalizedName: card.normName,
       shortCodes: shortCodesByCardId.get(card.id) ?? [],
       stagingShortCodes: group ? stagingIdsForGroup(group) : [],
-      sourceCount: group?.length ?? 0,
+      candidateCount: group?.length ?? 0,
       uncheckedCardCount: group?.filter((cc) => !cc.checkedAt).length ?? 0,
       uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group) : 0,
       hasGallery: group?.some((cc) => cc.provider === "gallery") ?? false,
@@ -291,7 +291,7 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
       normalizedName: normName,
       shortCodes: [],
       stagingShortCodes: stagingIdsForGroup(group),
-      sourceCount: group.length,
+      candidateCount: group.length,
       uncheckedCardCount: group.filter((cc) => !cc.checkedAt).length,
       uncheckedPrintingCount: uncheckedPrintingCountForGroup(group),
       hasGallery: group.some((cc) => cc.provider === "gallery"),
@@ -473,8 +473,8 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     printings: formattedPrintings.sort((a, b) =>
       a.expectedPrintingId.localeCompare(b.expectedPrintingId),
     ),
-    printingSources: candidatePrintings.map((cp) => formatCandidatePrinting(cp)),
-    printingSourceGroups: filteredGroups,
+    candidatePrintings: candidatePrintings.map((cp) => formatCandidatePrinting(cp)),
+    candidatePrintingGroups: filteredGroups,
     expectedCardId: deriveExpectedCardId(printings, setReleasedAtMap, filteredGroups, card?.slug),
     printingImages,
   };
@@ -487,8 +487,8 @@ export async function buildUnmatchedDetail(repo: Repo, normName: string) {
   return {
     displayName: result.displayName,
     sources: result.sources,
-    printingSources: result.printingSources,
-    printingSourceGroups: result.printingSourceGroups,
+    candidatePrintings: result.candidatePrintings,
+    candidatePrintingGroups: result.candidatePrintingGroups,
     defaultCardId: result.expectedCardId,
   };
 }

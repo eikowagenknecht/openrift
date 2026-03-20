@@ -68,7 +68,7 @@ export interface CandidateCardSummaryResponse {
   normalizedName: string;
   shortCodes: string[];
   stagingShortCodes: string[];
-  sourceCount: number;
+  candidateCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasGallery: boolean;

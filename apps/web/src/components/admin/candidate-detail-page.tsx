@@ -97,7 +97,7 @@ interface DetailData {
   sources: CandidateCardResponse[];
   printings: Record<string, unknown>[];
   candidatePrintings: CandidatePrintingResponse[];
-  printingSourceGroups: CandidatePrintingGroupResponse[];
+  candidatePrintingGroups: CandidatePrintingGroupResponse[];
   expectedCardId: string;
   printingImages: AdminPrintingImageResponse[];
 }
@@ -106,7 +106,7 @@ interface UnmatchedData {
   displayName: string;
   sources: CandidateCardResponse[];
   candidatePrintings: CandidatePrintingResponse[];
-  printingSourceGroups: CandidatePrintingGroupResponse[];
+  candidatePrintingGroups: CandidatePrintingGroupResponse[];
   defaultCardId: string;
 }
 
@@ -267,8 +267,8 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
 
   // Use API-provided printing source groups for auto-matching
   const apiGroups: CandidatePrintingGroupResponse[] = isExisting
-    ? (existingData as NonNullable<typeof existingData>).printingSourceGroups
-    : (unmatchedData as NonNullable<typeof unmatchedData>).printingSourceGroups;
+    ? (existingData as NonNullable<typeof existingData>).candidatePrintingGroups
+    : (unmatchedData as NonNullable<typeof unmatchedData>).candidatePrintingGroups;
 
   // Build PrintingGroup[] from API groups (for components that still need the old shape)
   const candidatePrintingById = new Map(candidatePrintings.map((ps) => [ps.id, ps]));

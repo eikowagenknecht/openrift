@@ -185,7 +185,7 @@ export function CandidatesListPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{row.sourceCount}</Badge>
+                    <Badge variant="secondary">{row.candidateCount}</Badge>
                   </TableCell>
                 </TableRow>
               );
