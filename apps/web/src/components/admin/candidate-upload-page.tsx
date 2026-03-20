@@ -65,9 +65,7 @@ export function CandidateUploadPage() {
     setParseError(null);
     setFileData(null);
 
-    if (!provider) {
-      setProvider(file.name.replace(/\.json$/i, ""));
-    }
+    setProvider(file.name.replace(/\.json$/i, ""));
 
     const text = await file.text();
     try {
