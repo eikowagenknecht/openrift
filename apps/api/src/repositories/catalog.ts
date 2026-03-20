@@ -64,6 +64,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "rulesText",
           "effectText",
           "tags",
+          "comment",
         ])
         .orderBy("name")
         .execute();
