@@ -715,13 +715,13 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     /** @returns Set slug + release date for given IDs. */
     setInfoByIds(
       setIds: string[],
-    ): Promise<{ id: string; slug: string; releasedAt: string | null }[]> {
+    ): Promise<{ id: string; slug: string; name: string; releasedAt: string | null }[]> {
       if (setIds.length === 0) {
         return Promise.resolve([]);
       }
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "releasedAt"])
+        .select(["id", "slug", "name", "releasedAt"])
         .where("id", "in", setIds)
         .execute();
     },

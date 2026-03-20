@@ -376,6 +376,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   const setIds = [...new Set(printings.map((p) => p.setId))];
   const setRows = setIds.length > 0 ? await repo.setInfoByIds(setIds) : [];
   const setSlugMap = new Map(setRows.map((s) => [s.id, s.slug]));
+  const setNameMap = new Map(setRows.map((s) => [s.id, s.name]));
   const setReleasedAtMap = new Map(setRows.map((s) => [s.id, s.releasedAt]));
 
   // Resolve promo type IDs → slugs for computing expected printing IDs
@@ -392,6 +393,8 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
 
   const formattedPrintings = printings.map(({ setId, ...p }) => ({
     ...p,
+    setId: setSlugMap.get(setId) ?? setId,
+    setName: setNameMap.get(setId) ?? null,
     setSlug: setSlugMap.get(setId) ?? setId,
     expectedPrintingId: buildPrintingId(
       p.shortCode,
