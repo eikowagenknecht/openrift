@@ -658,6 +658,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         ])
         .where("ps.candidateCardId", "in", candidateCardIds)
         .where(notIgnoredPrinting("ps", "cs_parent"))
+        .where(notHiddenSource("cs_parent"))
         .orderBy("ps.setId")
         .orderBy("ps.finish")
         .orderBy("ps.isSigned")
