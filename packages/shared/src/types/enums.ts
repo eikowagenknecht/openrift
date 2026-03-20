@@ -1,6 +1,6 @@
 // If you add a value here, also update the CHECK constraint in a new migration
 // (see 001-core-schema.ts — chk_cards_type).
-export type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield";
+export type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield" | "Buff";
 
 // If you add a value here, also update the CHECK constraint in a new migration
 // (see 001-core-schema.ts — chk_printings_rarity).
@@ -49,6 +49,7 @@ export const CARD_TYPE_ORDER: readonly CardType[] = [
   "Spell",
   "Gear",
   "Battlefield",
+  "Buff",
 ] as const;
 
 export const SUPER_TYPE_ORDER: readonly SuperType[] = [

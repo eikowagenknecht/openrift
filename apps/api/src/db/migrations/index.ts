@@ -42,6 +42,7 @@ import * as m036 from "./036-printing-source-group-key.js";
 import * as m037 from "./037-auto-updated-at.js";
 import * as m038 from "./038-rename-source-concepts.js";
 import * as m039 from "./039-card-comment.js";
+import * as m040 from "./040-buff-card-type.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -83,4 +84,5 @@ export const migrations: Record<string, Migration> = {
   "037-auto-updated-at": m037,
   "038-rename-source-concepts": m038,
   "039-card-comment": m039,
+  "040-buff-card-type": m040,
 };
