@@ -514,6 +514,38 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     // ── Delete by provider ──────────────────────────────────────────────────────
 
     /**
+     * Mark all candidate cards and printings for a given provider as checked.
+     * @returns Number of cards and printings checked.
+     */
+    async checkByProvider(
+      provider: string,
+      now: Date,
+    ): Promise<{ cardsChecked: number; printingsChecked: number }> {
+      const cardResult = await db
+        .updateTable("candidateCards")
+        .set({ checkedAt: now })
+        .where("provider", "=", provider)
+        .where("checkedAt", "is", null)
+        .execute();
+
+      const printingResult = await db
+        .updateTable("candidatePrintings")
+        .set({ checkedAt: now })
+        .where("checkedAt", "is", null)
+        .where(
+          "candidateCardId",
+          "in",
+          db.selectFrom("candidateCards").select("id").where("provider", "=", provider),
+        )
+        .execute();
+
+      return {
+        cardsChecked: Number(cardResult[0].numUpdatedRows),
+        printingsChecked: Number(printingResult[0].numUpdatedRows),
+      };
+    },
+
+    /**
      * Delete all candidate cards for a given provider name.
      * @returns Number of deleted rows.
      */

@@ -7,6 +7,7 @@ import {
   DownloadIcon,
   EyeIcon,
   EyeOffIcon,
+  ListChecksIcon,
   LoaderIcon,
   Trash2Icon,
   UploadIcon,
@@ -28,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  useCheckProvider,
   useDeleteProvider,
   useProviderNames,
   useProviderStats,
@@ -382,6 +384,7 @@ function ManageProvidersCard({
   providerNames: string[];
   providerStats: ProviderStatsResponse[];
 }) {
+  const checkProvider = useCheckProvider();
   const deleteProvider = useDeleteProvider();
   const { data: settingsData } = useProviderSettings();
   const updateSetting = useUpdateProviderSetting();
@@ -503,16 +506,44 @@ function ManageProvidersCard({
                       </Button>
                     </span>
                   ) : (
-                    <Button size="sm" variant="ghost" onClick={() => setConfirming(name)}>
-                      <Trash2Icon className="size-4" />
-                      Delete
-                    </Button>
+                    <span className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={checkProvider.isPending}
+                        onClick={() => checkProvider.mutate(name)}
+                      >
+                        {checkProvider.isPending ? (
+                          <LoaderIcon className="size-4 animate-spin" />
+                        ) : (
+                          <ListChecksIcon className="size-4" />
+                        )}
+                        Check all
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirming(name)}>
+                        <Trash2Icon className="size-4" />
+                        Delete
+                      </Button>
+                    </span>
                   )}
                 </span>
               </div>
             );
           })}
         </div>
+        {checkProvider.isSuccess && (
+          <p className="mt-3 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+            <CheckIcon className="size-4" />
+            Checked {checkProvider.data.cardsChecked} cards, {checkProvider.data.printingsChecked}{" "}
+            printings
+          </p>
+        )}
+        {checkProvider.isError && (
+          <p className="mt-3 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {checkProvider.error.message}
+          </p>
+        )}
         {deleteProvider.isSuccess && (
           <p className="mt-3 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
             <CheckIcon className="size-4" />

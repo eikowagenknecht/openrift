@@ -306,6 +306,18 @@ export function useAcceptPrintingGroup() {
   });
 }
 
+export function useCheckProvider() {
+  return useMutationWithInvalidation({
+    mutationFn: (provider: string) =>
+      rpc(
+        client.api.admin["candidates"]["by-provider"][":provider"].check.$post({
+          param: { provider },
+        }),
+      ),
+    invalidates: [queryKeys.admin.candidates.all],
+  });
+}
+
 export function useDeleteProvider() {
   return useMutationWithInvalidation({
     mutationFn: (provider: string) =>

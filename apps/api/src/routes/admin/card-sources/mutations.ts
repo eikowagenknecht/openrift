@@ -510,6 +510,19 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     } satisfies CandidateCardUploadResponse);
   })
 
+  // ── POST /by-provider/:provider/check ────────────────────────────────────
+  // Mark all candidate_cards and candidate_printings for a given provider as checked
+  .post("/by-provider/:provider/check", async (c) => {
+    const { candidateMutations: mut } = c.get("repos");
+    const provider = decodeURIComponent(c.req.param("provider"));
+    if (!provider.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Provider name is required");
+    }
+
+    const result = await mut.checkByProvider(provider.trim(), new Date());
+    return c.json(result);
+  })
+
   // ── DELETE /by-provider/:provider ─────────────────────────────────────────
   // Delete all candidate_cards (and cascaded candidate_printings) for a given provider name
   .delete("/by-provider/:provider", async (c) => {
