@@ -99,7 +99,6 @@ docker compose restart api
 # Manually trigger price refresh (via admin API)
 curl -X POST -H "Cookie: ..." https://openrift.app/api/admin/refresh-tcgplayer-prices
 curl -X POST -H "Cookie: ..." https://openrift.app/api/admin/refresh-cardmarket-prices
-curl -X POST -H "Cookie: ..." https://openrift.app/api/admin/refresh-catalog
 
 # Stop everything
 docker compose down              # Keeps data (bind-mounted in ./data/)
@@ -235,7 +234,7 @@ curl -X POST -H "Cookie: ..." https://openrift.app/api/admin/refresh-cardmarket-
 
 **Logs:** Cron output goes to the `api` container's stdout, visible via `docker compose logs api`.
 
-The script is idempotent: re-running with the same source data updates existing snapshots (ON CONFLICT on `source_id + recorded_at`) rather than creating duplicates.
+The script is idempotent: re-running with the same source data updates existing snapshots (ON CONFLICT on `product_id + recorded_at`) rather than creating duplicates.
 
 ## First-Time VPS Setup
 
