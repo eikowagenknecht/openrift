@@ -1,6 +1,6 @@
 import { formatShortCodes } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
-import { CheckCheckIcon, LinkIcon } from "lucide-react";
+import { CheckCheckIcon, ImagePlusIcon, LinkIcon, LoaderIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,7 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAutoCheckCandidates, useCandidateList, useLinkCard } from "@/hooks/use-candidates";
+import {
+  useAcceptGallery,
+  useAutoCheckCandidates,
+  useCandidateList,
+  useLinkCard,
+} from "@/hooks/use-candidates";
 
 type Filter = "unchecked" | "unmatched" | "matched" | null;
 
@@ -23,6 +28,7 @@ export function CandidatesListPage() {
   const { data } = useCandidateList();
   const autoCheck = useAutoCheckCandidates();
   const linkCard = useLinkCard();
+  const acceptGallery = useAcceptGallery();
 
   const counts = {
     unchecked: data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0).length,
@@ -110,28 +116,10 @@ export function CandidatesListPage() {
                     <div className="flex items-center gap-1">
                       {row.cardSlug ? (
                         <Badge variant="outline">Active</Badge>
-                      ) : row.suggestedCardSlug ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-xs"
-                          disabled={linkCard.isPending}
-                          onClick={() => {
-                            const slug = row.suggestedCardSlug;
-                            if (slug) {
-                              linkCard.mutate({
-                                name: row.normalizedName,
-                                cardId: slug,
-                              });
-                            }
-                          }}
-                        >
-                          <LinkIcon className="mr-1 size-3" />
-                          {row.suggestedCardSlug}
-                        </Button>
                       ) : (
                         <Badge variant="secondary">New</Badge>
                       )}
+                      {row.hasGallery && <Badge className="text-xs">gallery</Badge>}
                       {total > 0 && <Badge variant="destructive">Review</Badge>}
                     </div>
                   </TableCell>
@@ -154,7 +142,42 @@ export function CandidatesListPage() {
                       )}{" "}
                       {row.name}
                     </Link>
-                    {row.hasGallery && <Badge className="ml-2 text-xs">gallery</Badge>}
+                    {!row.cardSlug && row.suggestedCardSlug && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-2 h-5 text-xs"
+                        disabled={linkCard.isPending}
+                        onClick={() => {
+                          const slug = row.suggestedCardSlug;
+                          if (slug) {
+                            linkCard.mutate({
+                              name: row.normalizedName,
+                              cardId: slug,
+                            });
+                          }
+                        }}
+                      >
+                        <LinkIcon className="size-3" />
+                        {row.suggestedCardSlug}
+                      </Button>
+                    )}
+                    {!row.cardSlug && row.hasGallery && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-2 h-5 text-xs"
+                        disabled={acceptGallery.isPending}
+                        onClick={() => acceptGallery.mutate(row.normalizedName)}
+                      >
+                        {acceptGallery.isPending ? (
+                          <LoaderIcon className="size-3 animate-spin" />
+                        ) : (
+                          <ImagePlusIcon className="size-3" />
+                        )}
+                        Accept gallery
+                      </Button>
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     <span>
