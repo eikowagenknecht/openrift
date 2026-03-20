@@ -109,5 +109,21 @@ export function ingestRepo(db: Db) {
         .values(values as any)
         .execute();
     },
+
+    /** Delete candidate cards by IDs. */
+    async deleteCandidateCards(ids: string[]): Promise<void> {
+      if (ids.length === 0) {
+        return;
+      }
+      await db.deleteFrom("candidateCards").where("id", "in", ids).execute();
+    },
+
+    /** Delete candidate printings by IDs. */
+    async deleteCandidatePrintings(ids: string[]): Promise<void> {
+      if (ids.length === 0) {
+        return;
+      }
+      await db.deleteFrom("candidatePrintings").where("id", "in", ids).execute();
+    },
   };
 }

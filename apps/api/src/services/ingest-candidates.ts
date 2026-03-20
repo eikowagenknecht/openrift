@@ -15,10 +15,16 @@ interface UpdatedCardDetail {
 
 interface IngestResult {
   newCards: number;
+  removedCards: number;
   updates: number;
   unchanged: number;
+  newPrintings: number;
+  removedPrintings: number;
+  printingUpdates: number;
+  printingsUnchanged: number;
   errors: string[];
   updatedCards: UpdatedCardDetail[];
+  updatedPrintings: UpdatedCardDetail[];
 }
 
 function jsonOrNull(value: unknown): unknown {
@@ -153,10 +159,16 @@ export async function ingestCandidates(
   }
 
   let newCards = 0;
+  let removedCards = 0;
   let updates = 0;
   let unchanged = 0;
+  let newPrintings = 0;
+  let removedPrintings = 0;
+  let printingUpdates = 0;
+  let printingsUnchanged = 0;
   const errors: string[] = [];
   const updatedCards: UpdatedCardDetail[] = [];
+  const updatedPrintings: UpdatedCardDetail[] = [];
 
   await db.transaction().execute(async (trx) => {
     const repo = ingestRepo(trx);
@@ -206,16 +218,12 @@ export async function ingestCandidates(
       existingCPRows = await repo.candidatePrintingsByCandidateCardIds([...existingCCIds]);
     }
 
-    // Index candidate_printings two ways:
-    // - by (candidateCardId, printingId) for rows with a printingId
-    // - by (candidateCardId, shortCode, finish) for rows without
-    const cpByPrintingId = new Map<string, (typeof existingCPRows)[number]>();
-    const cpByShortCodeFinish = new Map<string, (typeof existingCPRows)[number]>();
+    // Index candidate_printings by externalId (the provider's stable identifier)
+    const cpByExternalId = new Map<string, (typeof existingCPRows)[number]>();
     for (const cp of existingCPRows) {
-      if (cp.printingId) {
-        cpByPrintingId.set(`${cp.candidateCardId}:${cp.printingId}`, cp);
+      if (cp.externalId) {
+        cpByExternalId.set(cp.externalId, cp);
       }
-      cpByShortCodeFinish.set(`${cp.candidateCardId}:${cp.shortCode}:${cp.finish}`, cp);
     }
 
     // 1f. Ignored candidates — load once and build lookup sets
@@ -250,6 +258,9 @@ export async function ingestCandidates(
     const defaultPromoTypeId = defaultPromoType?.id ?? null;
 
     // ── Phase 2: Process each card (writes only) ───────────────────────────
+
+    const seenCCIds = new Set<string>();
+    const seenCPIds = new Set<string>();
 
     for (const card of cards) {
       // Validate card data against DB CHECK constraints (using normalized values)
@@ -325,6 +336,7 @@ export async function ingestCandidates(
           unchanged++;
         }
         candidateCardId = existingCandidateCard.id;
+        seenCCIds.add(candidateCardId);
       } else {
         const cardInsert: Record<string, unknown> = {
           provider,
@@ -348,6 +360,7 @@ export async function ingestCandidates(
           cardInsert.extraData = jsonOrNull(card.extra_data);
         }
         candidateCardId = await repo.insertCandidateCard(cardInsert);
+        seenCCIds.add(candidateCardId);
         newCards++;
       }
 
@@ -401,10 +414,8 @@ export async function ingestCandidates(
             ? (printingBySlug.get(printingSlug) ?? null)
             : null;
 
-        // Look up existing candidate_printing from pre-fetched maps
-        const existingCP = resolvedPrintingId
-          ? cpByPrintingId.get(`${candidateCardId}:${resolvedPrintingId}`)
-          : cpByShortCodeFinish.get(`${candidateCardId}:${p.short_code}:${p.finish}`);
+        // Look up existing candidate_printing by external_id (provider's stable key)
+        const existingCP = cpByExternalId.get(p.external_id);
 
         const printingFields = {
           shortCode: p.short_code,
@@ -427,6 +438,7 @@ export async function ingestCandidates(
         };
 
         if (existingCP) {
+          seenCPIds.add(existingCP.id);
           const pChangedFields = getChangedFields(
             existingCP as unknown as Record<string, unknown>,
             printingFields as unknown as Record<string, unknown>,
@@ -434,6 +446,12 @@ export async function ingestCandidates(
           );
 
           if (pChangedFields.length > 0) {
+            updatedPrintings.push({
+              name: card.name,
+              shortCode: p.short_code,
+              fields: pChangedFields,
+            });
+            printingUpdates++;
             const cpUpdate: Record<string, unknown> = {
               ...printingFields,
               checkedAt: null,
@@ -446,6 +464,9 @@ export async function ingestCandidates(
             await repo.updateCandidatePrinting(existingCP.id, {
               printingId: resolvedPrintingId,
             });
+            printingsUnchanged++;
+          } else {
+            printingsUnchanged++;
           }
         } else {
           await repo.insertCandidatePrinting({
@@ -453,10 +474,37 @@ export async function ingestCandidates(
             printingId: resolvedPrintingId,
             ...printingFields,
           });
+          newPrintings++;
         }
       }
     }
+
+    // ── Phase 3: Remove cards/printings no longer in the upload ────────────
+
+    const cpIdsToRemove = existingCPRows.filter((cp) => !seenCPIds.has(cp.id)).map((cp) => cp.id);
+    if (cpIdsToRemove.length > 0) {
+      await repo.deleteCandidatePrintings(cpIdsToRemove);
+      removedPrintings = cpIdsToRemove.length;
+    }
+
+    const ccIdsToRemove = existingCCRows.filter((cc) => !seenCCIds.has(cc.id)).map((cc) => cc.id);
+    if (ccIdsToRemove.length > 0) {
+      await repo.deleteCandidateCards(ccIdsToRemove);
+      removedCards = ccIdsToRemove.length;
+    }
   });
 
-  return { newCards, updates, unchanged, errors, updatedCards };
+  return {
+    newCards,
+    removedCards,
+    updates,
+    unchanged,
+    newPrintings,
+    removedPrintings,
+    printingUpdates,
+    printingsUnchanged,
+    errors,
+    updatedCards,
+    updatedPrintings,
+  };
 }

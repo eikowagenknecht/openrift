@@ -235,12 +235,25 @@ export function CandidateUploadPage() {
 
           {upload.isSuccess && (
             <div className="space-y-2">
-              <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-                <CheckIcon className="size-4" />
-                Done — {upload.data.newCards} new, {upload.data.updates} updated,{" "}
-                {upload.data.unchanged} unchanged
-                {upload.data.errors.length > 0 && `, ${upload.data.errors.length} errors`}
-              </p>
+              <div className="flex items-start gap-1 text-sm text-green-600 dark:text-green-400">
+                <CheckIcon className="mt-0.5 size-4 shrink-0" />
+                <div>
+                  <p>
+                    Cards: {upload.data.newCards} new, {upload.data.removedCards ?? 0} removed,{" "}
+                    {upload.data.updates} updated, {upload.data.unchanged} unchanged
+                  </p>
+                  <p>
+                    Printings: {upload.data.newPrintings ?? 0} new,{" "}
+                    {upload.data.removedPrintings ?? 0} removed, {upload.data.printingUpdates ?? 0}{" "}
+                    updated, {upload.data.printingsUnchanged ?? 0} unchanged
+                  </p>
+                  {upload.data.errors.length > 0 && (
+                    <p className="text-red-600 dark:text-red-400">
+                      {upload.data.errors.length} errors
+                    </p>
+                  )}
+                </div>
+              </div>
               {upload.data.errors.length > 0 && (
                 <ul className="ml-5 list-disc text-xs text-red-600 dark:text-red-400">
                   {upload.data.errors.slice(0, 10).map((err, i) => (
@@ -272,6 +285,49 @@ export function CandidateUploadPage() {
                               <td className="px-2 py-1 font-medium">{card.name}</td>
                               <td className="px-2 py-1 text-muted-foreground">
                                 {card.shortCode ?? "\u2014"}
+                              </td>
+                              <td className="px-2 py-1">{f.field}</td>
+                              <td
+                                className="max-w-48 truncate px-2 py-1 text-red-600 dark:text-red-400"
+                                title={JSON.stringify(f.from)}
+                              >
+                                {JSON.stringify(f.from)}
+                              </td>
+                              <td
+                                className="max-w-48 truncate px-2 py-1 text-green-600 dark:text-green-400"
+                                title={JSON.stringify(f.to)}
+                              >
+                                {JSON.stringify(f.to)}
+                              </td>
+                            </tr>
+                          )),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              {upload.data.updatedPrintings?.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Updated printings:</p>
+                  <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-muted">
+                        <tr className="text-left">
+                          <th className="px-2 py-1">Card</th>
+                          <th className="px-2 py-1">Short Code</th>
+                          <th className="px-2 py-1">Field</th>
+                          <th className="px-2 py-1">From</th>
+                          <th className="px-2 py-1">To</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {upload.data.updatedPrintings.flatMap((printing) =>
+                          printing.fields.map((f) => (
+                            <tr key={`${printing.shortCode ?? printing.name}-${f.field}`}>
+                              <td className="px-2 py-1 font-medium">{printing.name}</td>
+                              <td className="px-2 py-1 text-muted-foreground">
+                                {printing.shortCode ?? "\u2014"}
                               </td>
                               <td className="px-2 py-1">{f.field}</td>
                               <td

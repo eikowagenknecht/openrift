@@ -89,10 +89,16 @@ interface CandidateCardUploadUpdatedCard {
 
 export interface CandidateCardUploadResponse {
   newCards: number;
+  removedCards: number;
   updates: number;
   unchanged: number;
+  newPrintings: number;
+  removedPrintings: number;
+  printingUpdates: number;
+  printingsUnchanged: number;
   errors: string[];
   updatedCards: CandidateCardUploadUpdatedCard[];
+  updatedPrintings: CandidateCardUploadUpdatedCard[];
 }
 
 // ── Admin list response types ───────────────────────────────────────────────

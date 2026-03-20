@@ -547,10 +547,16 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     return c.json({
       newCards: result.newCards,
+      removedCards: result.removedCards,
       updates: result.updates,
       unchanged: result.unchanged,
+      newPrintings: result.newPrintings,
+      removedPrintings: result.removedPrintings,
+      printingUpdates: result.printingUpdates,
+      printingsUnchanged: result.printingsUnchanged,
       errors: result.errors,
       updatedCards: result.updatedCards,
+      updatedPrintings: result.updatedPrintings,
     } satisfies CandidateCardUploadResponse);
   })
 
