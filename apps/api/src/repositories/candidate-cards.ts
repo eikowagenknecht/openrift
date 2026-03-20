@@ -87,7 +87,7 @@ interface ExportPrintingRow extends Selectable<PrintingsTable> {
 }
 
 /**
- * Read-only queries for the card-sources admin UI.
+ * Read-only queries for the candidate-cards admin UI.
  *
  * Each method performs a single database query (or returns early for empty
  * inputs). Response shaping and multi-query orchestration live in the
