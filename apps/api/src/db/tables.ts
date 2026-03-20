@@ -70,6 +70,8 @@ export interface CardsTable {
   /** CHECK: <> '' */
   effectText: string | null;
   tags: string[];
+  /** CHECK: <> '' */
+  comment: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

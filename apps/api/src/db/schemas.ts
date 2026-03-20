@@ -53,6 +53,7 @@ export const cardFieldRules = {
   rulesText: z.string().min(1).nullable(),
   effectText: z.string().min(1).nullable(),
   tags: z.array(z.string()),
+  comment: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
 /** Mirrors DB CHECK constraints on the `printings` table. @see {@link PrintingsTable} */

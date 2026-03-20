@@ -2,8 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict AGxjBm1Sbd3S4MftHGvi140yzpcEsGF0NauIhGcdc1RiWQkwRwa3CY6msO0wLLJ
-
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
 
@@ -349,12 +347,14 @@ CREATE TABLE public.cards (
     slug text NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT cards_new_id_not_null NOT NULL,
     norm_name text NOT NULL,
+    comment text,
     CONSTRAINT chk_cards_domains_not_empty CHECK ((array_length(domains, 1) > 0)),
     CONSTRAINT chk_cards_domains_values CHECK ((domains <@ ARRAY['Fury'::text, 'Calm'::text, 'Mind'::text, 'Body'::text, 'Chaos'::text, 'Order'::text, 'Colorless'::text])),
     CONSTRAINT chk_cards_energy_non_negative CHECK ((energy >= 0)),
     CONSTRAINT chk_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
     CONSTRAINT chk_cards_might_non_negative CHECK ((might >= 0)),
     CONSTRAINT chk_cards_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_cards_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_cards_no_empty_effect_text CHECK ((effect_text <> ''::text)),
     CONSTRAINT chk_cards_no_empty_rules_text CHECK ((rules_text <> ''::text)),
     CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
@@ -2130,5 +2130,4 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict AGxjBm1Sbd3S4MftHGvi140yzpcEsGF0NauIhGcdc1RiWQkwRwa3CY6msO0wLLJ
 

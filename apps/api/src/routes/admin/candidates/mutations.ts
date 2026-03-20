@@ -300,6 +300,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       "rulesText",
       "effectText",
       "tags",
+      "comment",
     ]);
 
     if (!allowedFields.has(field)) {

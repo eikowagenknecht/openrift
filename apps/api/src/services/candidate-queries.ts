@@ -464,6 +464,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
           rulesText: card.rulesText,
           effectText: card.effectText,
           tags: card.tags,
+          comment: card.comment,
         }
       : null,
     // Card name if matched, shortest candidate name if unmatched (candidates may have slight name variations)

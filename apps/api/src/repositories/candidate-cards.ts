@@ -449,6 +449,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           | "rulesText"
           | "effectText"
           | "tags"
+          | "comment"
         >
       | undefined
     > {
@@ -470,6 +471,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "rulesText",
           "effectText",
           "tags",
+          "comment",
         ])
         .where("slug", "=", slug)
         .executeTakeFirst();
