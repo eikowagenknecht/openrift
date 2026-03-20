@@ -9,6 +9,7 @@ import { AppError } from "../../../errors.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
+  deletePrinting,
   renamePrinting,
   updatePrintingPromoType,
 } from "../../../services/printing-admin.js";
@@ -439,6 +440,17 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       printingSlug,
       newId.trim(),
     );
+
+    return c.body(null, 204);
+  })
+
+  // ── DELETE /printing/:printingId ─────────────────────────────────────────
+  // Delete a printing and clean up all related data
+  .delete("/printing/:printingId", async (c) => {
+    const { candidateMutations } = c.get("repos");
+    const printingSlug = c.req.param("printingId");
+
+    await deletePrinting(c.get("db"), c.get("io"), { candidateMutations }, printingSlug);
 
     return c.body(null, 204);
   })

@@ -402,6 +402,47 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     // ── Printing mutations ────────────────────────────────────────────────────
 
+    /**
+     * Delete a printing by slug.
+     * @returns The deleted row's ID, or undefined if not found.
+     */
+    deletePrintingBySlug(slug: string, trx: Trx): Promise<{ id: string } | undefined> {
+      return trx
+        .deleteFrom("printings")
+        .where("slug", "=", slug)
+        .returning("id")
+        .executeTakeFirst();
+    },
+
+    /** Unlink all candidate_printings referencing a printing UUID (set printing_id to null). */
+    async unlinkCandidatePrintingsByPrintingId(printingId: string, trx: Trx): Promise<void> {
+      await trx
+        .updateTable("candidatePrintings")
+        .set({ printingId: null })
+        .where("printingId", "=", printingId)
+        .execute();
+    },
+
+    /**
+     * Delete all printing_images for a printing UUID.
+     * @returns rehostedUrls for cleanup.
+     */
+    deletePrintingImagesByPrintingId(
+      printingId: string,
+      trx: Trx,
+    ): Promise<{ rehostedUrl: string | null }[]> {
+      return trx
+        .deleteFrom("printingImages")
+        .where("printingId", "=", printingId)
+        .returning("rehostedUrl")
+        .execute();
+    },
+
+    /** Delete printing_link_overrides that reference a printing slug. */
+    async deletePrintingLinkOverridesBySlug(slug: string, trx: Trx): Promise<void> {
+      await trx.deleteFrom("printingLinkOverrides").where("printingSlug", "=", slug).execute();
+    },
+
     /** Update a single field on a printing by slug. */
     async updatePrintingBySlug(slug: string, field: string, value: unknown): Promise<void> {
       await db

@@ -70,6 +70,7 @@ import {
   useCopyCandidatePrinting,
   useDeletePrintingImage,
   useDeleteCandidatePrinting,
+  useDeletePrinting,
   useLinkCard,
   useNextUncheckedCard,
   useLinkCandidatePrintings,
@@ -145,6 +146,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   const ignorePrintingSource = useIgnoreCandidatePrinting();
   const linkPrintingSources = useLinkCandidatePrintings();
   const renamePrinting = useRenamePrinting();
+  const deletePrintingMutation = useDeletePrinting();
 
   // --- Promo types for dropdown + slug lookup ---
   const { data: promoTypesData } = usePromoTypes();
@@ -828,6 +830,25 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                       Check {allSources.filter((ps) => !ps.checkedAt).length} unchecked
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto h-6 text-xs text-destructive hover:text-destructive"
+                    disabled={deletePrintingMutation.isPending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (
+                        globalThis.confirm(
+                          `Delete printing "${printingSlug}"? This cannot be undone.`,
+                        )
+                      ) {
+                        deletePrintingMutation.mutate(printingSlug);
+                      }
+                    }}
+                  >
+                    <Trash2Icon className="mr-1 size-3" />
+                    Delete
+                  </Button>
                 </div>
                 {isExpanded && (
                   <div className="flex gap-3 border-t p-3">

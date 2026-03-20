@@ -10,7 +10,7 @@ import type { candidateMutationsRepo } from "../repositories/candidate-mutations
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { setsRepo } from "../repositories/sets.js";
-import { renamePrintingImages } from "./image-rehost.js";
+import { deleteRehostFiles, renamePrintingImages } from "./image-rehost.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
@@ -93,6 +93,62 @@ export async function renamePrinting(
 
   await repos.candidateMutations.renamePrintingSlug(printingSlug, newSlug);
   await renamePrintingImages(io, repos.printingImages, printing.id, printingSlug, newSlug);
+}
+
+// ── deletePrinting ──────────────────────────────────────────────────────────
+
+/**
+ * Delete a printing and clean up all related data:
+ * - Unlink candidate_printings (set printing_id to null)
+ * - Delete printing_images rows
+ * - Delete printing_link_overrides rows
+ * - Delete the printing itself
+ * - Clean up rehosted image files on disk
+ *
+ * Throws if the printing has user copies, wish-list items, or other
+ * hard references (the DB FK constraints will reject the delete).
+ */
+export async function deletePrinting(
+  db: Kysely<Database>,
+  io: Io,
+  repos: { candidateMutations: CandidateMutationsRepo },
+  printingSlug: string,
+): Promise<void> {
+  const mut = repos.candidateMutations;
+
+  const deletedImages = await db.transaction().execute(async (trx) => {
+    // Look up the printing first
+    const printing = await trx
+      .selectFrom("printings")
+      .select("id")
+      .where("slug", "=", printingSlug)
+      .executeTakeFirst();
+
+    if (!printing) {
+      throw new AppError(404, "NOT_FOUND", "Printing not found");
+    }
+
+    // Unlink candidate_printings so they become "unmatched" again
+    await mut.unlinkCandidatePrintingsByPrintingId(printing.id, trx);
+
+    // Delete printing_images rows and collect rehostedUrls for disk cleanup
+    const images = await mut.deletePrintingImagesByPrintingId(printing.id, trx);
+
+    // Delete link overrides
+    await mut.deletePrintingLinkOverridesBySlug(printingSlug, trx);
+
+    // Delete the printing itself (will throw if FK-constrained by copies, etc.)
+    await mut.deletePrintingBySlug(printingSlug, trx);
+
+    return images;
+  });
+
+  // Clean up rehosted files on disk (outside transaction, best-effort)
+  for (const img of deletedImages) {
+    if (img.rehostedUrl) {
+      await deleteRehostFiles(io, img.rehostedUrl);
+    }
+  }
 }
 
 // ── acceptPrinting ───────────────────────────────────────────────────────────
