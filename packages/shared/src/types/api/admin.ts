@@ -3,20 +3,19 @@ import type { CardFace } from "../enums.js";
 export interface CandidateCardResponse {
   id: string;
   provider: string;
-  name: string;
-  type: string | null;
-  superTypes: string[];
-  domains: string[];
-  might: number | null;
+  externalId: string;
+  shortCode: string | null;
   energy: number | null;
   power: number | null;
-  mightBonus: number | null;
-  keywords: string[];
+  might: number | null;
+  superTypes: string[];
+  type: string | null;
+  name: string;
+  domains: string[];
   rulesText: string | null;
   effectText: string | null;
+  mightBonus: number | null;
   tags: string[];
-  shortCode: string | null;
-  externalId: string;
   extraData: unknown | null;
   checkedAt: string | null;
 }

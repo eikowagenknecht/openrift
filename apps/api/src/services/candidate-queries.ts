@@ -4,7 +4,6 @@ import type {
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
 } from "@openrift/shared";
-import { extractKeywords } from "@openrift/shared/keywords";
 import { buildPrintingId, mostCommonValue } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
@@ -39,10 +38,6 @@ function formatCandidateCard(
 ): CandidateCardResponse {
   return {
     ...s,
-    keywords: [
-      ...extractKeywords(s.rulesText ?? ""),
-      ...extractKeywords(s.effectText ?? ""),
-    ].filter((v, i, a) => a.indexOf(v) === i),
     checkedAt: s.checkedAt?.toISOString() ?? null,
   };
 }

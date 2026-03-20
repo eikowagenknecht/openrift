@@ -61,20 +61,19 @@ const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
 const SUPER_TYPE_OPTIONS = SUPER_TYPE_ORDER;
 
 export const CANDIDATE_CARD_FIELDS: FieldDef[] = [
-  { key: "name", label: "Name" },
-  { key: "type", label: "Type", options: CARD_TYPE_OPTIONS },
-  { key: "superTypes", label: "Super Types", options: SUPER_TYPE_OPTIONS },
-  { key: "domains", label: "Domains", options: DOMAIN_ORDER },
-  { key: "might", label: "Might" },
+  { key: "externalId", label: "External ID", readOnly: true },
+  { key: "shortCode", label: "Short Code", readOnly: true },
   { key: "energy", label: "Energy" },
   { key: "power", label: "Power" },
-  { key: "mightBonus", label: "Might Bonus" },
-  { key: "keywords", label: "Keywords", readOnly: true },
+  { key: "might", label: "Might" },
+  { key: "superTypes", label: "Super Types", options: SUPER_TYPE_OPTIONS },
+  { key: "type", label: "Type", options: CARD_TYPE_OPTIONS },
+  { key: "name", label: "Name" },
+  { key: "domains", label: "Domains", options: DOMAIN_ORDER },
   { key: "rulesText", label: "Rules Text", multiline: true },
   { key: "effectText", label: "Effect Text", multiline: true },
+  { key: "mightBonus", label: "Might Bonus" },
   { key: "tags", label: "Tags", array: true },
-  { key: "shortCode", label: "Short Code", readOnly: true },
-  { key: "externalId", label: "External ID", readOnly: true },
   { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
 ];
 
@@ -84,10 +83,13 @@ export function buildCandidatePrintingFields(
   promoTypes: readonly { value: string; label: string }[],
 ): FieldDef[] {
   return [
-    { key: "shortCode", label: "Short Code" },
+    { key: "externalId", label: "External ID", readOnly: true },
     { key: "setId", label: "Set", suffixKey: "setName" },
+    { key: "shortCode", label: "Short Code" },
+    { key: "publicCode", label: "Public Code" },
     { key: "collectorNumber", label: "Collector #" },
     { key: "rarity", label: "Rarity", options: RARITY_ORDER },
+    { key: "finish", label: "Finish", options: FINISH_ORDER },
     { key: "artVariant", label: "Art Variant", options: ART_VARIANT_ORDER },
     { key: "isSigned", label: "Signed", type: "boolean" },
     {
@@ -95,14 +97,11 @@ export function buildCandidatePrintingFields(
       label: "Promo Type",
       labeledOptions: promoTypes.length > 0 ? promoTypes : undefined,
     },
-    { key: "finish", label: "Finish", options: FINISH_ORDER },
     { key: "artist", label: "Artist" },
-    { key: "publicCode", label: "Public Code" },
     { key: "printedRulesText", label: "Printed Rules", multiline: true },
     { key: "printedEffectText", label: "Printed Effect", multiline: true },
     { key: "flavorText", label: "Flavor Text", multiline: true },
     { key: "comment", label: "Comment" },
-    { key: "externalId", label: "External ID", readOnly: true },
     { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
     { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
   ];
