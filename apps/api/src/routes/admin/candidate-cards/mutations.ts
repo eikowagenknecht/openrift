@@ -6,6 +6,7 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { Hono } from "hono";
 
 import { AppError } from "../../../errors.js";
+import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
   renamePrinting,
@@ -458,6 +459,22 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     });
 
     return c.body(null, 204);
+  })
+
+  // ── POST /new/:name/accept-gallery ───────────────────────────────────────
+  // Create card + printings from gallery source, set images, and rehost
+  .post("/new/:name/accept-gallery", async (c) => {
+    const { candidateMutations, printingImages, promoTypes } = c.get("repos");
+    const normalizedName = decodeURIComponent(c.req.param("name"));
+
+    const result = await acceptGalleryForNewCard(
+      c.get("db"),
+      c.get("io"),
+      { candidateMutations, printingImages, promoTypes },
+      normalizedName,
+    );
+
+    return c.json(result);
   })
 
   // ── POST /new/:name/link ──────────────────────────────────────────────────

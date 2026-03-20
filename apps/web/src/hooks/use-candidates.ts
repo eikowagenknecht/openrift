@@ -224,6 +224,18 @@ export function useAcceptNewCard() {
   });
 }
 
+export function useAcceptGallery() {
+  return useMutationWithInvalidation({
+    mutationFn: (name: string) =>
+      rpc(
+        client.api.admin["candidates"].new[":name"]["accept-gallery"].$post({
+          param: { name },
+        }),
+      ),
+    invalidates: [queryKeys.admin.candidates.all],
+  });
+}
+
 export function useLinkCard() {
   return useMutationWithInvalidation({
     mutationFn: ({ name, cardId }: { name: string; cardId: string }) =>
