@@ -402,6 +402,16 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       return c.body(null, 204);
     }
 
+    // Candidate printings store setId as a slug; printings store it as a UUID FK
+    if (field === "setId" && normalizedValue) {
+      const { sets } = c.get("repos");
+      const setRow = await sets.getBySlug(normalizedValue as string);
+      if (!setRow) {
+        throw new AppError(404, "NOT_FOUND", `Set not found: ${normalizedValue}`);
+      }
+      normalizedValue = setRow.id;
+    }
+
     await mut.updatePrintingBySlug(printingSlug, field, normalizedValue);
 
     return c.body(null, 204);

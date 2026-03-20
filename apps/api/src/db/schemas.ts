@@ -59,6 +59,7 @@ export const cardFieldRules = {
 export const printingFieldRules = {
   slug: z.string().min(1),
   shortCode: z.string().min(1),
+  setId: z.string().min(1),
   collectorNumber: z.number().int().positive(),
   rarity: z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]),
   artVariant: z.enum(["normal", "altart", "overnumbered"]),
