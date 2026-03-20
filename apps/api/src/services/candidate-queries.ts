@@ -78,6 +78,27 @@ function formatCandidatePrinting(
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
+/** Compare short codes: sort by prefix, then number, then suffix.
+ * e.g. SFD-113 < SFD-116a < SFD-666 < SFD-666*
+ * @returns Negative if a < b, positive if a > b, zero if equal. */
+function compareShortCodes(a: string, b: string): number {
+  const re = /^([A-Z]+-?)(\d+)(.*)$/;
+  const ma = re.exec(a);
+  const mb = re.exec(b);
+  if (!ma || !mb) {
+    return a.localeCompare(b);
+  }
+  const prefixCmp = ma[1].localeCompare(mb[1]);
+  if (prefixCmp !== 0) {
+    return prefixCmp;
+  }
+  const numCmp = Number(ma[2]) - Number(mb[2]);
+  if (numCmp !== 0) {
+    return numCmp;
+  }
+  return ma[3].localeCompare(mb[3]);
+}
+
 /** Strip variant suffix from a short code — e.g. "OGN-001a" → "OGN-001"
  * @returns The short code with trailing letters/asterisks removed. */
 function stripVariantSuffix(shortCode: string): string {
@@ -115,7 +136,7 @@ function deriveExpectedCardId(
 
     const candidates = normalPrintings.length > 0 ? normalPrintings : printings;
 
-    // Sort by release date ascending (nulls last)
+    // Sort by release date ascending (nulls last), then short code ascending
     const sorted = [...candidates].sort((a, b) => {
       const dateA = setReleasedAtMap.get(a.setId) ?? "";
       const dateB = setReleasedAtMap.get(b.setId) ?? "";
@@ -125,7 +146,11 @@ function deriveExpectedCardId(
       if (!dateA && dateB) {
         return 1;
       }
-      return dateA.localeCompare(dateB);
+      const dateCmp = dateA.localeCompare(dateB);
+      if (dateCmp !== 0) {
+        return dateCmp;
+      }
+      return compareShortCodes(a.shortCode, b.shortCode);
     });
 
     return stripVariantSuffix(sorted[0].shortCode);
