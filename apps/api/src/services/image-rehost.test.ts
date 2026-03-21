@@ -19,6 +19,7 @@ import {
   printingIdToFileBase,
   processAndSave,
   regenerateImages,
+  rehostFilesExist,
   rehostImages,
   renameRehostFiles,
 } from "./image-rehost.js";
@@ -106,29 +107,27 @@ afterEach(() => {
 
 describe("printingIdToFileBase", () => {
   it("converts with promo type slug", () => {
-    expect(printingIdToFileBase("SET-001:common:normal:promo")).toBe("SET-001-common-normal-promo");
+    expect(printingIdToFileBase("SET-001:normal:promo")).toBe("SET-001-normal-promo");
   });
 
   it("converts without promo (empty string)", () => {
-    expect(printingIdToFileBase("SET-001:rare:foil:")).toBe("SET-001-rare-foil-n");
+    expect(printingIdToFileBase("SET-001:foil:")).toBe("SET-001-foil-n");
   });
 
   it("converts without promo (missing segment)", () => {
-    expect(printingIdToFileBase("SET-001:mythic:normal")).toBe("SET-001-mythic-normal-n");
+    expect(printingIdToFileBase("SET-001:normal")).toBe("SET-001-normal-n");
   });
 
   it("handles source IDs with dots and hyphens", () => {
-    expect(printingIdToFileBase("A.B-C:rare:foil:promo")).toBe("A.B-C-rare-foil-promo");
+    expect(printingIdToFileBase("A.B-C:foil:promo")).toBe("A.B-C-foil-promo");
   });
 
   it("handles numeric source IDs", () => {
-    expect(printingIdToFileBase("12345:common:normal:")).toBe("12345-common-normal-n");
+    expect(printingIdToFileBase("12345:normal:")).toBe("12345-normal-n");
   });
 
   it("handles specific promo type slugs", () => {
-    expect(printingIdToFileBase("SET-001:rare:foil:nexus-night")).toBe(
-      "SET-001-rare-foil-nexus-night",
-    );
+    expect(printingIdToFileBase("SET-001:foil:nexus-night")).toBe("SET-001-foil-nexus-night");
   });
 });
 
@@ -186,6 +185,23 @@ describe("downloadImage", () => {
   });
 });
 
+describe("rehostFilesExist", () => {
+  it("returns true when matching files exist", async () => {
+    mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-300w.webp"]);
+    expect(await rehostFilesExist(mockIo, "/tmp/out", "card-001")).toBe(true);
+  });
+
+  it("returns false when no matching files exist", async () => {
+    mockReaddir.mockResolvedValue(["other-file.webp"]);
+    expect(await rehostFilesExist(mockIo, "/tmp/out", "card-001")).toBe(false);
+  });
+
+  it("returns false when directory does not exist", async () => {
+    mockReaddir.mockRejectedValue(new Error("ENOENT"));
+    expect(await rehostFilesExist(mockIo, "/tmp/out", "card-001")).toBe(false);
+  });
+});
+
 describe("processAndSave", () => {
   it("writes original and 3 webp variants", async () => {
     const buf = Buffer.from("test-img");
@@ -199,6 +215,22 @@ describe("processAndSave", () => {
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-300w.webp", expect.any(Buffer));
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-400w.webp", expect.any(Buffer));
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-full.webp", expect.any(Buffer));
+  });
+
+  it("throws when files already exist on disk", async () => {
+    mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-300w.webp"]);
+    const buf = Buffer.from("test-img");
+    await expect(processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001")).rejects.toThrow(
+      "Rehost files already exist for card-001",
+    );
+    expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+
+  it("allows overwrite when allowOverwrite is true", async () => {
+    mockReaddir.mockResolvedValue(["card-001-orig.png"]);
+    const buf = Buffer.from("test-img");
+    await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", true);
+    expect(mockWriteFile).toHaveBeenCalledTimes(4);
   });
 });
 
@@ -260,7 +292,7 @@ describe("rehostImages", () => {
       selectResult: [
         {
           imageId: 1,
-          printingSlug: "SET-001:common:normal:",
+          printingSlug: "SET-001:normal:",
           originalUrl: "https://example.com/img.png",
           setSlug: "set1",
         },
@@ -275,7 +307,7 @@ describe("rehostImages", () => {
 
   it("skips null originalUrl", async () => {
     const repo = makeMockRepo({
-      selectResult: [{ imageId: 1, printingSlug: "X:a:b:", originalUrl: null, setSlug: "s" }],
+      selectResult: [{ imageId: 1, printingSlug: "X:b:", originalUrl: null, setSlug: "s" }],
     });
     const result = await rehostImages(mockIo, repo);
     expect(result.skipped).toBe(1);
@@ -286,7 +318,7 @@ describe("rehostImages", () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
     const repo = makeMockRepo({
       selectResult: [
-        { imageId: 1, printingSlug: "X:a:b:", originalUrl: "https://x.com/img", setSlug: "s" },
+        { imageId: 1, printingSlug: "X:b:", originalUrl: "https://x.com/img", setSlug: "s" },
       ],
     });
     const result = await rehostImages(mockIo, repo);
@@ -298,7 +330,7 @@ describe("rehostImages", () => {
     mockFetch.mockRejectedValue("string-error");
     const repo = makeMockRepo({
       selectResult: [
-        { imageId: 1, printingSlug: "X:a:b:", originalUrl: "https://x.com/img", setSlug: "s" },
+        { imageId: 1, printingSlug: "X:b:", originalUrl: "https://x.com/img", setSlug: "s" },
       ],
     });
     const result = await rehostImages(mockIo, repo);
@@ -317,14 +349,14 @@ describe("rehostImages", () => {
       selectResult: [
         {
           imageId: 1,
-          printingSlug: "A:a:a:",
+          printingSlug: "A:a:",
           originalUrl: "https://example.com/ok.png",
           setSlug: "s1",
         },
-        { imageId: 2, printingSlug: "B:b:b:", originalUrl: null, setSlug: "s2" },
+        { imageId: 2, printingSlug: "B:b:", originalUrl: null, setSlug: "s2" },
         {
           imageId: 3,
-          printingSlug: "C:c:c:",
+          printingSlug: "C:c:",
           originalUrl: "https://example.com/fail.png",
           setSlug: "s3",
         },
@@ -345,7 +377,7 @@ describe("rehostImages", () => {
       selectResult: [
         {
           imageId: 1,
-          printingSlug: "X:a:b:",
+          printingSlug: "X:b:",
           originalUrl: "https://example.com/img.png",
           setSlug: "s",
         },

@@ -108,7 +108,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const insertedPrinting = await db
       .insertInto("printings")
       .values({
-        slug: "IGT-001:common:normal:",
+        slug: "IGT-001:normal:",
         cardId: seedCardId,
         setId: seedSetId,
         shortCode: "IGT-001",
@@ -669,7 +669,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("resolves card by normName and assigns printingId to candidate_printing", async () => {
     // "Ingest Alpha" normalizes to "ingestalpha" which matches our seed card
-    // The printing slug "IGT-001:common:normal:" should match our seed printing
+    // The printing slug "IGT-001:normal:" should match our seed printing
     const result = await ingestCandidates(db, SOURCE, [
       card({
         name: "Ingest Alpha",

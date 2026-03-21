@@ -42,6 +42,7 @@ export const queryKeys = {
     featureFlags: ["admin", "feature-flags"] as const,
     cronStatus: ["admin", "cron-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,
+    renamePreview: ["admin", "rename-preview"] as const,
     missingImages: ["admin", "missing-images"] as const,
     priceMappings: {
       bySource: (config: SourceMappingConfig) => ["admin", config.source] as const,

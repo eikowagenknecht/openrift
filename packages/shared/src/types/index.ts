@@ -66,6 +66,7 @@ export type {
   RehostStatusDiskStats,
   RehostStatusResponse,
   RehostStatusSetStats,
+  RenameImagesResponse,
   RestoreImageUrlsResponse,
   StagedProductResponse,
   UnifiedMappingGroupResponse,

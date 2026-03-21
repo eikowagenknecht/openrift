@@ -9,6 +9,7 @@ import type {
   RehostImageResponse,
   RehostStatusDiskStats,
   RehostStatusResponse,
+  RenameImagesResponse,
 } from "@openrift/shared";
 
 import type { Io } from "../io.js";
@@ -42,13 +43,13 @@ const SIZES = [
 /**
  * Convert a printing ID to a filesystem-safe filename base.
  *
- * Printing ID format: `{short_code}:{rarity}:{finish}:{promo_type_slug|}`
- * File format:        `{short_code}-{rarity}-{finish}-{promo_type_slug|n}`
+ * Printing ID format: `{short_code}:{finish}:{promo_type_slug|}`
+ * File format:        `{short_code}-{finish}-{promo_type_slug|n}`
  * @returns The filesystem-safe filename base
  */
 export function printingIdToFileBase(printingId: string): string {
-  const [shortCode, rarity, finish, promoSlug] = printingId.split(":");
-  return `${shortCode}-${rarity}-${finish}-${promoSlug || "n"}`;
+  const [shortCode, finish, promoSlug] = printingId.split(":");
+  return `${shortCode}-${finish}-${promoSlug || "n"}`;
 }
 
 function guessExtension(contentType: string | null, url: string): string {
@@ -95,13 +96,37 @@ async function generateWebpVariants(
   }
 }
 
+/**
+ * Check whether rehosted files already exist on disk for a given file base.
+ * Looks for any file starting with `{fileBase}-` in the output directory.
+ * @returns `true` if at least one matching file exists.
+ */
+export async function rehostFilesExist(
+  io: Io,
+  outputDir: string,
+  fileBase: string,
+): Promise<boolean> {
+  let files: string[];
+  try {
+    files = await io.fs.readdir(outputDir);
+  } catch {
+    return false;
+  }
+  return files.some((f) => f.startsWith(`${fileBase}-`));
+}
+
 export async function processAndSave(
   io: Io,
   buffer: Buffer,
   originalExt: string,
   outputDir: string,
   fileBase: string,
+  /** Set to true to allow overwriting existing files (e.g. regeneration). */
+  allowOverwrite = false,
 ): Promise<void> {
+  if (!allowOverwrite && (await rehostFilesExist(io, outputDir, fileBase))) {
+    throw new Error(`Rehost files already exist for ${fileBase} in ${outputDir}`);
+  }
   await io.fs.mkdir(outputDir, { recursive: true });
   await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
   await generateWebpVariants(io, buffer, outputDir, fileBase);
@@ -223,7 +248,7 @@ export async function rehostImages(
       const fileBase = printingIdToFileBase(img.printingSlug);
       const outputDir = join(CARD_IMAGES_DIR, img.setSlug);
 
-      await processAndSave(io, buffer, ext, outputDir, fileBase);
+      await processAndSave(io, buffer, ext, outputDir, fileBase, true);
 
       const selfHostedPath = `/card-images/${img.setSlug}/${fileBase}`;
 
@@ -318,6 +343,60 @@ export async function clearAllRehosted(
   }
 
   return { cleared };
+}
+
+/**
+ * Collect all rehosted images whose file base doesn't match their printing's
+ * current slug. Returns a flat list of { imageId, old, new } entries.
+ * @returns The total rehosted count and the list of mismatched entries.
+ */
+export async function collectStaleImages(
+  repo: PrintingImagesRepo,
+): Promise<{ total: number; stale: { imageId: string; oldUrl: string; newUrl: string }[] }> {
+  const images = await repo.listAllRehosted();
+  const stale: { imageId: string; oldUrl: string; newUrl: string }[] = [];
+  for (const img of images) {
+    const expectedFileBase = printingIdToFileBase(img.printingSlug);
+    const expectedUrl = `/card-images/${img.setSlug}/${expectedFileBase}`;
+    if (img.rehostedUrl !== expectedUrl) {
+      stale.push({ imageId: img.imageId, oldUrl: img.rehostedUrl, newUrl: expectedUrl });
+    }
+  }
+  return { total: images.length, stale };
+}
+
+/**
+ * Collect all stale images and rename them on disk + update DB.
+ * Runs the full scan + rename in a single request (no client-side batching).
+ * @returns Final counts for the entire operation.
+ */
+export async function renameStaleImages(
+  io: Io,
+  repo: PrintingImagesRepo,
+): Promise<RenameImagesResponse> {
+  const { total, stale } = await collectStaleImages(repo);
+  const progress: RenameImagesResponse = {
+    scanned: total,
+    renamed: 0,
+    alreadyCorrect: total - stale.length,
+    failed: 0,
+    errors: [],
+    hasMore: false,
+  };
+
+  for (const entry of stale) {
+    try {
+      await renameRehostFiles(io, entry.oldUrl, entry.newUrl);
+      await repo.updateRehostedUrl(entry.imageId, entry.newUrl);
+      progress.renamed++;
+    } catch (error) {
+      progress.failed++;
+      const message = error instanceof Error ? error.message : String(error);
+      progress.errors.push(message);
+    }
+  }
+
+  return progress;
 }
 
 async function getDiskStats(io: Io): Promise<RehostStatusDiskStats> {

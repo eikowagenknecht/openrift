@@ -57,7 +57,7 @@ if (ctx) {
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "MKM-001:common:normal:",
+      slug: "MKM-001:normal:",
       cardId: cardId,
       setId: setId,
       shortCode: "MKM-001",
@@ -82,7 +82,7 @@ if (ctx) {
   const [secondPrintingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "MKM-001:common:foil:",
+      slug: "MKM-001:foil:",
       cardId: cardId,
       setId: setId,
       shortCode: "MKM-001",

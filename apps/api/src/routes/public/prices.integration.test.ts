@@ -60,7 +60,7 @@ if (ctx) {
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "PRC-001:common:normal:",
+      slug: "PRC-001:normal:",
       cardId,
       setId,
       shortCode: "PRC-001",
@@ -85,7 +85,7 @@ if (ctx) {
   const [printingNoSourceRow] = await db
     .insertInto("printings")
     .values({
-      slug: "PRC-002:common:normal:",
+      slug: "PRC-002:normal:",
       cardId,
       setId,
       shortCode: "PRC-002",

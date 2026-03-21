@@ -86,7 +86,7 @@ if (ctx) {
   const [printing] = await db
     .insertInto("printings")
     .values({
-      slug: "IMG-001:common:normal:",
+      slug: "IMG-001:normal:",
       cardId: card.id,
       setId: set.id,
       shortCode: "IMG-001",

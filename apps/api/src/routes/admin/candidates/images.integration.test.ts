@@ -40,7 +40,7 @@ const ctx = createTestContext(USER_ID, { io: mockIo });
 
 // Seed data IDs (populated during setup)
 let printingId = "";
-const printingSlug = "CSI-001:common:normal:";
+const printingSlug = "CSI-001:normal:";
 let psId = ""; // printing source with image + linked
 let psNoImageId = ""; // printing source without image
 let psUnlinkedId = ""; // printing source not linked to a printing
@@ -445,13 +445,13 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // Give both images a rehostedUrl to exercise the rename branches
       await db
         .updateTable("printingImages")
-        .set({ rehostedUrl: "/card-images/CSI/CSI-001-common-normal-n", isActive: true })
+        .set({ rehostedUrl: "/card-images/CSI/CSI-001-normal-n", isActive: true })
         .where("id", "=", mainImageId)
         .execute();
       await db
         .updateTable("printingImages")
         .set({
-          rehostedUrl: `/card-images/CSI/CSI-001-common-normal-n-${additionalImageId}`,
+          rehostedUrl: `/card-images/CSI/CSI-001-normal-n-${additionalImageId}`,
           isActive: false,
         })
         .where("id", "=", additionalImageId)
@@ -474,7 +474,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(newActive!.isActive).toBe(true);
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
-      expect(newActive!.rehostedUrl).toBe("/card-images/CSI/CSI-001-common-normal-n");
+      expect(newActive!.rehostedUrl).toBe("/card-images/CSI/CSI-001-normal-n");
 
       // The demoted image should get an ID-suffixed path
       const demoted = await db
@@ -485,7 +485,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(demoted!.isActive).toBe(false);
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
-      expect(demoted!.rehostedUrl).toBe(`/card-images/CSI/CSI-001-common-normal-n-${mainImageId}`);
+      expect(demoted!.rehostedUrl).toBe(`/card-images/CSI/CSI-001-normal-n-${mainImageId}`);
     });
 
     it("renames rehosted files when deactivating an image", async () => {
@@ -506,9 +506,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(image!.isActive).toBe(false);
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
-      expect(image!.rehostedUrl).toBe(
-        `/card-images/CSI/CSI-001-common-normal-n-${additionalImageId}`,
-      );
+      expect(image!.rehostedUrl).toBe(`/card-images/CSI/CSI-001-normal-n-${additionalImageId}`);
     });
 
     it("activates an image without rehostedUrl (no rename)", async () => {
@@ -786,7 +784,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 404 for non-existent printing", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/candidates/printing/FAKE-SLUG:rare:foil:/add-image-url`, {
+        req("POST", `/admin/candidates/printing/FAKE-SLUG:foil:/add-image-url`, {
           url: "https://example.com/nope.png",
         }),
       );
@@ -886,7 +884,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("file", new File([FAKE_BUFFER], "nope.png", { type: "image/png" }));
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/FAKE-SLUG:rare:foil:/upload-image`,
+        `http://localhost/api/admin/candidates/printing/FAKE-SLUG:foil:/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);

@@ -3,7 +3,6 @@ import type {
   CandidateCardResponse,
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
-  Rarity,
   ProviderSettingResponse,
 } from "@openrift/shared";
 import { buildPrintingId } from "@openrift/shared";
@@ -1132,6 +1131,7 @@ function NewPrintingGroupCard({
   onDelete,
   onIgnore,
   isAccepting,
+  isLinking, // custom: used for "Assign all to existing" button disabled state
   printingFields,
 }: {
   cardId: string;
@@ -1161,17 +1161,17 @@ function NewPrintingGroupCard({
     return v !== undefined && v !== null && v !== "";
   });
 
-  // Generate ID in the same format as the DB: "shortCode:rarity:finish:promoSlug"
+  // Generate ID in the same format as the DB: "shortCode:finish:promoSlug"
   const printingId = hasRequired
-    ? buildPrintingId(
-        activePrinting.shortCode as string,
-        String(activePrinting.rarity ?? ("Common" satisfies Rarity)),
-        null,
-        activePrinting.finish as string,
-      )
+    ? buildPrintingId(activePrinting.shortCode as string, null, activePrinting.finish as string)
     : "";
 
   const guessedId = group.expectedPrintingId;
+
+  // custom: find existing printing whose slug matches the guessed ID so we can offer a quick "assign all" action
+  const matchingExisting = existingPrintings.find((p) => p.slug === guessedId) as
+    | { id: string; slug: string }
+    | undefined;
 
   return (
     <div
@@ -1212,6 +1212,23 @@ function NewPrintingGroupCard({
             >
               <CheckCheckIcon className="mr-1 size-3" />
               Check {group.candidates.filter((s) => !s.checkedAt).length} unchecked
+            </Button>
+          )}
+          {/* custom: quick-assign all candidates to matching existing printing */}
+          {matchingExisting && (
+            <Button
+              size="sm"
+              variant="default"
+              disabled={isLinking}
+              onClick={() =>
+                onLink(
+                  matchingExisting.id,
+                  group.candidates.map((s) => s.id),
+                )
+              }
+            >
+              <ArrowRightIcon className="mr-1 size-3.5" />
+              Assign all to existing
             </Button>
           )}
           <Button

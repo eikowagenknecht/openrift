@@ -35,7 +35,7 @@ export async function updatePrintingPromoType(
   const printing = await db
     .selectFrom("printings as p")
     .innerJoin("sets as s", "s.id", "p.setId")
-    .select(["p.id", "p.slug", "p.shortCode", "p.rarity", "p.finish", "s.slug as setSlug"])
+    .select(["p.id", "p.slug", "p.shortCode", "p.finish", "s.slug as setSlug"])
     .where("p.slug", "=", printingSlug)
     .executeTakeFirst();
 
@@ -52,12 +52,7 @@ export async function updatePrintingPromoType(
     promoTypeSlug = pt.slug;
   }
 
-  const newSlug = buildPrintingId(
-    printing.shortCode,
-    printing.rarity,
-    promoTypeSlug,
-    printing.finish,
-  );
+  const newSlug = buildPrintingId(printing.shortCode, promoTypeSlug, printing.finish);
 
   await db
     .updateTable("printings")
@@ -214,7 +209,6 @@ export async function acceptPrinting(
     printingFields.id ||
     buildPrintingId(
       printingFields.shortCode,
-      printingFields.rarity ?? ("Common" satisfies Rarity),
       promoTypeSlug,
       printingFields.finish ?? ("normal" satisfies Finish),
     );

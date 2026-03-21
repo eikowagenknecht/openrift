@@ -403,7 +403,7 @@ export async function ingestCandidates(
 
         const printingSlug =
           effectiveCardId && p.rarity && p.finish
-            ? buildPrintingId(p.short_code, p.rarity, p.is_promo ? "promo" : null, p.finish)
+            ? buildPrintingId(p.short_code, p.is_promo ? "promo" : null, p.finish)
             : null;
 
         // Check for a manual link override (survives delete + re-upload)

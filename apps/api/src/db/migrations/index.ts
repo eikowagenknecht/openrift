@@ -44,6 +44,7 @@ import * as m038 from "./038-rename-source-concepts.js";
 import * as m039 from "./039-card-comment.js";
 import * as m040 from "./040-buff-card-type.js";
 import * as m041 from "./041-drop-candidate-printing-unique-index.js";
+import * as m042 from "./042-drop-rarity-from-slug.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -87,4 +88,5 @@ export const migrations: Record<string, Migration> = {
   "039-card-comment": m039,
   "040-buff-card-type": m040,
   "041-drop-candidate-printing-unique-index": m041,
+  "042-drop-rarity-from-slug": m042,
 };

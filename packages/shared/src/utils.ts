@@ -31,15 +31,14 @@ export function groupIntoMap<K, T>(items: T[], keyFn: (item: T) => K): Map<K, T[
 
 /**
  * Build composite printing ID.
- * @returns Deterministic ID string: "{short_code}:{rarity}:{finish}:{promo_type_slug|}"
+ * @returns Deterministic ID string: "{short_code}:{finish}:{promo_type_slug|}"
  */
 export function buildPrintingId(
   shortCode: string,
-  rarity: string,
   promoTypeSlug: string | null,
   finish: string,
 ): string {
-  return `${shortCode}:${rarity.toLowerCase()}:${finish}:${promoTypeSlug ?? ""}`;
+  return `${shortCode}:${finish}:${promoTypeSlug ?? ""}`;
 }
 
 /**

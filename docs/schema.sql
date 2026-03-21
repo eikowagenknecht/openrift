@@ -2,6 +2,8 @@
 -- PostgreSQL database dump
 --
 
+\restrict h3qrXZ2lmNyAe3sLo8rdT700FDyxJnKcGwggpielf6anq70d7uGzLqnbpy0mOY8
+
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
 
@@ -2123,4 +2125,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
+\unrestrict h3qrXZ2lmNyAe3sLo8rdT700FDyxJnKcGwggpielf6anq70d7uGzLqnbpy0mOY8
 

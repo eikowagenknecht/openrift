@@ -5,9 +5,11 @@ import { z } from "zod/v4";
 
 import {
   clearAllRehosted,
+  collectStaleImages,
   getRehostStatus,
   regenerateImages,
   rehostImages,
+  renameStaleImages,
 } from "../../services/image-rehost.js";
 import type { Variables } from "../../types.js";
 
@@ -43,6 +45,18 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       return c.json(result);
     },
   )
+
+  .get("/rename-preview", async (c) => {
+    const { printingImages } = c.get("repos");
+    const { total, stale } = await collectStaleImages(printingImages);
+    return c.json({ total, misnamed: stale.length });
+  })
+
+  .post("/rename-images", async (c) => {
+    const { printingImages } = c.get("repos");
+    const result = await renameStaleImages(c.get("io"), printingImages);
+    return c.json(result);
+  })
 
   .post("/clear-rehosted", async (c) => {
     const { printingImages } = c.get("repos");

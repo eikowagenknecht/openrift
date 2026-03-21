@@ -90,7 +90,7 @@ if (ctx) {
   const [printing1] = await db
     .insertInto("printings")
     .values({
-      slug: "CSQ-001:common:normal:",
+      slug: "CSQ-001:normal:",
       cardId: card1Id,
       setId: setId,
       shortCode: "CSQ-001",

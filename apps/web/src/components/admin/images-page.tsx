@@ -22,6 +22,8 @@ import {
   useRegenerateImages,
   useRehostImages,
   useRehostStatus,
+  useRenameImages,
+  useRenamePreview,
   useRestoreImageUrls,
 } from "@/hooks/use-rehost";
 
@@ -54,12 +56,14 @@ function MutationStatus({
   if (mutation.isSuccess && mutation.data) {
     const d = mutation.data;
     const count = "rehosted" in d ? d.rehosted : "regenerated" in d ? d.regenerated : 0;
+    const total = "total" in d ? d.total : 0;
     const errors = d.errors;
+    const verb = label === "rehost" ? "Rehosted" : "Regenerated";
     return (
       <div>
         <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
           <CheckIcon className="size-4" />
-          {label === "rehost" ? `Rehosted ${count}` : `Regenerated ${count}`} / {d.total} images
+          {verb} {count} / {total} images
         </p>
         {errors.length > 0 && (
           <ul className="ml-5 mt-1 list-disc text-xs text-red-600 dark:text-red-400">
@@ -184,6 +188,70 @@ function RehostSection() {
   );
 }
 
+// ── RenameSection ─────────────────────────────────────────────────────────────
+
+function RenameSection() {
+  const { data: preview } = useRenamePreview();
+  const renameMutation = useRenameImages();
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-base">Rename Files</CardTitle>
+            <CardDescription>
+              {preview
+                ? preview.misnamed > 0
+                  ? `${preview.misnamed} / ${preview.total} rehosted images have stale filenames`
+                  : `All ${preview.total} rehosted images have correct filenames`
+                : "Checking for misnamed images\u2026"}
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={renameMutation.isPending || !preview?.misnamed}
+            onClick={() => renameMutation.mutate()}
+          >
+            {renameMutation.isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Rename"}
+          </Button>
+        </div>
+      </CardHeader>
+      {(renameMutation.isSuccess || renameMutation.isError) && (
+        <CardContent className="pt-0">
+          {renameMutation.isSuccess && renameMutation.data && (
+            <div>
+              <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                <CheckIcon className="size-4" />
+                Scanned {renameMutation.data.scanned} images: {renameMutation.data.renamed} renamed,{" "}
+                {renameMutation.data.alreadyCorrect} already correct
+                {renameMutation.data.failed > 0 && `, ${renameMutation.data.failed} failed`}
+              </p>
+              {renameMutation.data.errors.length > 0 && (
+                <ul className="ml-5 mt-1 list-disc text-xs text-red-600 dark:text-red-400">
+                  {renameMutation.data.errors.slice(0, 5).map((err) => (
+                    <li key={err}>{err}</li>
+                  ))}
+                  {renameMutation.data.errors.length > 5 && (
+                    <li>...and {renameMutation.data.errors.length - 5} more</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+          {renameMutation.isError && (
+            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+              <XIcon className="size-4" />
+              {renameMutation.error?.message}
+            </p>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 // ── RestoreUrlsSection ────────────────────────────────────────────────────────
 
 function RestoreUrlsSection() {
@@ -296,6 +364,7 @@ export function ImagesPage() {
     <div className="space-y-4">
       <MissingImagesSection />
       <RehostSection />
+      <RenameSection />
       <RestoreUrlsSection />
     </div>
   );

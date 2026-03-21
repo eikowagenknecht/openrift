@@ -47,7 +47,7 @@ export function useRehostImages(onBatchComplete?: () => void) {
         totals.failed += batch.failed;
         totals.errors.push(...batch.errors);
         onBatchComplete?.();
-        if (batch.total === 0) {
+        if (batch.total === 0 || batch.rehosted === 0) {
           break;
         }
       }
@@ -95,6 +95,24 @@ export function useClearRehosted() {
     mutationFn: () => rpc(client.api.admin["clear-rehosted"].$post()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+    },
+  });
+}
+
+export function useRenamePreview() {
+  return useQuery({
+    queryKey: queryKeys.admin.renamePreview,
+    queryFn: () => rpc(client.api.admin["rename-preview"].$get()),
+  });
+}
+
+export function useRenameImages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => rpc(client.api.admin["rename-images"].$post()),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.renamePreview });
     },
   });
 }

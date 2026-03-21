@@ -38,25 +38,19 @@ describe("unique", () => {
 
 describe("buildPrintingId", () => {
   it("builds a basic non-promo slug", () => {
-    expect(buildPrintingId("OGN-001", "Common", null, "normal")).toBe("OGN-001:common:normal:");
+    expect(buildPrintingId("OGN-001", null, "normal")).toBe("OGN-001:normal:");
   });
 
   it("includes promo type slug when provided", () => {
-    expect(buildPrintingId("OGN-001", "Common", "promo", "foil")).toBe("OGN-001:common:foil:promo");
+    expect(buildPrintingId("OGN-001", "promo", "foil")).toBe("OGN-001:foil:promo");
   });
 
   it("includes specific promo type slug", () => {
-    expect(buildPrintingId("OGN-001", "Common", "nexus-night", "foil")).toBe(
-      "OGN-001:common:foil:nexus-night",
-    );
-  });
-
-  it("lowercases rarity", () => {
-    expect(buildPrintingId("SFD-010", "Epic", null, "foil")).toBe("SFD-010:epic:foil:");
+    expect(buildPrintingId("OGN-001", "nexus-night", "foil")).toBe("OGN-001:foil:nexus-night");
   });
 
   it("preserves finish value", () => {
-    expect(buildPrintingId("OGN-105", "Showcase", null, "normal")).toBe("OGN-105:showcase:normal:");
+    expect(buildPrintingId("OGN-105", null, "normal")).toBe("OGN-105:normal:");
   });
 });
 

@@ -543,6 +543,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .selectAll("printings")
         .select("promoTypes.slug as promoTypeSlug")
         .where("printings.cardId", "=", cardId)
+        .orderBy("printings.setId")
+        .orderBy("printings.finish")
+        .orderBy("printings.isSigned")
+        .orderBy("printings.shortCode")
         .execute();
     },
 
@@ -570,6 +574,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "comment",
         ])
         .where("cardId", "=", cardId)
+        .orderBy("setId")
+        .orderBy("finish")
+        .orderBy("isSigned")
+        .orderBy("shortCode")
         .execute();
     },
 
@@ -793,6 +801,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .where(notIgnoredCard("candidateCards"))
         .where(notHiddenSource("candidateCards"))
         .orderBy("provider")
+        .orderBy("shortCode")
         .execute();
     },
 

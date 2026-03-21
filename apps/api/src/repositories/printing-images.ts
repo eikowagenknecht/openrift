@@ -260,7 +260,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
           "pi.originalUrl",
           "s.slug as setSlug",
         ])
-        .where("pi.isActive", "=", true)
         .where("pi.face", "=", "front")
         .where("pi.rehostedUrl", "is", null)
         .where("pi.originalUrl", "is not", null)
@@ -274,10 +273,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .selectFrom("printings")
         .innerJoin("sets", "sets.id", "printings.setId")
         .leftJoin("printingImages as pi", (jb) =>
-          jb
-            .onRef("pi.printingId", "=", "printings.id")
-            .on("pi.face", "=", "front")
-            .on("pi.isActive", "=", true),
+          jb.onRef("pi.printingId", "=", "printings.id").on("pi.face", "=", "front"),
         )
         .select([
           "sets.slug as setId",
@@ -339,6 +335,53 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .where("printingId", "=", printingId)
         .where("rehostedUrl", "is not", null)
         .execute() as Promise<{ id: string; rehostedUrl: string }[]>;
+    },
+
+    /**
+     * Find rehosted images whose file base doesn't match their printing's current slug.
+     * @returns Images with both the current rehosted URL and the expected file base.
+     */
+    listAllRehosted() {
+      return db
+        .selectFrom("printingImages as pi")
+        .innerJoin("printings as p", "p.id", "pi.printingId")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .select([
+          "pi.id as imageId",
+          "pi.rehostedUrl",
+          "p.slug as printingSlug",
+          "s.slug as setSlug",
+        ])
+        .where("pi.rehostedUrl", "is not", null)
+        .orderBy("pi.id")
+        .execute() as Promise<
+        { imageId: string; rehostedUrl: string; printingSlug: string; setSlug: string }[]
+      >;
+    },
+
+    /**
+     * Check whether any *other* printing image shares the same rehosted URL.
+     * Used to guard file deletion: only remove disk files when no other row points to them.
+     * @returns Number of other printing images sharing the same rehosted URL.
+     */
+    async countOthersByRehostedUrl(rehostedUrl: string, excludeId: string): Promise<number> {
+      const result = await db
+        .selectFrom("printingImages")
+        .select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("rehostedUrl", "=", rehostedUrl)
+        .where("id", "!=", excludeId)
+        .executeTakeFirstOrThrow();
+      return Number(result.count);
+    },
+
+    /** @returns Total count of rehosted images. */
+    async countRehosted(): Promise<number> {
+      const result = await db
+        .selectFrom("printingImages")
+        .select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("rehostedUrl", "is not", null)
+        .executeTakeFirstOrThrow();
+      return Number(result.count);
     },
 
     /** @returns A candidate printing by ID (all columns). */

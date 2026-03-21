@@ -431,7 +431,6 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     setSlug: setSlugMap.get(setId) ?? setId,
     expectedPrintingId: buildPrintingId(
       p.shortCode,
-      p.rarity,
       p.promoTypeId ? (promoSlugMap.get(p.promoTypeId) ?? null) : null,
       p.finish,
     ),
@@ -461,14 +460,13 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     // All candidates in a group share the same variant traits; use the first as representative
     const first = groupCandidates[0];
     const mcShortCode = mostCommonValue(groupCandidates.map((s) => s.shortCode));
-    const rarity = first.rarity ?? "";
     const finish = resolveFinish(first.finish, first.rarity);
     const promoTypeSlug = first.promoTypeId ? (promoSlugMap.get(first.promoTypeId) ?? null) : null;
 
     filteredGroups.push({
       mostCommonShortCode: mcShortCode,
       shortCodes: groupCandidates.map((s) => s.id),
-      expectedPrintingId: buildPrintingId(mcShortCode, rarity, promoTypeSlug, finish),
+      expectedPrintingId: buildPrintingId(mcShortCode, promoTypeSlug, finish),
     });
   }
 

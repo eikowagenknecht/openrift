@@ -70,9 +70,14 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
     }
 
+    // Check if another image shares the same rehosted files before deleting
+    const othersUsingFiles = image.rehostedUrl
+      ? await printingImages.countOthersByRehostedUrl(image.rehostedUrl, imageId)
+      : 0;
+
     await printingImages.deleteById(imageId);
 
-    if (image.rehostedUrl) {
+    if (image.rehostedUrl && othersUsingFiles === 0) {
       await deleteRehostFiles(c.get("io"), image.rehostedUrl);
     }
 
@@ -149,7 +154,14 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Image is not rehosted");
     }
 
-    await deleteRehostFiles(c.get("io"), image.rehostedUrl);
+    // Only delete files if no other image shares the same rehosted URL
+    const othersUsingFiles = await printingImages.countOthersByRehostedUrl(
+      image.rehostedUrl,
+      imageId,
+    );
+    if (othersUsingFiles === 0) {
+      await deleteRehostFiles(c.get("io"), image.rehostedUrl);
+    }
 
     await printingImages.updateRehostedUrl(imageId, null);
 
