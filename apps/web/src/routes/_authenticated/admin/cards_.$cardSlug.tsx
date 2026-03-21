@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { candidateDetailQueryOptions } from "@/hooks/use-candidates";
+import { allCardsQueryOptions, candidateDetailQueryOptions } from "@/hooks/use-candidates";
 import { adminPromoTypesQueryOptions } from "@/hooks/use-promo-types";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 
@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/admin/cards_/$cardSlug")({
       context.queryClient.ensureQueryData(candidateDetailQueryOptions(params.cardSlug)),
       context.queryClient.ensureQueryData(adminPromoTypesQueryOptions),
       context.queryClient.ensureQueryData(providerSettingsQueryOptions),
+      context.queryClient.ensureQueryData(allCardsQueryOptions),
     ]);
   },
   pendingComponent: AdminPending,

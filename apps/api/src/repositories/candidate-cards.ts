@@ -99,12 +99,12 @@ export function candidateCardsRepo(db: Kysely<Database>) {
   return {
     // ── Simple list endpoints ─────────────────────────────────────────────
 
-    /** @returns Lightweight card list (id, slug, name, type) ordered by name. */
+    /** @returns Lightweight card list (id, slug, name, type) ordered by slug. */
     listAllCards(): Promise<Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "type">[]> {
       return db
         .selectFrom("cards")
         .select(["id", "slug", "name", "type"])
-        .orderBy("name")
+        .orderBy("slug")
         .execute();
     },
 

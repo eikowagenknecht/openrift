@@ -13,6 +13,7 @@ import {
   BanIcon,
   CheckCheckIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   CopyCheckIcon,
   DownloadIcon,
@@ -429,12 +430,56 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   }
   checkAllAndNextRef.current = () => void handleCheckAllAndNext();
 
+  // --- Prev / Next card navigation ---
+  const prevNextCards = (() => {
+    if (!isExisting || !allCards) {
+      return { prev: null, next: null };
+    }
+    const idx = allCards.findIndex((c: { slug: string }) => c.slug === identifier);
+    return {
+      prev: idx > 0 ? allCards[idx - 1].slug : null,
+      next: idx !== -1 && idx < allCards.length - 1 ? allCards[idx + 1].slug : null,
+    };
+  })();
+
   return (
     <div className="space-y-6">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       {isExisting ? (
         <div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={!prevNextCards.prev}
+                onClick={() =>
+                  prevNextCards.prev &&
+                  void navigate({
+                    to: "/admin/cards/$cardSlug",
+                    params: { cardSlug: prevNextCards.prev },
+                  })
+                }
+              >
+                <ChevronLeftIcon className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={!prevNextCards.next}
+                onClick={() =>
+                  prevNextCards.next &&
+                  void navigate({
+                    to: "/admin/cards/$cardSlug",
+                    params: { cardSlug: prevNextCards.next },
+                  })
+                }
+              >
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </div>
             <h2 className="text-lg font-semibold">
               {(existingData as NonNullable<typeof existingData>).card.name as string}
             </h2>
