@@ -1,37 +1,34 @@
 import type { Printing } from "@openrift/shared";
 import { useEffect, useState } from "react";
 
+import { useIsMobile } from "@/hooks/use-is-mobile";
+
 export function useCardDetailNav(sortedCards: Printing[], view: string) {
   const [selectedCard, setSelectedCard] = useState<Printing | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [detailOpen, setDetailOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Lock body scroll when mobile overlay is active
   useEffect(() => {
-    if (!detailOpen) {
-      return;
-    }
-    const mq = globalThis.matchMedia("(max-width: 767px)");
-    if (!mq.matches) {
+    if (!detailOpen || !isMobile) {
       return;
     }
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [detailOpen]);
+  }, [detailOpen, isMobile]);
 
   const closeDetail = () => {
     setSelectedCard(null);
+    setSelectedIndex(-1);
     setDetailOpen(false);
   };
 
   // Close card detail when the user presses the browser back button on mobile
   useEffect(() => {
-    if (!detailOpen) {
-      return;
-    }
-    const mq = globalThis.matchMedia("(max-width: 767px)");
-    if (!mq.matches) {
+    if (!detailOpen || !isMobile) {
       return;
     }
 
@@ -39,10 +36,15 @@ export function useCardDetailNav(sortedCards: Printing[], view: string) {
 
     globalThis.addEventListener("popstate", closeDetail);
     return () => globalThis.removeEventListener("popstate", closeDetail);
-  }, [detailOpen]);
+  }, [detailOpen, isMobile]);
 
   const handleCardClick = (printing: Printing) => {
+    const index =
+      view === "cards"
+        ? sortedCards.findIndex((c) => c.card.id === printing.card.id)
+        : sortedCards.findIndex((c) => c.id === printing.id);
     setSelectedCard(printing);
+    setSelectedIndex(index);
     setDetailOpen(true);
   };
 
@@ -56,18 +58,22 @@ export function useCardDetailNav(sortedCards: Printing[], view: string) {
     }
   };
 
-  const selectedIndex = selectedCard
-    ? view === "cards"
-      ? sortedCards.findIndex((c) => c.card.id === selectedCard.card.id)
-      : sortedCards.findIndex((c) => c.id === selectedCard.id)
-    : -1;
-
   const handlePrevCard =
-    selectedIndex > 0 ? () => setSelectedCard(sortedCards[selectedIndex - 1]) : undefined;
+    selectedIndex > 0
+      ? () => {
+          const prev = sortedCards[selectedIndex - 1];
+          setSelectedCard(prev);
+          setSelectedIndex(selectedIndex - 1);
+        }
+      : undefined;
 
   const handleNextCard =
     selectedIndex >= 0 && selectedIndex < sortedCards.length - 1
-      ? () => setSelectedCard(sortedCards[selectedIndex + 1])
+      ? () => {
+          const next = sortedCards[selectedIndex + 1];
+          setSelectedCard(next);
+          setSelectedIndex(selectedIndex + 1);
+        }
       : undefined;
 
   return {

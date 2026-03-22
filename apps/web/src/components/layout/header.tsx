@@ -84,7 +84,7 @@ export function Header() {
   const { data: session, isPending } = useSession();
   const { data: isAdmin } = useIsAdmin();
   const router = useRouter();
-  const isHome = useMatch({ from: "/cards", shouldThrow: false });
+  const isHome = useMatch({ from: "/_app/cards", shouldThrow: false });
   const gravatarUrl = useGravatarUrl(session?.user?.email);
 
   const collectionEnabled = useFeatureEnabled("collection");
