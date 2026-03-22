@@ -407,6 +407,21 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").select("id").where("slug", "=", slug).executeTakeFirst();
     },
 
+    /** @returns A printing's ID by its primary key. */
+    getPrintingById(id: string): Promise<{ id: string } | undefined> {
+      return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
+    },
+
+    /** @returns A printing's ID, slug, and set slug by printing ID. */
+    getPrintingWithSetById(id: string) {
+      return db
+        .selectFrom("printings")
+        .innerJoin("sets", "sets.id", "printings.setId")
+        .select(["printings.id", "printings.slug", "sets.slug as setSlug"])
+        .where("printings.id", "=", id)
+        .executeTakeFirst();
+    },
+
     /** @returns A printing's ID and set slug by printing slug. */
     getPrintingWithSetBySlug(slug: string) {
       return db

@@ -201,14 +201,14 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   .post("/printing/:printingId/add-image-url", zValidator("json", addImageUrlSchema), async (c) => {
     const db = c.get("db");
     const { printingImages } = c.get("repos");
-    const printingSlug = c.req.param("printingId");
+    const printingId = c.req.param("printingId");
     const body = c.req.valid("json");
 
     if (!body.url?.trim()) {
       throw new AppError(400, "BAD_REQUEST", "url is required");
     }
 
-    const printing = await printingImages.getPrintingIdBySlug(printingSlug);
+    const printing = await printingImages.getPrintingById(printingId);
     if (!printing) {
       throw new AppError(404, "NOT_FOUND", "Printing not found");
     }
@@ -230,9 +230,9 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     async (c) => {
       const db = c.get("db");
       const { printingImages } = c.get("repos");
-      const printingSlug = c.req.param("printingId");
+      const printingId = c.req.param("printingId");
 
-      const printing = await printingImages.getPrintingWithSetBySlug(printingSlug);
+      const printing = await printingImages.getPrintingWithSetById(printingId);
 
       if (!printing) {
         throw new AppError(404, "NOT_FOUND", "Printing not found");
@@ -245,7 +245,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
       const buffer = Buffer.from(await file.arrayBuffer());
       const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
-      const baseFileBase = printingIdToFileBase(printingSlug);
+      const baseFileBase = printingIdToFileBase(printing.slug);
       const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
 
       // Pre-compute paths so rehostedUrl can be included in the INSERT
