@@ -149,7 +149,6 @@ export async function deletePrinting(
 // ── acceptPrinting ───────────────────────────────────────────────────────────
 
 interface AcceptPrintingFields {
-  id?: string;
   shortCode: string;
   setId?: string;
   setName?: string | null;
@@ -205,13 +204,25 @@ export async function acceptPrinting(
     promoTypeSlug = pt.slug;
   }
 
-  const printingId =
-    printingFields.id ||
-    buildPrintingId(
-      printingFields.shortCode,
-      promoTypeSlug,
-      printingFields.finish ?? ("normal" satisfies Finish),
+  const printingId = buildPrintingId(
+    printingFields.shortCode,
+    promoTypeSlug,
+    printingFields.finish ?? ("normal" satisfies Finish),
+  );
+
+  // Guard: reject if this slug already belongs to a different card
+  const existing = await db
+    .selectFrom("printings")
+    .select(["cardId"])
+    .where("slug", "=", printingId)
+    .executeTakeFirst();
+  if (existing && existing.cardId !== card.id) {
+    throw new AppError(
+      409,
+      "CONFLICT",
+      `Printing slug "${printingId}" already belongs to a different card`,
     );
+  }
 
   const firstPs = await mut.getProviderNameForCandidatePrinting(candidatePrintingIds[0]);
 

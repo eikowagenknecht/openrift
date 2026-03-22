@@ -194,8 +194,8 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
     if (groups.length > 0) {
       setExpandedPrintings((prev) => {
         const next = new Set(prev);
-        for (const g of groups) {
-          next.add(g.expectedPrintingId);
+        for (const [i, g] of groups.entries()) {
+          next.add(g.shortCodes[0] ?? `${g.expectedPrintingId}-${i}`);
         }
         return next;
       });
@@ -312,15 +312,23 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
 
   // Build PrintingGroup[] from API groups (for components that still need the old shape)
   const candidatePrintingById = new Map(candidatePrintings.map((ps) => [ps.id, ps]));
-  const apiToLocalGroup = (g: CandidatePrintingGroupResponse): PrintingGroup => ({
-    candidates: g.shortCodes
+  const apiToLocalGroup = (
+    g: CandidatePrintingGroupResponse,
+    index: number,
+  ): PrintingGroup & { groupKey: string } => {
+    const candidates = g.shortCodes
       .map((id: string) => candidatePrintingById.get(id))
-      .filter(Boolean) as CandidatePrintingResponse[],
-    expectedPrintingId: g.expectedPrintingId,
-  });
+      .filter(Boolean) as CandidatePrintingResponse[];
+    return {
+      candidates,
+      expectedPrintingId: g.expectedPrintingId,
+      // Use first candidate ID to disambiguate groups with the same expectedPrintingId
+      groupKey: candidates[0]?.id ?? `${g.expectedPrintingId}-${index}`,
+    };
+  };
 
   // Existing-mode: split into auto-matched and ambiguous groups
-  const ambiguousGroups = isExisting ? apiGroups.map((g) => apiToLocalGroup(g)) : [];
+  const ambiguousGroups = isExisting ? apiGroups.map((g, i) => apiToLocalGroup(g, i)) : [];
 
   // Use API-provided expectedCardId / defaultCardId
   const expectedCardId = isExisting
@@ -378,7 +386,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   }
 
   // New-mode: groups for the printings section (from API groups)
-  const newModeGroups = isExisting ? [] : apiGroups.map((g) => apiToLocalGroup(g));
+  const newModeGroups = isExisting ? [] : apiGroups.map((g, i) => apiToLocalGroup(g, i));
 
   const hasUnchecked =
     isExisting &&
@@ -801,7 +809,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               onClick={() => {
                 const allKeys = [
                   ...printings.map((p) => p.id as string),
-                  ...ambiguousGroups.map((g) => g.expectedPrintingId),
+                  ...ambiguousGroups.map((g) => g.groupKey),
                 ];
                 const allExpanded =
                   allKeys.length > 0 && allKeys.every((k) => expandedPrintings.has(k));
@@ -1017,15 +1025,16 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           {/* Unmatched printing sources — only groups with 0 or 2+ printing matches */}
           {ambiguousGroups.map((group) => (
             <NewPrintingGroupCard
-              key={group.expectedPrintingId}
+              key={group.groupKey}
               cardId={cardId}
               group={group}
               existingPrintings={printings}
+              promoTypes={promoTypes}
               providerLabels={sourceLabels}
               providerNames={sourceNames}
               providerSettings={providerSettings}
-              isExpanded={expandedPrintings.has(group.expectedPrintingId)}
-              onToggle={() => togglePrinting(group.expectedPrintingId)}
+              isExpanded={expandedPrintings.has(group.groupKey)}
+              onToggle={() => togglePrinting(group.groupKey)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
               onCheckAll={(candidateIds) =>
                 checkAllCandidatePrintings.mutate({ extraIds: candidateIds })
@@ -1075,7 +1084,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
             const guessedId = group.expectedPrintingId;
 
             return (
-              <div key={group.expectedPrintingId} className="rounded-md border border-dashed">
+              <div key={group.groupKey} className="rounded-md border border-dashed">
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="text-sm font-medium">
                     {guessedId} &mdash; {group.candidates.length} source
@@ -1090,12 +1099,12 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-max">
                         {newModeGroups
-                          .filter((g) => g.expectedPrintingId !== group.expectedPrintingId)
+                          .filter((g) => g.groupKey !== group.groupKey)
                           .map((target) => {
                             const targetId = target.expectedPrintingId;
                             return (
                               <DropdownMenuItem
-                                key={target.expectedPrintingId}
+                                key={target.groupKey}
                                 disabled={reassignPrinting.isPending}
                                 onClick={() => {
                                   const t = target.candidates[0];
@@ -1168,6 +1177,7 @@ function NewPrintingGroupCard({
   cardId: _cardId,
   group,
   existingPrintings,
+  promoTypes,
   providerLabels,
   providerNames,
   providerSettings,
@@ -1189,6 +1199,7 @@ function NewPrintingGroupCard({
   cardId: string;
   group: PrintingGroup;
   existingPrintings: Record<string, unknown>[];
+  promoTypes: { id: string; slug: string }[];
   providerLabels: Record<string, string>;
   providerNames: Record<string, string>;
   providerSettings: ProviderSettingResponse[];
@@ -1214,8 +1225,15 @@ function NewPrintingGroupCard({
   });
 
   // Generate ID in the same format as the DB: "shortCode:finish:promoSlug"
+  const promoSlug = activePrinting.promoTypeId
+    ? (promoTypes.find((pt) => pt.id === activePrinting.promoTypeId)?.slug ?? null)
+    : null;
   const printingId = hasRequired
-    ? buildPrintingId(activePrinting.shortCode as string, null, activePrinting.finish as string)
+    ? buildPrintingId(
+        activePrinting.shortCode as string,
+        promoSlug,
+        activePrinting.finish as string,
+      )
     : "";
 
   const guessedId = group.expectedPrintingId;
@@ -1289,7 +1307,7 @@ function NewPrintingGroupCard({
             disabled={!hasRequired || isAccepting}
             onClick={() =>
               onAccept(
-                { id: printingId, ...activePrinting },
+                activePrinting,
                 group.candidates.map((s) => s.id),
               )
             }
