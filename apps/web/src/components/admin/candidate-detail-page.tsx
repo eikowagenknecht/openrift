@@ -803,14 +803,20 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                   ...printings.map((p) => p.id as string),
                   ...ambiguousGroups.map((g) => g.expectedPrintingId),
                 ];
-                setExpandedPrintings((prev) =>
-                  prev.size === allKeys.length ? new Set() : new Set(allKeys),
-                );
+                const allExpanded =
+                  allKeys.length > 0 && allKeys.every((k) => expandedPrintings.has(k));
+                setExpandedPrintings(allExpanded ? new Set() : new Set(allKeys));
               }}
             >
-              {expandedPrintings.size === printings.length + ambiguousGroups.length
-                ? "Collapse all"
-                : "Expand all"}
+              {(() => {
+                const allKeys = [
+                  ...printings.map((p) => p.id as string),
+                  ...ambiguousGroups.map((g) => g.expectedPrintingId),
+                ];
+                return allKeys.length > 0 && allKeys.every((k) => expandedPrintings.has(k))
+                  ? "Collapse all"
+                  : "Expand all";
+              })()}
             </Button>
           </div>
           {printings.map((printing) => {
@@ -949,6 +955,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                     />
                     <div className="min-w-0 flex-1 space-y-3">
                       <CandidateSpreadsheet
+                        key={allSources.map((s) => s.id).join(",")}
                         fields={printingSourceFields}
                         activeRow={printingWithImage}
                         candidateRows={allSources}
@@ -1307,6 +1314,7 @@ function NewPrintingGroupCard({
             />
             <div className="min-w-0 flex-1">
               <CandidateSpreadsheet
+                key={group.candidates.map((s) => s.id).join(",")}
                 fields={printingFields}
                 requiredKeys={REQUIRED_PRINTING_KEYS}
                 activeRow={Object.keys(activePrinting).length > 0 ? activePrinting : null}
