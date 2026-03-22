@@ -12,6 +12,7 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
 import { useCardFilters } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
 import { useDisplayStore } from "@/stores/display-store";
@@ -23,6 +24,7 @@ const CardDetail = lazy(async () => {
 });
 
 export function CardBrowser() {
+  const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
   const { allCards, setInfoList } = useCards();
   const { data: session } = useSession();
@@ -126,13 +128,13 @@ export function CardBrowser() {
               onNextCard={handleNextCard}
               onTagClick={(tag) => {
                 setSearch(`t:${tag}`);
-                if (globalThis.matchMedia("(max-width: 767px)").matches) {
+                if (isMobile) {
                   handleDetailClose();
                 }
               }}
               onKeywordClick={(keyword) => {
                 setSearch(`k:${keyword}`);
-                if (globalThis.matchMedia("(max-width: 767px)").matches) {
+                if (isMobile) {
                   handleDetailClose();
                 }
               }}
