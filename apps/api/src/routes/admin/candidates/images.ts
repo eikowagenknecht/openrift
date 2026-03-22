@@ -154,6 +154,14 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Image is not rehosted");
     }
 
+    if (!image.originalUrl) {
+      throw new AppError(
+        400,
+        "BAD_REQUEST",
+        "Cannot un-rehost: image has no original URL to fall back to",
+      );
+    }
+
     // Only delete files if no other image shares the same rehosted URL
     const othersUsingFiles = await printingImages.countOthersByRehostedUrl(
       image.rehostedUrl,

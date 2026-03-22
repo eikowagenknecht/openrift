@@ -1787,7 +1787,7 @@ function PrintingImageSwitcher({
                 <DownloadIcon className="size-3" />
               </Button>
             )}
-            {effectiveImage.rehostedUrl && (
+            {effectiveImage.rehostedUrl && effectiveImage.originalUrl && (
               <Button
                 variant="ghost"
                 size="icon"

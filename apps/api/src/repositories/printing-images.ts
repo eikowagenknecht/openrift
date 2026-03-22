@@ -244,6 +244,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .updateTable("printingImages")
         .set({ rehostedUrl: null })
         .where("rehostedUrl", "is not", null)
+        .where("originalUrl", "is not", null)
         .execute();
       return Number(result[0].numUpdatedRows);
     },
