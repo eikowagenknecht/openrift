@@ -236,6 +236,9 @@ export function CandidateUploadPage() {
               <div className="flex items-start gap-1 text-sm text-green-600 dark:text-green-400">
                 <CheckIcon className="mt-0.5 size-4 shrink-0" />
                 <div>
+                  <p className="font-medium">
+                    Upload complete for &ldquo;{upload.data.provider}&rdquo;
+                  </p>
                   <p>
                     Cards: {upload.data.newCards} new, {upload.data.removedCards ?? 0} removed,{" "}
                     {upload.data.updates} updated, {upload.data.unchanged} unchanged
@@ -262,91 +265,23 @@ export function CandidateUploadPage() {
                   )}
                 </ul>
               )}
+              {upload.data.newCardDetails?.length > 0 && (
+                <ItemList label="Added cards" items={upload.data.newCardDetails} />
+              )}
+              {upload.data.removedCardDetails?.length > 0 && (
+                <ItemList label="Removed cards" items={upload.data.removedCardDetails} />
+              )}
               {upload.data.updatedCards.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Updated cards:</p>
-                  <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
-                    <table className="w-full">
-                      <thead className="sticky top-0 bg-muted">
-                        <tr className="text-left">
-                          <th className="px-2 py-1">Card</th>
-                          <th className="px-2 py-1">Short Code</th>
-                          <th className="px-2 py-1">Field</th>
-                          <th className="px-2 py-1">From</th>
-                          <th className="px-2 py-1">To</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {upload.data.updatedCards.flatMap((card, ci) =>
-                          card.fields.map((f, fi) => (
-                            <tr key={`${ci}-${fi}`}>
-                              <td className="px-2 py-1 font-medium">{card.name}</td>
-                              <td className="px-2 py-1 text-muted-foreground">
-                                {card.shortCode ?? "\u2014"}
-                              </td>
-                              <td className="px-2 py-1">{f.field}</td>
-                              <td
-                                className="max-w-48 truncate px-2 py-1 text-red-600 dark:text-red-400"
-                                title={JSON.stringify(f.from)}
-                              >
-                                {JSON.stringify(f.from)}
-                              </td>
-                              <td
-                                className="max-w-48 truncate px-2 py-1 text-green-600 dark:text-green-400"
-                                title={JSON.stringify(f.to)}
-                              >
-                                {JSON.stringify(f.to)}
-                              </td>
-                            </tr>
-                          )),
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <DiffTable label="Updated cards" items={upload.data.updatedCards} />
+              )}
+              {upload.data.newPrintingDetails?.length > 0 && (
+                <ItemList label="Added printings" items={upload.data.newPrintingDetails} />
+              )}
+              {upload.data.removedPrintingDetails?.length > 0 && (
+                <ItemList label="Removed printings" items={upload.data.removedPrintingDetails} />
               )}
               {upload.data.updatedPrintings?.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Updated printings:</p>
-                  <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
-                    <table className="w-full">
-                      <thead className="sticky top-0 bg-muted">
-                        <tr className="text-left">
-                          <th className="px-2 py-1">Card</th>
-                          <th className="px-2 py-1">Short Code</th>
-                          <th className="px-2 py-1">Field</th>
-                          <th className="px-2 py-1">From</th>
-                          <th className="px-2 py-1">To</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {upload.data.updatedPrintings.flatMap((printing, pi) =>
-                          printing.fields.map((f, fi) => (
-                            <tr key={`${pi}-${fi}`}>
-                              <td className="px-2 py-1 font-medium">{printing.name}</td>
-                              <td className="px-2 py-1 text-muted-foreground">
-                                {printing.shortCode ?? "\u2014"}
-                              </td>
-                              <td className="px-2 py-1">{f.field}</td>
-                              <td
-                                className="max-w-48 truncate px-2 py-1 text-red-600 dark:text-red-400"
-                                title={JSON.stringify(f.from)}
-                              >
-                                {JSON.stringify(f.from)}
-                              </td>
-                              <td
-                                className="max-w-48 truncate px-2 py-1 text-green-600 dark:text-green-400"
-                                title={JSON.stringify(f.to)}
-                              >
-                                {JSON.stringify(f.to)}
-                              </td>
-                            </tr>
-                          )),
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <DiffTable label="Updated printings" items={upload.data.updatedPrintings} />
               )}
             </div>
           )}
@@ -363,6 +298,92 @@ export function CandidateUploadPage() {
       {providerNames.length > 0 && (
         <ManageProvidersCard providerNames={providerNames} providerStats={providerStats} />
       )}
+    </div>
+  );
+}
+
+function ItemList({
+  label,
+  items,
+}: {
+  label: string;
+  items: { name: string; shortCode: string | null }[];
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-muted-foreground">{label}:</p>
+      <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
+        <table className="w-full">
+          <thead className="sticky top-0 bg-muted">
+            <tr className="text-left">
+              <th className="px-2 py-1">Name</th>
+              <th className="px-2 py-1">Short Code</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {items.map((item, i) => (
+              <tr key={i}>
+                <td className="px-2 py-1 font-medium">{item.name}</td>
+                <td className="px-2 py-1 text-muted-foreground">{item.shortCode ?? "\u2014"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DiffTable({
+  label,
+  items,
+}: {
+  label: string;
+  items: {
+    name: string;
+    shortCode: string | null;
+    fields: { field: string; from: unknown; to: unknown }[];
+  }[];
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-muted-foreground">{label}:</p>
+      <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
+        <table className="w-full">
+          <thead className="sticky top-0 bg-muted">
+            <tr className="text-left">
+              <th className="px-2 py-1">Card</th>
+              <th className="px-2 py-1">Short Code</th>
+              <th className="px-2 py-1">Field</th>
+              <th className="px-2 py-1">From</th>
+              <th className="px-2 py-1">To</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {items.flatMap((item, ci) =>
+              item.fields.map((f, fi) => (
+                <tr key={`${ci}-${fi}`}>
+                  <td className="px-2 py-1 font-medium">{item.name}</td>
+                  <td className="px-2 py-1 text-muted-foreground">{item.shortCode ?? "\u2014"}</td>
+                  <td className="px-2 py-1">{f.field}</td>
+                  <td
+                    className="max-w-48 truncate px-2 py-1 text-red-600 dark:text-red-400"
+                    title={JSON.stringify(f.from)}
+                  >
+                    {JSON.stringify(f.from)}
+                  </td>
+                  <td
+                    className="max-w-48 truncate px-2 py-1 text-green-600 dark:text-green-400"
+                    title={JSON.stringify(f.to)}
+                  >
+                    {JSON.stringify(f.to)}
+                  </td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -81,13 +81,17 @@ export interface ProviderStatsResponse {
   lastUpdated: string;
 }
 
-interface CandidateCardUploadUpdatedCard {
+interface CandidateCardUploadItem {
   name: string;
   shortCode: string | null;
+}
+
+interface CandidateCardUploadUpdatedCard extends CandidateCardUploadItem {
   fields: { field: string; from: unknown; to: unknown }[];
 }
 
 export interface CandidateCardUploadResponse {
+  provider: string;
   newCards: number;
   removedCards: number;
   updates: number;
@@ -97,7 +101,11 @@ export interface CandidateCardUploadResponse {
   printingUpdates: number;
   printingsUnchanged: number;
   errors: string[];
+  newCardDetails: CandidateCardUploadItem[];
+  removedCardDetails: CandidateCardUploadItem[];
   updatedCards: CandidateCardUploadUpdatedCard[];
+  newPrintingDetails: CandidateCardUploadItem[];
+  removedPrintingDetails: CandidateCardUploadItem[];
   updatedPrintings: CandidateCardUploadUpdatedCard[];
 }
 

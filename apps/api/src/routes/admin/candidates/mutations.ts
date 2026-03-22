@@ -546,6 +546,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const result = await ingestCandidates(db, provider.trim(), cards);
 
     return c.json({
+      provider: result.provider,
       newCards: result.newCards,
       removedCards: result.removedCards,
       updates: result.updates,
@@ -555,7 +556,11 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       printingUpdates: result.printingUpdates,
       printingsUnchanged: result.printingsUnchanged,
       errors: result.errors,
+      newCardDetails: result.newCardDetails,
+      removedCardDetails: result.removedCardDetails,
       updatedCards: result.updatedCards,
+      newPrintingDetails: result.newPrintingDetails,
+      removedPrintingDetails: result.removedPrintingDetails,
       updatedPrintings: result.updatedPrintings,
     } satisfies CandidateCardUploadResponse);
   })
