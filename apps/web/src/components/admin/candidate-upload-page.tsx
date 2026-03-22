@@ -277,9 +277,9 @@ export function CandidateUploadPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {upload.data.updatedCards.flatMap((card) =>
-                          card.fields.map((f) => (
-                            <tr key={`${card.shortCode ?? card.name}-${f.field}`}>
+                        {upload.data.updatedCards.flatMap((card, ci) =>
+                          card.fields.map((f, fi) => (
+                            <tr key={`${ci}-${fi}`}>
                               <td className="px-2 py-1 font-medium">{card.name}</td>
                               <td className="px-2 py-1 text-muted-foreground">
                                 {card.shortCode ?? "\u2014"}
@@ -320,9 +320,9 @@ export function CandidateUploadPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {upload.data.updatedPrintings.flatMap((printing) =>
-                          printing.fields.map((f) => (
-                            <tr key={`${printing.shortCode ?? printing.name}-${f.field}`}>
+                        {upload.data.updatedPrintings.flatMap((printing, pi) =>
+                          printing.fields.map((f, fi) => (
+                            <tr key={`${pi}-${fi}`}>
                               <td className="px-2 py-1 font-medium">{printing.name}</td>
                               <td className="px-2 py-1 text-muted-foreground">
                                 {printing.shortCode ?? "\u2014"}
