@@ -47,3 +47,4 @@ deploy.sh
 
 # Tooling file locks
 .locks/
+.worktrees/

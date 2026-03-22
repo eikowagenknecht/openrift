@@ -48,28 +48,30 @@ async function fetchCatalog(): Promise<CatalogResponse> {
   return (await res.json()) as CatalogResponse;
 }
 
-export const catalogQueryOptions = queryOptions({
-  queryKey: queryKeys.catalog.all,
-  queryFn: fetchCatalog,
-  staleTime: 5 * 60 * 1000,
-  refetchOnWindowFocus: false,
-});
-
-export function useCards(): UseCardsResult {
-  const { data: catalog } = useSuspenseQuery(catalogQueryOptions);
-
-  if (catalog.printings.length === 0) {
-    throw new ApiError("No cards available", "db_empty");
-  }
-
+function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
   const allCards: Printing[] = catalog.printings.map((p) => ({
     ...p,
     setSlug: slugById.get(p.setId) ?? "",
     card: catalog.cards[p.cardId],
   }));
+  return { allCards, setInfoList: catalog.sets };
+}
 
-  const setInfoList: SetInfo[] = catalog.sets;
+export const catalogQueryOptions = queryOptions({
+  queryKey: queryKeys.catalog.all,
+  queryFn: fetchCatalog,
+  staleTime: 5 * 60 * 1000,
+  refetchOnWindowFocus: false,
+  select: enrichCatalog,
+});
 
-  return { allCards, setInfoList };
+export function useCards(): UseCardsResult {
+  const { data } = useSuspenseQuery(catalogQueryOptions);
+
+  if (data.allCards.length === 0) {
+    throw new ApiError("No cards available", "db_empty");
+  }
+
+  return data;
 }

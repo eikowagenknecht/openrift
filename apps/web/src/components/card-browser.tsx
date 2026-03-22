@@ -1,6 +1,8 @@
+import type { Printing } from "@openrift/shared";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { Suspense, lazy, useDeferredValue, useRef } from "react";
 
+import { CardBrowserContext } from "@/components/card-browser-context";
 import { CardGrid } from "@/components/cards/card-grid";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
@@ -10,8 +12,9 @@ import { FilterSidebar } from "@/components/filters/filter-sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardData } from "@/hooks/use-card-data";
 import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
-import { useCardFilters } from "@/hooks/use-card-filters";
+import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
 import { useDisplayStore } from "@/stores/display-store";
@@ -23,6 +26,7 @@ const CardDetail = lazy(async () => {
 });
 
 export function CardBrowser() {
+  const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
   const { allCards, setInfoList } = useCards();
   const { data: session } = useSession();
@@ -33,7 +37,8 @@ export function CardBrowser() {
   const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
   const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
 
-  const { filters, sortBy, sortDir, view, setSearch } = useCardFilters();
+  const { filters, sortBy, sortDir, view } = useFilterValues();
+  const { setSearch } = useFilterActions();
 
   const {
     availableFilters,
@@ -76,73 +81,79 @@ export function CardBrowser() {
       ? (deferredSortedCards.find((c) => c.card.id === selectedCard.card.id)?.id ?? selectedCard.id)
       : selectedCard?.id;
 
-  return (
-    <div className="min-h-[calc(100svh-3.5rem)] space-y-4">
-      {adding && addingTo && (
-        <AddToCollectionFlow
-          ref={addFlowRef}
-          collectionId={addingTo}
-          printingsByCardId={printingsByCardId}
-        />
-      )}
-      <FilterBar
-        availableFilters={availableFilters}
-        totalCards={totalUniqueCards}
-        filteredCount={sortedCards.length}
-        setDisplayLabel={setDisplayLabel}
-      />
-      <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+  const onAddCard: ((p: Printing, el: HTMLElement) => void) | undefined =
+    adding && addingTo ? (p, el) => addFlowRef.current?.handleAddClick(p, el) : undefined;
 
-      <div className="flex items-start gap-6">
-        <FilterSidebar availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
-        <div
-          className={`min-w-0 flex-1 transition-opacity duration-150 ${isGridStale ? "opacity-60" : "opacity-100"}`}
-        >
-          <CardGrid
-            cards={deferredSortedCards}
-            totalCards={allCards.length}
-            setOrder={setInfoList}
-            onCardClick={handleCardClick}
-            onSiblingClick={handleCardClick}
-            selectedCardId={gridSelectedId}
-            keyboardNavCardId={selectedCard?.id}
-            priceRangeByCardId={priceRangeByCardId}
-            view={view}
-            siblingPrintings={siblingPrintings}
+  const browserContext = {
+    printingsByCardId,
+    priceRangeByCardId,
+    ownedCounts,
+    view,
+    onCardClick: handleCardClick,
+    onSiblingClick: handleCardClick,
+    onAddCard,
+    siblingPrintings,
+  };
+
+  return (
+    <CardBrowserContext value={browserContext}>
+      <div className="min-h-[calc(100svh-3.5rem)] space-y-4">
+        {adding && addingTo && (
+          <AddToCollectionFlow
+            ref={addFlowRef}
+            collectionId={addingTo}
             printingsByCardId={printingsByCardId}
-            ownedCounts={ownedCounts}
-            onAddCard={
-              adding && addingTo ? (p, el) => addFlowRef.current?.handleAddClick(p, el) : undefined
-            }
           />
-        </div>
-        {selectedCard && detailOpen && (
-          <Suspense fallback={<CardDetailSkeleton />}>
-            <CardDetail
-              printing={selectedCard}
-              onClose={handleDetailClose}
-              showImages={showImages}
-              onPrevCard={handlePrevCard}
-              onNextCard={handleNextCard}
-              onTagClick={(tag) => {
-                setSearch(`t:${tag}`);
-                if (globalThis.matchMedia("(max-width: 767px)").matches) {
-                  handleDetailClose();
-                }
-              }}
-              onKeywordClick={(keyword) => {
-                setSearch(`k:${keyword}`);
-                if (globalThis.matchMedia("(max-width: 767px)").matches) {
-                  handleDetailClose();
-                }
-              }}
-              printings={siblingPrintings}
-              onSelectPrinting={setSelectedCard}
-            />
-          </Suspense>
         )}
+        <FilterBar
+          availableFilters={availableFilters}
+          totalCards={totalUniqueCards}
+          filteredCount={sortedCards.length}
+          setDisplayLabel={setDisplayLabel}
+        />
+        <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+
+        <div className="flex items-start gap-6">
+          <FilterSidebar availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+          <div
+            className={`min-w-0 flex-1 transition-opacity duration-150 ${isGridStale ? "opacity-60" : "opacity-100"}`}
+          >
+            <CardGrid
+              cards={deferredSortedCards}
+              totalCards={allCards.length}
+              setOrder={setInfoList}
+              selectedCardId={gridSelectedId}
+              keyboardNavCardId={selectedCard?.id}
+            />
+          </div>
+          {selectedCard && detailOpen && (
+            <Suspense fallback={<CardDetailSkeleton />}>
+              <CardDetail
+                printing={selectedCard}
+                onClose={handleDetailClose}
+                showImages={showImages}
+                onPrevCard={handlePrevCard}
+                onNextCard={handleNextCard}
+                onTagClick={(tag) => {
+                  setSearch(`t:${tag}`);
+                  if (isMobile) {
+                    handleDetailClose();
+                  }
+                }}
+                onKeywordClick={(keyword) => {
+                  setSearch(`k:${keyword}`);
+                  if (isMobile) {
+                    handleDetailClose();
+                  }
+                }}
+                printings={siblingPrintings}
+                onSelectPrinting={setSelectedCard}
+              />
+            </Suspense>
+          )}
+        </div>
       </div>
-    </div>
+    </CardBrowserContext>
   );
 }
 

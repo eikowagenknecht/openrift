@@ -3,7 +3,7 @@ import type { AvailableFilters, RangeKey } from "@openrift/shared";
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { useCardFilters } from "@/hooks/use-card-filters";
+import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -31,15 +31,9 @@ export function FilterPanelContent({
   setDisplayLabel,
   layout = "inline",
 }: FilterPanelContentProps) {
-  const {
-    filterState,
-    ranges,
-    toggleArrayFilter,
-    toggleSigned,
-    togglePromo,
-    togglePromoType,
-    setRange,
-  } = useCardFilters();
+  const { filterState, ranges } = useFilterValues();
+  const { toggleArrayFilter, toggleSigned, togglePromo, togglePromoType, setRange } =
+    useFilterActions();
   return (
     <>
       <FilterSection

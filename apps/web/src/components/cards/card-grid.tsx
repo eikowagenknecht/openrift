@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { useCardBrowserContext } from "@/components/card-browser-context";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
@@ -40,33 +41,28 @@ interface CardGridProps {
   cards: Printing[];
   totalCards: number;
   setOrder: SetInfo[];
-  onCardClick: (printing: Printing) => void;
-  onSiblingClick?: (printing: Printing) => void;
   selectedCardId?: string;
   keyboardNavCardId?: string;
-  siblingPrintings?: Printing[];
-  printingsByCardId?: Map<string, Printing[]>;
-  priceRangeByCardId?: Map<string, { min: number; max: number }> | null;
-  view?: "cards" | "printings";
-  ownedCounts?: Map<string, number>;
-  onAddCard?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 
 export function CardGrid({
   cards,
   totalCards,
   setOrder,
-  onCardClick,
-  onSiblingClick,
   selectedCardId,
   keyboardNavCardId,
-  siblingPrintings,
-  printingsByCardId,
-  priceRangeByCardId,
-  view,
-  ownedCounts,
-  onAddCard,
 }: CardGridProps) {
+  const {
+    printingsByCardId,
+    priceRangeByCardId,
+    ownedCounts,
+    view,
+    onCardClick,
+    onSiblingClick,
+    onAddCard,
+    siblingPrintings,
+  } = useCardBrowserContext();
+
   const showImages = useDisplayStore((s) => s.showImages);
   const cardFields = useDisplayStore((s) => s.cardFields);
   const maxColumns = useDisplayStore((s) => s.maxColumns);
@@ -477,7 +473,7 @@ export function CardGrid({
                             showImages={showImages}
                             isSelected={printing.id === selectedCardId}
                             isFlashing={printing.id === flashCardId}
-                            siblings={printingsByCardId?.get(printing.card.id)}
+                            siblings={printingsByCardId.get(printing.card.id)}
                             priceRange={priceRangeByCardId?.get(printing.card.id)}
                             view={view}
                             cardFields={cardFields}
