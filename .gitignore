@@ -47,3 +47,4 @@ deploy.sh
 
 # Claude Code file locks (multi-agent coordination)
 .claude-locks/
+.claude/worktrees/
