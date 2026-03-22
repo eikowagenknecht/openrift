@@ -10,7 +10,7 @@ import { FilterSidebar } from "@/components/filters/filter-sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardData } from "@/hooks/use-card-data";
 import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
-import { useCardFilters } from "@/hooks/use-card-filters";
+import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -35,7 +35,8 @@ export function CardBrowser() {
   const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
   const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
 
-  const { filters, sortBy, sortDir, view, setSearch } = useCardFilters();
+  const { filters, sortBy, sortDir, view } = useFilterValues();
+  const { setSearch } = useFilterActions();
 
   const {
     availableFilters,

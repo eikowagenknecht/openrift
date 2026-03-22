@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useCardFilters } from "@/hooks/use-card-filters";
+import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -26,10 +26,8 @@ interface ActiveFiltersProps {
 }
 
 export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFiltersProps) {
+  const { filterState, ranges, hasActiveFilters } = useFilterValues();
   const {
-    filterState,
-    ranges,
-    hasActiveFilters,
     toggleArrayFilter,
     setRange,
     clearSigned,
@@ -37,7 +35,7 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
     togglePromoType,
     clearAllFilters,
     setSearch,
-  } = useCardFilters();
+  } = useFilterActions();
   if (!hasActiveFilters) {
     return null;
   }

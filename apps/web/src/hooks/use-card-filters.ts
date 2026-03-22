@@ -39,45 +39,24 @@ const filterParsers = {
   view: parseAsString.withDefault("cards"),
 };
 
-export function useCardFilters() {
-  const [filterState, setFilterState] = useQueryStates(filterParsers, {
+type ArrayKey =
+  | "sets"
+  | "rarities"
+  | "types"
+  | "superTypes"
+  | "domains"
+  | "artVariants"
+  | "finishes";
+
+// Returns the read-only filter, sort, and view state derived from URL query
+// parameters. Components that only need to read (not write) filter state should
+// prefer this hook — it avoids subscribing to the setter functions, which are
+// referentially stable and never cause re-renders on their own.
+export function useFilterValues() {
+  const [filterState] = useQueryStates(filterParsers, {
     history: "push",
   });
   const searchScope = useSearchScopeStore((s) => s.scope);
-  const toggleSearchField = useSearchScopeStore((s) => s.toggleField);
-
-  // nuqs uses startTransition for history pushes, so filterState may lag behind
-  // rapid successive clicks. Track the latest intended array values in a ref so
-  // toggleArrayFilter always operates on the most recently written state.
-  type ArrayKey =
-    | "sets"
-    | "rarities"
-    | "types"
-    | "superTypes"
-    | "domains"
-    | "artVariants"
-    | "finishes";
-  const pendingRef = useRef<Partial<Record<ArrayKey, string[]>>>({});
-
-  // Clear pending entries once filterState has caught up from the URL.
-  useEffect(() => {
-    const keys = Object.keys(pendingRef.current) as ArrayKey[];
-    for (const key of keys) {
-      const pending = pendingRef.current[key];
-      if (!pending) {
-        continue;
-      }
-      const synced = filterState[key];
-      const pendingSorted = [...pending].sort();
-      const syncedSorted = [...synced].sort();
-      if (
-        pendingSorted.length === syncedSorted.length &&
-        pendingSorted.every((v, i) => v === syncedSorted[i])
-      ) {
-        pendingRef.current[key] = undefined;
-      }
-    }
-  }, [filterState]);
 
   const filters = {
     search: filterState.search,
@@ -130,6 +109,56 @@ export function useCardFilters() {
     filterState.promo !== null ||
     filterState.promoTypes.length > 0;
 
+  return {
+    filters,
+    ranges,
+    sortBy,
+    sortDir,
+    view,
+    hasActiveFilters,
+    filterState,
+    searchScope,
+  };
+}
+
+// Returns only the setter / action functions for filter state. Because the
+// setters returned by `useQueryStates` are referentially stable, this hook
+// will NOT cause re-renders when filter *values* change — making it ideal for
+// components that only dispatch filter changes without reading them.
+//
+// The `pendingRef` / `useEffect` coordination for `toggleArrayFilter` lives
+// here because it is tightly coupled to the setter logic.
+export function useFilterActions() {
+  const [filterState, setFilterState] = useQueryStates(filterParsers, {
+    history: "push",
+  });
+  const toggleSearchField = useSearchScopeStore((s) => s.toggleField);
+
+  // nuqs uses startTransition for history pushes, so filterState may lag behind
+  // rapid successive clicks. Track the latest intended array values in a ref so
+  // toggleArrayFilter always operates on the most recently written state.
+  const pendingRef = useRef<Partial<Record<ArrayKey, string[]>>>({});
+
+  // Clear pending entries once filterState has caught up from the URL.
+  useEffect(() => {
+    const keys = Object.keys(pendingRef.current) as ArrayKey[];
+    for (const key of keys) {
+      const pending = pendingRef.current[key];
+      if (!pending) {
+        continue;
+      }
+      const synced = filterState[key];
+      const pendingSorted = [...pending].sort();
+      const syncedSorted = [...synced].sort();
+      if (
+        pendingSorted.length === syncedSorted.length &&
+        pendingSorted.every((v, i) => v === syncedSorted[i])
+      ) {
+        pendingRef.current[key] = undefined;
+      }
+    }
+  }, [filterState]);
+
   const clearAllFilters = () => {
     void setFilterState({
       search: null,
@@ -160,10 +189,7 @@ export function useCardFilters() {
     void setFilterState({ search: search || null });
   };
 
-  const toggleArrayFilter = (
-    key: "sets" | "rarities" | "types" | "superTypes" | "domains" | "artVariants" | "finishes",
-    value: string,
-  ) => {
+  const toggleArrayFilter = (key: ArrayKey, value: string) => {
     const current = pendingRef.current[key] ?? filterState[key];
     const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
     pendingRef.current[key] = next;
@@ -205,12 +231,6 @@ export function useCardFilters() {
   };
 
   return {
-    filters,
-    ranges,
-    sortBy,
-    sortDir,
-    hasActiveFilters,
-    clearAllFilters,
     setSearch,
     toggleArrayFilter,
     setRange,
@@ -222,10 +242,21 @@ export function useCardFilters() {
     clearPromoTypes,
     setSortBy,
     setSortDir,
-    view,
     setView,
-    filterState,
-    searchScope,
+    clearAllFilters,
     toggleSearchField,
+  };
+}
+
+// Convenience wrapper that merges `useFilterValues()` and `useFilterActions()`.
+// Existing consumers can use this without changes, but new code should prefer
+// the focused hooks to minimise re-renders.
+export function useCardFilters() {
+  const values = useFilterValues();
+  const actions = useFilterActions();
+
+  return {
+    ...values,
+    ...actions,
   };
 }

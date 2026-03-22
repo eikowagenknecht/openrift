@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCardFilters } from "@/hooks/use-card-filters";
+import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -241,19 +241,8 @@ export function FilterBar({
   filteredCount,
   setDisplayLabel,
 }: FilterBarProps) {
-  const {
-    filterState,
-    sortBy,
-    sortDir,
-    hasActiveFilters,
-    searchScope,
-    setSearch,
-    setSortBy,
-    setSortDir,
-    view,
-    setView,
-    toggleSearchField,
-  } = useCardFilters();
+  const { filterState, sortBy, sortDir, hasActiveFilters, searchScope, view } = useFilterValues();
+  const { setSearch, setSortBy, setSortDir, setView, toggleSearchField } = useFilterActions();
 
   const showImages = useDisplayStore((s) => s.showImages);
   const setShowImages = useDisplayStore((s) => s.setShowImages);
