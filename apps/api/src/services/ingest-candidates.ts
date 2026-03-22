@@ -7,13 +7,17 @@ import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/sche
 import { ingestRepo } from "../repositories/ingest.js";
 import type { IngestCard } from "../routes/admin/candidates/schemas.js";
 
-interface UpdatedCardDetail {
+interface ItemDetail {
   name: string;
   shortCode: string | null;
+}
+
+interface UpdatedCardDetail extends ItemDetail {
   fields: { field: string; from: unknown; to: unknown }[];
 }
 
 interface IngestResult {
+  provider: string;
   newCards: number;
   removedCards: number;
   updates: number;
@@ -23,7 +27,11 @@ interface IngestResult {
   printingUpdates: number;
   printingsUnchanged: number;
   errors: string[];
+  newCardDetails: ItemDetail[];
+  removedCardDetails: ItemDetail[];
   updatedCards: UpdatedCardDetail[];
+  newPrintingDetails: ItemDetail[];
+  removedPrintingDetails: ItemDetail[];
   updatedPrintings: UpdatedCardDetail[];
 }
 
@@ -167,7 +175,11 @@ export async function ingestCandidates(
   let printingUpdates = 0;
   let printingsUnchanged = 0;
   const errors: string[] = [];
+  const newCardDetails: ItemDetail[] = [];
+  const removedCardDetails: ItemDetail[] = [];
   const updatedCards: UpdatedCardDetail[] = [];
+  const newPrintingDetails: ItemDetail[] = [];
+  const removedPrintingDetails: ItemDetail[] = [];
   const updatedPrintings: UpdatedCardDetail[] = [];
 
   await db.transaction().execute(async (trx) => {
@@ -178,15 +190,10 @@ export async function ingestCandidates(
     // 1a. All existing candidate_cards for this provider (keyed by short_code or name)
     const existingCCRows = await repo.allCandidateCardsForProvider(provider);
 
-    // Index by (shortCode) and by (name where shortCode is null)
-    const ccByShortCode = new Map<string, (typeof existingCCRows)[number]>();
-    const ccByName = new Map<string, (typeof existingCCRows)[number]>();
+    // Index by externalId (the provider's stable identifier for each card)
+    const ccByExternalId = new Map<string, (typeof existingCCRows)[number]>();
     for (const row of existingCCRows) {
-      if (row.shortCode) {
-        ccByShortCode.set(row.shortCode, row);
-      } else {
-        ccByName.set(row.name, row);
-      }
+      ccByExternalId.set(row.externalId, row);
     }
 
     // 1b. All cards (for normName → id resolution)
@@ -288,10 +295,8 @@ export async function ingestCandidates(
         continue;
       }
 
-      // Look up existing candidate_card from pre-fetched data
-      const existingCandidateCard = card.short_code
-        ? ccByShortCode.get(card.short_code)
-        : ccByName.get(card.name);
+      // Look up existing candidate_card by externalId (provider's stable key)
+      const existingCandidateCard = ccByExternalId.get(card.external_id);
 
       let candidateCardId: string;
 
@@ -361,6 +366,7 @@ export async function ingestCandidates(
         }
         candidateCardId = await repo.insertCandidateCard(cardInsert);
         seenCCIds.add(candidateCardId);
+        newCardDetails.push({ name: card.name, shortCode: card.short_code ?? null });
         newCards++;
       }
 
@@ -474,6 +480,7 @@ export async function ingestCandidates(
             printingId: resolvedPrintingId,
             ...printingFields,
           });
+          newPrintingDetails.push({ name: card.name, shortCode: p.short_code });
           newPrintings++;
         }
       }
@@ -481,20 +488,33 @@ export async function ingestCandidates(
 
     // ── Phase 3: Remove cards/printings no longer in the upload ────────────
 
-    const cpIdsToRemove = existingCPRows.filter((cp) => !seenCPIds.has(cp.id)).map((cp) => cp.id);
-    if (cpIdsToRemove.length > 0) {
-      await repo.deleteCandidatePrintings(cpIdsToRemove);
-      removedPrintings = cpIdsToRemove.length;
+    // Build card-name lookup for removed printings
+    const ccIdToName = new Map(existingCCRows.map((cc) => [cc.id, cc.name]));
+
+    const cpsToRemove = existingCPRows.filter((cp) => !seenCPIds.has(cp.id));
+    if (cpsToRemove.length > 0) {
+      await repo.deleteCandidatePrintings(cpsToRemove.map((cp) => cp.id));
+      removedPrintings = cpsToRemove.length;
+      for (const cp of cpsToRemove) {
+        removedPrintingDetails.push({
+          name: ccIdToName.get(cp.candidateCardId) ?? "unknown",
+          shortCode: cp.shortCode ?? null,
+        });
+      }
     }
 
-    const ccIdsToRemove = existingCCRows.filter((cc) => !seenCCIds.has(cc.id)).map((cc) => cc.id);
-    if (ccIdsToRemove.length > 0) {
-      await repo.deleteCandidateCards(ccIdsToRemove);
-      removedCards = ccIdsToRemove.length;
+    const ccsToRemove = existingCCRows.filter((cc) => !seenCCIds.has(cc.id));
+    if (ccsToRemove.length > 0) {
+      await repo.deleteCandidateCards(ccsToRemove.map((cc) => cc.id));
+      removedCards = ccsToRemove.length;
+      for (const cc of ccsToRemove) {
+        removedCardDetails.push({ name: cc.name, shortCode: cc.shortCode ?? null });
+      }
     }
   });
 
   return {
+    provider,
     newCards,
     removedCards,
     updates,
@@ -504,7 +524,11 @@ export async function ingestCandidates(
     printingUpdates,
     printingsUnchanged,
     errors,
+    newCardDetails,
+    removedCardDetails,
     updatedCards,
+    newPrintingDetails,
+    removedPrintingDetails,
     updatedPrintings,
   };
 }
