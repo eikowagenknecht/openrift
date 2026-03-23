@@ -14,7 +14,7 @@ export function LandingPage() {
   const [resetKey, setResetKey] = useState(0);
   const [hinting, setHinting] = useState(false);
 
-  const uniqueCards = data ? new Set(data.allCards.map((p) => p.cardId)).size : 0;
+  const uniqueCards = data ? new Set(data.allCards.map((p) => p.card.id)).size : 0;
   const printings = data?.allCards.length ?? 0;
 
   function handleLogoTap() {
