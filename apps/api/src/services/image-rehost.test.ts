@@ -274,7 +274,9 @@ describe("rehostImages", () => {
 
     const result = await rehostImages(mockIo, repo);
     expect(result).toEqual({ total: 1, rehosted: 1, skipped: 0, failed: 0, errors: [] });
-    expect(mockFetch).toHaveBeenCalledWith("https://example.com/img.png");
+    expect(mockFetch).toHaveBeenCalledWith("https://example.com/img.png", {
+      headers: { Referer: "https://example.com/" },
+    });
     expect(mockWriteFile).toHaveBeenCalled();
   });
 
