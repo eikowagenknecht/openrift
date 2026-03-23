@@ -240,11 +240,24 @@ function buildResponseGroups(
       }
     }
 
-    // Exclude staged products whose externalId is already mapped to a printing.
-    // We match on externalId alone (not externalId::finish) because a manual
-    // mapping may link a product to a printing with a different finish.
+    // Two-pass filter for staged products:
+    // 1. Exact externalId+finish match → always exclude (already mapped).
+    // 2. externalId-only match → exclude UNLESS there is an unmapped printing
+    //    whose finish matches the staged product (it could still be mapped).
+    const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
     const assignedExternalIds = new Set(assignedProducts.map((p) => p.externalId));
-    const filteredStaged = stagedProducts.filter((p) => !assignedExternalIds.has(p.externalId));
+    const unmappedFinishes = new Set(
+      group.printings.filter((p) => p.externalId === null).map((p) => p.finish),
+    );
+    const filteredStaged = stagedProducts.filter((p) => {
+      if (assignedKeys.has(`${p.externalId}::${p.finish}`)) {
+        return false;
+      }
+      if (assignedExternalIds.has(p.externalId) && !unmappedFinishes.has(p.finish)) {
+        return false;
+      }
+      return true;
+    });
 
     return {
       ...group,

@@ -54,11 +54,15 @@ interface CtMarketplaceProduct {
   name_en: string;
   price_cents: number;
   price_currency: string;
+  properties_hash?: {
+    riftbound_foil?: boolean;
+  };
 }
 
 interface CtPrice {
   blueprintId: number;
   name: string;
+  finish: string;
   minPriceCents: number;
 }
 
@@ -99,7 +103,7 @@ async function ctFetch<T>(
 interface CardtraderFetchResult {
   expansions: CtExpansion[];
   blueprints: CtBlueprint[];
-  prices: Map<number, CtPrice>;
+  prices: Map<string, CtPrice>;
   recordedAt: Date;
 }
 
@@ -129,8 +133,8 @@ async function fetchCardtraderData(
   }
   log.info(`${allBlueprints.length} blueprints total`);
 
-  // 3. Fetch marketplace listings per expansion, extract lowest price per blueprint
-  const prices = new Map<number, CtPrice>();
+  // 3. Fetch marketplace listings per expansion, extract lowest price per blueprint+finish
+  const prices = new Map<string, CtPrice>();
   for (const exp of expansions) {
     const products = await ctFetch<Record<string, CtMarketplaceProduct[]>>(
       fetchFn,
@@ -142,15 +146,35 @@ async function fetchCardtraderData(
       if (listings.length === 0) {
         continue;
       }
-      const cheapest = listings.reduce((min, p) => (p.price_cents < min.price_cents ? p : min));
-      prices.set(Number(bpId), {
-        blueprintId: Number(bpId),
-        name: cheapest.name_en,
-        minPriceCents: cheapest.price_cents,
-      });
+      const id = Number(bpId);
+      const normalListings = listings.filter((l) => !l.properties_hash?.riftbound_foil);
+      const foilListings = listings.filter((l) => l.properties_hash?.riftbound_foil === true);
+
+      if (normalListings.length > 0) {
+        const cheapest = normalListings.reduce((min, p) =>
+          p.price_cents < min.price_cents ? p : min,
+        );
+        prices.set(`${id}::normal`, {
+          blueprintId: id,
+          name: cheapest.name_en,
+          finish: "normal",
+          minPriceCents: cheapest.price_cents,
+        });
+      }
+      if (foilListings.length > 0) {
+        const cheapest = foilListings.reduce((min, p) =>
+          p.price_cents < min.price_cents ? p : min,
+        );
+        prices.set(`${id}::foil`, {
+          blueprintId: id,
+          name: cheapest.name_en,
+          finish: "foil",
+          minPriceCents: cheapest.price_cents,
+        });
+      }
     }
   }
-  log.info(`${prices.size} blueprints with prices`);
+  log.info(`${prices.size} blueprint+finish prices`);
 
   return {
     expansions,
@@ -162,6 +186,8 @@ async function fetchCardtraderData(
 
 // ── Transform ──────────────────────────────────────────────────────────────
 
+const FINISHES = ["normal", "foil"] as const;
+
 function buildCardtraderStaging(
   { blueprints, prices, recordedAt }: CardtraderFetchResult,
   ignoredKeys: Set<string>,
@@ -172,28 +198,30 @@ function buildCardtraderStaging(
     if (bp.category_id !== CT_SINGLES_CATEGORY) {
       continue;
     }
-    const price = prices.get(bp.id);
-    if (!price || price.minPriceCents <= 0) {
-      continue;
+    for (const finish of FINISHES) {
+      const price = prices.get(`${bp.id}::${finish}`);
+      if (!price || price.minPriceCents <= 0) {
+        continue;
+      }
+      if (ignoredKeys.has(`${bp.id}::${finish}`)) {
+        continue;
+      }
+      allStaging.push({
+        externalId: bp.id,
+        groupId: bp.expansion_id,
+        productName: bp.name,
+        finish,
+        recordedAt,
+        marketCents: price.minPriceCents,
+        lowCents: price.minPriceCents,
+        midCents: null,
+        highCents: null,
+        trendCents: null,
+        avg1Cents: null,
+        avg7Cents: null,
+        avg30Cents: null,
+      });
     }
-    if (ignoredKeys.has(`${bp.id}::normal`)) {
-      continue;
-    }
-    allStaging.push({
-      externalId: bp.id,
-      groupId: bp.expansion_id,
-      productName: bp.name,
-      finish: "normal",
-      recordedAt,
-      marketCents: price.minPriceCents,
-      lowCents: price.minPriceCents,
-      midCents: null,
-      highCents: null,
-      trendCents: null,
-      avg1Cents: null,
-      avg7Cents: null,
-      avg30Cents: null,
-    });
   }
 
   return allStaging;
