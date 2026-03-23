@@ -22,6 +22,18 @@ export function SWUpdateProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // When a new SW activates and takes control, reload so the page picks up
+  // fresh assets instead of continuing to show stale precached content.
+  useEffect(() => {
+    const sw = navigator.serviceWorker;
+    if (!sw) {
+      return;
+    }
+    const onControllerChange = () => globalThis.location.reload();
+    sw.addEventListener("controllerchange", onControllerChange);
+    return () => sw.removeEventListener("controllerchange", onControllerChange);
+  }, []);
+
   useEffect(() => {
     if (!registration) {
       return;
