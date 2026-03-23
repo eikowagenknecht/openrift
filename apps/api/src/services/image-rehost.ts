@@ -65,7 +65,10 @@ function guessExtension(contentType: string | null, url: string): string {
 }
 
 export async function downloadImage(io: Io, url: string): Promise<{ buffer: Buffer; ext: string }> {
-  const res = await io.fetch(url);
+  const { origin } = new URL(url);
+  const res = await io.fetch(url, {
+    headers: { Referer: `${origin}/` },
+  });
   if (!res.ok) {
     throw new Error(`Download failed (${res.status}): ${url}`);
   }
