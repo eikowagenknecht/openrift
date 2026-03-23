@@ -27,7 +27,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
     : null;
   const ctProductId = history?.cardtrader.productId;
   const ctUrl = ctProductId
-    ? cardtraderAffiliateUrl(`https://www.cardtrader.com/en/riftbound/cards/${ctProductId}`)
+    ? cardtraderAffiliateUrl(`https://www.cardtrader.com/en/cards/${ctProductId}`)
     : null;
 
   return (

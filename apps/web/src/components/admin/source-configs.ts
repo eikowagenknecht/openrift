@@ -18,5 +18,5 @@ export const CT_CONFIG: SourceMappingConfig = {
   source: "cardtrader",
   displayName: "CardTrader",
   shortName: "CT",
-  productUrl: (id) => `https://www.cardtrader.com/en/riftbound/cards/${id}`,
+  productUrl: (id) => `https://www.cardtrader.com/en/cards/${id}`,
 };
