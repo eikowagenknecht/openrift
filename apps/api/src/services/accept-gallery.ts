@@ -96,13 +96,14 @@ export async function acceptGalleryForNewCard(
     .where("candidateCardId", "in", galleryCandidateIds)
     .execute();
 
-  // 4. Group by groupKey and create each printing
+  // 4. Group by shortCode + finish + promoTypeId and create each printing
   const groupMap = new Map<string, typeof candidatePrintings>();
   for (const cp of candidatePrintings) {
-    let arr = groupMap.get(cp.groupKey);
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}`;
+    let arr = groupMap.get(key);
     if (!arr) {
       arr = [];
-      groupMap.set(cp.groupKey, arr);
+      groupMap.set(key, arr);
     }
     arr.push(cp);
   }

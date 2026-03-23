@@ -294,7 +294,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       {
         cardId: string;
         shortCode: string;
-        groupKey: string;
         setId: string | null;
         rarity: string | null;
         finish: string | null;
@@ -312,7 +311,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .select([
           resolveCardId("cs").as("cardId"),
           "ps.shortCode",
-          "ps.groupKey",
           "ps.setId",
           "ps.rarity",
           "ps.finish",
@@ -630,7 +628,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "flavorText"
         | "externalId"
         | "extraData"
-        | "groupKey"
         | "checkedAt"
       >[]
     > {
@@ -661,7 +658,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.flavorText",
           "ps.externalId",
           "ps.extraData",
-          "ps.groupKey",
           "ps.checkedAt",
         ])
         .where("ps.candidateCardId", "in", candidateCardIds)

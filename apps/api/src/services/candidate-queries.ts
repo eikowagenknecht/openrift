@@ -66,7 +66,6 @@ function formatCandidatePrinting(
     | "flavorText"
     | "externalId"
     | "extraData"
-    | "groupKey"
     | "checkedAt"
   >,
 ): CandidatePrintingResponse {
@@ -445,10 +444,11 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   const unlinkedCP = candidatePrintings.filter((cp) => !cp.printingId);
   const cpGroupMap = new Map<string, typeof unlinkedCP>();
   for (const cp of unlinkedCP) {
-    let arr = cpGroupMap.get(cp.groupKey);
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}`;
+    let arr = cpGroupMap.get(key);
     if (!arr) {
       arr = [];
-      cpGroupMap.set(cp.groupKey, arr);
+      cpGroupMap.set(key, arr);
     }
     arr.push(cp);
   }
