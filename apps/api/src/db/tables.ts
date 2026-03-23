@@ -472,7 +472,7 @@ export interface CandidatePrintingsTable {
   externalId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
-  groupKey: ColumnType<string, string | undefined, string | undefined>;
+
   checkedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;

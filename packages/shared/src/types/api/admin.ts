@@ -41,7 +41,7 @@ export interface CandidatePrintingResponse {
   flavorText: string | null;
   externalId: string;
   extraData: unknown | null;
-  groupKey: string;
+
   checkedAt: string | null;
 }
 
