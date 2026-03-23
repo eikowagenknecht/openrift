@@ -416,12 +416,13 @@ export async function saveMappings(
   db: Kysely<Database>,
   config: MarketplaceConfig,
   mappings: { printingId: string; externalId: number }[],
-): Promise<{ saved: number }> {
+): Promise<{ saved: number; skipped: { externalId: number; reason: string }[] }> {
   if (mappings.length === 0) {
-    return { saved: 0 };
+    return { saved: 0, skipped: [] };
   }
 
   const repo = marketplaceMappingRepo(db);
+  const skipped: { externalId: number; reason: string }[] = [];
 
   const saved = await db.transaction().execute(async (tx) => {
     // 1. Batch-fetch printing finishes (1 query instead of N)
@@ -440,7 +441,15 @@ export async function saveMappings(
       stagingByKey.set(key, list);
     }
 
-    // 3. Build source upsert values, filtering out mappings with no staging data
+    // Collect available finishes per external ID for error messages
+    const finishesByExtId = new Map<number, Set<string>>();
+    for (const row of allStagingRows) {
+      const set = finishesByExtId.get(row.externalId) ?? new Set();
+      set.add(row.finish);
+      finishesByExtId.set(row.externalId, set);
+    }
+
+    // 3. Build source upsert values, collecting skip reasons
     const sourceValues: {
       marketplace: string;
       printingId: string;
@@ -451,10 +460,20 @@ export async function saveMappings(
     for (const m of mappings) {
       const finish = finishByPrinting.get(m.printingId);
       if (!finish) {
+        skipped.push({ externalId: m.externalId, reason: "printing not found" });
         continue;
       }
       const first = stagingByKey.get(`${m.externalId}::${finish}`)?.[0];
       if (!first) {
+        const available = finishesByExtId.get(m.externalId);
+        if (available && available.size > 0) {
+          skipped.push({
+            externalId: m.externalId,
+            reason: `finish mismatch: printing is "${finish}" but product only has "${[...available].join(", ")}"`,
+          });
+        } else {
+          skipped.push({ externalId: m.externalId, reason: "no staging data found" });
+        }
         continue;
       }
       sourceValues.push({
@@ -531,7 +550,7 @@ export async function saveMappings(
     return sourceValues.length;
   });
 
-  return { saved };
+  return { saved, skipped };
 }
 
 // ── unmapPrinting ───────────────────────────────────────────────────────────
