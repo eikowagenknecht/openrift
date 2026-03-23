@@ -112,15 +112,14 @@ export async function upsertPriceData(
 
   // ── Build snapshots from staging + source mappings ─────────────────────
 
-  const printingByExtIdFinish = groupIntoMap(
-    dbProducts,
-    (src) => `${src.externalId}::${src.finish}`,
-  );
+  // Match on externalId alone (not externalId::finish) so that mappings
+  // where the printing finish differs from the marketplace finish still
+  // receive price updates.
+  const printingByExtId = groupIntoMap(dbProducts, (src) => src.externalId);
 
   const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
   for (const staging of allStaging) {
-    const key = `${staging.externalId}::${staging.finish}`;
-    const sources = printingByExtIdFinish.get(key);
+    const sources = printingByExtId.get(staging.externalId);
     if (!sources) {
       continue;
     }
