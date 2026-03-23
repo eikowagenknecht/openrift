@@ -11,10 +11,10 @@ interface ThemeState {
 }
 
 function getSystemTheme(): Theme {
-  if (typeof globalThis === "undefined") {
+  if (typeof matchMedia !== "function") {
     return "light";
   }
-  return globalThis.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function applyTheme(theme: Theme) {

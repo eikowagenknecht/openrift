@@ -146,7 +146,6 @@ export default defineConfig({
             id.includes("/nuqs/") ||
             id.includes("/sonner/") ||
             id.includes("lucide-react") ||
-            id.includes("next-themes") ||
             id.includes("class-variance-authority") ||
             id.includes("/clsx/")
           ) {

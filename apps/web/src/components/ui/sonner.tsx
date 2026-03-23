@@ -5,12 +5,13 @@ import {
   OctagonXIcon,
   Loader2Icon,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { Toaster as Sonner } from "sonner";
 import type { ToasterProps } from "sonner";
 
+import { useThemeStore } from "@/stores/theme-store"; // custom: replaced next-themes with our zustand store
+
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const theme = useThemeStore((s) => s.theme); // custom: read from zustand store instead of next-themes
 
   return (
     <Sonner
