@@ -3,6 +3,9 @@
  * CSS overscroll-behavior-y: none doesn't fully suppress the gesture on iOS Safari.
  */
 export function preventIOSOverscroll(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
   let startY = 0;
   document.addEventListener(
     "touchstart",
