@@ -1023,6 +1023,38 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           })}
 
           {/* Unmatched printing sources — only groups with 0 or 2+ printing matches */}
+          {ambiguousGroups.length > 0 &&
+            (() => {
+              const matchable = ambiguousGroups.filter((g) =>
+                printings.some((p) => p.slug === g.expectedPrintingId),
+              );
+              if (matchable.length < 2) {
+                return null;
+              }
+              return (
+                <div className="flex items-center">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    disabled={linkPrintingSources.isPending}
+                    onClick={() => {
+                      for (const g of matchable) {
+                        const pid = (
+                          printings.find((p) => p.slug === g.expectedPrintingId) as { id: string }
+                        ).id;
+                        linkPrintingSources.mutate({
+                          printingId: pid,
+                          candidatePrintingIds: g.candidates.map((s) => s.id),
+                        });
+                      }
+                    }}
+                  >
+                    <ArrowRightIcon className="mr-1 size-3.5" />
+                    Assign all {matchable.length} groups to existing
+                  </Button>
+                </div>
+              );
+            })()}
           {ambiguousGroups.map((group) => (
             <NewPrintingGroupCard
               key={group.groupKey}
