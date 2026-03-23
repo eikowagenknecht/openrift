@@ -117,6 +117,16 @@ export function useRenameImages() {
   });
 }
 
+export function useCleanupOrphaned() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => rpc(client.api.admin["cleanup-orphaned"].$post()),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+    },
+  });
+}
+
 export function useRestoreImageUrls() {
   const queryClient = useQueryClient();
   return useMutation({

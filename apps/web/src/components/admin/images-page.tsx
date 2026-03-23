@@ -14,9 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { useProviderNames } from "@/hooks/use-candidates";
 import type { RegenerateAccumulator } from "@/hooks/use-rehost";
 import {
+  useCleanupOrphaned,
   useClearRehosted,
   useMissingImages,
   useRegenerateImages,
@@ -87,10 +89,51 @@ function MutationStatus({
   return null;
 }
 
-// ── RehostSection ─────────────────────────────────────────────────────────────
+function SimpleMutationResult({
+  mutation,
+  renderSuccess,
+}: {
+  mutation: { isSuccess: boolean; isError: boolean; data?: unknown; error?: Error | null };
+  renderSuccess: (data: any) => React.ReactNode;
+}) {
+  if (mutation.isSuccess && mutation.data) {
+    return (
+      <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+        <CheckIcon className="size-4" />
+        {renderSuccess(mutation.data)}
+      </p>
+    );
+  }
+  if (mutation.isError) {
+    return (
+      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+        <XIcon className="size-4" />
+        {mutation.error?.message}
+      </p>
+    );
+  }
+  return null;
+}
 
-function RehostSection() {
+function ErrorsList({ errors }: { errors: string[] }) {
+  if (errors.length === 0) {
+    return null;
+  }
+  return (
+    <ul className="ml-5 mt-1 list-disc text-xs text-red-600 dark:text-red-400">
+      {errors.slice(0, 5).map((err) => (
+        <li key={err}>{err}</li>
+      ))}
+      {errors.length > 5 && <li>...and {errors.length - 5} more</li>}
+    </ul>
+  );
+}
+
+// ── Manage Rehosted Images ───────────────────────────────────────────────────
+
+function ManageSection() {
   const { data: status, refetch } = useRehostStatus();
+  const { data: preview } = useRenamePreview();
 
   const [regenProgress, setRegenProgress] = useState<{
     processed: number;
@@ -98,12 +141,12 @@ function RehostSection() {
   } | null>(null);
 
   const rehostMutation = useRehostImages(() => refetch());
-
   const regenMutation = useRegenerateImages((processed, totalFiles) => {
     setRegenProgress({ processed, totalFiles });
   });
-
   const clearMutation = useClearRehosted();
+  const renameMutation = useRenameImages();
+  const cleanupMutation = useCleanupOrphaned();
 
   if (!status) {
     return null;
@@ -111,143 +154,145 @@ function RehostSection() {
 
   const pct = status.total > 0 ? (status.rehosted / status.total) * 100 : 0;
   const allDone = status.external === 0;
-  const anyPending = rehostMutation.isPending || regenMutation.isPending || clearMutation.isPending;
   const totalFiles = status.disk.sets.reduce((sum, s) => sum + s.fileCount, 0);
+  const anyPending =
+    rehostMutation.isPending ||
+    regenMutation.isPending ||
+    clearMutation.isPending ||
+    renameMutation.isPending ||
+    cleanupMutation.isPending;
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="text-base">Rehosted Images</CardTitle>
-            <CardDescription>
-              {status.rehosted} / {status.total} images
-              {status.disk.totalBytes > 0 &&
-                ` · ${totalFiles} files · ${formatBytes(status.disk.totalBytes)}`}
-            </CardDescription>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <ConfirmClearButton
-              title="Clear all rehosted images?"
-              description="This will delete all locally cached images. They can be re-fetched by running rehost again."
-              onConfirm={() => clearMutation.mutate()}
-              disabled={anyPending || !status.rehosted}
-              isPending={clearMutation.isPending}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={anyPending || !status.disk.totalBytes}
-              onClick={() =>
-                regenMutation.mutate(undefined, {
-                  onSuccess: () => setRegenProgress(null),
-                })
-              }
-            >
-              {regenMutation.isPending ? (
-                <LoaderIcon className="size-4 animate-spin" />
-              ) : (
-                "Regenerate"
-              )}
-            </Button>
-            <Button
-              size="sm"
-              disabled={anyPending || allDone}
-              onClick={() => rehostMutation.mutate()}
-            >
-              {rehostMutation.isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Rehost"}
-            </Button>
-          </div>
-        </div>
+        <CardTitle className="text-base">Manage Rehosted Images</CardTitle>
+        <CardDescription>
+          {status.rehosted} / {status.total} images rehosted
+          {status.disk.totalBytes > 0 &&
+            ` · ${totalFiles} files · ${formatBytes(status.disk.totalBytes)}`}
+          {preview && preview.misnamed > 0 && ` · ${preview.misnamed} stale`}
+          {status.orphanedFiles > 0 && ` · ${status.orphanedFiles} orphaned`}
+        </CardDescription>
         <Progress value={pct} className="h-1.5" />
       </CardHeader>
-      {(regenProgress ||
-        rehostMutation.isSuccess ||
-        rehostMutation.isError ||
-        regenMutation.isSuccess ||
-        regenMutation.isError) && (
-        <CardContent className="pt-0">
-          {regenProgress && (
-            <div className="space-y-1.5">
-              <div className="flex items-baseline justify-between text-sm">
-                <span>
-                  {regenProgress.processed} / {regenProgress.totalFiles} processed
-                </span>
-                <span className="text-muted-foreground">
-                  {Math.round((regenProgress.processed / regenProgress.totalFiles) * 100)}%
-                </span>
-              </div>
-              <Progress value={(regenProgress.processed / regenProgress.totalFiles) * 100} />
-            </div>
-          )}
-          <MutationStatus mutation={rehostMutation} label="rehost" />
-          <MutationStatus mutation={regenMutation} label="regenerate" />
-        </CardContent>
-      )}
-    </Card>
-  );
-}
 
-// ── RenameSection ─────────────────────────────────────────────────────────────
-
-function RenameSection() {
-  const { data: preview } = useRenamePreview();
-  const renameMutation = useRenameImages();
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="text-base">Rename Files</CardTitle>
-            <CardDescription>
-              {preview
-                ? preview.misnamed > 0
-                  ? `${preview.misnamed} / ${preview.total} rehosted images have stale filenames`
-                  : `All ${preview.total} rehosted images have correct filenames`
-                : "Checking for misnamed images\u2026"}
-            </CardDescription>
-          </div>
+      <CardContent className="space-y-3 pt-0">
+        {/* ── Action buttons ────────────────────────────────────────────── */}
+        <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             variant="outline"
-            disabled={renameMutation.isPending || !preview?.misnamed}
+            disabled={anyPending || !preview?.misnamed}
             onClick={() => renameMutation.mutate()}
           >
-            {renameMutation.isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Rename"}
+            {renameMutation.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              "Rename stale"
+            )}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={anyPending || !status.disk.totalBytes}
+            onClick={() =>
+              regenMutation.mutate(undefined, {
+                onSuccess: () => setRegenProgress(null),
+              })
+            }
+          >
+            {regenMutation.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              "Regenerate resolutions"
+            )}
+          </Button>
+          <Button
+            size="sm"
+            disabled={anyPending || allDone}
+            onClick={() => rehostMutation.mutate()}
+          >
+            {rehostMutation.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              "Rehost missing"
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={anyPending || !status.orphanedFiles}
+            onClick={() => cleanupMutation.mutate()}
+          >
+            {cleanupMutation.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              "Delete orphaned"
+            )}
+          </Button>
+          <ConfirmClearButton
+            title="Delete all rehosted images?"
+            description="This will delete all locally cached images. They can be re-fetched by running rehost again."
+            onConfirm={() => clearMutation.mutate()}
+            disabled={anyPending || !status.rehosted}
+            isPending={clearMutation.isPending}
+          />
         </div>
-      </CardHeader>
-      {(renameMutation.isSuccess || renameMutation.isError) && (
-        <CardContent className="pt-0">
-          {renameMutation.isSuccess && renameMutation.data && (
-            <div>
-              <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-                <CheckIcon className="size-4" />
-                Scanned {renameMutation.data.scanned} images: {renameMutation.data.renamed} renamed,{" "}
-                {renameMutation.data.alreadyCorrect} already correct
-                {renameMutation.data.failed > 0 && `, ${renameMutation.data.failed} failed`}
-              </p>
-              {renameMutation.data.errors.length > 0 && (
-                <ul className="ml-5 mt-1 list-disc text-xs text-red-600 dark:text-red-400">
-                  {renameMutation.data.errors.slice(0, 5).map((err) => (
-                    <li key={err}>{err}</li>
-                  ))}
-                  {renameMutation.data.errors.length > 5 && (
-                    <li>...and {renameMutation.data.errors.length - 5} more</li>
-                  )}
-                </ul>
-              )}
+
+        {/* ── Progress / results ─────────────────────────────────────── */}
+        {regenProgress && (
+          <div className="space-y-1.5">
+            <div className="flex items-baseline justify-between text-sm">
+              <span>
+                {regenProgress.processed} / {regenProgress.totalFiles} processed
+              </span>
+              <span className="text-muted-foreground">
+                {Math.round((regenProgress.processed / regenProgress.totalFiles) * 100)}%
+              </span>
             </div>
-          )}
-          {renameMutation.isError && (
-            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
-              <XIcon className="size-4" />
-              {renameMutation.error?.message}
+            <Progress value={(regenProgress.processed / regenProgress.totalFiles) * 100} />
+          </div>
+        )}
+
+        <MutationStatus mutation={rehostMutation} label="rehost" />
+        <MutationStatus mutation={regenMutation} label="regenerate" />
+
+        {renameMutation.isSuccess && renameMutation.data && (
+          <div>
+            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+              <CheckIcon className="size-4" />
+              Scanned {renameMutation.data.scanned} images: {renameMutation.data.renamed} renamed,{" "}
+              {renameMutation.data.alreadyCorrect} already correct
+              {renameMutation.data.failed > 0 && `, ${renameMutation.data.failed} failed`}
             </p>
-          )}
-        </CardContent>
-      )}
+            <ErrorsList errors={renameMutation.data.errors} />
+          </div>
+        )}
+        {renameMutation.isError && (
+          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {renameMutation.error?.message}
+          </p>
+        )}
+
+        {cleanupMutation.isSuccess && cleanupMutation.data && (
+          <div>
+            <SimpleMutationResult
+              mutation={cleanupMutation}
+              renderSuccess={(d: { scanned: number; deleted: number }) =>
+                `Scanned ${d.scanned} files, deleted ${d.deleted} orphaned`
+              }
+            />
+            <ErrorsList errors={cleanupMutation.data.errors} />
+          </div>
+        )}
+        {cleanupMutation.isError && (
+          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {cleanupMutation.error?.message}
+          </p>
+        )}
+      </CardContent>
     </Card>
   );
 }
@@ -301,19 +346,14 @@ function RestoreUrlsSection() {
       </CardHeader>
       {(restoreMutation.isSuccess || restoreMutation.isError) && (
         <CardContent className="pt-0">
-          {restoreMutation.isSuccess && restoreMutation.data && (
-            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-              <CheckIcon className="size-4" />
-              Restored {restoreMutation.data.updated} image URLs from &ldquo;
-              {restoreMutation.data.provider}&rdquo;
-            </p>
-          )}
-          {restoreMutation.isError && (
-            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
-              <XIcon className="size-4" />
-              {restoreMutation.error?.message}
-            </p>
-          )}
+          <SimpleMutationResult
+            mutation={restoreMutation}
+            renderSuccess={(d: { updated: number; provider: string }) => (
+              <>
+                Restored {d.updated} image URLs from &ldquo;{d.provider}&rdquo;
+              </>
+            )}
+          />
         </CardContent>
       )}
     </Card>
@@ -363,8 +403,8 @@ export function ImagesPage() {
   return (
     <div className="space-y-4">
       <MissingImagesSection />
-      <RehostSection />
-      <RenameSection />
+      <ManageSection />
+      <Separator />
       <RestoreUrlsSection />
     </div>
   );

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict wqWec4FPohuyTBXMZdZQTmkZLqmmw7Bnhv4B7GUqeEdZagynyf3HpFnwncqvnAW
+\restrict z26wBCpxHI6m4qNRbcuuIXYDq9dHhEbcOC1hbiy3vfdevxGADccJaxdEk5QdhmV
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -42,31 +42,6 @@ CREATE FUNCTION public.candidate_cards_set_norm_name() RETURNS trigger
     AS $$
     BEGIN
       NEW.norm_name := lower(regexp_replace(NEW.name, '[^a-zA-Z0-9]', '', 'g'));
-      RETURN NEW;
-    END;
-    $$;
-
-
---
--- Name: candidate_printings_set_group_key(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.candidate_printings_set_group_key() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-    BEGIN
-      NEW.group_key :=
-        COALESCE(NEW.set_id, '') || '|' ||
-        COALESCE(NEW.rarity, '') || '|' ||
-        CASE
-          WHEN NEW.finish IS NOT NULL THEN NEW.finish
-          WHEN NEW.rarity IS NULL THEN ''
-          WHEN NEW.rarity IN ('Common', 'Uncommon') THEN 'normal'
-          ELSE 'foil'
-        END || '|' ||
-        COALESCE(NEW.promo_type_id::text, '') || '|' ||
-        COALESCE(NEW.art_variant, 'normal') || '|' ||
-        COALESCE(NEW.is_signed::text, 'false');
       RETURN NEW;
     END;
     $$;
@@ -298,7 +273,6 @@ CREATE TABLE public.candidate_printings (
     printing_id uuid,
     external_id text CONSTRAINT printing_sources_source_entity_id_not_null NOT NULL,
     promo_type_id uuid,
-    group_key text DEFAULT ''::text CONSTRAINT printing_sources_group_key_not_null NOT NULL,
     CONSTRAINT chk_candidate_printings_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
@@ -1399,13 +1373,6 @@ CREATE UNIQUE INDEX idx_candidate_printings_card_external_id ON public.candidate
 
 
 --
--- Name: idx_candidate_printings_group_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_candidate_printings_group_key ON public.candidate_printings USING btree (candidate_card_id, group_key);
-
-
---
 -- Name: idx_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1620,13 +1587,6 @@ CREATE UNIQUE INDEX uq_wish_list_items_printing ON public.wish_list_items USING 
 --
 
 CREATE TRIGGER trg_candidate_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.candidate_cards FOR EACH ROW EXECUTE FUNCTION public.candidate_cards_set_norm_name();
-
-
---
--- Name: candidate_printings trg_candidate_printings_group_key; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_candidate_printings_group_key BEFORE INSERT OR UPDATE OF set_id, art_variant, is_signed, promo_type_id, rarity, finish ON public.candidate_printings FOR EACH ROW EXECUTE FUNCTION public.candidate_printings_set_group_key();
 
 
 --
@@ -2139,5 +2099,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict wqWec4FPohuyTBXMZdZQTmkZLqmmw7Bnhv4B7GUqeEdZagynyf3HpFnwncqvnAW
+\unrestrict z26wBCpxHI6m4qNRbcuuIXYDq9dHhEbcOC1hbiy3vfdevxGADccJaxdEk5QdhmV
 
