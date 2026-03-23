@@ -446,11 +446,20 @@ export async function saveMappings(
     // 2. Batch-fetch staging rows (1 query instead of N)
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const allStagingRows = await repo.stagingByExternalIds(config.marketplace, externalIds, tx);
-    const stagingByExtId = new Map<number, typeof allStagingRows>();
+    const stagingByKey = new Map<string, typeof allStagingRows>();
     for (const row of allStagingRows) {
-      const list = stagingByExtId.get(row.externalId) ?? [];
+      const key = `${row.externalId}::${row.finish}`;
+      const list = stagingByKey.get(key) ?? [];
       list.push(row);
-      stagingByExtId.set(row.externalId, list);
+      stagingByKey.set(key, list);
+    }
+
+    // Collect available finishes per external ID for error messages
+    const finishesByExtId = new Map<number, Set<string>>();
+    for (const row of allStagingRows) {
+      const set = finishesByExtId.get(row.externalId) ?? new Set();
+      set.add(row.finish);
+      finishesByExtId.set(row.externalId, set);
     }
 
     // 3. Build source upsert values, collecting skip reasons
@@ -467,9 +476,17 @@ export async function saveMappings(
         skipped.push({ externalId: m.externalId, reason: "printing not found" });
         continue;
       }
-      const first = stagingByExtId.get(m.externalId)?.[0];
+      const first = stagingByKey.get(`${m.externalId}::${finish}`)?.[0];
       if (!first) {
-        skipped.push({ externalId: m.externalId, reason: "no staging data found" });
+        const available = finishesByExtId.get(m.externalId);
+        if (available && available.size > 0) {
+          skipped.push({
+            externalId: m.externalId,
+            reason: `finish mismatch: printing is "${finish}" but product only has "${[...available].join(", ")}"`,
+          });
+        } else {
+          skipped.push({ externalId: m.externalId, reason: "no staging data found" });
+        }
         continue;
       }
       sourceValues.push({
@@ -507,7 +524,8 @@ export async function saveMappings(
       if (productId === undefined) {
         continue;
       }
-      const rows = stagingByExtId.get(sv.externalId) ?? [];
+      const finish = finishByPrinting.get(sv.printingId) ?? "";
+      const rows = stagingByKey.get(`${sv.externalId}::${finish}`) ?? [];
       for (const row of rows) {
         snapshotRows.push({
           productId: productId,
@@ -531,7 +549,8 @@ export async function saveMappings(
     // 6. Batch-delete staging rows (1 query instead of N)
     const deletePairs: { externalId: number; finish: string }[] = [];
     for (const sv of sourceValues) {
-      const rows = stagingByExtId.get(sv.externalId) ?? [];
+      const finish = finishByPrinting.get(sv.printingId) ?? "";
+      const rows = stagingByKey.get(`${sv.externalId}::${finish}`) ?? [];
       for (const row of rows) {
         deletePairs.push({ externalId: sv.externalId, finish: row.finish });
       }
