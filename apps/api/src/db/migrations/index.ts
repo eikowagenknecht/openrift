@@ -45,6 +45,7 @@ import * as m039 from "./039-card-comment.js";
 import * as m040 from "./040-buff-card-type.js";
 import * as m041 from "./041-drop-candidate-printing-unique-index.js";
 import * as m042 from "./042-drop-rarity-from-slug.js";
+import * as m043 from "./043-fix-candidate-cards-unique-index.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -89,4 +90,5 @@ export const migrations: Record<string, Migration> = {
   "040-buff-card-type": m040,
   "041-drop-candidate-printing-unique-index": m041,
   "042-drop-rarity-from-slug": m042,
+  "043-fix-candidate-cards-unique-index": m043,
 };
