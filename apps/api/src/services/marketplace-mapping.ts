@@ -433,11 +433,11 @@ export async function saveMappings(
     // 2. Batch-fetch staging rows (1 query instead of N)
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const allStagingRows = await repo.stagingByExternalIds(config.marketplace, externalIds, tx);
-    const stagingByExtId = new Map<number, (typeof allStagingRows)[0]>();
+    const stagingByExtId = new Map<number, typeof allStagingRows>();
     for (const row of allStagingRows) {
-      if (!stagingByExtId.has(row.externalId)) {
-        stagingByExtId.set(row.externalId, row);
-      }
+      const list = stagingByExtId.get(row.externalId) ?? [];
+      list.push(row);
+      stagingByExtId.set(row.externalId, list);
     }
 
     // 3. Build source upsert values, collecting skip reasons
@@ -454,7 +454,7 @@ export async function saveMappings(
         skipped.push({ externalId: m.externalId, reason: "printing not found" });
         continue;
       }
-      const first = stagingByExtId.get(m.externalId);
+      const first = stagingByExtId.get(m.externalId)?.[0];
       if (!first) {
         skipped.push({ externalId: m.externalId, reason: "no staging data found" });
         continue;
@@ -494,11 +494,7 @@ export async function saveMappings(
       if (productId === undefined) {
         continue;
       }
-      const finish = finishByPrinting.get(sv.printingId);
-      if (!finish) {
-        continue;
-      }
-      const rows = stagingByKey.get(`${sv.externalId}::${finish}`) ?? [];
+      const rows = stagingByExtId.get(sv.externalId) ?? [];
       for (const row of rows) {
         snapshotRows.push({
           productId: productId,
@@ -522,9 +518,9 @@ export async function saveMappings(
     // 6. Batch-delete staging rows (1 query instead of N)
     const deletePairs: { externalId: number; finish: string }[] = [];
     for (const sv of sourceValues) {
-      const finish = finishByPrinting.get(sv.printingId);
-      if (finish) {
-        deletePairs.push({ externalId: sv.externalId, finish });
+      const rows = stagingByExtId.get(sv.externalId) ?? [];
+      for (const row of rows) {
+        deletePairs.push({ externalId: sv.externalId, finish: row.finish });
       }
     }
 
