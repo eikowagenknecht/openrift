@@ -56,6 +56,7 @@ interface CtMarketplaceProduct {
   price_currency: string;
   properties_hash?: {
     riftbound_foil?: boolean;
+    riftbound_language?: string;
   };
 }
 
@@ -142,11 +143,16 @@ async function fetchCardtraderData(
       authHeaders,
     );
 
-    for (const [bpId, listings] of Object.entries(products)) {
-      if (listings.length === 0) {
+    for (const [bpId, allListings] of Object.entries(products)) {
+      if (allListings.length === 0) {
         continue;
       }
       const id = Number(bpId);
+      // Only consider English listings so non-EN bulk pricing doesn't skew minimums
+      const listings = allListings.filter((l) => l.properties_hash?.riftbound_language === "en");
+      if (listings.length === 0) {
+        continue;
+      }
       const normalListings = listings.filter((l) => !l.properties_hash?.riftbound_foil);
       const foilListings = listings.filter((l) => l.properties_hash?.riftbound_foil === true);
 
