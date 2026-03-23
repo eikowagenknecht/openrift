@@ -36,12 +36,12 @@
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
     "@commitlint/types": "20.5.0",
-    "knip": "5.88.1",
+    "knip": "6.0.2",
     "lcov-result-merger": "5.0.1",
     "lefthook": "2.1.4",
     "oxfmt": "0.41.0",
     "oxlint": "1.56.0",
-    "syncpack": "14.2.0",
+    "syncpack": "14.2.1",
     "turbo": "2.8.20"
   },
   "overrides": {
