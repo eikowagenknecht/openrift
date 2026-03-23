@@ -72,6 +72,7 @@ function makeMockRepo(opts: { selectResult?: any; updateResult?: any } = {}) {
       return Promise.resolve(Number(rows[0].numUpdatedRows));
     }),
     rehostStatusBySet: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
+    allRehostedUrls: vi.fn(() => Promise.resolve([])),
   } as any;
 }
 
@@ -536,6 +537,7 @@ describe("getRehostStatus", () => {
       total: 0,
       rehosted: 0,
       external: 0,
+      orphanedFiles: 0,
       sets: [],
       disk: { totalBytes: 0, sets: [] },
     });
