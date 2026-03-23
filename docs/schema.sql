@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict zwi3HZBk9OvEwKoly4FnwNOZH3ek8wa8dslkrPrRxXfsx1CEy94r306UhmM9XNu
+\restrict wqWec4FPohuyTBXMZdZQTmkZLqmmw7Bnhv4B7GUqeEdZagynyf3HpFnwncqvnAW
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1357,6 +1357,13 @@ CREATE INDEX idx_candidate_cards_norm_name ON public.candidate_cards USING btree
 
 
 --
+-- Name: idx_candidate_cards_provider_external_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_candidate_cards_provider_external_id ON public.candidate_cards USING btree (provider, external_id) WHERE (external_id IS NOT NULL);
+
+
+--
 -- Name: idx_candidate_cards_provider_name_no_sid; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1367,7 +1374,7 @@ CREATE UNIQUE INDEX idx_candidate_cards_provider_name_no_sid ON public.candidate
 -- Name: idx_candidate_cards_provider_short_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_candidate_cards_provider_short_code ON public.candidate_cards USING btree (provider, short_code) WHERE (short_code IS NOT NULL);
+CREATE INDEX idx_candidate_cards_provider_short_code ON public.candidate_cards USING btree (provider, short_code) WHERE (short_code IS NOT NULL);
 
 
 --
@@ -1382,6 +1389,13 @@ CREATE INDEX idx_candidate_cards_unchecked ON public.candidate_cards USING btree
 --
 
 CREATE INDEX idx_candidate_printings_candidate_card ON public.candidate_printings USING btree (candidate_card_id);
+
+
+--
+-- Name: idx_candidate_printings_card_external_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_candidate_printings_card_external_id ON public.candidate_printings USING btree (candidate_card_id, external_id);
 
 
 --
@@ -2125,5 +2139,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict zwi3HZBk9OvEwKoly4FnwNOZH3ek8wa8dslkrPrRxXfsx1CEy94r306UhmM9XNu
+\unrestrict wqWec4FPohuyTBXMZdZQTmkZLqmmw7Bnhv4B7GUqeEdZagynyf3HpFnwncqvnAW
 
