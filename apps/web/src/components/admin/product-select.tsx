@@ -54,7 +54,7 @@ export function ProductSelect({
     (a, b) => a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
   );
 
-  function handleValueChange(val: string) {
+  function handleValueChange(val: string | null) {
     if (!val) {
       return;
     }
