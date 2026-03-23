@@ -433,20 +433,11 @@ export async function saveMappings(
     // 2. Batch-fetch staging rows (1 query instead of N)
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const allStagingRows = await repo.stagingByExternalIds(config.marketplace, externalIds, tx);
-    const stagingByKey = new Map<string, typeof allStagingRows>();
+    const stagingByExtId = new Map<number, (typeof allStagingRows)[0]>();
     for (const row of allStagingRows) {
-      const key = `${row.externalId}::${row.finish}`;
-      const list = stagingByKey.get(key) ?? [];
-      list.push(row);
-      stagingByKey.set(key, list);
-    }
-
-    // Collect available finishes per external ID for error messages
-    const finishesByExtId = new Map<number, Set<string>>();
-    for (const row of allStagingRows) {
-      const set = finishesByExtId.get(row.externalId) ?? new Set();
-      set.add(row.finish);
-      finishesByExtId.set(row.externalId, set);
+      if (!stagingByExtId.has(row.externalId)) {
+        stagingByExtId.set(row.externalId, row);
+      }
     }
 
     // 3. Build source upsert values, collecting skip reasons
@@ -463,17 +454,9 @@ export async function saveMappings(
         skipped.push({ externalId: m.externalId, reason: "printing not found" });
         continue;
       }
-      const first = stagingByKey.get(`${m.externalId}::${finish}`)?.[0];
+      const first = stagingByExtId.get(m.externalId);
       if (!first) {
-        const available = finishesByExtId.get(m.externalId);
-        if (available && available.size > 0) {
-          skipped.push({
-            externalId: m.externalId,
-            reason: `finish mismatch: printing is "${finish}" but product only has "${[...available].join(", ")}"`,
-          });
-        } else {
-          skipped.push({ externalId: m.externalId, reason: "no staging data found" });
-        }
+        skipped.push({ externalId: m.externalId, reason: "no staging data found" });
         continue;
       }
       sourceValues.push({

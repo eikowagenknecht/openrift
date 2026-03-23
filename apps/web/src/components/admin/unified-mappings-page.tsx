@@ -516,6 +516,7 @@ function UnifiedExpandedDetail({
                               stagedProducts={group.tcgplayer.stagedProducts}
                               assignedProducts={group.tcgplayer.assignedProducts}
                               currentPrintingId={p.printingId}
+                              printingFinish={p.finish}
                               disabled={tcgSave.isPending}
                               onSelect={(extId) =>
                                 tcgSave.mutate({
@@ -572,6 +573,7 @@ function UnifiedExpandedDetail({
                               stagedProducts={group.cardmarket.stagedProducts}
                               assignedProducts={group.cardmarket.assignedProducts}
                               currentPrintingId={p.printingId}
+                              printingFinish={p.finish}
                               disabled={cmSave.isPending}
                               onSelect={(extId) =>
                                 cmSave.mutate({
@@ -628,6 +630,7 @@ function UnifiedExpandedDetail({
                               stagedProducts={group.cardtrader.stagedProducts}
                               assignedProducts={group.cardtrader.assignedProducts}
                               currentPrintingId={p.printingId}
+                              printingFinish={p.finish}
                               disabled={ctSave.isPending}
                               onSelect={(extId) =>
                                 ctSave.mutate({
