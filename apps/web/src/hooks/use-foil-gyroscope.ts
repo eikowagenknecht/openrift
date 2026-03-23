@@ -65,22 +65,23 @@ function stopListening() {
 // Only enable on devices likely to have a gyroscope (touch-capable).
 // This avoids a "use of the orientation sensor is deprecated" console warning
 // on desktop Chromium where the sensor is unusable anyway.
-const hasTouch =
-  typeof globalThis !== "undefined" &&
-  ("ontouchstart" in globalThis || navigator.maxTouchPoints > 0);
+// Guarded for SSR — navigator / DeviceOrientationEvent don't exist on the server.
+if (typeof globalThis !== "undefined" && typeof navigator !== "undefined") {
+  const hasTouch = "ontouchstart" in globalThis || navigator.maxTouchPoints > 0;
 
-if (hasTouch && typeof DeviceOrientationEvent !== "undefined") {
-  // iOS 13+ requires explicit permission; non-iOS: assume granted
-  state = {
-    ...state,
-    available: true,
-    permissionState:
-      "requestPermission" in DeviceOrientationEvent &&
-      typeof (DeviceOrientationEvent as unknown as { requestPermission: unknown })
-        .requestPermission === "function"
-        ? "prompt"
-        : "granted",
-  };
+  if (hasTouch && typeof DeviceOrientationEvent !== "undefined") {
+    // iOS 13+ requires explicit permission; non-iOS: assume granted
+    state = {
+      ...state,
+      available: true,
+      permissionState:
+        "requestPermission" in DeviceOrientationEvent &&
+        typeof (DeviceOrientationEvent as unknown as { requestPermission: unknown })
+          .requestPermission === "function"
+          ? "prompt"
+          : "granted",
+    };
+  }
 }
 
 // oxlint-disable-next-line promise/prefer-await-to-callbacks -- required by useSyncExternalStore API
