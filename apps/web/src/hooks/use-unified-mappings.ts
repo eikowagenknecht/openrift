@@ -1,5 +1,6 @@
 import type { UnifiedMappingsResponse } from "@openrift/shared";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
@@ -45,14 +46,21 @@ interface SaveMappingsBody {
 }
 
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
-  return useUnifiedMutation(marketplace, (body: SaveMappingsBody) =>
-    rpc(
+  return useUnifiedMutation(marketplace, async (body: SaveMappingsBody) => {
+    const result = await rpc(
       client.api.admin["marketplace-mappings"].$post({
         query: { marketplace },
         json: body,
       }),
-    ),
-  );
+    );
+    const res = result as { saved: number; skipped?: { externalId: number; reason: string }[] };
+    if (res.skipped && res.skipped.length > 0) {
+      for (const s of res.skipped) {
+        toast.error(`#${s.externalId}: ${s.reason}`);
+      }
+    }
+    return result;
+  });
 }
 
 export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
