@@ -190,6 +190,12 @@ export interface RestoreImageUrlsResponse {
   updated: number;
 }
 
+export interface CleanupOrphanedResponse {
+  scanned: number;
+  deleted: number;
+  errors: string[];
+}
+
 export interface RenameImagesResponse {
   scanned: number;
   renamed: number;
@@ -216,6 +222,7 @@ export interface RehostStatusResponse {
   total: number;
   rehosted: number;
   external: number;
+  orphanedFiles: number;
   sets: RehostStatusSetStats[];
   disk: RehostStatusDiskStats;
 }

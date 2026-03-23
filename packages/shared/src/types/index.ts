@@ -49,6 +49,7 @@ export type {
   CatalogResponse,
   CatalogSetResponse,
   ClearPricesResponse,
+  CleanupOrphanedResponse,
   ClearRehostedResponse,
   FeatureFlagResponse,
   IgnoredProductResponse,

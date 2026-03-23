@@ -61,6 +61,7 @@ export type {
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
   ClearPricesResponse,
+  CleanupOrphanedResponse,
   ClearRehostedResponse,
   FeatureFlagResponse,
   IgnoredProductResponse,

@@ -26,6 +26,7 @@ export type {
   CatalogResponse,
   CatalogSetResponse,
   ClearPricesResponse,
+  CleanupOrphanedResponse,
   ClearRehostedResponse,
   CollectionResponse,
   CopyResponse,

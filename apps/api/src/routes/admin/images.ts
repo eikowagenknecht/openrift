@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { z } from "zod/v4";
 
 import {
+  cleanupOrphanedFiles,
   clearAllRehosted,
   collectStaleImages,
   getRehostStatus,
@@ -55,6 +56,12 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   .post("/rename-images", async (c) => {
     const { printingImages } = c.get("repos");
     const result = await renameStaleImages(c.get("io"), printingImages);
+    return c.json(result);
+  })
+
+  .post("/cleanup-orphaned", async (c) => {
+    const { printingImages } = c.get("repos");
+    const result = await cleanupOrphanedFiles(c.get("io"), printingImages);
     return c.json(result);
   })
 
