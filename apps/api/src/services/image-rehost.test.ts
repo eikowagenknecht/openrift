@@ -16,7 +16,6 @@ import {
   deleteRehostFiles,
   downloadImage,
   getRehostStatus,
-  printingIdToFileBase,
   processAndSave,
   regenerateImages,
   rehostFilesExist,
@@ -104,32 +103,6 @@ afterEach(() => {
 });
 
 // ─── Tests ──────────────────────────────────────────────────────────────
-
-describe("printingIdToFileBase", () => {
-  it("converts with promo type slug", () => {
-    expect(printingIdToFileBase("SET-001:normal:promo")).toBe("SET-001-normal-promo");
-  });
-
-  it("converts without promo (empty string)", () => {
-    expect(printingIdToFileBase("SET-001:foil:")).toBe("SET-001-foil-n");
-  });
-
-  it("converts without promo (missing segment)", () => {
-    expect(printingIdToFileBase("SET-001:normal")).toBe("SET-001-normal-n");
-  });
-
-  it("handles source IDs with dots and hyphens", () => {
-    expect(printingIdToFileBase("A.B-C:foil:promo")).toBe("A.B-C-foil-promo");
-  });
-
-  it("handles numeric source IDs", () => {
-    expect(printingIdToFileBase("12345:normal:")).toBe("12345-normal-n");
-  });
-
-  it("handles specific promo type slugs", () => {
-    expect(printingIdToFileBase("SET-001:foil:nexus-night")).toBe("SET-001-foil-nexus-night");
-  });
-});
 
 describe("downloadImage", () => {
   it("returns buffer and extension from content-type", async () => {
@@ -291,8 +264,7 @@ describe("rehostImages", () => {
     const repo = makeMockRepo({
       selectResult: [
         {
-          imageId: 1,
-          printingSlug: "SET-001:normal:",
+          imageId: "img-001",
           originalUrl: "https://example.com/img.png",
           setSlug: "set1",
         },
@@ -307,7 +279,7 @@ describe("rehostImages", () => {
 
   it("skips null originalUrl", async () => {
     const repo = makeMockRepo({
-      selectResult: [{ imageId: 1, printingSlug: "X:b:", originalUrl: null, setSlug: "s" }],
+      selectResult: [{ imageId: "img-1", originalUrl: null, setSlug: "s" }],
     });
     const result = await rehostImages(mockIo, repo);
     expect(result.skipped).toBe(1);
@@ -317,9 +289,7 @@ describe("rehostImages", () => {
   it("counts download failures", async () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
     const repo = makeMockRepo({
-      selectResult: [
-        { imageId: 1, printingSlug: "X:b:", originalUrl: "https://x.com/img", setSlug: "s" },
-      ],
+      selectResult: [{ imageId: "img-1", originalUrl: "https://x.com/img", setSlug: "s" }],
     });
     const result = await rehostImages(mockIo, repo);
     expect(result.failed).toBe(1);
@@ -329,9 +299,7 @@ describe("rehostImages", () => {
   it("handles non-Error thrown values", async () => {
     mockFetch.mockRejectedValue("string-error");
     const repo = makeMockRepo({
-      selectResult: [
-        { imageId: 1, printingSlug: "X:b:", originalUrl: "https://x.com/img", setSlug: "s" },
-      ],
+      selectResult: [{ imageId: "img-1", originalUrl: "https://x.com/img", setSlug: "s" }],
     });
     const result = await rehostImages(mockIo, repo);
     expect(result.failed).toBe(1);
@@ -348,15 +316,13 @@ describe("rehostImages", () => {
     const repo = makeMockRepo({
       selectResult: [
         {
-          imageId: 1,
-          printingSlug: "A:a:",
+          imageId: "img-1",
           originalUrl: "https://example.com/ok.png",
           setSlug: "s1",
         },
-        { imageId: 2, printingSlug: "B:b:", originalUrl: null, setSlug: "s2" },
+        { imageId: "img-2", originalUrl: null, setSlug: "s2" },
         {
-          imageId: 3,
-          printingSlug: "C:c:",
+          imageId: "img-3",
           originalUrl: "https://example.com/fail.png",
           setSlug: "s3",
         },
@@ -376,8 +342,7 @@ describe("rehostImages", () => {
     const repo = makeMockRepo({
       selectResult: [
         {
-          imageId: 1,
-          printingSlug: "X:b:",
+          imageId: "img-1",
           originalUrl: "https://example.com/img.png",
           setSlug: "s",
         },

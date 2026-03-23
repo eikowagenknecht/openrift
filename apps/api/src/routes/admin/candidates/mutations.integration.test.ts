@@ -267,7 +267,7 @@ if (ctx) {
       printedEffectText: null,
       imageUrl: "https://example.com/accept-new.png",
       flavorText: "Some flavor",
-      externalId: "test-entity",
+      externalId: "CSM-ACCEPT-001",
       extraData: null,
     })
     .returning("id")
@@ -988,7 +988,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           effectText: null,
           tags: [],
           shortCode: null,
-          externalId: "test-entity",
+          externalId: "csm-link-unmatched",
           extraData: null,
         })
         .execute();
@@ -1046,7 +1046,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: "https://example.com/ap.png",
           flavorText: "AP Flavor",
-          externalId: "test-entity",
+          externalId: "CSM-AP-001",
           extraData: null,
         })
         .returning("id")
@@ -1097,13 +1097,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(ps.checkedAt).toBeTruthy();
     });
 
-    it("accepts a printing with custom id override", async () => {
+    it("accepts a printing with foil finish", async () => {
       const [apPs2] = await db
         .insertInto("candidatePrintings")
         .values({
           candidateCardId: csForAcceptNewId,
           printingId: null,
-          shortCode: "CSM-AP-CUSTOM",
+          shortCode: "CSM-AP-FOIL",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
           collectorNumber: 61,
@@ -1118,7 +1118,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          externalId: "test-entity",
+          externalId: "CSM-AP-FOIL",
           extraData: null,
         })
         .returning("id")
@@ -1127,8 +1127,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardSlug}/accept-printing`, {
           printingFields: {
-            id: "CSM-CUSTOM-ID",
-            shortCode: "CSM-AP-CUSTOM",
+            shortCode: "CSM-AP-FOIL",
             setId: "CSM-TEST",
             collectorNumber: 61,
             rarity: "Epic",
@@ -1142,7 +1141,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.printingId).toBe("CSM-CUSTOM-ID");
+      expect(json.printingId).toBe("CSM-AP-FOIL:foil:");
     });
 
     it("accepts a printing with promo and signed flags", async () => {
@@ -1166,7 +1165,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          externalId: "test-entity",
+          externalId: "CSM-AP-PROMO",
           extraData: null,
         })
         .returning("id")
@@ -1256,7 +1255,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printedEffectText: null,
           imageUrl: null,
           flavorText: null,
-          externalId: "test-entity",
+          externalId: "CSM-AP-NEWSET",
           extraData: null,
         })
         .returning("id")

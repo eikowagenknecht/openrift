@@ -10,7 +10,7 @@ import type { candidateMutationsRepo } from "../repositories/candidate-mutations
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { setsRepo } from "../repositories/sets.js";
-import { deleteRehostFiles, renamePrintingImages } from "./image-rehost.js";
+import { deleteRehostFiles } from "./image-rehost.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
@@ -19,14 +19,12 @@ type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
 // ── updatePrintingPromoType ──────────────────────────────────────────────────
 
 /**
- * Update a printing's promoTypeId, rebuild its slug, and rename rehosted images.
- * @returns Resolves when the printing and its images have been updated.
+ * Update a printing's promoTypeId and rebuild its slug.
+ * @returns Resolves when the printing has been updated.
  */
 export async function updatePrintingPromoType(
   db: Kysely<Database>,
-  io: Io,
   repos: {
-    printingImages: PrintingImagesRepo;
     promoTypes: PromoTypesRepo;
   },
   printingSlug: string,
@@ -34,8 +32,7 @@ export async function updatePrintingPromoType(
 ): Promise<void> {
   const printing = await db
     .selectFrom("printings as p")
-    .innerJoin("sets as s", "s.id", "p.setId")
-    .select(["p.id", "p.slug", "p.shortCode", "p.finish", "s.slug as setSlug"])
+    .select(["p.id", "p.slug", "p.shortCode", "p.finish"])
     .where("p.slug", "=", printingSlug)
     .executeTakeFirst();
 
@@ -62,32 +59,22 @@ export async function updatePrintingPromoType(
     })
     .where("id", "=", printing.id)
     .execute();
-
-  await renamePrintingImages(io, repos.printingImages, printing.id, printing.slug, newSlug);
 }
 
 // ── renamePrinting ───────────────────────────────────────────────────────────
 
 /**
- * Rename a printing's slug and update all rehosted image file paths.
- * @returns Resolves when the slug and images have been renamed.
+ * Rename a printing's slug.
+ * @returns Resolves when the slug has been renamed.
  */
 export async function renamePrinting(
-  io: Io,
   repos: {
     candidateMutations: CandidateMutationsRepo;
-    printingImages: PrintingImagesRepo;
   },
   printingSlug: string,
   newSlug: string,
 ): Promise<void> {
-  const printing = await repos.printingImages.getPrintingIdBySlug(printingSlug);
-  if (!printing) {
-    throw new AppError(404, "NOT_FOUND", "Printing not found");
-  }
-
   await repos.candidateMutations.renamePrintingSlug(printingSlug, newSlug);
-  await renamePrintingImages(io, repos.printingImages, printing.id, printingSlug, newSlug);
 }
 
 // ── deletePrinting ──────────────────────────────────────────────────────────

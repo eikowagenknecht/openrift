@@ -441,23 +441,22 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   // ── POST /printing-images/:imageId/activate (rehosted paths) ────────────
 
   describe("POST /admin/candidates/printing-images/:imageId/activate (rehosted)", () => {
-    it("renames rehosted files when swapping active images", async () => {
-      // Give both images a rehostedUrl to exercise the rename branches
+    it("does not change rehostedUrls when swapping active images", async () => {
+      // Give both images a rehostedUrl (UUID-based paths)
+      const mainUrl = `/card-images/CSI/${mainImageId}`;
+      const additionalUrl = `/card-images/CSI/${additionalImageId}`;
       await db
         .updateTable("printingImages")
-        .set({ rehostedUrl: "/card-images/CSI/CSI-001-normal-n", isActive: true })
+        .set({ rehostedUrl: mainUrl, isActive: true })
         .where("id", "=", mainImageId)
         .execute();
       await db
         .updateTable("printingImages")
-        .set({
-          rehostedUrl: `/card-images/CSI/CSI-001-normal-n-${additionalImageId}`,
-          isActive: false,
-        })
+        .set({ rehostedUrl: additionalUrl, isActive: false })
         .where("id", "=", additionalImageId)
         .execute();
 
-      // Activate the additional image → should deactivate main and rename files
+      // Activate the additional image → should deactivate main, leave URLs unchanged
       const res = await app.fetch(
         req("POST", `/admin/candidates/printing-images/${additionalImageId}/activate`, {
           active: true,
@@ -465,7 +464,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // The newly active image should get the main path
+      // The newly active image keeps its own URL
       const newActive = await db
         .selectFrom("printingImages")
         .select(["isActive", "rehostedUrl"])
@@ -474,9 +473,9 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(newActive!.isActive).toBe(true);
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
-      expect(newActive!.rehostedUrl).toBe("/card-images/CSI/CSI-001-normal-n");
+      expect(newActive!.rehostedUrl).toBe(additionalUrl);
 
-      // The demoted image should get an ID-suffixed path
+      // The demoted image also keeps its own URL
       const demoted = await db
         .selectFrom("printingImages")
         .select(["isActive", "rehostedUrl"])
@@ -485,11 +484,12 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(demoted!.isActive).toBe(false);
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
-      expect(demoted!.rehostedUrl).toBe(`/card-images/CSI/CSI-001-normal-n-${mainImageId}`);
+      expect(demoted!.rehostedUrl).toBe(mainUrl);
     });
 
-    it("renames rehosted files when deactivating an image", async () => {
-      // additionalImageId is currently active with the main path from the previous test
+    it("does not change rehostedUrl when deactivating an image", async () => {
+      const additionalUrl = `/card-images/CSI/${additionalImageId}`;
+      // additionalImageId is currently active from the previous test
       const res = await app.fetch(
         req("POST", `/admin/candidates/printing-images/${additionalImageId}/activate`, {
           active: false,
@@ -497,7 +497,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // The deactivated image should get an ID-suffixed path
+      // The deactivated image keeps its own URL
       const image = await db
         .selectFrom("printingImages")
         .select(["isActive", "rehostedUrl"])
@@ -506,10 +506,10 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(image!.isActive).toBe(false);
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
-      expect(image!.rehostedUrl).toBe(`/card-images/CSI/CSI-001-normal-n-${additionalImageId}`);
+      expect(image!.rehostedUrl).toBe(additionalUrl);
     });
 
-    it("activates an image without rehostedUrl (no rename)", async () => {
+    it("activates an image without rehostedUrl", async () => {
       // Clear rehostedUrl on mainImageId to test the non-rehosted activation path
       await db
         .updateTable("printingImages")
@@ -539,7 +539,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(image!.isActive).toBe(true);
-      // rehostedUrl should remain null (no rename happened)
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(image!.rehostedUrl).toBeNull();
     });
@@ -703,7 +702,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   describe("POST /admin/candidates/printing/:printingId/add-image-url", () => {
     it("adds an image URL to a printing", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/candidates/printing/${printingSlug}/add-image-url`, {
+        req("POST", `/admin/candidates/printing/${printingId}/add-image-url`, {
           url: "https://example.com/csi-new-image.png",
           provider: "csi-manual-test",
           mode: "main",
@@ -725,7 +724,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("adds an image URL with default mode and source", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/candidates/printing/${printingSlug}/add-image-url`, {
+        req("POST", `/admin/candidates/printing/${printingId}/add-image-url`, {
           url: "https://example.com/csi-another-image.png",
         }),
       );
@@ -744,7 +743,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 400 when url is empty", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/candidates/printing/${printingSlug}/add-image-url`, {
+        req("POST", `/admin/candidates/printing/${printingId}/add-image-url`, {
           url: "",
         }),
       );
@@ -753,7 +752,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 400 when url is whitespace only", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/candidates/printing/${printingSlug}/add-image-url`, {
+        req("POST", `/admin/candidates/printing/${printingId}/add-image-url`, {
           url: "   ",
         }),
       );
@@ -762,7 +761,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("adds an image URL in additional mode", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/candidates/printing/${printingSlug}/add-image-url`, {
+        req("POST", `/admin/candidates/printing/${printingId}/add-image-url`, {
           url: "https://example.com/csi-additional-image.png",
           provider: "csi-additional-test",
           mode: "additional",
@@ -784,9 +783,13 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 404 for non-existent printing", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/candidates/printing/FAKE-SLUG:foil:/add-image-url`, {
-          url: "https://example.com/nope.png",
-        }),
+        req(
+          "POST",
+          `/admin/candidates/printing/00000000-0000-4000-a000-ffffffffffff/add-image-url`,
+          {
+            url: "https://example.com/nope.png",
+          },
+        ),
       );
       expect(res.status).toBe(404);
     });
@@ -802,7 +805,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("mode", "main");
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/${printingSlug}/upload-image`,
+        `http://localhost/api/admin/candidates/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -831,7 +834,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("mode", "additional");
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/${printingSlug}/upload-image`,
+        `http://localhost/api/admin/candidates/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -859,7 +862,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("file", new File([FAKE_BUFFER], "default.png", { type: "image/png" }));
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/${printingSlug}/upload-image`,
+        `http://localhost/api/admin/candidates/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -884,7 +887,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("file", new File([FAKE_BUFFER], "nope.png", { type: "image/png" }));
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/FAKE-SLUG:foil:/upload-image`,
+        `http://localhost/api/admin/candidates/printing/00000000-0000-4000-a000-ffffffffffff/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);

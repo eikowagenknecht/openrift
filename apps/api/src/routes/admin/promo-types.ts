@@ -5,7 +5,6 @@ import { Hono } from "hono";
 import { z } from "zod/v4";
 
 import { AppError } from "../../errors.js";
-import { printingIdToFileBase, renameRehostFiles } from "../../services/image-rehost.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -94,24 +93,11 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
 
       await repo.update(id, body);
 
-      // Cascade slug rename to all printings that use this promo type
+      // Cascade slug rename to printing rows (file paths are UUID-based, no rename needed)
       if (slugChanging) {
-        const io = c.get("io");
         const oldSuffix = `:${existing.slug}`;
         const newSuffix = `:${body.slug as string}`;
-
-        const affectedImages = await repo.affectedImagesByPromoType(id);
         await repo.renamePrintingSlugs(id, oldSuffix, newSuffix);
-
-        for (const img of affectedImages) {
-          const oldFileBase = printingIdToFileBase(img.printingSlug);
-          const newPrintingSlug = img.printingSlug.replace(oldSuffix, newSuffix);
-          const newFileBase = printingIdToFileBase(newPrintingSlug);
-          const newRehostedUrl = img.rehostedUrl.replace(oldFileBase, newFileBase);
-
-          await renameRehostFiles(io, img.rehostedUrl, newRehostedUrl);
-          await repo.updateImageRehostedUrl(img.imageId, newRehostedUrl);
-        }
       }
 
       return c.body(null, 204);
