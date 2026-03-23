@@ -11,6 +11,8 @@ export type {
   ApiErrorResponse,
   ArtVariant,
   AssignableCardResponse,
+  BrokenImageEntry,
+  BrokenImagesResponse,
   Card,
   CardFilters,
   CardFace,

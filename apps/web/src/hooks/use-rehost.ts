@@ -19,6 +19,13 @@ export function useRehostStatus() {
   });
 }
 
+export function useBrokenImages() {
+  return useQuery({
+    queryKey: queryKeys.admin.brokenImages,
+    queryFn: () => rpc(client.api.admin["broken-images"].$get()),
+  });
+}
+
 export function useMissingImages() {
   return useQuery({
     queryKey: queryKeys.admin.missingImages,

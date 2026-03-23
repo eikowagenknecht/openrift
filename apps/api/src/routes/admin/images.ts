@@ -7,6 +7,7 @@ import {
   cleanupOrphanedFiles,
   clearAllRehosted,
   collectStaleImages,
+  findBrokenImages,
   getRehostStatus,
   regenerateImages,
   rehostImages,
@@ -78,6 +79,12 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── Restore original URLs from a card source ──────────────────────────────
+
+  .get("/broken-images", async (c) => {
+    const { printingImages } = c.get("repos");
+    const result = await findBrokenImages(c.get("io"), printingImages);
+    return c.json(result);
+  })
 
   .get("/missing-images", async (c) => {
     const { candidateCards } = c.get("repos");

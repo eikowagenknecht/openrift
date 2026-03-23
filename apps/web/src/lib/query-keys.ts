@@ -43,6 +43,7 @@ export const queryKeys = {
     cronStatus: ["admin", "cron-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,
     renamePreview: ["admin", "rename-preview"] as const,
+    brokenImages: ["admin", "broken-images"] as const,
     missingImages: ["admin", "missing-images"] as const,
     priceMappings: {
       bySource: (config: SourceMappingConfig) => ["admin", config.source] as const,

@@ -18,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useProviderNames } from "@/hooks/use-candidates";
 import type { RegenerateAccumulator } from "@/hooks/use-rehost";
 import {
+  useBrokenImages,
   useCleanupOrphaned,
   useClearRehosted,
   useMissingImages,
@@ -397,11 +398,79 @@ function MissingImagesSection() {
   );
 }
 
+// ── BrokenImagesSection ──────────────────────────────────────────────────────
+
+function BrokenImagesSection() {
+  const { data, isLoading } = useBrokenImages();
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Broken Images</CardTitle>
+          <CardDescription>Scanning disk for missing files…</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (!data || data.broken.length === 0) {
+    return null;
+  }
+
+  // Group by set for readability
+  const bySet = new Map<string, typeof data.broken>();
+  for (const entry of data.broken) {
+    const list = bySet.get(entry.setSlug) ?? [];
+    list.push(entry);
+    bySet.set(entry.setSlug, list);
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Broken Images</CardTitle>
+        <CardDescription>
+          {data.broken.length} of {data.total} rehosted{" "}
+          {data.broken.length === 1 ? "image is" : "images are"} missing files on disk.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          {[...bySet.entries()].map(([setSlug, entries]) => (
+            <div key={setSlug}>
+              <p className="text-muted-foreground mb-1 text-xs font-medium uppercase">{setSlug}</p>
+              <ul className="space-y-1 text-sm">
+                {entries.map((entry) => (
+                  <li key={entry.imageId} className="flex items-baseline gap-2">
+                    <Link
+                      to="/admin/cards/$cardSlug"
+                      params={{ cardSlug: entry.cardSlug }}
+                      className="hover:underline"
+                    >
+                      <span className="text-muted-foreground/60">{entry.printingSlug}</span>{" "}
+                      {entry.cardName}
+                    </Link>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {entry.rehostedUrl}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ImagesPage() {
   return (
     <div className="space-y-4">
+      <BrokenImagesSection />
       <MissingImagesSection />
       <ManageSection />
       <Separator />

@@ -227,6 +227,21 @@ export interface RehostStatusResponse {
   disk: RehostStatusDiskStats;
 }
 
+export interface BrokenImageEntry {
+  imageId: string;
+  rehostedUrl: string;
+  originalUrl: string | null;
+  cardSlug: string;
+  cardName: string;
+  printingSlug: string;
+  setSlug: string;
+}
+
+export interface BrokenImagesResponse {
+  total: number;
+  broken: BrokenImageEntry[];
+}
+
 // ── Price refresh response types ────────────────────────────────────────────
 
 export interface PriceRefreshUpsertCounts {

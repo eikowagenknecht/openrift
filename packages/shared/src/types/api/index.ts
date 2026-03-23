@@ -54,6 +54,8 @@ export type {
 export type {
   AdminPrintingImageResponse,
   AdminSetResponse,
+  BrokenImageEntry,
+  BrokenImagesResponse,
   AssignableCardResponse,
   CandidateCardResponse,
   CandidateCardSummaryResponse,

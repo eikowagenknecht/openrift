@@ -41,6 +41,8 @@ export type {
   AdminSetResponse,
   ApiErrorResponse,
   AssignableCardResponse,
+  BrokenImageEntry,
+  BrokenImagesResponse,
   CandidateCardResponse,
   CandidateCardSummaryResponse,
   CandidateCardUploadResponse,

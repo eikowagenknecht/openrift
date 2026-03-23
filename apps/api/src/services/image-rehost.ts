@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 
 import type {
+  BrokenImagesResponse,
   CleanupOrphanedResponse,
   ClearRehostedResponse,
   RegenerateImageResponse,
@@ -500,4 +501,37 @@ export async function cleanupOrphanedFiles(
   }
 
   return progress;
+}
+
+/**
+ * Find all rehosted images whose files are missing on disk.
+ * Checks for the presence of at least one variant file per rehosted URL.
+ * @returns The total rehosted count and the list of entries with missing files.
+ */
+export async function findBrokenImages(
+  io: Io,
+  repo: PrintingImagesRepo,
+): Promise<BrokenImagesResponse> {
+  const images = await repo.listAllRehostedWithContext();
+  const broken: BrokenImagesResponse["broken"] = [];
+
+  for (const img of images) {
+    const relPath = img.rehostedUrl.replace(/^\/card-images\//, "");
+    const dir = join(CARD_IMAGES_DIR, relPath.split("/").slice(0, -1).join("/"));
+    const fileBase = relPath.split("/").pop() as string;
+    const exists = await rehostFilesExist(io, dir, fileBase);
+    if (!exists) {
+      broken.push({
+        imageId: img.imageId,
+        rehostedUrl: img.rehostedUrl,
+        originalUrl: img.originalUrl,
+        cardSlug: img.cardSlug,
+        cardName: img.cardName,
+        printingSlug: img.printingSlug,
+        setSlug: img.setSlug,
+      });
+    }
+  }
+
+  return { total: images.length, broken };
 }

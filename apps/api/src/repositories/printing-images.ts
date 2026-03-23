@@ -314,6 +314,41 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return Number(result.count);
     },
 
+    /**
+     * List all rehosted images with card/printing context for broken-image checking.
+     * @returns Images with rehosted URL, original URL, and navigation context.
+     */
+    listAllRehostedWithContext() {
+      return db
+        .selectFrom("printingImages as pi")
+        .innerJoin("printings as p", "p.id", "pi.printingId")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .innerJoin("cards as c", "c.id", "p.cardId")
+        .select([
+          "pi.id as imageId",
+          "pi.rehostedUrl",
+          "pi.originalUrl",
+          "c.slug as cardSlug",
+          "c.name as cardName",
+          "p.slug as printingSlug",
+          "s.slug as setSlug",
+        ])
+        .where("pi.rehostedUrl", "is not", null)
+        .orderBy("s.slug")
+        .orderBy("c.name")
+        .execute() as Promise<
+        {
+          imageId: string;
+          rehostedUrl: string;
+          originalUrl: string | null;
+          cardSlug: string;
+          cardName: string;
+          printingSlug: string;
+          setSlug: string;
+        }[]
+      >;
+    },
+
     /** @returns All non-null rehosted URLs as a flat list. */
     async allRehostedUrls(): Promise<string[]> {
       const rows = await db
