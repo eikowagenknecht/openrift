@@ -50,7 +50,7 @@ import type {
 import { formatCents, NOOP, ProductLink } from "./price-mappings-utils";
 import { ProductSelect } from "./product-select";
 import { SectionHeading } from "./section-heading";
-import { CM_CONFIG, TCG_CONFIG } from "./source-configs";
+import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 import { StagedProductCard } from "./staged-product-card";
 import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 
@@ -60,9 +60,21 @@ import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
  * Build a per-marketplace MappingGroup for the suggestion algorithm.
  * @returns A single-marketplace MappingGroup
  */
+type MappableMarketplace = "tcgplayer" | "cardmarket" | "cardtrader";
+
+function externalIdForMarketplace(p: UnifiedMappingPrinting, marketplace: MappableMarketplace) {
+  if (marketplace === "tcgplayer") {
+    return p.tcgExternalId;
+  }
+  if (marketplace === "cardmarket") {
+    return p.cmExternalId;
+  }
+  return p.ctExternalId;
+}
+
 function toMarketplaceGroup(
   group: UnifiedMappingGroup,
-  marketplace: "tcgplayer" | "cardmarket",
+  marketplace: MappableMarketplace,
 ): MappingGroup {
   const mkData = group[marketplace];
   return {
@@ -78,7 +90,7 @@ function toMarketplaceGroup(
     setName: group.setName,
     printings: group.printings.map((p) => ({
       ...p,
-      externalId: marketplace === "tcgplayer" ? p.tcgExternalId : p.cmExternalId,
+      externalId: externalIdForMarketplace(p, marketplace),
     })),
     stagedProducts: mkData.stagedProducts,
     assignedProducts: mkData.assignedProducts,
@@ -132,7 +144,7 @@ function MarketplaceStatusBadge({
 }: {
   label: string;
   group: UnifiedMappingGroup;
-  marketplace: "tcgplayer" | "cardmarket";
+  marketplace: MappableMarketplace;
 }) {
   const mkGroup = toMarketplaceGroup(group, marketplace);
   const unmapped = mkGroup.printings.filter((p) => p.externalId === null).length;
@@ -197,7 +209,7 @@ function MarketplaceProductColumn({
   onAssignToCard,
   isAssigning,
 }: {
-  marketplace: "tcgplayer" | "cardmarket";
+  marketplace: MappableMarketplace;
   group: UnifiedMappingGroup;
   allCards: AssignableCard[];
   onIgnore: (externalId: number, finish: string) => void;
@@ -207,7 +219,8 @@ function MarketplaceProductColumn({
   onAssignToCard: (externalId: number, finish: string, cardId: string) => void;
   isAssigning: boolean;
 }) {
-  const config = marketplace === "tcgplayer" ? TCG_CONFIG : CM_CONFIG;
+  const config =
+    marketplace === "tcgplayer" ? TCG_CONFIG : marketplace === "cardmarket" ? CM_CONFIG : CT_CONFIG;
   const mkData = group[marketplace];
   const allProducts = [...mkData.stagedProducts, ...mkData.assignedProducts].toSorted(
     (a, b) => a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
@@ -304,50 +317,50 @@ function UnifiedExpandedDetail({
   allCards,
   tcgSave,
   cmSave,
+  ctSave,
   tcgUnmap,
   cmUnmap,
+  ctUnmap,
   tcgIgnore,
   cmIgnore,
+  ctIgnore,
   tcgUnassign,
   cmUnassign,
+  ctUnassign,
   tcgAssignToCard,
   cmAssignToCard,
+  ctAssignToCard,
   onBatchAccept,
   showHotkeyHint,
 }: {
   group: UnifiedMappingGroup;
   allCards: AssignableCard[];
-  tcgSave: {
-    mutate: (b: { mappings: { printingId: string; externalId: number }[] }) => void;
-    isPending: boolean;
-  };
-  cmSave: {
-    mutate: (b: { mappings: { printingId: string; externalId: number }[] }) => void;
-    isPending: boolean;
-  };
-  tcgUnmap: { mutate: (id: string) => void; isPending: boolean };
-  cmUnmap: { mutate: (id: string) => void; isPending: boolean };
-  tcgIgnore: { mutate: (p: { externalId: number; finish: string }[]) => void; isPending: boolean };
-  cmIgnore: { mutate: (p: { externalId: number; finish: string }[]) => void; isPending: boolean };
-  tcgUnassign: { mutate: (p: { externalId: number; finish: string }) => void; isPending: boolean };
-  cmUnassign: { mutate: (p: { externalId: number; finish: string }) => void; isPending: boolean };
-  tcgAssignToCard: {
-    mutate: (p: { externalId: number; finish: string; cardId: string }) => void;
-    isPending: boolean;
-  };
-  cmAssignToCard: {
-    mutate: (p: { externalId: number; finish: string; cardId: string }) => void;
-    isPending: boolean;
-  };
+  tcgSave: MutSave;
+  cmSave: MutSave;
+  ctSave: MutSave;
+  tcgUnmap: MutId;
+  cmUnmap: MutId;
+  ctUnmap: MutId;
+  tcgIgnore: MutProducts;
+  cmIgnore: MutProducts;
+  ctIgnore: MutProducts;
+  tcgUnassign: MutProduct;
+  cmUnassign: MutProduct;
+  ctUnassign: MutProduct;
+  tcgAssignToCard: MutAssign;
+  cmAssignToCard: MutAssign;
+  ctAssignToCard: MutAssign;
   onBatchAccept: () => void;
   showHotkeyHint: boolean;
 }) {
   const tcgGroup = toMarketplaceGroup(group, "tcgplayer");
   const cmGroup = toMarketplaceGroup(group, "cardmarket");
+  const ctGroup = toMarketplaceGroup(group, "cardtrader");
   const tcgSuggestions = computeSuggestions(tcgGroup);
   const cmSuggestions = computeSuggestions(cmGroup);
-  const totalSuggestions = tcgSuggestions.size + cmSuggestions.size;
-  const isSaving = tcgSave.isPending || cmSave.isPending;
+  const ctSuggestions = computeSuggestions(ctGroup);
+  const totalSuggestions = tcgSuggestions.size + cmSuggestions.size + ctSuggestions.size;
+  const isSaving = tcgSave.isPending || cmSave.isPending || ctSave.isPending;
 
   return (
     <div className="flex flex-col gap-6 bg-muted/30 px-4 py-4 sm:flex-row sm:px-6">
@@ -381,7 +394,9 @@ function UnifiedExpandedDetail({
           {group.printings.map((p) => {
             const tcgSug = p.tcgExternalId === null ? tcgSuggestions.get(p.printingId) : undefined;
             const cmSug = p.cmExternalId === null ? cmSuggestions.get(p.printingId) : undefined;
-            const hasAnyUnmapped = p.tcgExternalId === null || p.cmExternalId === null;
+            const ctSug = p.ctExternalId === null ? ctSuggestions.get(p.printingId) : undefined;
+            const hasAnyUnmapped =
+              p.tcgExternalId === null || p.cmExternalId === null || p.ctExternalId === null;
             return (
               <div
                 key={p.printingId}
@@ -415,8 +430,10 @@ function UnifiedExpandedDetail({
                     </span>
                   </div>
 
-                  {/* Mapped IDs — single row when both are mapped */}
-                  {p.tcgExternalId !== null && p.cmExternalId !== null ? (
+                  {/* Mapped IDs — single row when all are mapped */}
+                  {p.tcgExternalId !== null &&
+                  p.cmExternalId !== null &&
+                  p.ctExternalId !== null ? (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Badge variant="outline" className="text-[10px] px-1 py-0">
@@ -448,6 +465,23 @@ function UnifiedExpandedDetail({
                           onClick={() => cmUnmap.mutate(p.printingId)}
                           disabled={cmUnmap.isPending}
                           title="Unmap Cardmarket"
+                        >
+                          ×
+                        </button>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          CT
+                        </Badge>
+                        <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
+                          #{p.ctExternalId}
+                        </ProductLink>
+                        <button
+                          type="button"
+                          className="hover:text-foreground disabled:opacity-50"
+                          onClick={() => ctUnmap.mutate(p.printingId)}
+                          disabled={ctUnmap.isPending}
+                          title="Unmap CardTrader"
                         >
                           ×
                         </button>
@@ -566,6 +600,62 @@ function UnifiedExpandedDetail({
                           </div>
                         )}
                       </div>
+
+                      {/* CardTrader mapping status */}
+                      <div className="space-y-1">
+                        {p.ctExternalId === null ? (
+                          <>
+                            {ctSug && (
+                              <SuggestionButton
+                                label="CT"
+                                suggestion={ctSug}
+                                config={CT_CONFIG}
+                                disabled={ctSave.isPending}
+                                onClick={() =>
+                                  ctSave.mutate({
+                                    mappings: [
+                                      {
+                                        printingId: p.printingId,
+                                        externalId: ctSug.product.externalId,
+                                      },
+                                    ],
+                                  })
+                                }
+                              />
+                            )}
+                            <ProductSelect
+                              config={CT_CONFIG}
+                              stagedProducts={group.cardtrader.stagedProducts}
+                              assignedProducts={group.cardtrader.assignedProducts}
+                              currentPrintingId={p.printingId}
+                              disabled={ctSave.isPending}
+                              onSelect={(extId) =>
+                                ctSave.mutate({
+                                  mappings: [{ printingId: p.printingId, externalId: extId }],
+                                })
+                              }
+                            />
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                              CT
+                            </Badge>
+                            <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
+                              #{p.ctExternalId}
+                            </ProductLink>
+                            <button
+                              type="button"
+                              className="hover:text-foreground disabled:opacity-50"
+                              onClick={() => ctUnmap.mutate(p.printingId)}
+                              disabled={ctUnmap.isPending}
+                              title="Unmap CardTrader"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -603,6 +693,19 @@ function UnifiedExpandedDetail({
           }
           isAssigning={cmAssignToCard.isPending}
         />
+        <MarketplaceProductColumn
+          marketplace="cardtrader"
+          group={group}
+          allCards={allCards}
+          onIgnore={(eid, fin) => ctIgnore.mutate([{ externalId: eid, finish: fin }])}
+          isIgnoring={ctIgnore.isPending}
+          onUnassign={(eid, fin) => ctUnassign.mutate({ externalId: eid, finish: fin })}
+          isUnassigning={ctUnassign.isPending}
+          onAssignToCard={(eid, fin, cid) =>
+            ctAssignToCard.mutate({ externalId: eid, finish: fin, cardId: cid })
+          }
+          isAssigning={ctAssignToCard.isPending}
+        />
       </div>
     </div>
   );
@@ -619,7 +722,7 @@ function UnmatchedSection({
   onAssignToCard,
   isAssigning,
 }: {
-  marketplace: "tcgplayer" | "cardmarket";
+  marketplace: MappableMarketplace;
   products: StagedProduct[];
   allCards: AssignableCard[];
   onIgnore: (p: { externalId: number; finish: string }[]) => void;
@@ -627,7 +730,8 @@ function UnmatchedSection({
   onAssignToCard: (p: { externalId: number; finish: string; cardId: string }) => void;
   isAssigning: boolean;
 }) {
-  const config = marketplace === "tcgplayer" ? TCG_CONFIG : CM_CONFIG;
+  const config =
+    marketplace === "tcgplayer" ? TCG_CONFIG : marketplace === "cardmarket" ? CM_CONFIG : CT_CONFIG;
   if (products.length === 0) {
     return null;
   }
@@ -675,14 +779,19 @@ export function UnifiedMappingsPage() {
   // Per-marketplace mutations
   const tcgSave = useUnifiedSaveMappings("tcgplayer");
   const cmSave = useUnifiedSaveMappings("cardmarket");
+  const ctSave = useUnifiedSaveMappings("cardtrader");
   const tcgUnmap = useUnifiedUnmapPrinting("tcgplayer");
   const cmUnmap = useUnifiedUnmapPrinting("cardmarket");
+  const ctUnmap = useUnifiedUnmapPrinting("cardtrader");
   const tcgIgnore = useUnifiedIgnoreProducts("tcgplayer");
   const cmIgnore = useUnifiedIgnoreProducts("cardmarket");
+  const ctIgnore = useUnifiedIgnoreProducts("cardtrader");
   const tcgUnassign = useUnifiedUnassignFromCard("tcgplayer");
   const cmUnassign = useUnifiedUnassignFromCard("cardmarket");
+  const ctUnassign = useUnifiedUnassignFromCard("cardtrader");
   const tcgAssignToCard = useUnifiedAssignToCard("tcgplayer");
   const cmAssignToCard = useUnifiedAssignToCard("cardmarket");
+  const ctAssignToCard = useUnifiedAssignToCard("cardtrader");
 
   const allCards = data.allCards;
 
@@ -739,15 +848,21 @@ export function UnifiedMappingsPage() {
   const handleBatchAccept = (group: UnifiedMappingGroup) => {
     const tcgGroup = toMarketplaceGroup(group, "tcgplayer");
     const cmGroup = toMarketplaceGroup(group, "cardmarket");
+    const ctGroup = toMarketplaceGroup(group, "cardtrader");
     const tcgSuggestions = computeSuggestions(tcgGroup);
     const cmSuggestions = computeSuggestions(cmGroup);
+    const ctSuggestions = computeSuggestions(ctGroup);
     const tcgMappings: { printingId: string; externalId: number }[] = [];
     const cmMappings: { printingId: string; externalId: number }[] = [];
+    const ctMappings: { printingId: string; externalId: number }[] = [];
     for (const [pid, s] of tcgSuggestions) {
       tcgMappings.push({ printingId: pid, externalId: s.product.externalId });
     }
     for (const [pid, s] of cmSuggestions) {
       cmMappings.push({ printingId: pid, externalId: s.product.externalId });
+    }
+    for (const [pid, s] of ctSuggestions) {
+      ctMappings.push({ printingId: pid, externalId: s.product.externalId });
     }
     queueAutoExpand(group.cardId);
     if (tcgMappings.length > 0) {
@@ -756,6 +871,9 @@ export function UnifiedMappingsPage() {
     if (cmMappings.length > 0) {
       cmSave.mutate({ mappings: cmMappings });
     }
+    if (ctMappings.length > 0) {
+      ctSave.mutate({ mappings: ctMappings });
+    }
   };
 
   // Count "accept all safe" groups
@@ -763,22 +881,20 @@ export function UnifiedMappingsPage() {
   for (const group of groups) {
     const tcgGroup = toMarketplaceGroup(group, "tcgplayer");
     const cmGroup = toMarketplaceGroup(group, "cardmarket");
+    const ctGroup = toMarketplaceGroup(group, "cardtrader");
     const tcgUnmapped = tcgGroup.printings.filter((p) => p.externalId === null).length;
     const cmUnmapped = cmGroup.printings.filter((p) => p.externalId === null).length;
-    if (tcgUnmapped === 0 && cmUnmapped === 0) {
+    const ctUnmapped = ctGroup.printings.filter((p) => p.externalId === null).length;
+    if (tcgUnmapped === 0 && cmUnmapped === 0 && ctUnmapped === 0) {
       continue;
     }
     const tcgSug = tcgUnmapped > 0 ? computeSuggestions(tcgGroup) : new Map();
     const cmSug = cmUnmapped > 0 ? computeSuggestions(cmGroup) : new Map();
-    const tcgOk =
-      tcgUnmapped === 0 ||
-      (tcgSug.size >= tcgUnmapped &&
-        [...tcgSug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
-    const cmOk =
-      cmUnmapped === 0 ||
-      (cmSug.size >= cmUnmapped &&
-        [...cmSug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
-    if (tcgOk && cmOk) {
+    const ctSug = ctUnmapped > 0 ? computeSuggestions(ctGroup) : new Map();
+    const isSafe = (unmapped: number, sug: Map<string, { score: number }>) =>
+      unmapped === 0 ||
+      (sug.size >= unmapped && [...sug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
+    if (isSafe(tcgUnmapped, tcgSug) && isSafe(cmUnmapped, cmSug) && isSafe(ctUnmapped, ctSug)) {
       safeGroupCount++;
     }
   }
@@ -786,25 +902,28 @@ export function UnifiedMappingsPage() {
   const handleAcceptAllSafe = () => {
     const tcgMappings: { printingId: string; externalId: number }[] = [];
     const cmMappings: { printingId: string; externalId: number }[] = [];
+    const ctMappings: { printingId: string; externalId: number }[] = [];
     for (const group of groups) {
       const tcgGroup = toMarketplaceGroup(group, "tcgplayer");
       const cmGroup = toMarketplaceGroup(group, "cardmarket");
+      const ctGroup = toMarketplaceGroup(group, "cardtrader");
       const tcgUnmapped = tcgGroup.printings.filter((p) => p.externalId === null).length;
       const cmUnmapped = cmGroup.printings.filter((p) => p.externalId === null).length;
-      if (tcgUnmapped === 0 && cmUnmapped === 0) {
+      const ctUnmapped = ctGroup.printings.filter((p) => p.externalId === null).length;
+      if (tcgUnmapped === 0 && cmUnmapped === 0 && ctUnmapped === 0) {
         continue;
       }
       const tcgSug = tcgUnmapped > 0 ? computeSuggestions(tcgGroup) : new Map();
       const cmSug = cmUnmapped > 0 ? computeSuggestions(cmGroup) : new Map();
-      const tcgOk =
-        tcgUnmapped === 0 ||
-        (tcgSug.size >= tcgUnmapped &&
-          [...tcgSug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
-      const cmOk =
-        cmUnmapped === 0 ||
-        (cmSug.size >= cmUnmapped &&
-          [...cmSug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
-      if (!tcgOk || !cmOk) {
+      const ctSug = ctUnmapped > 0 ? computeSuggestions(ctGroup) : new Map();
+      const isSafe = (unmapped: number, sug: Map<string, { score: number }>) =>
+        unmapped === 0 ||
+        (sug.size >= unmapped && [...sug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
+      if (
+        !isSafe(tcgUnmapped, tcgSug) ||
+        !isSafe(cmUnmapped, cmSug) ||
+        !isSafe(ctUnmapped, ctSug)
+      ) {
         continue;
       }
       for (const [pid, s] of tcgSug) {
@@ -813,6 +932,9 @@ export function UnifiedMappingsPage() {
       for (const [pid, s] of cmSug) {
         cmMappings.push({ printingId: pid, externalId: s.product.externalId });
       }
+      for (const [pid, s] of ctSug) {
+        ctMappings.push({ printingId: pid, externalId: s.product.externalId });
+      }
     }
     if (tcgMappings.length > 0) {
       tcgSave.mutate({ mappings: tcgMappings });
@@ -820,11 +942,14 @@ export function UnifiedMappingsPage() {
     if (cmMappings.length > 0) {
       cmSave.mutate({ mappings: cmMappings });
     }
+    if (ctMappings.length > 0) {
+      ctSave.mutate({ mappings: ctMappings });
+    }
   };
 
   // Hotkey
   const expandedGroup = groups.find((g) => expandedCards.has(g.cardId));
-  const isSaving = tcgSave.isPending || cmSave.isPending;
+  const isSaving = tcgSave.isPending || cmSave.isPending || ctSave.isPending;
   useHotkey(
     "Enter",
     () => {
@@ -879,6 +1004,7 @@ export function UnifiedMappingsPage() {
                 <TableHead>Printings</TableHead>
                 <TableHead className="text-center">TCG</TableHead>
                 <TableHead className="text-center">CM</TableHead>
+                <TableHead className="text-center">CT</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -894,14 +1020,19 @@ export function UnifiedMappingsPage() {
                     allCards={allCards}
                     tcgSave={tcgSave}
                     cmSave={cmSave}
+                    ctSave={ctSave}
                     tcgUnmap={tcgUnmap}
                     cmUnmap={cmUnmap}
+                    ctUnmap={ctUnmap}
                     tcgIgnore={tcgIgnore}
                     cmIgnore={cmIgnore}
+                    ctIgnore={ctIgnore}
                     tcgUnassign={tcgUnassign}
                     cmUnassign={cmUnassign}
+                    ctUnassign={ctUnassign}
                     tcgAssignToCard={tcgAssignToCard}
                     cmAssignToCard={cmAssignToCard}
+                    ctAssignToCard={ctAssignToCard}
                     onBatchAccept={() => handleBatchAccept(group)}
                   />
                 );
@@ -913,7 +1044,8 @@ export function UnifiedMappingsPage() {
 
       {/* Unmatched products */}
       {(data.unmatchedProducts.tcgplayer.length > 0 ||
-        data.unmatchedProducts.cardmarket.length > 0) && (
+        data.unmatchedProducts.cardmarket.length > 0 ||
+        data.unmatchedProducts.cardtrader.length > 0) && (
         <div className="mt-6 space-y-6">
           <UnmatchedSection
             marketplace="tcgplayer"
@@ -933,6 +1065,15 @@ export function UnifiedMappingsPage() {
             onAssignToCard={(p) => cmAssignToCard.mutate(p)}
             isAssigning={cmAssignToCard.isPending}
           />
+          <UnmatchedSection
+            marketplace="cardtrader"
+            products={data.unmatchedProducts.cardtrader}
+            allCards={allCards}
+            onIgnore={(p) => ctIgnore.mutate(p)}
+            isIgnoring={ctIgnore.isPending}
+            onAssignToCard={(p) => ctAssignToCard.mutate(p)}
+            isAssigning={ctAssignToCard.isPending}
+          />
         </div>
       )}
     </div>
@@ -940,6 +1081,27 @@ export function UnifiedMappingsPage() {
 }
 
 // ── Card group row ───────────────────────────────────────────────────────────
+
+interface MutSave {
+  mutate: (b: { mappings: { printingId: string; externalId: number }[] }) => void;
+  isPending: boolean;
+}
+interface MutId {
+  mutate: (id: string) => void;
+  isPending: boolean;
+}
+interface MutProducts {
+  mutate: (p: { externalId: number; finish: string }[]) => void;
+  isPending: boolean;
+}
+interface MutProduct {
+  mutate: (p: { externalId: number; finish: string }) => void;
+  isPending: boolean;
+}
+interface MutAssign {
+  mutate: (p: { externalId: number; finish: string; cardId: string }) => void;
+  isPending: boolean;
+}
 
 function UnifiedCardGroupRow({
   group,
@@ -949,14 +1111,19 @@ function UnifiedCardGroupRow({
   allCards,
   tcgSave,
   cmSave,
+  ctSave,
   tcgUnmap,
   cmUnmap,
+  ctUnmap,
   tcgIgnore,
   cmIgnore,
+  ctIgnore,
   tcgUnassign,
   cmUnassign,
+  ctUnassign,
   tcgAssignToCard,
   cmAssignToCard,
+  ctAssignToCard,
   onBatchAccept,
 }: {
   group: UnifiedMappingGroup;
@@ -964,28 +1131,21 @@ function UnifiedCardGroupRow({
   isHotkeyTarget: boolean;
   onToggle: () => void;
   allCards: AssignableCard[];
-  tcgSave: {
-    mutate: (b: { mappings: { printingId: string; externalId: number }[] }) => void;
-    isPending: boolean;
-  };
-  cmSave: {
-    mutate: (b: { mappings: { printingId: string; externalId: number }[] }) => void;
-    isPending: boolean;
-  };
-  tcgUnmap: { mutate: (id: string) => void; isPending: boolean };
-  cmUnmap: { mutate: (id: string) => void; isPending: boolean };
-  tcgIgnore: { mutate: (p: { externalId: number; finish: string }[]) => void; isPending: boolean };
-  cmIgnore: { mutate: (p: { externalId: number; finish: string }[]) => void; isPending: boolean };
-  tcgUnassign: { mutate: (p: { externalId: number; finish: string }) => void; isPending: boolean };
-  cmUnassign: { mutate: (p: { externalId: number; finish: string }) => void; isPending: boolean };
-  tcgAssignToCard: {
-    mutate: (p: { externalId: number; finish: string; cardId: string }) => void;
-    isPending: boolean;
-  };
-  cmAssignToCard: {
-    mutate: (p: { externalId: number; finish: string; cardId: string }) => void;
-    isPending: boolean;
-  };
+  tcgSave: MutSave;
+  cmSave: MutSave;
+  ctSave: MutSave;
+  tcgUnmap: MutId;
+  cmUnmap: MutId;
+  ctUnmap: MutId;
+  tcgIgnore: MutProducts;
+  cmIgnore: MutProducts;
+  ctIgnore: MutProducts;
+  tcgUnassign: MutProduct;
+  cmUnassign: MutProduct;
+  ctUnassign: MutProduct;
+  tcgAssignToCard: MutAssign;
+  cmAssignToCard: MutAssign;
+  ctAssignToCard: MutAssign;
   onBatchAccept: () => void;
 }) {
   return (
@@ -1014,23 +1174,31 @@ function UnifiedCardGroupRow({
         <TableCell className="text-center">
           <MarketplaceStatusBadge label="CM" group={group} marketplace="cardmarket" />
         </TableCell>
+        <TableCell className="text-center">
+          <MarketplaceStatusBadge label="CT" group={group} marketplace="cardtrader" />
+        </TableCell>
       </TableRow>
       {isExpanded && (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={5} className="p-0">
+          <TableCell colSpan={6} className="p-0">
             <UnifiedExpandedDetail
               group={group}
               allCards={allCards}
               tcgSave={tcgSave}
               cmSave={cmSave}
+              ctSave={ctSave}
               tcgUnmap={tcgUnmap}
               cmUnmap={cmUnmap}
+              ctUnmap={ctUnmap}
               tcgIgnore={tcgIgnore}
               cmIgnore={cmIgnore}
+              ctIgnore={ctIgnore}
               tcgUnassign={tcgUnassign}
               cmUnassign={cmUnassign}
+              ctUnassign={ctUnassign}
               tcgAssignToCard={tcgAssignToCard}
               cmAssignToCard={cmAssignToCard}
+              ctAssignToCard={ctAssignToCard}
               onBatchAccept={onBatchAccept}
               showHotkeyHint={isHotkeyTarget}
             />

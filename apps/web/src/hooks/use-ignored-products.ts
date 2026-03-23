@@ -16,7 +16,7 @@ export function useUnignoreProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (product: {
-      marketplace: "tcgplayer" | "cardmarket";
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       externalId: number;
       finish: string;
     }) =>

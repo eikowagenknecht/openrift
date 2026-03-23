@@ -137,6 +137,18 @@ const cmMapPrices = (row: PriceColumns) => ({
   avg30Cents: row.avg30Cents,
 });
 
+const ctMapPrices = (row: PriceColumns) => ({
+  marketCents: row.marketCents,
+  lowCents: row.lowCents,
+  currency: "EUR",
+  midCents: row.midCents,
+  highCents: row.highCents,
+  trendCents: row.trendCents,
+  avg1Cents: row.avg1Cents,
+  avg7Cents: row.avg7Cents,
+  avg30Cents: row.avg30Cents,
+});
+
 export function createMarketplaceConfigs(db: Kysely<Database>) {
   const repo = marketplaceTransferRepo(db);
   return {
@@ -150,6 +162,12 @@ export function createMarketplaceConfigs(db: Kysely<Database>) {
       marketplace: "cardmarket",
       currency: "EUR",
       mapPrices: cmMapPrices,
+      repo,
+    }),
+    cardtrader: createMarketplaceConfig({
+      marketplace: "cardtrader",
+      currency: "EUR",
+      mapPrices: ctMapPrices,
       repo,
     }),
   };

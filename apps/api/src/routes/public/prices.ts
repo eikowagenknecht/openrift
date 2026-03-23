@@ -72,15 +72,18 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
           printingId,
           tcgplayer: { available: false, currency: "USD", productId: null, snapshots: [] },
           cardmarket: { available: false, currency: "EUR", productId: null, snapshots: [] },
+          cardtrader: { available: false, currency: "EUR", productId: null, snapshots: [] },
         } satisfies PriceHistoryResponse);
       }
 
       const tcgSource = sources.find((s) => s.marketplace === ("tcgplayer" satisfies Marketplace));
       const cmSource = sources.find((s) => s.marketplace === ("cardmarket" satisfies Marketplace));
+      const ctSource = sources.find((s) => s.marketplace === ("cardtrader" satisfies Marketplace));
 
-      const [tcgRows, cmRows] = await Promise.all([
+      const [tcgRows, cmRows, ctRows] = await Promise.all([
         tcgSource ? marketplace.snapshots(tcgSource.id, cutoff) : [],
         cmSource ? marketplace.snapshots(cmSource.id, cutoff) : [],
+        ctSource ? marketplace.snapshots(ctSource.id, cutoff) : [],
       ]);
 
       const tcgSnapshots = tcgRows.map((r) => ({
@@ -101,6 +104,11 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
         avg30: centsToDollars(r.avg30Cents),
       }));
 
+      const ctSnapshots = ctRows.map((r) => ({
+        date: formatDateUTC(r.recordedAt),
+        market: centsToDollars(r.marketCents),
+      }));
+
       const response: PriceHistoryResponse = {
         printingId: printing.id,
         tcgplayer: {
@@ -114,6 +122,12 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
           currency: "EUR",
           productId: cmSource?.externalId ?? null,
           snapshots: cmSnapshots,
+        },
+        cardtrader: {
+          available: Boolean(ctSource),
+          currency: "EUR",
+          productId: ctSource?.externalId ?? null,
+          snapshots: ctSnapshots,
         },
       };
 

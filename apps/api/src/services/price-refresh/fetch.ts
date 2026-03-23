@@ -10,8 +10,9 @@ const TIMEOUT_MS = 10_000;
 export async function fetchJson<T>(
   fetchFn: Fetch,
   url: string,
+  headers?: Record<string, string>,
 ): Promise<{ data: T; lastModified: Date | null }> {
-  const res = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const res = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS), headers });
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} for ${url}: ${await res.text()}`);
   }

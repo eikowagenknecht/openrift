@@ -5,6 +5,7 @@ import { client } from "@/lib/rpc-client";
 export interface CronStatus {
   tcgplayer: { nextRun: string | null } | null;
   cardmarket: { nextRun: string | null } | null;
+  cardtrader: { nextRun: string | null } | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -39,6 +40,13 @@ export const refreshActions = {
     post: () => client.api.admin["refresh-cardmarket-prices"].$post(),
     cronKey: "cardmarket" as const,
   },
+  cardtrader: {
+    key: "cardtrader",
+    title: "Refresh CardTrader Prices",
+    description: "Fetch latest prices from CardTrader",
+    post: () => client.api.admin["refresh-cardtrader-prices"].$post(),
+    cronKey: "cardtrader" as const,
+  },
 } as const;
 
 export const clearActions = {
@@ -53,5 +61,11 @@ export const clearActions = {
     source: "cardmarket" as const,
     title: "Clear Cardmarket Prices",
     description: "Delete all Cardmarket price sources, snapshots, and staging data",
+  },
+  cardtrader: {
+    key: "clear-cardtrader",
+    source: "cardtrader" as const,
+    title: "Clear CardTrader Prices",
+    description: "Delete all CardTrader price sources, snapshots, and staging data",
   },
 } as const;

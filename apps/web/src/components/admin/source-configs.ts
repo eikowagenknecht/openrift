@@ -13,3 +13,10 @@ export const TCG_CONFIG: SourceMappingConfig = {
   shortName: "TCG",
   productUrl: (id) => `https://www.tcgplayer.com/product/${id}`,
 };
+
+export const CT_CONFIG: SourceMappingConfig = {
+  source: "cardtrader",
+  displayName: "CardTrader",
+  shortName: "CT",
+  productUrl: (id) => `https://www.cardtrader.com/en/riftbound/cards/${id}`,
+};

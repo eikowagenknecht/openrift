@@ -45,7 +45,7 @@ function PriceSection({
   cronKey,
   cronStatus,
 }: {
-  label: "TCGplayer" | "Cardmarket";
+  label: "TCGplayer" | "Cardmarket" | "CardTrader";
   groups: number;
   mapped: number;
   staged: number;
@@ -131,10 +131,13 @@ export function MarketplaceOverviewPage() {
   const allGroups = groupsData.groups;
   const tcgGroups = allGroups.filter((g) => g.marketplace === "tcgplayer");
   const cmGroups = allGroups.filter((g) => g.marketplace === "cardmarket");
+  const ctGroups = allGroups.filter((g) => g.marketplace === "cardtrader");
   const tcgAssigned = tcgGroups.reduce((sum, g) => sum + g.assignedCount, 0);
   const tcgStaged = tcgGroups.reduce((sum, g) => sum + g.stagedCount, 0);
   const cmAssigned = cmGroups.reduce((sum, g) => sum + g.assignedCount, 0);
   const cmStaged = cmGroups.reduce((sum, g) => sum + g.stagedCount, 0);
+  const ctAssigned = ctGroups.reduce((sum, g) => sum + g.assignedCount, 0);
+  const ctStaged = ctGroups.reduce((sum, g) => sum + g.stagedCount, 0);
 
   return (
     <div className="space-y-4">
@@ -152,6 +155,14 @@ export function MarketplaceOverviewPage() {
         mapped={cmAssigned}
         staged={cmStaged}
         cronKey="cardmarket"
+        cronStatus={cronStatus}
+      />
+      <PriceSection
+        label="CardTrader"
+        groups={ctGroups.length}
+        mapped={ctAssigned}
+        staged={ctStaged}
+        cronKey="cardtrader"
         cronStatus={cronStatus}
       />
     </div>

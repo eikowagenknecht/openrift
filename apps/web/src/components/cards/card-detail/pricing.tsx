@@ -2,7 +2,7 @@ import type { Printing, TimeRange } from "@openrift/shared";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
 import { usePriceHistory } from "@/hooks/use-price-history";
-import { affiliateUrl } from "@/lib/affiliate";
+import { affiliateUrl, cardtraderAffiliateUrl } from "@/lib/affiliate";
 import { formatPrice, formatPriceEur, priceColorClass } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +10,10 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
   const { data: history } = usePriceHistory(printing.id, range);
   const cmSnapshots = history?.cardmarket.snapshots;
   const cmLatest = cmSnapshots?.length ? cmSnapshots.at(-1) : null;
+  const ctSnapshots = history?.cardtrader.snapshots;
+  const ctLatest = ctSnapshots?.length ? ctSnapshots.at(-1) : null;
 
-  if (printing.marketPrice === undefined && !cmLatest) {
+  if (printing.marketPrice === undefined && !cmLatest && !ctLatest) {
     return null;
   }
 
@@ -22,6 +24,10 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
   const cmProductId = history?.cardmarket.productId;
   const cmUrl = cmProductId
     ? `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${cmProductId}`
+    : null;
+  const ctProductId = history?.cardtrader.productId;
+  const ctUrl = ctProductId
+    ? cardtraderAffiliateUrl(`https://www.cardtrader.com/en/riftbound/cards/${ctProductId}`)
     : null;
 
   return (
@@ -45,6 +51,16 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
           iconClassName="invert dark:invert-0"
           value={cmLatest.market}
           url={cmUrl}
+          formatValue={formatPriceEur}
+        />
+      )}
+      {ctLatest && (
+        <PriceChip
+          label="CardTrader"
+          icon="/images/external/cardtrader-20x28.webp"
+          iconClassName="invert dark:invert-0"
+          value={ctLatest.market}
+          url={ctUrl}
           formatValue={formatPriceEur}
         />
       )}

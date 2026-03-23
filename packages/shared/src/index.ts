@@ -17,6 +17,7 @@ export type {
   CardFilters,
   CardFace,
   CardmarketSnapshot,
+  CardtraderSnapshot,
   CandidateCardResponse,
   CandidateCardSummaryResponse,
   CandidateCardUploadResponse,

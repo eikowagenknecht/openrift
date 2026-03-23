@@ -8,7 +8,11 @@ import { cronJobs } from "./cron-jobs.js";
 import { createDb } from "./db/connect.js";
 import { migrate } from "./db/migrate.js";
 import { createEmailSender } from "./email.js";
-import { refreshCardmarketPrices, refreshTcgplayerPrices } from "./services/price-refresh/index.js";
+import {
+  refreshCardmarketPrices,
+  refreshCardtraderPrices,
+  refreshTcgplayerPrices,
+} from "./services/price-refresh/index.js";
 
 // ── Composition root ──────────────────────────────────────────────────────────
 
@@ -58,6 +62,22 @@ if (config.cron.enabled) {
     }
   });
   cmLog.info(`Cron registered (${cmSchedule})`);
+
+  if (config.cardtraderApiToken) {
+    const ctLog = log.child({ service: "cardtrader" });
+    const ctSchedule = config.cron.cardtraderSchedule;
+
+    cronJobs.cardtrader = new Cron(ctSchedule, { protect: true }, async () => {
+      try {
+        ctLog.info("Starting price refresh");
+        await refreshCardtraderPrices(globalThis.fetch, db, ctLog, config.cardtraderApiToken);
+        ctLog.info("Price refresh complete");
+      } catch (error) {
+        ctLog.error(error, "Price refresh failed");
+      }
+    });
+    ctLog.info(`Cron registered (${ctSchedule})`);
+  }
 }
 
 // ── 3. Start server ─────────────────────────────────────────────────────────

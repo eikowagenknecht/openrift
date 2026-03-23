@@ -1,5 +1,6 @@
 import type {
   CardmarketSnapshot,
+  CardtraderSnapshot,
   Marketplace,
   TcgplayerSnapshot,
   TimeRange,
@@ -73,7 +74,11 @@ export function PriceHistoryChart({
 
   const currencyFormatter = source === "tcgplayer" ? formatPrice : formatPriceEur;
   const sourceData = data?.[source];
-  const snapshots = (sourceData?.snapshots ?? []) as (TcgplayerSnapshot | CardmarketSnapshot)[];
+  const snapshots = (sourceData?.snapshots ?? []) as (
+    | TcgplayerSnapshot
+    | CardmarketSnapshot
+    | CardtraderSnapshot
+  )[];
 
   const hasLow = snapshots.some(
     (s) =>
@@ -100,8 +105,8 @@ export function PriceHistoryChart({
           ))}
         </ButtonGroup>
         <ButtonGroup aria-label="Price source" className="ml-auto">
-          {(["tcgplayer", "cardmarket"] as const).map((s) => {
-            const label = s === "tcgplayer" ? "TCG" : "CM";
+          {(["tcgplayer", "cardmarket", "cardtrader"] as const).map((s) => {
+            const label = s === "tcgplayer" ? "TCG" : s === "cardmarket" ? "CM" : "CT";
             const available = data?.[s]?.available ?? false;
             return (
               <Button

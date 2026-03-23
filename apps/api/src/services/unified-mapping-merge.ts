@@ -53,8 +53,8 @@ interface MappingOverviewResult {
 }
 
 /**
- * Merge TCGplayer and Cardmarket mapping overviews into a unified response.
- * Combines data from both marketplaces per card, computes primary source IDs,
+ * Merge TCGplayer, Cardmarket, and CardTrader mapping overviews into a unified response.
+ * Combines data from all marketplaces per card, computes primary source IDs,
  * and filters to show only cards with incomplete mappings or staged products.
  * @returns Unified mappings response with merged groups, unmatched products, and card list.
  */
@@ -62,18 +62,20 @@ export async function buildUnifiedMappingsResponse(
   db: Kysely<Database>,
   tcgplayerConfig: MarketplaceConfig,
   cardmarketConfig: MarketplaceConfig,
+  cardtraderConfig: MarketplaceConfig,
   getMappingOverview: (
     db: Kysely<Database>,
     config: MarketplaceConfig,
   ) => Promise<MappingOverviewResult>,
   showAll: boolean,
 ): Promise<UnifiedMappingsResponse> {
-  const [tcgResult, cmResult] = await Promise.all([
+  const [tcgResult, cmResult, ctResult] = await Promise.all([
     getMappingOverview(db, tcgplayerConfig),
     getMappingOverview(db, cardmarketConfig),
+    getMappingOverview(db, cardtraderConfig),
   ]);
 
-  // Merge by cardId — combine data from both marketplaces per card
+  // Merge by cardId — combine data from all marketplaces per card
   const mergedMap = new Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">>();
 
   // Index TCGplayer groups by cardId
@@ -101,12 +103,14 @@ export async function buildUnifiedMappingsResponse(
         imageUrl: p.imageUrl,
         tcgExternalId: p.externalId,
         cmExternalId: null,
+        ctExternalId: null,
       })),
       tcgplayer: {
         stagedProducts: group.stagedProducts,
         assignedProducts: group.assignedProducts,
       },
       cardmarket: { stagedProducts: [], assignedProducts: [] },
+      cardtrader: { stagedProducts: [], assignedProducts: [] },
     });
   }
 
@@ -147,9 +151,59 @@ export async function buildUnifiedMappingsResponse(
           imageUrl: p.imageUrl,
           tcgExternalId: null,
           cmExternalId: p.externalId,
+          ctExternalId: null,
         })),
         tcgplayer: { stagedProducts: [], assignedProducts: [] },
         cardmarket: {
+          stagedProducts: group.stagedProducts,
+          assignedProducts: group.assignedProducts,
+        },
+        cardtrader: { stagedProducts: [], assignedProducts: [] },
+      });
+    }
+  }
+
+  // Merge CardTrader groups
+  for (const group of ctResult.groups) {
+    const existing = mergedMap.get(group.cardId);
+    if (existing) {
+      const ctByPrinting = new Map(group.printings.map((p) => [p.printingId, p.externalId]));
+      for (const p of existing.printings) {
+        p.ctExternalId = ctByPrinting.get(p.printingId) ?? null;
+      }
+      existing.cardtrader = {
+        stagedProducts: group.stagedProducts,
+        assignedProducts: group.assignedProducts,
+      };
+    } else {
+      mergedMap.set(group.cardId, {
+        cardId: group.cardId,
+        cardSlug: group.cardSlug,
+        cardName: group.cardName,
+        cardType: group.cardType,
+        superTypes: group.superTypes,
+        domains: group.domains,
+        energy: group.energy,
+        might: group.might,
+        setId: group.setId,
+        setName: group.setName,
+        printings: group.printings.map((p) => ({
+          printingId: p.printingId,
+          shortCode: p.shortCode,
+          rarity: p.rarity,
+          artVariant: p.artVariant,
+          isSigned: p.isSigned,
+          promoTypeSlug: p.promoTypeSlug,
+          finish: p.finish,
+          collectorNumber: p.collectorNumber,
+          imageUrl: p.imageUrl,
+          tcgExternalId: null,
+          cmExternalId: null,
+          ctExternalId: p.externalId,
+        })),
+        tcgplayer: { stagedProducts: [], assignedProducts: [] },
+        cardmarket: { stagedProducts: [], assignedProducts: [] },
+        cardtrader: {
           stagedProducts: group.stagedProducts,
           assignedProducts: group.assignedProducts,
         },
@@ -167,25 +221,30 @@ export async function buildUnifiedMappingsResponse(
   }));
   allGroupsWithPrimary.sort((a, b) => a.primaryShortCode.localeCompare(b.primaryShortCode));
 
-  // Filter after merge so both marketplaces have complete data
+  // Filter after merge so all marketplaces have complete data
   const filteredGroups = showAll
     ? allGroupsWithPrimary
     : allGroupsWithPrimary.filter(
         (g) =>
-          g.printings.some((p) => p.tcgExternalId === null || p.cmExternalId === null) ||
+          g.printings.some(
+            (p) => p.tcgExternalId === null || p.cmExternalId === null || p.ctExternalId === null,
+          ) ||
           g.tcgplayer.stagedProducts.length > 0 ||
-          g.cardmarket.stagedProducts.length > 0,
+          g.cardmarket.stagedProducts.length > 0 ||
+          g.cardtrader.stagedProducts.length > 0,
       );
 
-  // allCards only needs to be sent once (same card pool for both)
-  const allCards =
-    tcgResult.allCards.length >= cmResult.allCards.length ? tcgResult.allCards : cmResult.allCards;
+  // allCards only needs to be sent once (same card pool for all)
+  const allCards = [tcgResult.allCards, cmResult.allCards, ctResult.allCards].reduce((best, curr) =>
+    curr.length >= best.length ? curr : best,
+  );
 
   return {
     groups: filteredGroups,
     unmatchedProducts: {
       tcgplayer: tcgResult.unmatchedProducts,
       cardmarket: cmResult.unmatchedProducts,
+      cardtrader: ctResult.unmatchedProducts,
     },
     allCards,
   };

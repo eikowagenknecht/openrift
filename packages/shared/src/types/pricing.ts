@@ -1,4 +1,4 @@
-export type Marketplace = "tcgplayer" | "cardmarket";
+export type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
 /** Maps each time range to its lookback window in days (`null` = no limit). */
 export const TIME_RANGE_DAYS = {

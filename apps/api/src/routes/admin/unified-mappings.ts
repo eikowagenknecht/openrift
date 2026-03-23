@@ -10,7 +10,7 @@ import { createMarketplaceConfigs } from "./marketplace-configs.js";
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
 const marketplaceSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket"]),
+  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
 });
 
 const saveMappingsSchema = z.object({
@@ -36,13 +36,14 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
     async (c) => {
       const db = c.get("db");
       const { getMappingOverview } = c.get("services");
-      const { tcgplayer, cardmarket } = createMarketplaceConfigs(db);
+      const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(db);
       const showAll = c.req.valid("query").all === "true";
 
       const result = await buildUnifiedMappingsResponse(
         db,
         tcgplayer,
         cardmarket,
+        cardtrader,
         getMappingOverview,
         showAll,
       );

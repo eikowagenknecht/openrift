@@ -289,6 +289,7 @@ export interface UnifiedMappingPrintingResponse extends Omit<
 > {
   tcgExternalId: number | null;
   cmExternalId: number | null;
+  ctExternalId: number | null;
 }
 
 export interface StagedProductResponse {
@@ -331,6 +332,10 @@ export interface UnifiedMappingGroupResponse {
     stagedProducts: StagedProductResponse[];
     assignedProducts: StagedProductResponse[];
   };
+  cardtrader: {
+    stagedProducts: StagedProductResponse[];
+    assignedProducts: StagedProductResponse[];
+  };
 }
 
 export interface AssignableCardResponse {
@@ -353,6 +358,7 @@ export interface UnifiedMappingsResponse {
   unmatchedProducts: {
     tcgplayer: StagedProductResponse[];
     cardmarket: StagedProductResponse[];
+    cardtrader: StagedProductResponse[];
   };
   allCards: AssignableCardResponse[];
 }

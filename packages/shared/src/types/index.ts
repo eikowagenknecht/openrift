@@ -102,6 +102,7 @@ export type {
 
 export type {
   CardmarketSnapshot,
+  CardtraderSnapshot,
   PriceHistoryResponse,
   PricesResponse,
   TcgplayerSnapshot,

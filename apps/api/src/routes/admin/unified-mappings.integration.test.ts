@@ -332,10 +332,15 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         const hasUnmappedCm = group.printings.some(
           (p: { cmExternalId: number | null }) => p.cmExternalId === null,
         );
+        const hasUnmappedCt = group.printings.some(
+          (p: { ctExternalId: number | null }) => p.ctExternalId === null,
+        );
         const hasStagedProducts =
-          group.tcgplayer.stagedProducts.length > 0 || group.cardmarket.stagedProducts.length > 0;
+          group.tcgplayer.stagedProducts.length > 0 ||
+          group.cardmarket.stagedProducts.length > 0 ||
+          group.cardtrader.stagedProducts.length > 0;
 
-        expect(hasUnmappedTcg || hasUnmappedCm || hasStagedProducts).toBe(true);
+        expect(hasUnmappedTcg || hasUnmappedCm || hasUnmappedCt || hasStagedProducts).toBe(true);
       }
     });
 

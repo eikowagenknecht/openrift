@@ -32,10 +32,13 @@ export function createConfig(env: Record<string, string | undefined>) {
       from: env.SMTP_FROM,
     },
 
+    cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
+
     cron: {
       enabled: env.CRON_ENABLED === "true",
       tcgplayerSchedule: env.CRON_TCGPLAYER || "0 6 * * *",
       cardmarketSchedule: env.CRON_CARDMARKET || "15 6 * * *",
+      cardtraderSchedule: env.CRON_CARDTRADER || "30 6 * * *",
     },
   } as const;
 }

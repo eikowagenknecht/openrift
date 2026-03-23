@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-23
+
+- feat: Card prices from CardTrader now appear alongside TCGPlayer and Cardmarket on card detail pages
+
 ## 2026-03-20
 
 - fix: The "printed text differs" warning no longer appears when the printed text is identical to the canonical text

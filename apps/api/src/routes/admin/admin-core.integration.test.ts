@@ -78,7 +78,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toEqual({ tcgplayer: null, cardmarket: null });
+      expect(json).toEqual({ tcgplayer: null, cardmarket: null, cardtrader: null });
     });
   });
 });

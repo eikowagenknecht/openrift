@@ -6,6 +6,7 @@ import { z } from "zod/v4";
 
 import {
   refreshCardmarketPrices,
+  refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "../../services/price-refresh/index.js";
 import type { Variables } from "../../types.js";
@@ -14,7 +15,7 @@ const log = createLogger("admin");
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
-const clearPriceMarketplaceSchema = z.enum(["tcgplayer", "cardmarket"]);
+const clearPriceMarketplaceSchema = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const clearPricesSchema = z.object({
   marketplace: clearPriceMarketplaceSchema,
@@ -48,5 +49,17 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
   .post("/refresh-cardmarket-prices", async (c) => {
     const db = c.get("db");
     const result = await refreshCardmarketPrices(c.get("io").fetch, db, log);
+    return c.json(result);
+  })
+
+  .post("/refresh-cardtrader-prices", async (c) => {
+    const db = c.get("db");
+    const config = c.get("config");
+    const result = await refreshCardtraderPrices(
+      c.get("io").fetch,
+      db,
+      log,
+      config.cardtraderApiToken,
+    );
     return c.json(result);
   });

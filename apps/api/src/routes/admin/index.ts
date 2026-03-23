@@ -36,6 +36,9 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
       cardmarket: cronJobs.cardmarket
         ? { nextRun: cronJobs.cardmarket.nextRun()?.toISOString() ?? null }
         : null,
+      cardtrader: cronJobs.cardtrader
+        ? { nextRun: cronJobs.cardtrader.nextRun()?.toISOString() ?? null }
+        : null,
     }),
   )
 

@@ -7,14 +7,14 @@ import type { Variables } from "../../types.js";
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
 const stagingCardOverrideSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket"]),
+  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   externalId: z.number(),
   finish: z.string(),
   cardId: z.string(),
 });
 
 const deleteOverrideSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket"]),
+  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   externalId: z.number(),
   finish: z.string(),
 });

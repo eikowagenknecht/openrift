@@ -20,6 +20,11 @@ export interface CardmarketSnapshot {
   avg30: number | null;
 }
 
+export interface CardtraderSnapshot {
+  date: string;
+  market: number;
+}
+
 export interface PriceHistoryResponse {
   printingId: string;
   tcgplayer: {
@@ -33,5 +38,11 @@ export interface PriceHistoryResponse {
     currency: "EUR";
     productId: number | null;
     snapshots: CardmarketSnapshot[];
+  };
+  cardtrader: {
+    available: boolean;
+    currency: "EUR";
+    productId: number | null;
+    snapshots: CardtraderSnapshot[];
   };
 }

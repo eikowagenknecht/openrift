@@ -13,7 +13,7 @@ const ignoreProductItemSchema = z.object({
 });
 
 const ignoreProductsSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket"]),
+  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   products: z.array(ignoreProductItemSchema).min(1),
 });
 
