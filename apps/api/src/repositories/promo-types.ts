@@ -3,15 +3,6 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-/** Row returned by `affectedImagesByPromoType`. */
-interface AffectedImage {
-  printingId: string;
-  printingSlug: string;
-  imageId: string;
-  rehostedUrl: string;
-  setSlug: string;
-}
-
 export function promoTypesRepo(db: Kysely<Database>) {
   return {
     listAll() {
@@ -67,25 +58,6 @@ export function promoTypesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Printings with rehosted images that use the given promo type. */
-    async affectedImagesByPromoType(promoTypeId: string): Promise<AffectedImage[]> {
-      const rows = await db
-        .selectFrom("printings as p")
-        .innerJoin("printingImages as pi", "pi.printingId", "p.id")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .select([
-          "p.id as printingId",
-          "p.slug as printingSlug",
-          "pi.id as imageId",
-          "pi.rehostedUrl",
-          "s.slug as setSlug",
-        ])
-        .where("p.promoTypeId", "=", promoTypeId)
-        .where("pi.rehostedUrl", "is not", null)
-        .execute();
-      return rows as AffectedImage[];
-    },
-
     /** Bulk-update printing slugs by replacing a suffix substring.
      * @returns Resolves when the update is complete. */
     async renamePrintingSlugs(
@@ -99,16 +71,6 @@ export function promoTypesRepo(db: Kysely<Database>) {
           slug: sql<string>`replace(slug, ${oldSuffix}, ${newSuffix})`,
         })
         .where("promoTypeId", "=", promoTypeId)
-        .execute();
-    },
-
-    /** Update a single printing image's rehosted URL.
-     * @returns Resolves when the update is complete. */
-    async updateImageRehostedUrl(imageId: string, rehostedUrl: string): Promise<void> {
-      await db
-        .updateTable("printingImages")
-        .set({ rehostedUrl })
-        .where("id", "=", imageId)
         .execute();
     },
   };

@@ -10,9 +10,8 @@ import {
   CARD_IMAGES_DIR,
   deleteRehostFiles,
   downloadImage,
-  printingIdToFileBase,
+  imageRehostedUrl,
   processAndSave,
-  renameRehostFiles,
 } from "../../../services/image-rehost.js";
 import type { Variables } from "../../../types.js";
 import {
@@ -94,45 +93,19 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
       const { imageId } = c.req.param();
       const { active } = c.req.valid("json");
 
-      const image = await printingImages.getWithPrintingAndSetForActivate(imageId);
+      const image = await printingImages.getForActivate(imageId);
 
       if (!image) {
         throw new AppError(404, "NOT_FOUND", "Printing image not found");
       }
 
-      const baseFileBase = printingIdToFileBase(image.printingSlug);
-      const mainPath = `/card-images/${image.setSlug}/${baseFileBase}`;
-
-      // Find the currently active image (if any) for file rename purposes
-      const currentActive = active
-        ? await printingImages.getActiveFrontImage(image.printingId, image.face)
-        : null;
-
       await db.transaction().execute(async (trx) => {
-        if (active && currentActive) {
-          // Deactivate the current active image
-          await printingImages.deactivate(currentActive.id, trx);
-
-          // Rename current active's files: main path → ID-suffixed path
-          if (currentActive.rehostedUrl) {
-            const demotedPath = `${mainPath}-${currentActive.id}`;
-            await renameRehostFiles(c.get("io"), currentActive.rehostedUrl, demotedPath);
-            await printingImages.updateRehostedUrlTrx(currentActive.id, demotedPath, trx);
-          }
+        if (active) {
+          // Deactivate the current active image (if any)
+          await printingImages.deactivateActiveFront(image.printingId, trx);
         }
 
         await printingImages.setActive(imageId, active, trx);
-
-        if (active && image.rehostedUrl) {
-          // Rename newly active image's files: ID-suffixed path → main path
-          await renameRehostFiles(c.get("io"), image.rehostedUrl, mainPath);
-          await printingImages.updateRehostedUrlTrx(imageId, mainPath, trx);
-        } else if (!active && image.rehostedUrl) {
-          // Demoting: rename from main path → ID-suffixed path
-          const demotedPath = `${mainPath}-${image.id}`;
-          await renameRehostFiles(c.get("io"), image.rehostedUrl, demotedPath);
-          await printingImages.updateRehostedUrlTrx(imageId, demotedPath, trx);
-        }
       });
 
       return c.body(null, 204);
@@ -181,7 +154,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const { printingImages } = c.get("repos");
     const { imageId } = c.req.param();
 
-    const image = await printingImages.getWithPrintingAndSetForRehost(imageId);
+    const image = await printingImages.getForRehost(imageId);
 
     if (!image) {
       throw new AppError(404, "NOT_FOUND", "Printing image not found");
@@ -192,13 +165,11 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     }
 
     const { buffer, ext } = await downloadImage(c.get("io"), image.originalUrl);
-    const baseFileBase = printingIdToFileBase(image.printingSlug);
-    const fileBase = image.isActive ? baseFileBase : `${baseFileBase}-${image.id}`;
     const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
 
-    await processAndSave(c.get("io"), buffer, ext, outputDir, fileBase);
+    await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
 
-    const rehostedUrl = `/card-images/${image.setSlug}/${fileBase}`;
+    const rehostedUrl = imageRehostedUrl(image.setSlug, imageId);
 
     await printingImages.updateRehostedUrl(imageId, rehostedUrl);
 
@@ -253,16 +224,14 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
       const buffer = Buffer.from(await file.arrayBuffer());
       const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
-      const baseFileBase = printingIdToFileBase(printing.slug);
       const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
 
       // Pre-compute paths so rehostedUrl can be included in the INSERT
       // (chk_printing_images_has_url requires at least one URL at insert time)
-      const imageId = mode === "additional" ? uuidv7() : undefined;
-      const fileBase = mode === "main" ? baseFileBase : `${baseFileBase}-${imageId}`;
-      const rehostedUrl = `/card-images/${printing.setSlug}/${fileBase}`;
+      const imageId = uuidv7();
+      const rehostedUrl = imageRehostedUrl(printing.setSlug, imageId);
 
-      await processAndSave(c.get("io"), buffer, ext, outputDir, fileBase);
+      await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
 
       await db.transaction().execute(async (trx) => {
         await printingImages.insertUploadedImage(trx, {

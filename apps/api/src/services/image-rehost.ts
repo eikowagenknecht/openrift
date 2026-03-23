@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 
 import type {
+  CleanupOrphanedResponse,
   ClearRehostedResponse,
   RegenerateImageResponse,
   RehostImageResponse,
@@ -16,6 +17,14 @@ import type { Io } from "../io.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
+
+/**
+ * Build the canonical rehosted URL for an image by its UUID and set slug.
+ * @returns The URL path like `/card-images/{setSlug}/{imageId}`
+ */
+export function imageRehostedUrl(setSlug: string, imageId: string): string {
+  return `/card-images/${setSlug}/${imageId}`;
+}
 
 function findProjectRoot(): string {
   const start = import.meta.dirname;
@@ -37,20 +46,6 @@ const SIZES = [
   { suffix: "400w", width: 400, quality: 85 },
   { suffix: "full", width: null, quality: 85 },
 ] as const;
-
-/** @see RehostImageResponse — shared contract */
-
-/**
- * Convert a printing ID to a filesystem-safe filename base.
- *
- * Printing ID format: `{short_code}:{finish}:{promo_type_slug|}`
- * File format:        `{short_code}-{finish}-{promo_type_slug|n}`
- * @returns The filesystem-safe filename base
- */
-export function printingIdToFileBase(printingId: string): string {
-  const [shortCode, finish, promoSlug] = printingId.split(":");
-  return `${shortCode}-${finish}-${promoSlug || "n"}`;
-}
 
 function guessExtension(contentType: string | null, url: string): string {
   if (contentType?.includes("png")) {
@@ -189,37 +184,6 @@ export async function renameRehostFiles(
   }
 }
 
-/**
- * Rename all rehosted image files for a printing whose slug changed.
- * Queries the printing's images, renames the files on disk, and updates the DB URLs.
- * @returns Resolves when all files and DB records have been updated.
- */
-export async function renamePrintingImages(
-  io: Io,
-  repo: PrintingImagesRepo,
-  printingId: string,
-  oldSlug: string,
-  newSlug: string,
-): Promise<void> {
-  if (oldSlug === newSlug) {
-    return;
-  }
-
-  const images = await repo.listRehostedByPrintingId(printingId);
-  if (images.length === 0) {
-    return;
-  }
-
-  const oldFileBase = printingIdToFileBase(oldSlug);
-  const newFileBase = printingIdToFileBase(newSlug);
-
-  for (const img of images) {
-    const newRehostedUrl = img.rehostedUrl.replace(oldFileBase, newFileBase);
-    await renameRehostFiles(io, img.rehostedUrl, newRehostedUrl);
-    await repo.updateRehostedUrl(img.id, newRehostedUrl);
-  }
-}
-
 const BATCH_SIZE = 10;
 
 export async function rehostImages(
@@ -245,12 +209,11 @@ export async function rehostImages(
 
     try {
       const { buffer, ext } = await downloadImage(io, img.originalUrl);
-      const fileBase = printingIdToFileBase(img.printingSlug);
       const outputDir = join(CARD_IMAGES_DIR, img.setSlug);
 
-      await processAndSave(io, buffer, ext, outputDir, fileBase, true);
+      await processAndSave(io, buffer, ext, outputDir, img.imageId, true);
 
-      const selfHostedPath = `/card-images/${img.setSlug}/${fileBase}`;
+      const selfHostedPath = imageRehostedUrl(img.setSlug, img.imageId);
 
       await repo.updateRehostedUrl(img.imageId, selfHostedPath);
 
@@ -258,8 +221,8 @@ export async function rehostImages(
     } catch (error) {
       progress.failed++;
       const message = error instanceof Error ? error.message : String(error);
-      progress.errors.push(`${img.printingSlug}: ${message}`);
-      console.error(`[rehost] Failed for ${img.printingSlug}:`, message);
+      progress.errors.push(`${img.imageId}: ${message}`);
+      console.error(`[rehost] Failed for ${img.imageId}:`, message);
     }
   }
 
@@ -346,8 +309,8 @@ export async function clearAllRehosted(
 }
 
 /**
- * Collect all rehosted images whose file base doesn't match their printing's
- * current slug. Returns a flat list of { imageId, old, new } entries.
+ * Collect all rehosted images whose path doesn't match the UUID-based convention.
+ * Expected URL: `/card-images/{setSlug}/{imageId}`
  * @returns The total rehosted count and the list of mismatched entries.
  */
 export async function collectStaleImages(
@@ -356,8 +319,7 @@ export async function collectStaleImages(
   const images = await repo.listAllRehosted();
   const stale: { imageId: string; oldUrl: string; newUrl: string }[] = [];
   for (const img of images) {
-    const expectedFileBase = printingIdToFileBase(img.printingSlug);
-    const expectedUrl = `/card-images/${img.setSlug}/${expectedFileBase}`;
+    const expectedUrl = imageRehostedUrl(img.setSlug, img.imageId);
     if (img.rehostedUrl !== expectedUrl) {
       stale.push({ imageId: img.imageId, oldUrl: img.rehostedUrl, newUrl: expectedUrl });
     }
@@ -399,8 +361,24 @@ export async function renameStaleImages(
   return progress;
 }
 
-async function getDiskStats(io: Io): Promise<RehostStatusDiskStats> {
+/**
+ * Strip the variant suffix from a disk filename to get the rehostedUrl prefix.
+ * @returns The `/card-images/{set}/{base}` prefix without the variant suffix.
+ */
+function diskFileToPrefix(setSlug: string, file: string): string {
+  return `/card-images/${setSlug}/${file.replace(/-(orig\.[^.]+|300w\.webp|400w\.webp|full\.webp)$/, "")}`;
+}
+
+/**
+ * Scan the card-images directory and return per-set stats + all file paths grouped by set.
+ * @returns Disk stats and file listings per set directory.
+ */
+async function scanDisk(io: Io): Promise<{
+  stats: RehostStatusDiskStats;
+  filesBySet: { setSlug: string; files: string[] }[];
+}> {
   const sets: RehostStatusDiskStats["sets"] = [];
+  const filesBySet: { setSlug: string; files: string[] }[] = [];
   let totalBytes = 0;
 
   try {
@@ -417,20 +395,25 @@ async function getDiskStats(io: Io): Promise<RehostStatusDiskStats> {
         setBytes += info.size;
       }
       sets.push({ setId: entry.name, bytes: setBytes, fileCount: files.length });
+      filesBySet.push({ setSlug: entry.name, files });
       totalBytes += setBytes;
     }
   } catch {
-    // Directory doesn't exist yet — no disk stats
+    // Directory doesn't exist yet
   }
 
-  return { totalBytes, sets };
+  return { stats: { totalBytes, sets }, filesBySet };
 }
 
 export async function getRehostStatus(
   io: Io,
   repo: PrintingImagesRepo,
 ): Promise<RehostStatusResponse> {
-  const [perSet, disk] = await Promise.all([repo.rehostStatusBySet(), getDiskStats(io)]);
+  const [perSet, { stats: disk, filesBySet }, knownUrls] = await Promise.all([
+    repo.rehostStatusBySet(),
+    scanDisk(io),
+    repo.allRehostedUrls(),
+  ]);
 
   let total = 0;
   let rehosted = 0;
@@ -442,5 +425,50 @@ export async function getRehostStatus(
     return { setId: row.setId, setName: row.setName, total: t, rehosted: r, external: t - r };
   });
 
-  return { total, rehosted, external: total - rehosted, sets, disk };
+  // Count orphaned files (on disk but no matching DB entry)
+  const knownPrefixes = new Set(knownUrls);
+  let orphanedFiles = 0;
+  for (const { setSlug, files } of filesBySet) {
+    for (const file of files) {
+      if (!knownPrefixes.has(diskFileToPrefix(setSlug, file))) {
+        orphanedFiles++;
+      }
+    }
+  }
+
+  return { total, rehosted, external: total - rehosted, orphanedFiles, sets, disk };
+}
+
+/**
+ * Delete files in the card-images directory that don't match any rehostedUrl in the DB.
+ * Compares the `/card-images/{set}/{fileBase}` prefix of each file against the set of
+ * known rehosted URLs. Files whose prefix has no DB match are deleted.
+ * @returns Counts of scanned files, deleted files, and any errors.
+ */
+export async function cleanupOrphanedFiles(
+  io: Io,
+  repo: PrintingImagesRepo,
+): Promise<CleanupOrphanedResponse> {
+  const progress: CleanupOrphanedResponse = { scanned: 0, deleted: 0, errors: [] };
+
+  const [knownUrls, { filesBySet }] = await Promise.all([repo.allRehostedUrls(), scanDisk(io)]);
+  const knownPrefixes = new Set(knownUrls);
+
+  for (const { setSlug, files } of filesBySet) {
+    const setDir = join(CARD_IMAGES_DIR, setSlug);
+    for (const file of files) {
+      progress.scanned++;
+      if (!knownPrefixes.has(diskFileToPrefix(setSlug, file))) {
+        try {
+          await io.fs.unlink(join(setDir, file));
+          progress.deleted++;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          progress.errors.push(`${setSlug}/${file}: ${message}`);
+        }
+      }
+    }
+  }
+
+  return progress;
 }

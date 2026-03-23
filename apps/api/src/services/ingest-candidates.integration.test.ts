@@ -172,6 +172,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   it("returns zeros for empty cards array", async () => {
     const result = await ingestCandidates(db, SOURCE, []);
     expect(result).toEqual({
+      provider: SOURCE,
       newCards: 0,
       removedCards: 0,
       updates: 0,
@@ -183,6 +184,10 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       errors: [],
       updatedCards: [],
       updatedPrintings: [],
+      newCardDetails: [],
+      newPrintingDetails: [],
+      removedCardDetails: [],
+      removedPrintingDetails: [],
     });
   });
 

@@ -274,7 +274,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           printedEffectText: ps.printedEffectText,
           imageUrl: ps.imageUrl,
           flavorText: ps.flavorText,
-          externalId: ps.externalId,
+          externalId: `${ps.externalId ?? ps.shortCode}-copy-${Date.now()}`,
           extraData: ps.extraData,
         })
         .execute();

@@ -396,13 +396,12 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    // When promoTypeId changes, rebuild the printing slug and rename rehosted files
+    // When promoTypeId changes, rebuild the printing slug
     if (field === "promoTypeId") {
-      const { printingImages, promoTypes } = c.get("repos");
+      const { promoTypes } = c.get("repos");
       await updatePrintingPromoType(
         c.get("db"),
-        c.get("io"),
-        { printingImages, promoTypes },
+        { promoTypes },
         printingSlug,
         (normalizedValue as string) || null,
       );
@@ -426,7 +425,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/rename ────────────────────────────────────
   .post("/printing/:printingId/rename", zValidator("json", renameSchema), async (c) => {
-    const { candidateMutations, printingImages } = c.get("repos");
+    const { candidateMutations } = c.get("repos");
     const printingSlug = c.req.param("printingId");
     const { newId } = c.req.valid("json");
 
@@ -438,12 +437,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       return c.body(null, 204);
     }
 
-    await renamePrinting(
-      c.get("io"),
-      { candidateMutations, printingImages },
-      printingSlug,
-      newId.trim(),
-    );
+    await renamePrinting({ candidateMutations }, printingSlug, newId.trim());
 
     return c.body(null, 204);
   })
