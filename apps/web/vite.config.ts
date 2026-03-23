@@ -89,7 +89,7 @@ export default defineConfig({
       },
       workbox: {
         cleanupOutdatedCaches: true,
-        globPatterns: ["**/*.{js,css,html,png,webp,svg,woff,woff2}"],
+        globPatterns: ["**/*.{js,css,png,webp,svg,woff,woff2}"],
         navigateFallbackDenylist: [
           /^\/api\//,
           /^\/card-images\//,
@@ -97,6 +97,14 @@ export default defineConfig({
           /^\/robots\.txt$/,
         ],
         runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "html-pages",
+              networkTimeoutSeconds: 3,
+            },
+          },
           {
             urlPattern: /\.(?:png|jpe?g|webp|avif|svg)(?:\?.*)?$/i,
             handler: "CacheFirst",
