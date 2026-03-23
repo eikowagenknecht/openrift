@@ -735,6 +735,33 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     // ── GET /new/:name — unmatched detail sub-queries ─────────────────────
 
+    /** @returns Candidate cards by normName and provider, unfiltered (no ignore/hidden exclusions). */
+    candidateCardsByNormNameAndProvider(
+      normName: string,
+      provider: string,
+    ): Promise<Selectable<CandidateCardsTable>[]> {
+      return db
+        .selectFrom("candidateCards")
+        .selectAll()
+        .where("normName", "=", normName)
+        .where("provider", "=", provider)
+        .execute();
+    },
+
+    /** @returns All candidate printings for given candidate card IDs, unfiltered (no ignore/hidden exclusions). */
+    allCandidatePrintingsForCandidateCards(
+      candidateCardIds: string[],
+    ): Promise<Selectable<CandidatePrintingsTable>[]> {
+      if (candidateCardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("candidatePrintings")
+        .selectAll()
+        .where("candidateCardId", "in", candidateCardIds)
+        .execute();
+    },
+
     /** @returns Candidate cards by exact normalized name, excluding ignored. Ordered by provider. */
     candidateCardsByNormName(normName: string): Promise<Selectable<CandidateCardsTable>[]> {
       return db

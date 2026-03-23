@@ -23,18 +23,14 @@ type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
  * @returns Resolves when the printing has been updated.
  */
 export async function updatePrintingPromoType(
-  db: Kysely<Database>,
   repos: {
+    candidateMutations: CandidateMutationsRepo;
     promoTypes: PromoTypesRepo;
   },
   printingSlug: string,
   newPromoTypeId: string | null,
 ): Promise<void> {
-  const printing = await db
-    .selectFrom("printings as p")
-    .select(["p.id", "p.slug", "p.shortCode", "p.finish"])
-    .where("p.slug", "=", printingSlug)
-    .executeTakeFirst();
+  const printing = await repos.candidateMutations.getPrintingFieldsBySlug(printingSlug);
 
   if (!printing) {
     throw new AppError(404, "NOT_FOUND", "Printing not found");
@@ -51,14 +47,10 @@ export async function updatePrintingPromoType(
 
   const newSlug = buildPrintingId(printing.shortCode, promoTypeSlug, printing.finish);
 
-  await db
-    .updateTable("printings")
-    .set({
-      promoTypeId: newPromoTypeId,
-      slug: newSlug,
-    })
-    .where("id", "=", printing.id)
-    .execute();
+  await repos.candidateMutations.updatePrintingById(printing.id, {
+    promoTypeId: newPromoTypeId,
+    slug: newSlug,
+  });
 }
 
 // ── renamePrinting ───────────────────────────────────────────────────────────
@@ -100,11 +92,7 @@ export async function deletePrinting(
 
   const deletedImages = await db.transaction().execute(async (trx) => {
     // Look up the printing first
-    const printing = await trx
-      .selectFrom("printings")
-      .select("id")
-      .where("slug", "=", printingSlug)
-      .executeTakeFirst();
+    const printing = await mut.getPrintingFieldsBySlug(printingSlug, trx);
 
     if (!printing) {
       throw new AppError(404, "NOT_FOUND", "Printing not found");
@@ -198,11 +186,7 @@ export async function acceptPrinting(
   );
 
   // Guard: reject if this slug already belongs to a different card
-  const existing = await db
-    .selectFrom("printings")
-    .select(["cardId"])
-    .where("slug", "=", printingId)
-    .executeTakeFirst();
+  const existing = await mut.getPrintingCardIdBySlug(printingId);
   if (existing && existing.cardId !== card.id) {
     throw new AppError(
       409,

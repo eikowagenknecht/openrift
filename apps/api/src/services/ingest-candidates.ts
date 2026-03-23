@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Database } from "../db/index.js";
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
 import { ingestRepo } from "../repositories/ingest.js";
+import { promoTypesRepo } from "../repositories/promo-types.js";
 import type { IngestCard } from "../routes/admin/candidates/schemas.js";
 
 interface ItemDetail {
@@ -257,11 +258,7 @@ export async function ingestCandidates(
     }
 
     // 1h. Default promo type ID (for is_promo=true in upload data)
-    const defaultPromoType = await trx
-      .selectFrom("promoTypes")
-      .select("id")
-      .where("slug", "=", "promo")
-      .executeTakeFirst();
+    const defaultPromoType = await promoTypesRepo(trx).getBySlug("promo");
     const defaultPromoTypeId = defaultPromoType?.id ?? null;
 
     // ── Phase 2: Process each card (writes only) ───────────────────────────

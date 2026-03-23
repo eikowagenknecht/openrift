@@ -287,6 +287,32 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").select("slug").where("id", "=", id).executeTakeFirst();
     },
 
+    /** @returns A printing's id, slug, shortCode, and finish by slug. Accepts optional trx for use in transactions. */
+    getPrintingFieldsBySlug(
+      slug: string,
+      trx?: Trx,
+    ): Promise<{ id: string; slug: string; shortCode: string; finish: string } | undefined> {
+      return (trx ?? db)
+        .selectFrom("printings")
+        .select(["id", "slug", "shortCode", "finish"])
+        .where("slug", "=", slug)
+        .executeTakeFirst();
+    },
+
+    /** @returns A printing's cardId by slug. */
+    getPrintingCardIdBySlug(slug: string): Promise<{ cardId: string } | undefined> {
+      return db
+        .selectFrom("printings")
+        .select("cardId")
+        .where("slug", "=", slug)
+        .executeTakeFirst();
+    },
+
+    /** Update arbitrary fields on a printing by UUID. */
+    async updatePrintingById(id: string, updates: Record<string, unknown>): Promise<void> {
+      await db.updateTable("printings").set(updates).where("id", "=", id).execute();
+    },
+
     /** Bulk-link (or unlink) candidate printings to a printing UUID. */
     async linkCandidatePrintings(
       candidatePrintingIds: string[],

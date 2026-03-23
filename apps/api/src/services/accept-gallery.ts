@@ -3,12 +3,14 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 import type { Io } from "../io.js";
+import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { rehostImages } from "./image-rehost.js";
 import { acceptPrinting } from "./printing-admin.js";
 
+type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
@@ -30,6 +32,7 @@ export async function acceptGalleryForNewCard(
   db: Kysely<Database>,
   io: Io,
   repos: {
+    candidateCards: CandidateCardsRepo;
     candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
     promoTypes: PromoTypesRepo;
@@ -39,12 +42,10 @@ export async function acceptGalleryForNewCard(
   const mut = repos.candidateMutations;
 
   // 1. Find the gallery candidate card for this name
-  const allCandidates = await db
-    .selectFrom("candidateCards")
-    .selectAll()
-    .where("normName", "=", normalizedName)
-    .where("provider", "=", "gallery")
-    .execute();
+  const allCandidates = await repos.candidateCards.candidateCardsByNormNameAndProvider(
+    normalizedName,
+    "gallery",
+  );
 
   if (allCandidates.length === 0) {
     throw new Error("No gallery source found for this card");
@@ -90,11 +91,8 @@ export async function acceptGalleryForNewCard(
 
   // 3. Find all gallery candidate printings for these candidate cards
   const galleryCandidateIds = allCandidates.map((cc) => cc.id);
-  const candidatePrintings = await db
-    .selectFrom("candidatePrintings")
-    .selectAll()
-    .where("candidateCardId", "in", galleryCandidateIds)
-    .execute();
+  const candidatePrintings =
+    await repos.candidateCards.allCandidatePrintingsForCandidateCards(galleryCandidateIds);
 
   // 4. Group by shortCode + finish + promoTypeId and create each printing
   const groupMap = new Map<string, typeof candidatePrintings>();

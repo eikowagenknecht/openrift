@@ -398,10 +398,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
     // When promoTypeId changes, rebuild the printing slug
     if (field === "promoTypeId") {
-      const { promoTypes } = c.get("repos");
+      const { candidateMutations, promoTypes } = c.get("repos");
       await updatePrintingPromoType(
-        c.get("db"),
-        { promoTypes },
+        { candidateMutations, promoTypes },
         printingSlug,
         (normalizedValue as string) || null,
       );
@@ -475,13 +474,13 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /new/:name/accept-gallery ───────────────────────────────────────
   // Create card + printings from gallery source, set images, and rehost
   .post("/new/:name/accept-gallery", async (c) => {
-    const { candidateMutations, printingImages, promoTypes } = c.get("repos");
+    const { candidateCards, candidateMutations, printingImages, promoTypes } = c.get("repos");
     const normalizedName = decodeURIComponent(c.req.param("name"));
 
     const result = await acceptGalleryForNewCard(
       c.get("db"),
       c.get("io"),
-      { candidateMutations, printingImages, promoTypes },
+      { candidateCards, candidateMutations, printingImages, promoTypes },
       normalizedName,
     );
 
