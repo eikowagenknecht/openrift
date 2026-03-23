@@ -12,6 +12,7 @@ import {
   downloadImage,
   imageRehostedUrl,
   processAndSave,
+  rehostSingleImage,
 } from "../../../services/image-rehost.js";
 import type { Variables } from "../../../types.js";
 import {
@@ -45,15 +46,22 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
     const cs = await printingImages.getCandidateCardProvider(ps.candidateCardId);
 
-    await db.transaction().execute(async (trx) => {
-      await printingImages.insertImage(
-        trx,
-        ps.printingId as string,
-        ps.imageUrl,
-        cs?.provider ?? "import",
-        mode,
+    const imageId = await db
+      .transaction()
+      .execute((trx) =>
+        printingImages.insertImage(
+          trx,
+          ps.printingId as string,
+          ps.imageUrl,
+          cs?.provider ?? "import",
+          mode,
+        ),
       );
-    });
+
+    // Auto-rehost the accepted image (best-effort, non-blocking)
+    if (imageId) {
+      await rehostSingleImage(c.get("io"), printingImages, imageId);
+    }
 
     return c.body(null, 204);
   })

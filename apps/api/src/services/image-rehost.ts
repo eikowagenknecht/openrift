@@ -184,6 +184,32 @@ export async function renameRehostFiles(
   }
 }
 
+/**
+ * Rehost a single image by ID: download, process variants, and update the DB.
+ * Silently swallows errors so callers can treat this as best-effort.
+ */
+export async function rehostSingleImage(
+  io: Io,
+  repo: PrintingImagesRepo,
+  imageId: string,
+): Promise<void> {
+  const image = await repo.getForRehost(imageId);
+  if (!image?.originalUrl) {
+    return;
+  }
+
+  try {
+    const { buffer, ext } = await downloadImage(io, image.originalUrl);
+    const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
+    await processAndSave(io, buffer, ext, outputDir, imageId, true);
+    const rehostedUrl = imageRehostedUrl(image.setSlug, imageId);
+    await repo.updateRehostedUrl(imageId, rehostedUrl);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[rehost] Auto-rehost failed for ${imageId}:`, message);
+  }
+}
+
 const BATCH_SIZE = 10;
 
 export async function rehostImages(

@@ -104,6 +104,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
      *
      * @param mode - `'main'`: deactivate current active image, insert/update as active.
      *               `'additional'`: insert as inactive.
+     * @returns The inserted/updated image ID, or `null` if no imageUrl was provided.
      */
     async insertImage(
       trx: Trx,
@@ -111,15 +112,15 @@ export function printingImagesRepo(db: Kysely<Database>) {
       imageUrl: string | null,
       provider: string,
       mode: "main" | "additional" = "main",
-    ): Promise<void> {
+    ): Promise<string | null> {
       if (!imageUrl) {
-        return;
+        return null;
       }
 
       if (mode === "main") {
         await this.deactivateActiveFront(printingId, trx);
 
-        await trx
+        const row = await trx
           .insertInto("printingImages")
           .values({
             printingId,
@@ -134,24 +135,28 @@ export function printingImagesRepo(db: Kysely<Database>) {
               isActive: true,
             }),
           )
-          .execute();
-      } else {
-        await trx
-          .insertInto("printingImages")
-          .values({
-            printingId,
-            face: "front",
-            provider,
-            originalUrl: imageUrl,
-            isActive: false,
-          })
-          .onConflict((oc) =>
-            oc.columns(["printingId", "face", "provider"]).doUpdateSet({
-              originalUrl: imageUrl,
-            }),
-          )
-          .execute();
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        return row.id;
       }
+
+      const row = await trx
+        .insertInto("printingImages")
+        .values({
+          printingId,
+          face: "front",
+          provider,
+          originalUrl: imageUrl,
+          isActive: false,
+        })
+        .onConflict((oc) =>
+          oc.columns(["printingId", "face", "provider"]).doUpdateSet({
+            originalUrl: imageUrl,
+          }),
+        )
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      return row.id;
     },
 
     /**
