@@ -1,15 +1,21 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { catalogQueryOptions } from "@/hooks/use-cards";
 import { cn } from "@/lib/utils";
 
 import { HeroBackground } from "./hero-background";
 
 export function LandingPage() {
+  const { data } = useQuery(catalogQueryOptions);
   const [spinning, setSpinning] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [hinting, setHinting] = useState(false);
+
+  const uniqueCards = data ? new Set(data.allCards.map((p) => p.cardId)).size : 0;
+  const printings = data?.allCards.length ?? 0;
 
   function handleLogoTap() {
     setHinting(true);
@@ -43,6 +49,14 @@ export function LandingPage() {
         <p className="mt-3 text-center text-lg text-muted-foreground">
           Fast. Open. Ad-free. A Riftbound companion.
         </p>
+        {data && (
+          <p className="mt-2 animate-in fade-in text-sm text-muted-foreground/70">
+            <span className="font-semibold text-foreground">{uniqueCards.toLocaleString()}</span>{" "}
+            cards &middot;{" "}
+            <span className="font-semibold text-foreground">{printings.toLocaleString()}</span>{" "}
+            printings
+          </p>
+        )}
 
         <div className="mt-8 flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
