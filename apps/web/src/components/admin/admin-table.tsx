@@ -1,4 +1,11 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -25,7 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Column definition
+// Column definition (public API — consumed by all admin pages)
 // ---------------------------------------------------------------------------
 
 export interface AdminColumnDef<TData, TDraft = TData> {
@@ -48,6 +55,18 @@ export interface AdminColumnDef<TData, TDraft = TData> {
   editCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
 
   /** Render a cell in the "add" row. If omitted, renders an empty cell. */
+  addCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
+}
+
+// ---------------------------------------------------------------------------
+// Column meta (passed through TanStack Table's meta field)
+// ---------------------------------------------------------------------------
+
+interface AdminColumnMeta<TDraft> {
+  headerTitle?: string;
+  width?: string;
+  align?: "left" | "center" | "right";
+  editCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
   addCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
 }
 
@@ -109,11 +128,72 @@ interface AdminTableProps<TData, TDraft = TData> {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const ALIGN_CLASSES: Record<string, string> = { right: "text-right", center: "text-center" };
+
+function alignClass(align?: "left" | "center" | "right") {
+  if (align) {
+    return ALIGN_CLASSES[align];
+  }
+}
+
+// Convert our public AdminColumnDef to TanStack ColumnDef.
+function toTanStackColumns<TData, TDraft>(
+  adminCols: AdminColumnDef<TData, TDraft>[],
+  enableSort: boolean,
+): ColumnDef<TData>[] {
+  return adminCols.map((col) => {
+    const def: ColumnDef<TData> = {
+      id: col.header,
+      header: col.header,
+      cell: (info) => col.cell(info.row.original, info.row.index),
+      enableSorting: enableSort && Boolean(col.sortValue),
+      meta: {
+        headerTitle: col.headerTitle,
+        width: col.width,
+        align: col.align,
+        editCell: col.editCell,
+        addCell: col.addCell,
+      } satisfies AdminColumnMeta<TDraft>,
+    };
+
+    if (col.sortValue) {
+      const { sortValue } = col;
+      (
+        def as ColumnDef<TData> & { accessorFn: (row: TData) => string | number | null }
+      ).accessorFn = sortValue;
+      def.sortingFn = (rowA, rowB, columnId) => {
+        const va = rowA.getValue<string | number | null>(columnId);
+        const vb = rowB.getValue<string | number | null>(columnId);
+        if (va === null && vb === null) {
+          return 0;
+        }
+        if (va === null) {
+          return 1;
+        }
+        if (vb === null) {
+          return -1;
+        }
+        if (typeof va === "string" && typeof vb === "string") {
+          return va.localeCompare(vb);
+        }
+        return (va as number) - (vb as number);
+      };
+      def.sortUndefined = "last";
+    }
+
+    return def;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function AdminTable<TData, TDraft = TData>({
-  columns,
+  columns: adminColumns,
   data,
   getRowKey,
   emptyText = "No data.",
@@ -137,57 +217,27 @@ export function AdminTable<TData, TDraft = TData>({
 
   const [deleteError, setDeleteError] = useState("");
 
-  const [sortCol, setSortCol] = useState<string | null>(defaultSort?.column ?? null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSort?.direction ?? "asc");
+  const enableSort = !reorder;
+  const tanStackColumns = toTanStackColumns(adminColumns, enableSort);
+
+  const initialSorting: SortingState = defaultSort
+    ? [{ id: defaultSort.column, desc: defaultSort.direction === "desc" }]
+    : [];
+  const [sorting, setSorting] = useState<SortingState>(initialSorting);
+
+  const table = useReactTable({
+    data,
+    columns: tanStackColumns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: enableSort ? getSortedRowModel() : undefined,
+    getRowId: (row) => getRowKey(row),
+    enableSorting: enableSort,
+  });
 
   const hasActions = Boolean(edit || del || actions);
-  const totalCols = columns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
-
-  // --- Sort ---
-  function toggleSort(header: string) {
-    if (sortCol === header) {
-      if (sortDir === "asc") {
-        setSortDir("desc");
-      } else {
-        setSortCol(null);
-        setSortDir("asc");
-      }
-    } else {
-      setSortCol(header);
-      setSortDir("asc");
-    }
-  }
-
-  function getSortedData(): TData[] {
-    if (!sortCol || reorder) {
-      return data;
-    }
-    const col = columns.find((c) => c.header === sortCol);
-    if (!col?.sortValue) {
-      return data;
-    }
-    const { sortValue } = col;
-    const dir = sortDir === "asc" ? 1 : -1;
-    return [...data].sort((a, b) => {
-      const va = sortValue(a);
-      const vb = sortValue(b);
-      if (va === null && vb === null) {
-        return 0;
-      }
-      if (va === null) {
-        return 1;
-      }
-      if (vb === null) {
-        return -1;
-      }
-      if (typeof va === "string" && typeof vb === "string") {
-        return va.localeCompare(vb) * dir;
-      }
-      return ((va as number) - (vb as number)) * dir;
-    });
-  }
-
-  const sortedData = getSortedData();
+  const totalCols = adminColumns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
 
   // --- Add handlers ---
   function startAdding() {
@@ -265,14 +315,9 @@ export function AdminTable<TData, TDraft = TData>({
     }
   }
 
-  // --- Alignment helper ---
-  const alignClasses: Record<string, string> = { right: "text-right", center: "text-center" };
-
-  function alignClass(align?: "left" | "center" | "right") {
-    if (align) {
-      return alignClasses[align];
-    }
-  }
+  // --- Render ---
+  const headerGroups = table.getHeaderGroups();
+  const rows = table.getRowModel().rows;
 
   return (
     <div className="space-y-4">
@@ -290,47 +335,50 @@ export function AdminTable<TData, TDraft = TData>({
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow>
-              {reorder && <TableHead className="w-16">Order</TableHead>}
-              {columns.map((col) => {
-                const isSortable = !reorder && col.sortValue;
-                const isActive = sortCol === col.header;
-                return (
-                  <TableHead
-                    key={col.header}
-                    className={cn(
-                      col.width,
-                      alignClass(col.align),
-                      isSortable && "cursor-pointer select-none",
-                    )}
-                    title={col.headerTitle}
-                    onClick={isSortable ? () => toggleSort(col.header) : undefined}
-                  >
-                    <span className={cn(isSortable && "inline-flex items-center gap-1")}>
-                      {col.header}
-                      {isSortable &&
-                        (isActive ? (
-                          sortDir === "asc" ? (
-                            <ArrowUpIcon className="inline h-3.5 w-3.5 text-foreground" />
+            {headerGroups.map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {reorder && <TableHead className="w-16">Order</TableHead>}
+                {headerGroup.headers.map((header) => {
+                  const meta = header.column.columnDef.meta as AdminColumnMeta<TDraft> | undefined;
+                  const canSort = header.column.getCanSort();
+                  const sorted = header.column.getIsSorted();
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        meta?.width,
+                        alignClass(meta?.align),
+                        canSort && "cursor-pointer select-none",
+                      )}
+                      title={meta?.headerTitle}
+                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                    >
+                      <span className={cn(canSort && "inline-flex items-center gap-1")}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {canSort &&
+                          (sorted ? (
+                            sorted === "asc" ? (
+                              <ArrowUpIcon className="inline h-3.5 w-3.5 text-foreground" />
+                            ) : (
+                              <ArrowDownIcon className="inline h-3.5 w-3.5 text-foreground" />
+                            )
                           ) : (
-                            <ArrowDownIcon className="inline h-3.5 w-3.5 text-foreground" />
-                          )
-                        ) : (
-                          <ChevronsUpDownIcon className="inline h-3.5 w-3.5 text-muted-foreground/50" />
-                        ))}
-                    </span>
-                  </TableHead>
-                );
-              })}
-              {hasActions && <TableHead className="w-32 text-right">Actions</TableHead>}
-            </TableRow>
+                            <ChevronsUpDownIcon className="inline h-3.5 w-3.5 text-muted-foreground/50" />
+                          ))}
+                      </span>
+                    </TableHead>
+                  );
+                })}
+                {hasActions && <TableHead className="w-32 text-right">Actions</TableHead>}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
             {/* Add row */}
             {adding && addDraft && (
               <TableRow>
                 {reorder && <TableCell />}
-                {columns.map((col) => (
+                {adminColumns.map((col) => (
                   <TableCell key={col.header} className={alignClass(col.align)}>
                     {col.addCell
                       ? col.addCell(addDraft, (fn) =>
@@ -353,7 +401,7 @@ export function AdminTable<TData, TDraft = TData>({
             )}
 
             {/* Empty state */}
-            {data.length === 0 && !adding && (
+            {rows.length === 0 && !adding && (
               <TableRow>
                 <TableCell colSpan={totalCols} className="text-muted-foreground h-24 text-center">
                   {emptyText}
@@ -362,12 +410,13 @@ export function AdminTable<TData, TDraft = TData>({
             )}
 
             {/* Data rows */}
-            {sortedData.map((row, index) => {
-              const key = getRowKey(row);
-              const isEditing = editingKey === key && editDraft !== null;
+            {rows.map((row) => {
+              const original = row.original;
+              const index = row.index;
+              const isEditing = editingKey === row.id && editDraft !== null;
 
               return (
-                <TableRow key={key}>
+                <TableRow key={row.id}>
                   {reorder && (
                     <TableCell>
                       <div className="flex items-center gap-0.5">
@@ -384,7 +433,7 @@ export function AdminTable<TData, TDraft = TData>({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6"
-                          disabled={index === sortedData.length - 1 || reorder.isPending}
+                          disabled={index === rows.length - 1 || reorder.isPending}
                           onClick={() => reorder.onMove(index, 1)}
                         >
                           <ArrowDownIcon className="h-3.5 w-3.5" />
@@ -393,15 +442,18 @@ export function AdminTable<TData, TDraft = TData>({
                     </TableCell>
                   )}
 
-                  {columns.map((col) => (
-                    <TableCell key={col.header} className={alignClass(col.align)}>
-                      {isEditing && col.editCell
-                        ? col.editCell(editDraft, (fn) =>
-                            setEditDraft((prev) => (prev === null ? prev : fn(prev))),
-                          )
-                        : col.cell(row, index)}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const meta = cell.column.columnDef.meta as AdminColumnMeta<TDraft> | undefined;
+                    return (
+                      <TableCell key={cell.id} className={alignClass(meta?.align)}>
+                        {isEditing && meta?.editCell
+                          ? meta.editCell(editDraft, (fn) =>
+                              setEditDraft((prev) => (prev === null ? prev : fn(prev))),
+                            )
+                          : flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
 
                   {hasActions && (
                     <TableCell className="text-right">
@@ -414,15 +466,19 @@ export function AdminTable<TData, TDraft = TData>({
                         />
                       ) : (
                         <div className="flex justify-end gap-1">
-                          {actions?.(row, index)}
+                          {actions?.(original, index)}
                           {edit && (
-                            <Button variant="ghost" size="sm" onClick={() => startEditing(row)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditing(original)}
+                            >
                               Edit
                             </Button>
                           )}
                           {del && (
                             <DeleteButton
-                              row={row}
+                              row={original}
                               config={del}
                               deleteError={deleteError}
                               setDeleteError={setDeleteError}
