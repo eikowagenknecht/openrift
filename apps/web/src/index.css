@@ -145,6 +145,8 @@ html.hide-scrollbar::-webkit-scrollbar {
   --animate-fly-away: fly-away 0.8s ease-in forwards;
   --animate-fly-in: fly-in 0.8s ease-out forwards;
   --animate-logo-spin: logo-spin 1s ease-in-out;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
   --header-height: 3.5rem;
   --sticky-top: calc(var(--header-height) + 1rem);
   --breakpoint-wide: 112.5rem;
