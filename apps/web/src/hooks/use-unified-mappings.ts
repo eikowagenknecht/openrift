@@ -4,17 +4,15 @@ import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 
 export function unifiedMappingsQueryOptions(showAll = false) {
   return queryOptions({
     queryKey: queryKeys.admin.unifiedMappings.byFilter(showAll),
     queryFn: () =>
-      rpc(
-        client.api.admin["marketplace-mappings"].$get({
-          query: { all: showAll ? "true" : undefined },
-        }),
-        // Server uses unknown[] for stagedProducts — cast to local types
-      ) as unknown as Promise<UnifiedMappingsResponse>,
+      fetchApi({
+        data: `/api/admin/marketplace-mappings${showAll ? "?all=true" : ""}`,
+      }) as Promise<UnifiedMappingsResponse>,
   });
 }
 

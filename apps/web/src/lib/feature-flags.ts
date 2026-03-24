@@ -3,13 +3,13 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { queryKeys } from "./query-keys";
-import { client, rpc } from "./rpc-client";
+import { fetchApi } from "./server-fns";
 
 export type FeatureFlags = Record<string, boolean>;
 
 export const featureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.featureFlags.all,
-  queryFn: () => rpc(client.api["feature-flags"].$get()) as Promise<FeatureFlags>,
+  queryFn: () => fetchApi({ data: "/api/feature-flags" }) as Promise<FeatureFlags>,
   staleTime: 5 * 60 * 1000,
 });
 

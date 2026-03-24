@@ -2,10 +2,11 @@ import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@ta
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 
 export const ignoredProductsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.ignoredProducts,
-  queryFn: () => rpc(client.api.admin["ignored-products"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/ignored-products" }),
 });
 
 export function useIgnoredProducts() {

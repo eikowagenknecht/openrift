@@ -2,11 +2,12 @@ import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanst
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export const candidateListQueryOptions = queryOptions({
   queryKey: queryKeys.admin.candidates.list,
-  queryFn: () => rpc(client.api.admin["candidates"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/candidates" }),
 });
 
 export function useCandidateList() {
@@ -40,7 +41,7 @@ export function useNextUncheckedCard(currentCardId: string) {
 
 export const allCardsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.candidates.allCards,
-  queryFn: () => rpc(client.api.admin["candidates"]["all-cards"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/candidates/all-cards" }),
 });
 
 export function useAllCards() {
@@ -50,7 +51,7 @@ export function useAllCards() {
 export function candidateDetailQueryOptions(cardId: string) {
   return queryOptions({
     queryKey: queryKeys.admin.candidates.detail(cardId),
-    queryFn: () => rpc(client.api.admin["candidates"][":cardId"].$get({ param: { cardId } })),
+    queryFn: () => fetchApi({ data: `/api/admin/candidates/${cardId}` }),
   });
 }
 
@@ -64,7 +65,7 @@ export function useCandidateDetail(cardId: string) {
 export function unmatchedCardDetailQueryOptions(name: string) {
   return queryOptions({
     queryKey: queryKeys.admin.candidates.unmatched(name),
-    queryFn: () => rpc(client.api.admin["candidates"].new[":name"].$get({ param: { name } })),
+    queryFn: () => fetchApi({ data: `/api/admin/candidates/new/${encodeURIComponent(name)}` }),
   });
 }
 
@@ -356,7 +357,7 @@ export function useDeleteProvider() {
 
 export const providerStatsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.candidates.providerStats,
-  queryFn: () => rpc(client.api.admin["candidates"]["provider-stats"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/candidates/provider-stats" }),
 });
 
 export function useProviderStats() {

@@ -5,7 +5,14 @@ import type { ReactNode } from "react";
 import { createElement, Suspense } from "react";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-import { useCards, ApiError, catalogQueryOptions } from "./use-cards";
+import { useCards, catalogQueryOptions } from "./use-cards";
+
+vi.mock("@/lib/server-fns", () => ({
+  fetchApi: vi.fn(),
+}));
+
+// oxlint-disable-next-line import/first -- must come after vi.mock
+import { fetchApi } from "@/lib/server-fns";
 
 const stubCard: Card = {
   id: "00000000-0000-0000-0000-000000000001",
@@ -89,7 +96,7 @@ function createWrapper() {
 
 describe("useCards", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
+    vi.mocked(fetchApi).mockReset();
   });
 
   afterEach(() => {
@@ -97,12 +104,7 @@ describe("useCards", () => {
   });
 
   it("returns cards and set info on success", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
-        return { ok: true, json: () => CATALOG_RESPONSE };
-      }
-      return { ok: true, json: () => ({}) };
-    });
+    vi.mocked(fetchApi).mockResolvedValue(CATALOG_RESPONSE);
 
     const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
 
@@ -114,12 +116,7 @@ describe("useCards", () => {
   });
 
   it("joins card data onto printings and includes market price", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
-        return { ok: true, json: () => CATALOG_RESPONSE };
-      }
-      return { ok: true, json: () => ({}) };
-    });
+    vi.mocked(fetchApi).mockResolvedValue(CATALOG_RESPONSE);
 
     const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
 
@@ -138,50 +135,13 @@ describe("useCards", () => {
     expect(cardB?.marketPrice).toBeUndefined();
   });
 
-  it("throws an ApiError with health status when catalog fetch fails", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
-        return { ok: false, status: 500, json: () => ({}) };
-      }
-      if (url.includes("/api/health")) {
-        return { ok: true, json: () => ({ status: "db_empty" }) };
-      }
-      return { ok: true, json: () => ({}) };
-    });
+  it("throws when catalog fetch fails", async () => {
+    vi.mocked(fetchApi).mockRejectedValue(new Error("API 500: Internal Server Error"));
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
 
-    try {
-      await queryClient.fetchQuery(catalogQueryOptions);
-      expect.fail("should have thrown");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).healthStatus).toBe("db_empty");
-    }
-  });
-
-  it("throws an ApiError with null health when health endpoint is unreachable", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
-        return { ok: false, status: 500, json: () => ({}) };
-      }
-      if (url.includes("/api/health")) {
-        throw new Error("Network error");
-      }
-      return { ok: true, json: () => ({}) };
-    });
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    try {
-      await queryClient.fetchQuery(catalogQueryOptions);
-    } catch (error) {
-      expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).healthStatus).toBeNull();
-    }
+    await expect(queryClient.fetchQuery(catalogQueryOptions)).rejects.toThrow("API 500");
   });
 });

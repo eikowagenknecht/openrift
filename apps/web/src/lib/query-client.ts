@@ -9,6 +9,12 @@ import { toast } from "sonner";
 export function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
+      queries: {
+        // Prevent refetching data that was just fetched during SSR.
+        // Without this, React Query treats hydrated data as immediately stale
+        // and refetches it on the client, causing duplicate API calls.
+        staleTime: 60 * 1000,
+      },
       mutations: {
         onError: (err) => toast.error(err.message),
       },

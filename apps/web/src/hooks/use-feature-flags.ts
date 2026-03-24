@@ -4,6 +4,7 @@ import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export function useFeatureEnabled(key: string): boolean {
@@ -17,7 +18,7 @@ export function useFeatureEnabled(key: string): boolean {
 
 export const adminFeatureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.featureFlags,
-  queryFn: () => rpc(client.api.admin["feature-flags"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/feature-flags" }),
 });
 
 export function useFeatureFlags() {

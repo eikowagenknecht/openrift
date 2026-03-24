@@ -2,6 +2,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export function copiesQueryOptions(collectionId?: string) {
@@ -9,8 +10,8 @@ export function copiesQueryOptions(collectionId?: string) {
     queryKey: collectionId ? queryKeys.copies.byCollection(collectionId) : queryKeys.copies.all,
     queryFn: () =>
       collectionId
-        ? rpc(client.api.collections[":id"].copies.$get({ param: { id: collectionId } }))
-        : rpc(client.api.copies.$get()),
+        ? fetchApi({ data: `/api/collections/${collectionId}/copies` })
+        : fetchApi({ data: "/api/copies" }),
   });
 }
 

@@ -3,6 +3,7 @@ import type { InferResponseType } from "hono/client";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export type MarketplaceGroup = InferResponseType<
@@ -11,7 +12,7 @@ export type MarketplaceGroup = InferResponseType<
 
 export const marketplaceGroupsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.marketplaceGroups,
-  queryFn: () => rpc(client.api.admin["marketplace-groups"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/marketplace-groups" }),
 });
 
 export function useMarketplaceGroups() {

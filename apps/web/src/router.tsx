@@ -1,5 +1,5 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
-import { routerWithQueryClient } from "@tanstack/react-router-with-query";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 
 import { RouterErrorFallback } from "./components/error-fallback";
 import { createQueryClient } from "./lib/query-client";
@@ -8,15 +8,17 @@ import { routeTree } from "./routeTree.gen";
 export function getRouter() {
   const queryClient = createQueryClient();
 
-  return routerWithQueryClient(
-    createTanStackRouter({
-      routeTree,
-      context: { queryClient },
-      defaultErrorComponent: RouterErrorFallback,
-      scrollRestoration: true,
-    }),
-    queryClient,
-  );
+  const router = createTanStackRouter({
+    routeTree,
+    context: { queryClient },
+    defaultErrorComponent: RouterErrorFallback,
+    defaultPreloadStaleTime: 0,
+    scrollRestoration: true,
+  });
+
+  setupRouterSsrQueryIntegration({ router, queryClient });
+
+  return router;
 }
 
 declare module "@tanstack/react-router" {

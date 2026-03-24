@@ -2,11 +2,12 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export const setsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.sets,
-  queryFn: () => rpc(client.api.admin.sets.$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/sets" }),
 });
 
 export function useSets() {

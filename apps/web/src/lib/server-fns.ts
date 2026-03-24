@@ -3,12 +3,8 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 
 const API_URL = process.env.API_URL ?? "http://localhost:3000";
 
-/**
- * Fetch the current user session during SSR.
- * Reads cookies from the incoming request and forwards them to the auth API.
- * During client-side navigation, this makes an RPC call to the server which
- * automatically receives the browser's cookies.
- */
+// Fetch the current user session.
+// Reads cookies from the incoming request and forwards them to the auth API.
 export const fetchSession = createServerFn({ method: "GET" }).handler(async () => {
   const headers = getRequestHeaders();
   const cookie = headers.cookie;
@@ -21,15 +17,33 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(async () =
     return null;
   }
 
-  const data = (await res.json()) as { session: unknown; user: unknown } | null;
-  return data;
+  return (await res.json()) as { session: unknown; user: unknown } | null;
 });
 
-/**
- * Get the cookie header from the incoming SSR request.
- * Used by route loaders to forward cookies when making authenticated API calls.
- */
-export const getSSRCookieHeader = createServerFn({ method: "GET" }).handler(() => {
-  const headers = getRequestHeaders();
-  return headers.cookie ?? null;
-});
+// Generic authenticated API fetch. Forwards the request's cookies to the API.
+// Used as the queryFn in query options so that:
+// - During SSR: runs in-process, reads cookies from the SSR request
+// - During client navigation: makes an RPC call to the Start server,
+//   which receives the browser's cookies and forwards them to the API
+export const fetchApi = createServerFn({ method: "GET" })
+  .inputValidator((path: string) => path)
+  .handler(async ({ data: path }) => {
+    const headers = getRequestHeaders();
+    const cookie = headers.cookie;
+
+    const url = path.startsWith("http") ? path : `${API_URL}${path}`;
+    const res = await fetch(url, {
+      headers: cookie ? { cookie } : {},
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`API ${res.status}: ${body}`);
+    }
+
+    const text = await res.text();
+    if (!text) {
+      return null;
+    }
+    return JSON.parse(text);
+  });

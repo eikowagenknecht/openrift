@@ -2,11 +2,12 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export const adminPromoTypesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.promoTypes,
-  queryFn: () => rpc(client.api.admin["promo-types"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/promo-types" }),
 });
 
 export function usePromoTypes() {
