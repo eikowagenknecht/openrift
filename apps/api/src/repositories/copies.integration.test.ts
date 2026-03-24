@@ -78,7 +78,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     expect(inserted).toHaveLength(3);
     expect(inserted[0].collectionId).toBe(collectionId);
 
-    const list = await copies.listForCollection(collectionId);
+    const list = await copies.listForCollection(collectionId, 200);
     expect(list.length).toBeGreaterThanOrEqual(3);
 
     // Verify denormalized fields are present
@@ -96,7 +96,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   // ---------------------------------------------------------------------------
 
   it("lists all copies for a user", async () => {
-    const list = await copies.listForUser(userId);
+    const list = await copies.listForUser(userId, 200);
     expect(list.length).toBeGreaterThanOrEqual(3);
 
     // All copies should belong to this user (verified by the where clause)
@@ -106,7 +106,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   });
 
   it("returns empty for a user with no copies", async () => {
-    const result = await copies.listForUser("a0000000-9999-4000-a000-000000000001");
+    const result = await copies.listForUser("a0000000-9999-4000-a000-000000000001", 200);
     expect(result).toEqual([]);
   });
 

@@ -14,5 +14,5 @@ export function req(method: string, path: string, body?: unknown): Request {
   if (body !== undefined) {
     opts.body = JSON.stringify(body);
   }
-  return new Request(`http://localhost/api${path}`, opts);
+  return new Request(`http://localhost/api/v1${path}`, opts);
 }

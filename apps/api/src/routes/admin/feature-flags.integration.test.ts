@@ -50,7 +50,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
       const json = await res.json();
       // No ffl- flags should exist yet
-      expect(json["ffl-deck-builder"]).toBeUndefined();
+      expect(json.items["ffl-deck-builder"]).toBeUndefined();
     });
   });
 
@@ -97,8 +97,8 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json["ffl-deck-builder"]).toBe(false);
-      expect(json["ffl-dark-mode"]).toBe(true);
+      expect(json.items["ffl-deck-builder"]).toBe(false);
+      expect(json.items["ffl-dark-mode"]).toBe(true);
     });
   });
 
@@ -142,7 +142,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       // Verify via public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
       const flags = await check.json();
-      expect(flags["ffl-deck-builder"]).toBe(true);
+      expect(flags.items["ffl-deck-builder"]).toBe(true);
     });
 
     it("updates description", async () => {
@@ -176,7 +176,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       // Verify it's gone from public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
       const flags = await check.json();
-      expect(flags["ffl-dark-mode"]).toBeUndefined();
+      expect(flags.items["ffl-dark-mode"]).toBeUndefined();
     });
 
     it("returns 404 for non-existent key", async () => {
