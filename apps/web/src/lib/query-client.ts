@@ -9,6 +9,9 @@ import { toast } from "sonner";
 export function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
+      // Query errors are handled per-component via isError/error state.
+      // Mutation errors show a global toast since the user expects feedback
+      // on an action they triggered.
       mutations: {
         onError: (err) => toast.error(err.message),
       },
