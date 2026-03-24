@@ -9,7 +9,10 @@ export type FeatureFlags = Record<string, boolean>;
 
 export const featureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.featureFlags.all,
-  queryFn: () => rpc(client.api["feature-flags"].$get()) as Promise<FeatureFlags>,
+  queryFn: async () => {
+    const data = await rpc(client.api["feature-flags"].$get());
+    return data.flags as FeatureFlags;
+  },
   staleTime: 5 * 60 * 1000,
 });
 

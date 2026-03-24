@@ -9,8 +9,9 @@ export function copiesQueryOptions(collectionId?: string) {
     queryKey: collectionId ? queryKeys.copies.byCollection(collectionId) : queryKeys.copies.all,
     queryFn: () =>
       collectionId
-        ? rpc(client.api.collections[":id"].copies.$get({ param: { id: collectionId } }))
-        : rpc(client.api.copies.$get()),
+        ? rpc(client.api.collections[":id"].copies.$get({ param: { id: collectionId }, query: {} }))
+        : rpc(client.api.copies.$get({ query: {} })),
+    select: (data) => data.copies,
   });
 }
 

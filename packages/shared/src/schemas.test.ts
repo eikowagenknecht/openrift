@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
   activitiesQuerySchema,
   addCopiesSchema,
+  copiesQuerySchema,
   createCollectionSchema,
   createDeckSchema,
   createAcquisitionSourceSchema,
@@ -417,6 +418,31 @@ describe("activitiesQuerySchema", () => {
 
   it("rejects limit under 1", () => {
     expect(activitiesQuerySchema.safeParse({ limit: 0 }).success).toBe(false);
+  });
+});
+
+describe("copiesQuerySchema", () => {
+  it("accepts empty query", () => {
+    expect(copiesQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it("accepts cursor and limit", () => {
+    expect(
+      copiesQuerySchema.safeParse({ cursor: "2025-01-01T00:00:00Z", limit: 100 }).success,
+    ).toBe(true);
+  });
+
+  it("coerces string limit to number", () => {
+    const result = copiesQuerySchema.parse({ limit: "200" });
+    expect(result.limit).toBe(200);
+  });
+
+  it("rejects limit over 500", () => {
+    expect(copiesQuerySchema.safeParse({ limit: 501 }).success).toBe(false);
+  });
+
+  it("rejects limit under 1", () => {
+    expect(copiesQuerySchema.safeParse({ limit: 0 }).success).toBe(false);
   });
 });
 

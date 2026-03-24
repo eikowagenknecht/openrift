@@ -45,6 +45,11 @@ export const activitiesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
+export const copiesQuerySchema = z.object({
+  cursor: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
 export const decksQuerySchema = z.object({
   wanted: z.string().optional(),
 });

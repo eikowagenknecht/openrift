@@ -7,6 +7,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 export const acquisitionSourcesQueryOptions = queryOptions({
   queryKey: queryKeys.acquisitionSources.all,
   queryFn: () => rpc(client.api["acquisition-sources"].$get()),
+  select: (data) => data.sources,
 });
 
 export function useAcquisitionSources() {

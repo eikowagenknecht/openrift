@@ -52,14 +52,19 @@ const COPY_SELECT = [
  */
 export function copiesRepo(db: Kysely<Database>) {
   return {
-    /** @returns All copies for a user, ordered by card name then collector number. */
-    listForUser(userId: string): Promise<CopyRow[]> {
-      return selectCopyWithCard(db)
+    /** @returns Cursor-paginated copies for a user, ordered by card name then collector number. Fetches `limit + 1` rows to detect `hasMore`. */
+    listForUser(userId: string, limit: number, cursor?: string): Promise<CopyRow[]> {
+      let query = selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.userId", "=", userId)
         .orderBy("c.name")
         .orderBy("p.collectorNumber")
-        .execute();
+        .orderBy("cp.id")
+        .limit(limit + 1);
+      if (cursor) {
+        query = query.where("cp.createdAt", "<", new Date(cursor));
+      }
+      return query.execute();
     },
 
     /** @returns A single copy by ID scoped to a user, or `undefined`. */
@@ -108,14 +113,19 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns All copies in a specific collection, ordered by card name then collector number. */
-    listForCollection(collectionId: string): Promise<CopyRow[]> {
-      return selectCopyWithCard(db)
+    /** @returns Cursor-paginated copies in a specific collection, ordered by card name then collector number. Fetches `limit + 1` rows to detect `hasMore`. */
+    listForCollection(collectionId: string, limit: number, cursor?: string): Promise<CopyRow[]> {
+      let query = selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.collectionId", "=", collectionId)
         .orderBy("c.name")
         .orderBy("p.collectorNumber")
-        .execute();
+        .orderBy("cp.id")
+        .limit(limit + 1);
+      if (cursor) {
+        query = query.where("cp.createdAt", "<", new Date(cursor));
+      }
+      return query.execute();
     },
 
     /** @returns The inserted copy rows with `id`, `printingId`, `collectionId`, and `acquisitionSourceId`. */

@@ -116,8 +116,8 @@ describe("GET /api/collections", () => {
     const res = await app.request("/api/collections");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toHaveLength(2);
-    expect(json[0].name).toBe("Inbox");
+    expect(json.collections).toHaveLength(2);
+    expect(json.collections[0].name).toBe("Inbox");
   });
 
   it("calls ensureInbox before listing", async () => {
@@ -293,8 +293,9 @@ describe("GET /api/collections/:id/copies", () => {
     const res = await app.request(`/api/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toHaveLength(1);
-    expect(json[0].id).toBe(dbCopy.id);
+    expect(json.copies).toHaveLength(1);
+    expect(json.copies[0].id).toBe(dbCopy.id);
+    expect(json.nextCursor).toBeNull();
   });
 
   it("returns 404 when collection not found", async () => {

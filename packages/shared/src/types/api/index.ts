@@ -16,27 +16,39 @@ export type {
   ActivityResponse,
 } from "./activity.js";
 
-export type { CollectionResponse, CopyResponse } from "./collection.js";
+export type {
+  CollectionListResponse,
+  CollectionResponse,
+  CopyCountResponse,
+  CopyListResponse,
+  CopyResponse,
+} from "./collection.js";
 
 export type {
   DeckAvailabilityItemResponse,
+  DeckAvailabilityResponse,
   DeckCardResponse,
   DeckDetailResponse,
+  DeckListResponse,
   DeckResponse,
 } from "./deck.js";
 
-export type { AcquisitionSourceResponse } from "./source.js";
+export type { FeatureFlagsResponse } from "./feature-flags.js";
+
+export type { AcquisitionSourceListResponse, AcquisitionSourceResponse } from "./source.js";
 
 export type {
   TradeListDetailResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,
+  TradeListListResponse,
   TradeListResponse,
 } from "./trade-list.js";
 
 export type {
   WishListDetailResponse,
   WishListItemResponse,
+  WishListListResponse,
   WishListResponse,
 } from "./wish-list.js";
 
