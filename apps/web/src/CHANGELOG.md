@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-24
+
+- feat: The landing page now shows how many cards and printings are in the database
+
 ## 2026-03-23
 
 - feat: Card prices from CardTrader now appear alongside TCGPlayer and Cardmarket on card detail pages
