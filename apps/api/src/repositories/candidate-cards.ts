@@ -172,12 +172,15 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /** @returns All candidate printings with fields needed for the card source list. */
     listCandidatePrintingsForSourceList(): Promise<
-      Pick<Selectable<CandidatePrintingsTable>, "candidateCardId" | "shortCode" | "checkedAt">[]
+      Pick<
+        Selectable<CandidatePrintingsTable>,
+        "candidateCardId" | "shortCode" | "checkedAt" | "printingId"
+      >[]
     > {
       return db
         .selectFrom("candidatePrintings as ps")
         .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
-        .select(["ps.candidateCardId", "ps.shortCode", "ps.checkedAt"])
+        .select(["ps.candidateCardId", "ps.shortCode", "ps.checkedAt", "ps.printingId"])
         .where(notIgnoredPrinting("ps", "cs"))
         .where(notHiddenSource("cs"))
         .execute();

@@ -220,11 +220,12 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
 
   // Collects all staging short codes across a normName group —
   // duplicates are kept so the frontend can show counts (e.g. "OGN-001a* ×2")
+  // Skip linked candidate printings — they're already resolved to an accepted printing
   function stagingIdsForGroup(group: typeof candidateCards): string[] {
     const ids: string[] = [];
     for (const cc of group) {
       for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
-        if (!cp.checkedAt) {
+        if (!cp.checkedAt && !cp.printingId) {
           ids.push(cp.shortCode);
         }
       }
@@ -232,12 +233,12 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
     return ids;
   }
 
-  // Count candidate printings without checkedAt across a normName group
+  // Count unlinked candidate printings without checkedAt across a normName group
   function uncheckedPrintingCountForGroup(group: typeof candidateCards): number {
     let count = 0;
     for (const cc of group) {
       for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
-        if (!cp.checkedAt) {
+        if (!cp.checkedAt && !cp.printingId) {
           count++;
         }
       }

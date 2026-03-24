@@ -179,23 +179,39 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   const [isCheckingAll, setIsCheckingAll] = useState(false);
   // oxlint-disable-next-line no-empty-function -- initialized before data is available, set after early returns
   const checkAllAndNextRef = useRef<() => void>(() => {});
+  // oxlint-disable-next-line no-empty-function -- initialized after early returns when prevNextCards is available
+  const prevNextRef = useRef<(dir: "prev" | "next") => void>(() => {});
   useHotkey("Mod+Enter", () => checkAllAndNextRef.current(), {
     enabled: mode === "existing" && !isCheckingAll,
   });
+  useHotkey("Mod+ArrowLeft", () => prevNextRef.current("prev"), {
+    enabled: mode === "existing",
+  });
+  useHotkey("Mod+ArrowRight", () => prevNextRef.current("next"), {
+    enabled: mode === "existing",
+  });
 
-  // Auto-expand "new" (ambiguous) printing groups on initial load
+  // Auto-expand all printings on initial load
   const initialExpandDone = useRef(false);
   useEffect(() => {
     if (initialExpandDone.current || !existingQuery.data) {
       return;
     }
-    const groups: CandidatePrintingGroupResponse[] =
-      (existingQuery.data as NonNullable<typeof existingQuery.data>).candidatePrintingGroups ?? [];
-    if (groups.length > 0) {
+    const data = existingQuery.data as NonNullable<typeof existingQuery.data>;
+    const groups: CandidatePrintingGroupResponse[] = data.candidatePrintingGroups ?? [];
+    const accepted = (data.printings ?? []) as Record<string, unknown>[];
+    const keys: string[] = [];
+    for (const p of accepted) {
+      keys.push(p.id as string);
+    }
+    for (const [i, g] of groups.entries()) {
+      keys.push(g.shortCodes[0] ?? `${g.expectedPrintingId}-${i}`);
+    }
+    if (keys.length > 0) {
       setExpandedPrintings((prev) => {
         const next = new Set(prev);
-        for (const [i, g] of groups.entries()) {
-          next.add(g.shortCodes[0] ?? `${g.expectedPrintingId}-${i}`);
+        for (const k of keys) {
+          next.add(k);
         }
         return next;
       });
@@ -449,6 +465,12 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
       next: idx !== -1 && idx < allCards.length - 1 ? allCards[idx + 1].slug : null,
     };
   })();
+  prevNextRef.current = (dir) => {
+    const slug = dir === "prev" ? prevNextCards.prev : prevNextCards.next;
+    if (slug) {
+      void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: slug } });
+    }
+  };
 
   return (
     <div className="space-y-6">
