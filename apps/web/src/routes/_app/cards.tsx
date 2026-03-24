@@ -6,6 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, catalogQueryOptions } from "@/hooks/use-cards";
 
 export const Route = createFileRoute("/_app/cards")({
+  head: () => ({
+    meta: [
+      { title: "Cards — OpenRift" },
+      { name: "description", content: "Browse and filter every Riftbound card." },
+    ],
+  }),
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
   component: CardsPage,
   pendingComponent: CardsPending,
