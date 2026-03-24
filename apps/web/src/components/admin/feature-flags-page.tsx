@@ -29,6 +29,7 @@ export function FeatureFlagsPage() {
   const columns: AdminColumnDef<FeatureFlagResponse, FlagDraft>[] = [
     {
       header: "Key",
+      sortValue: (f) => f.key,
       cell: (f) => <span className="font-mono text-sm">{f.key}</span>,
       addCell: (d, set) => (
         <Input

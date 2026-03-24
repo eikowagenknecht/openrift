@@ -35,15 +35,18 @@ export function IgnoredCandidatesPage() {
     {
       header: "Provider",
       width: "w-36",
+      sortValue: (r) => r.provider,
       cell: (r) => <Badge variant="outline">{r.provider}</Badge>,
     },
     {
       header: "External ID",
+      sortValue: (r) => r.externalId,
       cell: (r) => <span className="font-mono text-xs">{r.externalId}</span>,
     },
     {
       header: "Ignored At",
       width: "w-36",
+      sortValue: (r) => r.createdAt,
       cell: (r) => (
         <span className="text-xs text-muted-foreground">
           {r.createdAt.slice(0, 16).replace("T", " ")}
@@ -56,15 +59,18 @@ export function IgnoredCandidatesPage() {
     {
       header: "Provider",
       width: "w-36",
+      sortValue: (r) => r.provider,
       cell: (r) => <Badge variant="outline">{r.provider}</Badge>,
     },
     {
       header: "External ID",
+      sortValue: (r) => r.externalId,
       cell: (r) => <span className="font-mono text-xs">{r.externalId}</span>,
     },
     {
       header: "Finish",
       width: "w-24",
+      sortValue: (r) => r.finish,
       cell: (r) =>
         r.finish ? (
           <Badge variant="outline">{r.finish}</Badge>
@@ -75,6 +81,7 @@ export function IgnoredCandidatesPage() {
     {
       header: "Ignored At",
       width: "w-36",
+      sortValue: (r) => r.createdAt,
       cell: (r) => (
         <span className="text-xs text-muted-foreground">
           {r.createdAt.slice(0, 16).replace("T", " ")}

@@ -49,6 +49,7 @@ const columns: AdminColumnDef<MarketplaceGroup>[] = [
   {
     header: "Marketplace",
     width: "w-28",
+    sortValue: (g) => g.marketplace,
     cell: (g) => (
       <Badge variant="outline">{marketplaceLabels[g.marketplace] ?? g.marketplace}</Badge>
     ),
@@ -56,6 +57,7 @@ const columns: AdminColumnDef<MarketplaceGroup>[] = [
   {
     header: "Group ID",
     width: "w-24",
+    sortValue: (g) => g.groupId,
     cell: (g) => {
       const urlFn = externalUrls[g.marketplace];
       if (urlFn) {
@@ -75,6 +77,7 @@ const columns: AdminColumnDef<MarketplaceGroup>[] = [
   },
   {
     header: "Name",
+    sortValue: (g) => g.name,
     cell: (g) =>
       g.marketplace === "cardmarket" ? (
         <EditableName group={g} />
@@ -92,6 +95,7 @@ const columns: AdminColumnDef<MarketplaceGroup>[] = [
     width: "w-24",
     align: "right",
     headerTitle: "Products mapped to printings",
+    sortValue: (g) => g.assignedCount,
     cell: (g) => <CountBadge count={g.assignedCount} />,
   },
   {
@@ -99,6 +103,7 @@ const columns: AdminColumnDef<MarketplaceGroup>[] = [
     width: "w-24",
     align: "right",
     headerTitle: "Distinct products in staging, not yet mapped to printings",
+    sortValue: (g) => g.stagedCount,
     cell: (g) => <CountBadge count={g.stagedCount} />,
   },
 ];

@@ -29,6 +29,7 @@ export function PromoTypesPage() {
   const columns: AdminColumnDef<PromoTypeResponse, PromoTypeDraft>[] = [
     {
       header: "Slug",
+      sortValue: (pt) => pt.slug,
       cell: (pt) => <span className="font-mono text-sm">{pt.slug}</span>,
       addCell: (d, set) => (
         <Input
@@ -41,6 +42,7 @@ export function PromoTypesPage() {
     },
     {
       header: "Label",
+      sortValue: (pt) => pt.label,
       cell: (pt) => <span className="text-sm">{pt.label}</span>,
       editCell: (d, set) => (
         <Input
@@ -62,6 +64,7 @@ export function PromoTypesPage() {
       header: "Sort Order",
       align: "center",
       width: "w-24",
+      sortValue: (pt) => pt.sortOrder,
       cell: (pt) => <span className="text-sm text-muted-foreground">{pt.sortOrder}</span>,
       editCell: (d, set) => (
         <Input

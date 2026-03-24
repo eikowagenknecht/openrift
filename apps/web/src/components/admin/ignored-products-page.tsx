@@ -23,12 +23,14 @@ export function IgnoredProductsPage() {
     {
       header: "Marketplace",
       width: "w-28",
+      sortValue: (p) => p.marketplace,
       cell: (p) => (
         <Badge variant="outline">{marketplaceLabels[p.marketplace] ?? p.marketplace}</Badge>
       ),
     },
     {
       header: "Product Name",
+      sortValue: (p) => p.productName,
       cell: (p) => (
         <span className="max-w-xs truncate" title={p.productName}>
           {p.productName}
@@ -55,11 +57,13 @@ export function IgnoredProductsPage() {
     {
       header: "Finish",
       width: "w-24",
+      sortValue: (p) => p.finish,
       cell: (p) => <Badge variant="outline">{p.finish}</Badge>,
     },
     {
       header: "Ignored At",
       width: "w-36",
+      sortValue: (p) => p.createdAt,
       cell: (p) => (
         <span className="text-xs text-muted-foreground">
           {p.createdAt.slice(0, 16).replace("T", " ")}

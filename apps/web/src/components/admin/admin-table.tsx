@@ -1,5 +1,5 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import { ArrowDownIcon, ArrowUpIcon, Trash2Icon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -36,6 +36,9 @@ export interface AdminColumnDef<TData, TDraft = TData> {
   width?: string;
   /** Text alignment */
   align?: "left" | "center" | "right";
+
+  /** Return a sortable value for this column. If provided, the column header becomes clickable. */
+  sortValue?: (row: TData) => string | number | null;
 
   /** Render a cell in display mode */
   cell: (row: TData, index: number) => ReactNode;
@@ -129,8 +132,57 @@ export function AdminTable<TData, TDraft = TData>({
 
   const [deleteError, setDeleteError] = useState("");
 
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
   const hasActions = Boolean(edit || del || actions);
   const totalCols = columns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
+
+  // --- Sort ---
+  function toggleSort(header: string) {
+    if (sortCol === header) {
+      if (sortDir === "asc") {
+        setSortDir("desc");
+      } else {
+        setSortCol(null);
+        setSortDir("asc");
+      }
+    } else {
+      setSortCol(header);
+      setSortDir("asc");
+    }
+  }
+
+  function getSortedData(): TData[] {
+    if (!sortCol || reorder) {
+      return data;
+    }
+    const col = columns.find((c) => c.header === sortCol);
+    if (!col?.sortValue) {
+      return data;
+    }
+    const { sortValue } = col;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...data].sort((a, b) => {
+      const va = sortValue(a);
+      const vb = sortValue(b);
+      if (va === null && vb === null) {
+        return 0;
+      }
+      if (va === null) {
+        return 1;
+      }
+      if (vb === null) {
+        return -1;
+      }
+      if (typeof va === "string" && typeof vb === "string") {
+        return va.localeCompare(vb) * dir;
+      }
+      return ((va as number) - (vb as number)) * dir;
+    });
+  }
+
+  const sortedData = getSortedData();
 
   // --- Add handlers ---
   function startAdding() {
@@ -235,15 +287,36 @@ export function AdminTable<TData, TDraft = TData>({
           <TableHeader>
             <TableRow>
               {reorder && <TableHead className="w-16">Order</TableHead>}
-              {columns.map((col) => (
-                <TableHead
-                  key={col.header}
-                  className={cn(col.width, alignClass(col.align))}
-                  title={col.headerTitle}
-                >
-                  {col.header}
-                </TableHead>
-              ))}
+              {columns.map((col) => {
+                const isSortable = !reorder && col.sortValue;
+                const isActive = sortCol === col.header;
+                return (
+                  <TableHead
+                    key={col.header}
+                    className={cn(
+                      col.width,
+                      alignClass(col.align),
+                      isSortable && "cursor-pointer select-none",
+                    )}
+                    title={col.headerTitle}
+                    onClick={isSortable ? () => toggleSort(col.header) : undefined}
+                  >
+                    <span className={cn(isSortable && "inline-flex items-center gap-1")}>
+                      {col.header}
+                      {isSortable &&
+                        (isActive ? (
+                          sortDir === "asc" ? (
+                            <ArrowUpIcon className="inline h-3.5 w-3.5 text-foreground" />
+                          ) : (
+                            <ArrowDownIcon className="inline h-3.5 w-3.5 text-foreground" />
+                          )
+                        ) : (
+                          <ChevronsUpDownIcon className="inline h-3.5 w-3.5 text-muted-foreground/50" />
+                        ))}
+                    </span>
+                  </TableHead>
+                );
+              })}
               {hasActions && <TableHead className="w-32 text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -284,7 +357,7 @@ export function AdminTable<TData, TDraft = TData>({
             )}
 
             {/* Data rows */}
-            {data.map((row, index) => {
+            {sortedData.map((row, index) => {
               const key = getRowKey(row);
               const isEditing = editingKey === key && editDraft !== null;
 
@@ -306,7 +379,7 @@ export function AdminTable<TData, TDraft = TData>({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6"
-                          disabled={index === data.length - 1 || reorder.isPending}
+                          disabled={index === sortedData.length - 1 || reorder.isPending}
                           onClick={() => reorder.onMove(index, 1)}
                         >
                           <ArrowDownIcon className="h-3.5 w-3.5" />
