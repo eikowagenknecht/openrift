@@ -75,7 +75,7 @@ export function IgnoredCandidatesPage() {
         r.finish ? (
           <Badge variant="outline">{r.finish}</Badge>
         ) : (
-          <span className="text-xs text-muted-foreground">all</span>
+          <Badge variant="outline">all</Badge>
         ),
     },
     {
