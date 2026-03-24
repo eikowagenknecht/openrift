@@ -32,10 +32,8 @@ export function Footer() {
         </a>
       </p>
       <p className="mt-1">
-        OpenRift isn&apos;t endorsed by Riot Games and doesn&apos;t reflect the views or opinions of
-        Riot Games or anyone officially involved in producing or managing Riot Games properties.
-        Riot Games, and all associated properties are trademarks or registered trademarks of Riot
-        Games, Inc.
+        OpenRift was created under Riot Games&apos; &ldquo;Legal Jibber Jabber&rdquo; policy using
+        assets owned by Riot Games. Riot Games does not endorse or sponsor this project.
       </p>
     </footer>
   );
