@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Column definition
@@ -61,6 +62,9 @@ interface AdminTableProps<TData, TDraft = TData> {
   getRowKey: (row: TData) => string;
   /** Text shown when data is empty */
   emptyText?: string;
+
+  /** Initial sort state. `column` must match a column's `header` that has `sortValue`. */
+  defaultSort?: { column: string; direction: "asc" | "desc" };
 
   /** Optional toolbar content rendered above the table (description, filters, etc.) */
   toolbar?: ReactNode;
@@ -113,6 +117,7 @@ export function AdminTable<TData, TDraft = TData>({
   data,
   getRowKey,
   emptyText = "No data.",
+  defaultSort,
   toolbar,
   add,
   edit,
@@ -132,8 +137,8 @@ export function AdminTable<TData, TDraft = TData>({
 
   const [deleteError, setDeleteError] = useState("");
 
-  const [sortCol, setSortCol] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortCol, setSortCol] = useState<string | null>(defaultSort?.column ?? null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSort?.direction ?? "asc");
 
   const hasActions = Boolean(edit || del || actions);
   const totalCols = columns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
@@ -534,12 +539,4 @@ function DeleteButton<TData>({
       Delete
     </Button>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Minimal cn helper (avoids importing from @/lib/utils for optional classes)
-// ---------------------------------------------------------------------------
-
-function cn(...classes: (string | undefined | false | null)[]) {
-  return classes.filter(Boolean).join(" ");
 }

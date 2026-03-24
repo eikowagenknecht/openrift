@@ -99,6 +99,7 @@ export function IgnoredCandidatesPage() {
           data={cards}
           getRowKey={(r) => r.id}
           emptyText="No ignored candidate cards."
+          defaultSort={{ column: "Ignored At", direction: "desc" }}
           actions={(r) => (
             <Button
               variant="ghost"
@@ -123,6 +124,7 @@ export function IgnoredCandidatesPage() {
           data={printings}
           getRowKey={(r) => r.id}
           emptyText="No ignored candidate printings."
+          defaultSort={{ column: "Ignored At", direction: "desc" }}
           actions={(r) => (
             <Button
               variant="ghost"

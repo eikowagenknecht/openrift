@@ -78,6 +78,7 @@ export function IgnoredProductsPage() {
       data={products}
       getRowKey={(p) => `${p.marketplace}:${p.externalId}:${p.finish}`}
       emptyText="No ignored products."
+      defaultSort={{ column: "Ignored At", direction: "desc" }}
       toolbar={
         products.length > 0 ? (
           <p className="text-sm text-muted-foreground">
