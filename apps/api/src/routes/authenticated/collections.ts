@@ -24,11 +24,11 @@ const patchFields: FieldMapping = {
 };
 
 export const collectionsRoute = new Hono<{ Variables: Variables }>()
-  .use("/collections/*", requireAuth)
-  .use("/collections", requireAuth)
+  .basePath("/collections")
+  .use(requireAuth)
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/collections", async (c) => {
+  .get("/", async (c) => {
     const { collections } = c.get("repos");
     const { ensureInbox } = c.get("services");
     const userId = getUserId(c);
@@ -40,7 +40,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/collections", zValidator("json", createCollectionSchema), async (c) => {
+  .post("/", zValidator("json", createCollectionSchema), async (c) => {
     const { collections } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -56,7 +56,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
-  .get("/collections/:id", zValidator("param", idParamSchema), async (c) => {
+  .get("/:id", zValidator("param", idParamSchema), async (c) => {
     const { collections } = c.get("repos");
     const { id } = c.req.valid("param");
     const row = await collections.getByIdForUser(id, getUserId(c));
@@ -68,7 +68,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .patch(
-    "/collections/:id",
+    "/:id",
     zValidator("param", idParamSchema),
     zValidator("json", updateCollectionSchema),
     async (c) => {
@@ -87,7 +87,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
   // Complex: validates inbox, relocates copies, logs activity
-  .delete("/collections/:id", zValidator("param", idParamSchema), async (c) => {
+  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
     const db = c.get("db");
     const repos = c.get("repos");
     const { deleteCollection } = c.get("services");
@@ -133,7 +133,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
   .get(
-    "/collections/:id/copies",
+    "/:id/copies",
     zValidator("param", idParamSchema),
     zValidator("query", copiesQuerySchema),
     async (c) => {

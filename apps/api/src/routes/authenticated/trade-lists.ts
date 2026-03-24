@@ -23,11 +23,11 @@ const patchFields: FieldMapping = {
 };
 
 export const tradeListsRoute = new Hono<{ Variables: Variables }>()
-  .use("/trade-lists/*", requireAuth)
-  .use("/trade-lists", requireAuth)
+  .basePath("/trade-lists")
+  .use(requireAuth)
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/trade-lists", async (c) => {
+  .get("/", async (c) => {
     const { tradeLists } = c.get("repos");
     const rows = await tradeLists.listForUser(getUserId(c));
     return c.json({
@@ -36,7 +36,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/trade-lists", zValidator("json", createTradeListSchema), async (c) => {
+  .post("/", zValidator("json", createTradeListSchema), async (c) => {
     const { tradeLists } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -49,7 +49,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE (custom: returns trade list with enriched items) ────────────────
-  .get("/trade-lists/:id", zValidator("param", idParamSchema), async (c) => {
+  .get("/:id", zValidator("param", idParamSchema), async (c) => {
     const { tradeLists } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -70,7 +70,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .patch(
-    "/trade-lists/:id",
+    "/:id",
     zValidator("param", idParamSchema),
     zValidator("json", updateTradeListSchema),
     async (c) => {
@@ -88,7 +88,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/trade-lists/:id", zValidator("param", idParamSchema), async (c) => {
+  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
     const { tradeLists } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await tradeLists.deleteByIdForUser(id, getUserId(c));
@@ -100,7 +100,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /trade-lists/:id/items ───────────────────────────────────────────
   .post(
-    "/trade-lists/:id/items",
+    "/:id/items",
     zValidator("param", idParamSchema),
     zValidator("json", createTradeListItemSchema),
     async (c) => {
@@ -132,20 +132,16 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE /trade-lists/:id/items/:itemId ─────────────────────────────────
-  .delete(
-    "/trade-lists/:id/items/:itemId",
-    zValidator("param", idAndItemIdParamSchema),
-    async (c) => {
-      const { tradeLists } = c.get("repos");
-      const userId = getUserId(c);
-      const { id: tradeListId, itemId } = c.req.valid("param");
+  .delete("/:id/items/:itemId", zValidator("param", idAndItemIdParamSchema), async (c) => {
+    const { tradeLists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id: tradeListId, itemId } = c.req.valid("param");
 
-      const result = await tradeLists.deleteItem(itemId, tradeListId, userId);
+    const result = await tradeLists.deleteItem(itemId, tradeListId, userId);
 
-      if (result.numDeletedRows === 0n) {
-        throw new AppError(404, "NOT_FOUND", "Not found");
-      }
+    if (result.numDeletedRows === 0n) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
 
-      return c.body(null, 204);
-    },
-  );
+    return c.body(null, 204);
+  });

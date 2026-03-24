@@ -9,8 +9,9 @@ import type { Variables } from "../../types.js";
 // Unified "still needed" view: wanted deck shortfalls + wish list items
 
 export const shoppingListRoute = new Hono<{ Variables: Variables }>()
-  .use("/shopping-list", requireAuth)
-  .get("/shopping-list", async (c) => {
+  .basePath("/shopping-list")
+  .use(requireAuth)
+  .get("/", async (c) => {
     const { buildShoppingList } = c.get("services");
     const db = c.get("db");
     const userId = getUserId(c);

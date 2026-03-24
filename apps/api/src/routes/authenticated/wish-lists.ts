@@ -24,18 +24,18 @@ const patchFields: FieldMapping = {
 };
 
 export const wishListsRoute = new Hono<{ Variables: Variables }>()
-  .use("/wish-lists/*", requireAuth)
-  .use("/wish-lists", requireAuth)
+  .basePath("/wish-lists")
+  .use(requireAuth)
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/wish-lists", async (c) => {
+  .get("/", async (c) => {
     const { wishLists } = c.get("repos");
     const rows = await wishLists.listForUser(getUserId(c));
     return c.json({ wishLists: rows.map((row) => toWishList(row)) } satisfies WishListListResponse);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/wish-lists", zValidator("json", createWishListSchema), async (c) => {
+  .post("/", zValidator("json", createWishListSchema), async (c) => {
     const { wishLists } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -48,7 +48,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE (custom: returns wish list with items) ──────────────────────────
-  .get("/wish-lists/:id", zValidator("param", idParamSchema), async (c) => {
+  .get("/:id", zValidator("param", idParamSchema), async (c) => {
     const { wishLists } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -69,7 +69,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .patch(
-    "/wish-lists/:id",
+    "/:id",
     zValidator("param", idParamSchema),
     zValidator("json", updateWishListSchema),
     async (c) => {
@@ -87,7 +87,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/wish-lists/:id", zValidator("param", idParamSchema), async (c) => {
+  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
     const { wishLists } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await wishLists.deleteByIdForUser(id, getUserId(c));
@@ -99,7 +99,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /wish-lists/:id/items ────────────────────────────────────────────
   .post(
-    "/wish-lists/:id/items",
+    "/:id/items",
     zValidator("param", idParamSchema),
     zValidator("json", createWishListItemSchema),
     async (c) => {
@@ -107,15 +107,6 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
       const userId = getUserId(c);
       const { id: wishListId } = c.req.valid("param");
       const body = c.req.valid("json");
-
-      // Validate XOR constraint
-      if ((!body.cardId && !body.printingId) || (body.cardId && body.printingId)) {
-        throw new AppError(
-          400,
-          "BAD_REQUEST",
-          "Exactly one of cardId or printingId must be provided",
-        );
-      }
 
       // Verify wish list belongs to user
       const wishList = await wishLists.exists(wishListId, userId);
@@ -137,7 +128,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
 
   // ── PATCH /wish-lists/:id/items/:itemId ───────────────────────────────────
   .patch(
-    "/wish-lists/:id/items/:itemId",
+    "/:id/items/:itemId",
     zValidator("param", idAndItemIdParamSchema),
     zValidator("json", updateWishListItemSchema),
     async (c) => {
@@ -159,20 +150,16 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE /wish-lists/:id/items/:itemId ──────────────────────────────────
-  .delete(
-    "/wish-lists/:id/items/:itemId",
-    zValidator("param", idAndItemIdParamSchema),
-    async (c) => {
-      const { wishLists } = c.get("repos");
-      const userId = getUserId(c);
-      const { id: wishListId, itemId } = c.req.valid("param");
+  .delete("/:id/items/:itemId", zValidator("param", idAndItemIdParamSchema), async (c) => {
+    const { wishLists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id: wishListId, itemId } = c.req.valid("param");
 
-      const result = await wishLists.deleteItem(itemId, wishListId, userId);
+    const result = await wishLists.deleteItem(itemId, wishListId, userId);
 
-      if (result.numDeletedRows === 0n) {
-        throw new AppError(404, "NOT_FOUND", "Not found");
-      }
+    if (result.numDeletedRows === 0n) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
 
-      return c.body(null, 204);
-    },
-  );
+    return c.body(null, 204);
+  });
