@@ -55,6 +55,8 @@ export type {
   ClearRehostedResponse,
   FeatureFlagResponse,
   IgnoredProductResponse,
+  KeywordStyleEntry,
+  KeywordStylesResponse,
   MappingPrintingResponse,
   MarketplaceGroupResponse,
   PriceRefreshResponse,

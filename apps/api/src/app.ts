@@ -27,6 +27,7 @@ import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
 import { catalogRoute } from "./routes/public/catalog.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
+import { keywordStylesRoute } from "./routes/public/keyword-styles.js";
 import { pricesRoute } from "./routes/public/prices.js";
 import type { Auth, Config, Variables } from "./types.js";
 
@@ -160,6 +161,7 @@ export function createApp(deps: AppDeps) {
     .route("/api", catalogRoute)
     .route("/api", pricesRoute)
     .route("/api", featureFlagsRoute)
+    .route("/api", keywordStylesRoute)
 
     // ── Authenticated routes (require a valid session) ────────────────────
     .route("/api", collectionsRoute)

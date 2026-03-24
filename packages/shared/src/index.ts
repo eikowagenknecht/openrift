@@ -44,6 +44,8 @@ export type {
   FilterRange,
   Finish,
   IgnoredProductResponse,
+  KeywordStyleEntry,
+  KeywordStylesResponse,
   MappingPrintingResponse,
   Marketplace,
   MarketplaceGroupResponse,
