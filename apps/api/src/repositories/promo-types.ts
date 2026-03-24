@@ -58,6 +58,19 @@ export function promoTypesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    async reorder(ids: string[]): Promise<void> {
+      if (ids.length === 0) {
+        return;
+      }
+      const values = sql.join(ids.map((id, i) => sql`(${id}::uuid, ${i + 1}::int)`));
+      await sql`
+        update promo_types
+        set sort_order = d.new_order
+        from (values ${values}) as d(id, new_order)
+        where promo_types.id = d.id
+      `.execute(db);
+    },
+
     /** Bulk-update printing slugs by replacing a suffix substring.
      * @returns Resolves when the update is complete. */
     async renamePrintingSlugs(

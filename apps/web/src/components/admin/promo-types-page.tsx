@@ -7,6 +7,7 @@ import {
   useCreatePromoType,
   useDeletePromoType,
   usePromoTypes,
+  useReorderPromoTypes,
   useUpdatePromoType,
 } from "@/hooks/use-promo-types";
 
@@ -14,7 +15,6 @@ interface PromoTypeDraft {
   id: string;
   slug: string;
   label: string;
-  sortOrder: string;
 }
 
 const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/;
@@ -24,7 +24,18 @@ export function PromoTypesPage() {
   const createMutation = useCreatePromoType();
   const updateMutation = useUpdatePromoType();
   const deleteMutation = useDeletePromoType();
+  const reorderMutation = useReorderPromoTypes();
   const { promoTypes } = data;
+
+  function movePromoType(index: number, direction: -1 | 1) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= promoTypes.length) {
+      return;
+    }
+    const reordered = promoTypes.map((pt) => pt.id);
+    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+    reorderMutation.mutate(reordered);
+  }
 
   const columns: AdminColumnDef<PromoTypeResponse, PromoTypeDraft>[] = [
     {
@@ -60,29 +71,6 @@ export function PromoTypesPage() {
         />
       ),
     },
-    {
-      header: "Sort Order",
-      align: "center",
-      width: "w-24",
-      sortValue: (pt) => pt.sortOrder,
-      cell: (pt) => <span className="text-sm text-muted-foreground">{pt.sortOrder}</span>,
-      editCell: (d, set) => (
-        <Input
-          value={d.sortOrder}
-          onChange={(e) => set((prev) => ({ ...prev, sortOrder: e.target.value }))}
-          className="h-8 w-16 text-center"
-          type="number"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.sortOrder}
-          onChange={(e) => set((prev) => ({ ...prev, sortOrder: e.target.value }))}
-          className="h-8 w-16 text-center"
-          type="number"
-        />
-      ),
-    },
   ];
 
   return (
@@ -97,12 +85,11 @@ export function PromoTypesPage() {
         </p>
       }
       add={{
-        emptyDraft: { id: "", slug: "", label: "", sortOrder: "0" },
+        emptyDraft: { id: "", slug: "", label: "" },
         onSave: (d) =>
           createMutation.mutateAsync({
             slug: d.slug.trim(),
             label: d.label.trim(),
-            sortOrder: Number.parseInt(d.sortOrder, 10) || 0,
           }),
         validate: (d) => {
           const slug = d.slug.trim();
@@ -122,14 +109,16 @@ export function PromoTypesPage() {
           id: pt.id,
           slug: pt.slug,
           label: pt.label,
-          sortOrder: String(pt.sortOrder),
         }),
         onSave: (d) =>
           updateMutation.mutateAsync({
             id: d.id,
             label: d.label.trim() || undefined,
-            sortOrder: Number.parseInt(d.sortOrder, 10) || 0,
           }),
+      }}
+      reorder={{
+        onMove: movePromoType,
+        isPending: reorderMutation.isPending,
       }}
       delete={{
         onDelete: (pt) => deleteMutation.mutateAsync(pt.id),
