@@ -1,7 +1,9 @@
 import { z } from "zod";
 
-// Field rules inlined from api/db/schemas — mirrors DB CHECK constraints for
-// the subset needed by shared request-validation schemas.
+/**
+ * Field rules inlined from api/db/schemas — mirrors DB CHECK constraints for
+ * the subset needed by shared request-validation schemas.
+ */
 const collectionFieldRules = {
   name: z.string().min(1).max(200),
 };

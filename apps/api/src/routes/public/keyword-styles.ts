@@ -2,9 +2,7 @@ import { Hono } from "hono";
 
 import type { Variables } from "../../types.js";
 
-// ── Public: GET /keyword-styles ─────────────────────────────────────────────
-// Returns { name: { color, darkText } } map for keyword badge rendering.
-
+/** Public: GET /keyword-styles — returns `{ name: { color, darkText } }` map for keyword badge rendering. */
 export const keywordStylesRoute = new Hono<{ Variables: Variables }>().get(
   "/keyword-styles",
   async (c) => {

@@ -3,9 +3,7 @@ import { Hono } from "hono";
 
 import type { Variables } from "../../types.js";
 
-// ── Public: GET /feature-flags ──────────────────────────────────────────────
-// Returns { flags: { key: enabled } } map for the client to consume at boot.
-
+/** Public: GET /feature-flags — returns `{ flags: { key: enabled } }` map for the client to consume at boot. */
 export const featureFlagsRoute = new Hono<{ Variables: Variables }>().get(
   "/feature-flags",
   async (c) => {
