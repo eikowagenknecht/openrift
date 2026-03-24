@@ -1,8 +1,8 @@
-declare const __COMMIT_HASH__: string;
-
 interface ImportMetaEnv {
   /** Comma-separated hostname suffixes that identify preview deployments (e.g. ".workers.dev") */
   readonly VITE_PREVIEW_HOSTS?: string;
+  /** Short git commit hash injected at build time. */
+  readonly VITE_COMMIT_HASH?: string;
 }
 
 interface ImportMeta {

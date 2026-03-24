@@ -16,4 +16,4 @@ export const PROD = import.meta.env.PROD;
 export const PREVIEW_HOSTS = import.meta.env.VITE_PREVIEW_HOSTS ?? "";
 
 /** Short git commit hash injected at build time. */
-export const COMMIT_HASH: string = __COMMIT_HASH__;
+export const COMMIT_HASH: string = import.meta.env.VITE_COMMIT_HASH ?? "dev";

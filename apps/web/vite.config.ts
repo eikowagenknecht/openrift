@@ -12,15 +12,26 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
 const cardImagesDir = path.resolve(__dirname, "../../card-images");
+
+// Set VITE_COMMIT_HASH so it's available via import.meta.env.VITE_COMMIT_HASH.
+// Using an env var avoids conflicts with TanStack Start's define entries.
+process.env.VITE_COMMIT_HASH = execSync("git rev-parse --short HEAD").toString().trim();
 
 export default defineConfig({
   devtools: false,
-  define: {
-    __COMMIT_HASH__: JSON.stringify(commitHash),
-  },
   plugins: [
+    // Workaround: TanStack Start's define for TSS_SERVER_FN_BASE doesn't reach
+    // /@fs/-served framework modules in Vite 8's dev mode. This plugin applies
+    // the replacement directly during transform.
+    {
+      name: "fix-tss-define",
+      transform(code, id) {
+        if (id.includes("createClientRpc") && code.includes("process.env.TSS_SERVER_FN_BASE")) {
+          return code.replace("process.env.TSS_SERVER_FN_BASE", JSON.stringify("/_serverFn/"));
+        }
+      },
+    },
     // Serve /card-images/ from repo root in dev (in prod, volume mount handles this)
     {
       name: "serve-card-images",

@@ -3,10 +3,9 @@ import path from "node:path";
 
 import { defineConfig } from "vitest/config";
 
+process.env.VITE_COMMIT_HASH = "test";
+
 export default defineConfig({
-  define: {
-    __COMMIT_HASH__: JSON.stringify("test"),
-  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
