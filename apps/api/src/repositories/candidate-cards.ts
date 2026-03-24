@@ -82,6 +82,7 @@ function notIgnoredPrinting(alias: string, csAlias: string) {
 interface ExportPrintingRow extends Selectable<PrintingsTable> {
   setSlug: string;
   setName: string;
+  imageId: string | null;
   rehostedUrl: string | null;
   originalUrl: string | null;
 }
@@ -871,6 +872,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .select([
           "sets.slug as setSlug",
           "sets.name as setName",
+          "printingImages.id as imageId",
           "printingImages.rehostedUrl",
           "printingImages.originalUrl",
         ])

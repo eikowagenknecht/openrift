@@ -371,7 +371,7 @@ export async function buildExport(repo: Repo) {
       image_url: p.originalUrl ?? p.rehostedUrl ?? null,
       flavor_text: p.flavorText,
       external_id: p.id,
-      extra_data: null,
+      extra_data: p.imageId ? { image_id: p.imageId } : null,
     })),
   }));
 }
