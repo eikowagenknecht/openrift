@@ -18,7 +18,7 @@ export function Footer() {
         <a
           href="https://github.com/eikowagenknecht/openrift/commits/main/"
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noreferrer"
           className="hover:text-muted-foreground"
         >
           <svg

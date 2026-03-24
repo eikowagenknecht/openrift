@@ -46,7 +46,7 @@ export function IgnoredProductsPage() {
           <a
             href={config.productUrl(p.externalId)}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noreferrer"
             className="font-mono text-primary underline underline-offset-4 hover:text-primary/80"
           >
             #{p.externalId}

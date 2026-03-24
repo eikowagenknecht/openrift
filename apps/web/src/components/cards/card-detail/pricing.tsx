@@ -128,7 +128,7 @@ function PriceChip({
   iconClassName?: string;
 }) {
   const Wrapper = url ? "a" : "span";
-  const linkProps = url ? { href: url, target: "_blank" as const, rel: "noopener noreferrer" } : {};
+  const linkProps = url ? { href: url, target: "_blank" as const, rel: "noreferrer" } : {};
 
   return (
     <Wrapper

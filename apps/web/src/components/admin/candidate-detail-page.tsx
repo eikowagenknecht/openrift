@@ -1479,7 +1479,7 @@ function ImagePreview({
   return (
     <div className="relative">
       {url && !imgError ? (
-        <a href={url} target="_blank" rel="noopener noreferrer">
+        <a href={url} target="_blank" rel="noreferrer">
           <img
             src={url}
             alt={alt}
@@ -1495,7 +1495,7 @@ function ImagePreview({
         <a
           href={url}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noreferrer"
           className="flex aspect-[5/7] w-full items-center justify-center rounded border bg-muted/30 text-xs text-muted-foreground hover:bg-muted/50"
         >
           Failed to load — click to open
@@ -1590,7 +1590,7 @@ function GroupImagePreview({
       <a
         href={selected.url}
         target="_blank"
-        rel="noopener noreferrer"
+        rel="noreferrer"
         className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
         title={selected.url}
       >
@@ -1748,7 +1748,7 @@ function PrintingImageSwitcher({
             <a
               href={effectiveImage.originalUrl}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noreferrer"
               className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
               title={effectiveImage.originalUrl}
             >
@@ -1759,7 +1759,7 @@ function PrintingImageSwitcher({
             <a
               href={`${effectiveImage.rehostedUrl}-full.webp`}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noreferrer"
               className="block truncate text-[10px] text-green-600 hover:text-green-500"
               title={`${effectiveImage.rehostedUrl}-full.webp`}
             >
@@ -1770,7 +1770,7 @@ function PrintingImageSwitcher({
             <a
               href={effectiveSource.url}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noreferrer"
               className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
               title={effectiveSource.url}
             >
