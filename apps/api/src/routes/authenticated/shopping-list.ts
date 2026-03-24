@@ -11,9 +11,9 @@ export const shoppingListRoute = new Hono<{ Variables: Variables }>()
   .use(requireAuth)
   .get("/", async (c) => {
     const { buildShoppingList } = c.get("services");
-    const db = c.get("db");
+    const repos = c.get("repos");
     const userId = getUserId(c);
-    const items = await buildShoppingList(db, userId);
+    const items = await buildShoppingList(repos, userId);
     const result: ShoppingListResponse = { items };
     return c.json(result);
   });

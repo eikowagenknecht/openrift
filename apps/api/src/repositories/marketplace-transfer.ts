@@ -1,4 +1,4 @@
-import type { Kysely, Transaction } from "kysely";
+import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
@@ -37,7 +37,6 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
 
     /** Upsert a snapshot row from staging data. */
     async insertSnapshot(
-      tx: Transaction<Database>,
       productId: string,
       row: {
         recordedAt: Date;
@@ -51,7 +50,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
         avg30Cents: number | null;
       },
     ): Promise<void> {
-      await tx
+      await db
         .insertInto("marketplaceSnapshots")
         .values({
           productId,
@@ -82,7 +81,6 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
 
     /** Insert a staging row from a snapshot (used during unmap). */
     async insertStagingFromSnapshot(
-      tx: Transaction<Database>,
       marketplace: string,
       ps: { externalId: number; groupId: number; productName: string },
       finish: string,
@@ -98,7 +96,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
         avg30Cents: number | null;
       },
     ): Promise<void> {
-      await tx
+      await db
         .insertInto("marketplaceStaging")
         .values({
           marketplace,
@@ -123,7 +121,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
     },
 
     /** Bulk-copy all snapshots back to staging for a marketplace (used during unmap-all). */
-    async bulkUnmapToStaging(tx: Transaction<Database>, marketplace: string): Promise<void> {
+    async bulkUnmapToStaging(marketplace: string): Promise<void> {
       await sql`
         INSERT INTO marketplace_staging (marketplace, external_id, group_id, product_name, finish, recorded_at,
           market_cents, low_cents, mid_cents, high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents)
@@ -135,7 +133,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
         WHERE s.marketplace = ${marketplace}
           AND s.external_id IS NOT NULL
         ON CONFLICT (marketplace, external_id, finish, recorded_at) DO NOTHING
-      `.execute(tx);
+      `.execute(db);
     },
   };
 }

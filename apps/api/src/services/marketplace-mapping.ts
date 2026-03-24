@@ -1,14 +1,13 @@
 import type { StagedProductResponse } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../db/index.js";
-import { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
+import type { Repos, Transact } from "../deps.js";
 import type {
   MarketplaceConfig,
   ProductInfo,
   StagingRow,
 } from "../routes/admin/marketplace-configs.js";
+import { createMarketplaceConfigs } from "../routes/admin/marketplace-configs.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -269,8 +268,8 @@ function buildResponseGroups(
 
 // ── getMappingOverview ───────────────────────────────────────────────────────
 
-export async function getMappingOverview(db: Kysely<Database>, config: MarketplaceConfig) {
-  const repo = marketplaceMappingRepo(db);
+export async function getMappingOverview(repos: Repos, config: MarketplaceConfig) {
+  const repo = repos.marketplaceMapping;
 
   // 1. Load ignored products
   const ignoredRows = await repo.ignoredProducts(config.marketplace);
@@ -426,7 +425,7 @@ export async function getMappingOverview(db: Kysely<Database>, config: Marketpla
 // ── saveMappings ────────────────────────────────────────────────────────────
 
 export async function saveMappings(
-  db: Kysely<Database>,
+  transact: Transact,
   config: MarketplaceConfig,
   mappings: { printingId: string; externalId: number }[],
 ): Promise<{ saved: number; skipped: { externalId: number; reason: string }[] }> {
@@ -434,18 +433,19 @@ export async function saveMappings(
     return { saved: 0, skipped: [] };
   }
 
-  const repo = marketplaceMappingRepo(db);
   const skipped: { externalId: number; reason: string }[] = [];
 
-  const saved = await db.transaction().execute(async (tx) => {
+  const saved = await transact(async (trxRepos) => {
+    const repo = trxRepos.marketplaceMapping;
+
     // 1. Batch-fetch printing finishes (1 query instead of N)
     const printingIds = mappings.map((m) => m.printingId);
-    const printingRows = await repo.printingFinishes(printingIds, tx);
+    const printingRows = await repo.printingFinishes(printingIds);
     const finishByPrinting = new Map(printingRows.map((row) => [row.id, row.finish]));
 
     // 2. Batch-fetch staging rows (1 query instead of N)
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
-    const allStagingRows = await repo.stagingByExternalIds(config.marketplace, externalIds, tx);
+    const allStagingRows = await repo.stagingByExternalIds(config.marketplace, externalIds);
     const stagingByKey = new Map<string, typeof allStagingRows>();
     for (const row of allStagingRows) {
       const key = `${row.externalId}::${row.finish}`;
@@ -503,7 +503,7 @@ export async function saveMappings(
     }
 
     // 4. Batch-upsert sources (1 query instead of N)
-    const sourceResults = await repo.upsertSources(sourceValues, tx);
+    const sourceResults = await repo.upsertSources(sourceValues);
     const productIdByPrinting = new Map(sourceResults.map((r) => [r.printingId, r.id]));
 
     // 5. Batch-insert snapshots (1 query instead of N×M)
@@ -543,7 +543,7 @@ export async function saveMappings(
     }
 
     if (snapshotRows.length > 0) {
-      await repo.insertSnapshots(snapshotRows, tx);
+      await repo.insertSnapshots(snapshotRows);
     }
 
     // 6. Batch-delete staging rows (1 query instead of N)
@@ -556,7 +556,7 @@ export async function saveMappings(
       }
     }
 
-    await repo.deleteStagingTuples(config.marketplace, deletePairs, tx);
+    await repo.deleteStagingTuples(config.marketplace, deletePairs);
 
     return sourceValues.length;
   });
@@ -567,45 +567,53 @@ export async function saveMappings(
 // ── unmapPrinting ───────────────────────────────────────────────────────────
 
 export async function unmapPrinting(
-  db: Kysely<Database>,
+  transact: Transact,
   config: MarketplaceConfig,
   printingId: string,
 ): Promise<void> {
-  const repo = marketplaceMappingRepo(db);
+  await transact(async (trxRepos) => {
+    const repo = trxRepos.marketplaceMapping;
+    const trxConfig =
+      createMarketplaceConfigs(trxRepos)[
+        config.marketplace as keyof ReturnType<typeof createMarketplaceConfigs>
+      ];
 
-  await db.transaction().execute(async (tx) => {
-    const ps = await repo.getSource(config.marketplace, printingId, tx);
+    const ps = await repo.getSource(config.marketplace, printingId);
 
     if (!ps || ps.externalId === null) {
       return;
     }
 
-    const printing = await repo.getPrintingFinish(printingId, tx);
-    const snapshots = await repo.snapshotsByProductId(ps.id, tx);
+    const printing = await repo.getPrintingFinish(printingId);
+    const snapshots = await repo.snapshotsByProductId(ps.id);
 
     for (const snap of snapshots) {
-      await config.insertStagingFromSnapshot(tx, ps, printing.finish, snap);
+      await trxConfig.insertStagingFromSnapshot(ps, printing.finish, snap);
     }
 
-    await repo.deleteSnapshotsByProductId(ps.id, tx);
-    await repo.deleteSourceById(ps.id, tx);
+    await repo.deleteSnapshotsByProductId(ps.id);
+    await repo.deleteSourceById(ps.id);
   });
 }
 
 // ── unmapAll ────────────────────────────────────────────────────────────────
 
 export async function unmapAll(
-  db: Kysely<Database>,
+  transact: Transact,
   config: MarketplaceConfig,
 ): Promise<{ unmapped: number }> {
-  const repo = marketplaceMappingRepo(db);
+  const unmapped = await transact(async (trxRepos) => {
+    const repo = trxRepos.marketplaceMapping;
+    const trxConfig =
+      createMarketplaceConfigs(trxRepos)[
+        config.marketplace as keyof ReturnType<typeof createMarketplaceConfigs>
+      ];
 
-  const unmapped = await db.transaction().execute(async (tx) => {
-    await config.bulkUnmapSql(tx);
+    await trxConfig.bulkUnmapSql();
 
-    const count = await repo.countMappedSources(config.marketplace, tx);
-    await repo.deleteSnapshotsForMappedSources(config.marketplace, tx);
-    await repo.deleteMappedSources(config.marketplace, tx);
+    const count = await repo.countMappedSources(config.marketplace);
+    await repo.deleteSnapshotsForMappedSources(config.marketplace);
+    await repo.deleteMappedSources(config.marketplace);
 
     return count;
   });

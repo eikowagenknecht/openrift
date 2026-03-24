@@ -10,9 +10,8 @@
 
 import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/types.js";
+import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
@@ -251,16 +250,15 @@ function buildCardtraderGroups(expansions: CtExpansion[]): GroupRow[] {
  * @returns The number of newly auto-matched products.
  */
 async function autoMatchBlueprints(
-  db: Kysely<Database>,
+  repos: Repos,
   blueprints: CtBlueprint[],
   log: Logger,
 ): Promise<number> {
   // Load existing marketplace_products for tcgplayer and cardmarket
-  const existingSources = await db
-    .selectFrom("marketplaceProducts")
-    .select(["marketplace", "externalId", "printingId", "groupId", "productName"])
-    .where("marketplace", "in", ["tcgplayer", "cardmarket"])
-    .execute();
+  const existingSources = await repos.priceRefresh.existingSourcesByMarketplaces([
+    "tcgplayer",
+    "cardmarket",
+  ]);
 
   const tcgLookup = new Map<number, { printingId: string; groupId: number; productName: string }>();
   const cmLookup = new Map<number, { printingId: string; groupId: number; productName: string }>();
@@ -279,12 +277,9 @@ async function autoMatchBlueprints(
   }
 
   // Load existing cardtrader products to avoid re-inserting
-  const existingCt = await db
-    .selectFrom("marketplaceProducts")
-    .select(["externalId"])
-    .where("marketplace", "=", "cardtrader")
-    .execute();
-  const existingCtIds = new Set(existingCt.map((r) => r.externalId));
+  const existingCtExternalIds =
+    await repos.priceRefresh.existingExternalIdsByMarketplace("cardtrader");
+  const existingCtIds = new Set(existingCtExternalIds);
 
   // Match blueprints to printings via cross-references
   const toInsert: {
@@ -338,11 +333,7 @@ async function autoMatchBlueprints(
   const BATCH_SIZE = 200;
   for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
     const batch = toInsert.slice(i, i + BATCH_SIZE);
-    await db
-      .insertInto("marketplaceProducts")
-      .values(batch)
-      .onConflict((oc) => oc.columns(["marketplace", "printingId"]).doNothing())
-      .execute();
+    await repos.priceRefresh.batchInsertProducts(batch);
   }
 
   log.info(`Auto-matched ${toInsert.length} CardTrader blueprints to existing printings`);
@@ -360,12 +351,12 @@ async function autoMatchBlueprints(
  */
 export async function refreshCardtraderPrices(
   fetchFn: Fetch,
-  db: Kysely<Database>,
+  repos: Repos,
   log: Logger,
   apiToken: string,
 ): Promise<PriceRefreshResponse> {
   const authHeaders = { Authorization: `Bearer ${apiToken}` };
-  const ignoredKeys = await loadIgnoredKeys(db, "cardtrader");
+  const ignoredKeys = await loadIgnoredKeys(repos.priceRefresh, "cardtrader");
 
   // Phase 1: Fetch
   const fetchResult = await fetchCardtraderData(fetchFn, authHeaders, log);
@@ -373,10 +364,10 @@ export async function refreshCardtraderPrices(
 
   // Phase 2: Upsert groups first (auto-match needs the FK)
   const groupRows = buildCardtraderGroups(expansions);
-  await upsertMarketplaceGroups(db, "cardtrader", groupRows);
+  await upsertMarketplaceGroups(repos.priceRefresh, "cardtrader", groupRows);
 
   // Phase 3: Auto-match (before transform so new products get snapshots)
-  await autoMatchBlueprints(db, blueprints, log);
+  await autoMatchBlueprints(repos, blueprints, log);
 
   // Phase 4: Transform
   const allStaging = buildCardtraderStaging(fetchResult, ignoredKeys);
@@ -390,7 +381,7 @@ export async function refreshCardtraderPrices(
   logFetchSummary(log, transformedCounts, ignoredKeys.size);
 
   // Phase 5: Persist snapshots + staging
-  const counts = await upsertPriceData(db, log, UPSERT_CONFIG, allStaging);
+  const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);
   logUpsertCounts(log, counts);
 
   return { transformed: transformedCounts, upserted: counts };

@@ -1,9 +1,7 @@
-import type { Kysely, Selectable, Transaction } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, SetsTable } from "../db/index.js";
-
-type Trx = Transaction<Database> | Kysely<Database>;
 
 /**
  * Queries for game sets (the `sets` table).
@@ -193,19 +191,19 @@ export function setsRepo(db: Kysely<Database>) {
      * Upsert a set by slug, inserting it with the next sort_order if it doesn't exist.
      * Used during card source ingestion.
      */
-    async upsert(slug: string, name: string, trx: Trx): Promise<void> {
-      const existing = await trx
+    async upsert(slug: string, name: string): Promise<void> {
+      const existing = await db
         .selectFrom("sets")
         .select("id")
         .where("slug", "=", slug)
         .executeTakeFirst();
 
       if (!existing) {
-        const { max } = await trx
+        const { max } = await db
           .selectFrom("sets")
           .select((eb) => eb.fn.coalesce(eb.fn.max("sortOrder"), eb.lit(0)).as("max"))
           .executeTakeFirstOrThrow();
-        await trx
+        await db
           .insertInto("sets")
           .values({ slug, name, printedTotal: 0, sortOrder: max + 1 })
           .execute();

@@ -3,9 +3,8 @@ import type {
   UnifiedMappingGroupResponse,
   UnifiedMappingsResponse,
 } from "@openrift/shared";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../db/index.js";
+import type { Repos } from "../deps.js";
 import type { MarketplaceConfig } from "../routes/admin/marketplace-configs.js";
 
 interface MappingOverviewResult {
@@ -59,20 +58,17 @@ interface MappingOverviewResult {
  * @returns Unified mappings response with merged groups, unmatched products, and card list.
  */
 export async function buildUnifiedMappingsResponse(
-  db: Kysely<Database>,
+  repos: Repos,
   tcgplayerConfig: MarketplaceConfig,
   cardmarketConfig: MarketplaceConfig,
   cardtraderConfig: MarketplaceConfig,
-  getMappingOverview: (
-    db: Kysely<Database>,
-    config: MarketplaceConfig,
-  ) => Promise<MappingOverviewResult>,
+  getMappingOverview: (repos: Repos, config: MarketplaceConfig) => Promise<MappingOverviewResult>,
   showAll: boolean,
 ): Promise<UnifiedMappingsResponse> {
   const [tcgResult, cmResult, ctResult] = await Promise.all([
-    getMappingOverview(db, tcgplayerConfig),
-    getMappingOverview(db, cardmarketConfig),
-    getMappingOverview(db, cardtraderConfig),
+    getMappingOverview(repos, tcgplayerConfig),
+    getMappingOverview(repos, cardmarketConfig),
+    getMappingOverview(repos, cardtraderConfig),
   ]);
 
   // Merge by cardId — combine data from all marketplaces per card

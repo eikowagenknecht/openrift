@@ -11,9 +11,8 @@
 import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { toCents } from "@openrift/shared/utils";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/types.js";
+import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
@@ -161,10 +160,10 @@ function buildCardmarketGroups(singles: CmProduct[]): GroupRow[] {
  */
 export async function refreshCardmarketPrices(
   fetchFn: Fetch,
-  db: Kysely<Database>,
+  repos: Repos,
   log: Logger,
 ): Promise<PriceRefreshResponse> {
-  const ignoredKeys = await loadIgnoredKeys(db, "cardmarket");
+  const ignoredKeys = await loadIgnoredKeys(repos.priceRefresh, "cardmarket");
 
   // Phase 1: Fetch
   const fetchResult = await fetchCardmarketData(fetchFn);
@@ -183,9 +182,9 @@ export async function refreshCardmarketPrices(
   logFetchSummary(log, transformedCounts, ignoredKeys.size);
 
   // Phase 3: Persist
-  await upsertMarketplaceGroups(db, "cardmarket", groupRows);
+  await upsertMarketplaceGroups(repos.priceRefresh, "cardmarket", groupRows);
 
-  const counts = await upsertPriceData(db, log, UPSERT_CONFIG, allStaging);
+  const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);
   logUpsertCounts(log, counts);
 
   return { transformed: transformedCounts, upserted: counts };

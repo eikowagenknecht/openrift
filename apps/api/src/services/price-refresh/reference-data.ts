@@ -1,8 +1,6 @@
 import { normalizeNameForMatching } from "@openrift/shared/utils";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/types.js";
-import { priceRefreshRepo } from "../../repositories/price-refresh.js";
+import type { Repos } from "../../deps.js";
 
 interface ReferenceData {
   sets: { id: string; name: string }[];
@@ -35,13 +33,11 @@ interface ReferenceData {
  * - `printingByFullKey` — `"card_id|set_id|finish|art_variant|is_signed"` -> single printing_id.
  * @returns Raw rows and pre-built lookup maps.
  */
-export async function loadReferenceData(db: Kysely<Database>): Promise<ReferenceData> {
-  const repo = priceRefreshRepo(db);
-
+export async function loadReferenceData(repos: Repos): Promise<ReferenceData> {
   const [sets, cards, printings] = await Promise.all([
-    repo.allSets(),
-    repo.allCards(),
-    repo.allPrintingsForPriceMatch(),
+    repos.priceRefresh.allSets(),
+    repos.priceRefresh.allCards(),
+    repos.priceRefresh.allPrintingsForPriceMatch(),
   ]);
 
   const setNameById = new Map(sets.map((s) => [s.id, s.name]));

@@ -1,7 +1,6 @@
 import type { CardType, Domain, SuperType } from "@openrift/shared/types";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../db/index.js";
+import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
@@ -29,7 +28,7 @@ function stripVariantSuffix(shortCode: string): string {
  * @returns The new card slug, number of printings created, and rehost count.
  */
 export async function acceptGalleryForNewCard(
-  db: Kysely<Database>,
+  transact: Transact,
   io: Io,
   repos: {
     candidateCards: CandidateCardsRepo;
@@ -63,13 +62,12 @@ export async function acceptGalleryForNewCard(
   // oxlint-disable-next-line unicorn/prefer-ternary -- both branches are async with different logic
   if (existing) {
     // Link the name alias to the existing card instead of creating a new one
-    await db.transaction().execute(async (trx) => {
-      await mut.createNameAliases(trx, normalizedName, existing.id);
+    await transact(async (trxRepos) => {
+      await trxRepos.candidateMutations.createNameAliases(normalizedName, existing.id);
     });
   } else {
-    await db.transaction().execute(async (trx) => {
-      await mut.acceptNewCardFromSources(
-        trx,
+    await transact(async (trxRepos) => {
+      await trxRepos.candidateMutations.acceptNewCardFromSources(
         {
           id: cardSlug,
           name: galleryCard.name,
@@ -118,7 +116,7 @@ export async function acceptGalleryForNewCard(
 
     try {
       await acceptPrinting(
-        db,
+        transact,
         repos,
         cardSlug,
         {

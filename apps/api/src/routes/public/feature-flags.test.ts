@@ -17,7 +17,6 @@ const mockFeatureFlagsRepo = {
 
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("db", {} as never);
     c.set("repos", { featureFlags: mockFeatureFlagsRepo } as never);
     await next();
   })

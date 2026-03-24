@@ -1,10 +1,6 @@
 import type { ShoppingListItemResponse } from "@openrift/shared";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../db/index.js";
-import { copiesRepo } from "../repositories/copies.js";
-import { decksRepo } from "../repositories/decks.js";
-import { wishListsRepo } from "../repositories/wish-lists.js";
+import type { Repos } from "../deps.js";
 
 /**
  * Builds a unified "still needed" shopping list by aggregating
@@ -12,14 +8,14 @@ import { wishListsRepo } from "../repositories/wish-lists.js";
  * @returns Sorted list of items with demand, ownership, and source info
  */
 export async function buildShoppingList(
-  db: Kysely<Database>,
+  repos: Repos,
   userId: string,
 ): Promise<ShoppingListItemResponse[]> {
   // Run all three independent queries in parallel
   const [ownedRows, deckCardRows, wishItemRows] = await Promise.all([
-    copiesRepo(db).countByCardAndPrintingForDeckbuilding(userId),
-    decksRepo(db).wantedCardRequirements(userId),
-    wishListsRepo(db).allItemsForUser(userId),
+    repos.copies.countByCardAndPrintingForDeckbuilding(userId),
+    repos.decks.wantedCardRequirements(userId),
+    repos.wishLists.allItemsForUser(userId),
   ]);
 
   const ownedByCard = new Map<string, number>();

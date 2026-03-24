@@ -1,30 +1,22 @@
 /* oxlint-disable
    no-empty-function,
-   unicorn/no-useless-undefined,
-   import/first
-   -- test file: mocks require empty fns, explicit undefined, and ordering */
+   unicorn/no-useless-undefined
+   -- test file: mocks require empty fns and explicit undefined */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../errors.js";
-
-// ---------------------------------------------------------------------------
-// Mock adminsRepo — controls what isAdmin returns per test
-// ---------------------------------------------------------------------------
-
-const mockIsAdmin = vi.fn<(userId: string) => Promise<boolean>>();
-
-vi.mock("../repositories/admins.js", () => ({
-  adminsRepo: () => ({ isAdmin: mockIsAdmin }),
-}));
+import { requireAdmin } from "./require-admin.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function createMockContext(options: { user?: { id: string } | null; db?: unknown }) {
+const mockIsAdmin = vi.fn<(userId: string) => Promise<boolean>>();
+
+function createMockContext(options: { user?: { id: string } | null }) {
   const vars: Record<string, unknown> = {
-    db: options.db ?? {},
     user: options.user === undefined ? null : options.user,
+    repos: { admins: { isAdmin: mockIsAdmin } },
   };
 
   return {
@@ -37,12 +29,8 @@ function createMockContext(options: { user?: { id: string } | null; db?: unknown
 // ---------------------------------------------------------------------------
 
 describe("require-admin middleware", () => {
-  let requireAdminMiddleware: any;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     mockIsAdmin.mockReset();
-    const mod = await import("./require-admin.js");
-    requireAdminMiddleware = mod.requireAdmin;
   });
 
   describe("requireAdmin middleware", () => {
@@ -51,7 +39,7 @@ describe("require-admin middleware", () => {
       const next = vi.fn(() => Promise.resolve());
 
       try {
-        await requireAdminMiddleware(ctx, next);
+        await requireAdmin(ctx, next);
         expect.unreachable("Should have thrown");
       } catch (error: any) {
         expect(error).toBeInstanceOf(AppError);
@@ -66,7 +54,7 @@ describe("require-admin middleware", () => {
       const next = vi.fn(() => Promise.resolve());
 
       try {
-        await requireAdminMiddleware(ctx, next);
+        await requireAdmin(ctx, next);
         expect.unreachable("Should have thrown");
       } catch (error: any) {
         expect(error).toBeInstanceOf(AppError);
@@ -80,7 +68,7 @@ describe("require-admin middleware", () => {
       const ctx = createMockContext({ user: { id: "admin-user" } });
       const next = vi.fn(() => Promise.resolve());
 
-      await requireAdminMiddleware(ctx, next);
+      await requireAdmin(ctx, next);
       expect(next).toHaveBeenCalledTimes(1);
     });
 
@@ -90,11 +78,11 @@ describe("require-admin middleware", () => {
       const next = vi.fn(() => Promise.resolve());
 
       // First call — hits repo
-      await requireAdminMiddleware(ctx, next);
+      await requireAdmin(ctx, next);
       expect(mockIsAdmin).toHaveBeenCalledTimes(1);
 
       // Second call — should use cache (no additional repo query)
-      await requireAdminMiddleware(ctx, next);
+      await requireAdmin(ctx, next);
       expect(mockIsAdmin).toHaveBeenCalledTimes(1);
     });
   });

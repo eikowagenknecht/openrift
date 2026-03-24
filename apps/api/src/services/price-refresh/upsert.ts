@@ -7,10 +7,8 @@
 
 import type { Logger } from "@openrift/shared/logger";
 import { groupIntoMap } from "@openrift/shared/utils";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/types.js";
-import { priceRefreshRepo } from "../../repositories/price-refresh.js";
+import type { Repos } from "../../deps.js";
 import type {
   GroupRow,
   PriceColumns,
@@ -29,8 +27,11 @@ const BATCH_SIZE = 200;
  * Load the set of ignored (external_id, finish) keys for a marketplace.
  * @returns A set of "external_id::finish" strings for filtering.
  */
-export function loadIgnoredKeys(db: Kysely<Database>, marketplace: string): Promise<Set<string>> {
-  return priceRefreshRepo(db).loadIgnoredKeys(marketplace);
+export function loadIgnoredKeys(
+  priceRefresh: Repos["priceRefresh"],
+  marketplace: string,
+): Promise<Set<string>> {
+  return priceRefresh.loadIgnoredKeys(marketplace);
 }
 
 // ── Group upsert ────────────────────────────────────────────────────────────
@@ -40,11 +41,11 @@ export function loadIgnoredKeys(db: Kysely<Database>, marketplace: string): Prom
  * Uses COALESCE to preserve existing name/abbreviation when not provided.
  */
 export async function upsertMarketplaceGroups(
-  db: Kysely<Database>,
+  priceRefresh: Repos["priceRefresh"],
   marketplace: string,
   groups: GroupRow[],
 ): Promise<void> {
-  await priceRefreshRepo(db).upsertGroups(marketplace, groups);
+  await priceRefresh.upsertGroups(marketplace, groups);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ function pickPrices(row: PriceColumns): PriceColumns {
  * @returns Row count.
  */
 function countRows(
-  repo: ReturnType<typeof priceRefreshRepo>,
+  repo: Repos["priceRefresh"],
   table: "marketplaceSnapshots" | "marketplaceStaging",
   marketplace: string,
 ): Promise<number> {
@@ -93,13 +94,13 @@ interface SnapshotInsertRow extends PriceColumns {
  * @returns Per-table breakdown of new, updated, and unchanged rows.
  */
 export async function upsertPriceData(
-  db: Kysely<Database>,
+  priceRefresh: Repos["priceRefresh"],
   log: Logger,
   config: PriceUpsertConfig,
   allStaging: StagingRow[],
 ): Promise<UpsertCounts> {
   const { marketplace } = config;
-  const repo = priceRefreshRepo(db);
+  const repo = priceRefresh;
 
   // ── Source lookup (single query for both snapshot building & ID mapping) ─
 

@@ -219,5 +219,54 @@ export function priceRefreshRepo(db: Db) {
         .execute();
       return rows.length;
     },
+
+    // ── Auto-match helpers (CardTrader) ─────────────────────────────────────
+
+    /** @returns Existing marketplace_products rows for the given marketplaces. */
+    existingSourcesByMarketplaces(marketplaces: string[]): Promise<
+      {
+        marketplace: string;
+        externalId: number;
+        printingId: string;
+        groupId: number;
+        productName: string;
+      }[]
+    > {
+      return db
+        .selectFrom("marketplaceProducts")
+        .select(["marketplace", "externalId", "printingId", "groupId", "productName"])
+        .where("marketplace", "in", marketplaces)
+        .execute();
+    },
+
+    /** @returns External IDs for a single marketplace. */
+    async existingExternalIdsByMarketplace(marketplace: string): Promise<number[]> {
+      const rows = await db
+        .selectFrom("marketplaceProducts")
+        .select(["externalId"])
+        .where("marketplace", "=", marketplace)
+        .execute();
+      return rows.map((r) => r.externalId);
+    },
+
+    /** Batch insert marketplace_products with ON CONFLICT DO NOTHING. */
+    async batchInsertProducts(
+      values: {
+        marketplace: string;
+        externalId: number;
+        groupId: number;
+        productName: string;
+        printingId: string;
+      }[],
+    ): Promise<void> {
+      if (values.length === 0) {
+        return;
+      }
+      await db
+        .insertInto("marketplaceProducts")
+        .values(values)
+        .onConflict((oc) => oc.columns(["marketplace", "printingId"]).doNothing())
+        .execute();
+    },
   };
 }

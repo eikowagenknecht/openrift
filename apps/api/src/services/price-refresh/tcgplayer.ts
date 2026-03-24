@@ -11,9 +11,8 @@
 import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { groupIntoMap, toCents } from "@openrift/shared/utils";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/types.js";
+import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
@@ -180,10 +179,10 @@ function buildTcgplayerGroups(groups: TcgcsvGroup[]): GroupRow[] {
  */
 export async function refreshTcgplayerPrices(
   fetchFn: Fetch,
-  db: Kysely<Database>,
+  repos: Repos,
   log: Logger,
 ): Promise<PriceRefreshResponse> {
-  const ignoredKeys = await loadIgnoredKeys(db, "tcgplayer");
+  const ignoredKeys = await loadIgnoredKeys(repos.priceRefresh, "tcgplayer");
 
   // Phase 1: Fetch
   const fetchResult = await fetchTcgplayerData(fetchFn);
@@ -202,9 +201,9 @@ export async function refreshTcgplayerPrices(
   logFetchSummary(log, transformedCounts, ignoredKeys.size);
 
   // Phase 3: Persist
-  await upsertMarketplaceGroups(db, "tcgplayer", groupRows);
+  await upsertMarketplaceGroups(repos.priceRefresh, "tcgplayer", groupRows);
 
-  const counts = await upsertPriceData(db, log, UPSERT_CONFIG, allStaging);
+  const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);
   logUpsertCounts(log, counts);
 
   return { transformed: transformedCounts, upserted: counts };

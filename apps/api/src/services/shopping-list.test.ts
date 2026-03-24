@@ -1,50 +1,37 @@
 /* oxlint-disable
    no-empty-function
    -- test file: mocks require empty fns */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
+import type { Repos } from "../deps.js";
 import { buildShoppingList } from "./shopping-list.js";
 
 // ---------------------------------------------------------------------------
-// Mock repos that return canned query results for the three parallel queries
+// Helper to build mock repos with canned query results
 // ---------------------------------------------------------------------------
 
-let mockOwnedRows: { cardId: string; printingId: string; count: number }[] = [];
-let mockDeckCardRows: { deckId: string; deckName: string; cardId: string; quantity: number }[] = [];
-let mockWishItemRows: {
-  wishListId: string;
-  wishListName: string;
-  cardId: string | null;
-  printingId: string | null;
-  quantityDesired: number;
-}[] = [];
-
-vi.mock("../repositories/copies.js", () => ({
-  copiesRepo: () => ({
-    countByCardAndPrintingForDeckbuilding: () => Promise.resolve(mockOwnedRows),
-  }),
-}));
-
-vi.mock("../repositories/decks.js", () => ({
-  decksRepo: () => ({
-    wantedCardRequirements: () => Promise.resolve(mockDeckCardRows),
-  }),
-}));
-
-vi.mock("../repositories/wish-lists.js", () => ({
-  wishListsRepo: () => ({
-    allItemsForUser: () => Promise.resolve(mockWishItemRows),
-  }),
-}));
-
-function setupMocks(options: {
-  ownedRows?: typeof mockOwnedRows;
-  deckCardRows?: typeof mockDeckCardRows;
-  wishItemRows?: typeof mockWishItemRows;
-}) {
-  mockOwnedRows = options.ownedRows ?? [];
-  mockDeckCardRows = options.deckCardRows ?? [];
-  mockWishItemRows = options.wishItemRows ?? [];
+function createMockRepos(options: {
+  ownedRows?: { cardId: string; printingId: string; count: number }[];
+  deckCardRows?: { deckId: string; deckName: string; cardId: string; quantity: number }[];
+  wishItemRows?: {
+    wishListId: string;
+    wishListName: string;
+    cardId: string | null;
+    printingId: string | null;
+    quantityDesired: number;
+  }[];
+}): Repos {
+  return {
+    copies: {
+      countByCardAndPrintingForDeckbuilding: () => Promise.resolve(options.ownedRows ?? []),
+    },
+    decks: {
+      wantedCardRequirements: () => Promise.resolve(options.deckCardRows ?? []),
+    },
+    wishLists: {
+      allItemsForUser: () => Promise.resolve(options.wishItemRows ?? []),
+    },
+  } as unknown as Repos;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,18 +40,18 @@ function setupMocks(options: {
 
 describe("buildShoppingList", () => {
   it("returns empty list when no demands exist", async () => {
-    setupMocks({});
-    const result = await buildShoppingList({} as any, "user-1");
+    const repos = createMockRepos({});
+    const result = await buildShoppingList(repos, "user-1");
     expect(result).toEqual([]);
   });
 
   it("aggregates demand from decks and calculates shortfall", async () => {
-    setupMocks({
+    const repos = createMockRepos({
       ownedRows: [{ cardId: "card-1", printingId: "print-1", count: 2 }],
       deckCardRows: [{ deckId: "deck-1", deckName: "Deck A", cardId: "card-1", quantity: 4 }],
     });
 
-    const result = await buildShoppingList({} as any, "user-1");
+    const result = await buildShoppingList(repos, "user-1");
     expect(result).toHaveLength(1);
     expect(result[0].cardId).toBe("card-1");
     expect(result[0].totalDemand).toBe(4);
@@ -75,7 +62,7 @@ describe("buildShoppingList", () => {
   });
 
   it("aggregates demand from wish lists by card", async () => {
-    setupMocks({
+    const repos = createMockRepos({
       wishItemRows: [
         {
           wishListId: "wl-1",
@@ -87,7 +74,7 @@ describe("buildShoppingList", () => {
       ],
     });
 
-    const result = await buildShoppingList({} as any, "user-1");
+    const result = await buildShoppingList(repos, "user-1");
     expect(result).toHaveLength(1);
     expect(result[0].cardId).toBe("card-1");
     expect(result[0].totalDemand).toBe(3);
@@ -95,7 +82,7 @@ describe("buildShoppingList", () => {
   });
 
   it("aggregates demand from wish lists by printing", async () => {
-    setupMocks({
+    const repos = createMockRepos({
       ownedRows: [{ cardId: "card-1", printingId: "print-1", count: 1 }],
       wishItemRows: [
         {
@@ -108,7 +95,7 @@ describe("buildShoppingList", () => {
       ],
     });
 
-    const result = await buildShoppingList({} as any, "user-1");
+    const result = await buildShoppingList(repos, "user-1");
     // Printing-level demand only (cardId is null so no card-level aggregation)
     const printingItem = result.find((i) => i.printingId === "print-1");
     expect(printingItem).toBeDefined();
@@ -121,7 +108,7 @@ describe("buildShoppingList", () => {
   });
 
   it("combines deck and wish list demands for the same card", async () => {
-    setupMocks({
+    const repos = createMockRepos({
       ownedRows: [{ cardId: "card-1", printingId: "print-1", count: 1 }],
       deckCardRows: [{ deckId: "deck-1", deckName: "Deck A", cardId: "card-1", quantity: 2 }],
       wishItemRows: [
@@ -135,7 +122,7 @@ describe("buildShoppingList", () => {
       ],
     });
 
-    const result = await buildShoppingList({} as any, "user-1");
+    const result = await buildShoppingList(repos, "user-1");
     const cardItem = result.find((i) => i.cardId === "card-1");
     expect(cardItem).toBeDefined();
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by toBeDefined above
@@ -149,24 +136,24 @@ describe("buildShoppingList", () => {
   });
 
   it("clamps stillNeeded to zero when owned exceeds demand", async () => {
-    setupMocks({
+    const repos = createMockRepos({
       ownedRows: [{ cardId: "card-1", printingId: "print-1", count: 10 }],
       deckCardRows: [{ deckId: "deck-1", deckName: "Deck A", cardId: "card-1", quantity: 2 }],
     });
 
-    const result = await buildShoppingList({} as any, "user-1");
+    const result = await buildShoppingList(repos, "user-1");
     expect(result[0].stillNeeded).toBe(0);
   });
 
   it("sorts by stillNeeded descending", async () => {
-    setupMocks({
+    const repos = createMockRepos({
       deckCardRows: [
         { deckId: "deck-1", deckName: "Deck A", cardId: "card-1", quantity: 1 },
         { deckId: "deck-1", deckName: "Deck A", cardId: "card-2", quantity: 5 },
       ],
     });
 
-    const result = await buildShoppingList({} as any, "user-1");
+    const result = await buildShoppingList(repos, "user-1");
     expect(result[0].cardId).toBe("card-2");
     expect(result[1].cardId).toBe("card-1");
     expect(result[0].stillNeeded).toBeGreaterThanOrEqual(result[1].stillNeeded);

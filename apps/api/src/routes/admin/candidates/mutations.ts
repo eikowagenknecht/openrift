@@ -448,7 +448,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { candidateMutations } = c.get("repos");
     const printingSlug = c.req.param("printingId");
 
-    await deletePrinting(c.get("db"), c.get("io"), { candidateMutations }, printingSlug);
+    await deletePrinting(c.get("transact"), c.get("io"), { candidateMutations }, printingSlug);
 
     return c.body(null, 204);
   })
@@ -456,7 +456,6 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /new/:name/accept ────────────────────────────────────────────────
   // Create new card from candidate data and link candidate_cards
   .post("/new/:name/accept", zValidator("json", acceptNewCardSchema), async (c) => {
-    const db = c.get("db");
     const normalizedName = decodeURIComponent(c.req.param("name"));
     const { cardFields } = c.req.valid("json");
 
@@ -464,9 +463,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "cardFields required");
     }
 
-    const { candidateMutations: mut } = c.get("repos");
-    await db.transaction().execute(async (trx) => {
-      await mut.acceptNewCardFromSources(trx, cardFields, normalizedName);
+    await c.get("transact")(async (trxRepos) => {
+      await trxRepos.candidateMutations.acceptNewCardFromSources(cardFields, normalizedName);
     });
 
     return c.body(null, 204);
@@ -479,7 +477,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const normalizedName = decodeURIComponent(c.req.param("name"));
 
     const result = await acceptGalleryForNewCard(
-      c.get("db"),
+      c.get("transact"),
       c.get("io"),
       { candidateCards, candidateMutations, printingImages, promoTypes },
       normalizedName,
@@ -491,7 +489,6 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // ── POST /new/:name/link ──────────────────────────────────────────────────
   // Link unmatched candidates to an existing card
   .post("/new/:name/link", zValidator("json", linkUnmatchedSchema), async (c) => {
-    const db = c.get("db");
     const { candidateMutations: mut } = c.get("repos");
     const normalizedName = decodeURIComponent(c.req.param("name"));
     const { cardId: cardSlug } = c.req.valid("json");
@@ -506,8 +503,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(404, "NOT_FOUND", "Target card not found");
     }
 
-    await db.transaction().execute(async (trx) => {
-      await mut.createNameAliases(trx, normalizedName, card.id);
+    await c.get("transact")(async (trxRepos) => {
+      await trxRepos.candidateMutations.createNameAliases(normalizedName, card.id);
     });
 
     return c.body(null, 204);
@@ -521,7 +518,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
     const { printingFields, candidatePrintingIds } = c.req.valid("json");
 
     const printingId = await acceptPrinting(
-      c.get("db"),
+      c.get("transact"),
       { candidateMutations, printingImages, promoTypes },
       cardSlug,
       printingFields,
@@ -533,11 +530,10 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /upload ──────────────────────────────────────────────────────────
   .post("/upload", zValidator("json", uploadCandidatesSchema), async (c) => {
-    const db = c.get("db");
     const { provider, candidates: cards } = c.req.valid("json");
 
     const { ingestCandidates } = c.get("services");
-    const result = await ingestCandidates(db, provider.trim(), cards);
+    const result = await ingestCandidates(c.get("transact"), provider.trim(), cards);
 
     return c.json({
       provider: result.provider,

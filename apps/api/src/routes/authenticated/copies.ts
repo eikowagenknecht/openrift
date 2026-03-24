@@ -42,10 +42,11 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
 
   .post("/", zValidator("json", addCopiesSchema), async (c) => {
     const { addCopies } = c.get("services");
-    const db = c.get("db");
+    const repos = c.get("repos");
+    const transact = c.get("transact");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const created = await addCopies(db, userId, body.copies);
+    const created = await addCopies(repos, transact, userId, body.copies);
     return c.json(created, 201);
   })
 
@@ -54,10 +55,11 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
 
   .post("/move", zValidator("json", moveCopiesSchema), async (c) => {
     const { moveCopies } = c.get("services");
-    const db = c.get("db");
+    const repos = c.get("repos");
+    const transact = c.get("transact");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    await moveCopies(db, userId, body.copyIds, body.toCollectionId);
+    await moveCopies(repos, transact, userId, body.copyIds, body.toCollectionId);
     return c.body(null, 204);
   })
 
@@ -66,10 +68,10 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
 
   .post("/dispose", zValidator("json", disposeCopiesSchema), async (c) => {
     const { disposeCopies } = c.get("services");
-    const db = c.get("db");
+    const transact = c.get("transact");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    await disposeCopies(db, userId, body.copyIds);
+    await disposeCopies(transact, userId, body.copyIds);
     return c.body(null, 204);
   })
 

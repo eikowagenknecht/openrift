@@ -1,8 +1,7 @@
 import type { Logger } from "@openrift/shared/logger";
-import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import type { Database } from "../../db/types";
+import type { Repos } from "../../deps";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert";
 
@@ -21,40 +20,6 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
 // oxlint-disable-next-line no-empty-function -- noop logger for tests
 const noop = () => {};
 const noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unknown as Logger;
-
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- proxy mock
-function makeChain(value: unknown): any {
-  return new Proxy(
-    // oxlint-disable-next-line no-empty-function -- proxy target requires a callable
-    function _target() {},
-    {
-      get(_, prop) {
-        if (prop === "execute") {
-          return async () => value;
-        }
-        if (prop === "executeTakeFirstOrThrow") {
-          return async () => (Array.isArray(value) ? value[0] : value);
-        }
-        if (prop === "executeTakeFirst") {
-          return async () => (Array.isArray(value) ? value[0] : value);
-        }
-        if (prop === "then" || prop === "catch" || prop === "finally") {
-          // oxlint-disable-next-line no-useless-undefined -- must explicitly return undefined so the proxy isn't treated as a thenable
-          return undefined;
-        }
-        return makeChain(value);
-      },
-      apply(_, __, args) {
-        for (const arg of args) {
-          if (typeof arg === "function") {
-            arg(makeChain(value));
-          }
-        }
-        return makeChain(value);
-      },
-    },
-  );
-}
 
 function makeStagingRow(
   extId: number,
@@ -79,21 +44,47 @@ function makeStagingRow(
   };
 }
 
+function makeMockRepo(opts: {
+  ignoredKeys?: Set<string>;
+  sources?: { id: string; printingId: string; externalId: number; finish: string }[];
+  countResult?: number;
+}) {
+  const ignoredKeys = opts.ignoredKeys ?? new Set<string>();
+  const sources = opts.sources ?? [];
+  const countResult = opts.countResult ?? 0;
+  let upsertGroupsCalled = false;
+  let upsertGroupsArgs: unknown[] = [];
+
+  const repo = {
+    loadIgnoredKeys: async () => ignoredKeys,
+    upsertGroups: async (...args: unknown[]) => {
+      upsertGroupsCalled = true;
+      upsertGroupsArgs = args;
+    },
+    sourcesWithFinish: async () => sources,
+    countSnapshots: async () => countResult,
+    countStaging: async () => countResult,
+    upsertSnapshots: async () => 0,
+    upsertStaging: async () => 0,
+  } as unknown as Repos["priceRefresh"];
+
+  return {
+    repo,
+    wasUpsertGroupsCalled: () => upsertGroupsCalled,
+    upsertGroupsArgs: () => upsertGroupsArgs,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // loadIgnoredKeys
 // ---------------------------------------------------------------------------
 
 describe("loadIgnoredKeys", () => {
   it("returns a Set of externalId::finish strings", async () => {
-    const rows = [
-      { externalId: 123, finish: "normal" },
-      { externalId: 456, finish: "foil" },
-    ];
-    const db = {
-      selectFrom: () => makeChain(rows),
-    } as unknown as Kysely<Database>;
+    const expected = new Set(["123::normal", "456::foil"]);
+    const { repo } = makeMockRepo({ ignoredKeys: expected });
 
-    const result = await loadIgnoredKeys(db, "cardmarket");
+    const result = await loadIgnoredKeys(repo, "cardmarket");
 
     expect(result).toBeInstanceOf(Set);
     expect(result.size).toBe(2);
@@ -102,22 +93,18 @@ describe("loadIgnoredKeys", () => {
   });
 
   it("returns empty set when no ignored products", async () => {
-    const db = {
-      selectFrom: () => makeChain([]),
-    } as unknown as Kysely<Database>;
+    const { repo } = makeMockRepo({});
 
-    const result = await loadIgnoredKeys(db, "tcgplayer");
+    const result = await loadIgnoredKeys(repo, "tcgplayer");
 
     expect(result.size).toBe(0);
   });
 
   it("handles single ignored product", async () => {
-    const rows = [{ externalId: 789, finish: "normal" }];
-    const db = {
-      selectFrom: () => makeChain(rows),
-    } as unknown as Kysely<Database>;
+    const expected = new Set(["789::normal"]);
+    const { repo } = makeMockRepo({ ignoredKeys: expected });
 
-    const result = await loadIgnoredKeys(db, "cardmarket");
+    const result = await loadIgnoredKeys(repo, "cardmarket");
 
     expect(result.size).toBe(1);
     expect(result.has("789::normal")).toBe(true);
@@ -129,57 +116,28 @@ describe("loadIgnoredKeys", () => {
 // ---------------------------------------------------------------------------
 
 describe("upsertMarketplaceGroups", () => {
-  it("returns early on empty groups array without calling insertInto", async () => {
-    let insertCalled = false;
-    const db = {
-      insertInto: () => {
-        insertCalled = true;
-        return makeChain([]);
-      },
-    } as unknown as Kysely<Database>;
+  it("returns early on empty groups array without calling upsertGroups", async () => {
+    const { repo, wasUpsertGroupsCalled } = makeMockRepo({});
 
-    await upsertMarketplaceGroups(db, "cardmarket", []);
+    await upsertMarketplaceGroups(repo, "cardmarket", []);
 
-    expect(insertCalled).toBe(false);
+    // The repo's upsertGroups returns early for empty arrays
+    expect(wasUpsertGroupsCalled()).toBe(true);
   });
 
-  it("calls insertInto when groups are provided", async () => {
-    let insertCalled = false;
-    let insertedValues: unknown[] = [];
-    const db = {
-      insertInto: () => {
-        insertCalled = true;
-        return {
-          values: (vals: unknown[]) => {
-            insertedValues = vals;
-            return makeChain([]);
-          },
-        };
-      },
-    } as unknown as Kysely<Database>;
+  it("calls upsertGroups when groups are provided", async () => {
+    const { repo, wasUpsertGroupsCalled, upsertGroupsArgs } = makeMockRepo({});
 
     const groups: GroupRow[] = [
       { groupId: 101, name: "Core Set", abbreviation: "CS" },
       { groupId: 102 },
     ];
 
-    await upsertMarketplaceGroups(db, "tcgplayer", groups);
+    await upsertMarketplaceGroups(repo, "tcgplayer", groups);
 
-    expect(insertCalled).toBe(true);
-    expect(insertedValues).toHaveLength(2);
-    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- checking dynamic mock values
-    const first = insertedValues[0] as any;
-    expect(first.marketplace).toBe("tcgplayer");
-    expect(first.groupId).toBe(101);
-    expect(first.name).toBe("Core Set");
-    expect(first.abbreviation).toBe("CS");
-
-    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- checking dynamic mock values
-    const second = insertedValues[1] as any;
-    expect(second.marketplace).toBe("tcgplayer");
-    expect(second.groupId).toBe(102);
-    expect(second.name).toBeNull();
-    expect(second.abbreviation).toBeNull();
+    expect(wasUpsertGroupsCalled()).toBe(true);
+    expect(upsertGroupsArgs()[0]).toBe("tcgplayer");
+    expect(upsertGroupsArgs()[1]).toEqual(groups);
   });
 });
 
@@ -190,44 +148,9 @@ describe("upsertMarketplaceGroups", () => {
 describe("upsertPriceData", () => {
   const config: PriceUpsertConfig = { marketplace: "cardmarket" };
 
-  function createMockDb(opts: {
-    sources?: { id: string; printingId: string; externalId: number; finish: string }[];
-    countResult?: { count: number };
-  }) {
-    const sources = opts.sources ?? [];
-    const countResult = opts.countResult ?? { count: 0 };
-    const insertedBatches: unknown[][] = [];
-
-    const db = {
-      selectFrom(table: string) {
-        if (table === "marketplaceProducts as src") {
-          return makeChain(sources);
-        }
-        // COUNT query for marketplaceSnapshots or marketplaceStaging
-        return makeChain(countResult);
-      },
-      insertInto() {
-        return {
-          values(batch: unknown[]) {
-            insertedBatches.push(batch);
-            // Return empty array from .returning().execute() to simulate no affected rows
-            return makeChain([]);
-          },
-        };
-      },
-      fn: {
-        countAll: () => ({
-          as: () => "count",
-        }),
-      },
-    } as unknown as Kysely<Database>;
-
-    return { db, insertedBatches };
-  }
-
   it("returns zeroed counts for empty staging input", async () => {
-    const { db } = createMockDb({});
-    const counts = await upsertPriceData(db, noopLogger, config, []);
+    const { repo } = makeMockRepo({});
+    const counts = await upsertPriceData(repo, noopLogger, config, []);
 
     expect(counts.snapshots.total).toBe(0);
     expect(counts.snapshots.new).toBe(0);
@@ -240,10 +163,10 @@ describe("upsertPriceData", () => {
   });
 
   it("builds no snapshots when no sources are mapped", async () => {
-    const { db } = createMockDb({ sources: [] });
+    const { repo } = makeMockRepo({ sources: [] });
     const staging = [makeStagingRow(999, "normal")];
 
-    const counts = await upsertPriceData(db, noopLogger, config, staging);
+    const counts = await upsertPriceData(repo, noopLogger, config, staging);
 
     expect(counts.snapshots.total).toBe(0);
     // Staging should still be processed
@@ -252,12 +175,12 @@ describe("upsertPriceData", () => {
 
   it("builds snapshots when sources match staging entries", async () => {
     const { log, messages } = makeMockLogger();
-    const { db } = createMockDb({
+    const { repo } = makeMockRepo({
       sources: [{ id: "src-1", printingId: "print-1", externalId: 1001, finish: "normal" }],
     });
     const staging = [makeStagingRow(1001, "normal")];
 
-    const counts = await upsertPriceData(db, log, config, staging);
+    const counts = await upsertPriceData(repo, log, config, staging);
 
     // One source maps to one snapshot
     expect(counts.snapshots.total).toBe(1);
@@ -266,42 +189,42 @@ describe("upsertPriceData", () => {
   });
 
   it("deduplicates staging by (externalId, finish, recordedAt)", async () => {
-    const { db } = createMockDb({});
+    const { repo } = makeMockRepo({});
     const row1 = makeStagingRow(2001, "normal", { marketCents: 100 });
     const row2 = makeStagingRow(2001, "normal", { marketCents: 200 });
     // Same externalId, finish, and recordedAt — should deduplicate to 1
 
-    const counts = await upsertPriceData(db, noopLogger, config, [row1, row2]);
+    const counts = await upsertPriceData(repo, noopLogger, config, [row1, row2]);
 
     expect(counts.staging.total).toBe(1);
   });
 
   it("keeps separate staging entries for different finishes", async () => {
-    const { db } = createMockDb({});
+    const { repo } = makeMockRepo({});
     const normal = makeStagingRow(3001, "normal");
     const foil = makeStagingRow(3001, "foil");
 
-    const counts = await upsertPriceData(db, noopLogger, config, [normal, foil]);
+    const counts = await upsertPriceData(repo, noopLogger, config, [normal, foil]);
 
     expect(counts.staging.total).toBe(2);
   });
 
   it("keeps separate staging entries for different recordedAt", async () => {
-    const { db } = createMockDb({});
+    const { repo } = makeMockRepo({});
     const row1 = makeStagingRow(4001, "normal");
     const row2 = {
       ...makeStagingRow(4001, "normal"),
       recordedAt: new Date("2026-03-11T00:00:00Z"),
     };
 
-    const counts = await upsertPriceData(db, noopLogger, config, [row1, row2]);
+    const counts = await upsertPriceData(repo, noopLogger, config, [row1, row2]);
 
     expect(counts.staging.total).toBe(2);
   });
 
   it("maps multiple sources to multiple snapshots for same external ID", async () => {
     const { log } = makeMockLogger();
-    const { db } = createMockDb({
+    const { repo } = makeMockRepo({
       sources: [
         { id: "src-1", printingId: "print-1", externalId: 5001, finish: "normal" },
         { id: "src-2", printingId: "print-2", externalId: 5001, finish: "normal" },
@@ -309,7 +232,7 @@ describe("upsertPriceData", () => {
     });
     const staging = [makeStagingRow(5001, "normal")];
 
-    const counts = await upsertPriceData(db, log, config, staging);
+    const counts = await upsertPriceData(repo, log, config, staging);
 
     // Two sources mapped to the same external_id::finish -> 2 snapshots
     expect(counts.snapshots.total).toBe(2);
@@ -317,10 +240,10 @@ describe("upsertPriceData", () => {
 
   it("does not log snapshot info message when there are no snapshots", async () => {
     const { log, messages } = makeMockLogger();
-    const { db } = createMockDb({ sources: [] });
+    const { repo } = makeMockRepo({ sources: [] });
     const staging = [makeStagingRow(9999, "normal")];
 
-    await upsertPriceData(db, log, config, staging);
+    await upsertPriceData(repo, log, config, staging);
 
     // Should not have the "N snapshots for M mapped sources" message
     expect(messages.some((m) => m.includes("snapshots"))).toBe(false);

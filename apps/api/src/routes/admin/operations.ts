@@ -41,23 +41,20 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
   // ── Manual refresh endpoints ────────────────────────────────────────────────
 
   .post("/refresh-tcgplayer-prices", async (c) => {
-    const db = c.get("db");
-    const result = await refreshTcgplayerPrices(c.get("io").fetch, db, log);
+    const result = await refreshTcgplayerPrices(c.get("io").fetch, c.get("repos"), log);
     return c.json(result);
   })
 
   .post("/refresh-cardmarket-prices", async (c) => {
-    const db = c.get("db");
-    const result = await refreshCardmarketPrices(c.get("io").fetch, db, log);
+    const result = await refreshCardmarketPrices(c.get("io").fetch, c.get("repos"), log);
     return c.json(result);
   })
 
   .post("/refresh-cardtrader-prices", async (c) => {
-    const db = c.get("db");
     const config = c.get("config");
     const result = await refreshCardtraderPrices(
       c.get("io").fetch,
-      db,
+      c.get("repos"),
       log,
       config.cardtraderApiToken,
     );

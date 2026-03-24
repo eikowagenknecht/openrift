@@ -1,7 +1,4 @@
-import type { Kysely } from "kysely";
-
-import type { Database } from "../db/index.js";
-import type { Repos } from "../deps.js";
+import type { Transact } from "../deps.js";
 import { createActivity } from "./activity-logger.js";
 
 interface DeleteCollectionOpts {
@@ -17,19 +14,18 @@ interface DeleteCollectionOpts {
  * collection and logging a reorganization activity.
  */
 export async function deleteCollection(
-  db: Kysely<Database>,
-  repos: Repos,
+  transact: Transact,
   opts: DeleteCollectionOpts,
 ): Promise<void> {
   const { collectionId, collectionName, moveCopiesTo, targetName, userId } = opts;
 
-  await db.transaction().execute(async (trx) => {
-    const copies = await repos.collections.listCopiesInCollection(collectionId, trx);
+  await transact(async (trxRepos) => {
+    const copies = await trxRepos.collections.listCopiesInCollection(collectionId);
 
     if (copies.length > 0) {
-      await repos.collections.moveCopiesBetweenCollections(collectionId, moveCopiesTo, trx);
+      await trxRepos.collections.moveCopiesBetweenCollections(collectionId, moveCopiesTo);
 
-      await createActivity(trx, {
+      await createActivity(trxRepos, {
         userId,
         type: "reorganization",
         name: `Moved cards from deleted collection "${collectionName}"`,
@@ -46,6 +42,6 @@ export async function deleteCollection(
       });
     }
 
-    await repos.collections.deleteByIdForUser(collectionId, userId, trx);
+    await trxRepos.collections.deleteByIdForUser(collectionId, userId);
   });
 }

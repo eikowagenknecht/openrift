@@ -7,6 +7,7 @@ import { createConfig, validateConfig } from "./config.js";
 import { cronJobs } from "./cron-jobs.js";
 import { createDb } from "./db/connect.js";
 import { migrate } from "./db/migrate.js";
+import { createRepos } from "./deps.js";
 import { createEmailSender } from "./email.js";
 import {
   refreshCardmarketPrices,
@@ -35,6 +36,7 @@ await migrate(db, log.child({ service: "migrate" }));
 // ── 2. Register cron jobs (non-blocking timers) ─────────────────────────────
 
 if (config.cron.enabled) {
+  const repos = createRepos(db);
   const tcgLog = log.child({ service: "tcgplayer" });
   const cmLog = log.child({ service: "cardmarket" });
 
@@ -44,7 +46,7 @@ if (config.cron.enabled) {
   cronJobs.tcgplayer = new Cron(tcgSchedule, { protect: true }, async () => {
     try {
       tcgLog.info("Starting price refresh");
-      await refreshTcgplayerPrices(globalThis.fetch, db, tcgLog);
+      await refreshTcgplayerPrices(globalThis.fetch, repos, tcgLog);
       tcgLog.info("Price refresh complete");
     } catch (error) {
       tcgLog.error(error, "Price refresh failed");
@@ -55,7 +57,7 @@ if (config.cron.enabled) {
   cronJobs.cardmarket = new Cron(cmSchedule, { protect: true }, async () => {
     try {
       cmLog.info("Starting price refresh");
-      await refreshCardmarketPrices(globalThis.fetch, db, cmLog);
+      await refreshCardmarketPrices(globalThis.fetch, repos, cmLog);
       cmLog.info("Price refresh complete");
     } catch (error) {
       cmLog.error(error, "Price refresh failed");
@@ -70,7 +72,7 @@ if (config.cron.enabled) {
     cronJobs.cardtrader = new Cron(ctSchedule, { protect: true }, async () => {
       try {
         ctLog.info("Starting price refresh");
-        await refreshCardtraderPrices(globalThis.fetch, db, ctLog, config.cardtraderApiToken);
+        await refreshCardtraderPrices(globalThis.fetch, repos, ctLog, config.cardtraderApiToken);
         ctLog.info("Price refresh complete");
       } catch (error) {
         ctLog.error(error, "Price refresh failed");

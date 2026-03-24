@@ -1,8 +1,6 @@
 import type { ActivityAction, ActivityType } from "@openrift/shared";
-import type { Kysely, Transaction } from "kysely";
 
-import type { Database } from "../db/index.js";
-import { activitiesRepo } from "../repositories/activities.js";
+import type { Repos } from "../deps.js";
 
 interface ActivityItemInput {
   copyId?: string | null;
@@ -26,16 +24,12 @@ interface CreateActivityInput {
 }
 
 /**
- * Creates an activity with its items inside an existing transaction.
+ * Creates an activity with its items.
+ * When called inside a transaction, pass transactional repos to ensure atomicity.
  * @returns The activity ID
  */
-export async function createActivity(
-  trx: Transaction<Database> | Kysely<Database>,
-  input: CreateActivityInput,
-): Promise<string> {
-  const repo = activitiesRepo(trx);
-
-  const activityId = await repo.create({
+export async function createActivity(repos: Repos, input: CreateActivityInput): Promise<string> {
+  const activityId = await repos.activities.create({
     userId: input.userId,
     type: input.type,
     name: input.name ?? null,
@@ -44,7 +38,7 @@ export async function createActivity(
     isAuto: input.isAuto ?? false,
   });
 
-  await repo.createItems(
+  await repos.activities.createItems(
     input.items.map((item) => ({
       activityId: activityId,
       userId: input.userId,

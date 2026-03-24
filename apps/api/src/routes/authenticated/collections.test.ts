@@ -35,8 +35,8 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("db", {} as never);
     c.set("user", { id: USER_ID });
+    c.set("transact", (() => {}) as never);
     c.set("repos", {
       collections: mockCollectionsRepo,
       copies: mockCopiesRepo,
@@ -224,7 +224,6 @@ describe("DELETE /api/v1/collections/:id", () => {
     expect(res.status).toBe(204);
     expect(mockEnsureInbox).toHaveBeenCalled();
     expect(mockDeleteCollection).toHaveBeenCalledWith(
-      expect.anything(),
       expect.anything(),
       expect.objectContaining({
         collectionId: dbCollection.id,

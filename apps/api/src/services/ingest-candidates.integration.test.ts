@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { createTransact } from "../deps.js";
 import type { IngestCard, IngestPrinting } from "../routes/admin/candidates/schemas.js";
 import { createTestContext } from "../test/integration-context.js";
 import { ingestCandidates } from "./ingest-candidates.js";
@@ -39,6 +40,7 @@ const SOURCE = "ingest-test";
 describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf; db is only used inside it() callbacks
   const db = ctx?.db ?? (null as any);
+  const transact = db ? createTransact(db) : (null as any);
 
   // Seed data UUIDs populated by beforeAll
   let seedSetId: string;
@@ -163,14 +165,16 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // ── Basic validation ────────────────────────────────────────────────────
 
   it("throws on empty source name", async () => {
-    await expect(ingestCandidates(db, "", [])).rejects.toThrow("provider name must not be empty");
-    await expect(ingestCandidates(db, "   ", [])).rejects.toThrow(
+    await expect(ingestCandidates(transact, "", [])).rejects.toThrow(
+      "provider name must not be empty",
+    );
+    await expect(ingestCandidates(transact, "   ", [])).rejects.toThrow(
       "provider name must not be empty",
     );
   });
 
   it("returns zeros for empty cards array", async () => {
-    const result = await ingestCandidates(db, SOURCE, []);
+    const result = await ingestCandidates(transact, SOURCE, []);
     expect(result).toEqual({
       provider: SOURCE,
       newCards: 0,
@@ -194,7 +198,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // ── Insert new card sources ─────────────────────────────────────────────
 
   it("inserts a new candidate_card with no printings", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Solo Card",
         type: "Unit",
@@ -231,7 +235,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   });
 
   it("inserts a new candidate_card with printings", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Card With Printings",
         type: "Spell",
@@ -291,7 +295,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("updates an existing candidate_card when fields change", async () => {
     // First ingest
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Evolving Card",
         type: "Unit",
@@ -310,7 +314,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     ]);
 
     // Second ingest with changed fields
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Evolving Card",
         type: "Unit",
@@ -353,7 +357,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("returns unchanged when candidate_card has not changed", async () => {
     // First ingest
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Stable Card",
         type: "Rune",
@@ -372,7 +376,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     ]);
 
     // Second ingest with identical data
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Stable Card",
         type: "Rune",
@@ -398,7 +402,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // ── Validation errors ───────────────────────────────────────────────────
 
   it("records validation error for card with negative might", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Bad Might Card",
         type: "Unit",
@@ -423,7 +427,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   });
 
   it("records validation error for card with empty name", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "",
         type: "Unit",
@@ -447,7 +451,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   });
 
   it("records validation error for printing with empty short_code", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Valid Card With Bad Printing",
         type: "Unit",
@@ -490,7 +494,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("updates candidate_printing when fields change", async () => {
     // First ingest with a printing
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Update Card",
         type: "Unit",
@@ -538,7 +542,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(psBefore.artist).toBe("Original Artist");
 
     // Second ingest with changed artist
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Update Card",
         type: "Unit",
@@ -582,7 +586,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("does not update candidate_printing when nothing changed", async () => {
     // First ingest
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Stable Card",
         type: "Gear",
@@ -628,7 +632,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .executeTakeFirstOrThrow();
 
     // Second ingest with identical data
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Stable Card",
         type: "Gear",
@@ -675,7 +679,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   it("resolves card by normName and assigns printingId to candidate_printing", async () => {
     // "Ingest Alpha" normalizes to "ingestalpha" which matches our seed card
     // The printing slug "IGT-001:normal:" should match our seed printing
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Ingest Alpha",
         type: "Unit",
@@ -730,7 +734,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("resolves card by alias when normName does not match directly", async () => {
     // "Ingest Beta Alias" normalizes to "ingestbetaalias" which matches the alias we seeded
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Ingest Beta Alias",
         type: "Spell",
@@ -756,7 +760,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("finds existing candidate_card by short_code rather than name", async () => {
     // Insert with short_code
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name One",
         type: "Unit",
@@ -775,7 +779,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     ]);
 
     // Re-ingest same short_code but different name — should update, not insert
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name Two",
         type: "Unit",
@@ -810,7 +814,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("finds existing candidate_card by name when short_code is absent", async () => {
     // Insert without short_code
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name Only Card",
         type: "Unit",
@@ -828,7 +832,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     ]);
 
     // Re-ingest same name — should be unchanged (not a new insert)
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name Only Card",
         type: "Unit",
@@ -852,7 +856,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // ── jsonOrNull / extra_data handling ─────────────────────────────────────
 
   it("stores extra_data as null when given an empty object", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Extra Data Empty Card",
         type: "Unit",
@@ -883,7 +887,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   });
 
   it("stores non-empty extra_data as-is", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Extra Data Real Card",
         type: "Unit",
@@ -919,7 +923,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const batchSource = "ingest-test-batch";
 
     // Phase 1: insert two cards
-    await ingestCandidates(db, batchSource, [
+    await ingestCandidates(transact, batchSource, [
       card({
         name: "Batch Unchanged",
         type: "Unit",
@@ -953,7 +957,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     ]);
 
     // Phase 2: mixed batch
-    const result = await ingestCandidates(db, batchSource, [
+    const result = await ingestCandidates(transact, batchSource, [
       // Unchanged
       card({
         name: "Batch Unchanged",
@@ -1031,7 +1035,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("treats empty string as equivalent to null for card fields", async () => {
     // Insert with rules_text = null
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Normalize Test Card",
         type: "Unit",
@@ -1050,7 +1054,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     ]);
 
     // Re-ingest with rules_text = "" — emptyToNull converts to null, so should be unchanged
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Normalize Test Card",
         type: "Unit",
@@ -1077,7 +1081,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
   it("inserts candidate_printing with printingId=null when card name is unresolvable", async () => {
     // Card name "Totally Unknown Card" doesn't match any card normName or alias
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Totally Unknown Card",
         type: "Unit",
@@ -1130,7 +1134,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // ── external_id and optional fields ────────────────────────────────
 
   it("stores external_id on candidate_card and candidate_printing", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Entity ID Card",
         type: "Unit",
@@ -1186,7 +1190,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // ── Printing with flavor_text and set_name ──────────────────────────────
 
   it("stores optional printing fields: flavor_text, set_name, image_url", async () => {
-    await ingestCandidates(db, SOURCE, [
+    await ingestCandidates(transact, SOURCE, [
       card({
         name: "Full Printing Card",
         type: "Unit",
@@ -1249,7 +1253,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   // ── Validation: printing with collector_number=0 is caught by Zod ─────
 
   it("records printing validation error for collector_number=0", async () => {
-    const result = await ingestCandidates(db, SOURCE, [
+    const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Zero Collector Card",
         type: "Unit",

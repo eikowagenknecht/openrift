@@ -4,37 +4,31 @@
    -- test file: mocks require empty fns and explicit undefined */
 import { describe, expect, it } from "vitest";
 
+import type { Repos } from "../deps.js";
 import { createActivity } from "./activity-logger.js";
 
 // ---------------------------------------------------------------------------
-// Mock transaction builder
+// Mock repos builder
 // ---------------------------------------------------------------------------
 
-interface InsertedRow {
-  table: string;
-  values: unknown;
-}
+function createMockRepos(activityId: string) {
+  const insertedActivities: unknown[] = [];
+  const insertedItems: unknown[] = [];
 
-function createMockTrx(activityId: string) {
-  const inserted: InsertedRow[] = [];
+  const repos = {
+    activities: {
+      create: (vals: unknown) => {
+        insertedActivities.push(vals);
+        return Promise.resolve(activityId);
+      },
+      createItems: (vals: unknown) => {
+        insertedItems.push(vals);
+        return Promise.resolve([]);
+      },
+    },
+  } as unknown as Repos;
 
-  const insertChain = (table: string) => {
-    const chain: any = {};
-    chain.values = (vals: unknown) => {
-      inserted.push({ table, values: vals });
-      return chain;
-    };
-    chain.returning = () => chain;
-    chain.executeTakeFirstOrThrow = () => Promise.resolve({ id: activityId });
-    chain.execute = () => Promise.resolve([]);
-    return chain;
-  };
-
-  const trx: any = {
-    insertInto: (table: string) => insertChain(table),
-  };
-
-  return { trx, inserted };
+  return { repos, insertedActivities, insertedItems };
 }
 
 // ---------------------------------------------------------------------------
@@ -43,9 +37,9 @@ function createMockTrx(activityId: string) {
 
 describe("createActivity", () => {
   it("inserts an activity row with correct fields", async () => {
-    const { trx, inserted } = createMockTrx("act-1");
+    const { repos, insertedActivities } = createMockRepos("act-1");
 
-    await createActivity(trx, {
+    await createActivity(repos, {
       userId: "user-1",
       type: "acquisition",
       name: "My Activity",
@@ -54,11 +48,8 @@ describe("createActivity", () => {
       items: [],
     });
 
-    const activityInsert = inserted.find((i) => i.table === "activities");
-    expect(activityInsert).toBeDefined();
-
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by toBeDefined above
-    const vals = activityInsert!.values as any;
+    expect(insertedActivities).toHaveLength(1);
+    const vals = insertedActivities[0] as any;
     expect(vals.userId).toBe("user-1");
     expect(vals.type).toBe("acquisition");
     expect(vals.name).toBe("My Activity");
@@ -68,40 +59,38 @@ describe("createActivity", () => {
   });
 
   it("defaults name, description to null and isAuto to false", async () => {
-    const { trx, inserted } = createMockTrx("act-2");
+    const { repos, insertedActivities } = createMockRepos("act-2");
 
-    await createActivity(trx, {
+    await createActivity(repos, {
       userId: "user-1",
       type: "disposal",
       items: [],
     });
 
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- find always matches in this test
-    const vals = inserted.find((i) => i.table === "activities")!.values as any;
+    const vals = insertedActivities[0] as any;
     expect(vals.name).toBeNull();
     expect(vals.description).toBeNull();
     expect(vals.isAuto).toBe(false);
   });
 
   it("uses provided date string when given", async () => {
-    const { trx, inserted } = createMockTrx("act-3");
+    const { repos, insertedActivities } = createMockRepos("act-3");
 
-    await createActivity(trx, {
+    await createActivity(repos, {
       userId: "user-1",
       type: "acquisition",
       date: "2025-01-15",
       items: [],
     });
 
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- find always matches in this test
-    const vals = inserted.find((i) => i.table === "activities")!.values as any;
+    const vals = insertedActivities[0] as any;
     expect(vals.date).toEqual(new Date("2025-01-15"));
   });
 
   it("inserts activity items with mapped fields", async () => {
-    const { trx, inserted } = createMockTrx("act-4");
+    const { repos, insertedItems } = createMockRepos("act-4");
 
-    await createActivity(trx, {
+    await createActivity(repos, {
       userId: "user-1",
       type: "acquisition",
       items: [
@@ -122,11 +111,8 @@ describe("createActivity", () => {
       ],
     });
 
-    const itemsInsert = inserted.find((i) => i.table === "activityItems");
-    expect(itemsInsert).toBeDefined();
-
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by toBeDefined above
-    const items = itemsInsert!.values as any[];
+    expect(insertedItems).toHaveLength(1);
+    const items = insertedItems[0] as any[];
     expect(items).toHaveLength(2);
 
     expect(items[0].activityId).toBe("act-4");
@@ -148,22 +134,23 @@ describe("createActivity", () => {
   });
 
   it("does not insert activity items when items array is empty", async () => {
-    const { trx, inserted } = createMockTrx("act-5");
+    const { repos, insertedItems } = createMockRepos("act-5");
 
-    await createActivity(trx, {
+    await createActivity(repos, {
       userId: "user-1",
       type: "acquisition",
       items: [],
     });
 
-    const itemsInsert = inserted.find((i) => i.table === "activityItems");
-    expect(itemsInsert).toBeUndefined();
+    expect(insertedItems).toHaveLength(1);
+    const items = insertedItems[0] as any[];
+    expect(items).toHaveLength(0);
   });
 
   it("returns the activity ID", async () => {
-    const { trx } = createMockTrx("act-99");
+    const { repos } = createMockRepos("act-99");
 
-    const id = await createActivity(trx, {
+    const id = await createActivity(repos, {
       userId: "user-1",
       type: "reorganization",
       items: [],

@@ -1,15 +1,13 @@
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
 import { buildPrintingId } from "@openrift/shared/utils";
-import type { Kysely } from "kysely";
 
-import type { Database } from "../db/index.js";
+import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
-import { setsRepo } from "../repositories/sets.js";
 import { deleteRehostFiles } from "./image-rehost.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
@@ -83,32 +81,34 @@ export async function renamePrinting(
  * hard references (the DB FK constraints will reject the delete).
  */
 export async function deletePrinting(
-  db: Kysely<Database>,
+  transact: Transact,
   io: Io,
   repos: { candidateMutations: CandidateMutationsRepo },
   printingSlug: string,
 ): Promise<void> {
   const mut = repos.candidateMutations;
 
-  const deletedImages = await db.transaction().execute(async (trx) => {
-    // Look up the printing first
-    const printing = await mut.getPrintingFieldsBySlug(printingSlug, trx);
+  // Validate outside the transaction
+  const printing = await mut.getPrintingFieldsBySlug(printingSlug);
 
-    if (!printing) {
-      throw new AppError(404, "NOT_FOUND", "Printing not found");
-    }
+  if (!printing) {
+    throw new AppError(404, "NOT_FOUND", "Printing not found");
+  }
+
+  const deletedImages = await transact(async (trxRepos) => {
+    const trxMut = trxRepos.candidateMutations;
 
     // Unlink candidate_printings so they become "unmatched" again
-    await mut.unlinkCandidatePrintingsByPrintingId(printing.id, trx);
+    await trxMut.unlinkCandidatePrintingsByPrintingId(printing.id);
 
     // Delete printing_images rows and collect rehostedUrls for disk cleanup
-    const images = await mut.deletePrintingImagesByPrintingId(printing.id, trx);
+    const images = await trxMut.deletePrintingImagesByPrintingId(printing.id);
 
     // Delete link overrides
-    await mut.deletePrintingLinkOverridesBySlug(printingSlug, trx);
+    await trxMut.deletePrintingLinkOverridesBySlug(printingSlug);
 
     // Delete the printing itself (will throw if FK-constrained by copies, etc.)
-    await mut.deletePrintingBySlug(printingSlug, trx);
+    await trxMut.deletePrintingBySlug(printingSlug);
 
     return images;
   });
@@ -146,7 +146,7 @@ interface AcceptPrintingFields {
  * @returns The generated or provided printing ID (slug).
  */
 export async function acceptPrinting(
-  db: Kysely<Database>,
+  transact: Transact,
   repos: {
     candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
@@ -197,18 +197,17 @@ export async function acceptPrinting(
 
   const firstPs = await mut.getProviderNameForCandidatePrinting(candidatePrintingIds[0]);
 
-  await db.transaction().execute(async (trx) => {
+  await transact(async (trxRepos) => {
     if (printingFields.setId) {
-      await setsRepo(trx).upsert(
+      await trxRepos.sets.upsert(
         printingFields.setId,
         printingFields.setName ?? printingFields.setId,
-        trx,
       );
     }
 
     let setUuid = "";
     if (printingFields.setId) {
-      const setRow = await mut.getSetIdBySlug(printingFields.setId, trx);
+      const setRow = await trxRepos.candidateMutations.getSetIdBySlug(printingFields.setId);
       setUuid = setRow?.id ?? "";
     }
 
@@ -222,7 +221,7 @@ export async function acceptPrinting(
       );
     }
 
-    const insertedId = await mut.upsertPrinting(trx, {
+    const insertedId = await trxRepos.candidateMutations.upsertPrinting({
       slug: printingId,
       cardId: card.id,
       setId: setUuid,
@@ -241,15 +240,17 @@ export async function acceptPrinting(
     });
 
     if (printingFields.imageUrl) {
-      await repos.printingImages.insertImage(
-        trx,
+      await trxRepos.printingImages.insertImage(
         insertedId,
         printingFields.imageUrl,
         firstPs?.provider ?? "import",
       );
     }
 
-    await mut.linkAndCheckCandidatePrintings(candidatePrintingIds, insertedId, trx);
+    await trxRepos.candidateMutations.linkAndCheckCandidatePrintings(
+      candidatePrintingIds,
+      insertedId,
+    );
   });
 
   return printingId;

@@ -1,6 +1,8 @@
 import type { Logger } from "@openrift/shared/logger";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { createRepos } from "../../deps.js";
+import { priceRefreshRepo } from "../../repositories/price-refresh.js";
 import { createTestContext } from "../../test/integration-context.js";
 import { loadReferenceData } from "./reference-data.js";
 import type { PriceUpsertConfig, StagingRow } from "./types.js";
@@ -29,6 +31,7 @@ const CM_CONFIG: PriceUpsertConfig = {
 describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ctx!;
+  const repo = priceRefreshRepo(db);
 
   // Seed slugs (human-readable) — UUIDs are auto-generated
   const setSlug = "UPS";
@@ -148,7 +151,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
   describe("loadReferenceData", () => {
     it("loads sets, cards, and printings", async () => {
-      const ref = await loadReferenceData(db);
+      const ref = await loadReferenceData(createRepos(db));
 
       expect(ref.sets.length).toBeGreaterThanOrEqual(1);
       expect(ref.cards.length).toBeGreaterThanOrEqual(1);
@@ -156,19 +159,19 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     });
 
     it("builds setNameById map", async () => {
-      const ref = await loadReferenceData(db);
+      const ref = await loadReferenceData(createRepos(db));
 
       expect(ref.setNameById.get(setId)).toBe("UPS Integration Set");
     });
 
     it("builds cardNameById map", async () => {
-      const ref = await loadReferenceData(db);
+      const ref = await loadReferenceData(createRepos(db));
 
       expect(ref.cardNameById.get(cardId)).toBe("UPS Test Card");
     });
 
     it("builds namesBySet with normalized card names", async () => {
-      const ref = await loadReferenceData(db);
+      const ref = await loadReferenceData(createRepos(db));
 
       const setMap = ref.namesBySet.get(setId);
       expect(setMap).toBeDefined();
@@ -177,7 +180,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     });
 
     it("builds printingsByCardSetFinish map", async () => {
-      const ref = await loadReferenceData(db);
+      const ref = await loadReferenceData(createRepos(db));
 
       const normalKey = `${cardId}|${setId}|normal`;
       const foilKey = `${cardId}|${setId}|foil`;
@@ -186,7 +189,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     });
 
     it("builds printingByFullKey map", async () => {
-      const ref = await loadReferenceData(db);
+      const ref = await loadReferenceData(createRepos(db));
 
       const fullKey = `${cardId}|${setId}|normal|normal|false`;
       expect(ref.printingByFullKey.get(fullKey)).toBe(printingId);
@@ -233,7 +236,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
       // Snapshot built internally from staging + mapped source for ext_id 94_101
       expect(counts.snapshots.total).toBe(1);
@@ -256,7 +259,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
       expect(counts.snapshots.new).toBe(0);
       expect(counts.snapshots.unchanged).toBe(1);
@@ -276,7 +279,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
       expect(counts.snapshots.updated).toBeGreaterThan(0);
       expect(counts.staging.updated).toBeGreaterThan(0);
@@ -302,7 +305,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
       expect(counts.staging.total).toBe(1);
     });
@@ -319,7 +322,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
       expect(counts.snapshots.total).toBe(0);
       // Staging is still inserted even without a mapped source
@@ -327,7 +330,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     });
 
     it("handles empty inputs", async () => {
-      const counts = await upsertPriceData(db, noopLogger, CM_CONFIG, []);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, []);
 
       expect(counts.snapshots.total).toBe(0);
       expect(counts.staging.total).toBe(0);

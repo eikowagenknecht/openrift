@@ -1,11 +1,8 @@
 import { buildPrintingId, emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
-import type { Kysely } from "kysely";
 import { z } from "zod";
 
-import type { Database } from "../db/index.js";
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
-import { ingestRepo } from "../repositories/ingest.js";
-import { promoTypesRepo } from "../repositories/promo-types.js";
+import type { Transact } from "../deps.js";
 import type { IngestCard } from "../routes/admin/candidates/schemas.js";
 
 interface ItemDetail {
@@ -159,7 +156,7 @@ function getChangedFields(
  * @returns Counts of new, updated, unchanged cards and any errors.
  */
 export async function ingestCandidates(
-  db: Kysely<Database>,
+  transact: Transact,
   provider: string,
   cards: IngestCard[],
 ): Promise<IngestResult> {
@@ -183,8 +180,8 @@ export async function ingestCandidates(
   const removedPrintingDetails: ItemDetail[] = [];
   const updatedPrintings: UpdatedCardDetail[] = [];
 
-  await db.transaction().execute(async (trx) => {
-    const repo = ingestRepo(trx);
+  await transact(async (trxRepos) => {
+    const repo = trxRepos.ingest;
 
     // ── Phase 1: Bulk-fetch all existing data ──────────────────────────────
 
@@ -258,7 +255,7 @@ export async function ingestCandidates(
     }
 
     // 1h. Default promo type ID (for is_promo=true in upload data)
-    const defaultPromoType = await promoTypesRepo(trx).getBySlug("promo");
+    const defaultPromoType = await trxRepos.promoTypes.getBySlug("promo");
     const defaultPromoTypeId = defaultPromoType?.id ?? null;
 
     // ── Phase 2: Process each card (writes only) ───────────────────────────

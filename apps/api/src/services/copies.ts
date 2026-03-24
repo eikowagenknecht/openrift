@@ -1,9 +1,5 @@
-import type { Kysely } from "kysely";
-
-import type { Database } from "../db/index.js";
+import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
-import { collectionsRepo } from "../repositories/collections.js";
-import { copiesRepo } from "../repositories/copies.js";
 import { createActivity } from "./activity-logger.js";
 import { ensureInbox } from "./inbox.js";
 
@@ -26,25 +22,23 @@ interface AddCopyResult {
  * @returns The created copies with their IDs
  */
 export async function addCopies(
-  db: Kysely<Database>,
+  repos: Repos,
+  transact: Transact,
   userId: string,
   copies: AddCopyInput[],
 ): Promise<AddCopyResult[]> {
-  const inboxId = await ensureInbox(db, userId);
+  const inboxId = await ensureInbox(repos, userId);
 
   // Verify all explicit collectionIds belong to this user
   const explicitIds = [...new Set(copies.map((c) => c.collectionId).filter(Boolean))] as string[];
   if (explicitIds.length > 0) {
-    const owned = await collectionsRepo(db).listIdsByIdsForUser(explicitIds, userId);
+    const owned = await repos.collections.listIdsByIdsForUser(explicitIds, userId);
     if (owned.length !== explicitIds.length) {
       throw new AppError(403, "FORBIDDEN", "One or more collections do not belong to you");
     }
   }
 
-  const created = await db.transaction().execute(async (trx) => {
-    const copies_ = copiesRepo(trx);
-    const collections = collectionsRepo(trx);
-
+  const created = await transact(async (trxRepos) => {
     const copyValues = copies.map((item) => ({
       userId: userId,
       printingId: item.printingId,
@@ -52,14 +46,14 @@ export async function addCopies(
       acquisitionSourceId: item.acquisitionSourceId ?? null,
     }));
 
-    const copyRows = await copies_.insertBatch(copyValues);
+    const copyRows = await trxRepos.copies.insertBatch(copyValues);
 
     // Look up collection names for activity items
     const collectionIds = [...new Set(copyRows.map((r) => r.collectionId))];
-    const collectionRows = await collections.listIdAndNameByIds(collectionIds);
+    const collectionRows = await trxRepos.collections.listIdAndNameByIds(collectionIds);
     const collectionNames = new Map(collectionRows.map((col) => [col.id, col.name]));
 
-    await createActivity(trx, {
+    await createActivity(trxRepos, {
       userId,
       type: "acquisition",
       isAuto: true,
@@ -88,37 +82,36 @@ export async function addCopies(
  * Verifies the target collection, moves copies, and logs a reorganization activity.
  */
 export async function moveCopies(
-  db: Kysely<Database>,
+  repos: Repos,
+  transact: Transact,
   userId: string,
   copyIds: string[],
   toCollectionId: string,
 ): Promise<void> {
   // Verify target collection belongs to user
-  const target = await collectionsRepo(db).getIdAndName(toCollectionId, userId);
+  const target = await repos.collections.getIdAndName(toCollectionId, userId);
 
   if (!target) {
     throw new AppError(404, "NOT_FOUND", "Target collection not found");
   }
 
-  await db.transaction().execute(async (trx) => {
-    const copies_ = copiesRepo(trx);
-
+  await transact(async (trxRepos) => {
     // Fetch copies with their current collection info
-    const copies = await copies_.listWithCollectionName(copyIds, userId);
+    const copies = await trxRepos.copies.listWithCollectionName(copyIds, userId);
 
     if (copies.length !== copyIds.length) {
       throw new AppError(404, "NOT_FOUND", "One or more copies not found");
     }
 
     // Update copies
-    await copies_.moveBatch(
+    await trxRepos.copies.moveBatch(
       copies.map((row) => row.id),
       userId,
       toCollectionId,
     );
 
     // Log reorganization activity
-    await createActivity(trx, {
+    await createActivity(trxRepos, {
       userId,
       type: "reorganization",
       isAuto: true,
@@ -140,22 +133,20 @@ export async function moveCopies(
  * Logs a disposal activity before deleting.
  */
 export async function disposeCopies(
-  db: Kysely<Database>,
+  transact: Transact,
   userId: string,
   copyIds: string[],
 ): Promise<void> {
-  await db.transaction().execute(async (trx) => {
-    const copies_ = copiesRepo(trx);
-
+  await transact(async (trxRepos) => {
     // Fetch copies with collection info for snapshots
-    const copies = await copies_.listWithCollectionName(copyIds, userId);
+    const copies = await trxRepos.copies.listWithCollectionName(copyIds, userId);
 
     if (copies.length !== copyIds.length) {
       throw new AppError(404, "NOT_FOUND", "One or more copies not found");
     }
 
     // Log disposal activity before deleting (so copy FK is still valid)
-    await createActivity(trx, {
+    await createActivity(trxRepos, {
       userId,
       type: "disposal",
       isAuto: true,
@@ -173,7 +164,7 @@ export async function disposeCopies(
     });
 
     // Hard-delete copies (activity_items.copy_id → SET NULL via FK)
-    await copies_.deleteBatch(
+    await trxRepos.copies.deleteBatch(
       copies.map((row) => row.id),
       userId,
     );

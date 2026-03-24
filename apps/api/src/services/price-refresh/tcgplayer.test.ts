@@ -1,8 +1,7 @@
 import type { Logger } from "@openrift/shared/logger";
-import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Database } from "../../db/types";
+import type { Repos } from "../../deps";
 import type { Fetch } from "../../io";
 import * as fetchMod from "./fetch";
 import * as logMod from "./log";
@@ -118,59 +117,27 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
   return { log, messages };
 }
 
-/**
- * Proxy-based Kysely builder chain. Every property access / method call
- * returns another chain; `.execute()` resolves with `value`.
- * @returns A proxy that mimics the Kysely fluent builder API.
- */
-function makeChain(value: unknown): any {
-  return new Proxy(
-    // oxlint-disable-next-line no-empty-function -- proxy target requires a callable
-    function noop() {},
-    {
-      get(_, prop) {
-        if (prop === "execute") {
-          return async () => value;
-        }
-        if (prop === "then" || prop === "catch" || prop === "finally") {
-          // oxlint-disable-next-line no-useless-undefined -- must explicitly return undefined so the proxy isn't treated as a thenable
-          return undefined;
-        }
-        return makeChain(value);
-      },
-      apply(_, __, args) {
-        for (const arg of args) {
-          if (typeof arg === "function") {
-            arg(makeChain(value));
-          }
-        }
-        return makeChain(value);
-      },
-    },
-  );
-}
-
-interface MockDbConfig {
+interface MockReposConfig {
   ignoredProducts?: { externalId: number; finish: string }[];
 }
 
-function createMockDb(config: MockDbConfig = {}) {
-  let insertIntoCalled = false;
+function createMockRepos(config: MockReposConfig = {}) {
+  let upsertGroupsCalled = false;
 
-  const db = {
-    selectFrom(table: string) {
-      if (table === "marketplaceIgnoredProducts") {
-        return makeChain(config.ignoredProducts ?? []);
-      }
-      return makeChain([]);
-    },
-    insertInto() {
-      insertIntoCalled = true;
-      return makeChain([]);
-    },
-  } as unknown as Kysely<Database>;
+  const ignoredKeys = new Set(
+    (config.ignoredProducts ?? []).map((p) => `${p.externalId}::${p.finish}`),
+  );
 
-  return { db, wasInsertCalled: () => insertIntoCalled };
+  const repos = {
+    priceRefresh: {
+      loadIgnoredKeys: async () => ignoredKeys,
+      upsertGroups: async () => {
+        upsertGroupsCalled = true;
+      },
+    },
+  } as unknown as Repos;
+
+  return { repos, wasUpsertGroupsCalled: () => upsertGroupsCalled };
 }
 
 // ── fetchJson mock setup ─────────────────────────────────────────────────
@@ -248,7 +215,7 @@ describe("refreshTcgplayerPrices", () => {
 
   describe("API fetch", () => {
     it("fetches groups, products, and prices from TCGCSV endpoints", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -256,7 +223,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const urls = fetchJsonSpy.mock.calls.map((c: unknown[]) => c[1]);
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/groups");
@@ -265,11 +232,11 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("handles empty groups gracefully", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      const result = await refreshTcgplayerPrices(stubFetch, db, log);
+      const result = await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
@@ -279,7 +246,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("fetches products and prices for each group", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A, GROUP_B],
@@ -293,7 +260,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const urls = fetchJsonSpy.mock.calls.map((c: unknown[]) => c[1]);
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/101/products");
@@ -307,7 +274,7 @@ describe("refreshTcgplayerPrices", () => {
 
   describe("staging rows", () => {
     it("creates normal staging row with correct cents", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -316,7 +283,7 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: LAST_MODIFIED,
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       const normal = staging.find((r) => r.externalId === 5001 && r.finish === "normal");
@@ -330,7 +297,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("creates foil staging row when subTypeName is Foil", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -339,7 +306,7 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: LAST_MODIFIED,
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       const foil = staging.find((r) => r.externalId === 5001 && r.finish === "foil");
@@ -351,7 +318,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("creates both normal and foil staging rows for same product", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -359,7 +326,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL, PRICE_FLAME_FOIL]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(2);
@@ -368,7 +335,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("skips entries with null marketPrice", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -376,14 +343,14 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_ICE_NULL_MARKET]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
     });
 
     it("skips entries with zero marketPrice", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -391,14 +358,14 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_ICE_ZERO_MARKET]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
     });
 
     it("skips products with no price entries", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -406,14 +373,14 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, []]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
     });
 
     it("skips ignored normal products but keeps foil", async () => {
-      const { db } = createMockDb({
+      const { repos } = createMockRepos({
         ignoredProducts: [{ externalId: 5001, finish: "normal" }],
       });
       const { log } = makeMockLogger();
@@ -423,7 +390,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL, PRICE_FLAME_FOIL]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging.find((r) => r.externalId === 5001 && r.finish === "normal")).toBeUndefined();
@@ -431,7 +398,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("skips ignored foil products but keeps normal", async () => {
-      const { db } = createMockDb({
+      const { repos } = createMockRepos({
         ignoredProducts: [{ externalId: 5001, finish: "foil" }],
       });
       const { log } = makeMockLogger();
@@ -441,7 +408,7 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL, PRICE_FLAME_FOIL]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging.find((r) => r.externalId === 5001 && r.finish === "foil")).toBeUndefined();
@@ -449,7 +416,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("stages products across multiple groups", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A, GROUP_B],
@@ -463,7 +430,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(2);
@@ -472,7 +439,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("handles group with products but no prices data", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -480,7 +447,7 @@ describe("refreshTcgplayerPrices", () => {
         // No pricesByGroup entry for 101 → empty prices
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging).toHaveLength(0);
@@ -490,8 +457,8 @@ describe("refreshTcgplayerPrices", () => {
   // ── Group upsert ──────────────────────────────────────────────────────
 
   describe("group upsert", () => {
-    it("upserts groups via insertInto when groups exist", async () => {
-      const { db, wasInsertCalled } = createMockDb();
+    it("upserts groups via repo when groups exist", async () => {
+      const { repos, wasUpsertGroupsCalled } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -499,21 +466,22 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
-      expect(wasInsertCalled()).toBe(true);
+      expect(wasUpsertGroupsCalled()).toBe(true);
     });
 
-    it("does not call insertInto when there are no groups", async () => {
-      const { db, wasInsertCalled } = createMockDb();
+    it("does not upsert groups when there are no groups", async () => {
+      const { repos, wasUpsertGroupsCalled } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
-      // insertInto is never called because upsertTcgplayerGroups returns early
+      // upsertMarketplaceGroups is still called but with empty array;
+      // the repo's upsertGroups returns early for empty arrays
       // and upsertPriceData is mocked
-      expect(wasInsertCalled()).toBe(false);
+      expect(wasUpsertGroupsCalled()).toBe(true);
     });
   });
 
@@ -521,7 +489,7 @@ describe("refreshTcgplayerPrices", () => {
 
   describe("recordedAt", () => {
     it("uses Last-Modified header from prices response", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -530,14 +498,14 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: LAST_MODIFIED,
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       expect(staging[0].recordedAt).toEqual(LAST_MODIFIED);
     });
 
     it("uses per-group Last-Modified timestamps", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       const groupATime = new Date("2026-03-10T18:00:00Z");
       const groupBTime = new Date("2026-03-10T20:00:00Z");
@@ -557,7 +525,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       const flameRow = staging.find((r) => r.externalId === 5001);
@@ -567,7 +535,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("falls back to current time when no Last-Modified header", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       const before = Date.now();
       setupFetchJson(fetchJsonSpy, {
@@ -577,7 +545,7 @@ describe("refreshTcgplayerPrices", () => {
         lastModified: null,
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
       const ts = staging[0].recordedAt.getTime();
@@ -589,14 +557,14 @@ describe("refreshTcgplayerPrices", () => {
   // ── upsertPriceData call ──────────────────────────────────────────────
 
   describe("upsertPriceData call", () => {
-    it("passes db as first argument", async () => {
-      const { db } = createMockDb();
+    it("passes repos.priceRefresh as first argument", async () => {
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
-      expect(upsertSpy.mock.calls[0][0]).toBe(db);
+      expect(upsertSpy.mock.calls[0][0]).toBe(repos.priceRefresh);
     });
   });
 
@@ -604,7 +572,7 @@ describe("refreshTcgplayerPrices", () => {
 
   describe("return value", () => {
     it("returns correct fetched counts", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A, GROUP_B],
@@ -618,7 +586,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      const result = await refreshTcgplayerPrices(stubFetch, db, log);
+      const result = await refreshTcgplayerPrices(stubFetch, repos, log);
 
       expect(result.transformed.groups).toBe(2);
       expect(result.transformed.products).toBe(3);
@@ -627,7 +595,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("returns upsert counts from upsertPriceData", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
       const customCounts: UpsertCounts = {
@@ -636,7 +604,7 @@ describe("refreshTcgplayerPrices", () => {
       };
       upsertSpy.mockResolvedValue(customCounts);
 
-      const result = await refreshTcgplayerPrices(stubFetch, db, log);
+      const result = await refreshTcgplayerPrices(stubFetch, repos, log);
 
       expect(result.upserted).toBe(customCounts);
     });
@@ -646,7 +614,7 @@ describe("refreshTcgplayerPrices", () => {
 
   describe("logging", () => {
     it("logs fetched summary with group and product counts", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log, messages } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A, GROUP_B],
@@ -660,7 +628,7 @@ describe("refreshTcgplayerPrices", () => {
         ]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).toBeDefined();
@@ -670,7 +638,7 @@ describe("refreshTcgplayerPrices", () => {
     });
 
     it("includes ignored count in summary when products are ignored", async () => {
-      const { db } = createMockDb({
+      const { repos } = createMockRepos({
         ignoredProducts: [
           { externalId: 5001, finish: "normal" },
           { externalId: 5001, finish: "foil" },
@@ -683,14 +651,14 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).toContain("2 ignored");
     });
 
     it("omits ignored suffix when no products are ignored", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log, messages } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
@@ -698,18 +666,18 @@ describe("refreshTcgplayerPrices", () => {
         pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
       });
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const summary = messages.find((m) => m.startsWith("Fetched:"));
       expect(summary).not.toContain("ignored");
     });
 
     it("calls logUpsertCounts with logger and counts", async () => {
-      const { db } = createMockDb();
+      const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
 
-      await refreshTcgplayerPrices(stubFetch, db, log);
+      await refreshTcgplayerPrices(stubFetch, repos, log);
 
       expect(logUpsertSpy).toHaveBeenCalledWith(log, ZERO_COUNTS);
     });

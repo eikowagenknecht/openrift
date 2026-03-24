@@ -25,7 +25,6 @@ import {
 // ── POST /candidate-printings/:id/set-image ────────────────────────────────────
 export const imagesRoute = new Hono<{ Variables: Variables }>()
   .post("/candidate-printings/:id/set-image", zValidator("json", setImageSchema), async (c) => {
-    const db = c.get("db");
     const { printingImages } = c.get("repos");
     const { id } = c.req.param();
     const { mode } = c.req.valid("json");
@@ -46,17 +45,14 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
     const cs = await printingImages.getCandidateCardProvider(ps.candidateCardId);
 
-    const imageId = await db
-      .transaction()
-      .execute((trx) =>
-        printingImages.insertImage(
-          trx,
-          ps.printingId as string,
-          ps.imageUrl,
-          cs?.provider ?? "import",
-          mode,
-        ),
-      );
+    const imageId = await c.get("transact")((trxRepos) =>
+      trxRepos.printingImages.insertImage(
+        ps.printingId as string,
+        ps.imageUrl,
+        cs?.provider ?? "import",
+        mode,
+      ),
+    );
 
     // Auto-rehost the accepted image (best-effort, non-blocking)
     if (imageId) {
@@ -96,7 +92,7 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     "/printing-images/:imageId/activate",
     zValidator("json", activateImageSchema),
     async (c) => {
-      const db = c.get("db");
+      const transact = c.get("transact");
       const { printingImages } = c.get("repos");
       const { imageId } = c.req.param();
       const { active } = c.req.valid("json");
@@ -107,13 +103,13 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
         throw new AppError(404, "NOT_FOUND", "Printing image not found");
       }
 
-      await db.transaction().execute(async (trx) => {
+      await transact(async (trxRepos) => {
         if (active) {
           // Deactivate the current active image (if any)
-          await printingImages.deactivateActiveFront(image.printingId, trx);
+          await trxRepos.printingImages.deactivateActiveFront(image.printingId);
         }
 
-        await printingImages.setActive(imageId, active, trx);
+        await trxRepos.printingImages.setActive(imageId, active);
       });
 
       return c.body(null, 204);
@@ -186,7 +182,6 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
   .post("/printing/:printingId/add-image-url", zValidator("json", addImageUrlSchema), async (c) => {
-    const db = c.get("db");
     const { printingImages } = c.get("repos");
     const printingId = c.req.param("printingId");
     const body = c.req.valid("json");
@@ -203,8 +198,8 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     const mode = body.mode ?? "main";
     const provider = body.provider?.trim() || "manual";
 
-    await db.transaction().execute(async (trx) => {
-      await printingImages.insertImage(trx, printing.id, body.url.trim(), provider, mode);
+    await c.get("transact")(async (trxRepos) => {
+      await trxRepos.printingImages.insertImage(printing.id, body.url.trim(), provider, mode);
     });
 
     return c.body(null, 204);
@@ -215,7 +210,6 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
     "/printing/:printingId/upload-image",
     zValidator("form", uploadImageFormSchema),
     async (c) => {
-      const db = c.get("db");
       const { printingImages } = c.get("repos");
       const printingId = c.req.param("printingId");
 
@@ -241,8 +235,8 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
       await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
 
-      await db.transaction().execute(async (trx) => {
-        await printingImages.insertUploadedImage(trx, {
+      await c.get("transact")(async (trxRepos) => {
+        await trxRepos.printingImages.insertUploadedImage({
           id: imageId,
           printingId: printing.id,
           provider,

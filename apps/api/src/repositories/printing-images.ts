@@ -1,9 +1,7 @@
-import type { Kysely, Selectable, Transaction } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, PrintingImagesTable } from "../db/index.js";
-
-type Trx = Transaction<Database> | Kysely<Database>;
 
 /**
  * Queries for printing images (the `printing_images` table and related joins).
@@ -70,27 +68,27 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Deactivates a printing image. Accepts an optional transaction. */
-    async deactivate(imageId: string, trx?: Trx): Promise<void> {
-      await (trx ?? db)
+    /** Deactivates a printing image. */
+    async deactivate(imageId: string): Promise<void> {
+      await db
         .updateTable("printingImages")
         .set({ isActive: false })
         .where("id", "=", imageId)
         .execute();
     },
 
-    /** Sets the isActive flag on a printing image. Accepts an optional transaction. */
-    async setActive(imageId: string, active: boolean, trx?: Trx): Promise<void> {
-      await (trx ?? db)
+    /** Sets the isActive flag on a printing image. */
+    async setActive(imageId: string, active: boolean): Promise<void> {
+      await db
         .updateTable("printingImages")
         .set({ isActive: active })
         .where("id", "=", imageId)
         .execute();
     },
 
-    /** Deactivates the current active front image for a printing. Accepts an optional transaction. */
-    async deactivateActiveFront(printingId: string, trx?: Trx): Promise<void> {
-      await (trx ?? db)
+    /** Deactivates the current active front image for a printing. */
+    async deactivateActiveFront(printingId: string): Promise<void> {
+      await db
         .updateTable("printingImages")
         .set({ isActive: false })
         .where("printingId", "=", printingId)
@@ -107,7 +105,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
      * @returns The inserted/updated image ID, or `null` if no imageUrl was provided.
      */
     async insertImage(
-      trx: Trx,
       printingId: string,
       imageUrl: string | null,
       provider: string,
@@ -118,9 +115,9 @@ export function printingImagesRepo(db: Kysely<Database>) {
       }
 
       if (mode === "main") {
-        await this.deactivateActiveFront(printingId, trx);
+        await this.deactivateActiveFront(printingId);
 
-        const row = await trx
+        const row = await db
           .insertInto("printingImages")
           .values({
             printingId,
@@ -140,7 +137,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         return row.id;
       }
 
-      const row = await trx
+      const row = await db
         .insertInto("printingImages")
         .values({
           printingId,
@@ -163,21 +160,18 @@ export function printingImagesRepo(db: Kysely<Database>) {
      * Insert an uploaded image as a printing image, with a pre-computed rehostedUrl.
      * Optionally deactivates the current active front image first (when mode=main).
      */
-    async insertUploadedImage(
-      trx: Trx,
-      values: {
-        id: string;
-        printingId: string;
-        provider: string;
-        rehostedUrl: string;
-        mode: "main" | "additional";
-      },
-    ): Promise<void> {
+    async insertUploadedImage(values: {
+      id: string;
+      printingId: string;
+      provider: string;
+      rehostedUrl: string;
+      mode: "main" | "additional";
+    }): Promise<void> {
       if (values.mode === "main") {
-        await this.deactivateActiveFront(values.printingId, trx);
+        await this.deactivateActiveFront(values.printingId);
       }
 
-      await trx
+      await db
         .insertInto("printingImages")
         .values({
           id: values.id,

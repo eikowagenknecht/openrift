@@ -13,9 +13,13 @@ import { decksRepo } from "./repositories/decks.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";
 import { healthRepo } from "./repositories/health.js";
 import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
+import { ingestRepo } from "./repositories/ingest.js";
 import { keywordStylesRepo } from "./repositories/keyword-styles.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
+import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
+import { marketplaceTransferRepo } from "./repositories/marketplace-transfer.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
+import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
 import { promoTypesRepo } from "./repositories/promo-types.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
@@ -52,6 +56,10 @@ export interface Repos {
   acquisitionSources: ReturnType<typeof acquisitionSourcesRepo>;
   tradeLists: ReturnType<typeof tradeListsRepo>;
   wishLists: ReturnType<typeof wishListsRepo>;
+  ingest: ReturnType<typeof ingestRepo>;
+  marketplaceMapping: ReturnType<typeof marketplaceMappingRepo>;
+  marketplaceTransfer: ReturnType<typeof marketplaceTransferRepo>;
+  priceRefresh: ReturnType<typeof priceRefreshRepo>;
 }
 
 export interface Services {
@@ -89,7 +97,18 @@ export function createRepos(db: Kysely<Database>): Repos {
     acquisitionSources: acquisitionSourcesRepo(db),
     tradeLists: tradeListsRepo(db),
     wishLists: wishListsRepo(db),
+    ingest: ingestRepo(db),
+    marketplaceMapping: marketplaceMappingRepo(db),
+    marketplaceTransfer: marketplaceTransferRepo(db),
+    priceRefresh: priceRefreshRepo(db),
   };
+}
+
+export type Transact = <T>(fn: (repos: Repos) => Promise<T>) => Promise<T>;
+
+export function createTransact(db: Kysely<Database>): Transact {
+  return <T>(fn: (repos: Repos) => Promise<T>) =>
+    db.transaction().execute((trx) => fn(createRepos(trx)));
 }
 
 export const services: Services = {

@@ -29,7 +29,6 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("db", {} as never);
     c.set("user", { id: USER_ID });
     c.set("repos", { wishLists: mockRepo } as never);
     await next();

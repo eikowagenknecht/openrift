@@ -11,7 +11,7 @@ import { z } from "zod/v4";
 import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import type { Services } from "./deps.js";
-import { createRepos, services as defaultServices } from "./deps.js";
+import { createRepos, createTransact, services as defaultServices } from "./deps.js";
 import { AppError } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
@@ -119,14 +119,14 @@ export function createApp(deps: AppDeps) {
       }),
     )
 
-    // Make shared dependencies (db, repos, services, etc.) available via c.get() in all routes.
+    // Make shared dependencies (repos, services, etc.) available via c.get() in all routes.
     .use("/api/*", async (c, next) => {
-      c.set("db", db);
       c.set("io", deps.io ?? defaultIo);
       c.set("auth", auth);
       c.set("config", config);
       c.set("repos", createRepos(db));
       c.set("services", services);
+      c.set("transact", createTransact(db));
       await next();
     })
 

@@ -32,7 +32,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     const { collections } = c.get("repos");
     const { ensureInbox } = c.get("services");
     const userId = getUserId(c);
-    await ensureInbox(c.get("db"), userId);
+    await ensureInbox(c.get("repos"), userId);
     const rows = await collections.listForUser(userId);
     return c.json({
       items: rows.map((row) => toCollection(row)),
@@ -88,8 +88,8 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
   // Validates not inbox, auto-moves remaining copies to inbox, then deletes.
   .delete("/:id", zValidator("param", idParamSchema), async (c) => {
-    const db = c.get("db");
     const repos = c.get("repos");
+    const transact = c.get("transact");
     const { ensureInbox, deleteCollection } = c.get("services");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -104,9 +104,9 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Cannot delete inbox collection");
     }
 
-    const inboxId = await ensureInbox(db, userId);
+    const inboxId = await ensureInbox(repos, userId);
 
-    await deleteCollection(db, repos, {
+    await deleteCollection(transact, {
       collectionId: id,
       collectionName: collection.name,
       moveCopiesTo: inboxId,

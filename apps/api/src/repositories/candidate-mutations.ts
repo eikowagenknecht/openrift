@@ -7,7 +7,7 @@ import type {
   Rarity,
   SuperType,
 } from "@openrift/shared/types";
-import type { DeleteResult, Kysely, Selectable, Transaction, UpdateResult } from "kysely";
+import type { DeleteResult, Kysely, Selectable, UpdateResult } from "kysely";
 import { sql } from "kysely";
 
 import type {
@@ -17,8 +17,6 @@ import type {
   CandidatePrintingsTable,
 } from "../db/index.js";
 import { resolveCardId } from "./query-helpers.js";
-
-type Trx = Transaction<Database> | Kysely<Database>;
 
 /**
  * Mutation queries for candidate cards, candidate printings, cards, and printings
@@ -287,12 +285,11 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").select("slug").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing's id, slug, shortCode, and finish by slug. Accepts optional trx for use in transactions. */
+    /** @returns A printing's id, slug, shortCode, and finish by slug. */
     getPrintingFieldsBySlug(
       slug: string,
-      trx?: Trx,
     ): Promise<{ id: string; slug: string; shortCode: string; finish: string } | undefined> {
-      return (trx ?? db)
+      return db
         .selectFrom("printings")
         .select(["id", "slug", "shortCode", "finish"])
         .where("slug", "=", slug)
@@ -325,13 +322,12 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Link candidate printings to a printing UUID and mark as checked. Used within transactions. */
+    /** Link candidate printings to a printing UUID and mark as checked. */
     async linkAndCheckCandidatePrintings(
       candidatePrintingIds: string[],
       printingUuid: string,
-      trx: Trx,
     ): Promise<void> {
-      await trx
+      await db
         .updateTable("candidatePrintings")
         .set({ printingId: printingUuid, checkedAt: new Date() })
         .where("id", "in", candidatePrintingIds)
@@ -432,17 +428,13 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
      * Delete a printing by slug.
      * @returns The deleted row's ID, or undefined if not found.
      */
-    deletePrintingBySlug(slug: string, trx: Trx): Promise<{ id: string } | undefined> {
-      return trx
-        .deleteFrom("printings")
-        .where("slug", "=", slug)
-        .returning("id")
-        .executeTakeFirst();
+    deletePrintingBySlug(slug: string): Promise<{ id: string } | undefined> {
+      return db.deleteFrom("printings").where("slug", "=", slug).returning("id").executeTakeFirst();
     },
 
     /** Unlink all candidate_printings referencing a printing UUID (set printing_id to null). */
-    async unlinkCandidatePrintingsByPrintingId(printingId: string, trx: Trx): Promise<void> {
-      await trx
+    async unlinkCandidatePrintingsByPrintingId(printingId: string): Promise<void> {
+      await db
         .updateTable("candidatePrintings")
         .set({ printingId: null })
         .where("printingId", "=", printingId)
@@ -455,9 +447,8 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
      */
     deletePrintingImagesByPrintingId(
       printingId: string,
-      trx: Trx,
     ): Promise<{ rehostedUrl: string | null }[]> {
-      return trx
+      return db
         .deleteFrom("printingImages")
         .where("printingId", "=", printingId)
         .returning("rehostedUrl")
@@ -465,8 +456,8 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     },
 
     /** Delete printing_link_overrides that reference a printing slug. */
-    async deletePrintingLinkOverridesBySlug(slug: string, trx: Trx): Promise<void> {
-      await trx.deleteFrom("printingLinkOverrides").where("printingSlug", "=", slug).execute();
+    async deletePrintingLinkOverridesBySlug(slug: string): Promise<void> {
+      await db.deleteFrom("printingLinkOverrides").where("printingSlug", "=", slug).execute();
     },
 
     /** Update a single field on a printing by slug. */
@@ -501,36 +492,33 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Set UUID by slug. Used within transactions. */
-    getSetIdBySlug(slug: string, trx: Trx): Promise<{ id: string } | undefined> {
-      return trx.selectFrom("sets").select("id").where("slug", "=", slug).executeTakeFirst();
+    /** @returns Set UUID by slug. */
+    getSetIdBySlug(slug: string): Promise<{ id: string } | undefined> {
+      return db.selectFrom("sets").select("id").where("slug", "=", slug).executeTakeFirst();
     },
 
     /**
-     * Insert or update a printing, used within transactions.
+     * Insert or update a printing.
      * @returns The new or existing printing UUID.
      */
-    async upsertPrinting(
-      trx: Trx,
-      values: {
-        slug: string;
-        cardId: string;
-        setId: string;
-        shortCode: string;
-        collectorNumber: number;
-        rarity: Rarity;
-        artVariant: ArtVariant;
-        isSigned: boolean;
-        promoTypeId: string | null;
-        finish: Finish;
-        artist: string;
-        publicCode: string;
-        printedRulesText: string | null;
-        printedEffectText: string | null;
-        flavorText: string | null;
-      },
-    ): Promise<string> {
-      const result = await trx
+    async upsertPrinting(values: {
+      slug: string;
+      cardId: string;
+      setId: string;
+      shortCode: string;
+      collectorNumber: number;
+      rarity: Rarity;
+      artVariant: ArtVariant;
+      isSigned: boolean;
+      promoTypeId: string | null;
+      finish: Finish;
+      artist: string;
+      publicCode: string;
+      printedRulesText: string | null;
+      printedEffectText: string | null;
+      flavorText: string | null;
+    }): Promise<string> {
+      const result = await db
         .insertInto("printings")
         .values(values)
         .onConflict((oc) =>
@@ -632,7 +620,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
      * Printings are accepted separately via acceptNewPrintingFromSource.
      */
     async acceptNewCardFromSources(
-      trx: Transaction<Database>,
       cardFields: {
         id: string;
         name: string;
@@ -654,7 +641,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         ...extractKeywords(cardFields.effectText ?? ""),
       ].filter((v, i, a) => a.indexOf(v) === i);
 
-      const { id: cardUuid } = await trx
+      const { id: cardUuid } = await db
         .insertInto("cards")
         .values({
           slug: cardFields.id,
@@ -674,7 +661,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .returning("id")
         .executeTakeFirstOrThrow();
 
-      await trx
+      await db
         .insertInto("cardNameAliases")
         .values({ normName: normalizedName, cardId: cardUuid })
         .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId: cardUuid }))
@@ -685,12 +672,8 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
      * Create name aliases for every distinct spelling of the normalized name,
      * so that resolveCardId() can match candidate_cards to this card dynamically.
      */
-    async createNameAliases(
-      trx: Transaction<Database>,
-      normalizedName: string,
-      cardId: string,
-    ): Promise<void> {
-      await trx
+    async createNameAliases(normalizedName: string, cardId: string): Promise<void> {
+      await db
         .insertInto("cardNameAliases")
         .values({ normName: normalizedName, cardId: cardId })
         .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId: cardId }))

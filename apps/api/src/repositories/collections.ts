@@ -1,4 +1,4 @@
-import type { Kysely, Selectable, Transaction } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 
 import type { CollectionsTable, CopiesTable, Database } from "../db/index.js";
 
@@ -104,38 +104,32 @@ export function collectionsRepo(db: Kysely<Database>) {
       return db.selectFrom("collections").select(["id", "name"]).where("id", "in", ids).execute();
     },
 
-    /** @returns Copies in the given collection (id and printingId only). Accepts a transaction for use within larger transactions. */
+    /** @returns Copies in the given collection (id and printingId only). */
     listCopiesInCollection(
       collectionId: string,
-      trx: Transaction<Database> | Kysely<Database>,
     ): Promise<Pick<Selectable<CopiesTable>, "id" | "printingId">[]> {
-      return trx
+      return db
         .selectFrom("copies")
         .select(["id", "printingId"])
         .where("collectionId", "=", collectionId)
         .execute();
     },
 
-    /** Moves all copies from one collection to another. Accepts a transaction for use within larger transactions. */
+    /** Moves all copies from one collection to another. */
     async moveCopiesBetweenCollections(
       fromCollectionId: string,
       toCollectionId: string,
-      trx: Transaction<Database> | Kysely<Database>,
     ): Promise<void> {
-      await trx
+      await db
         .updateTable("copies")
         .set({ collectionId: toCollectionId })
         .where("collectionId", "=", fromCollectionId)
         .execute();
     },
 
-    /** Deletes a collection by ID scoped to a user. Accepts a transaction for use within larger transactions. */
-    async deleteByIdForUser(
-      id: string,
-      userId: string,
-      trx: Transaction<Database> | Kysely<Database>,
-    ): Promise<void> {
-      await trx
+    /** Deletes a collection by ID scoped to a user. */
+    async deleteByIdForUser(id: string, userId: string): Promise<void> {
+      await db
         .deleteFrom("collections")
         .where("id", "=", id)
         .where("userId", "=", userId)

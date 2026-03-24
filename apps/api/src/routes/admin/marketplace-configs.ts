@@ -1,7 +1,5 @@
-import type { Kysely, Transaction } from "kysely";
-
-import type { Database } from "../../db/index.js";
-import { marketplaceTransferRepo } from "../../repositories/marketplace-transfer.js";
+import type { Repos } from "../../deps.js";
+import type { marketplaceTransferRepo } from "../../repositories/marketplace-transfer.js";
 
 // ── Unified product-info shape consumed by the frontend ─────────────────────
 
@@ -66,16 +64,15 @@ export interface MarketplaceConfig {
   /** Map a snapshot query result → unified product-info */
   mapSnapshotPrices(row: MappedSnapshotRow): ProductInfo;
   /** Insert a snapshot row from staging during the POST (map) operation */
-  insertSnapshot(tx: Transaction<Database>, productId: string, row: StagingRow): Promise<void>;
+  insertSnapshot(productId: string, row: StagingRow): Promise<void>;
   /** Insert a staging row from a snapshot during the DELETE (unmap) operation */
   insertStagingFromSnapshot(
-    tx: Transaction<Database>,
     ps: { externalId: number; groupId: number; productName: string },
     finish: string,
     snap: SnapshotRow,
   ): Promise<void>;
   /** Raw SQL to bulk-copy all snapshots back to staging (DELETE /all) */
-  bulkUnmapSql(tx: Transaction<Database>): Promise<void>;
+  bulkUnmapSql(): Promise<void>;
 }
 
 // ── Factory helper ──────────────────────────────────────────────────────────
@@ -102,12 +99,12 @@ function createMarketplaceConfig(opts: {
       ...mapPrices(row),
     }),
 
-    insertSnapshot: (tx, productId, row) => repo.insertSnapshot(tx, productId, row),
+    insertSnapshot: (productId, row) => repo.insertSnapshot(productId, row),
 
-    insertStagingFromSnapshot: (tx, ps, finish, snap) =>
-      repo.insertStagingFromSnapshot(tx, marketplace, ps, finish, snap),
+    insertStagingFromSnapshot: (ps, finish, snap) =>
+      repo.insertStagingFromSnapshot(marketplace, ps, finish, snap),
 
-    bulkUnmapSql: (tx) => repo.bulkUnmapToStaging(tx, marketplace),
+    bulkUnmapSql: () => repo.bulkUnmapToStaging(marketplace),
   };
 }
 
@@ -149,8 +146,8 @@ const ctMapPrices = (row: PriceColumns) => ({
   avg30Cents: row.avg30Cents,
 });
 
-export function createMarketplaceConfigs(db: Kysely<Database>) {
-  const repo = marketplaceTransferRepo(db);
+export function createMarketplaceConfigs(repos: Repos) {
+  const repo = repos.marketplaceTransfer;
   return {
     tcgplayer: createMarketplaceConfig({
       marketplace: "tcgplayer",

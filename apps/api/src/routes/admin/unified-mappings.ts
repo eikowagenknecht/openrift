@@ -34,13 +34,13 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
     "/marketplace-mappings",
     zValidator("query", z.object({ all: z.string().optional() })),
     async (c) => {
-      const db = c.get("db");
+      const repos = c.get("repos");
       const { getMappingOverview } = c.get("services");
-      const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(db);
+      const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(repos);
       const showAll = c.req.valid("query").all === "true";
 
       const result = await buildUnifiedMappingsResponse(
-        db,
+        repos,
         tcgplayer,
         cardmarket,
         cardtrader,
@@ -57,12 +57,13 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
     zValidator("query", marketplaceSchema),
     zValidator("json", saveMappingsSchema),
     async (c) => {
-      const db = c.get("db");
+      const repos = c.get("repos");
+      const transact = c.get("transact");
       const { marketplace } = c.req.valid("query");
-      const configs = createMarketplaceConfigs(db);
+      const configs = createMarketplaceConfigs(repos);
       const config = configs[marketplace];
       const { mappings } = c.req.valid("json");
-      const result = await saveMappings(db, config, mappings);
+      const result = await saveMappings(transact, config, mappings);
       return c.json(result);
     },
   )
@@ -72,21 +73,23 @@ export const unifiedMappingsRoute = new Hono<{ Variables: Variables }>()
     zValidator("query", marketplaceSchema),
     zValidator("json", unmapSchema),
     async (c) => {
-      const db = c.get("db");
+      const repos = c.get("repos");
+      const transact = c.get("transact");
       const { marketplace } = c.req.valid("query");
-      const configs = createMarketplaceConfigs(db);
+      const configs = createMarketplaceConfigs(repos);
       const config = configs[marketplace];
       const { printingId } = c.req.valid("json");
-      await unmapPrinting(db, config, printingId);
+      await unmapPrinting(transact, config, printingId);
       return c.body(null, 204);
     },
   )
 
   .delete("/marketplace-mappings/all", zValidator("query", marketplaceSchema), async (c) => {
-    const db = c.get("db");
+    const repos = c.get("repos");
+    const transact = c.get("transact");
     const { marketplace } = c.req.valid("query");
-    const configs = createMarketplaceConfigs(db);
+    const configs = createMarketplaceConfigs(repos);
     const config = configs[marketplace];
-    const result = await unmapAll(db, config);
+    const result = await unmapAll(transact, config);
     return c.json({ unmapped: result.unmapped });
   });
