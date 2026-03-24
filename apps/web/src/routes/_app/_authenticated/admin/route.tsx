@@ -3,7 +3,7 @@ import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-r
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { client } from "@/lib/rpc-client";
+import { isAdminQueryOptions } from "@/hooks/use-admin";
 const pageTitles: Record<string, string> = {
   "/_app/_authenticated/admin/sets": "Sets",
   "/_app/_authenticated/admin/marketplace-overview": "Marketplace Overview",
@@ -23,13 +23,9 @@ const pageTitles: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
-  beforeLoad: async () => {
-    const res = await client.api.v1.admin.me.$get();
-    if (!res.ok) {
-      throw redirect({ to: "/cards" });
-    }
-    const data = (await res.json()) as { isAdmin: boolean };
-    if (!data.isAdmin) {
+  beforeLoad: async ({ context }) => {
+    const isAdmin = await context.queryClient.ensureQueryData(isAdminQueryOptions);
+    if (!isAdmin) {
       throw redirect({ to: "/cards" });
     }
   },

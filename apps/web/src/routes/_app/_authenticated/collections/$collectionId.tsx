@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
   },
   component: CollectionDetail,
   pendingComponent: CollectionDetailPending,
+  errorComponent: CollectionDetailError,
 });
 
 function CollectionDetailPending() {
@@ -25,6 +26,10 @@ function CollectionDetailPending() {
       <Skeleton className="h-64 w-full" />
     </div>
   );
+}
+
+function CollectionDetailError({ error }: { error: Error }) {
+  return <p className="p-4 text-sm text-destructive">Failed to load: {error.message}</p>;
 }
 
 function CollectionDetail() {
