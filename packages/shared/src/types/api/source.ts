@@ -1,3 +1,7 @@
+export interface AcquisitionSourceListResponse {
+  sources: AcquisitionSourceResponse[];
+}
+
 export interface AcquisitionSourceResponse {
   id: string;
   name: string;

@@ -66,16 +66,16 @@ describe("GET /api/sources", () => {
     const res = await app.request("/api/acquisition-sources");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toHaveLength(1);
-    expect(json[0].name).toBe("TCGplayer");
-    expect(json[0].createdAt).toBe(now.toISOString());
+    expect(json.sources).toHaveLength(1);
+    expect(json.sources[0].name).toBe("TCGplayer");
+    expect(json.sources[0].createdAt).toBe(now.toISOString());
   });
 
   it("returns empty array when no sources", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
     const res = await app.request("/api/acquisition-sources");
     const json = await res.json();
-    expect(json).toEqual([]);
+    expect(json.sources).toEqual([]);
   });
 });
 

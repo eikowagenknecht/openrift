@@ -7,6 +7,7 @@ export function useOwnedCount(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.ownedCount.all,
     queryFn: () => rpc(client.api.copies.count.$get()),
+    select: (data) => data.counts,
     enabled,
     staleTime: 60_000,
   });

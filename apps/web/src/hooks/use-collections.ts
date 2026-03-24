@@ -7,6 +7,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 export const collectionsQueryOptions = queryOptions({
   queryKey: queryKeys.collections.all,
   queryFn: () => rpc(client.api.collections.$get()),
+  select: (data) => data.collections,
 });
 
 export function useCollections() {

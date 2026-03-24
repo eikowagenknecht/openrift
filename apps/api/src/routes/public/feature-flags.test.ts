@@ -41,7 +41,7 @@ describe("GET /api/feature-flags", () => {
     const res = await app.request("/api/feature-flags");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ "dark-mode": true, "beta-search": false });
+    expect(json).toEqual({ flags: { "dark-mode": true, "beta-search": false } });
   });
 
   it("returns empty object when no flags exist", async () => {
@@ -50,7 +50,7 @@ describe("GET /api/feature-flags", () => {
     const res = await app.request("/api/feature-flags");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({});
+    expect(json).toEqual({ flags: {} });
   });
 
   it("returns multiple flags correctly", async () => {
@@ -62,8 +62,8 @@ describe("GET /api/feature-flags", () => {
 
     const res = await app.request("/api/feature-flags");
     const json = await res.json();
-    expect(Object.keys(json)).toHaveLength(3);
-    expect(json.a).toBe(true);
-    expect(json.c).toBe(false);
+    expect(Object.keys(json.flags)).toHaveLength(3);
+    expect(json.flags.a).toBe(true);
+    expect(json.flags.c).toBe(false);
   });
 });

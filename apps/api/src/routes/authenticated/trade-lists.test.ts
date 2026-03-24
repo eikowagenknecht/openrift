@@ -98,8 +98,8 @@ describe("GET /api/trade-lists", () => {
     const res = await app.request("/api/trade-lists");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toHaveLength(1);
-    expect(json[0].name).toBe("For Trade");
+    expect(json.tradeLists).toHaveLength(1);
+    expect(json.tradeLists[0].name).toBe("For Trade");
   });
 });
 

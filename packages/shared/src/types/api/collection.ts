@@ -10,6 +10,19 @@ export interface CollectionResponse {
   updatedAt: string;
 }
 
+export interface CollectionListResponse {
+  collections: CollectionResponse[];
+}
+
+export interface CopyListResponse {
+  copies: CopyResponse[];
+  nextCursor: string | null;
+}
+
+export interface CopyCountResponse {
+  counts: Record<string, number>;
+}
+
 export interface CopyResponse {
   id: string;
   printingId: string;

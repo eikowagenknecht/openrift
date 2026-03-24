@@ -1,3 +1,7 @@
+export interface WishListListResponse {
+  wishLists: WishListResponse[];
+}
+
 export interface WishListResponse {
   id: string;
   name: string;

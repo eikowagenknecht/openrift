@@ -90,8 +90,8 @@ describe("GET /api/decks", () => {
     const res = await app.request("/api/decks");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toHaveLength(1);
-    expect(json[0].name).toBe("Fury Aggro");
+    expect(json.decks).toHaveLength(1);
+    expect(json.decks[0].name).toBe("Fury Aggro");
   });
 
   it("passes wanted filter", async () => {
@@ -311,11 +311,11 @@ describe("GET /api/decks/:id/availability", () => {
     const res = await app.request(`/api/decks/${DECK_ID}/availability`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toHaveLength(1);
-    expect(json[0].cardId).toBe("OGS-001");
-    expect(json[0].needed).toBe(4);
-    expect(json[0].owned).toBe(2);
-    expect(json[0].shortfall).toBe(2);
+    expect(json.availability).toHaveLength(1);
+    expect(json.availability[0].cardId).toBe("OGS-001");
+    expect(json.availability[0].needed).toBe(4);
+    expect(json.availability[0].owned).toBe(2);
+    expect(json.availability[0].shortfall).toBe(2);
   });
 
   it("returns 0 shortfall when owned >= needed", async () => {
@@ -324,8 +324,8 @@ describe("GET /api/decks/:id/availability", () => {
     mockRepo.availableCopiesByCard.mockResolvedValue([{ cardId: "OGS-001", count: 5 }]);
     const res = await app.request(`/api/decks/${DECK_ID}/availability`);
     const json = await res.json();
-    expect(json[0].shortfall).toBe(0);
-    expect(json[0].owned).toBe(5);
+    expect(json.availability[0].shortfall).toBe(0);
+    expect(json.availability[0].owned).toBe(5);
   });
 
   it("returns 404 when deck not found", async () => {
@@ -342,7 +342,7 @@ describe("GET /api/decks/:id/availability", () => {
     mockRepo.availableCopiesByCard.mockResolvedValue([]);
     const res = await app.request(`/api/decks/${DECK_ID}/availability`);
     const json = await res.json();
-    expect(json[0].owned).toBe(0);
-    expect(json[0].shortfall).toBe(3);
+    expect(json.availability[0].owned).toBe(0);
+    expect(json.availability[0].shortfall).toBe(3);
   });
 });

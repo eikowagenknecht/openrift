@@ -1,9 +1,10 @@
+import type { FeatureFlagsResponse } from "@openrift/shared";
 import { Hono } from "hono";
 
 import type { Variables } from "../../types.js";
 
 // ── Public: GET /feature-flags ──────────────────────────────────────────────
-// Returns { key: enabled } map for the client to consume at boot.
+// Returns { flags: { key: enabled } } map for the client to consume at boot.
 
 export const featureFlagsRoute = new Hono<{ Variables: Variables }>().get(
   "/feature-flags",
@@ -15,6 +16,6 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>().get(
     for (const row of rows) {
       flags[row.key] = row.enabled;
     }
-    return c.json(flags);
+    return c.json({ flags } satisfies FeatureFlagsResponse);
   },
 );

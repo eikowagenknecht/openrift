@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { AcquisitionSourceListResponse } from "@openrift/shared";
 import {
   createAcquisitionSourceSchema,
   idParamSchema,
@@ -17,18 +18,20 @@ import { toSource } from "../../utils/mappers.js";
 const patchFields: FieldMapping = { name: "name", description: "description" };
 
 export const acquisitionSourcesRoute = new Hono<{ Variables: Variables }>()
-  .use("/acquisition-sources/*", requireAuth)
-  .use("/acquisition-sources", requireAuth)
+  .basePath("/acquisition-sources")
+  .use(requireAuth)
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/acquisition-sources", async (c) => {
+  .get("/", async (c) => {
     const { acquisitionSources } = c.get("repos");
     const rows = await acquisitionSources.listForUser(getUserId(c));
-    return c.json(rows.map((row) => toSource(row)));
+    return c.json({
+      sources: rows.map((row) => toSource(row)),
+    } satisfies AcquisitionSourceListResponse);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/acquisition-sources", zValidator("json", createAcquisitionSourceSchema), async (c) => {
+  .post("/", zValidator("json", createAcquisitionSourceSchema), async (c) => {
     const { acquisitionSources } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -41,7 +44,7 @@ export const acquisitionSourcesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
-  .get("/acquisition-sources/:id", zValidator("param", idParamSchema), async (c) => {
+  .get("/:id", zValidator("param", idParamSchema), async (c) => {
     const { acquisitionSources } = c.get("repos");
     const { id } = c.req.valid("param");
     const row = await acquisitionSources.getByIdForUser(id, getUserId(c));
@@ -53,7 +56,7 @@ export const acquisitionSourcesRoute = new Hono<{ Variables: Variables }>()
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .patch(
-    "/acquisition-sources/:id",
+    "/:id",
     zValidator("param", idParamSchema),
     zValidator("json", updateAcquisitionSourceSchema),
     async (c) => {
@@ -71,7 +74,7 @@ export const acquisitionSourcesRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/acquisition-sources/:id", zValidator("param", idParamSchema), async (c) => {
+  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
     const { acquisitionSources } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await acquisitionSources.deleteByIdForUser(id, getUserId(c));

@@ -85,8 +85,8 @@ describe("GET /api/wish-lists", () => {
     const res = await app.request("/api/wish-lists");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toHaveLength(1);
-    expect(json[0].name).toBe("Want List");
+    expect(json.wishLists).toHaveLength(1);
+    expect(json.wishLists[0].name).toBe("Want List");
   });
 });
 

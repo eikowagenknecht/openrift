@@ -1,8 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
 import type {
   DeckAvailabilityItemResponse,
+  DeckAvailabilityResponse,
   DeckDetailResponse,
   DeckFormat,
+  DeckListResponse,
   DeckZone,
 } from "@openrift/shared";
 import {
@@ -71,20 +73,20 @@ const patchFields: FieldMapping = {
 };
 
 export const decksRoute = new Hono<{ Variables: Variables }>()
-  .use("/decks/*", requireAuth)
-  .use("/decks", requireAuth)
+  .basePath("/decks")
+  .use(requireAuth)
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/decks", zValidator("query", decksQuerySchema), async (c) => {
+  .get("/", zValidator("query", decksQuerySchema), async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { wanted } = c.req.valid("query");
     const rows = await decks.listForUser(userId, wanted === "true");
-    return c.json(rows.map((row) => toDeck(row)));
+    return c.json({ decks: rows.map((row) => toDeck(row)) } satisfies DeckListResponse);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/decks", zValidator("json", createDeckSchema), async (c) => {
+  .post("/", zValidator("json", createDeckSchema), async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -100,7 +102,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE (custom: returns deck with deck_cards joined) ───────────────────
-  .get("/decks/:id", zValidator("param", idParamSchema), async (c) => {
+  .get("/:id", zValidator("param", idParamSchema), async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -122,7 +124,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .patch(
-    "/decks/:id",
+    "/:id",
     zValidator("param", idParamSchema),
     zValidator("json", updateDeckSchema),
     async (c) => {
@@ -140,7 +142,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/decks/:id", zValidator("param", idParamSchema), async (c) => {
+  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
     const { decks } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await decks.deleteByIdForUser(id, getUserId(c));
@@ -153,7 +155,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   // ── PUT /decks/:id/cards ──────────────────────────────────────────────────
   // Full replace of deck cards
   .put(
-    "/decks/:id/cards",
+    "/:id/cards",
     zValidator("param", idParamSchema),
     zValidator("json", updateDeckCardsSchema),
     async (c) => {
@@ -178,7 +180,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /decks/:id/availability ───────────────────────────────────────────
   // For a wanted deck, returns per-card availability from deckbuilding collections
-  .get("/decks/:id/availability", zValidator("param", idParamSchema), async (c) => {
+  .get("/:id/availability", zValidator("param", idParamSchema), async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -208,5 +210,5 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
       }),
     );
 
-    return c.json(availability);
+    return c.json({ availability } satisfies DeckAvailabilityResponse);
   });
