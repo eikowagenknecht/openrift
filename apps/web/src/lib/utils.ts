@@ -6,6 +6,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Responsive container width classes shared by header and main content.
+ * Widens in steps: 1280px (default) → 1800px (wide) → 2240px (xwide) → 2560px (xxwide).
+ */
+export const CONTAINER_WIDTH =
+  "mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
+
 /** Returns a safe relative redirect path, or `undefined` if the input is missing or unsafe.
  * @returns The sanitized path, or `undefined` if invalid.
  */

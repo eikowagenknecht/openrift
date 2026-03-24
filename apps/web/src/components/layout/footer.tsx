@@ -5,7 +5,7 @@ import { COMMIT_HASH } from "@/lib/env";
 
 export function Footer() {
   return (
-    <footer className="mx-auto max-w-3xl px-4 py-4 text-center text-2xs text-muted-foreground/60">
+    <footer className="mx-auto p-4 text-center text-2xs text-muted-foreground/60">
       <p>
         <Link to="/legal-notice" className="hover:text-muted-foreground">
           Legal Notice

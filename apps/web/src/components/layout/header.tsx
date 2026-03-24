@@ -45,7 +45,7 @@ import { signOut, useSession } from "@/lib/auth-client";
 import { parseChangelog } from "@/lib/changelog";
 import { COMMIT_HASH } from "@/lib/env";
 import { useGravatarUrl } from "@/lib/gravatar";
-import { cn } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme-store";
 
 const changelogGroups = parseChangelog(changelogMd);
@@ -97,7 +97,7 @@ export function Header() {
     <>
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
         {/* ⚠ h-14 is mirrored as APP_HEADER_HEIGHT in card-grid.tsx — update both together */}
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)">
+        <div className={`${CONTAINER_WIDTH} flex h-14 items-center justify-between px-4`}>
           <div className="flex items-center gap-4">
             <Link
               to="/cards"

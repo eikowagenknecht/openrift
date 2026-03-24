@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 import { Header } from "@/components/layout/header";
+import { CONTAINER_WIDTH } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -10,7 +11,7 @@ function AppLayout() {
   return (
     <>
       <Header />
-      <main className="mx-auto flex w-full max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide) flex-1 flex-col px-4 py-6">
+      <main className={`${CONTAINER_WIDTH} w-full px-2 py-2`}>
         <Outlet />
       </main>
     </>
