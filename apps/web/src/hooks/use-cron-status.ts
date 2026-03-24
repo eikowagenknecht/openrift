@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 
 export function useCronStatus() {
   return useQuery({
     queryKey: queryKeys.admin.cronStatus,
-    queryFn: () => rpc(client.api.admin["cron-status"].$get()),
+    queryFn: () => fetchApi({ data: "/api/admin/cron-status" }),
     refetchInterval: 60_000,
   });
 }

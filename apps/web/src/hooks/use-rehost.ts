@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 
 /** Accumulated totals across regeneration batches (excludes per-batch pagination fields). */
 export type RegenerateAccumulator = Pick<
@@ -15,21 +16,21 @@ export type RegenerateAccumulator = Pick<
 export function useRehostStatus() {
   return useQuery({
     queryKey: queryKeys.admin.rehostStatus,
-    queryFn: () => rpc(client.api.admin["rehost-status"].$get()),
+    queryFn: () => fetchApi({ data: "/api/admin/rehost-status" }),
   });
 }
 
 export function useBrokenImages() {
   return useQuery({
     queryKey: queryKeys.admin.brokenImages,
-    queryFn: () => rpc(client.api.admin["broken-images"].$get()),
+    queryFn: () => fetchApi({ data: "/api/admin/broken-images" }),
   });
 }
 
 export function useMissingImages() {
   return useQuery({
     queryKey: queryKeys.admin.missingImages,
-    queryFn: () => rpc(client.api.admin["missing-images"].$get()),
+    queryFn: () => fetchApi({ data: "/api/admin/missing-images" }),
   });
 }
 
@@ -109,7 +110,7 @@ export function useClearRehosted() {
 export function useRenamePreview() {
   return useQuery({
     queryKey: queryKeys.admin.renamePreview,
-    queryFn: () => rpc(client.api.admin["rename-preview"].$get()),
+    queryFn: () => fetchApi({ data: "/api/admin/rename-preview" }),
   });
 }
 

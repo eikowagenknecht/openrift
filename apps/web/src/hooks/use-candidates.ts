@@ -366,7 +366,7 @@ export function useProviderStats() {
 
 const providerNamesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.candidates.providerNames,
-  queryFn: () => rpc(client.api.admin["candidates"]["provider-names"].$get()),
+  queryFn: () => fetchApi({ data: "/api/admin/candidates/provider-names" }),
 });
 
 export function useProviderNames() {

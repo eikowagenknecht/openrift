@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
+import { fetchApi } from "@/lib/server-fns";
 
 export function useOwnedCount(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.ownedCount.all,
-    queryFn: () => rpc(client.api.copies.count.$get()),
+    queryFn: () => fetchApi({ data: "/api/copies/count" }),
     enabled,
     staleTime: 60_000,
   });
