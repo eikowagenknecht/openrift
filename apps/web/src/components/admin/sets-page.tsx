@@ -1,30 +1,11 @@
-import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import type { AdminSetResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowDownIcon, ArrowUpIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
 
+import { AdminTable } from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { CountBadge } from "@/components/admin/count-badge";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   useCreateSet,
   useDeleteSet,
@@ -33,7 +14,7 @@ import {
   useUpdateSet,
 } from "@/hooks/use-sets";
 
-interface EditingRow {
+interface SetDraft {
   id: string;
   name: string;
   printedTotal: string;
@@ -46,73 +27,7 @@ export function SetsPage() {
   const createMutation = useCreateSet();
   const reorderMutation = useReorderSets();
   const deleteMutation = useDeleteSet();
-  const [deleteError, setDeleteError] = useState("");
-  const [editing, setEditing] = useState<EditingRow | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [newSet, setNewSet] = useState({ id: "", name: "", printedTotal: "", releasedAt: "" });
-  const [createError, setCreateError] = useState("");
-
   const { sets } = data;
-
-  function startEditing(set: {
-    id: string;
-    name: string;
-    printedTotal: number | null;
-    releasedAt: string | null;
-  }) {
-    setEditing({
-      id: set.id,
-      name: set.name,
-      printedTotal: set.printedTotal === null ? "" : String(set.printedTotal),
-      releasedAt: set.releasedAt ?? "",
-    });
-  }
-
-  function cancelEditing() {
-    setEditing(null);
-  }
-
-  function saveEditing() {
-    if (!editing) {
-      return;
-    }
-    const printedTotal = parseInt(editing.printedTotal, 10);
-    if (isNaN(printedTotal) || printedTotal < 0) {
-      return;
-    }
-    updateMutation.mutate(
-      { id: editing.id, name: editing.name, printedTotal, releasedAt: editing.releasedAt || null },
-      { onSuccess: () => setEditing(null) },
-    );
-  }
-
-  function handleCreate() {
-    setCreateError("");
-    const printedTotal = newSet.printedTotal ? parseInt(newSet.printedTotal, 10) : 0;
-    if (!newSet.id.trim() || !newSet.name.trim()) {
-      setCreateError("ID and name are required");
-      return;
-    }
-    if (isNaN(printedTotal) || printedTotal < 0) {
-      setCreateError("Printed total must be a non-negative number");
-      return;
-    }
-    createMutation.mutate(
-      {
-        id: newSet.id.trim(),
-        name: newSet.name.trim(),
-        printedTotal,
-        releasedAt: newSet.releasedAt || null,
-      },
-      {
-        onSuccess: () => {
-          setAdding(false);
-          setNewSet({ id: "", name: "", printedTotal: "", releasedAt: "" });
-        },
-        onError: (err) => setCreateError(err.message),
-      },
-    );
-  }
 
   function moveSet(index: number, direction: -1 | 1) {
     const newIndex = index + direction;
@@ -124,261 +39,180 @@ export function SetsPage() {
     reorderMutation.mutate(reordered);
   }
 
+  const columns: AdminColumnDef<AdminSetResponse, SetDraft>[] = [
+    {
+      header: "ID",
+      width: "w-28",
+      cell: (s) => <span className="font-mono">{s.slug}</span>,
+      addCell: (d, set) => (
+        <Input
+          value={d.id}
+          onChange={(e) => set((prev) => ({ ...prev, id: e.target.value }))}
+          placeholder="ID"
+          className="h-8 w-24 font-mono"
+        />
+      ),
+    },
+    {
+      header: "Name",
+      cell: (s) => s.name,
+      editCell: (d, set) => (
+        <Input
+          value={d.name}
+          onChange={(e) => set((prev) => ({ ...prev, name: e.target.value }))}
+          className="h-8"
+        />
+      ),
+      addCell: (d, set) => (
+        <Input
+          value={d.name}
+          onChange={(e) => set((prev) => ({ ...prev, name: e.target.value }))}
+          placeholder="Name"
+          className="h-8"
+        />
+      ),
+    },
+    {
+      header: "Printed Total",
+      width: "w-32",
+      align: "right",
+      cell: (s) => s.printedTotal,
+      editCell: (d, set) => (
+        <Input
+          inputMode="numeric"
+          value={d.printedTotal}
+          onChange={(e) => set((prev) => ({ ...prev, printedTotal: e.target.value }))}
+          className="ml-auto h-8 w-24 text-right"
+        />
+      ),
+      addCell: (d, set) => (
+        <Input
+          inputMode="numeric"
+          value={d.printedTotal}
+          onChange={(e) => set((prev) => ({ ...prev, printedTotal: e.target.value }))}
+          placeholder="0"
+          className="ml-auto h-8 w-24 text-right"
+        />
+      ),
+    },
+    {
+      header: "Release Date",
+      width: "w-36",
+      cell: (s) => <span className="text-muted-foreground">{s.releasedAt ?? "—"}</span>,
+      editCell: (d, set) => (
+        <DatePicker
+          value={d.releasedAt || null}
+          onChange={(iso) => set((prev) => ({ ...prev, releasedAt: iso }))}
+          onClear={() => set((prev) => ({ ...prev, releasedAt: "" }))}
+        />
+      ),
+      addCell: (d, set) => (
+        <DatePicker
+          value={d.releasedAt || null}
+          onChange={(iso) => set((prev) => ({ ...prev, releasedAt: iso }))}
+          onClear={() => set((prev) => ({ ...prev, releasedAt: "" }))}
+        />
+      ),
+    },
+    {
+      header: "Cards",
+      width: "w-24",
+      align: "right",
+      headerTitle: "Cards in this set",
+      cell: (s) =>
+        s.cardCount > 0 ? (
+          <Link to="/admin/cards" search={{ set: s.slug }} className="hover:opacity-70">
+            <CountBadge count={s.cardCount} />
+          </Link>
+        ) : (
+          <CountBadge count={0} />
+        ),
+    },
+    {
+      header: "Printings",
+      width: "w-24",
+      align: "right",
+      headerTitle: "Printings in this set",
+      cell: (s) =>
+        s.printingCount > 0 ? (
+          <Link to="/admin/cards" search={{ set: s.slug }} className="hover:opacity-70">
+            <CountBadge count={s.printingCount} />
+          </Link>
+        ) : (
+          <CountBadge count={0} />
+        ),
+    },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        {!adding && (
-          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-            Add Set
-          </Button>
-        )}
-      </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-16">Order</TableHead>
-              <TableHead className="w-28">ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="w-32 text-right">Printed Total</TableHead>
-              <TableHead className="w-36">Release Date</TableHead>
-              <TableHead className="w-24 text-right" title="Cards in this set">
-                Cards
-              </TableHead>
-              <TableHead className="w-24 text-right" title="Printings in this set">
-                Printings
-              </TableHead>
-              <TableHead className="w-32 text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {adding && (
-              <TableRow>
-                <TableCell />
-                <TableCell>
-                  <Input
-                    value={newSet.id}
-                    onChange={(e) => setNewSet({ ...newSet, id: e.target.value })}
-                    placeholder="ID"
-                    className="h-8 w-24 font-mono"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    value={newSet.name}
-                    onChange={(e) => setNewSet({ ...newSet, name: e.target.value })}
-                    placeholder="Name"
-                    className="h-8"
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Input
-                    inputMode="numeric"
-                    value={newSet.printedTotal}
-                    onChange={(e) => setNewSet({ ...newSet, printedTotal: e.target.value })}
-                    placeholder="0"
-                    className="ml-auto h-8 w-24 text-right"
-                  />
-                </TableCell>
-                <TableCell>
-                  <DatePicker
-                    value={newSet.releasedAt || null}
-                    onChange={(iso) => setNewSet({ ...newSet, releasedAt: iso })}
-                    onClear={() => setNewSet({ ...newSet, releasedAt: "" })}
-                  />
-                </TableCell>
-                <TableCell />
-                <TableCell />
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCreate}
-                      disabled={createMutation.isPending}
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setAdding(false);
-                        setNewSet({ id: "", name: "", printedTotal: "", releasedAt: "" });
-                        setCreateError("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                  {createError && <p className="mt-1 text-xs text-destructive">{createError}</p>}
-                </TableCell>
-              </TableRow>
-            )}
-            {sets.length === 0 && !adding && (
-              <TableRow>
-                <TableCell colSpan={8} className="text-muted-foreground h-24 text-center">
-                  No sets yet.
-                </TableCell>
-              </TableRow>
-            )}
-            {sets.map((set, index) =>
-              editing?.id === set.id ? (
-                <TableRow key={set.id}>
-                  <TableCell className="text-muted-foreground text-center">{index + 1}</TableCell>
-                  <TableCell className="font-mono">{set.slug}</TableCell>
-                  <TableCell>
-                    <Input
-                      value={editing.name}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Input
-                      inputMode="numeric"
-                      value={editing.printedTotal}
-                      onChange={(e) => setEditing({ ...editing, printedTotal: e.target.value })}
-                      className="ml-auto h-8 w-24 text-right"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <DatePicker
-                      value={editing.releasedAt || null}
-                      onChange={(iso) => setEditing({ ...editing, releasedAt: iso })}
-                      onClear={() => setEditing({ ...editing, releasedAt: "" })}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <CountBadge count={set.cardCount} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <CountBadge count={set.printingCount} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={saveEditing}
-                        disabled={updateMutation.isPending}
-                      >
-                        Save
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                <TableRow key={set.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-0.5">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        disabled={index === 0 || reorderMutation.isPending}
-                        onClick={() => moveSet(index, -1)}
-                      >
-                        <ArrowUpIcon className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        disabled={index === sets.length - 1 || reorderMutation.isPending}
-                        onClick={() => moveSet(index, 1)}
-                      >
-                        <ArrowDownIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono">{set.slug}</TableCell>
-                  <TableCell>{set.name}</TableCell>
-                  <TableCell className="text-right">{set.printedTotal}</TableCell>
-                  <TableCell className="text-muted-foreground">{set.releasedAt ?? "—"}</TableCell>
-                  <TableCell className="text-right">
-                    {set.cardCount > 0 ? (
-                      <Link
-                        to="/admin/cards"
-                        search={{ set: set.slug }}
-                        className="hover:opacity-70"
-                      >
-                        <CountBadge count={set.cardCount} />
-                      </Link>
-                    ) : (
-                      <CountBadge count={0} />
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {set.printingCount > 0 ? (
-                      <Link
-                        to="/admin/cards"
-                        search={{ set: set.slug }}
-                        className="hover:opacity-70"
-                      >
-                        <CountBadge count={set.printingCount} />
-                      </Link>
-                    ) : (
-                      <CountBadge count={0} />
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => startEditing(set)}>
-                        Edit
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                            />
-                          }
-                        >
-                          <Trash2Icon className="h-4 w-4" />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent size="sm">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Delete set &ldquo;{set.slug}&rdquo;?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete the set <strong>{set.name}</strong>. Sets
-                              with printings cannot be deleted — remove their printings first.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setDeleteError("")}>
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogPrimitive.Close
-                              render={<Button variant="destructive" />}
-                              onClick={() => {
-                                setDeleteError("");
-                                deleteMutation.mutate(set.id, {
-                                  onError: (err) => setDeleteError(err.message),
-                                });
-                              }}
-                            >
-                              Delete
-                            </AlertDialogPrimitive.Close>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ),
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <AdminTable
+      columns={columns}
+      data={sets}
+      getRowKey={(s) => s.id}
+      emptyText="No sets yet."
+      reorder={{
+        onMove: moveSet,
+        isPending: reorderMutation.isPending,
+      }}
+      add={{
+        emptyDraft: { id: "", name: "", printedTotal: "", releasedAt: "" },
+        onSave: (d) => {
+          const printedTotal = parseInt(d.printedTotal, 10);
+          return createMutation.mutateAsync({
+            id: d.id.trim(),
+            name: d.name.trim(),
+            printedTotal: isNaN(printedTotal) ? 0 : printedTotal,
+            releasedAt: d.releasedAt || null,
+          });
+        },
+        validate: (d) => {
+          if (!d.id.trim() || !d.name.trim()) {
+            return "ID and name are required";
+          }
+          const pt = parseInt(d.printedTotal, 10);
+          if (d.printedTotal && (isNaN(pt) || pt < 0)) {
+            return "Printed total must be a non-negative number";
+          }
+          return null;
+        },
+        label: "Add Set",
+      }}
+      edit={{
+        toDraft: (s) => ({
+          id: s.id,
+          name: s.name,
+          printedTotal: s.printedTotal === null ? "" : String(s.printedTotal),
+          releasedAt: s.releasedAt ?? "",
+        }),
+        onSave: (d) => {
+          const printedTotal = parseInt(d.printedTotal, 10);
+          return updateMutation.mutateAsync({
+            id: d.id,
+            name: d.name,
+            printedTotal: isNaN(printedTotal) ? 0 : printedTotal,
+            releasedAt: d.releasedAt || null,
+          });
+        },
+        validate: (d) => {
+          const pt = parseInt(d.printedTotal, 10);
+          if (isNaN(pt) || pt < 0) {
+            return "Printed total must be a non-negative number";
+          }
+          return null;
+        },
+      }}
+      delete={{
+        onDelete: (s) => deleteMutation.mutateAsync(s.id),
+        confirm: (s) => ({
+          title: `Delete set \u201C${s.slug}\u201D?`,
+          description: (
+            <>
+              This will permanently delete the set <strong>{s.name}</strong>. Sets with printings
+              cannot be deleted — remove their printings first.
+            </>
+          ),
+        }),
+      }}
+    />
   );
 }

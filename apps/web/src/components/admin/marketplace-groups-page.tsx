@@ -1,16 +1,10 @@
 import { useState } from "react";
 
+import { AdminTable } from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { CountBadge } from "@/components/admin/count-badge";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { MarketplaceGroup } from "@/hooks/use-marketplace-groups";
 import { useMarketplaceGroups, useUpdateMarketplaceGroup } from "@/hooks/use-marketplace-groups";
 
@@ -46,90 +40,84 @@ const externalUrls: Record<string, (id: number) => string> = {
   cardmarket: (id) => `https://www.cardmarket.com/en/Riftbound/Products/Singles?idExpansion=${id}`,
 };
 
-function GroupIdCell({ group }: { group: MarketplaceGroup }) {
-  const urlFn = externalUrls[group.marketplace];
-  if (urlFn) {
-    return (
-      <a
-        href={urlFn(group.groupId)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary underline underline-offset-4 hover:text-primary/80"
-      >
-        {group.groupId}
-      </a>
-    );
-  }
-  return group.groupId;
-}
-
 const marketplaceLabels: Record<string, string> = {
   tcgplayer: "TCGplayer",
   cardmarket: "Cardmarket",
 };
+
+const columns: AdminColumnDef<MarketplaceGroup>[] = [
+  {
+    header: "Marketplace",
+    width: "w-28",
+    sortValue: (g) => g.marketplace,
+    cell: (g) => (
+      <Badge variant="outline">{marketplaceLabels[g.marketplace] ?? g.marketplace}</Badge>
+    ),
+  },
+  {
+    header: "Group ID",
+    width: "w-24",
+    sortValue: (g) => g.groupId,
+    cell: (g) => {
+      const urlFn = externalUrls[g.marketplace];
+      if (urlFn) {
+        return (
+          <a
+            href={urlFn(g.groupId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-primary underline underline-offset-4 hover:text-primary/80"
+          >
+            {g.groupId}
+          </a>
+        );
+      }
+      return <span className="font-mono">{g.groupId}</span>;
+    },
+  },
+  {
+    header: "Name",
+    sortValue: (g) => g.name,
+    cell: (g) =>
+      g.marketplace === "cardmarket" ? (
+        <EditableName group={g} />
+      ) : (
+        <div className="flex h-8 items-center">{g.name}</div>
+      ),
+  },
+  {
+    header: "Abbreviation",
+    width: "w-28",
+    cell: (g) => <span className="font-mono">{g.abbreviation}</span>,
+  },
+  {
+    header: "Assigned",
+    width: "w-24",
+    align: "right",
+    headerTitle: "Products mapped to printings",
+    sortValue: (g) => g.assignedCount,
+    cell: (g) => <CountBadge count={g.assignedCount} />,
+  },
+  {
+    header: "Staged",
+    width: "w-24",
+    align: "right",
+    headerTitle: "Distinct products in staging, not yet mapped to printings",
+    sortValue: (g) => g.stagedCount,
+    cell: (g) => <CountBadge count={g.stagedCount} />,
+  },
+];
 
 export function MarketplaceGroupsPage() {
   const { data } = useMarketplaceGroups();
   const { groups } = data;
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-28">Marketplace</TableHead>
-              <TableHead className="w-24">Group ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="w-28">Abbreviation</TableHead>
-              <TableHead className="w-24 text-right" title="Products mapped to printings">
-                Assigned
-              </TableHead>
-              <TableHead
-                className="w-24 text-right"
-                title="Distinct products in staging, not yet mapped to printings"
-              >
-                Staged
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {groups.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
-                  No groups yet — they appear after a price scrape runs.
-                </TableCell>
-              </TableRow>
-            )}
-            {groups.map((group) => (
-              <TableRow key={`${group.marketplace}:${group.groupId}`}>
-                <TableCell>
-                  <Badge variant="outline">
-                    {marketplaceLabels[group.marketplace] ?? group.marketplace}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-mono">
-                  <GroupIdCell group={group} />
-                </TableCell>
-                <TableCell>
-                  {group.marketplace === "cardmarket" ? (
-                    <EditableName group={group} />
-                  ) : (
-                    <div className="flex h-8 items-center">{group.name}</div>
-                  )}
-                </TableCell>
-                <TableCell className="font-mono">{group.abbreviation}</TableCell>
-                <TableCell className="text-right">
-                  <CountBadge count={group.assignedCount} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <CountBadge count={group.stagedCount} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <AdminTable
+      columns={columns}
+      data={groups}
+      getRowKey={(g) => `${g.marketplace}:${g.groupId}`}
+      emptyText="No groups yet — they appear after a price scrape runs."
+    />
   );
 }

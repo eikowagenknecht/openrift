@@ -1,6 +1,25 @@
+import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { formatShortCodes } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
-import { CheckCheckIcon, ImagePlusIcon, LinkIcon, LoaderIcon, XIcon } from "lucide-react";
+import type { ColumnDef, ColumnFiltersState, FilterFn, SortingState } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckCheckIcon,
+  ChevronsUpDownIcon,
+  ImagePlusIcon,
+  LinkIcon,
+  LoaderIcon,
+  SearchIcon,
+  XIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -8,6 +27,7 @@ import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -23,8 +43,36 @@ import {
   useCandidateList,
   useLinkCard,
 } from "@/hooks/use-candidates";
+import { cn } from "@/lib/utils";
 
-type Filter = "unchecked" | "unmatched" | "matched" | null;
+// ---------------------------------------------------------------------------
+// Status filter
+// ---------------------------------------------------------------------------
+
+type StatusFilter = "unchecked" | "unmatched" | "matched";
+
+const statusFilterFn: FilterFn<CandidateCardSummaryResponse> = (row, _columnId, filterValue) => {
+  const value = filterValue as StatusFilter | undefined;
+  if (!value) {
+    return true;
+  }
+  const r = row.original;
+  switch (value) {
+    case "unchecked": {
+      return r.uncheckedCardCount + r.uncheckedPrintingCount > 0;
+    }
+    case "unmatched": {
+      return !r.cardSlug;
+    }
+    case "matched": {
+      return Boolean(r.cardSlug);
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Assign button (inline card search)
+// ---------------------------------------------------------------------------
 
 function AssignButton({
   normalizedName,
@@ -90,13 +138,60 @@ function AssignButton({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Sort header helper
+// ---------------------------------------------------------------------------
+
+function SortableHeader({
+  column,
+  label,
+}: {
+  column: {
+    getCanSort: () => boolean;
+    getIsSorted: () => false | "asc" | "desc";
+    getToggleSortingHandler: () => ((event: unknown) => void) | undefined;
+  };
+  label: string;
+}) {
+  const canSort = column.getCanSort();
+  const sorted = column.getIsSorted();
+  if (!canSort) {
+    return label;
+  }
+  return (
+    <button
+      type="button"
+      className="inline-flex cursor-pointer select-none items-center gap-1"
+      onClick={column.getToggleSortingHandler()}
+    >
+      {label}
+      {sorted ? (
+        sorted === "asc" ? (
+          <ArrowUpIcon className="inline h-3.5 w-3.5 text-foreground" />
+        ) : (
+          <ArrowDownIcon className="inline h-3.5 w-3.5 text-foreground" />
+        )
+      ) : (
+        <ChevronsUpDownIcon className="inline h-3.5 w-3.5 text-muted-foreground/50" />
+      )}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page component
+// ---------------------------------------------------------------------------
+
 export function CandidatesListPage() {
-  const [filter, setFilter] = useState<Filter>(null);
   const { data } = useCandidateList();
   const autoCheck = useAutoCheckCandidates();
   const linkCard = useLinkCard();
   const acceptGallery = useAcceptGallery();
   const { data: allCards } = useAllCards();
+
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
 
   const counts = {
     unchecked: data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0).length,
@@ -104,22 +199,175 @@ export function CandidatesListPage() {
     matched: data.filter((r) => r.cardSlug).length,
   };
 
-  const rows = data.filter((row) => {
-    if (filter === "unchecked") {
-      return row.uncheckedCardCount + row.uncheckedPrintingCount > 0;
-    }
-    if (filter === "unmatched") {
-      return !row.cardSlug;
-    }
-    if (filter === "matched") {
-      return Boolean(row.cardSlug);
-    }
-    return true;
+  const activeStatus = (columnFilters.find((f) => f.id === "status")?.value ??
+    null) as StatusFilter | null;
+
+  function toggleStatus(status: StatusFilter) {
+    setColumnFilters((prev) => {
+      const without = prev.filter((f) => f.id !== "status");
+      if (activeStatus === status) {
+        return without;
+      }
+      return [...without, { id: "status", value: status }];
+    });
+  }
+
+  const columns: ColumnDef<CandidateCardSummaryResponse>[] = [
+    {
+      id: "status",
+      header: "Status",
+      enableSorting: false,
+      filterFn: statusFilterFn,
+      cell: ({ row }) => {
+        const r = row.original;
+        const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
+        return (
+          <div className="flex items-center gap-1">
+            {r.cardSlug ? (
+              <Badge variant="outline">Active</Badge>
+            ) : (
+              <Badge variant="secondary">New</Badge>
+            )}
+            {r.hasGallery && <Badge className="text-xs">gallery</Badge>}
+            {total > 0 && <Badge variant="destructive">Review</Badge>}
+          </div>
+        );
+      },
+    },
+    {
+      id: "name",
+      accessorFn: (r) => r.name,
+      header: ({ column }) => <SortableHeader column={column} label="Card" />,
+      enableGlobalFilter: true,
+      cell: ({ row }) => {
+        const r = row.original;
+        const suggestedCardId =
+          !r.cardSlug && r.stagingShortCodes.length > 0
+            ? r.stagingShortCodes[0].replace(/(?<=\d)[a-z*]+$/, "")
+            : null;
+        return (
+          <>
+            <Link
+              to={r.cardSlug ? "/admin/cards/$cardSlug" : "/admin/cards/new/$name"}
+              params={r.cardSlug ? { cardSlug: r.cardSlug } : { name: r.normalizedName }}
+              className="font-medium hover:underline"
+            >
+              {(r.cardSlug || suggestedCardId) && (
+                <span className={r.cardSlug ? "text-muted-foreground" : "text-muted-foreground/40"}>
+                  {r.cardSlug ?? suggestedCardId}
+                </span>
+              )}{" "}
+              {r.name}
+            </Link>
+            {!r.cardSlug && r.suggestedCardSlug && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-2 h-5 text-xs"
+                disabled={linkCard.isPending}
+                onClick={() => {
+                  const slug = r.suggestedCardSlug;
+                  if (slug) {
+                    linkCard.mutate({ name: r.normalizedName, cardId: slug });
+                  }
+                }}
+              >
+                <LinkIcon className="size-3" />
+                {r.suggestedCardSlug}
+              </Button>
+            )}
+            {!r.cardSlug && r.hasGallery && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-2 h-5 text-xs"
+                disabled={acceptGallery.isPending}
+                onClick={() => acceptGallery.mutate(r.normalizedName)}
+              >
+                {acceptGallery.isPending ? (
+                  <LoaderIcon className="size-3 animate-spin" />
+                ) : (
+                  <ImagePlusIcon className="size-3" />
+                )}
+                Accept gallery
+              </Button>
+            )}
+            {!r.cardSlug && allCards && (
+              <AssignButton
+                normalizedName={r.normalizedName}
+                allCards={allCards}
+                linkCard={linkCard}
+              />
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: "printings",
+      header: "Printings",
+      enableSorting: false,
+      enableGlobalFilter: false,
+      cell: ({ row }) => {
+        const r = row.original;
+        return (
+          <span>
+            {r.shortCodes.length > 0 && (
+              <>
+                {formatShortCodes(r.shortCodes)
+                  .split(", ")
+                  .map((id, i, arr) => (
+                    <span key={id} className="text-muted-foreground">
+                      {id}
+                      {(i < arr.length - 1 || r.stagingShortCodes.length > 0) && ", "}
+                    </span>
+                  ))}
+              </>
+            )}
+            {r.stagingShortCodes.length > 0 && (
+              <>
+                {formatShortCodes(r.stagingShortCodes)
+                  .split(", ")
+                  .map((id, i, arr) => (
+                    <span key={`s-${id}`} className="italic text-muted-foreground/50">
+                      {id}
+                      {i < arr.length - 1 && ", "}
+                    </span>
+                  ))}
+              </>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      id: "candidates",
+      accessorKey: "candidateCount",
+      header: ({ column }) => <SortableHeader column={column} label="Candidates" />,
+      enableGlobalFilter: false,
+      cell: ({ row }) => <Badge variant="secondary">{row.original.candidateCount}</Badge>,
+    },
+  ];
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: { sorting, columnFilters, globalFilter },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getRowId: (r) => r.cardSlug ?? r.name,
+    globalFilterFn: "includesString",
   });
+
+  const rows = table.getRowModel().rows;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -150,13 +398,23 @@ export function CandidatesListPage() {
         ).map(([f, label, count]) => (
           <Button
             key={f}
-            variant={filter === f ? "default" : "outline"}
+            variant={activeStatus === f ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilter(filter === f ? null : f)}
+            onClick={() => toggleStatus(f)}
           >
             {label} ({count})
           </Button>
         ))}
+
+        <div className="relative ml-auto">
+          <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by name…"
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="h-8 w-48 pl-8 text-sm"
+          />
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -165,130 +423,35 @@ export function CandidatesListPage() {
         <div className="[&>[data-slot=table-container]]:overflow-visible">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-28">Status</TableHead>
-                <TableHead>Card</TableHead>
-                <TableHead>Printings</TableHead>
-                <TableHead className="w-28">Candidates</TableHead>
-              </TableRow>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        header.id === "status" && "w-28",
+                        header.id === "candidates" && "w-28",
+                      )}
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
-                const total = row.uncheckedCardCount + row.uncheckedPrintingCount;
-                const suggestedCardId =
-                  !row.cardSlug && row.stagingShortCodes.length > 0
-                    ? row.stagingShortCodes[0].replace(/(?<=\d)[a-z*]+$/, "")
-                    : null;
-                return (
-                  <TableRow key={row.cardSlug ?? row.name}>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {row.cardSlug ? (
-                          <Badge variant="outline">Active</Badge>
-                        ) : (
-                          <Badge variant="secondary">New</Badge>
-                        )}
-                        {row.hasGallery && <Badge className="text-xs">gallery</Badge>}
-                        {total > 0 && <Badge variant="destructive">Review</Badge>}
-                      </div>
+              {rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className={cn(cell.column.id === "printings" && "whitespace-normal")}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
-                    <TableCell>
-                      <Link
-                        to={row.cardSlug ? "/admin/cards/$cardSlug" : "/admin/cards/new/$name"}
-                        params={
-                          row.cardSlug ? { cardSlug: row.cardSlug } : { name: row.normalizedName }
-                        }
-                        className="font-medium hover:underline"
-                      >
-                        {(row.cardSlug || suggestedCardId) && (
-                          <span
-                            className={
-                              row.cardSlug ? "text-muted-foreground" : "text-muted-foreground/40"
-                            }
-                          >
-                            {row.cardSlug ?? suggestedCardId}
-                          </span>
-                        )}{" "}
-                        {row.name}
-                      </Link>
-                      {!row.cardSlug && row.suggestedCardSlug && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="ml-2 h-5 text-xs"
-                          disabled={linkCard.isPending}
-                          onClick={() => {
-                            const slug = row.suggestedCardSlug;
-                            if (slug) {
-                              linkCard.mutate({
-                                name: row.normalizedName,
-                                cardId: slug,
-                              });
-                            }
-                          }}
-                        >
-                          <LinkIcon className="size-3" />
-                          {row.suggestedCardSlug}
-                        </Button>
-                      )}
-                      {!row.cardSlug && row.hasGallery && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="ml-2 h-5 text-xs"
-                          disabled={acceptGallery.isPending}
-                          onClick={() => acceptGallery.mutate(row.normalizedName)}
-                        >
-                          {acceptGallery.isPending ? (
-                            <LoaderIcon className="size-3 animate-spin" />
-                          ) : (
-                            <ImagePlusIcon className="size-3" />
-                          )}
-                          Accept gallery
-                        </Button>
-                      )}
-                      {!row.cardSlug && allCards && (
-                        <AssignButton
-                          normalizedName={row.normalizedName}
-                          allCards={allCards}
-                          linkCard={linkCard}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-normal">
-                      <span>
-                        {row.shortCodes.length > 0 && (
-                          <>
-                            {formatShortCodes(row.shortCodes)
-                              .split(", ")
-                              .map((id, i, arr) => (
-                                <span key={id} className="text-muted-foreground">
-                                  {id}
-                                  {(i < arr.length - 1 || row.stagingShortCodes.length > 0) && ", "}
-                                </span>
-                              ))}
-                          </>
-                        )}
-                        {row.stagingShortCodes.length > 0 && (
-                          <>
-                            {formatShortCodes(row.stagingShortCodes)
-                              .split(", ")
-                              .map((id, i, arr) => (
-                                <span key={`s-${id}`} className="italic text-muted-foreground/50">
-                                  {id}
-                                  {i < arr.length - 1 && ", "}
-                                </span>
-                              ))}
-                          </>
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{row.candidateCount}</Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                  ))}
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>

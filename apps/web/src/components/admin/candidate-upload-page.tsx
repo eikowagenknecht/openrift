@@ -1,7 +1,5 @@
 import type { ProviderSettingResponse, ProviderStatsResponse } from "@openrift/shared";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   DownloadIcon,
@@ -15,6 +13,8 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { AdminTable } from "@/components/admin/admin-table";
+import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -452,6 +452,12 @@ function ExportCardsCard() {
   );
 }
 
+interface ProviderRow {
+  name: string;
+  stats: ProviderStatsResponse | undefined;
+  isHidden: boolean;
+}
+
 function ManageProvidersCard({
   providerNames,
   providerStats,
@@ -464,29 +470,81 @@ function ManageProvidersCard({
   const { data: settingsData } = useProviderSettings();
   const updateSetting = useUpdateProviderSetting();
   const reorderMutation = useReorderProviderSettings();
-  const [confirming, setConfirming] = useState<string | null>(null);
   const statsByProvider = new Map(providerStats.map((s) => [s.provider, s]));
   const settingsMap = new Map(
     (settingsData?.providerSettings ?? []).map((s: ProviderSettingResponse) => [s.provider, s]),
   );
-  const sortedNames = [...providerNames].sort((a, b) => {
-    const aOrder = settingsMap.get(a)?.sortOrder ?? 0;
-    const bOrder = settingsMap.get(b)?.sortOrder ?? 0;
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-    return a.localeCompare(b);
-  });
+  const rows: ProviderRow[] = [...providerNames]
+    .sort((a, b) => {
+      const aOrder = settingsMap.get(a)?.sortOrder ?? 0;
+      const bOrder = settingsMap.get(b)?.sortOrder ?? 0;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      return a.localeCompare(b);
+    })
+    .map((name) => ({
+      name,
+      stats: statsByProvider.get(name),
+      isHidden: settingsMap.get(name)?.isHidden ?? false,
+    }));
 
   function moveProvider(index: number, direction: -1 | 1) {
     const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= sortedNames.length) {
+    if (newIndex < 0 || newIndex >= rows.length) {
       return;
     }
-    const reordered = [...sortedNames];
+    const reordered = rows.map((r) => r.name);
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
+
+  const columns: AdminColumnDef<ProviderRow>[] = [
+    {
+      header: "Provider",
+      cell: (r) => (
+        <span className={cn("flex items-center gap-2", r.isHidden && "opacity-50")}>
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => updateSetting.mutate({ provider: r.name, isHidden: !r.isHidden })}
+            title={r.isHidden ? "Show provider" : "Hide provider"}
+          >
+            {r.isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+          </button>
+          <span className="text-sm font-medium">{r.name}</span>
+        </span>
+      ),
+    },
+    {
+      header: "Cards",
+      width: "w-24",
+      align: "right",
+      sortValue: (r) => r.stats?.cardCount ?? 0,
+      cell: (r) => <span className="text-sm text-muted-foreground">{r.stats?.cardCount ?? 0}</span>,
+    },
+    {
+      header: "Printings",
+      width: "w-24",
+      align: "right",
+      sortValue: (r) => r.stats?.printingCount ?? 0,
+      cell: (r) => (
+        <span className="text-sm text-muted-foreground">{r.stats?.printingCount ?? 0}</span>
+      ),
+    },
+    {
+      header: "Last Updated",
+      width: "w-44",
+      sortValue: (r) => r.stats?.lastUpdated ?? null,
+      cell: (r) => (
+        <span className="text-sm text-muted-foreground">
+          {r.stats
+            ? new Date(r.stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19)
+            : "—"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <Card>
@@ -499,128 +557,54 @@ function ManageProvidersCard({
           Control visibility, sort order, and deletion of provider data.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {sortedNames.map((name, index) => {
-            const stats = statsByProvider.get(name);
-            const setting = settingsMap.get(name);
-            const isHidden = setting?.isHidden ?? false;
-            return (
-              <div
-                key={name}
-                className={cn(
-                  "flex items-center justify-between rounded-md border px-3 py-2",
-                  isHidden && "opacity-50",
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="flex items-center gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      disabled={index === 0 || reorderMutation.isPending}
-                      onClick={() => moveProvider(index, -1)}
-                    >
-                      <ArrowUpIcon className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      disabled={index === sortedNames.length - 1 || reorderMutation.isPending}
-                      onClick={() => moveProvider(index, 1)}
-                    >
-                      <ArrowDownIcon className="h-3.5 w-3.5" />
-                    </Button>
-                  </span>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => updateSetting.mutate({ provider: name, isHidden: !isHidden })}
-                    title={isHidden ? "Show provider" : "Hide provider"}
-                  >
-                    {isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-                  </button>
-                  <span className="text-sm font-medium">{name}</span>
-                </span>
-                <span className="flex items-center gap-4">
-                  {stats && (
-                    <span className="text-sm text-muted-foreground">
-                      {stats.cardCount} cards, {stats.printingCount} printings
-                      {" \u00B7 "}
-                      {new Date(stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19)}
-                    </span>
-                  )}
-                  {confirming === name ? (
-                    <span className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Delete all data?</span>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={deleteProvider.isPending}
-                        onClick={() => {
-                          deleteProvider.mutate(name, {
-                            onSuccess: () => setConfirming(null),
-                          });
-                        }}
-                      >
-                        {deleteProvider.isPending ? (
-                          <LoaderIcon className="size-4 animate-spin" />
-                        ) : (
-                          "Confirm"
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={deleteProvider.isPending}
-                        onClick={() => setConfirming(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={checkProvider.isPending}
-                        onClick={() => checkProvider.mutate(name)}
-                      >
-                        {checkProvider.isPending ? (
-                          <LoaderIcon className="size-4 animate-spin" />
-                        ) : (
-                          <ListChecksIcon className="size-4" />
-                        )}
-                        Check all
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setConfirming(name)}>
-                        <Trash2Icon className="size-4" />
-                        Delete
-                      </Button>
-                    </span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      <CardContent className="space-y-3">
+        <AdminTable
+          columns={columns}
+          data={rows}
+          getRowKey={(r) => r.name}
+          emptyText="No providers yet."
+          reorder={{
+            onMove: moveProvider,
+            isPending: reorderMutation.isPending,
+          }}
+          delete={{
+            onDelete: (r) => deleteProvider.mutateAsync(r.name),
+            confirm: (r) => ({
+              title: `Delete provider \u201C${r.name}\u201D?`,
+              description: `This will permanently delete all candidate cards and printings from \u201C${r.name}\u201D. This cannot be undone.`,
+            }),
+          }}
+          actions={(r) => (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={checkProvider.isPending}
+              onClick={() => checkProvider.mutate(r.name)}
+            >
+              {checkProvider.isPending ? (
+                <LoaderIcon className="size-4 animate-spin" />
+              ) : (
+                <ListChecksIcon className="size-4" />
+              )}
+              Check all
+            </Button>
+          )}
+        />
         {checkProvider.isSuccess && (
-          <p className="mt-3 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+          <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
             <CheckIcon className="size-4" />
             Checked {checkProvider.data.cardsChecked} cards, {checkProvider.data.printingsChecked}{" "}
             printings
           </p>
         )}
         {checkProvider.isError && (
-          <p className="mt-3 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
             <XIcon className="size-4" />
             {checkProvider.error.message}
           </p>
         )}
         {deleteProvider.isSuccess && (
-          <p className="mt-3 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+          <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
             <CheckIcon className="size-4" />
             Deleted {deleteProvider.data.deleted} candidates from &ldquo;
             {deleteProvider.data.provider}
@@ -628,7 +612,7 @@ function ManageProvidersCard({
           </p>
         )}
         {deleteProvider.isError && (
-          <p className="mt-3 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
             <XIcon className="size-4" />
             {deleteProvider.error.message}
           </p>
