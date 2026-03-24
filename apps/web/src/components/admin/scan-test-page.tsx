@@ -472,7 +472,10 @@ export function ScanTestPage() {
   );
 }
 
-// Render hash hex as a small black/white grid of bits.
+/**
+ * Render hash hex as a small black/white grid of bits.
+ * @returns The SVG grid element.
+ */
 function HashBitsViz({ hash }: { hash: string }) {
   let bits = "";
   for (const ch of hash) {

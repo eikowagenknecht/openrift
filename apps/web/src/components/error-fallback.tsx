@@ -57,8 +57,11 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Router-level error component — uses a portal to break out of the layout and
-// render a full-page takeover.
+/**
+ * Router-level error component — uses a portal to break out of the layout and
+ * render a full-page takeover.
+ * @returns A portal-rendered error fallback.
+ */
 export function RouterErrorFallback({ error }: ErrorComponentProps) {
   return createPortal(
     <ErrorFallback error={error instanceof Error ? error : new Error(String(error))} />,
@@ -66,7 +69,7 @@ export function RouterErrorFallback({ error }: ErrorComponentProps) {
   );
 }
 
-// Top-level React error boundary — catches anything that escapes the router.
+/** Top-level React error boundary — catches anything that escapes the router. */
 export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -89,7 +92,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 }
 
-// Router-level not-found component — uses a portal to break out of the layout.
+/**
+ * Router-level not-found component — uses a portal to break out of the layout.
+ * @returns A portal-rendered not-found fallback.
+ */
 export function RouterNotFoundFallback() {
   return createPortal(<NotFoundFallback />, document.body);
 }

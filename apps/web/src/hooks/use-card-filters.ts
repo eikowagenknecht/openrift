@@ -48,10 +48,13 @@ type ArrayKey =
   | "artVariants"
   | "finishes";
 
-// Returns the read-only filter, sort, and view state derived from URL query
-// parameters. Components that only need to read (not write) filter state should
-// prefer this hook — it avoids subscribing to the setter functions, which are
-// referentially stable and never cause re-renders on their own.
+/**
+ * Returns the read-only filter, sort, and view state derived from URL query
+ * parameters. Components that only need to read (not write) filter state should
+ * prefer this hook — it avoids subscribing to the setter functions, which are
+ * referentially stable and never cause re-renders on their own.
+ * @returns The current filter, sort, and view state.
+ */
 export function useFilterValues() {
   const [filterState] = useQueryStates(filterParsers, {
     history: "push",
@@ -121,13 +124,16 @@ export function useFilterValues() {
   };
 }
 
-// Returns only the setter / action functions for filter state. Because the
-// setters returned by `useQueryStates` are referentially stable, this hook
-// will NOT cause re-renders when filter *values* change — making it ideal for
-// components that only dispatch filter changes without reading them.
-//
-// The `pendingRef` / `useEffect` coordination for `toggleArrayFilter` lives
-// here because it is tightly coupled to the setter logic.
+/**
+ * Returns only the setter / action functions for filter state. Because the
+ * setters returned by `useQueryStates` are referentially stable, this hook
+ * will NOT cause re-renders when filter *values* change — making it ideal for
+ * components that only dispatch filter changes without reading them.
+ *
+ * The `pendingRef` / `useEffect` coordination for `toggleArrayFilter` lives
+ * here because it is tightly coupled to the setter logic.
+ * @returns The filter action functions.
+ */
 export function useFilterActions() {
   const [filterState, setFilterState] = useQueryStates(filterParsers, {
     history: "push",
@@ -248,9 +254,12 @@ export function useFilterActions() {
   };
 }
 
-// Convenience wrapper that merges `useFilterValues()` and `useFilterActions()`.
-// Existing consumers can use this without changes, but new code should prefer
-// the focused hooks to minimise re-renders.
+/**
+ * Convenience wrapper that merges `useFilterValues()` and `useFilterActions()`.
+ * Existing consumers can use this without changes, but new code should prefer
+ * the focused hooks to minimise re-renders.
+ * @returns Combined filter values and action functions.
+ */
 export function useCardFilters() {
   const values = useFilterValues();
   const actions = useFilterActions();

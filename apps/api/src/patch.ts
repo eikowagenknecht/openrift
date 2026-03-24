@@ -2,10 +2,13 @@ import { AppError } from "./errors.js";
 
 export type FieldMapping = Record<string, string | ((value: unknown) => [string, unknown])>;
 
-// Build a PATCH updates object from a parsed request body and a field mapping.
-// Each key in fieldMap is a camelCase body field. The value is either a string
-// (the snake_case column name) or a transform fn returning [column, dbValue].
-// Throws 400 if no fields are present.
+/**
+ * Build a PATCH updates object from a parsed request body and a field mapping.
+ * Each key in fieldMap is a camelCase body field. The value is either a string
+ * (the snake_case column name) or a transform fn returning [column, dbValue].
+ * @throws 400 if no fields are present.
+ * @returns The updates object with snake_case column keys.
+ */
 export function buildPatchUpdates(
   body: Record<string, unknown>,
   fieldMap: FieldMapping,

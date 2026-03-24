@@ -46,12 +46,18 @@ export const DEFAULT_PHASH_CONFIG: PhashConfig = {
   algorithm: "ahash",
 };
 
-// Number of bits in the hash output for the given config.
+/**
+ * Number of bits in the hash output for the given config.
+ * @returns The total bit count (hashW * hashH).
+ */
 export function hashBitCount(config: PhashConfig): number {
   return config.hashW * config.hashH;
 }
 
-// Crop the inner region of a card image, removing the border/frame.
+/**
+ * Crop the inner region of a card image, removing the border/frame.
+ * @returns A new canvas with the cropped art region.
+ */
 function cropArtRegion(canvas: HTMLCanvasElement, borderInset: number): HTMLCanvasElement {
   const sx = Math.round(canvas.width * borderInset);
   const sy = Math.round(canvas.height * borderInset);
@@ -70,8 +76,11 @@ function cropArtRegion(canvas: HTMLCanvasElement, borderInset: number): HTMLCanv
   return cropped;
 }
 
-// Apply a simple box blur to grayscale values on a grid.
-// Radius 1 = 3×3 kernel, radius 2 = 5×5, etc.
+/**
+ * Apply a simple box blur to grayscale values on a grid.
+ * Radius 1 = 3×3 kernel, radius 2 = 5×5, etc.
+ * @returns The blurred grayscale values.
+ */
 function boxBlur(gray: number[], w: number, h: number, radius: number): number[] {
   if (radius <= 0) {
     return gray;
@@ -97,7 +106,10 @@ function boxBlur(gray: number[], w: number, h: number, radius: number): number[]
   return out;
 }
 
-// Normalize grayscale values using the configured strategy.
+/**
+ * Normalize grayscale values using the configured strategy.
+ * @returns The normalized grayscale values.
+ */
 function normalizeGray(gray: number[], method: PhashConfig["normalize"]): number[] {
   if (method === "none") {
     return gray;
@@ -131,7 +143,10 @@ function normalizeGray(gray: number[], method: PhashConfig["normalize"]): number
   return gray.map((v) => ((v - median) / maxDev) * 127.5 + 127.5);
 }
 
-// Build the hash bit string from grayscale values using the configured algorithm.
+/**
+ * Build the hash bit string from grayscale values using the configured algorithm.
+ * @returns The hash as a binary string.
+ */
 function buildHash(
   gray: number[],
   w: number,
@@ -188,8 +203,10 @@ interface ComputeHashResult {
   debug: PhashDebug;
 }
 
-// Compute a perceptual hash of an image using the given config.
-// Returns the hash and debug visualisation data.
+/**
+ * Compute a perceptual hash of an image using the given config.
+ * @returns The hash and debug visualisation data.
+ */
 function computeHash(canvas: HTMLCanvasElement, config: PhashConfig): ComputeHashResult {
   const ctx = canvas.getContext("2d");
   if (!ctx) {
@@ -260,7 +277,10 @@ function computeHash(canvas: HTMLCanvasElement, config: PhashConfig): ComputeHas
   };
 }
 
-// Compute Hamming distance between two hex hash strings.
+/**
+ * Compute Hamming distance between two hex hash strings.
+ * @returns The number of differing bits.
+ */
 function hammingDistance(a: string, b: string): number {
   if (a.length !== b.length) {
     return Math.max(a.length, b.length) * 4;
@@ -283,7 +303,10 @@ function popcount4(n: number): number {
   return count;
 }
 
-// Build a phash index from printings by loading and hashing their front images.
+/**
+ * Build a phash index from printings by loading and hashing their front images.
+ * @returns The phash index with entries for each printing.
+ */
 export async function buildPhashIndex(
   printings: Printing[],
   config: PhashConfig = DEFAULT_PHASH_CONFIG,
@@ -329,7 +352,10 @@ export async function buildPhashIndex(
   return { entries };
 }
 
-// Load an image from URL, draw to canvas, compute its hash.
+/**
+ * Load an image from URL, draw to canvas, compute its hash.
+ * @returns The hex hash string, or null on failure.
+ */
 function hashImageUrl(url: string, config: PhashConfig): Promise<string | null> {
   // oxlint-disable-next-line eslint-plugin-promise(avoid-new) -- Image loading requires callback-based API
   return new Promise((resolve) => {
@@ -352,7 +378,10 @@ function hashImageUrl(url: string, config: PhashConfig): Promise<string | null> 
   });
 }
 
-// Match a captured image against the phash index.
+/**
+ * Match a captured image against the phash index.
+ * @returns Scan results with top matches sorted by distance.
+ */
 export function phashScan(
   capturedCanvas: HTMLCanvasElement,
   index: PhashIndex,

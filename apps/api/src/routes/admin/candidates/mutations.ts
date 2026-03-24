@@ -29,10 +29,11 @@ import {
   uploadCandidatesSchema,
 } from "./schemas.js";
 
-// ── POST /auto-check ───────────────────────────────────────────────────────
-// Bulk-mark candidates as checked when every acceptable field matches the active
-// card or printing.  Must be registered before /:candidateCardId/check so the
-// wildcard doesn't swallow "auto-check".
+/**
+ * Bulk-mark candidates as checked when every acceptable field matches the active
+ * card or printing.  Must be registered before /:candidateCardId/check so the
+ * wildcard doesn't swallow "auto-check".
+ */
 export const mutationsRoute = new Hono<{ Variables: Variables }>()
   .post("/auto-check", async (c) => {
     const { candidateMutations: mut } = c.get("repos");

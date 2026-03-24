@@ -4,7 +4,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { client, rpc } from "@/lib/rpc-client";
 
-export const keywordStylesQueryOptions = queryOptions({
+const keywordStylesQueryOptions = queryOptions({
   queryKey: queryKeys.keywordStyles.all,
   queryFn: () => rpc(client.api["keyword-styles"].$get()),
   staleTime: 30 * 60 * 1000,
