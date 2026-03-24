@@ -9,6 +9,9 @@ export const queryKeys = {
   catalog: {
     all: ["catalog"] as const,
   },
+  keywordStyles: {
+    all: ["keyword-styles"] as const,
+  },
   collections: {
     all: ["collections"] as const,
   },

@@ -1,5 +1,7 @@
 export type { ApiErrorResponse } from "./error.js";
 
+export type { KeywordStyleEntry, KeywordStylesResponse } from "./keyword-style.js";
+
 export type {
   CatalogCardResponse,
   CatalogPrintingResponse,

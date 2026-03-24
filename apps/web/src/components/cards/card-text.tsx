@@ -1,3 +1,6 @@
+import type { KeywordStylesResponse } from "@openrift/shared";
+
+import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { getKeywordStyle } from "@/lib/keywords";
 import { cn } from "@/lib/utils";
 
@@ -51,11 +54,13 @@ interface CardTextProps {
 }
 
 export function CardText({ text, onKeywordClick }: CardTextProps) {
-  return renderTokens(tokenizeCardText(text), onKeywordClick);
+  const styles = useKeywordStyles();
+  return renderTokens(tokenizeCardText(text), styles, onKeywordClick);
 }
 
 function renderTokens(
   tokens: CardTextToken[],
+  styles: KeywordStylesResponse,
   onKeywordClick?: (keyword: string) => void,
 ): React.ReactNode[] {
   return tokens.map((token, i) => {
@@ -71,7 +76,7 @@ function renderTokens(
         );
       }
       case "keyword": {
-        const kw = getKeywordStyle(token.name);
+        const kw = getKeywordStyle(token.name, styles);
         return (
           <button
             key={`${i}-kw`}
@@ -97,14 +102,14 @@ function renderTokens(
       case "paren": {
         return (
           <span key={`${i}-paren`} className="italic">
-            ({renderTokens(token.children, onKeywordClick)})
+            ({renderTokens(token.children, styles, onKeywordClick)})
           </span>
         );
       }
       case "italic": {
         return (
           <span key={`${i}-italic`} className="italic">
-            {renderTokens(token.children, onKeywordClick)}
+            {renderTokens(token.children, styles, onKeywordClick)}
           </span>
         );
       }

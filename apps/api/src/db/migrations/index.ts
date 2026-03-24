@@ -47,6 +47,7 @@ import * as m041 from "./041-drop-candidate-printing-unique-index.js";
 import * as m042 from "./042-drop-rarity-from-slug.js";
 import * as m043 from "./043-fix-candidate-cards-unique-index.js";
 import * as m044 from "./044-drop-group-key.js";
+import * as m045 from "./045-keyword-styles.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -93,4 +94,5 @@ export const migrations: Record<string, Migration> = {
   "042-drop-rarity-from-slug": m042,
   "043-fix-candidate-cards-unique-index": m043,
   "044-drop-group-key": m044,
+  "045-keyword-styles": m045,
 };

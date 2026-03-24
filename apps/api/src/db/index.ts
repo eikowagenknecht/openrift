@@ -14,6 +14,7 @@ export type {
   FeatureFlagsTable,
   IgnoredCandidateCardsTable,
   IgnoredCandidatePrintingsTable,
+  KeywordStylesTable,
   MarketplaceProductsTable,
   MarketplaceSnapshotsTable,
   PrintingImagesTable,

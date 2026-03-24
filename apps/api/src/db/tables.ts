@@ -558,6 +558,18 @@ export interface ProviderSettingsTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── Keyword styles (migration 043) ──────────────────────────────────────────
+
+export interface KeywordStylesTable {
+  /** PK — canonical keyword name */
+  name: string;
+  /** CHECK: matches ^#[0-9a-fA-F]{6}$ */
+  color: string;
+  darkText: boolean;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── Feature flags (migration 014) ───────────────────────────────────────────
 
 export interface FeatureFlagsTable {
@@ -629,4 +641,7 @@ export interface Database {
 
   // Feature flags (migration 014)
   featureFlags: FeatureFlagsTable;
+
+  // Keyword styles (migration 043)
+  keywordStyles: KeywordStylesTable;
 }
