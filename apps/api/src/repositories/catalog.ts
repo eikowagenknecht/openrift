@@ -1,4 +1,4 @@
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type {
@@ -138,5 +138,77 @@ export function catalogRepo(db: Kysely<Database>) {
     printingById(id: string): Promise<Pick<Selectable<PrintingsTable>, "id"> | undefined> {
       return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
     },
+
+    /**
+     * Fix typography in printing text fields (printed_rules_text, printed_effect_text, flavor_text).
+     * Replaces straight quotes, triple dots, and hyphens-before-digits with proper Unicode.
+     *
+     * @param dryRun When true, only count affected rows without modifying data.
+     * @returns The number of rows that would be (or were) updated.
+     */
+    async fixTypography(dryRun: boolean): Promise<number> {
+      const columns = ["printed_rules_text", "printed_effect_text", "flavor_text"] as const;
+
+      const whereConditions = columns.map((col) => {
+        const ref = sql.ref(col);
+        return sql`${ref} IS DISTINCT FROM ${fixTypographyExpr(col)}`;
+      });
+      const where = sql.join(whereConditions, sql` OR `);
+
+      if (dryRun) {
+        const result = await db
+          .selectFrom("printings")
+          .select(sql<string>`COUNT(*)`.as("count"))
+          .where(sql<SqlBool>`${where}`)
+          .executeTakeFirstOrThrow();
+        return Number(result.count);
+      }
+
+      const updates: Record<string, ReturnType<typeof fixTypographyExpr>> = {};
+      for (const col of columns) {
+        updates[col] = fixTypographyExpr(col);
+      }
+
+      const result = await db
+        .updateTable("printings")
+        .set(updates)
+        .where(sql<SqlBool>`${where}`)
+        .executeTakeFirst();
+
+      return Number(result.numUpdatedRows);
+    },
   };
+}
+
+// ── Typography helpers ─────────────────────────────────────────────────────
+
+/**
+ * Build a SQL expression that applies all typography fixes to the given column:
+ * - Straight apostrophe (') → right single curly quote (\u2019)
+ * - Triple dots (...) → horizontal ellipsis (\u2026)
+ * - Paired straight double quotes ("…") → curly double quotes (\u201C…\u201D)
+ * - Hyphen-minus before digit (-1) → minus sign (\u2212) before digit
+ * - Parenthesized text (...) wrapped with underscores for italic rendering: _(...)_
+ * @returns A Kysely raw SQL expression with chained REPLACE/REGEXP_REPLACE calls.
+ */
+function fixTypographyExpr(column: string) {
+  const col = sql.ref(column);
+  // Inner → outer: apostrophe, ellipsis, double quotes, minus sign,
+  // then italic parens (strip existing wrappers first, then re-add for all).
+  return sql`REGEXP_REPLACE(
+    REGEXP_REPLACE(
+      REGEXP_REPLACE(
+        REGEXP_REPLACE(
+          REPLACE(
+            REPLACE(${col}, '''', E'\u2019'),
+            '...', E'\u2026'
+          ),
+          '"([^"]*)"', E'\u201C\\1\u201D', 'g'
+        ),
+        '-([0-9])', E'\u2212\\1', 'g'
+      ),
+      '_\\(([^)]*)\\)_', '(\\1)', 'g'
+    ),
+    '\\(([^)]*)\\)', '_(\\1)_', 'g'
+  )`;
 }

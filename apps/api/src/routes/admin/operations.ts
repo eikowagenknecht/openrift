@@ -21,6 +21,8 @@ const clearPricesSchema = z.object({
   marketplace: clearPriceMarketplaceSchema,
 });
 
+const fixTypographySchema = z.object({ dryRun: z.boolean().default(true) });
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const operationsRoute = new Hono<{ Variables: Variables }>()
@@ -59,4 +61,18 @@ export const operationsRoute = new Hono<{ Variables: Variables }>()
       config.cardtraderApiToken,
     );
     return c.json(result);
+  })
+
+  // ── Fix typography ──────────────────────────────────────────────────────────
+
+  .post("/fix-typography", zValidator("json", fixTypographySchema), async (c) => {
+    const { catalog } = c.get("repos");
+    const { dryRun } = c.req.valid("json");
+
+    const affectedCount = await catalog.fixTypography(dryRun);
+    if (!dryRun) {
+      log.info(`fix-typography: updated ${String(affectedCount)} rows`);
+    }
+
+    return c.json({ affectedCount });
   });

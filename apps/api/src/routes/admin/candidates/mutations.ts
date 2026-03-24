@@ -7,6 +7,7 @@ import { Hono } from "hono";
 
 import { AppError } from "../../../errors.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
+import { fixTypography } from "../../../services/fix-typography.js";
 import {
   acceptPrinting,
   deletePrinting,
@@ -325,7 +326,14 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    const updates: Record<string, unknown> = { [field]: normalized };
+    // Apply typography fixes to text fields
+    const textFields = new Set(["rulesText", "effectText"]);
+    const finalValue =
+      textFields.has(field) && typeof normalized === "string"
+        ? fixTypography(normalized)
+        : normalized;
+
+    const updates: Record<string, unknown> = { [field]: finalValue };
 
     // Recompute keywords when rulesText or effectText changes
     if (field === "rulesText" || field === "effectText") {
@@ -333,8 +341,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       if (!card) {
         throw new AppError(404, "NOT_FOUND", "Card not found");
       }
-      const rulesText = field === "rulesText" ? (value as string) : card.rulesText;
-      const effectText = field === "effectText" ? (value as string) : card.effectText;
+      const rulesText = field === "rulesText" ? (finalValue as string) : card.rulesText;
+      const effectText = field === "effectText" ? (finalValue as string) : card.effectText;
       updates.keywords = [
         ...extractKeywords(rulesText ?? ""),
         ...extractKeywords(effectText ?? ""),
@@ -406,6 +414,12 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
         (normalizedValue as string) || null,
       );
       return c.body(null, 204);
+    }
+
+    // Apply typography fixes to text fields
+    const printingTextFields = new Set(["printedRulesText", "printedEffectText", "flavorText"]);
+    if (printingTextFields.has(field) && typeof normalizedValue === "string") {
+      normalizedValue = fixTypography(normalizedValue);
     }
 
     // Candidate printings store setId as a slug; printings store it as a UUID FK

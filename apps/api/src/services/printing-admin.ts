@@ -8,6 +8,7 @@ import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
+import { fixTypography } from "./fix-typography.js";
 import { deleteRehostFiles } from "./image-rehost.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
@@ -234,9 +235,9 @@ export async function acceptPrinting(
       finish: (printingFields.finish ?? "normal") as Finish,
       artist: printingFields.artist,
       publicCode: printingFields.publicCode,
-      printedRulesText: printingFields.printedRulesText ?? null,
-      printedEffectText: printingFields.printedEffectText ?? null,
-      flavorText: printingFields.flavorText ?? null,
+      printedRulesText: fixTypography(printingFields.printedRulesText ?? null),
+      printedEffectText: fixTypography(printingFields.printedEffectText ?? null),
+      flavorText: fixTypography(printingFields.flavorText ?? null),
     });
 
     if (printingFields.imageUrl) {
