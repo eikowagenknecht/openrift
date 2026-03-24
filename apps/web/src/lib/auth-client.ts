@@ -4,13 +4,13 @@ import { createAuthClient } from "better-auth/react";
 
 import { fetchSession } from "./server-fns";
 
-function createAppAuthClient(baseURL: string) {
-  return createAuthClient({ baseURL, plugins: [emailOTPClient()] });
-}
-
-// Client-side auth client. Used for auth actions (signIn, signUp, signOut)
-// which only run in the browser. Session reads go through the server function.
-export const authClient = createAppAuthClient(globalThis.location?.origin ?? "/");
+// Client-side auth client. Used for auth actions (signIn, signUp, signOut,
+// email verification, password reset, etc.) which run exclusively in the
+// browser. Session reads go through the fetchSession server function instead.
+export const authClient = createAuthClient({
+  baseURL: globalThis.document === undefined ? "http://unused" : globalThis.location.origin,
+  plugins: [emailOTPClient()],
+});
 
 export const { signIn, signUp, signOut } = authClient;
 
