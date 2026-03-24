@@ -17,7 +17,7 @@ function ResetPasswordPage() {
   const { email: initialEmail } = Route.useSearch();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<"email" | "code">(initialEmail ? "email" : "email");
+  const [step, setStep] = useState<"email" | "code">(initialEmail ? "code" : "email");
   const [email, setEmail] = useState(initialEmail);
   const [emailError, setEmailError] = useState("");
 
