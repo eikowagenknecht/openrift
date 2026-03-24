@@ -130,7 +130,7 @@ function PrivacyPolicyPage() {
         CA 94110, USA) to display user profile images. When you register, a SHA-256 hash of your
         e-mail address is sent to Gravatar to check whether a profile image is stored there. The
         Gravatar privacy policy is available at:{" "}
-        <a href="https://automattic.com/privacy/" target="_blank" rel="noopener noreferrer">
+        <a href="https://automattic.com/privacy/" target="_blank" rel="noreferrer">
           https://automattic.com/privacy/
         </a>
       </p>
@@ -181,7 +181,7 @@ function PrivacyPolicyPage() {
         <br />
         Germany
         <br />
-        <a href="https://www.lfd.niedersachsen.de" target="_blank" rel="noopener noreferrer">
+        <a href="https://www.lfd.niedersachsen.de" target="_blank" rel="noreferrer">
           www.lfd.niedersachsen.de
         </a>
       </p>

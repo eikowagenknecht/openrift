@@ -554,7 +554,7 @@ export function CandidateSpreadsheet({
                       <HoverCardTrigger
                         href={activeValue}
                         target="_blank"
-                        rel="noopener noreferrer"
+                        rel="noreferrer"
                         className="block truncate text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                         title={activeValue}
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
@@ -656,7 +656,7 @@ export function CandidateSpreadsheet({
                           <HoverCardTrigger
                             href={candidateValue}
                             target="_blank"
-                            rel="noopener noreferrer"
+                            rel="noreferrer"
                             className="block truncate text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                             title={candidateValue}
                             onClick={(e: React.MouseEvent) => e.stopPropagation()}

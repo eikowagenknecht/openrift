@@ -23,7 +23,7 @@ export function ProductLink({
     <a
       href={config.productUrl(externalId)}
       target="_blank"
-      rel="noopener noreferrer"
+      rel="noreferrer"
       className="underline decoration-muted-foreground/50 underline-offset-2 hover:decoration-foreground"
       onClick={(e) => e.stopPropagation()}
     >
