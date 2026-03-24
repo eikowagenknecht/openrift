@@ -18,6 +18,10 @@ const createPromoTypeSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+const reorderPromoTypesSchema = z.object({
+  ids: z.array(z.uuid()).min(1),
+});
+
 const updatePromoTypeSchema = z.object({
   slug: z
     .string()
@@ -49,6 +53,36 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
         }),
       ),
     });
+  })
+
+  // ── PUT /admin/promo-types/reorder ─────────────────────────────────────
+
+  .put("/promo-types/reorder", zValidator("json", reorderPromoTypesSchema), async (c) => {
+    const { promoTypes: repo } = c.get("repos");
+    const { ids } = c.req.valid("json");
+
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size !== ids.length) {
+      throw new AppError(400, "BAD_REQUEST", "Duplicate promo type IDs in reorder list.");
+    }
+
+    const allTypes = await repo.listAll();
+    if (ids.length !== allTypes.length) {
+      throw new AppError(
+        400,
+        "BAD_REQUEST",
+        `Expected ${allTypes.length} promo type IDs, got ${ids.length}.`,
+      );
+    }
+
+    const knownIds = new Set(allTypes.map((t) => t.id));
+    const unknown = ids.filter((id) => !knownIds.has(id));
+    if (unknown.length > 0) {
+      throw new AppError(400, "BAD_REQUEST", `Unknown promo type IDs: ${unknown.join(", ")}`);
+    }
+
+    await repo.reorder(ids);
+    return c.body(null, 204);
   })
 
   // ── POST /admin/promo-types ─────────────────────────────────────────────

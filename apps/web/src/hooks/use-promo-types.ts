@@ -34,6 +34,14 @@ export function useUpdatePromoType() {
   });
 }
 
+export function useReorderPromoTypes() {
+  return useMutationWithInvalidation({
+    mutationFn: (ids: string[]) =>
+      rpc(client.api.v1.admin["promo-types"].reorder.$put({ json: { ids } })),
+    invalidates: [queryKeys.admin.promoTypes],
+  });
+}
+
 export function useDeletePromoType() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) =>
