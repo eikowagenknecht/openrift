@@ -36,10 +36,11 @@ COPY --from=build /app/apps/api ./apps/api
 EXPOSE 3000
 CMD ["bun", "run", "apps/api/src/index.ts"]
 
-# ─── Stage 3: Web (nginx serves the SPA + proxies /api to the api container) ─
-FROM nginx:alpine AS web
+# ─── Stage 3: Web (Nitro SSR server) ─────────────────────────────────────────
+FROM oven/bun:1-alpine AS web
 
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx/web.conf /etc/nginx/conf.d/web.conf
-COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+WORKDIR /app
+COPY --from=build /app/apps/web/.output .output
 EXPOSE 8080
+ENV PORT=8080
+CMD ["bun", "run", ".output/server/index.mjs"]

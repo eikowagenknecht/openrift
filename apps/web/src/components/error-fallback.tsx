@@ -1,7 +1,6 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
-import { createPortal } from "react-dom";
 
 import { buttonVariants } from "@/components/ui/button";
 import { DEV } from "@/lib/env";
@@ -57,13 +56,9 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Router-level error component — uses a portal to break out of the layout and
-// render a full-page takeover.
+// Router-level error component — renders a full-page takeover via fixed positioning.
 export function RouterErrorFallback({ error }: ErrorComponentProps) {
-  return createPortal(
-    <ErrorFallback error={error instanceof Error ? error : new Error(String(error))} />,
-    document.body,
-  );
+  return <ErrorFallback error={error instanceof Error ? error : new Error(String(error))} />;
 }
 
 // Top-level React error boundary — catches anything that escapes the router.
@@ -89,9 +84,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 }
 
-// Router-level not-found component — uses a portal to break out of the layout.
+// Router-level not-found component — renders a full-page takeover via fixed positioning.
 export function RouterNotFoundFallback() {
-  return createPortal(<NotFoundFallback />, document.body);
+  return <NotFoundFallback />;
 }
 
 function NotFoundFallback() {

@@ -10,11 +10,24 @@ import { ApiError } from "./api-client";
  * dev proxy / Cloudflare Worker forwards /api/* to the backend.
  * @returns A typed Hono RPC client instance.
  */
-function createRpcClient(baseUrl: string) {
-  return hc<AppType>(baseUrl, { init: { credentials: "include" } });
+function createRpcClient(baseUrl: string, extraHeaders?: Record<string, string>) {
+  return hc<AppType>(baseUrl, {
+    init: { credentials: "include" },
+    headers: extraHeaders ? () => extraHeaders : undefined,
+  });
 }
 
-export const client = createRpcClient("/");
+const baseUrl =
+  globalThis.window === undefined ? (process.env.API_URL ?? "http://localhost:3000") : "/";
+export const client = createRpcClient(baseUrl);
+
+// Create an RPC client that forwards the given cookie header.
+// Used by server functions during SSR to make authenticated API calls.
+export function createAuthenticatedRpcClient(cookieHeader: string) {
+  return createRpcClient(process.env.API_URL ?? "http://localhost:3000", {
+    cookie: cookieHeader,
+  });
+}
 
 /** Extract the data type from a Hono ClientResponse (distributes over status code unions). */
 type ExtractData<T> = T extends ClientResponse<infer D, number, string> ? D : never;

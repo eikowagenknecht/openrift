@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-ssr/
 out/
+.output/
 .wrangler/
 
 # Turbo
@@ -45,6 +46,5 @@ routeTree.gen.ts
 docker-compose.override.yml
 deploy.sh
 
-# Claude Code file locks (multi-agent coordination)
-.claude-locks/
+# Claude Code worktrees (auto-managed)
 .claude/worktrees/

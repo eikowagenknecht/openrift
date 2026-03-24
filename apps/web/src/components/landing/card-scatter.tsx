@@ -73,6 +73,7 @@ function useIsMobile() {
       return () => mobileQuery?.removeEventListener("change", subscribe);
     },
     () => mobileQuery?.matches ?? false,
+    () => false,
   );
 }
 

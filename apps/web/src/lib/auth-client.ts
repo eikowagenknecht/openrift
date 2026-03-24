@@ -12,11 +12,16 @@ function createAppAuthClient(baseURL: string) {
 }
 
 export const authClient = createAppAuthClient(
-  globalThis.window === undefined ? "" : globalThis.location.origin,
+  globalThis.window === undefined
+    ? (process.env.API_URL ?? "http://localhost:3000")
+    : globalThis.location.origin,
 );
 
 export const { useSession, signIn, signUp, signOut } = authClient;
 
+// Query options for fetching the session on the CLIENT only.
+// Route loaders should use fetchSession() from server-fns.ts instead,
+// which properly forwards cookies during SSR.
 export const sessionQueryOptions = () =>
   queryOptions({
     queryKey: ["session"],

@@ -5,15 +5,14 @@ import { createReadStream, existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Vite config runs in Node.js
 import path from "node:path";
 
-import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import { tanstackRouter } from "@tanstack/router-plugin/vite";
-import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import react from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
-const proxy = { "/api": "http://localhost:3000" };
 const cardImagesDir = path.resolve(__dirname, "../../card-images");
 
 export default defineConfig({
@@ -22,7 +21,7 @@ export default defineConfig({
     __COMMIT_HASH__: JSON.stringify(commitHash),
   },
   plugins: [
-    // Serve /card-images/ from repo root in dev (in prod, nginx bind mount handles this)
+    // Serve /card-images/ from repo root in dev (in prod, volume mount handles this)
     {
       name: "serve-card-images",
       configureServer(server) {
@@ -43,14 +42,27 @@ export default defineConfig({
         });
       },
     },
-    tanstackRouter(),
+    tanstackStart(),
     tailwindcss(),
     react(),
-    babel({
-      presets: [reactCompilerPreset()],
-      exclude: /node_modules|packages\//,
+    nitro({
+      preset: process.env.NITRO_PRESET ?? "bun",
+      scanDirs: ["server"],
+      routeRules: {
+        "/api/**": {
+          proxy: `${process.env.API_URL ?? "http://localhost:3000"}/**`,
+        },
+        "/card-images/**": {
+          headers: { "cache-control": "public, max-age=31536000, immutable" },
+        },
+        "/assets/**": {
+          headers: { "cache-control": "public, max-age=31536000, immutable" },
+        },
+        "/sw.js": { headers: { "cache-control": "no-cache" } },
+      },
     }),
     VitePWA({
+      outDir: ".output/public",
       registerType: "autoUpdate",
       includeAssets: [
         "logo.webp",
@@ -163,8 +175,7 @@ export default defineConfig({
       },
     },
   },
-  server: { proxy, forwardConsole: true },
-  preview: { proxy },
+  server: { forwardConsole: true },
   resolve: {
     tsconfigPaths: true,
   },
