@@ -13,8 +13,11 @@ interface UseCardDataParams {
   ownedCountByPrinting: Record<string, number> | undefined;
 }
 
-// In "cards" mode, deduplicate by cardId — keep the canonical printing per comparePrintings order
-// (earliest set by display order, then normal finish before foil, non-promo before promo, etc.).
+/**
+ * In "cards" mode, deduplicate by cardId — keep the canonical printing per comparePrintings order
+ * (earliest set by display order, then normal finish before foil, non-promo before promo, etc.).
+ * @returns Deduplicated printings, one per card.
+ */
 function deduplicateByCard(
   filteredCards: Printing[],
   setOrderMap: Map<string, number>,
@@ -45,7 +48,10 @@ function deduplicateByCard(
   return [...seen.values()];
 }
 
-// Group all printings by cardId and sort each group by canonical printing order.
+/**
+ * Group all printings by cardId and sort each group by canonical printing order.
+ * @returns A map from cardId to sorted printings.
+ */
 function groupPrintingsByCardId(
   allCards: Printing[],
   setOrderMap: Map<string, number>,
@@ -70,7 +76,10 @@ function groupPrintingsByCardId(
   return map;
 }
 
-// Compute min/max market price per cardId from grouped printings.
+/**
+ * Compute min/max market price per cardId from grouped printings.
+ * @returns A map from cardId to price range.
+ */
 function computePriceRanges(
   printingsByCardId: Map<string, Printing[]>,
 ): Map<string, { min: number; max: number }> {
@@ -92,7 +101,10 @@ function computePriceRanges(
   return map;
 }
 
-// Build owned-count map keyed by printing ID. In "cards" view, the representative gets the sum.
+/**
+ * Build owned-count map keyed by printing ID. In "cards" view, the representative gets the sum.
+ * @returns A map from printing ID to owned count.
+ */
 function buildOwnedCounts(
   allCards: Printing[],
   displayCards: Printing[],

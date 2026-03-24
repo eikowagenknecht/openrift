@@ -1,5 +1,4 @@
-// Shared error class for API responses — used by the RPC client.
-
+/** Shared error class for API responses — used by the RPC client. */
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;

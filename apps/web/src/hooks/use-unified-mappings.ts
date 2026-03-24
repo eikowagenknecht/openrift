@@ -22,7 +22,10 @@ export function useUnifiedMappings(showAll = false) {
   return useSuspenseQuery(unifiedMappingsQueryOptions(showAll));
 }
 
-// Mutations invalidate both the unified query and the per-marketplace queries.
+/**
+ * Mutations invalidate both the unified query and the per-marketplace queries.
+ * @returns A mutation hook that invalidates relevant queries on success.
+ */
 function useUnifiedMutation<TInput, TResult>(
   marketplace: "tcgplayer" | "cardmarket" | "cardtrader",
   mutationFn: (input: TInput) => Promise<TResult>,

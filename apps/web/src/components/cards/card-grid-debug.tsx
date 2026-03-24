@@ -33,12 +33,13 @@ interface CardGridDebugProps {
 }
 
 // ── Tree types & rendering ──────────────────────────────────────────
-//
-// Every node shows:  label  exp → meas  ✓/✗
-// Composite nodes show their formula so you can see which children sum
-// to the parent.  Mismatches at any level propagate visually — nothing
-// is hidden behind tolerances.
 
+/**
+ * Every node shows:  label  exp -> meas  check/cross.
+ * Composite nodes show their formula so you can see which children sum
+ * to the parent.  Mismatches at any level propagate visually -- nothing
+ * is hidden behind tolerances.
+ */
 interface Node {
   label: string;
   /** Expected value (from constants / formula). */
