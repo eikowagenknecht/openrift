@@ -1425,6 +1425,73 @@ function NewPrintingGroupCard({
   );
 }
 
+// ── Shared image preview + provider sort helpers ─────────────────────────────
+
+function sortByProviderOrder(providerSettings: ProviderSettingResponse[]) {
+  const settingsMap = new Map(providerSettings.map((s) => [s.provider, s]));
+  return (aLabel: string, bLabel: string) => {
+    const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;
+    const bOrder = settingsMap.get(bLabel)?.sortOrder ?? 0;
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+    return aLabel.localeCompare(bLabel);
+  };
+}
+
+function ImagePreview({
+  url,
+  alt,
+  resolution,
+  setResolution,
+  imgError,
+  setImgError,
+}: {
+  url: string | null;
+  alt: string;
+  resolution: string | null;
+  setResolution: (v: string | null) => void;
+  imgError: boolean;
+  setImgError: (v: boolean) => void;
+}) {
+  return (
+    <div className="relative">
+      {url && !imgError ? (
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <img
+            src={url}
+            alt={alt}
+            className="w-full rounded border object-contain"
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              setResolution(`${img.naturalWidth}×${img.naturalHeight}`);
+            }}
+            onError={() => setImgError(true)}
+          />
+        </a>
+      ) : url && imgError ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex aspect-[5/7] w-full items-center justify-center rounded border bg-muted/30 text-xs text-muted-foreground hover:bg-muted/50"
+        >
+          Failed to load — click to open
+        </a>
+      ) : (
+        <div className="flex aspect-[5/7] w-full items-center justify-center rounded border text-xs text-muted-foreground">
+          No image
+        </div>
+      )}
+      {resolution && url && !imgError && (
+        <span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+          {resolution}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── Read-only image preview for new/ambiguous groups ─────────────────────────
 
 function GroupImagePreview({
@@ -1456,16 +1523,7 @@ function GroupImagePreview({
       .values(),
   ];
 
-  // Sort by sort_order, then alphabetical
-  const settingsMap = new Map(providerSettings.map((s) => [s.provider, s]));
-  sourceImages.sort((a, b) => {
-    const aOrder = settingsMap.get(a.source)?.sortOrder ?? 0;
-    const bOrder = settingsMap.get(b.source)?.sortOrder ?? 0;
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-    return a.source.localeCompare(b.source);
-  });
+  sourceImages.sort((a, b) => sortByProviderOrder(providerSettings)(a.source, b.source));
 
   const [selectedId, setSelectedId] = useState<string | null>(() => sourceImages[0]?.id ?? null);
   const [resolution, setResolution] = useState<string | null>(null);
@@ -1499,37 +1557,14 @@ function GroupImagePreview({
         ))}
       </div>
 
-      {/* Preview */}
-      <div className="relative">
-        {imgError ? (
-          <a
-            href={selected.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex aspect-[5/7] w-full items-center justify-center rounded border bg-muted/30 text-xs text-muted-foreground hover:bg-muted/50"
-          >
-            Failed to load — click to open
-          </a>
-        ) : (
-          <a href={selected.url} target="_blank" rel="noopener noreferrer">
-            <img
-              src={selected.url}
-              alt="source"
-              className="w-full rounded border object-contain"
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                setResolution(`${img.naturalWidth}×${img.naturalHeight}`);
-              }}
-              onError={() => setImgError(true)}
-            />
-          </a>
-        )}
-        {resolution && !imgError && (
-          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-            {resolution}
-          </span>
-        )}
-      </div>
+      <ImagePreview
+        url={selected.url}
+        alt="source"
+        resolution={resolution}
+        setResolution={setResolution}
+        imgError={imgError}
+        setImgError={setImgError}
+      />
       <a
         href={selected.url}
         target="_blank"
@@ -1579,15 +1614,7 @@ function PrintingImageSwitcher({
   const setPrintingSourceImage = useSetCandidatePrintingImage();
 
   // Sort images + source images by sort_order, then alphabetical by source name
-  const settingsMap = new Map(providerSettings.map((s) => [s.provider, s]));
-  const orderSort = (aLabel: string, bLabel: string) => {
-    const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;
-    const bOrder = settingsMap.get(bLabel)?.sortOrder ?? 0;
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-    return aLabel.localeCompare(bLabel);
-  };
+  const orderSort = sortByProviderOrder(providerSettings);
   const sortedImages = [...images].sort((a, b) => orderSort(a.provider, b.provider));
   const sortedSourceImages = [...sourceImages].sort((a, b) => orderSort(a.source, b.source));
 
@@ -1685,40 +1712,14 @@ function PrintingImageSwitcher({
       </div>
 
       {/* Preview */}
-      <div className="relative">
-        {effectiveUrl && !imgError ? (
-          <a href={effectiveUrl} target="_blank" rel="noopener noreferrer">
-            <img
-              src={effectiveUrl}
-              alt={printingSlug}
-              className="w-full rounded border object-contain"
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                setResolution(`${img.naturalWidth}×${img.naturalHeight}`);
-              }}
-              onError={() => setImgError(true)}
-            />
-          </a>
-        ) : effectiveUrl && imgError ? (
-          <a
-            href={effectiveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex aspect-[5/7] w-full items-center justify-center rounded border bg-muted/30 text-xs text-muted-foreground hover:bg-muted/50"
-          >
-            Failed to load — click to open
-          </a>
-        ) : (
-          <div className="flex aspect-[5/7] w-full items-center justify-center rounded border text-xs text-muted-foreground">
-            No image
-          </div>
-        )}
-        {resolution && effectiveUrl && !imgError && (
-          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-            {resolution}
-          </span>
-        )}
-      </div>
+      <ImagePreview
+        url={effectiveUrl}
+        alt={printingSlug}
+        resolution={resolution}
+        setResolution={setResolution}
+        imgError={imgError}
+        setImgError={setImgError}
+      />
       {(effectiveImage || effectiveSource) && (
         <div className="space-y-0.5">
           {effectiveImage?.originalUrl && (
