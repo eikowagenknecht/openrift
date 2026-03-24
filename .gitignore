@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-ssr/
 out/
+.output/
 .wrangler/
 
 # Turbo
@@ -45,6 +46,5 @@ routeTree.gen.ts
 docker-compose.override.yml
 deploy.sh
 
-# Tooling file locks
-.locks/
+# Tooling worktrees (auto-managed)
 .worktrees/
