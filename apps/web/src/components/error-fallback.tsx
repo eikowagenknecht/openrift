@@ -100,16 +100,23 @@ export function RouterNotFoundFallback() {
   return createPortal(<NotFoundFallback />, document.body);
 }
 
-function NotFoundFallback() {
-  const heading = pick(NOT_FOUND_HEADINGS);
-  const subtext = pick(NOT_FOUND_SUBTEXTS);
-  const emoji = pick(NOT_FOUND_EMOJIS);
-
+function FullPageMessage({
+  emoji,
+  heading,
+  subtext,
+  children,
+}: {
+  emoji: string;
+  heading: string;
+  subtext: string;
+  children?: ReactNode;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
       <div className="text-muted-foreground select-none text-4xl font-medium">{emoji}</div>
       <h1 className="text-xl font-semibold">{heading}</h1>
       <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>
+      {children}
       <div className="mt-2 flex gap-3">
         <a href="/" className={buttonVariants()}>
           Go home
@@ -119,33 +126,31 @@ function NotFoundFallback() {
   );
 }
 
-function ErrorFallback({ error }: { error: Error }) {
-  const heading = pick(HEADINGS);
-  const subtext = pick(SUBTEXTS);
-  const emoji = pick(EMOJIS);
-
+function NotFoundFallback() {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
-      <div className="text-muted-foreground select-none text-4xl font-medium">{emoji}</div>
-      <h1 className="text-xl font-semibold">{heading}</h1>
-      <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>
+    <FullPageMessage
+      emoji={pick(NOT_FOUND_EMOJIS)}
+      heading={pick(NOT_FOUND_HEADINGS)}
+      subtext={pick(NOT_FOUND_SUBTEXTS)}
+    />
+  );
+}
+
+function ErrorFallback({ error }: { error: Error }) {
+  return (
+    <FullPageMessage emoji={pick(EMOJIS)} heading={pick(HEADINGS)} subtext={pick(SUBTEXTS)}>
       {DEV && (
         <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
           {error.message}
         </pre>
       )}
-      <div className="mt-2 flex gap-3">
-        <button
-          type="button"
-          className={buttonVariants({ variant: "outline" })}
-          onClick={() => globalThis.location.reload()}
-        >
-          Reshuffle
-        </button>
-        <a href="/" className={buttonVariants()}>
-          Go home
-        </a>
-      </div>
-    </div>
+      <button
+        type="button"
+        className={buttonVariants({ variant: "outline" })}
+        onClick={() => globalThis.location.reload()}
+      >
+        Reshuffle
+      </button>
+    </FullPageMessage>
   );
 }
