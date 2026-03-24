@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
+import { getCookies, getRequestHeaders } from "@tanstack/react-start/server";
 
 const API_URL = process.env.API_URL ?? "http://localhost:3000";
 
@@ -18,6 +18,26 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(async () =
   }
 
   return (await res.json()) as { session: unknown; user: unknown } | null;
+});
+
+// Read the theme from the cookie during SSR to prevent FOUC.
+// Returns "dark" | "light" | null (null = no cookie, use system default).
+export const getThemeFromCookie = createServerFn({ method: "GET" }).handler(() => {
+  const cookies = getCookies();
+  const raw = cookies.theme;
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw)) as { state?: { theme?: string } };
+    const theme = parsed.state?.theme;
+    if (theme === "dark" || theme === "light") {
+      return theme;
+    }
+  } catch {
+    // Malformed cookie
+  }
+  return null;
 });
 
 // Generic authenticated API fetch. Forwards the request's cookies to the API.

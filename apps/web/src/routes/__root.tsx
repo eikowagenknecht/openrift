@@ -11,7 +11,7 @@ import { SWUpdateProvider } from "@/hooks/use-sw-update";
 import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { preventIOSOverscroll } from "@/lib/ios-overscroll-prevention";
-import { fetchSession } from "@/lib/server-fns";
+import { fetchSession, getThemeFromCookie } from "@/lib/server-fns";
 
 const TanStackRouterDevtools = PROD
   ? () => null
@@ -26,16 +26,15 @@ interface RootContext {
 
 export const Route = createRootRouteWithContext<RootContext>()({
   beforeLoad: async ({ context }) => {
-    const [, session] = await Promise.all([
+    const [, session, theme] = await Promise.all([
       context.queryClient.ensureQueryData(featureFlagsQueryOptions),
       fetchSession(),
+      getThemeFromCookie(),
     ]);
 
-    // Pre-populate the session query cache so child routes can read it
-    // without making another API call.
     context.queryClient.setQueryData(["session"], session);
 
-    return { session };
+    return { session, theme };
   },
   head: () => ({
     meta: [
@@ -57,12 +56,14 @@ export const Route = createRootRouteWithContext<RootContext>()({
 });
 
 function RootComponent() {
+  const { theme } = Route.useRouteContext();
+
   useEffect(() => {
     preventIOSOverscroll();
   }, []);
 
   return (
-    <html lang="en">
+    <html lang="en" className={theme === "dark" ? "dark" : undefined}>
       <head>
         <HeadContent />
       </head>
