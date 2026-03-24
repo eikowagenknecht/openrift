@@ -73,14 +73,14 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
       const res = await app.fetch(req("GET", "/acquisition-sources"));
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json).toEqual([]);
+      expect(json).toEqual({ items: [] });
     });
 
     it("GET /decks returns empty array (user has no decks)", async () => {
       const res = await app.fetch(req("GET", "/decks"));
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json).toEqual([]);
+      expect(json).toEqual({ items: [] });
     });
   });
 
@@ -97,7 +97,7 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
       const res = await app.fetch(req("GET", "/wish-lists"));
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json).toEqual([]);
+      expect(json).toEqual({ items: [] });
     });
   });
 
@@ -114,7 +114,7 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
       const res = await app.fetch(req("GET", "/trade-lists"));
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json).toEqual([]);
+      expect(json).toEqual({ items: [] });
     });
   });
 });
