@@ -2,7 +2,7 @@ Squash-merge worktree branches into main.
 
 ## Prerequisites
 
-Must be on the `main` branch. If on a worktree branch, abort and tell the user to use `/done` first, then run `/merge` from main.
+Must be on the `main` branch. If on a worktree branch, abort and tell the user to use `/done` instead (which includes the merge step).
 
 ## Steps
 

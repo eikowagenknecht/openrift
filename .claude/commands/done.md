@@ -12,14 +12,6 @@ Must be on a worktree branch, not main. If on main, abort and tell the user to u
 
 3. **Run `bun run check`** (build, lint, test, integration test). If it fails, fix the issues, commit the fixes, and re-run until it passes. Do not skip this step.
 
-4. **Report the result:**
+4. **Exit the worktree.** Use `ExitWorktree` with `action: "keep"` to return to main. Remember the branch name from step 1 — you'll need it for the merge.
 
-   ```
-   ✓ All checks passed. Ready to merge.
-
-   Branch: <branch name>
-   Commits: <N>
-   Summary: <one-line description of the work>
-
-   Run `/merge` from main to squash-merge this branch.
-   ```
+5. **Squash-merge into main.** Run the full `/merge` flow from here (gather context, draft message, present plan, wait for confirmation, execute merge, clean up). Do NOT invoke `/merge` as a separate skill — execute its steps inline.
