@@ -9,9 +9,14 @@ export function copiesQueryOptions(collectionId?: string) {
     queryKey: collectionId ? queryKeys.copies.byCollection(collectionId) : queryKeys.copies.all,
     queryFn: () =>
       collectionId
-        ? rpc(client.api.collections[":id"].copies.$get({ param: { id: collectionId }, query: {} }))
-        : rpc(client.api.copies.$get({ query: {} })),
-    select: (data) => data.copies,
+        ? rpc(
+            client.api.v1.collections[":id"].copies.$get({
+              param: { id: collectionId },
+              query: {},
+            }),
+          )
+        : rpc(client.api.v1.copies.$get({ query: {} })),
+    select: (data) => data.items,
   });
 }
 
@@ -23,7 +28,7 @@ export function useAddCopies() {
   return useMutationWithInvalidation({
     mutationFn: (body: {
       copies: { printingId: string; collectionId?: string; acquisitionSourceId?: string }[];
-    }) => rpc(client.api.copies.$post({ json: body })),
+    }) => rpc(client.api.v1.copies.$post({ json: body })),
     invalidates: [queryKeys.copies.all, queryKeys.ownedCount.all, queryKeys.collections.all],
   });
 }
@@ -31,7 +36,7 @@ export function useAddCopies() {
 export function useMoveCopies() {
   return useMutationWithInvalidation({
     mutationFn: (body: { copyIds: string[]; toCollectionId: string }) =>
-      rpc(client.api.copies.move.$post({ json: body })),
+      rpc(client.api.v1.copies.move.$post({ json: body })),
     invalidates: [queryKeys.copies.all, queryKeys.collections.all],
   });
 }
@@ -39,7 +44,7 @@ export function useMoveCopies() {
 export function useDisposeCopies() {
   return useMutationWithInvalidation({
     mutationFn: (body: { copyIds: string[] }) =>
-      rpc(client.api.copies.dispose.$post({ json: body })),
+      rpc(client.api.v1.copies.dispose.$post({ json: body })),
     invalidates: [queryKeys.copies.all, queryKeys.ownedCount.all, queryKeys.collections.all],
   });
 }

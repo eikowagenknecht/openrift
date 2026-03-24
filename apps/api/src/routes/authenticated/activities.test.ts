@@ -27,7 +27,7 @@ const app = new Hono()
     c.set("repos", { activities: mockRepo } as never);
     await next();
   })
-  .route("/api", activitiesRoute)
+  .route("/api/v1", activitiesRoute)
   .onError((err, c) => {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code }, err.status as 400);
@@ -78,18 +78,18 @@ const dbActivityItem = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/activities", () => {
+describe("GET /api/v1/activities", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
   });
 
   it("returns 200 with paginated activities", async () => {
     mockRepo.listForUser.mockResolvedValue([dbActivity]);
-    const res = await app.request("/api/activities");
+    const res = await app.request("/api/v1/activities");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.activities).toHaveLength(1);
-    expect(json.activities[0].type).toBe("acquisition");
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].type).toBe("acquisition");
     expect(json.nextCursor).toBeNull();
   });
 
@@ -101,14 +101,14 @@ describe("GET /api/activities", () => {
       createdAt: new Date(now.getTime() - i * 60_000),
     }));
     mockRepo.listForUser.mockResolvedValue(items);
-    const res = await app.request("/api/activities");
+    const res = await app.request("/api/v1/activities");
     const json = await res.json();
-    expect(json.activities).toHaveLength(50);
+    expect(json.items).toHaveLength(50);
     expect(json.nextCursor).toBeTruthy();
   });
 });
 
-describe("GET /api/activities/:id", () => {
+describe("GET /api/v1/activities/:id", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
     mockRepo.itemsWithDetails.mockReset();
@@ -117,7 +117,7 @@ describe("GET /api/activities/:id", () => {
   it("returns 200 with activity and items", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbActivity);
     mockRepo.itemsWithDetails.mockResolvedValue([dbActivityItem]);
-    const res = await app.request(`/api/activities/${dbActivity.id}`);
+    const res = await app.request(`/api/v1/activities/${dbActivity.id}`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.activity.id).toBe(dbActivity.id);
@@ -127,7 +127,7 @@ describe("GET /api/activities/:id", () => {
 
   it("returns 404 when activity not found", async () => {
     mockRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(`/api/activities/${dbActivity.id}`);
+    const res = await app.request(`/api/v1/activities/${dbActivity.id}`);
     expect(res.status).toBe(404);
   });
 });

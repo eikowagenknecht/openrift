@@ -9,7 +9,7 @@ export function usePriceHistory(printingId: string | null, range: TimeRange = "3
     queryKey: queryKeys.priceHistory.byPrinting(printingId ?? "", range),
     queryFn: () =>
       rpc(
-        client.api.prices[":printingId"].history.$get({
+        client.api.v1.prices[":printingId"].history.$get({
           // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- guarded by enabled: Boolean(printingId)
           param: { printingId: printingId! },
           query: { range },

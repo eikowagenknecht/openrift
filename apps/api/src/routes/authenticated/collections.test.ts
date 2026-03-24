@@ -47,7 +47,7 @@ const app = new Hono()
     } as never);
     await next();
   })
-  .route("/api", collectionsRoute)
+  .route("/api/v1", collectionsRoute)
   .onError((err, c) => {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code }, err.status as 400);
@@ -104,7 +104,7 @@ const dbCopy = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/collections", () => {
+describe("GET /api/v1/collections", () => {
   beforeEach(() => {
     mockCollectionsRepo.listForUser.mockReset();
     mockEnsureInbox.mockReset();
@@ -113,28 +113,28 @@ describe("GET /api/collections", () => {
 
   it("returns 200 with list of collections", async () => {
     mockCollectionsRepo.listForUser.mockResolvedValue([dbInbox, dbCollection]);
-    const res = await app.request("/api/collections");
+    const res = await app.request("/api/v1/collections");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.collections).toHaveLength(2);
-    expect(json.collections[0].name).toBe("Inbox");
+    expect(json.items).toHaveLength(2);
+    expect(json.items[0].name).toBe("Inbox");
   });
 
   it("calls ensureInbox before listing", async () => {
     mockCollectionsRepo.listForUser.mockResolvedValue([]);
-    await app.request("/api/collections");
+    await app.request("/api/v1/collections");
     expect(mockEnsureInbox).toHaveBeenCalled();
   });
 });
 
-describe("POST /api/collections", () => {
+describe("POST /api/v1/collections", () => {
   beforeEach(() => {
     mockCollectionsRepo.create.mockReset();
   });
 
   it("returns 201 with created collection", async () => {
     mockCollectionsRepo.create.mockResolvedValue(dbCollection);
-    const res = await app.request("/api/collections", {
+    const res = await app.request("/api/v1/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Main Binder" }),
@@ -146,7 +146,7 @@ describe("POST /api/collections", () => {
 
   it("creates with description and availableForDeckbuilding", async () => {
     mockCollectionsRepo.create.mockResolvedValue(dbCollection);
-    const res = await app.request("/api/collections", {
+    const res = await app.request("/api/v1/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -159,14 +159,14 @@ describe("POST /api/collections", () => {
   });
 });
 
-describe("GET /api/collections/:id", () => {
+describe("GET /api/v1/collections/:id", () => {
   beforeEach(() => {
     mockCollectionsRepo.getByIdForUser.mockReset();
   });
 
   it("returns 200 with collection when found", async () => {
     mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
-    const res = await app.request(`/api/collections/${dbCollection.id}`);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.id).toBe(dbCollection.id);
@@ -174,12 +174,12 @@ describe("GET /api/collections/:id", () => {
 
   it("returns 404 when not found", async () => {
     mockCollectionsRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(`/api/collections/${dbCollection.id}`);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`);
     expect(res.status).toBe(404);
   });
 });
 
-describe("PATCH /api/collections/:id", () => {
+describe("PATCH /api/v1/collections/:id", () => {
   beforeEach(() => {
     mockCollectionsRepo.update.mockReset();
   });
@@ -187,7 +187,7 @@ describe("PATCH /api/collections/:id", () => {
   it("returns 200 with updated collection", async () => {
     const updated = { ...dbCollection, name: "Renamed" };
     mockCollectionsRepo.update.mockResolvedValue(updated);
-    const res = await app.request(`/api/collections/${dbCollection.id}`, {
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Renamed" }),
@@ -199,7 +199,7 @@ describe("PATCH /api/collections/:id", () => {
 
   it("returns 404 when not found", async () => {
     mockCollectionsRepo.update.mockResolvedValue();
-    const res = await app.request(`/api/collections/${dbCollection.id}`, {
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "X" }),
@@ -208,29 +208,28 @@ describe("PATCH /api/collections/:id", () => {
   });
 });
 
-describe("DELETE /api/collections/:id", () => {
+describe("DELETE /api/v1/collections/:id", () => {
   beforeEach(() => {
     mockCollectionsRepo.getByIdForUser.mockReset();
-    mockCollectionsRepo.getIdAndName.mockReset();
     mockDeleteCollection.mockReset();
+    mockEnsureInbox.mockReset();
+    mockEnsureInbox.mockResolvedValue("inbox-id");
   });
 
-  const targetId = "a0000000-0001-4000-a000-000000000012";
-
-  it("returns 204 when deleted", async () => {
+  it("returns 204 and auto-moves copies to inbox", async () => {
     mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
-    mockCollectionsRepo.getIdAndName.mockResolvedValue({ id: targetId, name: "Target" });
-    const res = await app.request(
-      `/api/collections/${dbCollection.id}?move_copies_to=${targetId}`,
-      { method: "DELETE" },
-    );
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
+      method: "DELETE",
+    });
     expect(res.status).toBe(204);
+    expect(mockEnsureInbox).toHaveBeenCalled();
     expect(mockDeleteCollection).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       expect.objectContaining({
         collectionId: dbCollection.id,
-        moveCopiesTo: targetId,
+        moveCopiesTo: "inbox-id",
+        targetName: "Inbox",
         userId: USER_ID,
       }),
     );
@@ -238,50 +237,22 @@ describe("DELETE /api/collections/:id", () => {
 
   it("returns 404 when collection not found", async () => {
     mockCollectionsRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(
-      `/api/collections/${dbCollection.id}?move_copies_to=${targetId}`,
-      { method: "DELETE" },
-    );
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
+      method: "DELETE",
+    });
     expect(res.status).toBe(404);
   });
 
   it("returns 400 when trying to delete inbox", async () => {
     mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbInbox);
-    const res = await app.request(`/api/collections/${dbInbox.id}?move_copies_to=${targetId}`, {
+    const res = await app.request(`/api/v1/collections/${dbInbox.id}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(400);
-  });
-
-  it("returns 400 when move_copies_to is missing", async () => {
-    mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
-    const res = await app.request(`/api/collections/${dbCollection.id}`, {
-      method: "DELETE",
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 400 when move_copies_to equals collection id", async () => {
-    mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
-    const res = await app.request(
-      `/api/collections/${dbCollection.id}?move_copies_to=${dbCollection.id}`,
-      { method: "DELETE" },
-    );
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 404 when target collection not found", async () => {
-    mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
-    mockCollectionsRepo.getIdAndName.mockResolvedValue();
-    const res = await app.request(
-      `/api/collections/${dbCollection.id}?move_copies_to=${targetId}`,
-      { method: "DELETE" },
-    );
-    expect(res.status).toBe(404);
   });
 });
 
-describe("GET /api/collections/:id/copies", () => {
+describe("GET /api/v1/collections/:id/copies", () => {
   beforeEach(() => {
     mockCollectionsRepo.exists.mockReset();
     mockCopiesRepo.listForCollection.mockReset();
@@ -290,17 +261,17 @@ describe("GET /api/collections/:id/copies", () => {
   it("returns 200 with copies", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
     mockCopiesRepo.listForCollection.mockResolvedValue([dbCopy]);
-    const res = await app.request(`/api/collections/${dbCollection.id}/copies`);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.copies).toHaveLength(1);
-    expect(json.copies[0].id).toBe(dbCopy.id);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].id).toBe(dbCopy.id);
     expect(json.nextCursor).toBeNull();
   });
 
   it("returns 404 when collection not found", async () => {
     mockCollectionsRepo.exists.mockResolvedValue();
-    const res = await app.request(`/api/collections/${dbCollection.id}/copies`);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(404);
   });
 });

@@ -805,7 +805,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("mode", "main");
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/${printingId}/upload-image`,
+        `http://localhost/api/v1/admin/candidates/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -834,7 +834,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("mode", "additional");
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/${printingId}/upload-image`,
+        `http://localhost/api/v1/admin/candidates/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -862,7 +862,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("file", new File([FAKE_BUFFER], "default.png", { type: "image/png" }));
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/${printingId}/upload-image`,
+        `http://localhost/api/v1/admin/candidates/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -887,7 +887,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("file", new File([FAKE_BUFFER], "nope.png", { type: "image/png" }));
 
       const request = new Request(
-        `http://localhost/api/admin/candidates/printing/00000000-0000-4000-a000-ffffffffffff/upload-image`,
+        `http://localhost/api/v1/admin/candidates/printing/00000000-0000-4000-a000-ffffffffffff/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);

@@ -31,7 +31,7 @@ export const wishListsRoute = new Hono<{ Variables: Variables }>()
   .get("/", async (c) => {
     const { wishLists } = c.get("repos");
     const rows = await wishLists.listForUser(getUserId(c));
-    return c.json({ wishLists: rows.map((row) => toWishList(row)) } satisfies WishListListResponse);
+    return c.json({ items: rows.map((row) => toWishList(row)) } satisfies WishListListResponse);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────

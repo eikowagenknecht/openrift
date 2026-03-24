@@ -215,8 +215,8 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const res = await app.fetch(req("GET", "/activities"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { activities: { type: string }[] };
-      const types = json.activities.map((a) => a.type);
+      const json = (await res.json()) as { items: { type: string }[] };
+      const types = json.items.map((a) => a.type);
       // Should have: acquisition (x2), reorganization (move), disposal
       expect(types).toContain("acquisition");
       expect(types).toContain("reorganization");

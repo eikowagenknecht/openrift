@@ -31,7 +31,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
     const { tradeLists } = c.get("repos");
     const rows = await tradeLists.listForUser(getUserId(c));
     return c.json({
-      tradeLists: rows.map((row) => toTradeList(row)),
+      items: rows.map((row) => toTradeList(row)),
     } satisfies TradeListListResponse);
   })
 

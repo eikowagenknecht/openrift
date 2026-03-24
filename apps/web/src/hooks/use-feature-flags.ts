@@ -17,7 +17,7 @@ export function useFeatureEnabled(key: string): boolean {
 
 export const adminFeatureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.featureFlags,
-  queryFn: () => rpc(client.api.admin["feature-flags"].$get()),
+  queryFn: () => rpc(client.api.v1.admin["feature-flags"].$get()),
 });
 
 export function useFeatureFlags() {
@@ -28,7 +28,7 @@ export function useToggleFeatureFlag() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { key: string; enabled: boolean }) =>
       rpc(
-        client.api.admin["feature-flags"][":key"].$patch({
+        client.api.v1.admin["feature-flags"][":key"].$patch({
           param: { key: vars.key },
           json: { enabled: vars.enabled },
         }),
@@ -40,7 +40,7 @@ export function useToggleFeatureFlag() {
 export function useCreateFeatureFlag() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { key: string; description?: string | null; enabled?: boolean }) =>
-      rpc(client.api.admin["feature-flags"].$post({ json: vars })),
+      rpc(client.api.v1.admin["feature-flags"].$post({ json: vars })),
     invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
   });
 }
@@ -48,7 +48,7 @@ export function useCreateFeatureFlag() {
 export function useDeleteFeatureFlag() {
   return useMutationWithInvalidation({
     mutationFn: (key: string) =>
-      rpc(client.api.admin["feature-flags"][":key"].$delete({ param: { key } })),
+      rpc(client.api.v1.admin["feature-flags"][":key"].$delete({ param: { key } })),
     invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
   });
 }

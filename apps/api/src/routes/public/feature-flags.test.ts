@@ -21,13 +21,13 @@ const app = new Hono()
     c.set("repos", { featureFlags: mockFeatureFlagsRepo } as never);
     await next();
   })
-  .route("/api", featureFlagsRoute);
+  .route("/api/v1", featureFlagsRoute);
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/feature-flags", () => {
+describe("GET /api/v1/feature-flags", () => {
   beforeEach(() => {
     mockFeatureFlagsRepo.listKeyEnabled.mockReset();
   });
@@ -38,19 +38,19 @@ describe("GET /api/feature-flags", () => {
       { key: "beta-search", enabled: false },
     ]);
 
-    const res = await app.request("/api/feature-flags");
+    const res = await app.request("/api/v1/feature-flags");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ flags: { "dark-mode": true, "beta-search": false } });
+    expect(json).toEqual({ items: { "dark-mode": true, "beta-search": false } });
   });
 
   it("returns empty object when no flags exist", async () => {
     mockFeatureFlagsRepo.listKeyEnabled.mockResolvedValue([]);
 
-    const res = await app.request("/api/feature-flags");
+    const res = await app.request("/api/v1/feature-flags");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ flags: {} });
+    expect(json).toEqual({ items: {} });
   });
 
   it("returns multiple flags correctly", async () => {
@@ -60,10 +60,10 @@ describe("GET /api/feature-flags", () => {
       { key: "c", enabled: false },
     ]);
 
-    const res = await app.request("/api/feature-flags");
+    const res = await app.request("/api/v1/feature-flags");
     const json = await res.json();
-    expect(Object.keys(json.flags)).toHaveLength(3);
-    expect(json.flags.a).toBe(true);
-    expect(json.flags.c).toBe(false);
+    expect(Object.keys(json.items)).toHaveLength(3);
+    expect(json.items.a).toBe(true);
+    expect(json.items.c).toBe(false);
   });
 });

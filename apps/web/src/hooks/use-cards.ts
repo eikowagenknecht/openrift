@@ -40,7 +40,7 @@ async function checkHealth(): Promise<HealthStatus> {
 }
 
 async function fetchCatalog(): Promise<CatalogResponse> {
-  const res = await client.api.catalog.$get();
+  const res = await client.api.v1.catalog.$get();
   if (!res.ok) {
     const healthStatus = await checkHealth();
     throw new ApiError(`Failed to fetch catalog: ${res.status}`, healthStatus);

@@ -46,7 +46,7 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
    */
   .get(
     "/prices/:printingId/history",
-    zValidator("param", z.object({ printingId: z.string().min(1) })),
+    zValidator("param", z.object({ printingId: z.uuid() })),
     zValidator(
       "query",
       z.object({

@@ -32,7 +32,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
     const items = rows.slice(0, limit);
 
     return c.json({
-      copies: items.map((row) => toCopy(row)),
+      items: items.map((row) => toCopy(row)),
       nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
     } satisfies CopyListResponse);
   })
@@ -83,7 +83,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
     const counts: Record<string, number> = Object.fromEntries(
       rows.map((row) => [row.printingId, row.count]),
     );
-    return c.json({ counts } satisfies CopyCountResponse);
+    return c.json({ items: counts } satisfies CopyCountResponse);
   })
 
   // ── GET /copies/:id ─────────────────────────────────────────────────────────

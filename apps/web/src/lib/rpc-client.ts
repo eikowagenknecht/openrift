@@ -24,7 +24,7 @@ type ExtractData<T> = T extends ClientResponse<infer D, number, string> ? D : ne
  * The return type is inferred from the Hono route chain, so callers no longer
  * need to pass an explicit `<T>` type parameter.
  *
- * Usage: `queryFn: () => rpc(client.api.copies.$get())`
+ * Usage: `queryFn: () => rpc(client.api.v1.copies.$get())`
  * @returns The parsed response body, typed via the Hono route chain.
  */
 export async function rpc<R extends ClientResponse<unknown, number, string>>(

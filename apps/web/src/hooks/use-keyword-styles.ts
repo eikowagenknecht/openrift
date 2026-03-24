@@ -6,12 +6,12 @@ import { client, rpc } from "@/lib/rpc-client";
 
 const keywordStylesQueryOptions = queryOptions({
   queryKey: queryKeys.keywordStyles.all,
-  queryFn: () => rpc(client.api["keyword-styles"].$get()),
+  queryFn: () => rpc(client.api.v1["keyword-styles"].$get()),
   staleTime: 30 * 60 * 1000,
   refetchOnWindowFocus: false,
 });
 
-export function useKeywordStyles(): KeywordStylesResponse {
+export function useKeywordStyles(): KeywordStylesResponse["items"] {
   const { data } = useSuspenseQuery(keywordStylesQueryOptions);
-  return data as KeywordStylesResponse;
+  return data.items as KeywordStylesResponse["items"];
 }

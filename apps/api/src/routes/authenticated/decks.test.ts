@@ -34,7 +34,7 @@ const app = new Hono()
     c.set("repos", { decks: mockRepo } as never);
     await next();
   })
-  .route("/api", decksRoute)
+  .route("/api/v1", decksRoute)
   .onError((err, c) => {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code }, err.status as 400);
@@ -80,35 +80,35 @@ const dbDeckCard = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/decks", () => {
+describe("GET /api/v1/decks", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
   });
 
   it("returns 200 with list of decks", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
-    const res = await app.request("/api/decks");
+    const res = await app.request("/api/v1/decks");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.decks).toHaveLength(1);
-    expect(json.decks[0].name).toBe("Fury Aggro");
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].name).toBe("Fury Aggro");
   });
 
   it("passes wanted filter", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
-    await app.request("/api/decks?wanted=true");
+    await app.request("/api/v1/decks?wanted=true");
     expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, true);
   });
 });
 
-describe("POST /api/decks", () => {
+describe("POST /api/v1/decks", () => {
   beforeEach(() => {
     mockRepo.create.mockReset();
   });
 
   it("returns 201 with created deck", async () => {
     mockRepo.create.mockResolvedValue(dbDeck);
-    const res = await app.request("/api/decks", {
+    const res = await app.request("/api/v1/decks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Fury Aggro", format: "standard" }),
@@ -120,7 +120,7 @@ describe("POST /api/decks", () => {
 
   it("creates with all optional fields", async () => {
     mockRepo.create.mockResolvedValue(dbDeck);
-    const res = await app.request("/api/decks", {
+    const res = await app.request("/api/v1/decks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -135,7 +135,7 @@ describe("POST /api/decks", () => {
   });
 });
 
-describe("GET /api/decks/:id", () => {
+describe("GET /api/v1/decks/:id", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
     mockRepo.cardsWithDetails.mockReset();
@@ -144,7 +144,7 @@ describe("GET /api/decks/:id", () => {
   it("returns 200 with deck and cards", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbDeck);
     mockRepo.cardsWithDetails.mockResolvedValue([dbDeckCard]);
-    const res = await app.request(`/api/decks/${DECK_ID}`);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.deck.name).toBe("Fury Aggro");
@@ -156,12 +156,12 @@ describe("GET /api/decks/:id", () => {
 
   it("returns 404 when not found", async () => {
     mockRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(`/api/decks/${DECK_ID}`);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`);
     expect(res.status).toBe(404);
   });
 });
 
-describe("PATCH /api/decks/:id", () => {
+describe("PATCH /api/v1/decks/:id", () => {
   beforeEach(() => {
     mockRepo.update.mockReset();
   });
@@ -169,7 +169,7 @@ describe("PATCH /api/decks/:id", () => {
   it("returns 200 with updated deck", async () => {
     const updated = { ...dbDeck, name: "Renamed" };
     mockRepo.update.mockResolvedValue(updated);
-    const res = await app.request(`/api/decks/${DECK_ID}`, {
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Renamed" }),
@@ -181,7 +181,7 @@ describe("PATCH /api/decks/:id", () => {
 
   it("returns 404 when not found", async () => {
     mockRepo.update.mockResolvedValue();
-    const res = await app.request(`/api/decks/${DECK_ID}`, {
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "X" }),
@@ -190,55 +190,59 @@ describe("PATCH /api/decks/:id", () => {
   });
 });
 
-describe("DELETE /api/decks/:id", () => {
+describe("DELETE /api/v1/decks/:id", () => {
   beforeEach(() => {
     mockRepo.deleteByIdForUser.mockReset();
   });
 
   it("returns 204 when deleted", async () => {
     mockRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 1n });
-    const res = await app.request(`/api/decks/${DECK_ID}`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, { method: "DELETE" });
     expect(res.status).toBe(204);
   });
 
   it("returns 404 when not found", async () => {
     mockRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 0n });
-    const res = await app.request(`/api/decks/${DECK_ID}`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, { method: "DELETE" });
     expect(res.status).toBe(404);
   });
 });
 
-describe("PUT /api/decks/:id/cards", () => {
+describe("PUT /api/v1/decks/:id/cards", () => {
   beforeEach(() => {
     mockRepo.getIdAndFormat.mockReset();
     mockRepo.replaceCards.mockReset();
   });
 
-  it("returns 204 when cards replaced successfully", async () => {
+  it("returns 200 with updated cards when replaced successfully", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
-    const res = await app.request(`/api/decks/${DECK_ID}/cards`, {
+    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cards: [{ cardId: "OGS-001", zone: "main", quantity: 4 }],
       }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.cards).toEqual([]);
   });
 
-  it("returns 204 with empty cards array", async () => {
+  it("returns 200 with empty cards array", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
-    const res = await app.request(`/api/decks/${DECK_ID}/cards`, {
+    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cards: [] }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
   });
 
   it("returns 404 when deck not found", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue();
-    const res = await app.request(`/api/decks/${DECK_ID}/cards`, {
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cards: [] }),
@@ -248,7 +252,7 @@ describe("PUT /api/decks/:id/cards", () => {
 
   it("returns 400 when standard deck has less than 40 main cards", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "standard" });
-    const res = await app.request(`/api/decks/${DECK_ID}/cards`, {
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -267,7 +271,7 @@ describe("PUT /api/decks/:id/cards", () => {
       zone: "main",
       quantity: 4,
     }));
-    const res = await app.request(`/api/decks/${DECK_ID}/cards`, {
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -286,18 +290,18 @@ describe("PUT /api/decks/:id/cards", () => {
       zone: "main",
       quantity: 4,
     }));
-    const res = await app.request(`/api/decks/${DECK_ID}/cards`, {
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cards: [...mainCards, { cardId: "side-1", zone: "sideboard", quantity: 8 }],
       }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
   });
 });
 
-describe("GET /api/decks/:id/availability", () => {
+describe("GET /api/v1/decks/:id/availability", () => {
   beforeEach(() => {
     mockRepo.exists.mockReset();
     mockRepo.cardRequirements.mockReset();
@@ -308,29 +312,29 @@ describe("GET /api/decks/:id/availability", () => {
     mockRepo.exists.mockResolvedValue({ id: DECK_ID });
     mockRepo.cardRequirements.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 4 }]);
     mockRepo.availableCopiesByCard.mockResolvedValue([{ cardId: "OGS-001", count: 2 }]);
-    const res = await app.request(`/api/decks/${DECK_ID}/availability`);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.availability).toHaveLength(1);
-    expect(json.availability[0].cardId).toBe("OGS-001");
-    expect(json.availability[0].needed).toBe(4);
-    expect(json.availability[0].owned).toBe(2);
-    expect(json.availability[0].shortfall).toBe(2);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].cardId).toBe("OGS-001");
+    expect(json.items[0].needed).toBe(4);
+    expect(json.items[0].owned).toBe(2);
+    expect(json.items[0].shortfall).toBe(2);
   });
 
   it("returns 0 shortfall when owned >= needed", async () => {
     mockRepo.exists.mockResolvedValue({ id: DECK_ID });
     mockRepo.cardRequirements.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 2 }]);
     mockRepo.availableCopiesByCard.mockResolvedValue([{ cardId: "OGS-001", count: 5 }]);
-    const res = await app.request(`/api/decks/${DECK_ID}/availability`);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
     const json = await res.json();
-    expect(json.availability[0].shortfall).toBe(0);
-    expect(json.availability[0].owned).toBe(5);
+    expect(json.items[0].shortfall).toBe(0);
+    expect(json.items[0].owned).toBe(5);
   });
 
   it("returns 404 when deck not found", async () => {
     mockRepo.exists.mockResolvedValue();
-    const res = await app.request(`/api/decks/${DECK_ID}/availability`);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
     expect(res.status).toBe(404);
   });
 
@@ -340,9 +344,9 @@ describe("GET /api/decks/:id/availability", () => {
       { cardId: "UNKNOWN-001", zone: "main", quantity: 3 },
     ]);
     mockRepo.availableCopiesByCard.mockResolvedValue([]);
-    const res = await app.request(`/api/decks/${DECK_ID}/availability`);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
     const json = await res.json();
-    expect(json.availability[0].owned).toBe(0);
-    expect(json.availability[0].shortfall).toBe(3);
+    expect(json.items[0].owned).toBe(0);
+    expect(json.items[0].shortfall).toBe(3);
   });
 });

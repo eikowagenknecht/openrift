@@ -24,7 +24,7 @@ const pageTitles: Record<string, string> = {
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
   beforeLoad: async () => {
-    const res = await client.api.admin.me.$get();
+    const res = await client.api.v1.admin.me.$get();
     if (!res.ok) {
       throw redirect({ to: "/cards" });
     }

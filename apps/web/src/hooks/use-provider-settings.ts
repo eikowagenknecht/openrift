@@ -6,7 +6,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 export const providerSettingsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.providerSettings,
-  queryFn: () => rpc(client.api.admin["provider-settings"].$get()),
+  queryFn: () => rpc(client.api.v1.admin["provider-settings"].$get()),
 });
 
 export function useProviderSettings() {
@@ -16,7 +16,7 @@ export function useProviderSettings() {
 export function useReorderProviderSettings() {
   return useMutationWithInvalidation({
     mutationFn: (providers: string[]) =>
-      rpc(client.api.admin["provider-settings"].reorder.$put({ json: { providers } })),
+      rpc(client.api.v1.admin["provider-settings"].reorder.$put({ json: { providers } })),
     invalidates: [queryKeys.admin.providerSettings],
   });
 }
@@ -25,7 +25,7 @@ export function useUpdateProviderSetting() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { provider: string; sortOrder?: number; isHidden?: boolean }) =>
       rpc(
-        client.api.admin["provider-settings"][":provider"].$patch({
+        client.api.v1.admin["provider-settings"][":provider"].$patch({
           param: { provider: vars.provider },
           json: { sortOrder: vars.sortOrder, isHidden: vars.isHidden },
         }),

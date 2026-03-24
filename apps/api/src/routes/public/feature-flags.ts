@@ -14,6 +14,7 @@ export const featureFlagsRoute = new Hono<{ Variables: Variables }>().get(
     for (const row of rows) {
       flags[row.key] = row.enabled;
     }
-    return c.json({ flags } satisfies FeatureFlagsResponse);
+    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    return c.json({ items: flags } satisfies FeatureFlagsResponse);
   },
 );

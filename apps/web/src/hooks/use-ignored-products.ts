@@ -5,7 +5,7 @@ import { client, rpc } from "@/lib/rpc-client";
 
 export const ignoredProductsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.ignoredProducts,
-  queryFn: () => rpc(client.api.admin["ignored-products"].$get()),
+  queryFn: () => rpc(client.api.v1.admin["ignored-products"].$get()),
 });
 
 export function useIgnoredProducts() {
@@ -21,7 +21,7 @@ export function useUnignoreProduct() {
       finish: string;
     }) =>
       rpc(
-        client.api.admin["ignored-products"].$delete({
+        client.api.v1.admin["ignored-products"].$delete({
           json: {
             marketplace: product.marketplace,
             products: [{ externalId: product.externalId, finish: product.finish }],

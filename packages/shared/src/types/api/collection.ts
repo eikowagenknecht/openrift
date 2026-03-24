@@ -11,16 +11,16 @@ export interface CollectionResponse {
 }
 
 export interface CollectionListResponse {
-  collections: CollectionResponse[];
+  items: CollectionResponse[];
 }
 
 export interface CopyListResponse {
-  copies: CopyResponse[];
+  items: CopyResponse[];
   nextCursor: string | null;
 }
 
 export interface CopyCountResponse {
-  counts: Record<string, number>;
+  items: Record<string, number>;
 }
 
 export interface CopyResponse {

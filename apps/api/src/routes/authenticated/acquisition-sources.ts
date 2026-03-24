@@ -26,7 +26,7 @@ export const acquisitionSourcesRoute = new Hono<{ Variables: Variables }>()
     const { acquisitionSources } = c.get("repos");
     const rows = await acquisitionSources.listForUser(getUserId(c));
     return c.json({
-      sources: rows.map((row) => toSource(row)),
+      items: rows.map((row) => toSource(row)),
     } satisfies AcquisitionSourceListResponse);
   })
 

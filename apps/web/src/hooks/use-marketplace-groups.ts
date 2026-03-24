@@ -6,12 +6,12 @@ import { client, rpc } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export type MarketplaceGroup = InferResponseType<
-  (typeof client.api.admin)["marketplace-groups"]["$get"]
+  (typeof client.api.v1.admin)["marketplace-groups"]["$get"]
 >["groups"][number];
 
 export const marketplaceGroupsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.marketplaceGroups,
-  queryFn: () => rpc(client.api.admin["marketplace-groups"].$get()),
+  queryFn: () => rpc(client.api.v1.admin["marketplace-groups"].$get()),
 });
 
 export function useMarketplaceGroups() {
@@ -22,7 +22,7 @@ export function useUpdateMarketplaceGroup() {
   return useMutationWithInvalidation({
     mutationFn: (body: { marketplace: string; groupId: number; name: string | null }) =>
       rpc(
-        client.api.admin["marketplace-groups"][":marketplace"][":id"].$patch({
+        client.api.v1.admin["marketplace-groups"][":marketplace"][":id"].$patch({
           param: { marketplace: body.marketplace, id: String(body.groupId) },
           json: body,
         }),

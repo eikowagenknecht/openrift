@@ -3,4 +3,6 @@ export interface KeywordStyleEntry {
   darkText: boolean;
 }
 
-export type KeywordStylesResponse = Record<string, KeywordStyleEntry>;
+export interface KeywordStylesResponse {
+  items: Record<string, KeywordStyleEntry>;
+}

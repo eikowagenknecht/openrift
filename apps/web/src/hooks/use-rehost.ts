@@ -15,21 +15,21 @@ export type RegenerateAccumulator = Pick<
 export function useRehostStatus() {
   return useQuery({
     queryKey: queryKeys.admin.rehostStatus,
-    queryFn: () => rpc(client.api.admin["rehost-status"].$get()),
+    queryFn: () => rpc(client.api.v1.admin["rehost-status"].$get()),
   });
 }
 
 export function useBrokenImages() {
   return useQuery({
     queryKey: queryKeys.admin.brokenImages,
-    queryFn: () => rpc(client.api.admin["broken-images"].$get()),
+    queryFn: () => rpc(client.api.v1.admin["broken-images"].$get()),
   });
 }
 
 export function useMissingImages() {
   return useQuery({
     queryKey: queryKeys.admin.missingImages,
-    queryFn: () => rpc(client.api.admin["missing-images"].$get()),
+    queryFn: () => rpc(client.api.v1.admin["missing-images"].$get()),
   });
 }
 
@@ -47,7 +47,7 @@ export function useRehostImages(onBatchComplete?: () => void) {
         errors: [],
       };
       for (;;) {
-        const batch = await rpc(client.api.admin["rehost-images"].$post({ query: {} }));
+        const batch = await rpc(client.api.v1.admin["rehost-images"].$post({ query: {} }));
         totals.total += batch.total;
         totals.rehosted += batch.rehosted;
         totals.skipped += batch.skipped;
@@ -74,7 +74,7 @@ export function useRegenerateImages(onProgress?: (processed: number, totalFiles:
       let offset = 0;
       for (;;) {
         const batch = await rpc(
-          client.api.admin["regenerate-images"].$post({
+          client.api.v1.admin["regenerate-images"].$post({
             query: { offset: String(offset) },
           }),
         );
@@ -99,7 +99,7 @@ export function useRegenerateImages(onProgress?: (processed: number, totalFiles:
 export function useClearRehosted() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rpc(client.api.admin["clear-rehosted"].$post()),
+    mutationFn: () => rpc(client.api.v1.admin["clear-rehosted"].$post()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
     },
@@ -109,14 +109,14 @@ export function useClearRehosted() {
 export function useRenamePreview() {
   return useQuery({
     queryKey: queryKeys.admin.renamePreview,
-    queryFn: () => rpc(client.api.admin["rename-preview"].$get()),
+    queryFn: () => rpc(client.api.v1.admin["rename-preview"].$get()),
   });
 }
 
 export function useRenameImages() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rpc(client.api.admin["rename-images"].$post()),
+    mutationFn: () => rpc(client.api.v1.admin["rename-images"].$post()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.renamePreview });
@@ -127,7 +127,7 @@ export function useRenameImages() {
 export function useCleanupOrphaned() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rpc(client.api.admin["cleanup-orphaned"].$post()),
+    mutationFn: () => rpc(client.api.v1.admin["cleanup-orphaned"].$post()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
     },
@@ -138,7 +138,7 @@ export function useRestoreImageUrls() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (provider: string) =>
-      rpc(client.api.admin["restore-image-urls"].$post({ json: { provider } })),
+      rpc(client.api.v1.admin["restore-image-urls"].$post({ json: { provider } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
     },

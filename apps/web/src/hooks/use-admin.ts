@@ -4,7 +4,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { client } from "@/lib/rpc-client";
 
 async function fetchIsAdmin(): Promise<boolean> {
-  const res = await client.api.admin.me.$get();
+  const res = await client.api.v1.admin.me.$get();
   if (!res.ok) {
     return false;
   }

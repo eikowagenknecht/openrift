@@ -6,8 +6,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 export const collectionsQueryOptions = queryOptions({
   queryKey: queryKeys.collections.all,
-  queryFn: () => rpc(client.api.collections.$get()),
-  select: (data) => data.collections,
+  queryFn: () => rpc(client.api.v1.collections.$get()),
+  select: (data) => data.items,
 });
 
 export function useCollections() {
@@ -20,7 +20,7 @@ export function useCreateCollection() {
       name: string;
       description?: string | null;
       availableForDeckbuilding?: boolean;
-    }) => rpc(client.api.collections.$post({ json: body })),
+    }) => rpc(client.api.v1.collections.$post({ json: body })),
     invalidates: [queryKeys.collections.all],
   });
 }

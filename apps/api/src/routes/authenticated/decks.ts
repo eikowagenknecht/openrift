@@ -82,7 +82,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const { wanted } = c.req.valid("query");
     const rows = await decks.listForUser(userId, wanted === "true");
-    return c.json({ decks: rows.map((row) => toDeck(row)) } satisfies DeckListResponse);
+    return c.json({ items: rows.map((row) => toDeck(row)) } satisfies DeckListResponse);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
@@ -174,7 +174,8 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
       await decks.replaceCards(id, body.cards);
 
-      return c.body(null, 204);
+      const cardRows = await decks.cardsWithDetails(id, userId);
+      return c.json({ cards: cardRows.map((r) => toDeckCard(r)) });
     },
   )
 
@@ -210,5 +211,5 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
       }),
     );
 
-    return c.json({ availability } satisfies DeckAvailabilityResponse);
+    return c.json({ items: availability } satisfies DeckAvailabilityResponse);
   });

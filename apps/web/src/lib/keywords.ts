@@ -4,7 +4,7 @@ const FALLBACK_COLOR = "#6a6a6a";
 
 export function getKeywordStyle(
   keyword: string,
-  styles: KeywordStylesResponse,
+  styles: KeywordStylesResponse["items"],
 ): { bg: string; dark: boolean } {
   // Strip trailing numbers (e.g. "Shield 2" → "Shield")
   const base = keyword.replace(/\s+\d+$/, "");

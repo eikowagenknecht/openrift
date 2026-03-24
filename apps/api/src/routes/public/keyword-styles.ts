@@ -1,3 +1,4 @@
+import type { KeywordStylesResponse } from "@openrift/shared";
 import { Hono } from "hono";
 
 import type { Variables } from "../../types.js";
@@ -13,6 +14,7 @@ export const keywordStylesRoute = new Hono<{ Variables: Variables }>().get(
     for (const row of rows) {
       styles[row.name] = { color: row.color, darkText: row.darkText };
     }
-    return c.json(styles);
+    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    return c.json({ items: styles } satisfies KeywordStylesResponse);
   },
 );

@@ -84,10 +84,8 @@ export function createApp(deps: AppDeps) {
         const body: ApiErrorResponse = {
           error: "Invalid request body",
           code: "VALIDATION_ERROR",
+          details: err.issues.map((i) => ({ path: i.path, message: i.message })),
         };
-        if (config.isDev) {
-          body.details = err.issues;
-        }
         return c.json(body, 400);
       }
 
@@ -156,25 +154,27 @@ export function createApp(deps: AppDeps) {
       await next();
     })
 
-    // ── Public routes (no auth required) ───────────────────────────────────
+    // ── Infrastructure (unversioned) ────────────────────────────────────────
     .route("/api", healthRoute)
-    .route("/api", catalogRoute)
-    .route("/api", pricesRoute)
-    .route("/api", featureFlagsRoute)
-    .route("/api", keywordStylesRoute)
+
+    // ── Public routes (no auth required) ───────────────────────────────────
+    .route("/api/v1", catalogRoute)
+    .route("/api/v1", pricesRoute)
+    .route("/api/v1", featureFlagsRoute)
+    .route("/api/v1", keywordStylesRoute)
 
     // ── Authenticated routes (require a valid session) ────────────────────
-    .route("/api", collectionsRoute)
-    .route("/api", acquisitionSourcesRoute)
-    .route("/api", copiesRoute)
-    .route("/api", activitiesRoute)
-    .route("/api", decksRoute)
-    .route("/api", wishListsRoute)
-    .route("/api", tradeListsRoute)
-    .route("/api", shoppingListRoute)
+    .route("/api/v1", collectionsRoute)
+    .route("/api/v1", acquisitionSourcesRoute)
+    .route("/api/v1", copiesRoute)
+    .route("/api/v1", activitiesRoute)
+    .route("/api/v1", decksRoute)
+    .route("/api/v1", wishListsRoute)
+    .route("/api/v1", tradeListsRoute)
+    .route("/api/v1", shoppingListRoute)
 
     // ── Admin routes (require admin role) ────────────────────────────────
-    .route("/api", adminRoute);
+    .route("/api/v1", adminRoute);
 
   return app;
 }

@@ -35,7 +35,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
     await ensureInbox(c.get("db"), userId);
     const rows = await collections.listForUser(userId);
     return c.json({
-      collections: rows.map((row) => toCollection(row)),
+      items: rows.map((row) => toCollection(row)),
     } satisfies CollectionListResponse);
   })
 
@@ -86,14 +86,13 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
-  // Complex: validates inbox, relocates copies, logs activity
+  // Validates not inbox, auto-moves remaining copies to inbox, then deletes.
   .delete("/:id", zValidator("param", idParamSchema), async (c) => {
     const db = c.get("db");
     const repos = c.get("repos");
-    const { deleteCollection } = c.get("services");
+    const { ensureInbox, deleteCollection } = c.get("services");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
-    const moveCopiesTo = c.req.query("move_copies_to");
 
     const collection = await repos.collections.getByIdForUser(id, userId);
 
@@ -105,26 +104,13 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       throw new AppError(400, "BAD_REQUEST", "Cannot delete inbox collection");
     }
 
-    if (!moveCopiesTo) {
-      throw new AppError(400, "BAD_REQUEST", "move_copies_to query parameter is required");
-    }
-
-    if (moveCopiesTo === id) {
-      throw new AppError(400, "BAD_REQUEST", "Cannot move copies to the same collection");
-    }
-
-    // Verify target collection exists and belongs to user
-    const target = await repos.collections.getIdAndName(moveCopiesTo, userId);
-
-    if (!target) {
-      throw new AppError(404, "NOT_FOUND", "Target collection not found");
-    }
+    const inboxId = await ensureInbox(db, userId);
 
     await deleteCollection(db, repos, {
       collectionId: id,
       collectionName: collection.name,
-      moveCopiesTo,
-      targetName: target.name,
+      moveCopiesTo: inboxId,
+      targetName: "Inbox",
       userId,
     });
 
@@ -154,7 +140,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
       const items = rows.slice(0, limit);
 
       return c.json({
-        copies: items.map((row) => toCopy(row)),
+        items: items.map((row) => toCopy(row)),
         nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
       } satisfies CopyListResponse);
     },

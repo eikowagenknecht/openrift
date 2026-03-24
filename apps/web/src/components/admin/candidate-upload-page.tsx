@@ -396,7 +396,7 @@ function ExportCardsCard() {
     setExporting(true);
     setError(null);
     try {
-      const res = await client.api.admin["candidates"].export.$get();
+      const res = await client.api.v1.admin["candidates"].export.$get();
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(

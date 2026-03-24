@@ -50,12 +50,12 @@ describe.skipIf(!ctx)("Activities routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.activities).toBeDefined();
-      expect(Array.isArray(json.activities)).toBe(true);
-      expect(json.activities.length).toBeGreaterThanOrEqual(2);
+      expect(json.items).toBeDefined();
+      expect(Array.isArray(json.items)).toBe(true);
+      expect(json.items.length).toBeGreaterThanOrEqual(2);
 
       // Each activity should have expected fields
-      const activity = json.activities[0];
+      const activity = json.items[0];
       expect(activity.id).toBeString();
       expect(activity.type).toBeString();
       activityId = activity.id;
@@ -67,7 +67,7 @@ describe.skipIf(!ctx)("Activities routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.activities).toHaveLength(0);
+      expect(json.items).toHaveLength(0);
     });
 
     it("supports limit parameter", async () => {
@@ -75,7 +75,7 @@ describe.skipIf(!ctx)("Activities routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.activities).toHaveLength(1);
+      expect(json.items).toHaveLength(1);
       // Should provide nextCursor when more items exist
       expect(json.nextCursor).toBeString();
     });

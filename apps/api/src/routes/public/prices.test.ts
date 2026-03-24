@@ -26,37 +26,40 @@ const app = new Hono()
     } as never);
     await next();
   })
-  .route("/api", pricesRoute);
+  .route("/api/v1", pricesRoute);
 
 // ---------------------------------------------------------------------------
 // Test data
 // ---------------------------------------------------------------------------
 
 const dbPrice = {
-  printingId: "OGS-001:rare:normal:",
+  printingId: "a0000000-0001-4000-a000-000000000001",
   marketCents: 275,
   recordedAt: new Date("2026-03-01"),
 };
 
 const dbPriceFoil = {
-  printingId: "OGS-001:rare:foil:",
+  printingId: "a0000000-0001-4000-a000-000000000002",
   marketCents: 800,
   recordedAt: new Date("2026-03-01"),
 };
 
-const dbPrinting = { id: "OGS-001:rare:normal", slug: "OGS-001:rare:normal" };
+const dbPrinting = {
+  id: "a0000000-0001-4000-a000-000000000001",
+  slug: "a0000000-0001-4000-a000-000000000001",
+};
 
 const dbMarketplaceSource = {
   id: "ms-tcg-1",
   externalId: 12_345,
   marketplace: "tcgplayer",
-  printingId: "OGS-001:rare:normal",
+  printingId: "a0000000-0001-4000-a000-000000000001",
 };
 const dbMarketplaceSourceCM = {
   id: "ms-cm-1",
   externalId: 67_890,
   marketplace: "cardmarket",
-  printingId: "OGS-001:rare:normal",
+  printingId: "a0000000-0001-4000-a000-000000000001",
 };
 
 const dbSnapshot = {
@@ -74,10 +77,10 @@ const dbSnapshot = {
 };
 
 // ---------------------------------------------------------------------------
-// GET /api/prices (latest prices — kept for non-browser consumers)
+// GET /api/v1/prices (latest prices — kept for non-browser consumers)
 // ---------------------------------------------------------------------------
 
-describe("GET /api/prices", () => {
+describe("GET /api/v1/prices", () => {
   beforeEach(() => {
     mockMarketplaceRepo.latestPrices.mockReset().mockResolvedValue([dbPrice, dbPriceFoil]);
     mockCatalogRepo.printingById.mockReset();
@@ -86,50 +89,50 @@ describe("GET /api/prices", () => {
   });
 
   it("returns 200 with PricesResponse structure", async () => {
-    const res = await app.request("/api/prices");
+    const res = await app.request("/api/v1/prices");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.prices).toBeDefined();
   });
 
   it("converts market_cents to dollars", async () => {
-    const res = await app.request("/api/prices");
+    const res = await app.request("/api/v1/prices");
     const json = await res.json();
-    expect(json.prices["OGS-001:rare:normal:"]).toBe(2.75);
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toBe(2.75);
   });
 
   it("returns one entry per printing", async () => {
-    const res = await app.request("/api/prices");
+    const res = await app.request("/api/v1/prices");
     const json = await res.json();
-    expect(json.prices["OGS-001:rare:normal:"]).toBe(2.75);
-    expect(json.prices["OGS-001:rare:foil:"]).toBe(8);
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toBe(2.75);
+    expect(json.prices["a0000000-0001-4000-a000-000000000002"]).toBe(8);
   });
 
   it("returns empty prices when no rows exist", async () => {
     mockMarketplaceRepo.latestPrices.mockResolvedValue([]);
-    const res = await app.request("/api/prices");
+    const res = await app.request("/api/v1/prices");
     const json = await res.json();
     expect(json.prices).toEqual({});
   });
 
   it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/prices");
+    const res = await app.request("/api/v1/prices");
     expect(res.headers.get("ETag")).toBeTruthy();
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
-    const first = await app.request("/api/prices");
+    const first = await app.request("/api/v1/prices");
     const etag = first.headers.get("ETag") ?? "";
 
-    const res = await app.request("/api/prices", {
+    const res = await app.request("/api/v1/prices", {
       headers: { "If-None-Match": etag },
     });
     expect(res.status).toBe(304);
   });
 
   it("returns 200 when If-None-Match does not match", async () => {
-    const res = await app.request("/api/prices", {
+    const res = await app.request("/api/v1/prices", {
       headers: { "If-None-Match": '"stale"' },
     });
     expect(res.status).toBe(200);
@@ -137,10 +140,10 @@ describe("GET /api/prices", () => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/prices/:printingId/history
+// GET /api/v1/prices/:printingId/history
 // ---------------------------------------------------------------------------
 
-describe("GET /api/prices/:printingId/history", () => {
+describe("GET /api/v1/prices/:printingId/history", () => {
   beforeEach(() => {
     mockMarketplaceRepo.latestPrices.mockReset();
     mockCatalogRepo.printingById.mockReset().mockResolvedValue(dbPrinting);
@@ -151,16 +154,16 @@ describe("GET /api/prices/:printingId/history", () => {
   });
 
   it("returns 200 with PriceHistoryResponse structure", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.printingId).toBe("OGS-001:rare:normal");
+    expect(json.printingId).toBe("a0000000-0001-4000-a000-000000000001");
     expect(json.tcgplayer).toBeDefined();
     expect(json.cardmarket).toBeDefined();
   });
 
   it("returns tcgplayer data with correct currency", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.tcgplayer.available).toBe(true);
     expect(json.tcgplayer.currency).toBe("USD");
@@ -168,7 +171,7 @@ describe("GET /api/prices/:printingId/history", () => {
   });
 
   it("returns cardmarket data with correct currency", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.cardmarket.available).toBe(true);
     expect(json.cardmarket.currency).toBe("EUR");
@@ -176,7 +179,7 @@ describe("GET /api/prices/:printingId/history", () => {
   });
 
   it("converts snapshot cents to dollars", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.tcgplayer.snapshots).toHaveLength(1);
     expect(json.tcgplayer.snapshots[0].market).toBe(2.75);
@@ -186,24 +189,24 @@ describe("GET /api/prices/:printingId/history", () => {
   });
 
   it("handles null cents values", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.cardmarket.snapshots[0].trend).toBeNull();
     expect(json.cardmarket.snapshots[0].avg1).toBeNull();
   });
 
   it("formats snapshot date as YYYY-MM-DD", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.tcgplayer.snapshots[0].date).toBe("2026-03-01");
   });
 
   it("returns unavailable sources for non-existent printing", async () => {
     mockCatalogRepo.printingById.mockResolvedValue(undefined);
-    const res = await app.request("/api/prices/nonexistent/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-ffffffffffff/history");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.printingId).toBe("nonexistent");
+    expect(json.printingId).toBe("a0000000-0001-4000-a000-ffffffffffff");
     expect(json.tcgplayer.available).toBe(false);
     expect(json.tcgplayer.snapshots).toEqual([]);
     expect(json.cardmarket.available).toBe(false);
@@ -213,7 +216,7 @@ describe("GET /api/prices/:printingId/history", () => {
   it("returns unavailable when no marketplace sources exist", async () => {
     mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([]);
     mockMarketplaceRepo.snapshots.mockResolvedValue([]);
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.tcgplayer.available).toBe(false);
     expect(json.tcgplayer.productId).toBeNull();
@@ -222,28 +225,32 @@ describe("GET /api/prices/:printingId/history", () => {
   });
 
   it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     expect(res.headers.get("ETag")).toBeTruthy();
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
-    const first = await app.request("/api/prices/OGS-001:rare:normal/history");
+    const first = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const etag = first.headers.get("ETag") ?? "";
 
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history", {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history", {
       headers: { "If-None-Match": etag },
     });
     expect(res.status).toBe(304);
   });
 
   it("accepts range query parameter", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history?range=7d");
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=7d",
+    );
     expect(res.status).toBe(200);
   });
 
   it("rejects invalid range parameter with 400", async () => {
-    const res = await app.request("/api/prices/OGS-001:rare:normal/history?range=invalid");
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=invalid",
+    );
     expect(res.status).toBe(400);
   });
 });

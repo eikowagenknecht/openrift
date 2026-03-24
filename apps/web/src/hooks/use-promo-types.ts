@@ -6,7 +6,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 export const adminPromoTypesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.promoTypes,
-  queryFn: () => rpc(client.api.admin["promo-types"].$get()),
+  queryFn: () => rpc(client.api.v1.admin["promo-types"].$get()),
 });
 
 export function usePromoTypes() {
@@ -16,7 +16,7 @@ export function usePromoTypes() {
 export function useCreatePromoType() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label: string; sortOrder?: number }) =>
-      rpc(client.api.admin["promo-types"].$post({ json: vars })),
+      rpc(client.api.v1.admin["promo-types"].$post({ json: vars })),
     invalidates: [queryKeys.admin.promoTypes],
   });
 }
@@ -25,7 +25,7 @@ export function useUpdatePromoType() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { id: string; slug?: string; label?: string; sortOrder?: number }) =>
       rpc(
-        client.api.admin["promo-types"][":id"].$patch({
+        client.api.v1.admin["promo-types"][":id"].$patch({
           param: { id: vars.id },
           json: { slug: vars.slug, label: vars.label, sortOrder: vars.sortOrder },
         }),
@@ -37,7 +37,7 @@ export function useUpdatePromoType() {
 export function useDeletePromoType() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) =>
-      rpc(client.api.admin["promo-types"][":id"].$delete({ param: { id } })),
+      rpc(client.api.v1.admin["promo-types"][":id"].$delete({ param: { id } })),
     invalidates: [queryKeys.admin.promoTypes],
   });
 }

@@ -1,7 +1,7 @@
 import type { CardType, Finish, Rarity } from "../enums.js";
 
 export interface TradeListListResponse {
-  tradeLists: TradeListResponse[];
+  items: TradeListResponse[];
 }
 
 export interface TradeListResponse {

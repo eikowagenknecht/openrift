@@ -165,13 +165,13 @@ describe("onError handler (production)", () => {
     expect(json).not.toHaveProperty("details");
   });
 
-  it("strips ZodError details in production", async () => {
+  it("includes ZodError field paths in production", async () => {
     const res = await prodApp.fetch(new Request("http://localhost/api/test-error/zod-error"));
     expect(res.status).toBe(400);
     const json = (await res.json()) as Record<string, unknown>;
     expect(json.code).toBe("VALIDATION_ERROR");
     expect(json.error).toBe("Invalid request body");
-    expect(json).not.toHaveProperty("details");
+    expect(Array.isArray(json.details)).toBe(true);
   });
 
   it("strips stack trace in production for generic errors", async () => {

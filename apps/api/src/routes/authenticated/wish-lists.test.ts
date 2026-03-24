@@ -34,7 +34,7 @@ const app = new Hono()
     c.set("repos", { wishLists: mockRepo } as never);
     await next();
   })
-  .route("/api", wishListsRoute)
+  .route("/api/v1", wishListsRoute)
   .onError((err, c) => {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code }, err.status as 400);
@@ -75,29 +75,29 @@ const dbWishListItem = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/wish-lists", () => {
+describe("GET /api/v1/wish-lists", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
   });
 
   it("returns 200 with list of wish lists", async () => {
     mockRepo.listForUser.mockResolvedValue([dbWishList]);
-    const res = await app.request("/api/wish-lists");
+    const res = await app.request("/api/v1/wish-lists");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.wishLists).toHaveLength(1);
-    expect(json.wishLists[0].name).toBe("Want List");
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].name).toBe("Want List");
   });
 });
 
-describe("POST /api/wish-lists", () => {
+describe("POST /api/v1/wish-lists", () => {
   beforeEach(() => {
     mockRepo.create.mockReset();
   });
 
   it("returns 201 with created wish list", async () => {
     mockRepo.create.mockResolvedValue(dbWishList);
-    const res = await app.request("/api/wish-lists", {
+    const res = await app.request("/api/v1/wish-lists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Want List" }),
@@ -110,7 +110,7 @@ describe("POST /api/wish-lists", () => {
   it("creates with rules", async () => {
     const withRules = { ...dbWishList, rules: '{"priority":"high"}' };
     mockRepo.create.mockResolvedValue(withRules);
-    const res = await app.request("/api/wish-lists", {
+    const res = await app.request("/api/v1/wish-lists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Want List", rules: { priority: "high" } }),
@@ -119,7 +119,7 @@ describe("POST /api/wish-lists", () => {
   });
 });
 
-describe("GET /api/wish-lists/:id", () => {
+describe("GET /api/v1/wish-lists/:id", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
     mockRepo.items.mockReset();
@@ -128,7 +128,7 @@ describe("GET /api/wish-lists/:id", () => {
   it("returns 200 with wish list and items", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbWishList);
     mockRepo.items.mockResolvedValue([dbWishListItem]);
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}`);
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.wishList.name).toBe("Want List");
@@ -138,12 +138,12 @@ describe("GET /api/wish-lists/:id", () => {
 
   it("returns 404 when not found", async () => {
     mockRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}`);
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`);
     expect(res.status).toBe(404);
   });
 });
 
-describe("PATCH /api/wish-lists/:id", () => {
+describe("PATCH /api/v1/wish-lists/:id", () => {
   beforeEach(() => {
     mockRepo.update.mockReset();
   });
@@ -151,7 +151,7 @@ describe("PATCH /api/wish-lists/:id", () => {
   it("returns 200 with updated wish list", async () => {
     const updated = { ...dbWishList, name: "Updated" };
     mockRepo.update.mockResolvedValue(updated);
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Updated" }),
@@ -163,7 +163,7 @@ describe("PATCH /api/wish-lists/:id", () => {
 
   it("returns 404 when not found", async () => {
     mockRepo.update.mockResolvedValue();
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "X" }),
@@ -172,25 +172,25 @@ describe("PATCH /api/wish-lists/:id", () => {
   });
 });
 
-describe("DELETE /api/wish-lists/:id", () => {
+describe("DELETE /api/v1/wish-lists/:id", () => {
   beforeEach(() => {
     mockRepo.deleteByIdForUser.mockReset();
   });
 
   it("returns 204 when deleted", async () => {
     mockRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 1n });
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`, { method: "DELETE" });
     expect(res.status).toBe(204);
   });
 
   it("returns 404 when not found", async () => {
     mockRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 0n });
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`, { method: "DELETE" });
     expect(res.status).toBe(404);
   });
 });
 
-describe("POST /api/wish-lists/:id/items", () => {
+describe("POST /api/v1/wish-lists/:id/items", () => {
   beforeEach(() => {
     mockRepo.exists.mockReset();
     mockRepo.createItem.mockReset();
@@ -199,7 +199,7 @@ describe("POST /api/wish-lists/:id/items", () => {
   it("returns 201 with created item (cardId)", async () => {
     mockRepo.exists.mockResolvedValue({ id: WISH_LIST_ID });
     mockRepo.createItem.mockResolvedValue(dbWishListItem);
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cardId: "OGS-001", quantityDesired: 2 }),
@@ -211,7 +211,7 @@ describe("POST /api/wish-lists/:id/items", () => {
     const printingItem = { ...dbWishListItem, cardId: null, printingId: "OGS-001:rare:normal:" };
     mockRepo.exists.mockResolvedValue({ id: WISH_LIST_ID });
     mockRepo.createItem.mockResolvedValue(printingItem);
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ printingId: "OGS-001:rare:normal:", quantityDesired: 1 }),
@@ -220,7 +220,7 @@ describe("POST /api/wish-lists/:id/items", () => {
   });
 
   it("returns 400 when both cardId and printingId provided", async () => {
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cardId: "OGS-001", printingId: "OGS-001:rare:normal:" }),
@@ -230,7 +230,7 @@ describe("POST /api/wish-lists/:id/items", () => {
   });
 
   it("returns 400 when neither cardId nor printingId provided", async () => {
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantityDesired: 1 }),
@@ -240,7 +240,7 @@ describe("POST /api/wish-lists/:id/items", () => {
 
   it("returns 404 when wish list not found", async () => {
     mockRepo.exists.mockResolvedValue();
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cardId: "OGS-001" }),
@@ -249,7 +249,7 @@ describe("POST /api/wish-lists/:id/items", () => {
   });
 });
 
-describe("PATCH /api/wish-lists/:id/items/:itemId", () => {
+describe("PATCH /api/v1/wish-lists/:id/items/:itemId", () => {
   beforeEach(() => {
     mockRepo.updateItem.mockReset();
   });
@@ -257,7 +257,7 @@ describe("PATCH /api/wish-lists/:id/items/:itemId", () => {
   it("returns 200 with updated item", async () => {
     const updated = { ...dbWishListItem, quantityDesired: 5 };
     mockRepo.updateItem.mockResolvedValue(updated);
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantityDesired: 5 }),
@@ -269,7 +269,7 @@ describe("PATCH /api/wish-lists/:id/items/:itemId", () => {
 
   it("returns 404 when item not found", async () => {
     mockRepo.updateItem.mockResolvedValue();
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantityDesired: 5 }),
@@ -278,14 +278,14 @@ describe("PATCH /api/wish-lists/:id/items/:itemId", () => {
   });
 });
 
-describe("DELETE /api/wish-lists/:id/items/:itemId", () => {
+describe("DELETE /api/v1/wish-lists/:id/items/:itemId", () => {
   beforeEach(() => {
     mockRepo.deleteItem.mockReset();
   });
 
   it("returns 204 when item deleted", async () => {
     mockRepo.deleteItem.mockResolvedValue({ numDeletedRows: 1n });
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(204);
@@ -293,7 +293,7 @@ describe("DELETE /api/wish-lists/:id/items/:itemId", () => {
 
   it("returns 404 when item not found", async () => {
     mockRepo.deleteItem.mockResolvedValue({ numDeletedRows: 0n });
-    const res = await app.request(`/api/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(404);

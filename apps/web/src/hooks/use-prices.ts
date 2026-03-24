@@ -18,6 +18,6 @@ export function useClearPrices(cronKey: "tcgplayer" | "cardmarket" | "cardtrader
   const clearAction = clearActions[cronKey];
   return useMutation({
     mutationFn: (): Promise<ClearPricesResponse> =>
-      rpc(client.api.admin["clear-prices"].$post({ json: { marketplace: clearAction.source } })),
+      rpc(client.api.v1.admin["clear-prices"].$post({ json: { marketplace: clearAction.source } })),
   });
 }

@@ -27,7 +27,7 @@ const app = new Hono()
     } as never);
     await next();
   })
-  .route("/api", catalogRoute);
+  .route("/api/v1", catalogRoute);
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -98,10 +98,10 @@ function seedDefaults(overrides?: {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/catalog
+// GET /api/v1/catalog
 // ---------------------------------------------------------------------------
 
-describe("GET /api/catalog", () => {
+describe("GET /api/v1/catalog", () => {
   beforeEach(() => {
     mockCatalogRepo.sets.mockReset();
     mockCatalogRepo.cards.mockReset();
@@ -112,7 +112,7 @@ describe("GET /api/catalog", () => {
   });
 
   it("returns 200 with normalized CatalogResponse structure", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.sets).toHaveLength(1);
@@ -121,13 +121,13 @@ describe("GET /api/catalog", () => {
   });
 
   it("returns sets as { id, slug, name } objects", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.sets[0]).toEqual({ id: "OGS", slug: "OGS", name: "Original Set" });
   });
 
   it("returns cards keyed by card ID with non-null fields preserved", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const card = json.cards["OGS-001"];
     expect(card).toBeDefined();
@@ -156,7 +156,7 @@ describe("GET /api/catalog", () => {
         },
       ],
     });
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const card = json.cards["OGS-001"];
     expect(card.might).toBeNull();
@@ -177,7 +177,7 @@ describe("GET /api/catalog", () => {
       printings: [{ ...dbPrintingRow, printedRulesText: null, printedEffectText: null }],
       printingImages: [],
     });
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const printing = json.printings[0];
     expect(printing.printedRulesText).toBeNull();
@@ -188,7 +188,7 @@ describe("GET /api/catalog", () => {
   });
 
   it("maps printing fields with cardId reference instead of nested card", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const printing = json.printings[0];
 
@@ -206,7 +206,7 @@ describe("GET /api/catalog", () => {
   });
 
   it("maps image URL into images array", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings[0].images).toEqual([
       { face: "front", url: "https://example.com/thumb.jpg" },
@@ -214,13 +214,13 @@ describe("GET /api/catalog", () => {
   });
 
   it("passes setId through on printing", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings[0].setId).toBe("OGS");
   });
 
   it("uses rulesText as card.rulesText", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const card = json.cards["OGS-001"];
     expect(card.rulesText).toBe("A fiery beast");
@@ -228,14 +228,14 @@ describe("GET /api/catalog", () => {
   });
 
   it("includes latest market price on printing", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings[0].marketPrice).toBe(2.75);
   });
 
   it("omits marketPrice when no price exists", async () => {
     seedDefaults({ prices: [] });
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings[0].marketPrice).toBeUndefined();
   });
@@ -258,7 +258,7 @@ describe("GET /api/catalog", () => {
       printingImages: [],
     });
 
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.sets).toHaveLength(2);
     expect(json.printings).toHaveLength(2);
@@ -273,7 +273,7 @@ describe("GET /api/catalog", () => {
       printingImages: [],
       prices: [],
     });
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings).toEqual([]);
     expect(json.cards).toEqual({});
@@ -281,23 +281,23 @@ describe("GET /api/catalog", () => {
   });
 
   it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/catalog");
+    const res = await app.request("/api/v1/catalog");
     expect(res.headers.get("ETag")).toBeTruthy();
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
-    const first = await app.request("/api/catalog");
+    const first = await app.request("/api/v1/catalog");
     const etag = first.headers.get("ETag") ?? "";
 
-    const res = await app.request("/api/catalog", {
+    const res = await app.request("/api/v1/catalog", {
       headers: { "If-None-Match": etag },
     });
     expect(res.status).toBe(304);
   });
 
   it("returns 200 when If-None-Match does not match", async () => {
-    const res = await app.request("/api/catalog", {
+    const res = await app.request("/api/v1/catalog", {
       headers: { "If-None-Match": '"stale"' },
     });
     expect(res.status).toBe(200);

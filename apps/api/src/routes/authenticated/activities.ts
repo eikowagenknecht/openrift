@@ -27,7 +27,7 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
     const items = rows.slice(0, limit);
 
     const result: ActivityListResponse = {
-      activities: items.map((r) => toActivity(r)),
+      items: items.map((r) => toActivity(r)),
       nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
     };
     return c.json(result);

@@ -98,7 +98,7 @@ describe("useCards", () => {
 
   it("returns cards and set info on success", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
+      if (url.includes("/catalog")) {
         return { ok: true, json: () => CATALOG_RESPONSE };
       }
       return { ok: true, json: () => ({}) };
@@ -115,7 +115,7 @@ describe("useCards", () => {
 
   it("joins card data onto printings and includes market price", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
+      if (url.includes("/catalog")) {
         return { ok: true, json: () => CATALOG_RESPONSE };
       }
       return { ok: true, json: () => ({}) };
@@ -140,7 +140,7 @@ describe("useCards", () => {
 
   it("throws an ApiError with health status when catalog fetch fails", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
+      if (url.includes("/catalog")) {
         return { ok: false, status: 500, json: () => ({}) };
       }
       if (url.includes("/api/health")) {
@@ -164,7 +164,7 @@ describe("useCards", () => {
 
   it("throws an ApiError with null health when health endpoint is unreachable", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/api/catalog")) {
+      if (url.includes("/catalog")) {
         return { ok: false, status: 500, json: () => ({}) };
       }
       if (url.includes("/api/health")) {

@@ -1,5 +1,5 @@
 export interface WishListListResponse {
-  wishLists: WishListResponse[];
+  items: WishListResponse[];
 }
 
 export interface WishListResponse {

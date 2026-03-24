@@ -38,6 +38,6 @@ export interface ActivityDetailResponse {
 }
 
 export interface ActivityListResponse {
-  activities: ActivityResponse[];
+  items: ActivityResponse[];
   nextCursor: string | null;
 }

@@ -38,7 +38,7 @@ const app = new Hono()
     } as never);
     await next();
   })
-  .route("/api", copiesRoute)
+  .route("/api/v1", copiesRoute)
   .onError((err, c) => {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code }, err.status as 400);
@@ -80,26 +80,26 @@ const COLLECTION_ID = "a0000000-0001-4000-a000-000000000010";
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/copies", () => {
+describe("GET /api/v1/copies", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
   });
 
   it("returns 200 with list of copies", async () => {
     mockRepo.listForUser.mockResolvedValue([dbCopy]);
-    const res = await app.request("/api/copies");
+    const res = await app.request("/api/v1/copies");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.copies).toHaveLength(1);
-    expect(json.copies[0].id).toBe(dbCopy.id);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].id).toBe(dbCopy.id);
     expect(json.nextCursor).toBeNull();
   });
 
   it("returns empty array when no copies", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
-    const res = await app.request("/api/copies");
+    const res = await app.request("/api/v1/copies");
     const json = await res.json();
-    expect(json.copies).toEqual([]);
+    expect(json.items).toEqual([]);
     expect(json.nextCursor).toBeNull();
   });
 
@@ -110,20 +110,20 @@ describe("GET /api/copies", () => {
       createdAt: new Date(now.getTime() - i * 1000),
     }));
     mockRepo.listForUser.mockResolvedValue(items);
-    const res = await app.request("/api/copies");
+    const res = await app.request("/api/v1/copies");
     const json = await res.json();
-    expect(json.copies).toHaveLength(200);
+    expect(json.items).toHaveLength(200);
     expect(json.nextCursor).toBeTruthy();
   });
 
   it("passes cursor and limit to repo", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
-    await app.request("/api/copies?limit=10&cursor=2026-03-17T00:00:00.000Z");
+    await app.request("/api/v1/copies?limit=10&cursor=2026-03-17T00:00:00.000Z");
     expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 10, "2026-03-17T00:00:00.000Z");
   });
 });
 
-describe("POST /api/copies", () => {
+describe("POST /api/v1/copies", () => {
   beforeEach(() => {
     mockAddCopies.mockReset();
   });
@@ -138,7 +138,7 @@ describe("POST /api/copies", () => {
       },
     ];
     mockAddCopies.mockResolvedValue(created);
-    const res = await app.request("/api/copies", {
+    const res = await app.request("/api/v1/copies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ copies: [{ printingId: PRINTING_ID }] }),
@@ -149,14 +149,14 @@ describe("POST /api/copies", () => {
   });
 });
 
-describe("POST /api/copies/move", () => {
+describe("POST /api/v1/copies/move", () => {
   beforeEach(() => {
     mockMoveCopies.mockReset();
   });
 
   it("returns 204 on successful move", async () => {
     mockMoveCopies.mockResolvedValue();
-    const res = await app.request("/api/copies/move", {
+    const res = await app.request("/api/v1/copies/move", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ copyIds: [COPY_ID], toCollectionId: COLLECTION_ID }),
@@ -165,14 +165,14 @@ describe("POST /api/copies/move", () => {
   });
 });
 
-describe("POST /api/copies/dispose", () => {
+describe("POST /api/v1/copies/dispose", () => {
   beforeEach(() => {
     mockDisposeCopies.mockReset();
   });
 
   it("returns 204 on successful disposal", async () => {
     mockDisposeCopies.mockResolvedValue();
-    const res = await app.request("/api/copies/dispose", {
+    const res = await app.request("/api/v1/copies/dispose", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ copyIds: [COPY_ID] }),
@@ -181,7 +181,7 @@ describe("POST /api/copies/dispose", () => {
   });
 });
 
-describe("GET /api/copies/count", () => {
+describe("GET /api/v1/copies/count", () => {
   beforeEach(() => {
     mockRepo.countByPrintingForUser.mockReset();
   });
@@ -191,29 +191,29 @@ describe("GET /api/copies/count", () => {
       { printingId: "OGS-001:rare:normal:", count: 3 },
       { printingId: "OGS-002:common:normal:", count: 1 },
     ]);
-    const res = await app.request("/api/copies/count");
+    const res = await app.request("/api/v1/copies/count");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.counts["OGS-001:rare:normal:"]).toBe(3);
-    expect(json.counts["OGS-002:common:normal:"]).toBe(1);
+    expect(json.items["OGS-001:rare:normal:"]).toBe(3);
+    expect(json.items["OGS-002:common:normal:"]).toBe(1);
   });
 
   it("returns empty object when no copies", async () => {
     mockRepo.countByPrintingForUser.mockResolvedValue([]);
-    const res = await app.request("/api/copies/count");
+    const res = await app.request("/api/v1/copies/count");
     const json = await res.json();
-    expect(json.counts).toEqual({});
+    expect(json.items).toEqual({});
   });
 });
 
-describe("GET /api/copies/:id", () => {
+describe("GET /api/v1/copies/:id", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
   });
 
   it("returns 200 with copy when found", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbCopy);
-    const res = await app.request(`/api/copies/${dbCopy.id}`);
+    const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.id).toBe(dbCopy.id);
@@ -222,7 +222,7 @@ describe("GET /api/copies/:id", () => {
 
   it("returns 404 when copy not found", async () => {
     mockRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(`/api/copies/${dbCopy.id}`);
+    const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
     expect(res.status).toBe(404);
   });
 });

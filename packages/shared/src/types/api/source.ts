@@ -1,5 +1,5 @@
 export interface AcquisitionSourceListResponse {
-  sources: AcquisitionSourceResponse[];
+  items: AcquisitionSourceResponse[];
 }
 
 export interface AcquisitionSourceResponse {

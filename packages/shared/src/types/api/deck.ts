@@ -1,11 +1,11 @@
 import type { CardType, DeckZone, Domain } from "../enums.js";
 
 export interface DeckListResponse {
-  decks: DeckResponse[];
+  items: DeckResponse[];
 }
 
 export interface DeckAvailabilityResponse {
-  availability: DeckAvailabilityItemResponse[];
+  items: DeckAvailabilityItemResponse[];
 }
 
 export interface DeckResponse {

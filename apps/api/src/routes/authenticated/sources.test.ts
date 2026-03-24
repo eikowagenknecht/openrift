@@ -29,7 +29,7 @@ const app = new Hono()
     c.set("repos", { acquisitionSources: mockRepo } as never);
     await next();
   })
-  .route("/api", acquisitionSourcesRoute)
+  .route("/api/v1", acquisitionSourcesRoute)
   .onError((err, c) => {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code }, err.status as 400);
@@ -56,37 +56,37 @@ const dbSource = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/sources", () => {
+describe("GET /api/v1/acquisition-sources", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
   });
 
   it("returns 200 with list of sources", async () => {
     mockRepo.listForUser.mockResolvedValue([dbSource]);
-    const res = await app.request("/api/acquisition-sources");
+    const res = await app.request("/api/v1/acquisition-sources");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.sources).toHaveLength(1);
-    expect(json.sources[0].name).toBe("TCGplayer");
-    expect(json.sources[0].createdAt).toBe(now.toISOString());
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].name).toBe("TCGplayer");
+    expect(json.items[0].createdAt).toBe(now.toISOString());
   });
 
   it("returns empty array when no sources", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
-    const res = await app.request("/api/acquisition-sources");
+    const res = await app.request("/api/v1/acquisition-sources");
     const json = await res.json();
-    expect(json.sources).toEqual([]);
+    expect(json.items).toEqual([]);
   });
 });
 
-describe("POST /api/sources", () => {
+describe("POST /api/v1/acquisition-sources", () => {
   beforeEach(() => {
     mockRepo.create.mockReset();
   });
 
   it("returns 201 with created source", async () => {
     mockRepo.create.mockResolvedValue(dbSource);
-    const res = await app.request("/api/acquisition-sources", {
+    const res = await app.request("/api/v1/acquisition-sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "TCGplayer", description: "Online marketplace" }),
@@ -98,7 +98,7 @@ describe("POST /api/sources", () => {
 
   it("creates source with null description when omitted", async () => {
     mockRepo.create.mockResolvedValue({ ...dbSource, description: null });
-    const res = await app.request("/api/acquisition-sources", {
+    const res = await app.request("/api/v1/acquisition-sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "LGS" }),
@@ -107,14 +107,14 @@ describe("POST /api/sources", () => {
   });
 });
 
-describe("GET /api/sources/:id", () => {
+describe("GET /api/v1/acquisition-sources/:id", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
   });
 
   it("returns 200 with source when found", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbSource);
-    const res = await app.request(`/api/acquisition-sources/${dbSource.id}`);
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.id).toBe(dbSource.id);
@@ -122,12 +122,12 @@ describe("GET /api/sources/:id", () => {
 
   it("returns 404 when source not found", async () => {
     mockRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(`/api/acquisition-sources/${dbSource.id}`);
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`);
     expect(res.status).toBe(404);
   });
 });
 
-describe("PATCH /api/sources/:id", () => {
+describe("PATCH /api/v1/acquisition-sources/:id", () => {
   beforeEach(() => {
     mockRepo.update.mockReset();
   });
@@ -135,7 +135,7 @@ describe("PATCH /api/sources/:id", () => {
   it("returns 200 with updated source", async () => {
     const updated = { ...dbSource, name: "Updated" };
     mockRepo.update.mockResolvedValue(updated);
-    const res = await app.request(`/api/acquisition-sources/${dbSource.id}`, {
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Updated" }),
@@ -147,7 +147,7 @@ describe("PATCH /api/sources/:id", () => {
 
   it("returns 404 when source not found", async () => {
     mockRepo.update.mockResolvedValue();
-    const res = await app.request(`/api/acquisition-sources/${dbSource.id}`, {
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "X" }),
@@ -156,20 +156,24 @@ describe("PATCH /api/sources/:id", () => {
   });
 });
 
-describe("DELETE /api/sources/:id", () => {
+describe("DELETE /api/v1/acquisition-sources/:id", () => {
   beforeEach(() => {
     mockRepo.deleteByIdForUser.mockReset();
   });
 
   it("returns 204 when deleted", async () => {
     mockRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 1n });
-    const res = await app.request(`/api/acquisition-sources/${dbSource.id}`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`, {
+      method: "DELETE",
+    });
     expect(res.status).toBe(204);
   });
 
   it("returns 404 when source not found", async () => {
     mockRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 0n });
-    const res = await app.request(`/api/acquisition-sources/${dbSource.id}`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`, {
+      method: "DELETE",
+    });
     expect(res.status).toBe(404);
   });
 });

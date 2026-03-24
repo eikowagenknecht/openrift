@@ -6,8 +6,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 export const acquisitionSourcesQueryOptions = queryOptions({
   queryKey: queryKeys.acquisitionSources.all,
-  queryFn: () => rpc(client.api["acquisition-sources"].$get()),
-  select: (data) => data.sources,
+  queryFn: () => rpc(client.api.v1["acquisition-sources"].$get()),
+  select: (data) => data.items,
 });
 
 export function useAcquisitionSources() {
@@ -17,7 +17,7 @@ export function useAcquisitionSources() {
 export function useCreateAcquisitionSource() {
   return useMutationWithInvalidation({
     mutationFn: (body: { name: string; description?: string | null }) =>
-      rpc(client.api["acquisition-sources"].$post({ json: body })),
+      rpc(client.api.v1["acquisition-sources"].$post({ json: body })),
     invalidates: [queryKeys.acquisitionSources.all],
   });
 }
@@ -25,7 +25,7 @@ export function useCreateAcquisitionSource() {
 export function useUpdateAcquisitionSource() {
   return useMutationWithInvalidation({
     mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string | null }) =>
-      rpc(client.api["acquisition-sources"][":id"].$patch({ param: { id }, json: body })),
+      rpc(client.api.v1["acquisition-sources"][":id"].$patch({ param: { id }, json: body })),
     invalidates: [queryKeys.acquisitionSources.all],
   });
 }
@@ -33,7 +33,7 @@ export function useUpdateAcquisitionSource() {
 export function useDeleteAcquisitionSource() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) =>
-      rpc(client.api["acquisition-sources"][":id"].$delete({ param: { id } })),
+      rpc(client.api.v1["acquisition-sources"][":id"].$delete({ param: { id } })),
     invalidates: [queryKeys.acquisitionSources.all],
   });
 }

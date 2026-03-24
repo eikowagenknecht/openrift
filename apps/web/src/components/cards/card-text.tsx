@@ -60,7 +60,7 @@ export function CardText({ text, onKeywordClick }: CardTextProps) {
 
 function renderTokens(
   tokens: CardTextToken[],
-  styles: KeywordStylesResponse,
+  styles: KeywordStylesResponse["items"],
   onKeywordClick?: (keyword: string) => void,
 ): React.ReactNode[] {
   return tokens.map((token, i) => {
