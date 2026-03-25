@@ -30,7 +30,7 @@ export function CardBrowser() {
   useHideScrollbar();
   const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
-  const { allCards, setInfoList } = useCards();
+  const { allPrintings, setInfoList } = useCards();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
@@ -51,7 +51,7 @@ export function CardBrowser() {
     totalUniqueCards,
     setDisplayLabel,
   } = useCardData({
-    allCards,
+    allPrintings,
     setInfoList,
     filters,
     sortBy,
@@ -122,7 +122,7 @@ export function CardBrowser() {
           >
             <CardGrid
               cards={deferredSortedCards}
-              totalCards={allCards.length}
+              totalCards={allPrintings.length}
               setOrder={setInfoList}
               selectedCardId={gridSelectedId}
               keyboardNavCardId={selectedCard?.id}

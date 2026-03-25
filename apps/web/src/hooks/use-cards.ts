@@ -6,7 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
 
 interface UseCardsResult {
-  allCards: Printing[];
+  allPrintings: Printing[];
   setInfoList: SetInfo[];
 }
 
@@ -18,12 +18,12 @@ async function fetchCatalog(): Promise<CatalogResponse> {
 
 function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
-  const allCards: Printing[] = catalog.printings.map((p) => ({
+  const allPrintings: Printing[] = catalog.printings.map((p) => ({
     ...p,
     setSlug: slugById.get(p.setId) ?? "",
     card: catalog.cards[p.cardId],
   }));
-  return { allCards, setInfoList: catalog.sets };
+  return { allPrintings, setInfoList: catalog.sets };
 }
 
 export const catalogQueryOptions = queryOptions({

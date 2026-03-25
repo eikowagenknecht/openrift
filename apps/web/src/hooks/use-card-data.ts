@@ -4,7 +4,7 @@ import { comparePrintings, filterCards, getAvailableFilters, sortCards } from "@
 import type { SetInfo } from "@/components/cards/card-grid";
 
 interface UseCardDataParams {
-  allCards: Printing[];
+  allPrintings: Printing[];
   setInfoList: SetInfo[];
   filters: CardFilters;
   sortBy: SortOption;
@@ -53,11 +53,11 @@ function deduplicateByCard(
  * @returns A map from cardId to sorted printings.
  */
 function groupPrintingsByCardId(
-  allCards: Printing[],
+  allPrintings: Printing[],
   setOrderMap: Map<string, number>,
 ): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
-  for (const p of allCards) {
+  for (const p of allPrintings) {
     let group = map.get(p.card.id);
     if (!group) {
       group = [];
@@ -106,7 +106,7 @@ function computePriceRanges(
  * @returns A map from printing ID to owned count.
  */
 function buildOwnedCounts(
-  allCards: Printing[],
+  allPrintings: Printing[],
   displayCards: Printing[],
   ownedCountByPrinting: Record<string, number>,
   view: "cards" | "printings",
@@ -114,7 +114,7 @@ function buildOwnedCounts(
   const map = new Map<string, number>();
   if (view === "cards") {
     const countByCard = new Map<string, number>();
-    for (const p of allCards) {
+    for (const p of allPrintings) {
       const count = ownedCountByPrinting[p.id] ?? 0;
       countByCard.set(p.card.id, (countByCard.get(p.card.id) ?? 0) + count);
     }
@@ -125,7 +125,7 @@ function buildOwnedCounts(
       }
     }
   } else {
-    for (const p of allCards) {
+    for (const p of allPrintings) {
       const count = ownedCountByPrinting[p.id] ?? 0;
       if (count > 0) {
         map.set(p.id, count);
@@ -136,7 +136,7 @@ function buildOwnedCounts(
 }
 
 export function useCardData({
-  allCards,
+  allPrintings,
   setInfoList,
   filters,
   sortBy,
@@ -148,8 +148,8 @@ export function useCardData({
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
   const setOrderMap = new Map(setInfoList.map((s, i) => [s.id, i]));
 
-  const availableFilters = getAvailableFilters(allCards);
-  const filteredCards = filterCards(allCards, filters);
+  const availableFilters = getAvailableFilters(allPrintings);
+  const filteredCards = filterCards(allPrintings, filters);
 
   const displayCards =
     view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
@@ -157,16 +157,16 @@ export function useCardData({
   const sorted = sortCards(displayCards, sortBy);
   const sortedCards = sortDir === "desc" ? sorted.toReversed() : sorted;
 
-  const printingsByCardId = groupPrintingsByCardId(allCards, setOrderMap);
+  const printingsByCardId = groupPrintingsByCardId(allPrintings, setOrderMap);
 
   const priceRangeByCardId = view === "cards" ? computePriceRanges(printingsByCardId) : null;
 
   const ownedCounts = ownedCountByPrinting
-    ? buildOwnedCounts(allCards, displayCards, ownedCountByPrinting, view)
+    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)
     : undefined;
 
   const totalUniqueCards =
-    view === "cards" ? new Set(allCards.map((c) => c.card.id)).size : allCards.length;
+    view === "cards" ? new Set(allPrintings.map((c) => c.card.id)).size : allPrintings.length;
 
   return {
     availableFilters,

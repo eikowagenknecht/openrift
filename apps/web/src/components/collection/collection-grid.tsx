@@ -29,7 +29,7 @@ interface StackedEntry {
 
 export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const { data: copies } = useCopies(collectionId);
-  const { allCards } = useCards();
+  const { allPrintings } = useCards();
   const { data: collections } = useCollections();
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
@@ -43,7 +43,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
   // Build a map from printing ID → Printing for quick lookups
   const printingById = new Map<string, Printing>();
-  for (const p of allCards) {
+  for (const p of allPrintings) {
     printingById.set(p.id, p);
   }
 

@@ -29,7 +29,7 @@ import {
 } from "@/lib/phash-scanner";
 
 export function ScanTestPage() {
-  const { allCards } = useCards();
+  const { allPrintings } = useCards();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -118,13 +118,13 @@ export function ScanTestPage() {
 
   async function runOcr() {
     const canvas = canvasRef.current;
-    if (!canvas || allCards.length === 0) {
+    if (!canvas || allPrintings.length === 0) {
       return;
     }
 
     setOcrRunning(true);
     try {
-      const result = await ocrScan(canvas, allCards);
+      const result = await ocrScan(canvas, allPrintings);
       setOcrResult(result);
     } catch (error) {
       setOcrResult({
@@ -138,13 +138,13 @@ export function ScanTestPage() {
   }
 
   async function buildIndex() {
-    if (allCards.length === 0) {
+    if (allPrintings.length === 0) {
       return;
     }
     setPhashBuilding(true);
-    setPhashProgress({ done: 0, total: allCards.length });
+    setPhashProgress({ done: 0, total: allPrintings.length });
     try {
-      const index = await buildPhashIndex(allCards, phashConfig, (done, total) => {
+      const index = await buildPhashIndex(allPrintings, phashConfig, (done, total) => {
         setPhashProgress({ done, total });
       });
       setPhashIndex(index);
@@ -179,7 +179,7 @@ export function ScanTestPage() {
         image hashing (visual similarity). Capture a card image and compare results.
       </div>
 
-      <p className="text-sm text-muted-foreground">{allCards.length} printings loaded.</p>
+      <p className="text-sm text-muted-foreground">{allPrintings.length} printings loaded.</p>
 
       {/* Camera section */}
       <Card>
@@ -259,7 +259,7 @@ export function ScanTestPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Button onClick={runOcr} disabled={ocrRunning || allCards.length === 0}>
+                  <Button onClick={runOcr} disabled={ocrRunning || allPrintings.length === 0}>
                     {ocrRunning ? "Scanning..." : "Run OCR Scan"}
                   </Button>
                   <Button variant="outline" onClick={() => void terminateOcr()}>
@@ -381,7 +381,7 @@ export function ScanTestPage() {
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={buildIndex}
-                    disabled={phashBuilding || allCards.length === 0}
+                    disabled={phashBuilding || allPrintings.length === 0}
                     variant={phashIndex && configMatchesIndex ? "outline" : "default"}
                   >
                     {phashBuilding
