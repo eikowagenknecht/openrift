@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict z26wBCpxHI6m4qNRbcuuIXYDq9dHhEbcOC1hbiy3vfdevxGADccJaxdEk5QdhmV
+\restrict ApZeLzU6pR4BavbLtqn1jvZzI4GfY87JafOGWDUtUdTjYFJYe1Uw1yMFpNlgF3x
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -336,7 +336,7 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
     CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text)),
     CONSTRAINT chk_cards_super_types_values CHECK ((super_types <@ ARRAY['Basic'::text, 'Champion'::text, 'Signature'::text, 'Token'::text])),
-    CONSTRAINT chk_cards_type CHECK ((type = ANY (ARRAY['Legend'::text, 'Unit'::text, 'Rune'::text, 'Spell'::text, 'Gear'::text, 'Battlefield'::text, 'Buff'::text])))
+    CONSTRAINT chk_cards_type CHECK ((type = ANY (ARRAY['Legend'::text, 'Unit'::text, 'Rune'::text, 'Spell'::text, 'Gear'::text, 'Battlefield'::text, 'Other'::text])))
 );
 
 
@@ -449,6 +449,21 @@ CREATE TABLE public.ignored_candidate_printings (
     CONSTRAINT chk_ignored_candidate_printings_external_id_not_empty CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_ignored_candidate_printings_no_empty_finish CHECK ((finish <> ''::text)),
     CONSTRAINT chk_ignored_candidate_printings_provider_not_empty CHECK ((provider <> ''::text))
+);
+
+
+--
+-- Name: keyword_styles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.keyword_styles (
+    name text NOT NULL,
+    color text NOT NULL,
+    dark_text boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT keyword_styles_color_check CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
+    CONSTRAINT keyword_styles_name_check CHECK ((name <> ''::text))
 );
 
 
@@ -958,6 +973,14 @@ ALTER TABLE ONLY public.ignored_candidate_cards
 
 ALTER TABLE ONLY public.ignored_candidate_printings
     ADD CONSTRAINT ignored_candidate_printings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: keyword_styles keyword_styles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.keyword_styles
+    ADD CONSTRAINT keyword_styles_pkey PRIMARY KEY (name);
 
 
 --
@@ -1583,6 +1606,13 @@ CREATE UNIQUE INDEX uq_wish_list_items_printing ON public.wish_list_items USING 
 
 
 --
+-- Name: keyword_styles keyword_styles_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER keyword_styles_set_updated_at BEFORE UPDATE ON public.keyword_styles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: candidate_cards trg_candidate_cards_norm_name; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2099,5 +2129,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict z26wBCpxHI6m4qNRbcuuIXYDq9dHhEbcOC1hbiy3vfdevxGADccJaxdEk5QdhmV
+\unrestrict ApZeLzU6pR4BavbLtqn1jvZzI4GfY87JafOGWDUtUdTjYFJYe1Uw1yMFpNlgF3x
 
