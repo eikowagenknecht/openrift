@@ -123,10 +123,12 @@ export function useFilterValues() {
 }
 
 /**
- * Returns only the setter / action functions for filter state. Because the
- * setters returned by `useQueryStates` are referentially stable, this hook
- * will NOT cause re-renders when filter *values* change — making it ideal for
- * components that only dispatch filter changes without reading them.
+ * Returns only the setter / action functions for filter state.
+ *
+ * NOTE: This hook still subscribes to `filterState` values internally (for
+ * `toggleSigned`, `togglePromo`, and the `pendingRef` sync effect), so it
+ * will re-render when filter values change. The benefit over `useCardFilters`
+ * is that it does not compute derived state (`filters`, `ranges`, etc.).
  *
  * The `pendingRef` / `useEffect` coordination for `toggleArrayFilter` lives
  * here because it is tightly coupled to the setter logic.
