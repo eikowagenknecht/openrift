@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Map, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { Map } from "lucide-react";
 
 import changelogMd from "@/CHANGELOG.md?raw";
 import {
@@ -10,8 +9,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { useSpinnerButton } from "@/hooks/use-spinner-button";
-import { useSWUpdate } from "@/hooks/use-sw-update";
 import { parseChangelog } from "@/lib/changelog";
 import { COMMIT_HASH } from "@/lib/env";
 import { formatRelativeDate } from "@/lib/format-relative-date";
@@ -24,16 +21,6 @@ interface ChangelogDrawerProps {
 }
 
 export function ChangelogDrawer({ open, onOpenChange }: ChangelogDrawerProps) {
-  const { checkForUpdate } = useSWUpdate();
-  const {
-    spinning,
-    trigger: handleCheckUpdate,
-    onAnimationIteration,
-  } = useSpinnerButton(async () => {
-    await checkForUpdate();
-    toast("You're on the latest version");
-  });
-
   return (
     <Drawer swipeDirection="right" open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="flex flex-col gap-0 overflow-hidden">
@@ -42,18 +29,7 @@ export function ChangelogDrawer({ open, onOpenChange }: ChangelogDrawerProps) {
             <DrawerTitle>What&apos;s new</DrawerTitle>
             <DrawerDescription>
               Recent changes and improvements.{" "}
-              <span className="text-[10px] tabular-nums">{COMMIT_HASH}</span>{" "}
-              <button
-                type="button"
-                className="inline-flex cursor-pointer items-baseline gap-1 text-[10px] text-muted-foreground hover:text-foreground"
-                onClick={handleCheckUpdate}
-              >
-                <RefreshCw
-                  className={`size-2.5 self-center ${spinning ? "animate-spin" : ""}`}
-                  onAnimationIteration={onAnimationIteration}
-                />
-                Check for updates
-              </button>
+              <span className="text-[10px] tabular-nums">{COMMIT_HASH}</span>
             </DrawerDescription>
           </DrawerHeader>
           <Link
