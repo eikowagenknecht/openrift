@@ -13,6 +13,10 @@ interface UseCardDataParams {
   ownedCountByPrinting: Record<string, number> | undefined;
 }
 
+function toComparable(p: Printing, setOrderMap: Map<string, number>) {
+  return { ...p, setOrder: setOrderMap.get(p.setId), promoTypeSlug: p.promoType?.slug };
+}
+
 /**
  * In "cards" mode, deduplicate by cardId — keep the canonical printing per comparePrintings order
  * (earliest set by display order, then normal finish before foil, non-promo before promo, etc.).
@@ -26,19 +30,10 @@ function deduplicateByCard(
   for (const printing of filteredCards) {
     const existing = seen.get(printing.card.id);
     if (existing) {
-      const cmp = comparePrintings(
-        {
-          ...printing,
-          setOrder: setOrderMap.get(printing.setId),
-          promoTypeSlug: printing.promoType?.slug,
-        },
-        {
-          ...existing,
-          setOrder: setOrderMap.get(existing.setId),
-          promoTypeSlug: existing.promoType?.slug,
-        },
-      );
-      if (cmp < 0) {
+      if (
+        comparePrintings(toComparable(printing, setOrderMap), toComparable(existing, setOrderMap)) <
+        0
+      ) {
         seen.set(printing.card.id, printing);
       }
     } else {
@@ -67,10 +62,7 @@ function groupPrintingsByCardId(
   }
   for (const group of map.values()) {
     group.sort((a, b) =>
-      comparePrintings(
-        { ...a, setOrder: setOrderMap.get(a.setId), promoTypeSlug: a.promoType?.slug },
-        { ...b, setOrder: setOrderMap.get(b.setId), promoTypeSlug: b.promoType?.slug },
-      ),
+      comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap)),
     );
   }
   return map;
@@ -170,7 +162,6 @@ export function useCardData({
 
   return {
     availableFilters,
-    displayCards,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
