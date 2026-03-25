@@ -2,15 +2,9 @@ import type { Printing, CatalogResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
+import { ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { client } from "@/lib/rpc-client";
-
-export class ApiError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
 
 interface UseCardsResult {
   allCards: Printing[];
@@ -20,7 +14,11 @@ interface UseCardsResult {
 async function fetchCatalog(): Promise<CatalogResponse> {
   const res = await client.api.v1.catalog.$get();
   if (!res.ok) {
-    throw new ApiError(`Failed to fetch catalog: ${res.status}`);
+    throw new ApiError(
+      `Failed to fetch catalog: ${res.status}`,
+      res.status,
+      "CATALOG_FETCH_FAILED",
+    );
   }
   return (await res.json()) as CatalogResponse;
 }
@@ -45,10 +43,6 @@ export const catalogQueryOptions = queryOptions({
 
 export function useCards(): UseCardsResult {
   const { data } = useSuspenseQuery(catalogQueryOptions);
-
-  if (data.allCards.length === 0) {
-    throw new ApiError("No cards available");
-  }
 
   return data;
 }
