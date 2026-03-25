@@ -1,3 +1,4 @@
+import { InlineError } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AdminPending() {
@@ -10,5 +11,5 @@ export function AdminPending() {
 }
 
 export function AdminError({ error }: { error: Error }) {
-  return <p className="p-4 text-sm text-destructive">Failed to load: {error.message}</p>;
+  return <InlineError message={`Failed to load: ${error.message}`} />;
 }

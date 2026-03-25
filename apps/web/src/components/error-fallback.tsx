@@ -3,59 +3,18 @@ import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
 import { createPortal } from "react-dom";
 
+import {
+  EMOJIS,
+  HEADINGS,
+  MessageLayout,
+  NOT_FOUND_EMOJIS,
+  NOT_FOUND_HEADINGS,
+  NOT_FOUND_SUBTEXTS,
+  SUBTEXTS,
+  pick,
+} from "@/components/error-message";
 import { buttonVariants } from "@/components/ui/button";
 import { DEV } from "@/lib/env";
-
-const HEADINGS = [
-  "The Rift collapsed",
-  "Critical misprint detected",
-  "This page pulled a blank",
-  "Shuffled into the void",
-  "Well, that wasn't supposed to happen",
-  "We drew a bug",
-  "Something broke (no, you can't grade it)",
-  "That's not ideal",
-  "Yeah, that's a bug",
-];
-
-const SUBTEXTS = [
-  "Someone shuffled the code wrong.",
-  "We checked the binder — this page is missing.",
-  "The Rift giveth, the Rift taketh away.",
-  "This page fell through a Rift and didn't come back.",
-  "Even mint-condition apps have bad days.",
-  "We're looking into it. Probably.",
-  "Something broke and it's definitely not your fault.",
-  "No worries, the rest of the app is fine. Probably.",
-];
-
-const NOT_FOUND_HEADINGS = [
-  "Nothing here but dust",
-  "This card was never printed",
-  "Lost in the Rift",
-  "Page not found",
-  "You've wandered off the map",
-  "This page doesn't exist",
-  "No card at this address",
-  "The Rift has no record of this",
-];
-
-const NOT_FOUND_SUBTEXTS = [
-  "Whatever was here, it's gone now.",
-  "Double-check the URL or head back to safety.",
-  "This page isn't in any set we know of.",
-  "Maybe it was here once, maybe it never was.",
-  "Even the best collectors come up empty sometimes.",
-  "The URL looks wrong — or the page was removed.",
-];
-
-const NOT_FOUND_EMOJIS = ["?", "404", "[MISSING]", String.raw`¯\_(ツ)_/¯`];
-
-const EMOJIS = [":(", String.raw`¯\_(ツ)_/¯`, "[MISPRINT]", "[DAMAGED]"];
-
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
 
 /**
  * Router-level error component — uses a portal to break out of the layout and
@@ -100,57 +59,56 @@ export function RouterNotFoundFallback() {
   return createPortal(<NotFoundFallback />, document.body);
 }
 
-function FullPageMessage({
-  emoji,
-  heading,
-  subtext,
-  children,
-}: {
-  emoji: string;
-  heading: string;
-  subtext: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
-      <div className="text-muted-foreground select-none text-4xl font-medium">{emoji}</div>
-      <h1 className="text-xl font-semibold">{heading}</h1>
-      <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>
-      {children}
-      <div className="mt-2 flex gap-3">
-        <a href="/" className={buttonVariants()}>
-          Go home
-        </a>
-      </div>
-    </div>
-  );
+function FullPageWrapper({ children }: { children: ReactNode }) {
+  return <div className="fixed inset-0 z-50 bg-background text-foreground">{children}</div>;
 }
 
 function NotFoundFallback() {
   return (
-    <FullPageMessage
-      emoji={pick(NOT_FOUND_EMOJIS)}
-      heading={pick(NOT_FOUND_HEADINGS)}
-      subtext={pick(NOT_FOUND_SUBTEXTS)}
-    />
+    <FullPageWrapper>
+      <MessageLayout
+        emoji={pick(NOT_FOUND_EMOJIS)}
+        heading={pick(NOT_FOUND_HEADINGS)}
+        subtext={pick(NOT_FOUND_SUBTEXTS)}
+        className="h-full"
+      >
+        <div className="mt-2 flex gap-3">
+          <a href="/" className={buttonVariants()}>
+            Go home
+          </a>
+        </div>
+      </MessageLayout>
+    </FullPageWrapper>
   );
 }
 
 function ErrorFallback({ error }: { error: Error }) {
   return (
-    <FullPageMessage emoji={pick(EMOJIS)} heading={pick(HEADINGS)} subtext={pick(SUBTEXTS)}>
-      {DEV && (
-        <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
-          {error.message}
-        </pre>
-      )}
-      <button
-        type="button"
-        className={buttonVariants({ variant: "outline" })}
-        onClick={() => globalThis.location.reload()}
+    <FullPageWrapper>
+      <MessageLayout
+        emoji={pick(EMOJIS)}
+        heading={pick(HEADINGS)}
+        subtext={pick(SUBTEXTS)}
+        className="h-full"
       >
-        Reshuffle
-      </button>
-    </FullPageMessage>
+        {DEV && (
+          <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
+            {error.message}
+          </pre>
+        )}
+        <div className="mt-2 flex gap-3">
+          <a href="/" className={buttonVariants()}>
+            Go home
+          </a>
+          <button
+            type="button"
+            className={buttonVariants({ variant: "outline" })}
+            onClick={() => globalThis.location.reload()}
+          >
+            Reshuffle
+          </button>
+        </div>
+      </MessageLayout>
+    </FullPageWrapper>
   );
 }

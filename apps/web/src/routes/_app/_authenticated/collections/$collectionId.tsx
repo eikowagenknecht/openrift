@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CollectionGrid } from "@/components/collection/collection-grid";
+import { InlineError } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
   },
   component: CollectionDetail,
   pendingComponent: CollectionDetailPending,
-  errorComponent: CollectionDetailError,
+  errorComponent: () => <InlineError centered />,
 });
 
 function CollectionDetailPending() {
@@ -26,10 +27,6 @@ function CollectionDetailPending() {
       <Skeleton className="h-64 w-full" />
     </div>
   );
-}
-
-function CollectionDetailError({ error }: { error: Error }) {
-  return <p className="p-4 text-sm text-destructive">Failed to load: {error.message}</p>;
 }
 
 function CollectionDetail() {

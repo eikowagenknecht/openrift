@@ -58,6 +58,16 @@ For one-off queries without an interactive shell:
 docker exec openrift-db-1 psql -U openrift -c "SELECT count(*) FROM cards;"
 ```
 
+## Troubleshooting
+
+**"Failed to load cards" in the browser**
+
+| Cause                         | Fix                       |
+| ----------------------------- | ------------------------- |
+| Database not running          | `docker compose up db -d` |
+| Migrations not applied        | `bun db:migrate`          |
+| Database empty (no card data) | `bun db:seed`             |
+
 ## Linting and Formatting
 
 ```bash
