@@ -106,7 +106,6 @@
         "vite": "8.0.1",
         "vite-plugin-pwa": "1.2.0",
         "vitest": "4.1.0",
-        "workbox-window": "7.4.0",
       },
     },
     "packages/shared": {

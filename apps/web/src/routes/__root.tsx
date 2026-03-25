@@ -5,9 +5,7 @@ import { lazy } from "react";
 
 import { RouterNotFoundFallback } from "@/components/error-fallback";
 import { Footer } from "@/components/layout/footer";
-import { OfflineIndicator } from "@/components/pwa/offline-indicator";
 import { Toaster } from "@/components/ui/sonner";
-import { SWUpdateProvider } from "@/hooks/use-sw-update";
 import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 
@@ -31,15 +29,12 @@ export const Route = createRootRouteWithContext<{
 function RootComponent() {
   return (
     <NuqsAdapter>
-      <SWUpdateProvider>
-        <div className="flex min-h-screen flex-col bg-background text-foreground">
-          <Outlet />
-          <Footer />
-          <Toaster position="bottom-right" />
-          <OfflineIndicator />
-        </div>
-        <TanStackRouterDevtools />
-      </SWUpdateProvider>
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <Outlet />
+        <Footer />
+        <Toaster position="bottom-right" />
+      </div>
+      <TanStackRouterDevtools />
     </NuqsAdapter>
   );
 }
