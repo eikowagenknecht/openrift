@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-
+import { Header } from "@/components/layout/header";
 import { buttonVariants } from "@/components/ui/button";
+import { DEV } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 export const HEADINGS = [
@@ -54,19 +54,25 @@ export function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function MessageLayout({
+export function ErrorMessageLayout({
   emoji,
   heading,
   subtext,
   className,
-  children,
+  goHome,
+  reload,
+  devError,
 }: {
   emoji?: string;
   heading: string;
   subtext?: string;
   className?: string;
-  children?: ReactNode;
+  goHome?: boolean;
+  reload?: boolean;
+  devError?: string;
 }) {
+  const hasActions = goHome || reload;
+
   return (
     <div
       className={cn("flex flex-col items-center justify-center gap-4 px-4 text-center", className)}
@@ -76,32 +82,61 @@ export function MessageLayout({
       )}
       <h1 className="text-xl font-semibold">{heading}</h1>
       {subtext && <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>}
-      {children}
+      {DEV && devError && (
+        <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
+          {devError}
+        </pre>
+      )}
+      {hasActions && (
+        <div className="mt-2 flex gap-3">
+          {goHome && (
+            <a href="/" className={buttonVariants()}>
+              Go home
+            </a>
+          )}
+          {reload && (
+            <button
+              type="button"
+              className={buttonVariants({ variant: goHome ? "outline" : "default" })}
+              onClick={() => globalThis.location.reload()}
+            >
+              Reshuffle
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-export function InlineError(props: { centered: true } | { centered?: false; message?: string }) {
-  if (props.centered) {
-    return (
-      <MessageLayout
-        emoji={pick(EMOJIS)}
-        heading={pick(HEADINGS)}
-        subtext={pick(SUBTEXTS)}
-        className="flex-1"
-      >
-        <div className="mt-2 flex gap-3">
-          <button
-            type="button"
-            className={buttonVariants({ variant: "outline" })}
-            onClick={() => globalThis.location.reload()}
-          >
-            Reload
-          </button>
-        </div>
-      </MessageLayout>
-    );
-  }
+export function RouteErrorFallback() {
+  return (
+    <ErrorMessageLayout
+      emoji={pick(EMOJIS)}
+      heading={pick(HEADINGS)}
+      subtext={pick(SUBTEXTS)}
+      className="flex-1"
+      reload
+    />
+  );
+}
 
-  return <p className="p-4 text-sm text-destructive">{props.message ?? "Failed to load."}</p>;
+export function RouteNotFoundFallback() {
+  return (
+    <>
+      <Header />
+      <ErrorMessageLayout
+        emoji={pick(NOT_FOUND_EMOJIS)}
+        heading={pick(NOT_FOUND_HEADINGS)}
+        subtext={pick(NOT_FOUND_SUBTEXTS)}
+        className="flex-1"
+        goHome
+      />
+    </>
+  );
+}
+
+export function InlineErrorMessage({ error }: { error: unknown }) {
+  const message = error instanceof Error ? error.message : String(error);
+  return <p className="p-4 text-sm text-destructive">Failed to load: {message}</p>;
 }

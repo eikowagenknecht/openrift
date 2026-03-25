@@ -3,24 +3,8 @@ import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
 import { createPortal } from "react-dom";
 
-import {
-  EMOJIS,
-  HEADINGS,
-  MessageLayout,
-  NOT_FOUND_EMOJIS,
-  NOT_FOUND_HEADINGS,
-  NOT_FOUND_SUBTEXTS,
-  SUBTEXTS,
-  pick,
-} from "@/components/error-message";
-import { buttonVariants } from "@/components/ui/button";
-import { DEV } from "@/lib/env";
+import { EMOJIS, ErrorMessageLayout, HEADINGS, SUBTEXTS, pick } from "@/components/error-message";
 
-/**
- * Router-level error component — uses a portal to break out of the layout and
- * render a full-page takeover.
- * @returns A portal-rendered error fallback.
- */
 export function RouterErrorFallback({ error }: ErrorComponentProps) {
   return createPortal(
     <ErrorFallback error={error instanceof Error ? error : new Error(String(error))} />,
@@ -51,64 +35,17 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 }
 
-/**
- * Router-level not-found component — uses a portal to break out of the layout.
- * @returns A portal-rendered not-found fallback.
- */
-export function RouterNotFoundFallback() {
-  return createPortal(<NotFoundFallback />, document.body);
-}
-
-function FullPageWrapper({ children }: { children: ReactNode }) {
-  return <div className="fixed inset-0 z-50 bg-background text-foreground">{children}</div>;
-}
-
-function NotFoundFallback() {
-  return (
-    <FullPageWrapper>
-      <MessageLayout
-        emoji={pick(NOT_FOUND_EMOJIS)}
-        heading={pick(NOT_FOUND_HEADINGS)}
-        subtext={pick(NOT_FOUND_SUBTEXTS)}
-        className="h-full"
-      >
-        <div className="mt-2 flex gap-3">
-          <a href="/" className={buttonVariants()}>
-            Go home
-          </a>
-        </div>
-      </MessageLayout>
-    </FullPageWrapper>
-  );
-}
-
 function ErrorFallback({ error }: { error: Error }) {
   return (
-    <FullPageWrapper>
-      <MessageLayout
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background text-foreground">
+      <ErrorMessageLayout
         emoji={pick(EMOJIS)}
         heading={pick(HEADINGS)}
         subtext={pick(SUBTEXTS)}
-        className="h-full"
-      >
-        {DEV && (
-          <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
-            {error.message}
-          </pre>
-        )}
-        <div className="mt-2 flex gap-3">
-          <a href="/" className={buttonVariants()}>
-            Go home
-          </a>
-          <button
-            type="button"
-            className={buttonVariants({ variant: "outline" })}
-            onClick={() => globalThis.location.reload()}
-          >
-            Reshuffle
-          </button>
-        </div>
-      </MessageLayout>
-    </FullPageWrapper>
+        goHome
+        reload
+        devError={error.message}
+      />
+    </div>
   );
 }

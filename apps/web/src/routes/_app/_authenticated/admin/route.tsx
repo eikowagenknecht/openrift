@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-router";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { RouteErrorFallback } from "@/components/error-message";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminQueryOptions } from "@/hooks/use-admin";
@@ -24,6 +25,7 @@ const pageTitles: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
+  errorComponent: RouteErrorFallback,
   beforeLoad: async ({ context }) => {
     const isAdmin = await context.queryClient.ensureQueryData(isAdminQueryOptions);
     if (!isAdmin) {

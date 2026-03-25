@@ -1,4 +1,3 @@
-import { InlineError } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AdminPending() {
@@ -8,8 +7,4 @@ export function AdminPending() {
       <Skeleton className="h-64 w-full" />
     </div>
   );
-}
-
-export function AdminError({ error }: { error: Error }) {
-  return <InlineError message={`Failed to load: ${error.message}`} />;
 }

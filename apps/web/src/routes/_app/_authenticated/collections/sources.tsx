@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { SourcesPage } from "@/components/collection/sources-page";
-import { InlineError } from "@/components/error-message";
+import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { acquisitionSourcesQueryOptions } from "@/hooks/use-acquisition-sources";
 
@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections/sources")
   loader: ({ context }) => context.queryClient.ensureQueryData(acquisitionSourcesQueryOptions),
   component: SourcesPage,
   pendingComponent: SourcesPending,
-  errorComponent: () => <InlineError centered />,
+  errorComponent: RouteErrorFallback,
 });
 
 function SourcesPending() {

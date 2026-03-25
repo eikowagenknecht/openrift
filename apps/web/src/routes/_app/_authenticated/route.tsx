@@ -1,8 +1,10 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
+import { RouteErrorFallback } from "@/components/error-message";
 import { sessionQueryOptions } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_app/_authenticated")({
+  errorComponent: RouteErrorFallback,
   beforeLoad: async ({ location, context }) => {
     const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
     if (!session?.user) {
