@@ -11,7 +11,7 @@ const keywordStylesQueryOptions = queryOptions({
     assertOk(res);
     return await res.json();
   },
-  staleTime: 60 * 60 * 1000,
+  staleTime: 60 * 60 * 1000, // 1 hour
   refetchOnWindowFocus: false,
 });
 

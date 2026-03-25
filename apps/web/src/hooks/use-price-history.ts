@@ -17,6 +17,6 @@ export function usePriceHistory(printingId: string | null, range: TimeRange = "3
       return await res.json();
     },
     enabled: Boolean(printingId),
-    staleTime: 60 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 1 hour
   });
 }

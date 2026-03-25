@@ -15,7 +15,7 @@ export const featureFlagsQueryOptions = queryOptions({
     const data = await res.json();
     return data.items as FeatureFlags;
   },
-  staleTime: 5 * 60 * 1000,
+  staleTime: 5 * 60 * 1000, // 5 minutes
 });
 
 export function featureEnabled(flags: FeatureFlags, key: string): boolean {

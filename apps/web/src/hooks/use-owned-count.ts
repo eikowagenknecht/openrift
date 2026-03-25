@@ -13,6 +13,6 @@ export function useOwnedCount(enabled: boolean) {
     },
     select: (data) => data.items,
     enabled,
-    staleTime: 60_000,
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
 }

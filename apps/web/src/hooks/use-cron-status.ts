@@ -11,6 +11,6 @@ export function useCronStatus() {
       assertOk(res);
       return await res.json();
     },
-    refetchInterval: 60_000,
+    refetchInterval: 1 * 60 * 1000, // 1 minute
   });
 }

@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import { EllipsisVertical, LogOut, Menu, Moon, Shield, Sparkles, Sun, User } from "lucide-react";
 import type { ReactNode } from "react";
@@ -113,10 +114,12 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const darkMode = theme === "dark";
   const { data: isAdmin } = useIsAdmin();
+  const queryClient = useQueryClient();
   const router = useRouter();
 
   const handleSignOut = async () => {
     await signOut();
+    queryClient.clear();
     void router.navigate({ to: "/cards" });
   };
 

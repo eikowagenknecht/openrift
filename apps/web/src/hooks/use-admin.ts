@@ -15,7 +15,7 @@ async function fetchIsAdmin(): Promise<boolean> {
 export const isAdminQueryOptions = queryOptions({
   queryKey: queryKeys.admin.me,
   queryFn: fetchIsAdmin,
-  staleTime: 5 * 60 * 1000,
+  staleTime: 5 * 60 * 1000, // 5 minutes
 });
 
 export function useIsAdmin() {

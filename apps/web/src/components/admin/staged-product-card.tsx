@@ -91,7 +91,7 @@ export function StagedProductCard({
         <p
           className={cn(
             "w-fit rounded px-1.5 py-0.5 text-xs",
-            Date.now() - new Date(sp.recordedAt).getTime() > 48 * 60 * 60 * 1000
+            Date.now() - new Date(sp.recordedAt).getTime() > 48 * 60 * 60 * 1000 // 48 hours
               ? "bg-destructive/10 text-destructive"
               : "bg-muted text-muted-foreground",
           )}
