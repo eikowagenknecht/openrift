@@ -28,7 +28,7 @@ export const SUBTEXTS = [
 
 export const EMOJIS = [":(", String.raw`¯\_(ツ)_/¯`, "[MISPRINT]", "[DAMAGED]"];
 
-export const NOT_FOUND_HEADINGS = [
+const NOT_FOUND_HEADINGS = [
   "Nothing here but dust",
   "This card was never printed",
   "Lost in the Rift",
@@ -39,7 +39,7 @@ export const NOT_FOUND_HEADINGS = [
   "The Rift has no record of this",
 ];
 
-export const NOT_FOUND_SUBTEXTS = [
+const NOT_FOUND_SUBTEXTS = [
   "Whatever was here, it's gone now.",
   "Double-check the URL or head back to safety.",
   "This page isn't in any set we know of.",
@@ -48,7 +48,7 @@ export const NOT_FOUND_SUBTEXTS = [
   "The URL looks wrong — or the page was removed.",
 ];
 
-export const NOT_FOUND_EMOJIS = ["?", "404", "[MISSING]", String.raw`¯\_(ツ)_/¯`];
+const NOT_FOUND_EMOJIS = ["?", "404", "[MISSING]", String.raw`¯\_(ツ)_/¯`];
 
 export function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -109,7 +109,8 @@ export function ErrorMessageLayout({
   );
 }
 
-export function RouteErrorFallback() {
+export function RouteErrorFallback({ error }: { error?: unknown }) {
+  const message = error instanceof Error ? error.message : error ? String(error) : undefined;
   return (
     <ErrorMessageLayout
       emoji={pick(EMOJIS)}
@@ -117,6 +118,7 @@ export function RouteErrorFallback() {
       subtext={pick(SUBTEXTS)}
       className="flex-1"
       reload
+      devError={message}
     />
   );
 }
@@ -134,9 +136,4 @@ export function RouteNotFoundFallback() {
       />
     </>
   );
-}
-
-export function InlineErrorMessage({ error }: { error: unknown }) {
-  const message = error instanceof Error ? error.message : String(error);
-  return <p className="p-4 text-sm text-destructive">Failed to load: {message}</p>;
 }

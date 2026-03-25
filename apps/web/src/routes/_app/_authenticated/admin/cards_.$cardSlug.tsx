@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AdminPending } from "@/components/admin/admin-route-components";
-import { InlineErrorMessage } from "@/components/error-message";
+import { RouteErrorFallback } from "@/components/error-message";
 import { allCardsQueryOptions, candidateDetailQueryOptions } from "@/hooks/use-candidates";
 import { adminPromoTypesQueryOptions } from "@/hooks/use-promo-types";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
     ]);
   },
   pendingComponent: AdminPending,
-  errorComponent: InlineErrorMessage,
+  errorComponent: RouteErrorFallback,
 });
