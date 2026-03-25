@@ -6,7 +6,7 @@ export const Route = createLazyFileRoute("/_app/legal-notice")({
 
 function LegalNoticePage() {
   return (
-    <article className="prose dark:prose-invert mx-auto w-full max-w-2xl">
+    <article className="mt-6 prose dark:prose-invert mx-auto max-w-2xl">
       <h1>Legal Notice</h1>
 
       <h2>Responsible for this site</h2>
