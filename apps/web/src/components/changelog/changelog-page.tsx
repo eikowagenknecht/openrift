@@ -1,54 +1,54 @@
 import { Link } from "@tanstack/react-router";
-import { Map } from "lucide-react";
 
 import changelogMd from "@/CHANGELOG.md?raw";
 import { parseChangelog } from "@/lib/changelog";
-import { COMMIT_HASH } from "@/lib/env";
 import { formatRelativeDate } from "@/lib/format-relative-date";
 
 const changelogGroups = parseChangelog(changelogMd);
 
+function SkewedBadge({ text, color }: { text: string; color: string }) {
+  return (
+    <span className="ml-1 relative inline-flex w-10 shrink-0 justify-center py-0.5">
+      <span className={`absolute inset-0 -skew-x-[15deg] ${color}`} />
+      <span className="relative -ml-0.5 text-sm font-semibold uppercase italic leading-none tracking-tight text-white">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 export function ChangelogPage() {
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mt-6 mx-auto max-w-2xl">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">What&apos;s new</h1>
-        <span className="text-xs tabular-nums text-muted-foreground">{COMMIT_HASH}</span>
+        <Link to="/roadmap" className="text-sm text-muted-foreground hover:text-foreground">
+          Roadmap &rarr;
+        </Link>
       </div>
-      <Link
-        to="/roadmap"
-        className="mb-6 flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-      >
-        <Map className="size-4" />
-        View the roadmap
-      </Link>
-      {changelogGroups.map((group) => (
-        <div key={group.date} className="mb-6">
-          <div className="sticky top-14 z-10 -mx-4 flex items-baseline gap-3 border-b border-border bg-background px-4 pb-2 pt-3 shadow-[0_2px_4px_-2px_var(--color-border)]">
-            <span className="text-sm font-semibold text-foreground">
-              {formatRelativeDate(group.date)}
-            </span>
-            <span className="text-[10px] tabular-nums text-muted-foreground">{group.date}</span>
-          </div>
-          <ul className="space-y-2 pt-2">
-            {group.entries.map((entry, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                <span className="relative mt-1 inline-flex w-8 shrink-0 items-center justify-center px-1">
-                  <span
-                    className={`absolute inset-0 -skew-x-[15deg] ${
-                      entry.type === "feat" ? "bg-[#24705f]" : "bg-[#cd346f]"
-                    }`}
+      <div className="flex flex-col gap-6">
+        {changelogGroups.map((group) => (
+          <div key={group.date}>
+            <div className="py-2 sticky top-14 z-10 flex items-baseline justify-between border-b border-border bg-background pb-2">
+              <span className="text-sm font-semibold text-foreground">
+                {formatRelativeDate(group.date)}
+              </span>
+              <span className="text-sm tabular-nums text-muted-foreground">{group.date}</span>
+            </div>
+            <ul className="space-y-2 pt-2">
+              {group.entries.map((entry, i) => (
+                <li key={i} className="flex items-baseline gap-2 text-sm">
+                  <SkewedBadge
+                    text={entry.type}
+                    color={entry.type === "feat" ? "bg-[#24705f]" : "bg-[#cd346f]"}
                   />
-                  <span className="relative text-[10px] font-semibold uppercase italic leading-none tracking-tight text-white">
-                    {entry.type}
-                  </span>
-                </span>
-                <span>{entry.message}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+                  <span>{entry.message}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
