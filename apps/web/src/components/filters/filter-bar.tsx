@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useDebounce } from "@/hooks/use-debounce";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DisplaySettingsDropdown, DisplaySettingsInline } from "./display-settings";
@@ -82,7 +83,7 @@ function SortControls({
   onSortDirChange: (v: "asc" | "desc") => void;
 }) {
   return (
-    <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>
+    <div className={cn("flex items-center", compact ? "gap-2" : "gap-3")}>
       <Select value={sortBy} onValueChange={(v) => onSortByChange(v as SortOption)}>
         <SelectTrigger
           size={compact ? "sm" : undefined}
@@ -327,7 +328,7 @@ export function FilterBar({
                   e.currentTarget.blur();
                 }
               }}
-              className={`pl-9 ${localSearch ? "pr-28" : "pr-20"}`}
+              className={cn("pl-9", localSearch ? "pr-28" : "pr-20")}
             />
             <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
               <span className="pointer-events-none text-xs text-muted-foreground">
@@ -349,13 +350,17 @@ export function FilterBar({
             </span>
           </div>
           <div
-            className={`flex items-start gap-2 overflow-hidden transition-all duration-200 ${
-              showScopeChips ? "mt-2 max-h-24 opacity-100" : "mt-0 max-h-0 opacity-0"
-            }`}
+            className={cn(
+              "flex items-start gap-2 overflow-hidden transition-all duration-200",
+              showScopeChips ? "mt-2 max-h-24 opacity-100" : "mt-0 max-h-0 opacity-0",
+            )}
           >
             <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
             <div
-              className={`flex flex-wrap gap-1 ${hasPrefixes ? "pointer-events-none opacity-40" : ""}`}
+              className={cn(
+                "flex flex-wrap gap-1",
+                hasPrefixes && "pointer-events-none opacity-40",
+              )}
             >
               {ALL_SEARCH_FIELDS.map((field) => {
                 const { label, prefix } = SEARCH_FIELD_LABELS[field];
