@@ -47,6 +47,7 @@ export const queryKeys = {
     rehostStatus: ["admin", "rehost-status"] as const,
     renamePreview: ["admin", "rename-preview"] as const,
     brokenImages: ["admin", "broken-images"] as const,
+    lowResImages: ["admin", "low-res-images"] as const,
     missingImages: ["admin", "missing-images"] as const,
     priceMappings: {
       bySource: (config: SourceMappingConfig) => ["admin", config.source] as const,

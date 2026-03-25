@@ -14,6 +14,8 @@ export type {
   AssignableCardResponse,
   BrokenImageEntry,
   BrokenImagesResponse,
+  LowResImageEntry,
+  LowResImagesResponse,
   Card,
   CardFilters,
   CardFace,

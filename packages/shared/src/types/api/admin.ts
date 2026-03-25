@@ -242,6 +242,23 @@ export interface BrokenImagesResponse {
   broken: BrokenImageEntry[];
 }
 
+export interface LowResImageEntry {
+  imageId: string;
+  rehostedUrl: string;
+  originalUrl: string | null;
+  cardSlug: string;
+  cardName: string;
+  printingSlug: string;
+  setSlug: string;
+  width: number;
+  height: number;
+}
+
+export interface LowResImagesResponse {
+  total: number;
+  lowRes: LowResImageEntry[];
+}
+
 // ── Price refresh response types ────────────────────────────────────────────
 
 export interface PriceRefreshUpsertCounts {

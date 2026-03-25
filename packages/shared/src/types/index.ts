@@ -58,6 +58,8 @@ export type {
   FeatureFlagsResponse,
   IgnoredProductResponse,
   KeywordStyleEntry,
+  LowResImageEntry,
+  LowResImagesResponse,
   KeywordStylesResponse,
   MappingPrintingResponse,
   MarketplaceGroupResponse,

@@ -18,11 +18,14 @@ async function fetchCatalog(): Promise<CatalogResponse> {
 
 function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
-  const allPrintings: Printing[] = catalog.printings.map((p) => ({
-    ...p,
-    setSlug: slugById.get(p.setId) ?? "",
-    card: catalog.cards[p.cardId],
-  }));
+  const allPrintings: Printing[] = [];
+  for (const p of catalog.printings) {
+    const setSlug = slugById.get(p.setId);
+    const card = catalog.cards[p.cardId];
+    if (setSlug && card) {
+      allPrintings.push({ ...p, setSlug, card });
+    }
+  }
   return { allPrintings, sets: catalog.sets };
 }
 

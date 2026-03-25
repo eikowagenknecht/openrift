@@ -23,7 +23,7 @@ export function useRehostStatus() {
   });
 }
 
-export function useBrokenImages() {
+export function useBrokenImages(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.admin.brokenImages,
     queryFn: async () => {
@@ -31,6 +31,19 @@ export function useBrokenImages() {
       assertOk(res);
       return await res.json();
     },
+    enabled,
+  });
+}
+
+export function useLowResImages(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.admin.lowResImages,
+    queryFn: async () => {
+      const res = await client.api.v1.admin["low-res-images"].$get();
+      assertOk(res);
+      return await res.json();
+    },
+    enabled,
   });
 }
 

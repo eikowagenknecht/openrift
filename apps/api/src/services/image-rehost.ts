@@ -7,6 +7,7 @@ import type {
   BrokenImagesResponse,
   CleanupOrphanedResponse,
   ClearRehostedResponse,
+  LowResImagesResponse,
   RegenerateImageResponse,
   RehostImageResponse,
   RehostStatusDiskStats,
@@ -534,4 +535,47 @@ export async function findBrokenImages(
   }
 
   return { total: images.length, broken };
+}
+
+const LOW_RES_WIDTH_THRESHOLD = 600;
+
+/**
+ * Find all rehosted images whose full-resolution variant is below a width threshold.
+ * Reads the `-full.webp` file for each rehosted image and checks its dimensions.
+ * @returns The total rehosted count and the list of low-resolution entries.
+ */
+export async function findLowResImages(
+  io: Io,
+  repo: PrintingImagesRepo,
+): Promise<LowResImagesResponse> {
+  const images = await repo.listAllRehostedWithContext();
+  const lowRes: LowResImagesResponse["lowRes"] = [];
+
+  for (const img of images) {
+    const relPath = img.rehostedUrl.replace(/^\/card-images\//, "");
+    const dir = join(CARD_IMAGES_DIR, relPath.split("/").slice(0, -1).join("/"));
+    const fileBase = relPath.split("/").pop() as string;
+    const fullPath = join(dir, `${fileBase}-full.webp`);
+
+    try {
+      const metadata = await io.sharp(await io.fs.readFile(fullPath)).metadata();
+      if (metadata.width && metadata.width < LOW_RES_WIDTH_THRESHOLD) {
+        lowRes.push({
+          imageId: img.imageId,
+          rehostedUrl: img.rehostedUrl,
+          originalUrl: img.originalUrl,
+          cardSlug: img.cardSlug,
+          cardName: img.cardName,
+          printingSlug: img.printingSlug,
+          setSlug: img.setSlug,
+          width: metadata.width,
+          height: metadata.height ?? 0,
+        });
+      }
+    } catch {
+      // File missing or unreadable — skip (handled by broken-images check)
+    }
+  }
+
+  return { total: images.length, lowRes };
 }
