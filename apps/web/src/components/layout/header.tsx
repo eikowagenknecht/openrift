@@ -105,7 +105,7 @@ function UserMenuTrigger({
       </Avatar>
     );
   }
-  return <EllipsisVertical className="size-6" />;
+  return <EllipsisVertical className="size-5" />;
 }
 
 function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
@@ -123,20 +123,18 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   return (
     <DropdownMenuContent align="end">
       {isLoggedIn && (
-        <>
-          <DropdownMenuItem render={<Link to="/profile" />}>
-            <User className="size-4" />
-            Profile
-          </DropdownMenuItem>
-          {isAdmin && (
-            <DropdownMenuItem render={<Link to="/admin" />}>
-              <Shield className="size-4" />
-              Admin
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
-        </>
+        <DropdownMenuItem render={<Link to="/profile" />}>
+          <User className="size-4" />
+          Profile
+        </DropdownMenuItem>
       )}
+      {isLoggedIn && isAdmin && (
+        <DropdownMenuItem render={<Link to="/admin" />}>
+          <Shield className="size-4" />
+          Admin
+        </DropdownMenuItem>
+      )}
+      {isLoggedIn && <DropdownMenuSeparator />}
       <DropdownMenuItem onClick={toggleTheme}>
         {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
         {darkMode ? "Light mode" : "Dark mode"}
@@ -145,14 +143,12 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
         <Sparkles className="size-4" />
         What&apos;s new
       </DropdownMenuItem>
+      {isLoggedIn && <DropdownMenuSeparator />}
       {isLoggedIn && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut}>
-            <LogOut className="size-4" />
-            Sign out
-          </DropdownMenuItem>
-        </>
+        <DropdownMenuItem onClick={handleSignOut}>
+          <LogOut className="size-4" />
+          Sign out
+        </DropdownMenuItem>
       )}
     </DropdownMenuContent>
   );
