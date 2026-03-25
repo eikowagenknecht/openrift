@@ -97,7 +97,7 @@ export function CardBrowser() {
 
   return (
     <CardBrowserContext value={browserContext}>
-      <div className="min-h-[calc(100svh-3.5rem)] space-y-4">
+      <div className="space-y-4">
         {adding && addingTo && (
           <AddToCollectionFlow
             ref={addFlowRef}
@@ -167,7 +167,7 @@ function CardDetailSkeleton() {
         </div>
       </div>
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
-        <Skeleton className="aspect-[744/1039] w-full rounded-xl" />
+        <Skeleton className="aspect-card w-full rounded-xl" />
         <div className="flex justify-center gap-1.5">
           <Skeleton className="h-7 w-16 rounded-md" />
           <Skeleton className="h-7 w-16 rounded-md" />

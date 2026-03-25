@@ -27,7 +27,7 @@ export function needsCssRotation(imageUrl: string, orientation: string): boolean
  */
 export const LANDSCAPE_ROTATION_STYLE: React.CSSProperties = {
   width: "139.65%",
-  aspectRatio: "1039 / 744",
+  aspectRatio: "88 / 63",
   transform: "translate(-50%, -50%) rotate(-90deg)",
 };
 

@@ -35,7 +35,7 @@ export function CardImage({
         // Percentage border-radius creates elliptical corners on non-square
         // elements. Use the / syntax to keep corners circular: horizontal
         // radius is 5% of width, vertical is scaled by the card aspect
-        // ratio (744/1039) so both resolve to the same pixel value.
+        // ratio (63/88) so both resolve to the same pixel value.
         // 5% covers the range of built-in artwork corner radii (~3.9-4.7%).
         borderRadius: "5% / 3.6%",
         transform:

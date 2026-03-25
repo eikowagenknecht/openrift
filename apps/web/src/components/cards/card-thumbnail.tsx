@@ -232,7 +232,7 @@ export function CardThumbnail({
                   loading={priority ? "eager" : "lazy"}
                   fetchPriority={priority ? "high" : undefined}
                   className={cn(
-                    "absolute inset-0 aspect-[744/1039] w-full object-cover transition-opacity duration-300",
+                    "absolute inset-0 aspect-card w-full object-cover transition-opacity duration-300",
                     imgLoaded ? "opacity-100" : "opacity-0",
                   )}
                   onLoad={() => setImgLoaded(true)}

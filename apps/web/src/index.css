@@ -155,6 +155,7 @@ html.hide-scrollbar::-webkit-scrollbar {
   --container-max-xwide: 140rem;
   --breakpoint-xxwide: 160rem;
   --container-max-xxwide: 160rem;
+  --aspect-card: 63 / 88; /* standard playing card (63×88mm) */
 }
 
 /* --- Drawer transitions (Base UI) --- */

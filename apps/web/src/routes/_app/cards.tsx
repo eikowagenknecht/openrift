@@ -14,16 +14,13 @@ export const Route = createFileRoute("/_app/cards")({
 
 function CardsPending() {
   return (
-    <div className="min-h-[calc(100svh-3.5rem)] space-y-4">
+    <div className="space-y-4">
       <Skeleton className="h-10 w-full rounded-lg" />
-      <div className="flex items-start gap-6">
-        <Skeleton className="hidden wide:block h-[60svh] w-[400px] shrink-0 rounded-lg" />
-        <div className="min-w-0 flex-1">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-            {Array.from({ length: 20 }, (_, i) => (
-              <Skeleton key={i} className="aspect-[744/1039] rounded-lg" />
-            ))}
-          </div>
+      <div className="min-w-0 flex-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
+          {Array.from({ length: 20 }, (_, i) => (
+            <Skeleton key={i} className="aspect-card rounded-lg" />
+          ))}
         </div>
       </div>
     </div>

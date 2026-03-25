@@ -3,7 +3,7 @@
 // can predict row heights without measuring. When a class changes, update
 // the matching constant here.
 
-export const CARD_ASPECT = 1039 / 744;
+export const CARD_ASPECT = 88 / 63; // standard playing card (63×88mm)
 export const GAP = 16; // gap-4
 export const BUTTON_PAD = 6; // p-1.5 on CardThumbnail <button>
 export const APP_HEADER_HEIGHT = 56; // h-14
