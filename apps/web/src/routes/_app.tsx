@@ -11,7 +11,7 @@ function AppLayout() {
   return (
     <>
       <Header />
-      <main className={`${CONTAINER_WIDTH} w-full px-2 py-2`}>
+      <main className={`${CONTAINER_WIDTH} w-full px-3 py-3`}>
         <Outlet />
       </main>
     </>
