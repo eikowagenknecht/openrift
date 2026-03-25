@@ -88,15 +88,27 @@ function DesktopNav({ showCollection }: { showCollection: boolean }) {
   );
 }
 
-function UserMenu({
-  session,
-  isPending,
+function UserMenuTrigger({
+  user,
   gravatarUrl,
 }: {
-  session: ReturnType<typeof useSession>["data"];
-  isPending: boolean;
+  user: { name: string; email: string } | undefined;
   gravatarUrl: string | undefined;
 }) {
+  if (user) {
+    return (
+      <Avatar size="sm">
+        {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
+        <AvatarFallback>
+          <User className="size-3" />
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+  return <EllipsisVertical className="size-5" />;
+}
+
+function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const darkMode = theme === "dark";
@@ -109,8 +121,61 @@ function UserMenu({
   };
 
   return (
+    <DropdownMenuContent align="end">
+      {isLoggedIn && (
+        <>
+          <DropdownMenuItem render={<Link to="/profile" />}>
+            <User className="size-4" />
+            Profile
+          </DropdownMenuItem>
+          {isAdmin && (
+            <DropdownMenuItem render={<Link to="/admin" />}>
+              <Shield className="size-4" />
+              Admin
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+        </>
+      )}
+      <DropdownMenuItem onClick={toggleTheme}>
+        {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        {darkMode ? "Light mode" : "Dark mode"}
+      </DropdownMenuItem>
+      <DropdownMenuItem render={<Link to="/changelog" />}>
+        <Sparkles className="size-4" />
+        What&apos;s new
+      </DropdownMenuItem>
+      {isLoggedIn && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSignOut}>
+            <LogOut className="size-4" />
+            Sign out
+          </DropdownMenuItem>
+        </>
+      )}
+    </DropdownMenuContent>
+  );
+}
+
+function UserMenu({
+  session,
+  isPending,
+  gravatarUrl,
+}: {
+  session: ReturnType<typeof useSession>["data"];
+  isPending: boolean;
+  gravatarUrl: string | undefined;
+}) {
+  if (isPending) {
+    return <div className="size-8" />;
+  }
+
+  const user = session?.user;
+
+  return (
     <div className="flex items-center gap-2">
-      {!isPending && !session?.user && (
+      {!user && (
         <Button
           variant="default"
           size="sm"
@@ -122,53 +187,9 @@ function UserMenu({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
-          {session?.user ? (
-            <Avatar size="sm">
-              {gravatarUrl && (
-                <AvatarImage src={gravatarUrl} alt={session.user.name ?? session.user.email} />
-              )}
-              <AvatarFallback>
-                <User className="size-3" />
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <EllipsisVertical className="size-5" />
-          )}
+          <UserMenuTrigger user={user} gravatarUrl={gravatarUrl} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {session?.user && (
-            <>
-              <DropdownMenuItem render={<Link to="/profile" />}>
-                <User className="size-4" />
-                Profile
-              </DropdownMenuItem>
-              {isAdmin && (
-                <DropdownMenuItem render={<Link to="/admin" />}>
-                  <Shield className="size-4" />
-                  Admin
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-            </>
-          )}
-          <DropdownMenuItem onClick={toggleTheme}>
-            {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            {darkMode ? "Light mode" : "Dark mode"}
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/changelog" />}>
-            <Sparkles className="size-4" />
-            What&apos;s new
-          </DropdownMenuItem>
-          {session?.user && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="size-4" />
-                Sign out
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
+        <UserMenuItems isLoggedIn={Boolean(user)} />
       </DropdownMenu>
     </div>
   );
@@ -234,12 +255,10 @@ export function Header() {
       <div
         className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] px-3 md:grid-cols-[1fr_auto] items-center`}
       >
-        {/* Left: Hamburger on mobile */}
-        <MenuButton className="md:hidden" onClick={() => setMobileMenuOpen(true)} />
-
-        {/* Left: logo + expanded menu on desktop */}
-        <div className="hidden md:flex gap-4">
-          <LogoLink />
+        {/* Left: Hamburger on mobile, logo + nav on desktop */}
+        <div className="flex items-center gap-4">
+          <MenuButton className="md:hidden" onClick={() => setMobileMenuOpen(true)} />
+          <LogoLink className="hidden md:flex" />
           <DesktopNav showCollection={showCollection} />
         </div>
 
