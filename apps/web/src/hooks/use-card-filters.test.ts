@@ -43,7 +43,6 @@ function defaultFilterState() {
     priceMax: null,
     signed: null,
     promo: null,
-    promoTypes: [],
     sort: "id",
     sortDir: "asc",
     view: "cards",
@@ -157,7 +156,6 @@ describe("useCardFilters", () => {
       priceMax: null,
       signed: null,
       promo: null,
-      promoTypes: null,
       sort: null,
       sortDir: null,
     });
@@ -248,7 +246,7 @@ describe("useCardFilters", () => {
 
     act(() => result.current.clearPromo());
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ promo: null, promoTypes: null });
+    expect(mockSetFilterState).toHaveBeenCalledWith({ promo: null });
   });
 
   it("detects active filters when signed is set", () => {

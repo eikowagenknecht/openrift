@@ -27,15 +27,8 @@ interface ActiveFiltersProps {
 
 export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFiltersProps) {
   const { filterState, ranges, hasActiveFilters } = useFilterValues();
-  const {
-    toggleArrayFilter,
-    setRange,
-    clearSigned,
-    clearPromo,
-    togglePromoType,
-    clearAllFilters,
-    setSearch,
-  } = useFilterActions();
+  const { toggleArrayFilter, setRange, clearSigned, clearPromo, clearAllFilters, setSearch } =
+    useFilterActions();
   if (!hasActiveFilters) {
     return null;
   }
@@ -163,23 +156,6 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
                 <X className="size-3" />
               </button>
             </Badge>
-          </div>
-        )}
-        {filterState.promoTypes.length > 0 && (
-          <div className="flex min-w-0 flex-wrap items-center gap-1">
-            <span className="text-xs text-muted-foreground">Promo Type:</span>
-            {filterState.promoTypes.map((slug) => (
-              <Badge key={slug} variant="secondary" className="gap-1">
-                {slug}
-                <button
-                  type="button"
-                  onClick={() => togglePromoType(slug)}
-                  className="ml-0.5 hover:text-foreground"
-                >
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            ))}
           </div>
         )}
       </div>

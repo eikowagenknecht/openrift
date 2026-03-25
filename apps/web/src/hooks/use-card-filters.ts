@@ -33,7 +33,6 @@ const filterParsers = {
   priceMax: parseAsFloat,
   signed: parseAsString,
   promo: parseAsString,
-  promoTypes: parseAsArrayOf(parseAsString, ",").withDefault([]),
   sort: parseAsString.withDefault("id"),
   sortDir: parseAsString.withDefault("asc"),
   view: parseAsString.withDefault("cards"),
@@ -73,7 +72,7 @@ export function useFilterValues() {
     finishes: filterState.finishes as Finish[],
     isSigned: filterState.signed === "true" ? true : filterState.signed === "false" ? false : null,
     isPromo: filterState.promo === "true" ? true : filterState.promo === "false" ? false : null,
-    promoTypes: filterState.promoTypes,
+    promoTypes: [],
     energy: { min: filterState.energyMin, max: filterState.energyMax },
     might: { min: filterState.mightMin, max: filterState.mightMax },
     power: { min: filterState.powerMin, max: filterState.powerMax },
@@ -109,8 +108,7 @@ export function useFilterValues() {
     filterState.priceMin !== null ||
     filterState.priceMax !== null ||
     filterState.signed !== null ||
-    filterState.promo !== null ||
-    filterState.promoTypes.length > 0;
+    filterState.promo !== null;
 
   return {
     filters,
@@ -185,7 +183,6 @@ export function useFilterActions() {
       priceMax: null,
       signed: null,
       promo: null,
-      promoTypes: null,
       sort: null,
       sortDir: null,
     });
@@ -216,13 +213,7 @@ export function useFilterActions() {
     void setFilterState({ promo: next });
   };
   const clearSigned = () => void setFilterState({ signed: null });
-  const clearPromo = () => void setFilterState({ promo: null, promoTypes: null });
-  const togglePromoType = (slug: string) => {
-    const current = filterState.promoTypes;
-    const next = current.includes(slug) ? current.filter((v) => v !== slug) : [...current, slug];
-    void setFilterState({ promoTypes: next.length > 0 ? next : null });
-  };
-  const clearPromoTypes = () => void setFilterState({ promoTypes: null });
+  const clearPromo = () => void setFilterState({ promo: null });
 
   const setSortBy = (sort: SortOption) => {
     void setFilterState({ sort: sort === "id" ? null : sort });
@@ -244,8 +235,6 @@ export function useFilterActions() {
     togglePromo,
     clearSigned,
     clearPromo,
-    togglePromoType,
-    clearPromoTypes,
     setSortBy,
     setSortDir,
     setView,
