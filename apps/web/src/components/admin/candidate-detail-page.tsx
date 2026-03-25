@@ -165,7 +165,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   const { data: allCards } = useAllCards();
 
   // --- Existing-mode state ---
-  const [expandedPrintings, setExpandedPrintings] = useState<Set<string>>(new Set());
+  const [collapsedPrintings, setCollapsedPrintings] = useState<Set<string>>(new Set());
   const pendingScrollTarget = useRef<string | null>(null);
 
   // --- New-mode state ---
@@ -191,34 +191,6 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
     enabled: mode === "existing",
   });
 
-  // Auto-expand all printings on initial load
-  const initialExpandDone = useRef(false);
-  useEffect(() => {
-    if (initialExpandDone.current || !existingQuery.data) {
-      return;
-    }
-    const data = existingQuery.data as NonNullable<typeof existingQuery.data>;
-    const groups: CandidatePrintingGroupResponse[] = data.candidatePrintingGroups ?? [];
-    const accepted = (data.printings ?? []) as Record<string, unknown>[];
-    const keys: string[] = [];
-    for (const p of accepted) {
-      keys.push(p.id as string);
-    }
-    for (const [i, g] of groups.entries()) {
-      keys.push(g.shortCodes[0] ?? `${g.expectedPrintingId}-${i}`);
-    }
-    if (keys.length > 0) {
-      setExpandedPrintings((prev) => {
-        const next = new Set(prev);
-        for (const k of keys) {
-          next.add(k);
-        }
-        return next;
-      });
-    }
-    initialExpandDone.current = true;
-  }, [existingQuery.data]);
-
   // After accepting a printing, expand it and scroll into view once data refetches
   const existingData = existingQuery.data;
   useEffect(() => {
@@ -233,7 +205,11 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
     }
     const id = printing.id as string;
     pendingScrollTarget.current = null;
-    setExpandedPrintings((prev) => new Set(prev).add(id));
+    setCollapsedPrintings((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     requestAnimationFrame(() => {
       document
         .querySelector(`[data-printing-id="${id}"]`)
@@ -310,7 +286,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   );
 
   function togglePrinting(id: string) {
-    setExpandedPrintings((prev) => {
+    setCollapsedPrintings((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -834,8 +810,8 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                   ...ambiguousGroups.map((g) => g.groupKey),
                 ];
                 const allExpanded =
-                  allKeys.length > 0 && allKeys.every((k) => expandedPrintings.has(k));
-                setExpandedPrintings(allExpanded ? new Set() : new Set(allKeys));
+                  allKeys.length > 0 && allKeys.every((k) => !collapsedPrintings.has(k));
+                setCollapsedPrintings(allExpanded ? new Set(allKeys) : new Set());
               }}
             >
               {(() => {
@@ -843,7 +819,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                   ...printings.map((p) => p.id as string),
                   ...ambiguousGroups.map((g) => g.expectedPrintingId),
                 ];
-                return allKeys.length > 0 && allKeys.every((k) => expandedPrintings.has(k))
+                return allKeys.length > 0 && allKeys.every((k) => !collapsedPrintings.has(k))
                   ? "Collapse all"
                   : "Expand all";
               })()}
@@ -852,7 +828,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           {printings.map((printing) => {
             const printingId = printing.id as string;
             const printingSlug = printing.slug as string;
-            const isExpanded = expandedPrintings.has(printingId);
+            const isExpanded = !collapsedPrintings.has(printingId);
             const allSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
             const activeImage = printingImages.find(
               (pi) => pi.printingId === printingId && pi.isActive,
@@ -1087,7 +1063,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               providerLabels={sourceLabels}
               providerNames={sourceNames}
               providerSettings={providerSettings}
-              isExpanded={expandedPrintings.has(group.groupKey)}
+              isExpanded={!collapsedPrintings.has(group.groupKey)}
               onToggle={() => togglePrinting(group.groupKey)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
               onCheckAll={(candidateIds) =>
