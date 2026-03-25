@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 import { createElement, Suspense } from "react";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-import { useCards, ApiError, catalogQueryOptions } from "./use-cards";
+import { ApiError } from "@/lib/api-client";
+
+import { useCards, catalogQueryOptions } from "./use-cards";
 
 const stubCard: Card = {
   id: "00000000-0000-0000-0000-000000000001",
