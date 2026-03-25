@@ -32,8 +32,7 @@ export function FilterPanelContent({
   layout = "inline",
 }: FilterPanelContentProps) {
   const { filterState, ranges } = useFilterValues();
-  const { toggleArrayFilter, toggleSigned, togglePromo, togglePromoType, setRange } =
-    useFilterActions();
+  const { toggleArrayFilter, toggleSigned, togglePromo, setRange } = useFilterActions();
   return (
     <>
       <FilterSection
@@ -128,20 +127,6 @@ export function FilterPanelContent({
               </Badge>
             )}
           </div>
-          {filterState.promo === "true" && availableFilters.promoTypes.length > 1 && (
-            <div className="flex flex-1 flex-wrap gap-1">
-              {availableFilters.promoTypes.map((pt) => (
-                <Badge
-                  key={pt.slug}
-                  variant={filterState.promoTypes.includes(pt.slug) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => togglePromoType(pt.slug)}
-                >
-                  {pt.label}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
       )}
       <div
