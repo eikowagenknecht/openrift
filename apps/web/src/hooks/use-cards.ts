@@ -7,7 +7,7 @@ import { assertOk, client } from "@/lib/rpc-client";
 
 interface UseCardsResult {
   allPrintings: Printing[];
-  setInfoList: SetInfo[];
+  sets: SetInfo[];
 }
 
 async function fetchCatalog(): Promise<CatalogResponse> {
@@ -23,7 +23,7 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
     setSlug: slugById.get(p.setId) ?? "",
     card: catalog.cards[p.cardId],
   }));
-  return { allPrintings, setInfoList: catalog.sets };
+  return { allPrintings, sets: catalog.sets };
 }
 
 export const catalogQueryOptions = queryOptions({

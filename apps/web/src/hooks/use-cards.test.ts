@@ -110,7 +110,7 @@ describe("useCards", () => {
 
     await waitFor(() => expect(result.current.allPrintings).toHaveLength(2));
 
-    expect(result.current.setInfoList).toEqual([
+    expect(result.current.sets).toEqual([
       { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
     ]);
   });

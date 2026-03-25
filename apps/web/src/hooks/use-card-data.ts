@@ -5,7 +5,7 @@ import type { SetInfo } from "@/components/cards/card-grid";
 
 interface UseCardDataParams {
   allPrintings: Printing[];
-  setInfoList: SetInfo[];
+  sets: SetInfo[];
   filters: CardFilters;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
@@ -137,16 +137,16 @@ function buildOwnedCounts(
 
 export function useCardData({
   allPrintings,
-  setInfoList,
+  sets,
   filters,
   sortBy,
   sortDir,
   view,
   ownedCountByPrinting,
 }: UseCardDataParams) {
-  const setSlugToName = new Map(setInfoList.map((s) => [s.slug, s.name]));
+  const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
-  const setOrderMap = new Map(setInfoList.map((s, i) => [s.id, i]));
+  const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
 
   const availableFilters = getAvailableFilters(allPrintings);
   const filteredCards = filterCards(allPrintings, filters);
