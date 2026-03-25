@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
 
 import { CardBrowser } from "@/components/card-browser";
 import { RouteErrorFallback } from "@/components/error-message";
@@ -8,7 +7,7 @@ import { catalogQueryOptions } from "@/hooks/use-cards";
 
 export const Route = createFileRoute("/_app/cards")({
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
-  component: CardsPage,
+  component: CardBrowser,
   pendingComponent: CardsPending,
   errorComponent: RouteErrorFallback,
 });
@@ -27,13 +26,4 @@ function CardsPending() {
       </div>
     </div>
   );
-}
-
-function CardsPage() {
-  useEffect(() => {
-    document.documentElement.classList.add("hide-scrollbar");
-    return () => document.documentElement.classList.remove("hide-scrollbar");
-  }, []);
-
-  return <CardBrowser />;
 }

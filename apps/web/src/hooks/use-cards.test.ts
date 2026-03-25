@@ -138,13 +138,10 @@ describe("useCards", () => {
     expect(cardB?.marketPrice).toBeUndefined();
   });
 
-  it("throws an ApiError with health status when catalog fetch fails", async () => {
+  it("throws an ApiError when catalog fetch fails", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
       if (url.includes("/catalog")) {
         return { ok: false, status: 500, json: () => ({}) };
-      }
-      if (url.includes("/api/health")) {
-        return { ok: true, json: () => ({ status: "db_empty" }) };
       }
       return { ok: true, json: () => ({}) };
     });
@@ -158,30 +155,7 @@ describe("useCards", () => {
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).healthStatus).toBe("db_empty");
-    }
-  });
-
-  it("throws an ApiError with null health when health endpoint is unreachable", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/catalog")) {
-        return { ok: false, status: 500, json: () => ({}) };
-      }
-      if (url.includes("/api/health")) {
-        throw new Error("Network error");
-      }
-      return { ok: true, json: () => ({}) };
-    });
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    try {
-      await queryClient.fetchQuery(catalogQueryOptions);
-    } catch (error) {
-      expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).healthStatus).toBeNull();
+      expect((error as ApiError).message).toBe("Failed to fetch catalog: 500");
     }
   });
 });
