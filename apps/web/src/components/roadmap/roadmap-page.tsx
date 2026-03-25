@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
   Check,
   CircleDot,
@@ -57,14 +58,14 @@ const roadmapItems: RoadmapItem[] = [
     icon: <Users className="size-4" />,
     done: false,
   },
-  // Done
   {
     title: "Collections",
     description: "Track and manage owned cards across multiple collections.",
     icon: <Library className="size-4" />,
-    done: true,
+    done: false,
     date: "Mar 2026",
   },
+  // Done
   {
     title: "Price History",
     description: "Charts showing how card prices change over time.",
@@ -112,10 +113,12 @@ const roadmapItems: RoadmapItem[] = [
 
 export function RoadmapPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Roadmap</h1>
-        <p className="mt-2 text-muted-foreground">Past milestones and future plans.</p>
+    <div className="mt-6 mx-auto w-full max-w-2xl">
+      <div className="mb-6 flex items-baseline justify-between">
+        <h1 className="text-2xl font-bold">Roadmap</h1>
+        <Link to="/changelog" className="text-sm text-muted-foreground hover:text-foreground">
+          What&apos;s new &rarr;
+        </Link>
       </div>
 
       <ol className="relative">
