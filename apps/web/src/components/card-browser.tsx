@@ -14,6 +14,7 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
@@ -26,6 +27,7 @@ const CardDetail = lazy(async () => {
 });
 
 export function CardBrowser() {
+  useHideScrollbar();
   const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
   const { allCards, setInfoList } = useCards();
