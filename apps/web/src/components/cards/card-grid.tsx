@@ -7,6 +7,7 @@ import { useIsAdmin } from "@/hooks/use-admin";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import {
@@ -325,7 +326,11 @@ export function CardGrid({
               Draggable: grab to scrub through the page; snaps to set headers on release. */}
           <div
             ref={indicatorRef}
-            className={`fixed z-20 transition-opacity duration-300 ${indicator.visible ? "pointer-events-auto" : "pointer-events-none"} ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
+            className={cn(
+              "fixed z-20 transition-opacity duration-300",
+              indicator.visible ? "pointer-events-auto" : "pointer-events-none",
+              IS_COARSE_POINTER && "p-2 -m-2",
+            )}
             style={{
               right: 20,
               top: 0,
@@ -359,10 +364,19 @@ export function CardGrid({
             onMouseLeave={handleMouseLeave}
           >
             <div
-              className={`flex origin-right items-center gap-1.5 transition-transform duration-200 ease-out ${indicator.dragging ? "scale-110" : "scale-100"}`}
+              className={cn(
+                "flex origin-right items-center gap-1.5 transition-transform duration-200 ease-out",
+                indicator.dragging ? "scale-110" : "scale-100",
+              )}
             >
               <div
-                className={`inline-flex items-center whitespace-nowrap rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm"} ${indicator.dragging ? "cursor-grabbing ring-primary/60" : "cursor-grab ring-primary/40"}`}
+                className={cn(
+                  "inline-flex items-center whitespace-nowrap rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none",
+                  IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
+                  indicator.dragging
+                    ? "cursor-grabbing ring-primary/60"
+                    : "cursor-grab ring-primary/40",
+                )}
               >
                 <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
               </div>
@@ -376,7 +390,10 @@ export function CardGrid({
             snapPoints.map((pt) => (
               <div
                 key={pt.rowIndex}
-                className={`pointer-events-none fixed z-19 transition-opacity duration-300 ${IS_COARSE_POINTER ? "p-2 -m-2" : ""}`}
+                className={cn(
+                  "pointer-events-none fixed z-19 transition-opacity duration-300",
+                  IS_COARSE_POINTER && "p-2 -m-2",
+                )}
                 style={{
                   right: 20,
                   top: pt.screenY,
@@ -386,7 +403,10 @@ export function CardGrid({
               >
                 <div className="flex items-center gap-1.5">
                   <div
-                    className={`whitespace-nowrap rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none ${IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"}`}
+                    className={cn(
+                      "whitespace-nowrap rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none",
+                      IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
+                    )}
                   >
                     {pt.firstCardId || pt.setInfo.slug}
                   </div>

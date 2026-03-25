@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export interface CardSearchResult {
   id: string;
@@ -31,7 +32,7 @@ export function CardSearchDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className={`relative ${className ?? ""}`} ref={containerRef}>
+    <div className={cn("relative", className)} ref={containerRef}>
       <Input
         placeholder={placeholder}
         value={search}

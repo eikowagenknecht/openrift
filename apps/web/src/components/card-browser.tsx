@@ -18,6 +18,7 @@ import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 const cardDetailImport = import("@/components/cards/card-detail");
@@ -57,7 +58,7 @@ export function CardBrowser() {
     sortBy,
     sortDir,
     view,
-    ownedCountByPrinting: ownedCountByPrinting ?? undefined,
+    ownedCountByPrinting,
   });
 
   // Defer the expensive card grid re-render so the filter UI (badge highlight,
@@ -75,6 +76,13 @@ export function CardBrowser() {
     handlePrevCard,
     handleNextCard,
   } = useCardDetailNav(sortedCards, view);
+
+  const searchAndClose = (query: string) => {
+    setSearch(query);
+    if (isMobile) {
+      handleDetailClose();
+    }
+  };
 
   const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.card.id) ?? []) : [];
 
@@ -118,7 +126,10 @@ export function CardBrowser() {
         <div className="flex items-start gap-6">
           <FilterSidebar availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
           <div
-            className={`min-w-0 flex-1 transition-opacity duration-150 ${isGridStale ? "opacity-60" : "opacity-100"}`}
+            className={cn(
+              "min-w-0 flex-1 transition-opacity duration-150",
+              isGridStale ? "opacity-60" : "opacity-100",
+            )}
           >
             <CardGrid
               cards={deferredSortedCards}
@@ -136,18 +147,8 @@ export function CardBrowser() {
                 showImages={showImages}
                 onPrevCard={handlePrevCard}
                 onNextCard={handleNextCard}
-                onTagClick={(tag) => {
-                  setSearch(`t:${tag}`);
-                  if (isMobile) {
-                    handleDetailClose();
-                  }
-                }}
-                onKeywordClick={(keyword) => {
-                  setSearch(`k:${keyword}`);
-                  if (isMobile) {
-                    handleDetailClose();
-                  }
-                }}
+                onTagClick={(tag) => searchAndClose(`t:${tag}`)}
+                onKeywordClick={(keyword) => searchAndClose(`k:${keyword}`)}
                 printings={siblingPrintings}
                 onSelectPrinting={setSelectedCard}
               />

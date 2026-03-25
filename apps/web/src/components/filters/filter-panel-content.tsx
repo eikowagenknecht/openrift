@@ -7,6 +7,7 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 
 const RANGE_SECTIONS: {
   key: RangeKey;
@@ -101,9 +102,10 @@ export function FilterPanelContent({
       {(availableFilters.hasSigned || availableFilters.hasPromo) && (
         <div className={layout === "drawer" ? "flex min-w-0 gap-2" : "block space-y-1.5"}>
           <p
-            className={`text-xs font-medium text-muted-foreground ${
-              layout === "drawer" ? "w-16 shrink-0 pt-1" : ""
-            }`}
+            className={cn(
+              "text-xs font-medium text-muted-foreground",
+              layout === "drawer" && "w-16 shrink-0 pt-1",
+            )}
           >
             Special
           </p>
@@ -185,11 +187,14 @@ function RangeFilterSection({
   return (
     <div className={layout === "drawer" ? "flex min-w-0 items-center gap-2" : "block space-y-1.5"}>
       <p
-        className={`text-xs font-medium text-muted-foreground ${layout === "drawer" ? "w-16 shrink-0" : ""}`}
+        className={cn(
+          "text-xs font-medium text-muted-foreground",
+          layout === "drawer" && "w-16 shrink-0",
+        )}
       >
         {label}
       </p>
-      <div className={`flex items-center gap-1.5 ${layout === "drawer" ? "flex-1" : "w-36"}`}>
+      <div className={cn("flex items-center gap-1.5", layout === "drawer" ? "flex-1" : "w-36")}>
         <span className="shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
           {fmt(resolvedMin)}
         </span>
@@ -241,9 +246,10 @@ function FilterSection({
   return (
     <div className={layout === "drawer" ? "flex min-w-0 gap-2" : "block space-y-1.5"}>
       <p
-        className={`text-xs font-medium text-muted-foreground ${
-          layout === "drawer" ? "w-16 shrink-0 pt-1" : ""
-        }`}
+        className={cn(
+          "text-xs font-medium text-muted-foreground",
+          layout === "drawer" && "w-16 shrink-0 pt-1",
+        )}
       >
         {label}
       </p>
