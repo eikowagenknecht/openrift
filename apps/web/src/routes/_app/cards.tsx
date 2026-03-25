@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { CardBrowser } from "@/components/card-browser";
-import { InlineError } from "@/components/error-message";
+import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 
@@ -10,9 +10,10 @@ export const Route = createFileRoute("/_app/cards")({
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
   component: CardsPage,
   pendingComponent: CardsPending,
-  errorComponent: () => <InlineError centered />,
+  errorComponent: RouteErrorFallback,
 });
 
+// Skeleton UI for the cards page while loading
 function CardsPending() {
   return (
     <div className="space-y-4">

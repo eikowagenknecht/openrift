@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminError, AdminPending } from "@/components/admin/admin-route-components";
+import { AdminPending } from "@/components/admin/admin-route-components";
+import { InlineErrorMessage } from "@/components/error-message";
 import { allCardsQueryOptions, candidateListQueryOptions } from "@/hooks/use-candidates";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 
@@ -13,5 +14,5 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     ]);
   },
   pendingComponent: AdminPending,
-  errorComponent: AdminError,
+  errorComponent: InlineErrorMessage,
 });

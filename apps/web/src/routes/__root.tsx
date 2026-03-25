@@ -3,7 +3,7 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
-import { RouterNotFoundFallback } from "@/components/error-fallback";
+import { RouteNotFoundFallback } from "@/components/error-message";
 import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/sonner";
 import { PROD } from "@/lib/env";
@@ -20,10 +20,16 @@ export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
   beforeLoad: async ({ context }) => {
-    await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
+    try {
+      await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
+    } catch {
+      // Feature flags are non-critical — seed cache with empty defaults so
+      // useSuspenseQuery in components doesn't re-throw the cached error.
+      context.queryClient.setQueryData(featureFlagsQueryOptions.queryKey, {});
+    }
   },
   component: RootComponent,
-  notFoundComponent: RouterNotFoundFallback,
+  notFoundComponent: RouteNotFoundFallback,
 });
 
 function RootComponent() {

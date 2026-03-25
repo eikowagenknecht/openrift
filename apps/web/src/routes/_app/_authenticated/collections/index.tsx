@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CollectionGrid } from "@/components/collection/collection-grid";
-import { InlineError } from "@/components/error-message";
+import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections/")({
   },
   component: CollectionIndex,
   pendingComponent: CollectionPending,
-  errorComponent: () => <InlineError centered />,
+  errorComponent: RouteErrorFallback,
 });
 
 function CollectionPending() {
