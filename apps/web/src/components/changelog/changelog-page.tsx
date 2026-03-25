@@ -1,10 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Map, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { Map } from "lucide-react";
 
 import changelogMd from "@/CHANGELOG.md?raw";
-import { useSpinnerButton } from "@/hooks/use-spinner-button";
-import { useSWUpdate } from "@/hooks/use-sw-update";
 import { parseChangelog } from "@/lib/changelog";
 import { COMMIT_HASH } from "@/lib/env";
 import { formatRelativeDate } from "@/lib/format-relative-date";
@@ -12,34 +9,11 @@ import { formatRelativeDate } from "@/lib/format-relative-date";
 const changelogGroups = parseChangelog(changelogMd);
 
 export function ChangelogPage() {
-  const { checkForUpdate } = useSWUpdate();
-  const {
-    spinning,
-    trigger: handleCheckUpdate,
-    onAnimationIteration,
-  } = useSpinnerButton(async () => {
-    await checkForUpdate();
-    toast("You're on the latest version");
-  });
-
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">What&apos;s new</h1>
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <span className="text-xs tabular-nums">{COMMIT_HASH}</span>
-          <button
-            type="button"
-            className="inline-flex cursor-pointer items-center gap-1 text-xs hover:text-foreground"
-            onClick={handleCheckUpdate}
-          >
-            <RefreshCw
-              className={`size-3 ${spinning ? "animate-spin" : ""}`}
-              onAnimationIteration={onAnimationIteration}
-            />
-            Check for updates
-          </button>
-        </div>
+        <span className="text-xs tabular-nums text-muted-foreground">{COMMIT_HASH}</span>
       </div>
       <Link
         to="/roadmap"
