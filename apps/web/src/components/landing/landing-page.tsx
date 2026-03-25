@@ -36,55 +36,38 @@ export function LandingPage() {
       cardHinting={hinting}
       onAllCollected={handleAllCollected}
     >
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
+      <div className="flex flex-1 flex-col items-center gap-3 justify-center p-4">
         <button type="button" className="cursor-pointer" onClick={handleLogoTap}>
-          <img
-            src="/logo.webp"
-            alt=""
-            className={cn("size-28 drop-shadow-lg md:size-36", spinning && "animate-logo-spin")}
-          />
+          <img src="/logo.webp" alt="" className={cn("size-36", spinning && "animate-logo-spin")} />
         </button>
-
-        <h1 className="mt-6 text-4xl font-bold tracking-tight md:text-5xl">OpenRift</h1>
-        <p className="mt-3 text-center text-lg text-muted-foreground">
+        <h1 className="font-bold text-4xl md:text-5xl">OpenRift</h1>
+        <p className="text-center text-muted-foreground">
           Fast. Open. Ad-free. A Riftbound companion.
         </p>
+
+        <div className="my-3 flex items-center gap-3">
+          <Link to="/cards" className={buttonVariants({ size: "lg" })}>
+            Browse cards
+          </Link>
+          <Link
+            to="/login"
+            search={{ redirect: "/cards", email: undefined }}
+            className={buttonVariants({
+              size: "lg",
+              variant: "outline",
+            })}
+          >
+            Sign in
+          </Link>
+        </div>
         {data && (
-          <p className="mt-2 animate-in fade-in text-sm text-muted-foreground/70">
+          <p className="text-sm text-muted-foreground/70">
             <span className="font-semibold text-foreground">{uniqueCards.toLocaleString()}</span>{" "}
             cards &middot;{" "}
             <span className="font-semibold text-foreground">{printings.toLocaleString()}</span>{" "}
             printings
           </p>
         )}
-
-        <div className="mt-8 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-3">
-            <Link
-              to="/cards"
-              className={buttonVariants({ size: "lg", className: "h-11 px-8 text-base" })}
-            >
-              Browse cards
-            </Link>
-            <Link
-              to="/login"
-              search={{ redirect: "/cards", email: undefined }}
-              className={buttonVariants({
-                size: "lg",
-                variant: "outline",
-                className: "h-11 px-8 text-base",
-              })}
-            >
-              Sign in
-            </Link>
-          </div>
-          <Link
-            to="/roadmap"
-            className="text-sm text-muted-foreground/60 transition-colors hover:text-foreground"
-          >
-            See what we&apos;re working on next &rarr;
-          </Link>
-        </div>
       </div>
     </HeroBackground>
   );
