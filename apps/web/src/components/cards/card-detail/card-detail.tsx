@@ -169,32 +169,32 @@ export function CardDetail({
 
         {/* Text */}
         <div className="space-y-3 pt-2">
-          {card.rulesText && (
+          {printing.printedRulesText && (
             <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
               <p className="text-sm text-muted-foreground">
-                <CardText text={card.rulesText} onKeywordClick={onKeywordClick} />
+                <CardText text={printing.printedRulesText} onKeywordClick={onKeywordClick} />
               </p>
-              {printing.printedRulesText && printing.printedRulesText !== card.rulesText && (
+              {card.rulesText && card.rulesText !== printing.printedRulesText && (
                 <PrintedTextWarning />
               )}
             </div>
           )}
 
-          {(card.effectText || (card.mightBonus !== null && card.mightBonus > 0)) && (
+          {(printing.printedEffectText || (card.mightBonus !== null && card.mightBonus > 0)) && (
             <div
               className="rounded-lg border border-border/50 px-3 py-2.5"
               style={getDomainGradientStyle(card.domains, "18")}
             >
-              {card.effectText && (
+              {printing.printedEffectText && (
                 <p className="text-sm text-muted-foreground">
-                  <CardText text={card.effectText} onKeywordClick={onKeywordClick} />
+                  <CardText text={printing.printedEffectText} onKeywordClick={onKeywordClick} />
                 </p>
               )}
-              {printing.printedEffectText && printing.printedEffectText !== card.effectText && (
+              {card.effectText && card.effectText !== printing.printedEffectText && (
                 <PrintedTextWarning />
               )}
               {card.mightBonus !== null && card.mightBonus > 0 && (
-                <div className={cn(card.effectText && "mt-2")}>
+                <div className={cn(printing.printedEffectText && "mt-2")}>
                   <StatChip
                     label="Might Bonus"
                     value={`+${card.mightBonus}`}
@@ -203,6 +203,10 @@ export function CardDetail({
                 </div>
               )}
             </div>
+          )}
+
+          {printing.flavorText && (
+            <p className="px-1 text-sm italic text-muted-foreground/70">{printing.flavorText}</p>
           )}
         </div>
 
