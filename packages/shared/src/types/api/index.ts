@@ -82,6 +82,8 @@ export type {
   ClearRehostedResponse,
   FeatureFlagResponse,
   IgnoredProductResponse,
+  LowResImageEntry,
+  LowResImagesResponse,
   MappingPrintingResponse,
   MarketplaceGroupResponse,
   PriceRefreshResponse,

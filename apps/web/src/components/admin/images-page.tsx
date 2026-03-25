@@ -21,6 +21,7 @@ import {
   useBrokenImages,
   useCleanupOrphaned,
   useClearRehosted,
+  useLowResImages,
   useMissingImages,
   useRegenerateImages,
   useRehostImages,
@@ -401,7 +402,24 @@ function MissingImagesSection() {
 // ── BrokenImagesSection ──────────────────────────────────────────────────────
 
 function BrokenImagesSection() {
-  const { data, isLoading } = useBrokenImages();
+  const [enabled, setEnabled] = useState(false);
+  const { data, isLoading } = useBrokenImages(enabled);
+
+  if (!enabled) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Broken Images</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setEnabled(true)}>
+              Check
+            </Button>
+          </div>
+          <CardDescription>Scan disk for rehosted images with missing files.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -415,7 +433,14 @@ function BrokenImagesSection() {
   }
 
   if (!data || data.broken.length === 0) {
-    return null;
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Broken Images</CardTitle>
+          <CardDescription>No broken images found.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   // Group by set for readability
@@ -465,12 +490,107 @@ function BrokenImagesSection() {
   );
 }
 
+// ── LowResImagesSection ───────────────────────────────────────────────────────
+
+function LowResImagesSection() {
+  const [enabled, setEnabled] = useState(false);
+  const { data, isLoading } = useLowResImages(enabled);
+
+  if (!enabled) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setEnabled(true)}>
+              Check
+            </Button>
+          </div>
+          <CardDescription>
+            Scan rehosted images for any with a full-resolution width under 600px.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+          <CardDescription>Scanning image dimensions…</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (!data || data.lowRes.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+          <CardDescription>No low-resolution images found.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  // Group by set for readability
+  const bySet = new Map<string, typeof data.lowRes>();
+  for (const entry of data.lowRes) {
+    const list = bySet.get(entry.setSlug) ?? [];
+    list.push(entry);
+    bySet.set(entry.setSlug, list);
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+        <CardDescription>
+          {data.lowRes.length} of {data.total} rehosted{" "}
+          {data.lowRes.length === 1 ? "image has" : "images have"} a full-resolution width under
+          600px.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          {[...bySet.entries()].map(([setSlug, entries]) => (
+            <div key={setSlug}>
+              <p className="text-muted-foreground mb-1 text-xs font-medium uppercase">{setSlug}</p>
+              <ul className="space-y-1 text-sm">
+                {entries.map((entry) => (
+                  <li key={entry.imageId} className="flex items-baseline gap-2">
+                    <Link
+                      to="/admin/cards/$cardSlug"
+                      params={{ cardSlug: entry.cardSlug }}
+                      className="hover:underline"
+                    >
+                      <span className="text-muted-foreground/60">{entry.printingSlug}</span>{" "}
+                      {entry.cardName}
+                    </Link>
+                    <span className="text-muted-foreground text-xs">
+                      {entry.width}×{entry.height}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ImagesPage() {
   return (
     <div className="space-y-4">
       <BrokenImagesSection />
+      <LowResImagesSection />
       <MissingImagesSection />
       <ManageSection />
       <Separator />

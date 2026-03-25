@@ -8,6 +8,7 @@ import {
   clearAllRehosted,
   collectStaleImages,
   findBrokenImages,
+  findLowResImages,
   getRehostStatus,
   regenerateImages,
   rehostImages,
@@ -83,6 +84,12 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   .get("/broken-images", async (c) => {
     const { printingImages } = c.get("repos");
     const result = await findBrokenImages(c.get("io"), printingImages);
+    return c.json(result);
+  })
+
+  .get("/low-res-images", async (c) => {
+    const { printingImages } = c.get("repos");
+    const result = await findLowResImages(c.get("io"), printingImages);
     return c.json(result);
   })
 
