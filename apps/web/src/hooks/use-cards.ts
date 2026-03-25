@@ -20,7 +20,7 @@ async function fetchCatalog(): Promise<CatalogResponse> {
       "CATALOG_FETCH_FAILED",
     );
   }
-  return (await res.json()) as CatalogResponse;
+  return await res.json();
 }
 
 function enrichCatalog(catalog: CatalogResponse): UseCardsResult {

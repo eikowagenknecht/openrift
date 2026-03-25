@@ -8,7 +8,7 @@ async function fetchIsAdmin(): Promise<boolean> {
   if (!res.ok) {
     return false;
   }
-  const data = (await res.json()) as { isAdmin: boolean };
+  const data = await res.json();
   return data.isAdmin;
 }
 
