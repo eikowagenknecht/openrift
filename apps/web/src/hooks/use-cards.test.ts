@@ -157,7 +157,7 @@ describe("useCards", () => {
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).message).toBe("Failed to fetch catalog: 500");
+      expect((error as ApiError).message).toBe("Request failed: 500");
     }
   });
 });

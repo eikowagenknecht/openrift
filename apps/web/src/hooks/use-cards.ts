@@ -2,9 +2,8 @@ import type { Printing, CatalogResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
-import { ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { client } from "@/lib/rpc-client";
+import { assertOk, client } from "@/lib/rpc-client";
 
 interface UseCardsResult {
   allCards: Printing[];
@@ -13,13 +12,7 @@ interface UseCardsResult {
 
 async function fetchCatalog(): Promise<CatalogResponse> {
   const res = await client.api.v1.catalog.$get();
-  if (!res.ok) {
-    throw new ApiError(
-      `Failed to fetch catalog: ${res.status}`,
-      res.status,
-      "CATALOG_FETCH_FAILED",
-    );
-  }
+  assertOk(res);
   return await res.json();
 }
 

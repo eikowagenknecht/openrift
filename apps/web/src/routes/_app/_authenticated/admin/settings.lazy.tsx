@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
-import { client, rpc } from "@/lib/rpc-client";
+import { assertOk, client } from "@/lib/rpc-client";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin/settings")({
   component: SettingsPage,
@@ -14,8 +14,11 @@ export const Route = createLazyFileRoute("/_app/_authenticated/admin/settings")(
 
 function useFixTypography(dryRun: boolean) {
   return useMutation({
-    mutationFn: (): Promise<{ affectedCount: number }> =>
-      rpc(client.api.v1.admin["fix-typography"].$post({ json: { dryRun } })),
+    mutationFn: async (): Promise<{ affectedCount: number }> => {
+      const res = await client.api.v1.admin["fix-typography"].$post({ json: { dryRun } });
+      assertOk(res);
+      return await res.json();
+    },
   });
 }
 

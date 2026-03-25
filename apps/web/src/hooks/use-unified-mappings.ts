@@ -3,18 +3,19 @@ import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@ta
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
+import { assertOk, client } from "@/lib/rpc-client";
 
 export function unifiedMappingsQueryOptions(showAll = false) {
   return queryOptions({
     queryKey: queryKeys.admin.unifiedMappings.byFilter(showAll),
-    queryFn: () =>
-      rpc(
-        client.api.v1.admin["marketplace-mappings"].$get({
-          query: { all: showAll ? "true" : undefined },
-        }),
-        // Server uses unknown[] for stagedProducts — cast to local types
-      ) as unknown as Promise<UnifiedMappingsResponse>,
+    queryFn: async () => {
+      const res = await client.api.v1.admin["marketplace-mappings"].$get({
+        query: { all: showAll ? "true" : undefined },
+      });
+      assertOk(res);
+      // Server uses unknown[] for stagedProducts — cast to local types
+      return (await res.json()) as unknown as UnifiedMappingsResponse;
+    },
   });
 }
 
@@ -50,15 +51,15 @@ interface SaveMappingsBody {
 
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(marketplace, async (body: SaveMappingsBody) => {
-    const result = await rpc(
-      client.api.v1.admin["marketplace-mappings"].$post({
-        query: { marketplace },
-        json: body,
-      }),
-    );
-    const res = result as { saved: number; skipped?: { externalId: number; reason: string }[] };
-    if (res.skipped && res.skipped.length > 0) {
-      for (const s of res.skipped) {
+    const res = await client.api.v1.admin["marketplace-mappings"].$post({
+      query: { marketplace },
+      json: body,
+    });
+    assertOk(res);
+    const result = await res.json();
+    const typed = result as { saved: number; skipped?: { externalId: number; reason: string }[] };
+    if (typed.skipped && typed.skipped.length > 0) {
+      for (const s of typed.skipped) {
         toast.error(`#${s.externalId}: ${s.reason}`);
       }
     }
@@ -67,44 +68,44 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" |
 }
 
 export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
-  return useUnifiedMutation(marketplace, (printingId: string) =>
-    rpc(
-      client.api.v1.admin["marketplace-mappings"].$delete({
-        query: { marketplace },
-        json: { printingId },
-      }),
-    ),
-  );
+  return useUnifiedMutation(marketplace, async (printingId: string) => {
+    const res = await client.api.v1.admin["marketplace-mappings"].$delete({
+      query: { marketplace },
+      json: { printingId },
+    });
+    assertOk(res);
+  });
 }
 
 export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
-  return useUnifiedMutation(marketplace, (products: { externalId: number; finish: string }[]) =>
-    rpc(
-      client.api.v1.admin["ignored-products"].$post({
+  return useUnifiedMutation(
+    marketplace,
+    async (products: { externalId: number; finish: string }[]) => {
+      const res = await client.api.v1.admin["ignored-products"].$post({
         json: { marketplace, products },
-      }),
-    ),
+      });
+      assertOk(res);
+    },
   );
 }
 
 export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
-    (override: { externalId: number; finish: string; cardId: string }) =>
-      rpc(
-        client.api.v1.admin["staging-card-overrides"].$post({
-          json: { marketplace, ...override },
-        }),
-      ),
+    async (override: { externalId: number; finish: string; cardId: string }) => {
+      const res = await client.api.v1.admin["staging-card-overrides"].$post({
+        json: { marketplace, ...override },
+      });
+      assertOk(res);
+    },
   );
 }
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
-  return useUnifiedMutation(marketplace, (params: { externalId: number; finish: string }) =>
-    rpc(
-      client.api.v1.admin["staging-card-overrides"].$delete({
-        json: { marketplace, ...params },
-      }),
-    ),
-  );
+  return useUnifiedMutation(marketplace, async (params: { externalId: number; finish: string }) => {
+    const res = await client.api.v1.admin["staging-card-overrides"].$delete({
+      json: { marketplace, ...params },
+    });
+    assertOk(res);
+  });
 }

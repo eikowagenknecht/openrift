@@ -2,11 +2,15 @@ import type { KeywordStylesResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
+import { assertOk, client } from "@/lib/rpc-client";
 
 const keywordStylesQueryOptions = queryOptions({
   queryKey: queryKeys.keywordStyles.all,
-  queryFn: () => rpc(client.api.v1["keyword-styles"].$get()),
+  queryFn: async () => {
+    const res = await client.api.v1["keyword-styles"].$get();
+    assertOk(res);
+    return await res.json();
+  },
   staleTime: 30 * 60 * 1000,
   refetchOnWindowFocus: false,
 });

@@ -3,14 +3,16 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { queryKeys } from "./query-keys";
-import { client, rpc } from "./rpc-client";
+import { assertOk, client } from "./rpc-client";
 
 export type FeatureFlags = Record<string, boolean>;
 
 export const featureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.featureFlags.all,
   queryFn: async () => {
-    const data = await rpc(client.api.v1["feature-flags"].$get());
+    const res = await client.api.v1["feature-flags"].$get();
+    assertOk(res);
+    const data = await res.json();
     return data.items as FeatureFlags;
   },
   staleTime: 5 * 60 * 1000,

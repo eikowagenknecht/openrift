@@ -1,11 +1,15 @@
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
+import { assertOk, client } from "@/lib/rpc-client";
 
 export const ignoredProductsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.ignoredProducts,
-  queryFn: () => rpc(client.api.v1.admin["ignored-products"].$get()),
+  queryFn: async () => {
+    const res = await client.api.v1.admin["ignored-products"].$get();
+    assertOk(res);
+    return await res.json();
+  },
 });
 
 export function useIgnoredProducts() {
@@ -15,19 +19,19 @@ export function useIgnoredProducts() {
 export function useUnignoreProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (product: {
+    mutationFn: async (product: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       externalId: number;
       finish: string;
-    }) =>
-      rpc(
-        client.api.v1.admin["ignored-products"].$delete({
-          json: {
-            marketplace: product.marketplace,
-            products: [{ externalId: product.externalId, finish: product.finish }],
-          },
-        }),
-      ),
+    }) => {
+      const res = await client.api.v1.admin["ignored-products"].$delete({
+        json: {
+          marketplace: product.marketplace,
+          products: [{ externalId: product.externalId, finish: product.finish }],
+        },
+      });
+      assertOk(res);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.admin.ignoredProducts,

@@ -2,7 +2,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 
 import { queryKeys } from "@/lib/query-keys";
-import { client, rpc } from "@/lib/rpc-client";
+import { assertOk, client } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export type MarketplaceGroup = InferResponseType<
@@ -11,7 +11,11 @@ export type MarketplaceGroup = InferResponseType<
 
 export const marketplaceGroupsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.marketplaceGroups,
-  queryFn: () => rpc(client.api.v1.admin["marketplace-groups"].$get()),
+  queryFn: async () => {
+    const res = await client.api.v1.admin["marketplace-groups"].$get();
+    assertOk(res);
+    return await res.json();
+  },
 });
 
 export function useMarketplaceGroups() {
@@ -20,13 +24,13 @@ export function useMarketplaceGroups() {
 
 export function useUpdateMarketplaceGroup() {
   return useMutationWithInvalidation({
-    mutationFn: (body: { marketplace: string; groupId: number; name: string | null }) =>
-      rpc(
-        client.api.v1.admin["marketplace-groups"][":marketplace"][":id"].$patch({
-          param: { marketplace: body.marketplace, id: String(body.groupId) },
-          json: body,
-        }),
-      ),
+    mutationFn: async (body: { marketplace: string; groupId: number; name: string | null }) => {
+      const res = await client.api.v1.admin["marketplace-groups"][":marketplace"][":id"].$patch({
+        param: { marketplace: body.marketplace, id: String(body.groupId) },
+        json: body,
+      });
+      assertOk(res);
+    },
     invalidates: [queryKeys.admin.marketplaceGroups],
   });
 }
