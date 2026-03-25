@@ -108,7 +108,7 @@ describe("useCards", () => {
 
     const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.allCards).toHaveLength(2));
+    await waitFor(() => expect(result.current.allPrintings).toHaveLength(2));
 
     expect(result.current.setInfoList).toEqual([
       { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
@@ -125,12 +125,12 @@ describe("useCards", () => {
 
     const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.allCards).toHaveLength(2));
+    await waitFor(() => expect(result.current.allPrintings).toHaveLength(2));
 
-    const cardA = result.current.allCards.find(
+    const cardA = result.current.allPrintings.find(
       (c) => c.id === "00000000-0000-0000-0000-000000000011",
     );
-    const cardB = result.current.allCards.find(
+    const cardB = result.current.allPrintings.find(
       (c) => c.id === "00000000-0000-0000-0000-000000000012",
     );
 
