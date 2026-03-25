@@ -19,14 +19,15 @@ export function HeroBackground({
 }) {
   return (
     <div className={cn("relative flex flex-1 flex-col overflow-hidden", className)}>
+      {/* Background: Gradient */}
       <div
-        className="pointer-events-none absolute inset-0"
+        className="absolute inset-0"
         style={{ backgroundImage: "var(--hero-gradient)" }}
         aria-hidden="true"
       />
-      {/* Dot grid pattern */}
+      {/* Background: Dot grid pattern */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-[0.25]"
+        className="absolute inset-0 opacity-[0.35] dark:opacity-[0.25]"
         style={{
           backgroundImage: "radial-gradient(circle, oklch(0.4 0.05 185) 1px, transparent 1px)",
           backgroundSize: "32px 32px",
@@ -35,12 +36,11 @@ export function HeroBackground({
       />
       <CardScatter
         key={cardResetKey}
-        className="z-[1]"
         flyIn={cardResetKey !== undefined && cardResetKey > 0}
         hinting={cardHinting}
         onAllCollected={onAllCollected}
       />
-      <div className="pointer-events-none relative z-10 flex flex-1 flex-col [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
+      <div className="pointer-events-none relative flex flex-1 [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
         {children}
       </div>
     </div>
