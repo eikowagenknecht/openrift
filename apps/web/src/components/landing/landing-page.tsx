@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { cn } from "@/lib/utils";
 
@@ -60,23 +60,23 @@ export function LandingPage() {
 
         <div className="mt-8 flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
-            <Button
-              size="lg"
-              className="h-11 px-8 text-base"
-              nativeButton={false}
-              render={<Link to="/cards" />}
+            <Link
+              to="/cards"
+              className={buttonVariants({ size: "lg", className: "h-11 px-8 text-base" })}
             >
               Browse cards
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="h-11 px-8 text-base"
-              nativeButton={false}
-              render={<Link to="/login" search={{ redirect: "/cards", email: undefined }} />}
+            </Link>
+            <Link
+              to="/login"
+              search={{ redirect: "/cards", email: undefined }}
+              className={buttonVariants({
+                size: "lg",
+                variant: "outline",
+                className: "h-11 px-8 text-base",
+              })}
             >
               Sign in
-            </Button>
+            </Link>
           </div>
           <Link
             to="/roadmap"

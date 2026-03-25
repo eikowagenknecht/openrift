@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useCopies, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
@@ -152,14 +152,14 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
         </p>
         {addTarget && (
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link to="/cards" search={{ adding: true, addingTo: addTarget }} />}
+          <Link
+            to="/cards"
+            search={{ adding: true, addingTo: addTarget }}
+            className={buttonVariants({ size: "sm" })}
           >
             <Plus className="mr-1 size-3.5" />
             Add cards
-          </Button>
+          </Link>
         )}
       </div>
     );
@@ -181,16 +181,14 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         )}
         <div className="flex-1" />
         {addTarget && (
-          <Button
-            variant="ghost"
-            size="sm"
-            nativeButton={false}
-            render={<Link to="/cards" search={{ adding: true, addingTo: addTarget }} />}
-            className="text-xs"
+          <Link
+            to="/cards"
+            search={{ adding: true, addingTo: addTarget }}
+            className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs" })}
           >
             <Plus className="mr-1 size-3" />
             Add cards
-          </Button>
+          </Link>
         )}
         <Button
           variant="ghost"

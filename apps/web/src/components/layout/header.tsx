@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,7 +105,7 @@ function UserMenuTrigger({
       </Avatar>
     );
   }
-  return <EllipsisVertical className="size-5" />;
+  return <EllipsisVertical className="size-6" />;
 }
 
 function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
@@ -176,14 +176,13 @@ function UserMenu({
   return (
     <div className="flex items-center gap-2">
       {!user && (
-        <Button
-          variant="default"
-          size="sm"
-          nativeButton={false} // custom: render as <Link>, not <button>
-          render={<Link to="/login" search={{ redirect: undefined, email: undefined }} />}
+        <Link
+          to="/login"
+          search={{ redirect: undefined, email: undefined }}
+          className={buttonVariants({ variant: "default", size: "sm" })}
         >
           Sign in
-        </Button>
+        </Link>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
@@ -255,10 +254,12 @@ export function Header() {
       <div
         className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] px-3 md:grid-cols-[1fr_auto] items-center`}
       >
-        {/* Left: Hamburger on mobile, logo + nav on desktop */}
-        <div className="flex items-center gap-4">
-          <MenuButton className="md:hidden" onClick={() => setMobileMenuOpen(true)} />
-          <LogoLink className="hidden md:flex" />
+        {/* Left: Hamburger on mobile */}
+        <MenuButton className="md:hidden" onClick={() => setMobileMenuOpen(true)} />
+
+        {/* Left: logo + expanded menu on desktop */}
+        <div className="hidden md:flex gap-4">
+          <LogoLink />
           <DesktopNav showCollection={showCollection} />
         </div>
 
@@ -266,7 +267,9 @@ export function Header() {
         <LogoLink className="md:hidden" />
 
         {/* Right: User menu */}
-        <UserMenu session={session} isPending={isPending} gravatarUrl={gravatarUrl} />
+        <div className="justify-self-end">
+          <UserMenu session={session} isPending={isPending} gravatarUrl={gravatarUrl} />
+        </div>
       </div>
 
       <MobileNav
