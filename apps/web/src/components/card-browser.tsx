@@ -163,7 +163,7 @@ export function CardBrowser() {
               keyboardNavCardId={selectedCard?.id}
             />
           </div>
-          {selectedCard && detailOpen && (
+          {selectedCard && detailOpen && !isMobile && (
             <Pane className="md:block">
               <Suspense fallback={<CardDetailSkeleton />}>
                 <CardDetail
@@ -183,7 +183,7 @@ export function CardBrowser() {
         </div>
 
         {/* Mobile: fullscreen detail overlay */}
-        {selectedCard && detailOpen && (
+        {selectedCard && detailOpen && isMobile && (
           <MobileDetailOverlay>
             <Suspense fallback={<CardDetailSkeleton />}>
               <CardDetail
