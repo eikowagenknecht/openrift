@@ -8,7 +8,6 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
-import { cn } from "@/lib/utils";
 
 const RANGE_SECTIONS: {
   key: RangeKey;
@@ -25,16 +24,23 @@ const RANGE_SECTIONS: {
 interface FilterPanelContentProps {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
-  layout?: "inline" | "drawer";
 }
 
-export function FilterPanelContent({
+export function FilterPanelContent({ availableFilters, setDisplayLabel }: FilterPanelContentProps) {
+  return (
+    <>
+      <FilterBadgeSections availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+      <FilterRangeSections availableFilters={availableFilters} />
+    </>
+  );
+}
+
+export function FilterBadgeSections({
   availableFilters,
   setDisplayLabel,
-  layout = "inline",
 }: FilterPanelContentProps) {
-  const { filterState, ranges } = useFilterValues();
-  const { toggleArrayFilter, toggleSigned, togglePromo, setRange } = useFilterActions();
+  const { filterState } = useFilterValues();
+  const { toggleArrayFilter, toggleSigned, togglePromo } = useFilterActions();
   return (
     <>
       <FilterSection
@@ -43,7 +49,6 @@ export function FilterPanelContent({
         selected={filterState.sets}
         onToggle={(v) => toggleArrayFilter("sets", v)}
         displayLabel={setDisplayLabel}
-        layout={layout}
       />
       <FilterSection
         label="Domain"
@@ -52,7 +57,6 @@ export function FilterPanelContent({
         onToggle={(v) => toggleArrayFilter("domains", v)}
         iconPath={(v) => getFilterIconPath("domains", v)}
         displayLabel={formatDomainFilterLabel}
-        layout={layout}
       />
       <FilterSection
         label="Type"
@@ -60,7 +64,6 @@ export function FilterPanelContent({
         selected={filterState.types}
         onToggle={(v) => toggleArrayFilter("types", v)}
         iconPath={(v) => getFilterIconPath("types", v)}
-        layout={layout}
       />
       {availableFilters.superTypes.length > 0 && (
         <FilterSection
@@ -69,7 +72,6 @@ export function FilterPanelContent({
           selected={filterState.superTypes}
           onToggle={(v) => toggleArrayFilter("superTypes", v)}
           iconPath={(v) => getFilterIconPath("superTypes", v)}
-          layout={layout}
         />
       )}
       <FilterSection
@@ -78,7 +80,6 @@ export function FilterPanelContent({
         selected={filterState.rarities}
         onToggle={(v) => toggleArrayFilter("rarities", v)}
         iconPath={(v) => getFilterIconPath("rarities", v)}
-        layout={layout}
       />
       {availableFilters.artVariants.length > 1 && (
         <FilterSection
@@ -87,7 +88,6 @@ export function FilterPanelContent({
           selected={filterState.artVariants}
           onToggle={(v) => toggleArrayFilter("artVariants", v)}
           displayLabel={(v) => ART_VARIANT_LABELS[v] ?? v}
-          layout={layout}
         />
       )}
       {availableFilters.finishes.length > 1 && (
@@ -97,11 +97,10 @@ export function FilterPanelContent({
           selected={filterState.finishes}
           onToggle={(v) => toggleArrayFilter("finishes", v)}
           displayLabel={(v) => FINISH_LABELS[v] ?? v}
-          layout={layout}
         />
       )}
       {(availableFilters.hasSigned || availableFilters.hasPromo) && (
-        <FilterSection label="Special" layout={layout}>
+        <FilterSection label="Special">
           {availableFilters.hasSigned && (
             <Badge
               variant={filterState.signed === null ? "outline" : "default"}
@@ -122,30 +121,37 @@ export function FilterPanelContent({
           )}
         </FilterSection>
       )}
-      <div
-        className={layout === "drawer" ? "flex flex-col gap-3" : "flex flex-row flex-wrap gap-4"}
-      >
-        {RANGE_SECTIONS.map(({ key, label, ...rest }) => {
-          const available = availableFilters[key];
-          const show = key === "price" ? available.max > 0 : available.min !== available.max;
-          if (!show) {
-            return null;
-          }
-          return (
-            <RangeFilterSection
-              key={key}
-              label={label}
-              availableMin={available.min}
-              availableMax={available.max}
-              selectedMin={ranges[key].min}
-              selectedMax={ranges[key].max}
-              onChange={(min, max) => setRange(key, min, max)}
-              layout={layout}
-              {...rest}
-            />
-          );
-        })}
-      </div>
+    </>
+  );
+}
+
+export function FilterRangeSections({
+  availableFilters,
+}: Omit<FilterPanelContentProps, "setDisplayLabel">) {
+  const { ranges } = useFilterValues();
+  const { setRange } = useFilterActions();
+
+  return (
+    <>
+      {RANGE_SECTIONS.map(({ key, label, ...rest }) => {
+        const available = availableFilters[key];
+        const show = key === "price" ? available.max > 0 : available.min !== available.max;
+        if (!show) {
+          return null;
+        }
+        return (
+          <RangeFilterSection
+            key={key}
+            label={label}
+            availableMin={available.min}
+            availableMax={available.max}
+            selectedMin={ranges[key].min}
+            selectedMax={ranges[key].max}
+            onChange={(min, max) => setRange(key, min, max)}
+            {...rest}
+          />
+        );
+      })}
     </>
   );
 }
@@ -159,7 +165,6 @@ function RangeFilterSection({
   onChange,
   step = 1,
   formatValue,
-  layout = "inline",
 }: {
   label: string;
   availableMin: number;
@@ -169,23 +174,15 @@ function RangeFilterSection({
   onChange: (min: number | null, max: number | null) => void;
   step?: number;
   formatValue?: (value: number) => string;
-  layout?: "inline" | "drawer";
 }) {
   const resolvedMin = selectedMin ?? availableMin;
   const resolvedMax = selectedMax ?? availableMax;
   const fmt = formatValue ?? String;
 
   return (
-    <div className={layout === "drawer" ? "flex min-w-0 items-center gap-2" : "block space-y-1.5"}>
-      <p
-        className={cn(
-          "text-xs font-medium text-muted-foreground",
-          layout === "drawer" && "w-18 shrink-0",
-        )}
-      >
-        {label}
-      </p>
-      <div className={cn("flex items-center gap-1.5", layout === "drawer" ? "flex-1" : "w-36")}>
+    <div className="flex min-w-0 items-center gap-2">
+      <p className="w-18 shrink-0 text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="flex flex-1 items-center gap-1.5">
         <span className="shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
           {fmt(resolvedMin)}
         </span>
@@ -220,11 +217,9 @@ function FilterSection({
   onToggle,
   iconPath,
   displayLabel,
-  layout = "inline",
   children,
 }: {
   label: string;
-  layout?: "inline" | "drawer";
   children?: ReactNode;
   options?: string[];
   selected?: string[];
@@ -237,15 +232,8 @@ function FilterSection({
   }
 
   return (
-    <div className={layout === "drawer" ? "flex min-w-0 gap-2" : "block space-y-1.5"}>
-      <p
-        className={cn(
-          "text-xs font-medium text-muted-foreground",
-          layout === "drawer" && "w-18 shrink-0 pt-1",
-        )}
-      >
-        {label}
-      </p>
+    <div className="flex min-w-0 gap-2">
+      <p className="w-18 shrink-0 pt-1 text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex flex-1 flex-wrap gap-1">
         {children ??
           options?.map((option) => {

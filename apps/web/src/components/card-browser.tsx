@@ -7,7 +7,11 @@ import { CardGrid } from "@/components/cards/card-grid";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
 import { ActiveFilters } from "@/components/filters/active-filters";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
+import {
+  FilterBadgeSections,
+  FilterPanelContent,
+  FilterRangeSections,
+} from "@/components/filters/filter-panel-content";
 import {
   DesktopOptionsBar,
   MobileDisplayContent,
@@ -146,11 +150,16 @@ export function CardBrowser() {
           </MobileOptionsDrawer>
         </div>
         {/* Filter panel */}
-        <div className="hidden sm:flex wide:hidden flex-wrap gap-4">
-          <FilterPanelContent
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-          />
+        <div className="hidden sm:block wide:hidden space-y-3">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <FilterBadgeSections
+              availableFilters={availableFilters}
+              setDisplayLabel={setDisplayLabel}
+            />
+          </div>
+          <div className="grid grid-cols-4 gap-x-6 gap-y-3">
+            <FilterRangeSections availableFilters={availableFilters} />
+          </div>
         </div>
         {/* Main area */}
         <div className="flex items-start gap-6 mt-4">
@@ -161,7 +170,6 @@ export function CardBrowser() {
               <FilterPanelContent
                 availableFilters={availableFilters}
                 setDisplayLabel={setDisplayLabel}
-                layout="drawer"
               />
             </div>
           </Pane>

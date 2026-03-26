@@ -382,11 +382,7 @@ export function MobileFilterContent({
     <div className="border-t pt-4">
       <p className="mb-2.5 text-sm font-medium">Filters</p>
       <div className="flex flex-col gap-4">
-        <FilterPanelContent
-          availableFilters={availableFilters}
-          setDisplayLabel={setDisplayLabel}
-          layout="drawer"
-        />
+        <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
       </div>
     </div>
   );
