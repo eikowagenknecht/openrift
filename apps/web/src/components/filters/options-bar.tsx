@@ -1,4 +1,4 @@
-import type { SortOption } from "@openrift/shared";
+import type { AvailableFilters, SortOption } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DisplaySettingsDropdown, DisplaySettingsInline } from "./display-settings";
+import { FilterPanelContent } from "./filter-panel-content";
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "id", label: "ID" },
@@ -287,33 +288,19 @@ export function DesktopOptionsBar({ className }: { className?: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  MobileOptionsDrawer — visible below sm                             */
+/*  MobileOptionsDrawer — generic drawer shell                         */
 /* ------------------------------------------------------------------ */
 
 export function MobileOptionsDrawer({
-  filteredCount,
+  doneLabel,
   children,
   className,
 }: {
-  filteredCount: number;
+  doneLabel?: string;
   children?: ReactNode;
   className?: string;
 }) {
-  const {
-    sortBy,
-    sortDir,
-    setSortBy,
-    setSortDir,
-    hasActiveFilters,
-    view,
-    setView,
-    columnProps,
-    displayProps,
-  } = useOptionsBarState();
-
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  const unitLabel = view === "cards" ? "cards" : "printings";
 
   return (
     <div className={className}>
@@ -333,38 +320,72 @@ export function MobileOptionsDrawer({
             <DrawerTitle>Options</DrawerTitle>
             <DrawerDescription>Sort, display, and filter options</DrawerDescription>
           </DrawerHeader>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4">
-            <div className="space-y-2.5">
-              <p className="text-sm font-medium">Options</p>
-              <SortControls
-                compact
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSortByChange={setSortBy}
-                onSortDirChange={setSortDir}
-              />
-              <div className="flex items-center gap-2">
-                <ViewModeToggle compact view={view} onViewChange={setView} className="mr-auto" />
-                <ColumnControls compact {...columnProps} />
-              </div>
-            </div>
-
-            <div className="space-y-2.5">
-              <p className="text-sm font-medium">Display</p>
-              <DisplaySettingsInline {...displayProps} />
-            </div>
-
-            {children}
-          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4">{children}</div>
           <DrawerFooter>
             <DrawerClose asChild>
-              <Button className="w-full">
-                {hasActiveFilters ? `Show ${filteredCount} ${unitLabel}` : "Done"}
-              </Button>
+              <Button className="w-full">{doneLabel ?? "Done"}</Button>
             </DrawerClose>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Mobile drawer sections — self-contained, composable                */
+/* ------------------------------------------------------------------ */
+
+export function MobileOptionsContent() {
+  const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps } =
+    useOptionsBarState();
+
+  return (
+    <div className="space-y-2.5">
+      <p className="text-sm font-medium">Options</p>
+      <SortControls
+        compact
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortByChange={setSortBy}
+        onSortDirChange={setSortDir}
+      />
+      <div className="flex items-center gap-2">
+        <ViewModeToggle compact view={view} onViewChange={setView} className="mr-auto" />
+        <ColumnControls compact {...columnProps} />
+      </div>
+    </div>
+  );
+}
+
+export function MobileDisplayContent() {
+  const { displayProps } = useOptionsBarState();
+
+  return (
+    <div className="space-y-2.5">
+      <p className="text-sm font-medium">Display</p>
+      <DisplaySettingsInline {...displayProps} />
+    </div>
+  );
+}
+
+export function MobileFilterContent({
+  availableFilters,
+  setDisplayLabel,
+}: {
+  availableFilters: AvailableFilters;
+  setDisplayLabel?: (code: string) => string;
+}) {
+  return (
+    <div className="border-t pt-4">
+      <p className="mb-2.5 text-sm font-medium">Filters</p>
+      <div className="flex flex-col gap-4">
+        <FilterPanelContent
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          layout="drawer"
+        />
+      </div>
     </div>
   );
 }
