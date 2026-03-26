@@ -152,7 +152,6 @@ export function CardBrowser() {
             setDisplayLabel={setDisplayLabel}
           />
         </div>
-        <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
         {/* Main area */}
         <div className="flex items-start gap-6 mt-4">
           {/* Main area: Left panel */}
@@ -173,6 +172,7 @@ export function CardBrowser() {
               isGridStale ? "opacity-60" : "opacity-100",
             )}
           >
+            <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
             <CardGrid
               cards={deferredSortedCards}
               totalCards={allPrintings.length}
