@@ -67,6 +67,7 @@ export function useScrollIndicator({
   const dragTopRef = useRef(0);
   const dragTargetRowRef = useRef(-1);
   const snapPointsRef = useRef<{ screenY: number; rowIndex: number; firstCardId: string }[]>([]);
+  const snapPointElsRef = useRef<Map<number, HTMLElement>>(new Map());
 
   // ── Measure indicator height ───────────────────────────────────────
   useLayoutEffect(() => {
@@ -229,6 +230,15 @@ export function useScrollIndicator({
         }
       }
 
+      // Hide snap point badges that overlap the drag indicator.
+      for (const sp of snapPointsRef.current) {
+        const el = snapPointElsRef.current.get(sp.rowIndex);
+        if (el) {
+          el.style.visibility =
+            Math.abs(sp.screenY - indicatorTop) <= SNAP_DISTANCE ? "hidden" : "";
+        }
+      }
+
       if (!snapped) {
         dragTopRef.current = indicatorTop;
         if (indicatorRef.current) {
@@ -270,6 +280,10 @@ export function useScrollIndicator({
       const badge = cardIdRef.current?.parentElement as HTMLElement | null;
       if (badge) {
         badge.style.width = "";
+      }
+      // Reset snap point visibility overrides from drag.
+      for (const el of snapPointElsRef.current.values()) {
+        el.style.visibility = "";
       }
       if (dragTargetRowRef.current >= 0) {
         virtualizerRef.current.scrollToIndex(dragTargetRowRef.current, {
@@ -351,6 +365,7 @@ export function useScrollIndicator({
     handleIndicatorPointerDown,
     handleMoveRef,
     handleUpRef,
+    snapPointElsRef,
     handleMouseEnter,
     handleMouseLeave,
     snapPoints,
