@@ -21,3 +21,5 @@ export const COMPACT_THRESHOLD = 190; // cardWidth below which CardThumbnail use
 export const HEADER_PT = 16; // pt-4 on header row
 export const HEADER_PB = 8; // pb-2 on header row
 export const HEADER_CONTENT_HEIGHT = 20; // text-sm line-height (tallest child)
+
+export const FALLBACK_ROW_HEIGHT = 200; // estimateSize fallback for out-of-bounds index

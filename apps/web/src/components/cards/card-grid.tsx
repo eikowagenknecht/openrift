@@ -15,6 +15,7 @@ import {
   BUTTON_PAD,
   CARD_ASPECT,
   COMPACT_THRESHOLD,
+  FALLBACK_ROW_HEIGHT,
   GAP,
   HEADER_CONTENT_HEIGHT,
   HEADER_PB,
@@ -274,7 +275,7 @@ export function CardGrid({
   const estimateSize = (index: number): number => {
     const row = virtualRows[index];
     if (!row) {
-      return 200;
+      return FALLBACK_ROW_HEIGHT;
     }
     if (row.kind === "header") {
       return HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB;
@@ -397,8 +398,8 @@ export function CardGrid({
   }, [columns, selectedCardId]);
 
   // ── Helpers ────────────────────────────────────────────────────────
-  const scrollToGroup = (setName: string) => {
-    const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.name === setName);
+  const scrollToGroup = (setId: string) => {
+    const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.id === setId);
     if (rowIndex !== -1) {
       virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
     }
@@ -472,7 +473,7 @@ export function CardGrid({
             <button
               type="button"
               className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-              onClick={() => scrollToGroup(activeHeaderRow.set.name)}
+              onClick={() => scrollToGroup(activeHeaderRow.set.id)}
             >
               <SetHeaderLabel
                 slug={activeHeaderRow.set.slug}
@@ -510,7 +511,7 @@ export function CardGrid({
                   <button
                     type="button"
                     className="flex cursor-pointer items-center gap-2"
-                    onClick={() => scrollToGroup(row.set.name)}
+                    onClick={() => scrollToGroup(row.set.id)}
                   >
                     <SetHeaderLabel
                       slug={row.set.slug}
