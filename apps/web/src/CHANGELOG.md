@@ -2,6 +2,7 @@
 
 ## 2026-03-26
 
+- feat: Cards without images now show their power as repeated domain icons, matching the real card layout
 - fix: Battlefield cards no longer appear as squares in the card browser — they now fill the full card frame
 - feat: Your display preferences (theme, card images, rich effects, and visible card fields) now sync across devices when you're signed in
 - fix: Icons inside keyword brackets (like Equip costs) now render correctly instead of showing raw text
