@@ -8,8 +8,40 @@ import { assertOk, client } from "@/lib/rpc-client";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
+const CACHE_KEY = "user-preferences";
+
 function applyTheme(theme: "light" | "dark") {
   document.documentElement.classList.toggle("dark", theme === "dark");
+}
+
+function readCachedPreferences(): UserPreferencesResponse | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      return JSON.parse(raw) as UserPreferencesResponse;
+    }
+  } catch {
+    // Ignore corrupt cache
+  }
+  return null;
+}
+
+function writeCachedPreferences(prefs: UserPreferencesResponse) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(prefs));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function applyPreferences(prefs: UserPreferencesResponse) {
+  useDisplayStore.setState({
+    showImages: prefs.showImages,
+    richEffects: prefs.richEffects,
+    cardFields: prefs.cardFields,
+  });
+  useThemeStore.setState({ theme: prefs.theme });
+  applyTheme(prefs.theme);
 }
 
 async function fetchPreferences(): Promise<UserPreferencesResponse> {
@@ -48,11 +80,24 @@ function prefsChanged(
 /**
  * Syncs display and theme stores with the server for authenticated users.
  * Call this once in the app layout, passing `enabled: true` when the user is logged in.
+ *
+ * On mount, applies cached preferences from localStorage for instant restoration,
+ * then fetches from the server and overwrites if different.
  */
 export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const hydrating = useRef(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
+  const appliedCache = useRef(false);
+
+  // Apply cached preferences synchronously on first mount to avoid flash
+  if (enabled && !appliedCache.current) {
+    appliedCache.current = true;
+    const cached = readCachedPreferences();
+    if (cached) {
+      applyPreferences(cached);
+    }
+  }
 
   const { data } = useQuery({
     queryKey: queryKeys.preferences.all,
@@ -67,14 +112,8 @@ export function usePreferencesSync(enabled: boolean) {
     }
     hydrating.current = true;
 
-    useDisplayStore.setState({
-      showImages: data.showImages,
-      richEffects: data.richEffects,
-      cardFields: data.cardFields,
-    });
-
-    useThemeStore.setState({ theme: data.theme });
-    applyTheme(data.theme);
+    applyPreferences(data);
+    writeCachedPreferences(data);
 
     // Allow a tick for the store subscriptions to fire before we start listening
     requestAnimationFrame(() => {
@@ -101,6 +140,7 @@ export function usePreferencesSync(enabled: boolean) {
           theme,
         };
         await savePreferences(prefs);
+        writeCachedPreferences(prefs);
         queryClient.setQueryData(queryKeys.preferences.all, prefs);
       }, 1000);
     }
