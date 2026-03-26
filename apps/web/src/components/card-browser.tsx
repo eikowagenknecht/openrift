@@ -156,18 +156,14 @@ export function CardBrowser() {
         {/* Main area */}
         <div className="flex items-start gap-6 mt-4">
           {/* Main area: Left panel */}
-          <Pane className="wide:block">
-            <div className="overflow-y-auto rounded-lg px-3">
-              <div className="pt-4 pb-4">
-                <h2 className="text-lg font-semibold">Filters</h2>
-              </div>
-              <div className="space-y-4 pb-4">
-                <FilterPanelContent
-                  availableFilters={availableFilters}
-                  setDisplayLabel={setDisplayLabel}
-                  layout="drawer"
-                />
-              </div>
+          <Pane className="wide:block px-3">
+            <h2 className="text-lg font-semibold pb-4">Filters</h2>
+            <div className="space-y-4 pb-4">
+              <FilterPanelContent
+                availableFilters={availableFilters}
+                setDisplayLabel={setDisplayLabel}
+                layout="drawer"
+              />
             </div>
           </Pane>
           {/* Main area: Center */}
