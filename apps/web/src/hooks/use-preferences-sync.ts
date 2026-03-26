@@ -123,24 +123,24 @@ export function usePreferencesSync(enabled: boolean) {
 
   // Subscribe to store changes and debounce-write to server
   useEffect(() => {
+    function getCurrentPrefs(): UserPreferencesResponse {
+      const { showImages, richEffects, cardFields } = useDisplayStore.getState();
+      const { theme } = useThemeStore.getState();
+      return { showImages, richEffects, cardFields, theme };
+    }
+
     function scheduleSave() {
       if (hydrating.current) {
         return;
       }
+      // Write to localStorage immediately so F5 picks up the latest value
+      writeCachedPreferences(getCurrentPrefs());
       if (debounceTimer.current !== null) {
         clearTimeout(debounceTimer.current);
       }
       debounceTimer.current = setTimeout(async () => {
-        const { showImages, richEffects, cardFields } = useDisplayStore.getState();
-        const { theme } = useThemeStore.getState();
-        const prefs: UserPreferencesResponse = {
-          showImages,
-          richEffects,
-          cardFields,
-          theme,
-        };
+        const prefs = getCurrentPrefs();
         await savePreferences(prefs);
-        writeCachedPreferences(prefs);
         queryClient.setQueryData(queryKeys.preferences.all, prefs);
       }, 1000);
     }
