@@ -198,32 +198,35 @@ export const CardThumbnail = memo(function CardThumbnail({
                   transformStyle: "preserve-3d",
                 }}
               >
-                <CardPlaceholderImage
-                  name={card.name}
-                  domain={card.domains}
-                  energy={card.energy}
-                  might={card.might}
-                  className={thumbnailUrl && imgLoaded ? "invisible" : undefined}
-                />
-                {thumbnailUrl && (
-                  <div
-                    className={cn(
-                      "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
-                      imgLoaded ? "opacity-100" : "opacity-0",
-                    )}
-                    style={LANDSCAPE_ROTATION_STYLE}
-                  >
-                    <img
-                      src={thumbnailUrl}
-                      srcSet={srcSet}
-                      sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                      alt={card.name}
-                      loading={priority ? "eager" : "lazy"}
-                      fetchPriority={priority ? "high" : undefined}
-                      className="size-full object-cover"
-                      onLoad={() => setImgLoaded(true)}
-                    />
-                  </div>
+                {thumbnailUrl ? (
+                  <>
+                    <div className="aspect-card bg-muted/40" />
+                    <div
+                      className={cn(
+                        "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
+                        imgLoaded ? "opacity-100" : "opacity-0",
+                      )}
+                      style={LANDSCAPE_ROTATION_STYLE}
+                    >
+                      <img
+                        src={thumbnailUrl}
+                        srcSet={srcSet}
+                        sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                        alt={card.name}
+                        loading={priority ? "eager" : "lazy"}
+                        fetchPriority={priority ? "high" : undefined}
+                        className="size-full object-cover"
+                        onLoad={() => setImgLoaded(true)}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <CardPlaceholderImage
+                    name={card.name}
+                    domain={card.domains}
+                    energy={card.energy}
+                    might={card.might}
+                  />
                 )}
                 {isFoilCard && <FoilOverlay active={tilt.active} />}
               </div>
@@ -242,26 +245,29 @@ export const CardThumbnail = memo(function CardThumbnail({
                 transformStyle: "preserve-3d",
               }}
             >
-              <CardPlaceholderImage
-                name={card.name}
-                domain={card.domains}
-                energy={card.energy}
-                might={card.might}
-                className={thumbnailUrl && imgLoaded ? "invisible" : undefined}
-              />
-              {thumbnailUrl && (
-                <img
-                  src={thumbnailUrl}
-                  srcSet={srcSet}
-                  sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                  alt={card.name}
-                  loading={priority ? "eager" : "lazy"}
-                  fetchPriority={priority ? "high" : undefined}
-                  className={cn(
-                    "absolute inset-0 w-full object-cover transition-opacity duration-300",
-                    imgLoaded ? "opacity-100" : "opacity-0",
-                  )}
-                  onLoad={() => setImgLoaded(true)}
+              {thumbnailUrl ? (
+                <>
+                  <div className="aspect-card bg-muted/40" />
+                  <img
+                    src={thumbnailUrl}
+                    srcSet={srcSet}
+                    sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                    alt={card.name}
+                    loading={priority ? "eager" : "lazy"}
+                    fetchPriority={priority ? "high" : undefined}
+                    className={cn(
+                      "absolute inset-0 w-full object-cover transition-opacity duration-300",
+                      imgLoaded ? "opacity-100" : "opacity-0",
+                    )}
+                    onLoad={() => setImgLoaded(true)}
+                  />
+                </>
+              ) : (
+                <CardPlaceholderImage
+                  name={card.name}
+                  domain={card.domains}
+                  energy={card.energy}
+                  might={card.might}
                 />
               )}
               {isFoilCard && <FoilOverlay active={tilt.active} />}
