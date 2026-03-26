@@ -293,10 +293,10 @@ export function DesktopOptionsBar({ className }: { className?: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  DesktopFilterPanel — inline filters, visible sm to wide            */
+/*  DesktopTopFilter — inline filters, visible sm to wide            */
 /* ------------------------------------------------------------------ */
 
-export function DesktopFilterPanel({
+export function DesktopTopFilter({
   availableFilters,
   setDisplayLabel,
   className,

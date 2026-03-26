@@ -2,12 +2,15 @@ import type { AvailableFilters } from "@openrift/shared";
 
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 
-interface FilterSidebarProps {
+interface DesktopSidebarFilterProps {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
 }
 
-export function FilterSidebar({ availableFilters, setDisplayLabel }: FilterSidebarProps) {
+export function DesktopSidebarFilter({
+  availableFilters,
+  setDisplayLabel,
+}: DesktopSidebarFilterProps) {
   const f = availableFilters;
   const hasContent =
     f.sets.length > 0 || f.domains.length > 0 || f.types.length > 0 || f.rarities.length > 0;
@@ -17,7 +20,7 @@ export function FilterSidebar({ availableFilters, setDisplayLabel }: FilterSideb
   }
 
   return (
-    <aside className="hidden wide:block sticky top-(--sticky-top) w-[400px] shrink-0 max-h-[calc(100vh-var(--sticky-top))] overflow-y-auto rounded-lg px-3">
+    <div className="overflow-y-auto rounded-lg px-3">
       <div className="pt-4 pb-4">
         <h2 className="text-lg font-semibold">Filters</h2>
       </div>
@@ -29,6 +32,6 @@ export function FilterSidebar({ availableFilters, setDisplayLabel }: FilterSideb
           layout="drawer"
         />
       </div>
-    </aside>
+    </div>
   );
 }

@@ -8,12 +8,14 @@ import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-c
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
-  DesktopFilterPanel,
+  DesktopTopFilter,
   DesktopOptionsBar,
   MobileOptionsBar,
 } from "@/components/filters/filter-bar";
-import { FilterSidebar } from "@/components/filters/filter-sidebar";
+import { DesktopSidebarFilter } from "@/components/filters/filter-sidebar";
 import { SearchBar } from "@/components/filters/search-bar";
+import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
+import { Pane } from "@/components/layout/panes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardData } from "@/hooks/use-card-data";
 import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
@@ -120,6 +122,7 @@ export function CardBrowser() {
             printingsByCardId={printingsByCardId}
           />
         )}
+        {/* Search bar */}
         <div className="flex items-start gap-3 mb-3">
           <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
           <DesktopOptionsBar className="hidden sm:flex" />
@@ -130,7 +133,8 @@ export function CardBrowser() {
             className="sm:hidden"
           />
         </div>
-        <DesktopFilterPanel
+        {/* Filter panel */}
+        <DesktopTopFilter
           availableFilters={availableFilters}
           setDisplayLabel={setDisplayLabel}
           className="hidden sm:flex wide:hidden"
@@ -139,7 +143,12 @@ export function CardBrowser() {
 
         {/* Main Area */}
         <div className="flex items-start gap-6 mt-4">
-          <FilterSidebar availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+          <Pane className="wide:block">
+            <DesktopSidebarFilter
+              availableFilters={availableFilters}
+              setDisplayLabel={setDisplayLabel}
+            />
+          </Pane>
           <div
             className={cn(
               "min-w-0 flex-1 transition-opacity duration-150",
@@ -155,6 +164,27 @@ export function CardBrowser() {
             />
           </div>
           {selectedCard && detailOpen && (
+            <Pane className="md:block">
+              <Suspense fallback={<CardDetailSkeleton />}>
+                <CardDetail
+                  printing={selectedCard}
+                  onClose={handleDetailClose}
+                  showImages={showImages}
+                  onPrevCard={handlePrevCard}
+                  onNextCard={handleNextCard}
+                  onTagClick={(tag) => searchAndClose(`t:${tag}`)}
+                  onKeywordClick={(keyword) => searchAndClose(`k:${keyword}`)}
+                  printings={siblingPrintings}
+                  onSelectPrinting={setSelectedCard}
+                />
+              </Suspense>
+            </Pane>
+          )}
+        </div>
+
+        {/* Mobile: fullscreen detail overlay */}
+        {selectedCard && detailOpen && (
+          <MobileDetailOverlay>
             <Suspense fallback={<CardDetailSkeleton />}>
               <CardDetail
                 printing={selectedCard}
@@ -168,8 +198,8 @@ export function CardBrowser() {
                 onSelectPrinting={setSelectedCard}
               />
             </Suspense>
-          )}
-        </div>
+          </MobileDetailOverlay>
+        )}
       </div>
     </CardBrowserContext>
   );
@@ -177,7 +207,7 @@ export function CardBrowser() {
 
 function CardDetailSkeleton() {
   return (
-    <aside className="fixed inset-0 z-50 bg-background md:sticky md:inset-auto md:z-auto md:top-(--sticky-top) md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-var(--sticky-top))] md:rounded-lg md:px-3">
+    <div className="bg-background rounded-lg px-3">
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
         <div className="space-y-1.5">
           <Skeleton className="h-6 w-48" />
@@ -193,6 +223,6 @@ function CardDetailSkeleton() {
         </div>
         <Skeleton className="h-20 w-full rounded-lg" />
       </div>
-    </aside>
+    </div>
   );
 }

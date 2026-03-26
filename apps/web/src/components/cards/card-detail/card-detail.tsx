@@ -88,13 +88,8 @@ export function CardDetail({
   const showShimmer = IS_COARSE_POINTER && foilMode === "none";
 
   return (
-    <aside
-      className={cn(
-        "fixed inset-0 z-50 overflow-y-auto bg-background",
-        "md:sticky md:inset-auto md:z-auto md:top-(--sticky-top)",
-        "md:w-[400px] md:shrink-0 md:max-h-[calc(100vh-var(--sticky-top))]",
-        "md:rounded-lg md:px-3",
-      )}
+    <div
+      className="overflow-y-auto bg-background rounded-lg px-3"
       style={getDomainTintStyle(card.domains)}
     >
       {/* Mobile header */}
@@ -219,6 +214,6 @@ export function CardDetail({
           <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
         )}
       </div>
-    </aside>
+    </div>
   );
 }
