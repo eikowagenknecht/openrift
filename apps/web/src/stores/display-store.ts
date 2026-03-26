@@ -2,7 +2,8 @@ import { create } from "zustand";
 
 import type { CardFields } from "@/lib/card-fields";
 import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
-import { PREFERENCES_CACHE_KEY } from "@/lib/preferences-cache";
+
+export const PREFERENCES_CACHE_KEY = "user-preferences";
 
 interface DisplayState {
   showImages: boolean;
