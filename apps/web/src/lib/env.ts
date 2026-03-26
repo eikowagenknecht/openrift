@@ -6,9 +6,6 @@
  * it trivial to swap the source later without hunting through the codebase.
  */
 
-/** true when running the dev server (Vite / Vinxi dev mode). */
-export const DEV = import.meta.env.DEV;
-
 /** true when running the production build. */
 export const PROD = import.meta.env.PROD;
 

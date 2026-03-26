@@ -44,7 +44,7 @@ function ErrorFallback({ error }: { error: Error }) {
         subtext={pick(SUBTEXTS)}
         goHome
         reload
-        devError={error.message}
+        devError={error.stack ?? error.message}
       />
     </div>
   );

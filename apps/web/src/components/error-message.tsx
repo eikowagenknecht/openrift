@@ -1,6 +1,5 @@
 import { Header } from "@/components/layout/header";
 import { buttonVariants } from "@/components/ui/button";
-import { DEV } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 export const HEADINGS = [
@@ -82,7 +81,7 @@ export function ErrorMessageLayout({
       )}
       <h1 className="text-xl font-semibold">{heading}</h1>
       {subtext && <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>}
-      {DEV && devError && (
+      {devError && (
         <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
           {devError}
         </pre>

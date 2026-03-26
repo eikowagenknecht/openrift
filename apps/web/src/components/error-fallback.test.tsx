@@ -28,8 +28,8 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    // Should show the error message in dev mode
-    expect(screen.getByText("kaboom")).toBeInTheDocument();
+    // Should show the error stack trace
+    expect(screen.getByText(/kaboom/)).toBeInTheDocument();
     // Should show action buttons
     expect(screen.getByText("Reshuffle")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go home" })).toHaveAttribute("href", "/");
