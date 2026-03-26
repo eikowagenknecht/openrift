@@ -107,7 +107,7 @@ export function CardBrowser() {
 
   return (
     <CardBrowserContext value={browserContext}>
-      <div className="space-y-4">
+      <div>
         {adding && addingTo && (
           <AddToCollectionFlow
             ref={addFlowRef}
@@ -123,7 +123,8 @@ export function CardBrowser() {
         />
         <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
 
-        <div className="flex items-start gap-6">
+        {/* Main Area */}
+        <div className="flex items-start gap-6 mt-4">
           <FilterSidebar availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
           <div
             className={cn(
