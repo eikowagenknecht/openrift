@@ -8,6 +8,7 @@ type HealthStatus = "ok" | "db_empty" | "db_not_migrated" | "db_unreachable";
 class HealthTimeoutError extends Error {
   constructor() {
     super("health check timeout");
+    this.name = "HealthTimeoutError";
   }
 }
 
