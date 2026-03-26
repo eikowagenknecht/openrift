@@ -53,7 +53,13 @@ function CardImageContent({
   imgLoaded: boolean;
   onImgLoad: () => void;
   rotated: boolean;
-  card: { name: string; domains: string[]; energy: number | null; might?: number | null };
+  card: {
+    name: string;
+    domains: string[];
+    energy: number | null;
+    might?: number | null;
+    power?: number | null;
+  };
   isFoilCard: boolean;
   tiltActive: boolean;
 }) {
@@ -103,6 +109,7 @@ function CardImageContent({
           domain={card.domains}
           energy={card.energy}
           might={card.might}
+          power={card.power}
         />
       )}
       {isFoilCard && <FoilOverlay active={tiltActive} />}
