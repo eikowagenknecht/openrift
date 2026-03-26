@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 
 import { useIsAdmin } from "@/hooks/use-admin";
 
-export interface AdminSettings {
+interface AdminSettings {
   debugOverlay: boolean;
 }
 

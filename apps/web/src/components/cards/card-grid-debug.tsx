@@ -152,7 +152,7 @@ export function CardGridDebug({
         const imgDiv = btn?.children[0];
         const lblDiv = hasLabel && btn ? btn.children[btn.childElementCount - 1] : undefined;
         const metaEl = hasMetaFields && lblDiv ? lblDiv.children[0] : undefined;
-        const priceEl = f.price && lblDiv ? lblDiv.children[hasMetaFields ? 1 : 0] : undefined;
+        const priceEl = fields.price && lblDiv ? lblDiv.children[hasMetaFields ? 1 : 0] : undefined;
 
         // Row-level measurements — use raw getBoundingClientRect for fractional
         // precision (firstCard.size is the virtualizer's rounded integer).
@@ -248,7 +248,7 @@ export function CardGridDebug({
           }
 
           // Price subtree
-          if (f.price && priceEl) {
+          if (fields.price && priceEl) {
             const measPriceMt = Number.parseFloat(getComputedStyle(priceEl as Element).marginTop);
             const measPriceH = (priceEl as Element).getBoundingClientRect().height;
             labelChildren.push({
