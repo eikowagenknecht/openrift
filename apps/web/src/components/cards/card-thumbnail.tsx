@@ -7,8 +7,8 @@ import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
-import type { CardFields } from "@/lib/card-fields";
-import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
+import type { VisibleFields } from "@/lib/card-fields";
+import { DEFAULT_VISIBLE_FIELDS } from "@/lib/card-fields";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPriceCompact, priceColorClass } from "@/lib/format";
 import {
@@ -31,7 +31,7 @@ interface CardThumbnailProps {
   siblings?: Printing[];
   priceRange?: { min: number; max: number };
   view?: "cards" | "printings";
-  cardFields?: CardFields;
+  visibleFields?: VisibleFields;
   cardWidth?: number;
   priority?: boolean;
   ownedCount?: number;
@@ -48,7 +48,7 @@ export function CardThumbnail({
   siblings,
   priceRange,
   view,
-  cardFields = DEFAULT_CARD_FIELDS,
+  visibleFields = DEFAULT_VISIBLE_FIELDS,
   cardWidth,
   priority,
   ownedCount,
@@ -268,11 +268,11 @@ export function CardThumbnail({
           )}
         </div>
       </div>
-      {(cardFields.number ||
-        cardFields.title ||
-        cardFields.type ||
-        cardFields.rarity ||
-        cardFields.price) && (
+      {(visibleFields.number ||
+        visibleFields.title ||
+        visibleFields.type ||
+        visibleFields.rarity ||
+        visibleFields.price) && (
         // ⚠ mt-2.5 is mirrored as LABEL_WRAPPER_MT in card-grid.tsx — update both together
         <div className="relative z-10 mt-2.5">
           <CardMetaLabel
@@ -282,11 +282,11 @@ export function CardThumbnail({
             superTypes={card.superTypes}
             rarity={printing.rarity}
             compact={compact}
-            cardFields={cardFields}
+            visibleFields={visibleFields}
           />
           {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
           {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when printing.marketPrice is undefined */}
-          {cardFields.price && (
+          {visibleFields.price && (
             <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
               {printing.marketPrice !== undefined &&
                 (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (

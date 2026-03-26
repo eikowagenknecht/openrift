@@ -1,7 +1,7 @@
 export interface UserPreferencesResponse {
   showImages: boolean;
   richEffects: boolean;
-  cardFields: {
+  visibleFields: {
     number: boolean;
     title: boolean;
     type: boolean;

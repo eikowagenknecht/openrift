@@ -12,7 +12,7 @@ import type { Variables } from "../../types.js";
 const DEFAULTS: UserPreferencesResponse = {
   showImages: true,
   richEffects: true,
-  cardFields: { number: true, title: true, type: true, rarity: true, price: true },
+  visibleFields: { number: true, title: true, type: true, rarity: true, price: true },
   theme: "light",
 };
 
@@ -23,7 +23,7 @@ function toResponse(row: Selectable<UserPreferencesTable> | undefined): UserPref
   return {
     showImages: row.showImages,
     richEffects: row.richEffects,
-    cardFields: {
+    visibleFields: {
       number: row.cardFieldNumber,
       title: row.cardFieldTitle,
       type: row.cardFieldType,
@@ -59,21 +59,21 @@ export const preferencesRoute = new Hono<{ Variables: Variables }>()
     if (body.theme !== undefined) {
       updates.theme = body.theme;
     }
-    if (body.cardFields) {
-      if (body.cardFields.number !== undefined) {
-        updates.cardFieldNumber = body.cardFields.number;
+    if (body.visibleFields) {
+      if (body.visibleFields.number !== undefined) {
+        updates.cardFieldNumber = body.visibleFields.number;
       }
-      if (body.cardFields.title !== undefined) {
-        updates.cardFieldTitle = body.cardFields.title;
+      if (body.visibleFields.title !== undefined) {
+        updates.cardFieldTitle = body.visibleFields.title;
       }
-      if (body.cardFields.type !== undefined) {
-        updates.cardFieldType = body.cardFields.type;
+      if (body.visibleFields.type !== undefined) {
+        updates.cardFieldType = body.visibleFields.type;
       }
-      if (body.cardFields.rarity !== undefined) {
-        updates.cardFieldRarity = body.cardFields.rarity;
+      if (body.visibleFields.rarity !== undefined) {
+        updates.cardFieldRarity = body.visibleFields.rarity;
       }
-      if (body.cardFields.price !== undefined) {
-        updates.cardFieldPrice = body.cardFields.price;
+      if (body.visibleFields.price !== undefined) {
+        updates.cardFieldPrice = body.visibleFields.price;
       }
     }
 

@@ -1,4 +1,4 @@
-export interface CardFields {
+export interface VisibleFields {
   number: boolean;
   title: boolean;
   type: boolean;
@@ -6,7 +6,7 @@ export interface CardFields {
   price: boolean;
 }
 
-export const DEFAULT_CARD_FIELDS: CardFields = {
+export const DEFAULT_VISIBLE_FIELDS: VisibleFields = {
   number: true,
   title: true,
   type: true,

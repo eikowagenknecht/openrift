@@ -20,8 +20,8 @@ export function PreferencesSection() {
   const setShowImages = useDisplayStore((s) => s.setShowImages);
   const richEffects = useDisplayStore((s) => s.richEffects);
   const setRichEffects = useDisplayStore((s) => s.setRichEffects);
-  const cardFields = useDisplayStore((s) => s.cardFields);
-  const setCardFields = useDisplayStore((s) => s.setCardFields);
+  const visibleFields = useDisplayStore((s) => s.visibleFields);
+  const setVisibleFields = useDisplayStore((s) => s.setVisibleFields);
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
@@ -72,9 +72,9 @@ export function PreferencesSection() {
                 </div>
                 <Switch
                   id={`pref-field-${item.key}`}
-                  checked={cardFields[item.key]}
+                  checked={visibleFields[item.key]}
                   onCheckedChange={(checked: boolean) =>
-                    setCardFields({ ...cardFields, [item.key]: checked })
+                    setVisibleFields({ ...visibleFields, [item.key]: checked })
                   }
                 />
               </div>

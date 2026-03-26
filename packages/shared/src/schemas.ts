@@ -172,7 +172,7 @@ export const createTradeListItemSchema = z.object({
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().optional(),
   richEffects: z.boolean().optional(),
-  cardFields: z
+  visibleFields: z
     .object({
       number: z.boolean().optional(),
       title: z.boolean().optional(),

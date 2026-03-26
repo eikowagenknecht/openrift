@@ -409,7 +409,7 @@ function UnifiedExpandedDetail({
                   printing={toPrinting(group, p)}
                   onClick={NOOP}
                   showImages
-                  cardFields={{
+                  visibleFields={{
                     number: true,
                     title: true,
                     type: true,

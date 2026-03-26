@@ -7,10 +7,11 @@ import { assertOk, client } from "@/lib/rpc-client";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
+// Fields synced to the database. Device-local prefs (e.g. maxColumns) are excluded.
 function getPrefsSnapshot(): UserPreferencesResponse {
-  const { showImages, richEffects, cardFields } = useDisplayStore.getState();
+  const { showImages, richEffects, visibleFields } = useDisplayStore.getState();
   const { theme } = useThemeStore.getState();
-  return { showImages, richEffects, cardFields, theme };
+  return { showImages, richEffects, visibleFields, theme };
 }
 
 /**
@@ -42,10 +43,11 @@ export function usePreferencesSync(enabled: boolean) {
     }
     hydrating.current = true;
 
+    // These are the only fields we persist to the server
     useDisplayStore.setState({
       showImages: data.showImages,
       richEffects: data.richEffects,
-      cardFields: data.cardFields,
+      visibleFields: data.visibleFields,
     });
     useThemeStore.setState({ theme: data.theme });
 

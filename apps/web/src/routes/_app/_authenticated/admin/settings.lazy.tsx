@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useAdminSettings } from "@/hooks/use-admin-settings";
+import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
 import { assertOk, client } from "@/lib/rpc-client";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin/settings")({
@@ -23,7 +23,8 @@ function useFixTypography(dryRun: boolean) {
 }
 
 function SettingsPage() {
-  const { settings, update } = useAdminSettings();
+  const settings = useAdminSettingsStore((s) => s.settings);
+  const update = useAdminSettingsStore((s) => s.update);
 
   return (
     <div className="space-y-8">

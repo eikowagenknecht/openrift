@@ -1,6 +1,6 @@
 import type { CardType, Rarity } from "@openrift/shared";
 
-import type { CardFields } from "@/lib/card-fields";
+import type { VisibleFields } from "@/lib/card-fields";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -12,11 +12,11 @@ interface CardMetaLabelProps {
   rarity: Rarity;
   compact?: boolean;
   /** Which fields to render. Defaults to all visible. */
-  cardFields?: CardFields;
+  visibleFields?: VisibleFields;
   className?: string;
 }
 
-const ALL_FIELDS: CardFields = {
+const ALL_FIELDS: VisibleFields = {
   number: true,
   title: true,
   type: true,
@@ -36,13 +36,13 @@ export function CardMetaLabel({
   superTypes,
   rarity,
   compact,
-  cardFields = ALL_FIELDS,
+  visibleFields = ALL_FIELDS,
   className,
 }: CardMetaLabelProps) {
-  const showNumber = cardFields.number;
-  const showTitle = cardFields.title;
-  const showType = cardFields.type;
-  const showRarity = cardFields.rarity;
+  const showNumber = visibleFields.number;
+  const showTitle = visibleFields.title;
+  const showType = visibleFields.type;
+  const showRarity = visibleFields.rarity;
 
   if (!showNumber && !showTitle && !showType && !showRarity) {
     return null;

@@ -34,7 +34,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   const showImages = useDisplayStore((s) => s.showImages);
-  const cardFields = useDisplayStore((s) => s.cardFields);
+  const visibleFields = useDisplayStore((s) => s.visibleFields);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [stacked, setStacked] = useState(true);
@@ -233,7 +233,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     printing={stack.printing}
                     onClick={() => toggleStack(stack.copyIds)}
                     showImages={showImages}
-                    cardFields={cardFields}
+                    visibleFields={visibleFields}
                     view="printings"
                     ownedCount={stack.copyIds.length > 1 ? stack.copyIds.length : undefined}
                   />
@@ -264,7 +264,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     printing={stack.printing}
                     onClick={() => toggleSelect(copyId)}
                     showImages={showImages}
-                    cardFields={cardFields}
+                    visibleFields={visibleFields}
                     view="printings"
                   />
                 </div>

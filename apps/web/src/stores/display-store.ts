@@ -1,16 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import type { CardFields } from "@/lib/card-fields";
-import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
+import type { VisibleFields } from "@/lib/card-fields";
+import { DEFAULT_VISIBLE_FIELDS } from "@/lib/card-fields";
 
 interface DisplayState {
   showImages: boolean;
   setShowImages: (value: boolean) => void;
   richEffects: boolean;
   setRichEffects: (value: boolean) => void;
-  cardFields: CardFields;
-  setCardFields: (value: CardFields | ((prev: CardFields) => CardFields)) => void;
+  visibleFields: VisibleFields;
+  setVisibleFields: (value: VisibleFields | ((prev: VisibleFields) => VisibleFields)) => void;
   maxColumns: number | null;
   setMaxColumns: (value: number | null | ((prev: number | null) => number | null)) => void;
   // Column measurement state (derived from viewport, not persisted)
@@ -25,23 +25,28 @@ interface DisplayState {
 export const useDisplayStore = create<DisplayState>()(
   persist(
     (set) => ({
+      // User preferences (localStorage + synced to DB for logged-in users)
       showImages: true,
       richEffects: true,
-      cardFields: DEFAULT_CARD_FIELDS,
-      maxColumns: null,
-      physicalMax: 8,
-      physicalMin: 1,
-      autoColumns: 5,
+      visibleFields: DEFAULT_VISIBLE_FIELDS,
       setShowImages: (value) => set({ showImages: value }),
       setRichEffects: (value) => set({ richEffects: value }),
-      setCardFields: (value) =>
+      setVisibleFields: (value) =>
         set((state) => ({
-          cardFields: typeof value === "function" ? value(state.cardFields) : value,
+          visibleFields: typeof value === "function" ? value(state.visibleFields) : value,
         })),
+
+      // localStorage only — intentionally not synced to DB (per-device setting)
+      maxColumns: null,
       setMaxColumns: (value) =>
         set((state) => ({
           maxColumns: typeof value === "function" ? value(state.maxColumns) : value,
         })),
+
+      // Layout state (derived from viewport by useResponsiveColumns, not persisted)
+      physicalMax: 8,
+      physicalMin: 1,
+      autoColumns: 5,
       setPhysicalMax: (value) => set({ physicalMax: value }),
       setPhysicalMin: (value) => set({ physicalMin: value }),
       setAutoColumns: (value) => set({ autoColumns: value }),
@@ -51,14 +56,15 @@ export const useDisplayStore = create<DisplayState>()(
       partialize: (state) => ({
         showImages: state.showImages,
         richEffects: state.richEffects,
-        cardFields: state.cardFields,
+        visibleFields: state.visibleFields,
+        maxColumns: state.maxColumns,
       }),
       merge: (persisted, current) => ({
         ...current,
         ...(persisted as Partial<DisplayState>),
-        cardFields: {
-          ...DEFAULT_CARD_FIELDS,
-          ...(persisted as Partial<DisplayState>)?.cardFields,
+        visibleFields: {
+          ...DEFAULT_VISIBLE_FIELDS,
+          ...(persisted as Partial<DisplayState>)?.visibleFields,
         },
       }),
     },

@@ -1,7 +1,7 @@
 import type { VirtualItem, Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
 
-import type { CardFields } from "@/lib/card-fields";
+import type { VisibleFields } from "@/lib/card-fields";
 
 import {
   BUTTON_PAD,
@@ -28,8 +28,8 @@ interface CardGridDebugProps {
   columns: number;
   labelHeight: number;
   thumbWidth: number;
-  cardFields: CardFields | undefined;
-  estimateSize: (index: number) => number;
+  visibleFields: VisibleFields | undefined;
+  estimateRowHeight: (index: number) => number;
 }
 
 // ── Tree types & rendering ──────────────────────────────────────────
@@ -96,8 +96,8 @@ export function CardGridDebug({
   columns,
   labelHeight,
   thumbWidth,
-  cardFields,
-  estimateSize,
+  visibleFields,
+  estimateRowHeight,
 }: CardGridDebugProps) {
   const elRef = useRef<HTMLDivElement>(null);
   const jumpLogRef = useRef<string[]>([]);
@@ -116,19 +116,25 @@ export function CardGridDebug({
       const items: VirtualItem[] = virtualizer.getVirtualItems();
       const prevTotal = prevTotalRef.current;
 
-      // Derived layout values — mirrors estimateSize logic
+      // Derived layout values — mirrors estimateRowHeight logic
       const containerWidth = containerRef.current?.offsetWidth ?? 0;
       const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
       const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
-      const expRow = estimateSize(items[0]?.index ?? 0);
+      const expRow = estimateRowHeight(items[0]?.index ?? 0);
 
-      const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
-      const hasMetaFields = f.number || f.title || f.type || f.rarity;
-      const hasLabel = hasMetaFields || f.price;
+      const fields = visibleFields ?? {
+        number: true,
+        title: true,
+        type: true,
+        rarity: true,
+        price: true,
+      };
+      const hasMetaFields = fields.number || fields.title || fields.type || fields.rarity;
+      const hasLabel = hasMetaFields || fields.price;
       const compact = thumbWidth < COMPACT_THRESHOLD;
       const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
-      const hasLine1 = f.number || f.title;
-      const hasLine2 = f.type || f.rarity;
+      const hasLine1 = fields.number || fields.title;
+      const hasLine2 = fields.type || fields.rarity;
       const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
 
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -282,7 +288,7 @@ export function CardGridDebug({
         );
 
         // Virtualizer line: integer comparison that drives scroll stability.
-        // est = estimateSize (our prediction), virt = what the virtualizer stored.
+        // est = estimateRowHeight (our prediction), virt = what the virtualizer stored.
         const estOk = expRow === virtSize ? "✓" : "✗";
         lines.push(`est=${expRow} virt=${virtSize} ${estOk}  ⌈${rawSum}⌉→${expRow}`);
       }

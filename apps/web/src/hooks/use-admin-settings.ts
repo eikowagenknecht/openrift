@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-interface AdminSettings {
+import { useIsAdmin } from "@/hooks/use-admin";
+
+export interface AdminSettings {
   debugOverlay: boolean;
 }
 
@@ -10,7 +12,7 @@ interface AdminSettingsState {
   update: (patch: Partial<AdminSettings>) => void;
 }
 
-const useAdminSettingsStore = create<AdminSettingsState>()(
+export const useAdminSettingsStore = create<AdminSettingsState>()(
   persist(
     (set) => ({
       settings: { debugOverlay: false },
@@ -23,8 +25,9 @@ const useAdminSettingsStore = create<AdminSettingsState>()(
   ),
 );
 
-export function useAdminSettings() {
+// Returns admin settings if the user is an admin, otherwise null.
+export function useAdminSettings(): AdminSettings | null {
+  const { data: isAdmin } = useIsAdmin();
   const settings = useAdminSettingsStore((s) => s.settings);
-  const update = useAdminSettingsStore((s) => s.update);
-  return { settings, update };
+  return isAdmin === true ? settings : null;
 }
