@@ -315,12 +315,14 @@ export function MobileOptionsDrawer({
       </Button>
 
       <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
-        <DrawerContent>
+        <DrawerContent className="pb-2">
           <DrawerHeader className="sr-only">
             <DrawerTitle>Options</DrawerTitle>
             <DrawerDescription>Sort, display, and filter options</DrawerDescription>
           </DrawerHeader>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+            {children}
+          </div>
           <DrawerFooter>
             <DrawerClose asChild>
               <Button className="w-full">{doneLabel ?? "Done"}</Button>
