@@ -3,9 +3,9 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useCardBrowserContext } from "@/components/card-browser-context";
-import { useIsAdmin } from "@/hooks/use-admin";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import type { VisibleFields } from "@/lib/card-fields";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -29,14 +29,101 @@ import {
   SM_BREAKPOINT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
-import type { SetInfo } from "./card-grid-types";
-import { buildVirtualRows, groupCardsBySet } from "./card-grid-types";
+import type { SetInfo, VRow } from "./card-grid-types";
 import { CardThumbnail } from "./card-thumbnail";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useGridKeyboardNav } from "./use-grid-keyboard-nav";
 import { useStickyHeader } from "./use-sticky-header";
 
 export type { SetInfo } from "./card-grid-types";
+
+interface CardGroup {
+  set: SetInfo;
+  cards: Printing[];
+}
+
+function groupCardsBySet(cards: Printing[], setOrder: SetInfo[]): CardGroup[] {
+  const bySet = Map.groupBy(cards, (printing) => printing.setId);
+
+  return setOrder.flatMap((setInfo) => {
+    const setCards = bySet.get(setInfo.id);
+    return setCards ? [{ set: setInfo, cards: setCards }] : [];
+  });
+}
+
+function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
+  const showHeaders = groups.length > 1;
+  const rows: VRow[] = [];
+  let cardsBefore = 0;
+  for (const group of groups) {
+    if (showHeaders) {
+      rows.push({ kind: "header", set: group.set, cardCount: group.cards.length });
+    }
+    for (let i = 0; i < group.cards.length; i += columns) {
+      const items = group.cards.slice(i, i + columns);
+      rows.push({ kind: "cards", items, cardsBefore });
+      cardsBefore += items.length;
+    }
+  }
+  return rows;
+}
+
+function estimateLabelHeight(
+  visibleFields: VisibleFields | undefined,
+  thumbWidth: number,
+  containerWidth: number,
+): number {
+  const fields = visibleFields ?? {
+    number: true,
+    title: true,
+    type: true,
+    rarity: true,
+    price: true,
+  };
+  const hasMetaFields = fields.number || fields.title || fields.type || fields.rarity;
+  if (!hasMetaFields && !fields.price) {
+    return 0;
+  }
+
+  let height = LABEL_WRAPPER_MT;
+
+  if (hasMetaFields) {
+    height += META_LABEL_PY;
+    const hasLine1 = fields.number || fields.title;
+    const hasLine2 = fields.type || fields.rarity;
+    const compact = thumbWidth < COMPACT_THRESHOLD;
+    const aboveSm = containerWidth >= SM_BREAKPOINT;
+    const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
+    if (hasLine1) {
+      height += line1Height;
+    }
+    if (hasLine1 && hasLine2) {
+      height += META_LINE_GAP;
+    }
+    if (hasLine2) {
+      height += META_LINE_HEIGHT;
+    }
+  }
+
+  if (fields.price) {
+    height += PRICE_MT + PRICE_LINE_HEIGHT;
+  }
+
+  return height;
+}
+
+function computeRowStarts(
+  virtualRows: VRow[],
+  estimateRowHeight: (index: number) => number,
+): number[] {
+  const starts: number[] = [];
+  let acc = 0;
+  for (let i = 0; i < virtualRows.length; i++) {
+    starts.push(acc);
+    acc += estimateRowHeight(i) + GAP;
+  }
+  return starts;
+}
 
 function SetHeaderLabel({
   slug,
@@ -79,6 +166,7 @@ export function CardGrid({
   selectedCardId,
   keyboardNavCardId,
 }: CardGridProps) {
+  // ── Card data & interaction handlers (passed down to each CardThumbnail) ──
   const {
     printingsByCardId,
     priceRangeByCardId,
@@ -90,17 +178,20 @@ export function CardGrid({
     siblingPrintings,
   } = useCardBrowserContext();
 
+  // ── Display preferences (what to show on each card) ──────────────
   const showImages = useDisplayStore((s) => s.showImages);
-  const cardFields = useDisplayStore((s) => s.cardFields);
+  const visibleFields = useDisplayStore((s) => s.visibleFields);
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
   const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
   const setAutoColumns = useDisplayStore((s) => s.setAutoColumns);
 
-  const { data: isAdmin } = useIsAdmin();
-  const { settings: adminSettings } = useAdminSettings();
-  const debugOverlayEnabled = isAdmin === true && adminSettings.debugOverlay;
+  const adminSettings = useAdminSettings();
+  const debugOverlayEnabled = adminSettings?.debugOverlay === true;
 
+  // ── Responsive column layout ─────────────────────────────────────
+  // Measures the container and computes how many columns fit.
+  // Writes physical min/max/auto back to the store for the column slider UI.
   const { containerRef, columns, physicalMax, physicalMin, autoColumns, containerWidth } =
     useResponsiveColumns(maxColumns);
 
@@ -112,47 +203,15 @@ export function CardGrid({
 
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
+  // ── Group cards by set, then flatten into virtual rows ───────────
   const groups = groupCardsBySet(cards, setOrder);
   const multipleGroups = groups.length > 1;
-
-  const virtualRows = buildVirtualRows(groups, columns, multipleGroups);
+  const virtualRows = buildVirtualRows(groups, columns);
 
   // ── Label height estimation ────────────────────────────────────────
-  const labelHeight = (() => {
-    const f = cardFields ?? { number: true, title: true, type: true, rarity: true, price: true };
-    const hasMetaFields = f.number || f.title || f.type || f.rarity;
-    if (!hasMetaFields && !f.price) {
-      return 0;
-    }
+  const labelHeight = estimateLabelHeight(visibleFields, thumbWidth, containerWidth);
 
-    let h = LABEL_WRAPPER_MT;
-
-    if (hasMetaFields) {
-      h += META_LABEL_PY;
-      const hasLine1 = f.number || f.title;
-      const hasLine2 = f.type || f.rarity;
-      const compact = thumbWidth < COMPACT_THRESHOLD;
-      const aboveSm = containerWidth >= SM_BREAKPOINT;
-      const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
-      if (hasLine1) {
-        h += line1Height;
-      }
-      if (hasLine1 && hasLine2) {
-        h += META_LINE_GAP;
-      }
-      if (hasLine2) {
-        h += META_LINE_HEIGHT;
-      }
-    }
-
-    if (f.price) {
-      h += PRICE_MT + PRICE_LINE_HEIGHT;
-    }
-
-    return h;
-  })();
-
-  const estimateSize = (index: number): number => {
+  const estimateRowHeight = (index: number): number => {
     const row = virtualRows[index];
     if (!row) {
       return FALLBACK_ROW_HEIGHT;
@@ -165,15 +224,7 @@ export function CardGrid({
   };
 
   // Precompute cumulative start offsets for each row.
-  const rowStarts = (() => {
-    const starts: number[] = [];
-    let acc = 0;
-    for (let i = 0; i < virtualRows.length; i++) {
-      starts.push(acc);
-      acc += estimateSize(i) + GAP;
-    }
-    return starts;
-  })();
+  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight);
 
   // ── Scroll margin (container's document offset) ────────────────────
   const scrollMarginRef = useRef(0);
@@ -194,7 +245,7 @@ export function CardGrid({
   // ── Virtualizer ────────────────────────────────────────────────────
   const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
-    estimateSize,
+    estimateSize: estimateRowHeight,
     gap: GAP,
     scrollMargin,
     scrollPaddingStart: APP_HEADER_HEIGHT,
@@ -307,8 +358,8 @@ export function CardGrid({
         columns={columns}
         labelHeight={labelHeight}
         thumbWidth={thumbWidth}
-        cardFields={cardFields}
-        estimateSize={estimateSize}
+        visibleFields={visibleFields}
+        estimateRowHeight={estimateRowHeight}
       />
 
       <ScrollIndicator
@@ -387,7 +438,7 @@ export function CardGrid({
                         siblings={printingsByCardId.get(printing.card.id)}
                         priceRange={priceRangeByCardId?.get(printing.card.id)}
                         view={view}
-                        cardFields={cardFields}
+                        visibleFields={visibleFields}
                         cardWidth={thumbWidth}
                         priority={flatIndex < eagerCount}
                         ownedCount={ownedCounts?.get(printing.id)}
