@@ -47,9 +47,9 @@ function prefsChanged(
 
 /**
  * Syncs display and theme stores with the server for authenticated users.
- * Call this once in the authenticated layout.
+ * Call this once in the app layout, passing `enabled: true` when the user is logged in.
  */
-export function usePreferencesSync() {
+export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const hydrating = useRef(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
@@ -57,6 +57,7 @@ export function usePreferencesSync() {
   const { data } = useQuery({
     queryKey: queryKeys.preferences.all,
     queryFn: fetchPreferences,
+    enabled,
   });
 
   // Hydrate stores when server data arrives
