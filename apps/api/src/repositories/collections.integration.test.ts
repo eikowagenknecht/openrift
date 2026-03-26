@@ -198,7 +198,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     const ids = createdCollectionIds.slice(0, 2);
     const result = await repo.listIdsByIdsForUser(ids, userId);
     expect(result.length).toBe(2);
-    expect(result.map((r) => r.id).sort()).toEqual([...ids].sort());
+    expect(result.map((r) => r.id).toSorted()).toEqual(ids.toSorted());
   });
 
   it("returns empty for wrong userId", async () => {

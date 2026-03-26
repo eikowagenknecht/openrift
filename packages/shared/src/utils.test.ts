@@ -8,7 +8,6 @@ import {
   comparePrintings,
   emptyToNull,
   formatDateUTC,
-  groupIntoMap,
   normalizeNameForMatching,
   toCents,
   unique,
@@ -81,44 +80,6 @@ describe("boundsOf", () => {
 
   it("floors and ceils a single fractional value", () => {
     expect(boundsOf([3.5])).toEqual({ min: 3, max: 4 });
-  });
-});
-
-describe("groupIntoMap", () => {
-  it("returns empty map for empty input", () => {
-    const result = groupIntoMap([], (x: number) => x);
-    expect(result.size).toBe(0);
-  });
-
-  it("groups items by key function", () => {
-    const items = [
-      { type: "a", val: 1 },
-      { type: "b", val: 2 },
-      { type: "a", val: 3 },
-    ];
-    const result = groupIntoMap(items, (i) => i.type);
-    expect(result.get("a")).toEqual([
-      { type: "a", val: 1 },
-      { type: "a", val: 3 },
-    ]);
-    expect(result.get("b")).toEqual([{ type: "b", val: 2 }]);
-    expect(result.size).toBe(2);
-  });
-
-  it("preserves insertion order within each group", () => {
-    const items = [10, 21, 30, 41, 50];
-    const result = groupIntoMap(items, (n) => (n % 2 === 0 ? "even" : "odd"));
-    expect(result.get("even")).toEqual([10, 30, 50]);
-    expect(result.get("odd")).toEqual([21, 41]);
-  });
-
-  it("places each item in its own group when keys are unique", () => {
-    const items = ["x", "y", "z"];
-    const result = groupIntoMap(items, (s) => s);
-    expect(result.size).toBe(3);
-    expect(result.get("x")).toEqual(["x"]);
-    expect(result.get("y")).toEqual(["y"]);
-    expect(result.get("z")).toEqual(["z"]);
   });
 });
 

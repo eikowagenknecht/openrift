@@ -158,7 +158,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     const ids = insertedCopyIds.slice(0, 2);
     const result = await copies.listByIdsForUser(ids, userId);
     expect(result).toHaveLength(2);
-    expect(result.map((r) => r.id).sort()).toEqual([...ids].sort());
+    expect(result.map((r) => r.id).toSorted()).toEqual(ids.toSorted());
   });
 
   it("listByIdsForUser returns empty for wrong user", async () => {

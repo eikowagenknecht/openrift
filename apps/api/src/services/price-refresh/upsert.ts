@@ -6,7 +6,6 @@
  */
 
 import type { Logger } from "@openrift/shared/logger";
-import { groupIntoMap } from "@openrift/shared/utils";
 
 import type { Repos } from "../../deps.js";
 import type {
@@ -115,7 +114,7 @@ export async function upsertPriceData(
 
   // Match staging rows to mapped sources by exact externalId+finish.
   // Each staging row's price only flows to printings with the same finish.
-  const printingByExtIdFinish = groupIntoMap(
+  const printingByExtIdFinish = Map.groupBy(
     dbProducts,
     (src) => `${src.externalId}::${src.finish}`,
   );

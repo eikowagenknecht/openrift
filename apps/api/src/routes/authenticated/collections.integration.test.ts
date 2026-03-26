@@ -112,7 +112,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(json[0].isInbox).toBe(true);
       // The rest should be sorted by sortOrder then name
       const rest = json.slice(1).map((c) => c.name);
-      const sorted = [...rest].sort((a, b) => a.localeCompare(b));
+      const sorted = rest.toSorted((a, b) => a.localeCompare(b));
       expect(rest).toEqual(sorted);
     });
   });

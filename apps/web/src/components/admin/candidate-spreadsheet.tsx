@@ -276,7 +276,7 @@ export function CandidateSpreadsheet({
   cellWarning,
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
-  const sortedRows = [...candidateRows].sort((a, b) => {
+  const sortedRows = candidateRows.toSorted((a, b) => {
     const aLabel = getProviderLabel(a, providerLabels);
     const bLabel = getProviderLabel(b, providerLabels);
     const aOrder = settingsMap.get(aLabel)?.sortOrder ?? 0;

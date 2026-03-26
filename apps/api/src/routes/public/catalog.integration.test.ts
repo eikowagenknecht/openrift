@@ -224,7 +224,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const collectorNumbers = ogsPrintings.map(
         (p: { collectorNumber: number }) => p.collectorNumber,
       );
-      const sorted = [...collectorNumbers].sort((a: number, b: number) => a - b);
+      const sorted = collectorNumbers.toSorted((a: number, b: number) => a - b);
       expect(collectorNumbers).toEqual(sorted);
     });
   });

@@ -398,7 +398,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const json = await res.json();
 
       const dates = json.tcgplayer.snapshots.map((s: { date: string }) => s.date);
-      const sorted = [...dates].sort();
+      const sorted = dates.toSorted();
       expect(dates).toEqual(sorted);
     });
   });

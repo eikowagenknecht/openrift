@@ -1613,8 +1613,8 @@ function PrintingImageSwitcher({
 
   // Sort images + source images by sort_order, then alphabetical by source name
   const orderSort = sortByProviderOrder(providerSettings);
-  const sortedImages = [...images].sort((a, b) => orderSort(a.provider, b.provider));
-  const sortedSourceImages = [...sourceImages].sort((a, b) => orderSort(a.source, b.source));
+  const sortedImages = images.toSorted((a, b) => orderSort(a.provider, b.provider));
+  const sortedSourceImages = sourceImages.toSorted((a, b) => orderSort(a.source, b.source));
 
   const [selectedId, setSelectedId] = useState<string | null>(
     () => sortedImages[0]?.id ?? sortedSourceImages[0]?.candidatePrintingId ?? null,

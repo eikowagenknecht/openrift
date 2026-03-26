@@ -154,8 +154,8 @@ export function useFilterActions() {
         continue;
       }
       const synced = filterState[key];
-      const pendingSorted = [...pending].sort();
-      const syncedSorted = [...synced].sort();
+      const pendingSorted = pending.toSorted();
+      const syncedSorted = synced.toSorted();
       if (
         pendingSorted.length === syncedSorted.length &&
         pendingSorted.every((v, i) => v === syncedSorted[i])

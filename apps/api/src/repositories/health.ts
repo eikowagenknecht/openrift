@@ -29,10 +29,8 @@ export function healthRepo(db: Kysely<Database>) {
     async healthCheck(timeoutMs: number): Promise<HealthStatus> {
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        // oxlint-disable-next-line promise/avoid-new -- Promise.race needs a timeout promise
-        const timeout = new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new HealthTimeoutError()), timeoutMs);
-        });
+        const { promise: timeout, reject } = Promise.withResolvers<never>();
+        timer = setTimeout(() => reject(new HealthTimeoutError()), timeoutMs);
 
         const check = async (): Promise<HealthStatus> => {
           // 1. Connectivity

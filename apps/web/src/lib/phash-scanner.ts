@@ -133,7 +133,7 @@ function normalizeGray(gray: number[], method: PhashConfig["normalize"]): number
   }
 
   // median: stretch around the median value
-  const sorted = [...gray].sort((a, b) => a - b);
+  const sorted = gray.toSorted((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
   const maxDev = Math.max(...gray.map((v) => Math.abs(v - median)));
   if (maxDev <= 1) {

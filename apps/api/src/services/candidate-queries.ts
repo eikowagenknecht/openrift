@@ -136,7 +136,7 @@ function deriveExpectedCardId(
     const candidates = normalPrintings.length > 0 ? normalPrintings : printings;
 
     // Sort by release date ascending (nulls last), then short code ascending
-    const sorted = [...candidates].sort((a, b) => {
+    const sorted = candidates.toSorted((a, b) => {
       const dateA = setReleasedAtMap.get(a.setId) ?? "";
       const dateB = setReleasedAtMap.get(b.setId) ?? "";
       if (dateA && !dateB) {

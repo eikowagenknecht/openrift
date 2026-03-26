@@ -339,20 +339,20 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
  */
 export function sortCards(printings: Printing[], sortBy: SortOption): Printing[] {
   if (sortBy === "name") {
-    return [...printings].sort((a, b) => a.card.name.localeCompare(b.card.name));
+    return printings.toSorted((a, b) => a.card.name.localeCompare(b.card.name));
   }
   if (sortBy === "id") {
-    return [...printings].sort((a, b) => a.shortCode.localeCompare(b.shortCode));
+    return printings.toSorted((a, b) => a.shortCode.localeCompare(b.shortCode));
   }
   if (sortBy === "energy") {
-    return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.card.energy));
+    return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.card.energy));
   }
   if (sortBy === "rarity") {
-    return [...printings].sort(
+    return printings.toSorted(
       (a, b) =>
         RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) ||
         a.card.name.localeCompare(b.card.name),
     );
   }
-  return [...printings].sort((a, b) => compareWithFallback(a, b, (p) => p.marketPrice));
+  return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.marketPrice));
 }

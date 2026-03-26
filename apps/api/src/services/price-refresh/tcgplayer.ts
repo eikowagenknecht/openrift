@@ -10,7 +10,7 @@
 
 import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
-import { groupIntoMap, toCents } from "@openrift/shared/utils";
+import { toCents } from "@openrift/shared/utils";
 
 import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";
@@ -126,7 +126,7 @@ function buildTcgplayerStaging(
     }
 
     const recordedAt = groupRecordedAt.get(group.groupId) ?? new Date();
-    const pricesByProductId = groupIntoMap(prices, (p) => p.productId);
+    const pricesByProductId = Map.groupBy(prices, (p) => p.productId);
 
     for (const product of products) {
       const priceEntries = pricesByProductId.get(product.productId) || [];

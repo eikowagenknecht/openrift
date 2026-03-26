@@ -173,7 +173,7 @@ export function computeSuggestions(group: MappingGroup): Map<string, Suggestion>
   }
 
   // Process printings in order of their best score (highest first)
-  const printingOrder = [...pairsByPrinting.entries()].sort(
+  const printingOrder = [...pairsByPrinting.entries()].toSorted(
     ([, a], [, b]) => b[0].score - a[0].score,
   );
 
