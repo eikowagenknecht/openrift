@@ -45,7 +45,7 @@ export function CardDetail({
 }: CardDetailProps) {
   const { card } = printing;
   const setNumber = formatPublicCode(printing);
-  const asideRef = useRef<HTMLElement>(null);
+  const imageSwipeRef = useRef<HTMLDivElement>(null);
   const orientation = getOrientation(card.type);
   const isFoil = printing.finish === ("foil" satisfies Finish);
 
@@ -69,7 +69,7 @@ export function CardDetail({
       }
     },
     {
-      target: asideRef,
+      target: imageSwipeRef,
       enabled: IS_COARSE_POINTER,
       filterTaps: true,
       axis: "lock",
@@ -89,7 +89,6 @@ export function CardDetail({
 
   return (
     <aside
-      ref={asideRef}
       className={cn(
         "fixed inset-0 z-50 overflow-y-auto bg-background",
         "md:sticky md:inset-auto md:z-auto md:top-(--sticky-top)",
@@ -123,16 +122,18 @@ export function CardDetail({
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
         {/* Card image */}
-        <div ref={tilt.containerRef} style={tilt.style}>
-          <CardImage
-            innerRef={tilt.innerRef}
-            printing={printing}
-            orientation={orientation}
-            showImages={showImages}
-            showFoil={isFoil}
-            tiltActive={tilt.active}
-            showShimmer={showShimmer}
-          />
+        <div ref={imageSwipeRef}>
+          <div ref={tilt.containerRef} style={tilt.style}>
+            <CardImage
+              innerRef={tilt.innerRef}
+              printing={printing}
+              orientation={orientation}
+              showImages={showImages}
+              showFoil={isFoil}
+              tiltActive={tilt.active}
+              showShimmer={showShimmer}
+            />
+          </div>
         </div>
         {/* Stats */}
         <div className="flex flex-wrap items-center justify-center gap-1.5">

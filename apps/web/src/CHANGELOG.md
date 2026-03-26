@@ -3,6 +3,7 @@
 ## 2026-03-26
 
 - fix: Icons inside keyword brackets (like Equip costs) now render correctly instead of showing raw text
+- fix: Swiping to navigate between cards on mobile now only works on the card image, not the entire detail pane
 
 ## 2026-03-24
 
