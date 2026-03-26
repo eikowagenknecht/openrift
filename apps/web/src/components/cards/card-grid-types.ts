@@ -13,7 +13,7 @@ interface CardGroup {
 
 export type VRow =
   | { kind: "header"; set: SetInfo; cardCount: number }
-  | { kind: "cards"; items: Printing[] };
+  | { kind: "cards"; items: Printing[]; cardsBefore: number };
 
 export interface IndicatorState {
   cardId: string;
@@ -58,12 +58,15 @@ export function buildVirtualRows(
   showHeaders: boolean,
 ): VRow[] {
   const rows: VRow[] = [];
+  let cardsBefore = 0;
   for (const group of groups) {
     if (showHeaders) {
       rows.push({ kind: "header", set: group.set, cardCount: group.cards.length });
     }
     for (let i = 0; i < group.cards.length; i += columns) {
-      rows.push({ kind: "cards", items: group.cards.slice(i, i + columns) });
+      const items = group.cards.slice(i, i + columns);
+      rows.push({ kind: "cards", items, cardsBefore });
+      cardsBefore += items.length;
     }
   }
   return rows;

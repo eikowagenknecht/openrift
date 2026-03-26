@@ -38,6 +38,26 @@ import { useStickyHeader } from "./use-sticky-header";
 
 export type { SetInfo } from "./card-grid-types";
 
+function SetHeaderLabel({
+  slug,
+  name,
+  cardCount,
+}: {
+  slug: string;
+  name: string;
+  cardCount: number;
+}) {
+  return (
+    <>
+      <span className="text-sm font-medium text-muted-foreground">{slug}</span>
+      <span className="text-sm font-semibold">{name}</span>
+      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+        {cardCount}
+      </span>
+    </>
+  );
+}
+
 interface CardGridProps {
   cards: Printing[];
   totalCards: number;
@@ -75,23 +95,16 @@ export function CardGrid({
   const { settings: adminSettings } = useAdminSettings();
   const debugOverlayEnabled = isAdmin === true && adminSettings.debugOverlay;
 
-  const { containerRef, columns, physicalMax, physicalMin, autoColumns } =
+  const { containerRef, columns, physicalMax, physicalMin, autoColumns, containerWidth } =
     useResponsiveColumns(maxColumns);
 
   useLayoutEffect(() => {
     setPhysicalMax(physicalMax);
-  }, [physicalMax, setPhysicalMax]);
-
-  useLayoutEffect(() => {
     setPhysicalMin(physicalMin);
-  }, [physicalMin, setPhysicalMin]);
-
-  useLayoutEffect(() => {
     setAutoColumns(autoColumns);
-  }, [autoColumns, setAutoColumns]);
+  }, [physicalMax, physicalMin, autoColumns, setPhysicalMax, setPhysicalMin, setAutoColumns]);
 
-  const outerWidth = containerRef.current?.offsetWidth ?? 400;
-  const thumbWidth = (outerWidth - GAP * (columns - 1)) / columns;
+  const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
   const groups = groupCardsBySet(cards, setOrder);
   const multipleGroups = groups.length > 1;
@@ -113,7 +126,7 @@ export function CardGrid({
       const hasLine1 = f.number || f.title;
       const hasLine2 = f.type || f.rarity;
       const compact = thumbWidth < COMPACT_THRESHOLD;
-      const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
+      const aboveSm = containerWidth >= SM_BREAKPOINT;
       const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
       if (hasLine1) {
         h += line1Height;
@@ -141,7 +154,6 @@ export function CardGrid({
     if (row.kind === "header") {
       return HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB;
     }
-    const containerWidth = containerRef.current?.offsetWidth ?? 400;
     const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
     const imgHeight = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2);
@@ -229,20 +241,24 @@ export function CardGrid({
   const virtualizerRef = useRef(virtualizer);
   virtualizerRef.current = virtualizer;
 
+  const scrollToCard = (cardId: string) => {
+    const rows = virtualRowsRef.current;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.kind === "cards" && row.items.some((c) => c.id === cardId)) {
+        virtualizerRef.current.scrollToIndex(i, { align: "auto" });
+        return;
+      }
+    }
+  };
+
   const [flashCardId, setFlashCardId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedCardId) {
       return;
     }
-    const rows = virtualRowsRef.current;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (row.kind === "cards" && row.items.some((c) => c.id === selectedCardId)) {
-        virtualizerRef.current.scrollToIndex(i, { align: "auto" });
-        break;
-      }
-    }
+    scrollToCard(selectedCardId);
     setFlashCardId(selectedCardId);
     const timer = setTimeout(() => setFlashCardId(null), 800);
     return () => clearTimeout(timer);
@@ -253,14 +269,7 @@ export function CardGrid({
     if (!selectedCardId) {
       return;
     }
-    const rows = virtualRowsRef.current;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (row.kind === "cards" && row.items.some((c) => c.id === selectedCardId)) {
-        virtualizerRef.current.scrollToIndex(i, { align: "auto" });
-        break;
-      }
-    }
+    scrollToCard(selectedCardId);
   }, [columns, selectedCardId]);
 
   // ── Helpers ────────────────────────────────────────────────────────
@@ -273,16 +282,6 @@ export function CardGrid({
 
   const items = virtualizer.getVirtualItems();
 
-  // Cumulative card count per virtual row for eager-loading.
-  const cardStartIndex = new Map<number, number>();
-  let cardsBefore = 0;
-  for (let i = 0; i < virtualRows.length; i++) {
-    cardStartIndex.set(i, cardsBefore);
-    const row = virtualRows[i];
-    if (row.kind === "cards") {
-      cardsBefore += row.items.length;
-    }
-  }
   const eagerCount = columns * 2;
 
   // ── Render ─────────────────────────────────────────────────────────
@@ -424,13 +423,11 @@ export function CardGrid({
                   className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
                   onClick={() => scrollToGroup(activeHeaderRow.set.name)}
                 >
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {activeHeaderRow.set.slug}
-                  </span>
-                  <span className="text-sm font-semibold">{activeHeaderRow.set.name}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {activeHeaderRow.cardCount}
-                  </span>
+                  <SetHeaderLabel
+                    slug={activeHeaderRow.set.slug}
+                    name={activeHeaderRow.set.name}
+                    cardCount={activeHeaderRow.cardCount}
+                  />
                 </button>
               </div>
             )}
@@ -464,13 +461,11 @@ export function CardGrid({
                         className="flex cursor-pointer items-center gap-2"
                         onClick={() => scrollToGroup(row.set.name)}
                       >
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {row.set.slug}
-                        </span>
-                        <span className="text-sm font-semibold">{row.set.name}</span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          {row.cardCount}
-                        </span>
+                        <SetHeaderLabel
+                          slug={row.set.slug}
+                          name={row.set.name}
+                          cardCount={row.cardCount}
+                        />
                       </button>
                       <div className="h-px flex-1 bg-border" />
                     </div>
@@ -483,7 +478,7 @@ export function CardGrid({
                       }}
                     >
                       {row.items.map((printing, colIndex) => {
-                        const flatIndex = (cardStartIndex.get(vItem.index) ?? 0) + colIndex;
+                        const flatIndex = row.cardsBefore + colIndex;
                         return (
                           <CardThumbnail
                             key={printing.id}

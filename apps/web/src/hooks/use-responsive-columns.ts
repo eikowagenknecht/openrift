@@ -31,6 +31,7 @@ export function useResponsiveColumns(maxColumns?: number | null) {
     const match = breakpoints.find((bp) => width >= bp.minWidth);
     return match?.cols ?? 2;
   });
+  const [containerWidth, setContainerWidth] = useState(400);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -43,6 +44,7 @@ export function useResponsiveColumns(maxColumns?: number | null) {
     let prevPMin = -1;
     let prevAuto = -1;
     let prevCols = -1;
+    let prevWidth = -1;
     let rafId = 0;
 
     const updateColumns = () => {
@@ -60,7 +62,11 @@ export function useResponsiveColumns(maxColumns?: number | null) {
 
       // Only update state when values actually change
       const changed =
-        pMax !== prevPMax || pMin !== prevPMin || auto !== prevAuto || cols !== prevCols;
+        pMax !== prevPMax ||
+        pMin !== prevPMin ||
+        auto !== prevAuto ||
+        cols !== prevCols ||
+        width !== prevWidth;
       if (!changed) {
         return;
       }
@@ -69,10 +75,12 @@ export function useResponsiveColumns(maxColumns?: number | null) {
       prevPMax = pMax;
       prevAuto = auto;
       prevCols = cols;
+      prevWidth = width;
       setPhysicalMax(pMax);
       setPhysicalMin(pMin);
       setAutoColumns(auto);
       setColumns(cols);
+      setContainerWidth(width);
     };
 
     updateColumns();
@@ -89,5 +97,5 @@ export function useResponsiveColumns(maxColumns?: number | null) {
     };
   }, [maxColumns]);
 
-  return { containerRef, columns, physicalMax, physicalMin, autoColumns };
+  return { containerRef, columns, physicalMax, physicalMin, autoColumns, containerWidth };
 }
