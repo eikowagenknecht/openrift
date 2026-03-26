@@ -180,12 +180,16 @@ function RangeFilterSection({
   const fmt = formatValue ?? String;
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <p className="w-18 shrink-0 text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="flex flex-1 items-center gap-1.5">
-        <span className="shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+    <div className="flex items-center gap-2">
+      {/* Label */}
+      <p className="w-18 text-xs font-medium text-muted-foreground">{label}</p>
+      {/* Slider with values */}
+      <div className="flex flex-1 items-center gap-1">
+        {/* Min value */}
+        <span className="shrink-0 text-right text-2xs tabular-nums text-muted-foreground">
           {fmt(resolvedMin)}
         </span>
+        {/* Slider */}
         <Slider
           min={availableMin}
           max={availableMax}
@@ -202,7 +206,8 @@ function RangeFilterSection({
           }}
           className="flex-1"
         />
-        <span className="w-6 shrink-0 text-[10px] tabular-nums text-muted-foreground">
+        {/* Max value */}
+        <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
           {fmt(resolvedMax)}
         </span>
       </div>
@@ -233,7 +238,7 @@ function FilterSection({
 
   return (
     <div className="flex min-w-0 gap-2">
-      <p className="w-18 shrink-0 pt-1 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="w-18 text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex flex-1 flex-wrap gap-1">
         {children ??
           options?.map((option) => {
