@@ -9,6 +9,7 @@ import { AddToCollectionFlow } from "@/components/collection/add-to-collection-f
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
+import { SearchBar } from "@/components/filters/search-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardData } from "@/hooks/use-card-data";
 import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
@@ -115,12 +116,14 @@ export function CardBrowser() {
             printingsByCardId={printingsByCardId}
           />
         )}
-        <FilterBar
-          availableFilters={availableFilters}
-          totalCards={totalUniqueCards}
-          filteredCount={sortedCards.length}
-          setDisplayLabel={setDisplayLabel}
-        />
+        <div className="flex items-start gap-3">
+          <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
+          <FilterBar
+            availableFilters={availableFilters}
+            filteredCount={sortedCards.length}
+            setDisplayLabel={setDisplayLabel}
+          />
+        </div>
         <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
 
         {/* Main Area */}
