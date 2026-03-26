@@ -229,19 +229,32 @@ const CardRowContent = memo(function CardRowContent({
     if (!deferred) {
       return;
     }
-    const id = requestIdleCallback(() => setDeferred(false), { timeout: 300 });
-    return () => cancelIdleCallback(id);
+    // Safari doesn't support requestIdleCallback. Fall back to
+    // rAF + setTimeout so the callback runs after the next frame paints,
+    // giving scroll/layout priority — closer to "when idle" behavior.
+    if (globalThis.requestIdleCallback) {
+      const id = requestIdleCallback(() => setDeferred(false), { timeout: 300 });
+      return () => cancelIdleCallback(id);
+    }
+    let timerId: ReturnType<typeof setTimeout>;
+    const rafId = requestAnimationFrame(() => {
+      timerId = setTimeout(() => setDeferred(false), 0);
+    });
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timerId);
+    };
   }, [deferred]);
+
+  const gridStyle = {
+    display: "grid" as const,
+    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    gap: `${GAP}px`,
+  };
 
   if (deferred) {
     return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          gap: `${GAP}px`,
-        }}
-      >
+      <div style={gridStyle}>
         {row.items.map((printing) => (
           // ⚠ p-1.5 mirrors BUTTON_PAD in card-grid-constants — update both together
           <div key={printing.id} className="rounded-lg p-1.5">
@@ -254,13 +267,7 @@ const CardRowContent = memo(function CardRowContent({
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-        gap: `${GAP}px`,
-      }}
-    >
+    <div style={gridStyle}>
       {row.items.map((printing, colIndex) => {
         const flatIndex = row.cardsBefore + colIndex;
         return (
