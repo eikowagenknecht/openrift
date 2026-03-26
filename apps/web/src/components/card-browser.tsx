@@ -8,7 +8,13 @@ import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-c
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
-import { DesktopOptionsBar, MobileOptionsDrawer } from "@/components/filters/options-bar";
+import {
+  DesktopOptionsBar,
+  MobileDisplayContent,
+  MobileFilterContent,
+  MobileOptionsContent,
+  MobileOptionsDrawer,
+} from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
 import { Pane } from "@/components/layout/panes";
@@ -43,7 +49,7 @@ export function CardBrowser() {
   const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
   const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
 
-  const { filters, sortBy, sortDir, view } = useFilterValues();
+  const { filters, sortBy, sortDir, view, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
 
   const {
@@ -123,17 +129,20 @@ export function CardBrowser() {
         <div className="flex items-start gap-3 mb-3">
           <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
           <DesktopOptionsBar className="hidden sm:flex" />
-          <MobileOptionsDrawer filteredCount={sortedCards.length} className="sm:hidden">
-            <div className="border-t pt-4">
-              <p className="mb-2.5 text-sm font-medium">Filters</p>
-              <div className="flex flex-col gap-4">
-                <FilterPanelContent
-                  availableFilters={availableFilters}
-                  setDisplayLabel={setDisplayLabel}
-                  layout="drawer"
-                />
-              </div>
-            </div>
+          <MobileOptionsDrawer
+            doneLabel={
+              hasActiveFilters
+                ? `Show ${sortedCards.length} ${view === "cards" ? "cards" : "printings"}`
+                : undefined
+            }
+            className="sm:hidden"
+          >
+            <MobileOptionsContent />
+            <MobileDisplayContent />
+            <MobileFilterContent
+              availableFilters={availableFilters}
+              setDisplayLabel={setDisplayLabel}
+            />
           </MobileOptionsDrawer>
         </div>
         {/* Filter panel */}
