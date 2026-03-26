@@ -112,6 +112,12 @@ function estimateLabelHeight(
   return height;
 }
 
+/**
+ * Builds a prefix-sum array of Y-offsets so `rowStarts[i]` is the pixel
+ * position where row `i` begins in the virtual scroll container.
+ *
+ * @returns Cumulative start offsets (one per row).
+ */
 function computeRowStarts(
   virtualRows: VRow[],
   estimateRowHeight: (index: number) => number,

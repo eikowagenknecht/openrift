@@ -330,15 +330,17 @@ export function useScrollIndicator({
     handleUpRef.current = handleUp;
   }, []);
 
-  // ── Snap points ────────────────────────────────────────────────────
-  const snapPoints = computeSnapPoints({
-    virtualRows,
-    rowStarts,
-    virtualizer,
-    scrollMargin,
-    multipleGroups,
-    indicatorH: indicatorHRef.current,
-  });
+  // ── Snap points (only computed while dragging) ─────────────────────
+  const snapPoints = indicator.dragging
+    ? computeSnapPoints({
+        virtualRows,
+        rowStarts,
+        virtualizer,
+        scrollMargin,
+        multipleGroups,
+        indicatorH: indicatorHRef.current,
+      })
+    : [];
   snapPointsRef.current = snapPoints;
 
   // ── Hover handlers (for the indicator element) ─────────────────────
