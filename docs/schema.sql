@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ApZeLzU6pR4BavbLtqn1jvZzI4GfY87JafOGWDUtUdTjYFJYe1Uw1yMFpNlgF3x
+\restrict oYyro9NsdH1cA78MeeK0MVZDSMM67wZ1xlajfkDBLAapxfPfsFJRHO7T3o55sxv
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -770,6 +770,26 @@ CREATE TABLE public.trade_lists (
 
 
 --
+-- Name: user_preferences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_preferences (
+    user_id text NOT NULL,
+    show_images boolean DEFAULT true NOT NULL,
+    rich_effects boolean DEFAULT true NOT NULL,
+    card_field_number boolean DEFAULT true NOT NULL,
+    card_field_title boolean DEFAULT true NOT NULL,
+    card_field_type boolean DEFAULT true NOT NULL,
+    card_field_rarity boolean DEFAULT true NOT NULL,
+    card_field_price boolean DEFAULT true NOT NULL,
+    theme text DEFAULT 'light'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT user_preferences_theme_check CHECK ((theme = ANY (ARRAY['light'::text, 'dark'::text])))
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1261,6 +1281,14 @@ ALTER TABLE ONLY public.trade_lists
 
 ALTER TABLE ONLY public.wish_lists
     ADD CONSTRAINT uq_wish_lists_id_user UNIQUE (id, user_id);
+
+
+--
+-- Name: user_preferences user_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_preferences
+    ADD CONSTRAINT user_preferences_pkey PRIMARY KEY (user_id);
 
 
 --
@@ -1830,6 +1858,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.wish_lists FOR EACH RO
 
 
 --
+-- Name: user_preferences user_preferences_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER user_preferences_set_updated_at BEFORE UPDATE ON public.user_preferences FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: accounts accounts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2102,6 +2137,14 @@ ALTER TABLE ONLY public.trade_lists
 
 
 --
+-- Name: user_preferences user_preferences_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_preferences
+    ADD CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: wish_list_items wish_list_items_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2129,5 +2172,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ApZeLzU6pR4BavbLtqn1jvZzI4GfY87JafOGWDUtUdTjYFJYe1Uw1yMFpNlgF3x
+\unrestrict oYyro9NsdH1cA78MeeK0MVZDSMM67wZ1xlajfkDBLAapxfPfsFJRHO7T3o55sxv
 
