@@ -232,7 +232,7 @@ const CardRowContent = memo(function CardRowContent({
     // Safari doesn't support requestIdleCallback. Fall back to
     // rAF + setTimeout so the callback runs after the next frame paints,
     // giving scroll/layout priority — closer to "when idle" behavior.
-    if (globalThis.requestIdleCallback) {
+    if (typeof globalThis.requestIdleCallback === "function") {
       const id = requestIdleCallback(() => setDeferred(false), { timeout: 300 });
       return () => cancelIdleCallback(id);
     }
