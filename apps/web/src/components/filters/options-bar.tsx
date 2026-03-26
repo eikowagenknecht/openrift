@@ -35,12 +35,6 @@ import { useDisplayStore } from "@/stores/display-store";
 import { DisplaySettingsDropdown, DisplaySettingsInline } from "./display-settings";
 import { FilterPanelContent } from "./filter-panel-content";
 
-interface FilterBarProps {
-  availableFilters: AvailableFilters;
-  filteredCount: number;
-  setDisplayLabel?: (code: string) => string;
-}
-
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "id", label: "ID" },
   { value: "name", label: "Name" },
@@ -217,7 +211,7 @@ function ColumnControls({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Shared hook for filter bar state                                   */
+/*  Shared hook                                                        */
 /* ------------------------------------------------------------------ */
 
 function useOptionsBarState() {
@@ -293,22 +287,6 @@ export function DesktopOptionsBar({ className }: { className?: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  DesktopTopFilter — inline filters, visible sm to wide            */
-/* ------------------------------------------------------------------ */
-
-export function DesktopTopFilter({
-  availableFilters,
-  setDisplayLabel,
-  className,
-}: Omit<FilterBarProps, "filteredCount"> & { className?: string }) {
-  return (
-    <div className={cn("flex-wrap gap-4", className)}>
-      <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  MobileOptionsBar — visible below sm                                */
 /* ------------------------------------------------------------------ */
 
@@ -317,7 +295,12 @@ export function MobileOptionsBar({
   filteredCount,
   setDisplayLabel,
   className,
-}: FilterBarProps & { className?: string }) {
+}: {
+  availableFilters: AvailableFilters;
+  filteredCount: number;
+  setDisplayLabel?: (code: string) => string;
+  className?: string;
+}) {
   const {
     sortBy,
     sortDir,

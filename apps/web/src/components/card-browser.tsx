@@ -7,12 +7,8 @@ import { CardGrid } from "@/components/cards/card-grid";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
 import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  DesktopTopFilter,
-  DesktopOptionsBar,
-  MobileOptionsBar,
-} from "@/components/filters/filter-bar";
-import { DesktopSidebarFilter } from "@/components/filters/filter-sidebar";
+import { DesktopSidebarFilter, DesktopTopFilter } from "@/components/filters/filter-panels";
+import { DesktopOptionsBar, MobileOptionsBar } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
 import { Pane } from "@/components/layout/panes";
@@ -115,6 +111,7 @@ export function CardBrowser() {
   return (
     <CardBrowserContext value={browserContext}>
       <div>
+        {/* Collection add bar */}
         {adding && addingTo && (
           <AddToCollectionFlow
             ref={addFlowRef}
@@ -140,15 +137,16 @@ export function CardBrowser() {
           className="hidden sm:flex wide:hidden"
         />
         <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
-
-        {/* Main Area */}
+        {/* Main area */}
         <div className="flex items-start gap-6 mt-4">
+          {/* Main area: Left panel */}
           <Pane className="wide:block">
             <DesktopSidebarFilter
               availableFilters={availableFilters}
               setDisplayLabel={setDisplayLabel}
             />
           </Pane>
+          {/* Main area: Center */}
           <div
             className={cn(
               "min-w-0 flex-1 transition-opacity duration-150",
@@ -163,6 +161,7 @@ export function CardBrowser() {
               keyboardNavCardId={selectedCard?.id}
             />
           </div>
+          {/* Main area: Right panel */}
           {selectedCard && detailOpen && !isMobile && (
             <Pane className="md:block">
               <Suspense fallback={<CardDetailSkeleton />}>
