@@ -1,9 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 import type { CardFields } from "@/lib/card-fields";
 import { DEFAULT_CARD_FIELDS } from "@/lib/card-fields";
-import { cookieStorage } from "@/lib/cookie-storage";
 
 interface DisplayState {
   showImages: boolean;
@@ -23,47 +21,25 @@ interface DisplayState {
   setAutoColumns: (value: number) => void;
 }
 
-export const useDisplayStore = create<DisplayState>()(
-  persist(
-    (set) => ({
-      showImages: true,
-      richEffects: true,
-      cardFields: DEFAULT_CARD_FIELDS,
-      maxColumns: null,
-      physicalMax: 8,
-      physicalMin: 1,
-      autoColumns: 5,
-      setShowImages: (value) => set({ showImages: value }),
-      setRichEffects: (value) => set({ richEffects: value }),
-      setCardFields: (value) =>
-        set((state) => ({
-          cardFields: typeof value === "function" ? value(state.cardFields) : value,
-        })),
-      setMaxColumns: (value) =>
-        set((state) => ({
-          maxColumns: typeof value === "function" ? value(state.maxColumns) : value,
-        })),
-      setPhysicalMax: (value) => set({ physicalMax: value }),
-      setPhysicalMin: (value) => set({ physicalMin: value }),
-      setAutoColumns: (value) => set({ autoColumns: value }),
-    }),
-    {
-      name: "display-settings",
-      storage: cookieStorage,
-      partialize: (state) => ({
-        showImages: state.showImages,
-        richEffects: state.richEffects,
-        cardFields: state.cardFields,
-        maxColumns: state.maxColumns,
-      }),
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<DisplayState>),
-        cardFields: {
-          ...DEFAULT_CARD_FIELDS,
-          ...(persisted as Partial<DisplayState>)?.cardFields,
-        },
-      }),
-    },
-  ),
-);
+export const useDisplayStore = create<DisplayState>()((set) => ({
+  showImages: true,
+  richEffects: true,
+  cardFields: DEFAULT_CARD_FIELDS,
+  maxColumns: null,
+  physicalMax: 8,
+  physicalMin: 1,
+  autoColumns: 5,
+  setShowImages: (value) => set({ showImages: value }),
+  setRichEffects: (value) => set({ richEffects: value }),
+  setCardFields: (value) =>
+    set((state) => ({
+      cardFields: typeof value === "function" ? value(state.cardFields) : value,
+    })),
+  setMaxColumns: (value) =>
+    set((state) => ({
+      maxColumns: typeof value === "function" ? value(state.maxColumns) : value,
+    })),
+  setPhysicalMax: (value) => set({ physicalMax: value }),
+  setPhysicalMin: (value) => set({ physicalMin: value }),
+  setAutoColumns: (value) => set({ autoColumns: value }),
+}));

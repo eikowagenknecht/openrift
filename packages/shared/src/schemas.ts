@@ -168,3 +168,18 @@ export const updateTradeListSchema = z.object({
 export const createTradeListItemSchema = z.object({
   copyId: z.uuid(),
 });
+
+export const updatePreferencesSchema = z.object({
+  showImages: z.boolean().optional(),
+  richEffects: z.boolean().optional(),
+  cardFields: z
+    .object({
+      number: z.boolean().optional(),
+      title: z.boolean().optional(),
+      type: z.boolean().optional(),
+      rarity: z.boolean().optional(),
+      price: z.boolean().optional(),
+    })
+    .optional(),
+  theme: z.enum(["light", "dark"]).optional(),
+});

@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { usePreferencesSync } from "@/hooks/use-preferences-sync";
 import { sessionQueryOptions } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_app/_authenticated")({
@@ -18,5 +19,6 @@ export const Route = createFileRoute("/_app/_authenticated")({
 });
 
 function AuthenticatedLayout() {
+  usePreferencesSync();
   return <Outlet />;
 }

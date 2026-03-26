@@ -15,6 +15,9 @@ export const queryKeys = {
   collections: {
     all: ["collections"] as const,
   },
+  preferences: {
+    all: ["preferences"] as const,
+  },
   copies: {
     all: ["copies"] as const,
     byCollection: (id: string) => ["copies", id] as const,

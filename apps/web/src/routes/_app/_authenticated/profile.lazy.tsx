@@ -5,6 +5,7 @@ import { DangerZoneSection } from "@/components/profile/danger-zone-section";
 import { DisplayNameSection } from "@/components/profile/display-name-section";
 import { EmailSection } from "@/components/profile/email-section";
 import { PasswordSection } from "@/components/profile/password-section";
+import { PreferencesSection } from "@/components/profile/preferences-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/lib/auth-client";
@@ -57,6 +58,7 @@ function ProfilePage() {
         <DisplayNameSection defaultName={user.name ?? ""} userId={user.id} />
         <EmailSection currentEmail={user.email} />
         <PasswordSection />
+        <PreferencesSection />
         <ConnectedAccountsSection />
         <DangerZoneSection />
       </div>

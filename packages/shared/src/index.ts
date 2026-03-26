@@ -94,6 +94,7 @@ export type {
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
+  UserPreferencesResponse,
   WishListDetailResponse,
   WishListItemResponse,
   WishListListResponse,

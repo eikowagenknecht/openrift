@@ -49,6 +49,7 @@ import * as m043 from "./043-fix-candidate-cards-unique-index.js";
 import * as m044 from "./044-drop-group-key.js";
 import * as m045 from "./045-keyword-styles.js";
 import * as m046 from "./046-rename-buff-to-other.js";
+import * as m047 from "./047-user-preferences.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -97,4 +98,5 @@ export const migrations: Record<string, Migration> = {
   "044-drop-group-key": m044,
   "045-keyword-styles": m045,
   "046-rename-buff-to-other": m046,
+  "047-user-preferences": m047,
 };

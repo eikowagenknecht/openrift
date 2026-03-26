@@ -81,6 +81,7 @@ export type {
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
+  UserPreferencesResponse,
 } from "./api/index.js";
 
 export type {

@@ -21,6 +21,7 @@ import { activitiesRoute } from "./routes/authenticated/activities.js";
 import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
+import { preferencesRoute } from "./routes/authenticated/preferences.js";
 import { shoppingListRoute } from "./routes/authenticated/shopping-list.js";
 import { tradeListsRoute } from "./routes/authenticated/trade-lists.js";
 import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
@@ -169,6 +170,7 @@ export function createApp(deps: AppDeps) {
     .route("/api/v1", copiesRoute)
     .route("/api/v1", activitiesRoute)
     .route("/api/v1", decksRoute)
+    .route("/api/v1", preferencesRoute)
     .route("/api/v1", wishListsRoute)
     .route("/api/v1", tradeListsRoute)
     .route("/api/v1", shoppingListRoute)

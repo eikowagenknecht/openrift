@@ -580,6 +580,22 @@ export interface FeatureFlagsTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── User preferences (migration 047) ────────────────────────────────────────
+
+export interface UserPreferencesTable {
+  userId: string;
+  showImages: Generated<boolean>;
+  richEffects: Generated<boolean>;
+  cardFieldNumber: Generated<boolean>;
+  cardFieldTitle: Generated<boolean>;
+  cardFieldType: Generated<boolean>;
+  cardFieldRarity: Generated<boolean>;
+  cardFieldPrice: Generated<boolean>;
+  theme: Generated<string>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -644,4 +660,7 @@ export interface Database {
 
   // Keyword styles (migration 043)
   keywordStyles: KeywordStylesTable;
+
+  // User preferences (migration 047)
+  userPreferences: UserPreferencesTable;
 }

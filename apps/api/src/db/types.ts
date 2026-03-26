@@ -23,6 +23,7 @@ export type {
   SetsTable,
   TradeListItemsTable,
   TradeListsTable,
+  UserPreferencesTable,
   WishListItemsTable,
   WishListsTable,
 } from "./tables.js";

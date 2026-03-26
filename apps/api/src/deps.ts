@@ -25,6 +25,7 @@ import { promoTypesRepo } from "./repositories/promo-types.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
 import { setsRepo } from "./repositories/sets.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
+import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { wishListsRepo } from "./repositories/wish-lists.js";
 import { createActivity } from "./services/activity-logger.js";
 import { deleteCollection } from "./services/collections.js";
@@ -55,6 +56,7 @@ export interface Repos {
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   acquisitionSources: ReturnType<typeof acquisitionSourcesRepo>;
   tradeLists: ReturnType<typeof tradeListsRepo>;
+  userPreferences: ReturnType<typeof userPreferencesRepo>;
   wishLists: ReturnType<typeof wishListsRepo>;
   ingest: ReturnType<typeof ingestRepo>;
   marketplaceMapping: ReturnType<typeof marketplaceMappingRepo>;
@@ -96,6 +98,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     providerSettings: providerSettingsRepo(db),
     acquisitionSources: acquisitionSourcesRepo(db),
     tradeLists: tradeListsRepo(db),
+    userPreferences: userPreferencesRepo(db),
     wishLists: wishListsRepo(db),
     ingest: ingestRepo(db),
     marketplaceMapping: marketplaceMappingRepo(db),

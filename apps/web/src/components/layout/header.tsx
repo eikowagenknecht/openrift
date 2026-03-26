@@ -138,10 +138,12 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
         </DropdownMenuItem>
       )}
       {isLoggedIn && <DropdownMenuSeparator />}
-      <DropdownMenuItem onClick={toggleTheme}>
-        {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        {darkMode ? "Light mode" : "Dark mode"}
-      </DropdownMenuItem>
+      {!isLoggedIn && (
+        <DropdownMenuItem onClick={toggleTheme}>
+          {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          {darkMode ? "Light mode" : "Dark mode"}
+        </DropdownMenuItem>
+      )}
       <DropdownMenuItem render={<Link to="/changelog" />}>
         <Sparkles className="size-4" />
         What&apos;s new

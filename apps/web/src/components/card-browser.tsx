@@ -14,7 +14,6 @@ import {
 } from "@/components/filters/filter-panel-content";
 import {
   DesktopOptionsBar,
-  MobileDisplayContent,
   MobileFilterContent,
   MobileOptionsContent,
   MobileOptionsDrawer,
@@ -142,7 +141,6 @@ export function CardBrowser() {
             className="sm:hidden"
           >
             <MobileOptionsContent />
-            <MobileDisplayContent />
             <MobileFilterContent
               availableFilters={availableFilters}
               setDisplayLabel={setDisplayLabel}

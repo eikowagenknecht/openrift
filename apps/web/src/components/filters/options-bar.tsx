@@ -33,7 +33,6 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
-import { DisplaySettingsDropdown, DisplaySettingsInline } from "./display-settings";
 import { FilterPanelContent } from "./filter-panel-content";
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -219,12 +218,6 @@ function useOptionsBarState() {
   const { sortBy, sortDir, hasActiveFilters, view } = useFilterValues();
   const { setSortBy, setSortDir, setView } = useFilterActions();
 
-  const showImages = useDisplayStore((s) => s.showImages);
-  const setShowImages = useDisplayStore((s) => s.setShowImages);
-  const richEffects = useDisplayStore((s) => s.richEffects);
-  const setRichEffects = useDisplayStore((s) => s.setRichEffects);
-  const cardFields = useDisplayStore((s) => s.cardFields);
-  const setCardFields = useDisplayStore((s) => s.setCardFields);
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
   const maxColumnsLimit = useDisplayStore((s) => s.physicalMax);
@@ -241,16 +234,6 @@ function useOptionsBarState() {
     onMaxColumnsChange: setMaxColumns,
   };
 
-  const displayProps = {
-    showImages,
-    onShowImagesChange: setShowImages,
-    richEffects,
-    onRichEffectsChange: setRichEffects,
-    cardFields,
-    onCardFieldsChange: (update: Partial<typeof cardFields>) =>
-      setCardFields((prev) => ({ ...prev, ...update })),
-  };
-
   return {
     sortBy,
     sortDir,
@@ -260,7 +243,6 @@ function useOptionsBarState() {
     view,
     setView,
     columnProps,
-    displayProps,
   };
 }
 
@@ -269,7 +251,7 @@ function useOptionsBarState() {
 /* ------------------------------------------------------------------ */
 
 export function DesktopOptionsBar({ className }: { className?: string }) {
-  const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps, displayProps } =
+  const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps } =
     useOptionsBarState();
 
   return (
@@ -282,7 +264,6 @@ export function DesktopOptionsBar({ className }: { className?: string }) {
       />
       <ViewModeToggle view={view} onViewChange={setView} />
       <ColumnControls {...columnProps} />
-      <DisplaySettingsDropdown {...displayProps} />
     </div>
   );
 }
@@ -356,17 +337,6 @@ export function MobileOptionsContent() {
         <ViewModeToggle compact view={view} onViewChange={setView} className="mr-auto" />
         <ColumnControls compact {...columnProps} />
       </div>
-    </div>
-  );
-}
-
-export function MobileDisplayContent() {
-  const { displayProps } = useOptionsBarState();
-
-  return (
-    <div className="space-y-2.5">
-      <p className="text-sm font-medium">Display</p>
-      <DisplaySettingsInline {...displayProps} />
     </div>
   );
 }
