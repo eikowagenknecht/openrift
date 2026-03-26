@@ -21,6 +21,95 @@ import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
+const CARD_BORDER_RADIUS = "5% / 3.6%";
+
+const TILT_STYLE = {
+  transform:
+    "perspective(800px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
+  transformStyle: "preserve-3d",
+} as const;
+
+const AFTER_BORDER =
+  "after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]";
+
+function CardImageContent({
+  thumbnailUrl,
+  srcSet,
+  sizes,
+  alt,
+  priority,
+  imgLoaded,
+  onImgLoad,
+  rotated,
+  card,
+  isFoilCard,
+  tiltActive,
+}: {
+  thumbnailUrl: string | null;
+  srcSet: string | undefined;
+  sizes: string | undefined;
+  alt: string;
+  priority: boolean;
+  imgLoaded: boolean;
+  onImgLoad: () => void;
+  rotated: boolean;
+  card: { name: string; domains: string[]; energy: number | null; might?: number | null };
+  isFoilCard: boolean;
+  tiltActive: boolean;
+}) {
+  return (
+    <>
+      {thumbnailUrl ? (
+        <>
+          <div className="aspect-card bg-muted/40" />
+          {rotated ? (
+            <div
+              className={cn(
+                "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
+                imgLoaded ? "opacity-100" : "opacity-0",
+              )}
+              style={LANDSCAPE_ROTATION_STYLE}
+            >
+              <img
+                src={thumbnailUrl}
+                srcSet={srcSet}
+                sizes={sizes}
+                alt={alt}
+                loading={priority ? "eager" : "lazy"}
+                fetchPriority={priority ? "high" : undefined}
+                className="size-full object-cover"
+                onLoad={onImgLoad}
+              />
+            </div>
+          ) : (
+            <img
+              src={thumbnailUrl}
+              srcSet={srcSet}
+              sizes={sizes}
+              alt={alt}
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : undefined}
+              className={cn(
+                "absolute inset-0 w-full object-cover transition-opacity duration-300",
+                imgLoaded ? "opacity-100" : "opacity-0",
+              )}
+              onLoad={onImgLoad}
+            />
+          )}
+        </>
+      ) : (
+        <CardPlaceholderImage
+          name={card.name}
+          domain={card.domains}
+          energy={card.energy}
+          might={card.might}
+        />
+      )}
+      {isFoilCard && <FoilOverlay active={tiltActive} />}
+    </>
+  );
+}
+
 interface CardThumbnailProps {
   printing: Printing;
   onClick: (printing: Printing) => void;
@@ -148,7 +237,7 @@ export const CardThumbnail = memo(function CardThumbnail({
                 richEffects && fanReady && "pointer-events-auto cursor-pointer",
               )}
               style={{
-                borderRadius: "5% / 3.6%",
+                borderRadius: CARD_BORDER_RADIUS,
                 translate: `calc((1 - var(--fan, 0)) * ${depth * fanStep}px) calc((1 - var(--fan, 0)) * ${depth * fanStep}px)`,
                 rotate: `calc(var(--fan, 0) * ${depth * fanAngle}deg)`,
                 transition: "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out",
@@ -186,93 +275,50 @@ export const CardThumbnail = memo(function CardThumbnail({
         })}
         <div ref={tilt.containerRef} style={tilt.style} className="relative">
           {rotated ? (
-            <div className="relative overflow-hidden" style={{ borderRadius: "5% / 3.6%" }}>
+            <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
               <div
                 ref={tilt.innerRef}
-                className={cn(
-                  "after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]",
-                  richEffects && "hover:ring-2 hover:ring-primary/60",
-                )}
-                style={{
-                  borderRadius: "inherit",
-                  transform:
-                    "perspective(800px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
-                  transformStyle: "preserve-3d",
-                }}
+                className={cn(AFTER_BORDER, richEffects && "hover:ring-2 hover:ring-primary/60")}
+                style={{ borderRadius: "inherit", ...TILT_STYLE }}
               >
-                {thumbnailUrl ? (
-                  <>
-                    <div className="aspect-card bg-muted/40" />
-                    <div
-                      className={cn(
-                        "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
-                        imgLoaded ? "opacity-100" : "opacity-0",
-                      )}
-                      style={LANDSCAPE_ROTATION_STYLE}
-                    >
-                      <img
-                        src={thumbnailUrl}
-                        srcSet={srcSet}
-                        sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                        alt={card.name}
-                        loading={priority ? "eager" : "lazy"}
-                        fetchPriority={priority ? "high" : undefined}
-                        className="size-full object-cover"
-                        onLoad={() => setImgLoaded(true)}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <CardPlaceholderImage
-                    name={card.name}
-                    domain={card.domains}
-                    energy={card.energy}
-                    might={card.might}
-                  />
-                )}
-                {isFoilCard && <FoilOverlay active={tilt.active} />}
+                <CardImageContent
+                  thumbnailUrl={thumbnailUrl}
+                  srcSet={srcSet}
+                  sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                  alt={card.name}
+                  priority={Boolean(priority)}
+                  imgLoaded={imgLoaded}
+                  onImgLoad={() => setImgLoaded(true)}
+                  rotated
+                  card={card}
+                  isFoilCard={isFoilCard}
+                  tiltActive={tilt.active}
+                />
               </div>
             </div>
           ) : (
             <div
               ref={tilt.innerRef}
               className={cn(
-                "relative overflow-hidden after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]",
+                "relative overflow-hidden",
+                AFTER_BORDER,
                 richEffects && "hover:ring-2 hover:ring-primary/60",
               )}
-              style={{
-                borderRadius: "5% / 3.6%",
-                transform:
-                  "perspective(800px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",
-                transformStyle: "preserve-3d",
-              }}
+              style={{ borderRadius: CARD_BORDER_RADIUS, ...TILT_STYLE }}
             >
-              {thumbnailUrl ? (
-                <>
-                  <div className="aspect-card bg-muted/40" />
-                  <img
-                    src={thumbnailUrl}
-                    srcSet={srcSet}
-                    sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                    alt={card.name}
-                    loading={priority ? "eager" : "lazy"}
-                    fetchPriority={priority ? "high" : undefined}
-                    className={cn(
-                      "absolute inset-0 w-full object-cover transition-opacity duration-300",
-                      imgLoaded ? "opacity-100" : "opacity-0",
-                    )}
-                    onLoad={() => setImgLoaded(true)}
-                  />
-                </>
-              ) : (
-                <CardPlaceholderImage
-                  name={card.name}
-                  domain={card.domains}
-                  energy={card.energy}
-                  might={card.might}
-                />
-              )}
-              {isFoilCard && <FoilOverlay active={tilt.active} />}
+              <CardImageContent
+                thumbnailUrl={thumbnailUrl}
+                srcSet={srcSet}
+                sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                alt={card.name}
+                priority={Boolean(priority)}
+                imgLoaded={imgLoaded}
+                onImgLoad={() => setImgLoaded(true)}
+                rotated={false}
+                card={card}
+                isFoilCard={isFoilCard}
+                tiltActive={tilt.active}
+              />
             </div>
           )}
         </div>

@@ -388,7 +388,6 @@ export function CardGrid({
   const rowStarts = computeRowStarts(virtualRows, estimateRowHeight);
 
   // ── Scroll margin (container's document offset) ────────────────────
-  const scrollMarginRef = useRef(0);
   const [scrollMargin, setScrollMargin] = useState(0);
 
   useLayoutEffect(() => {
@@ -396,11 +395,7 @@ export function CardGrid({
     if (!el) {
       return;
     }
-    const newMargin = Math.round(el.getBoundingClientRect().top + globalThis.scrollY);
-    if (newMargin !== scrollMarginRef.current) {
-      scrollMarginRef.current = newMargin;
-      setScrollMargin(newMargin);
-    }
+    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
   }, [cards, containerRef]);
 
   // ── Virtualizer ────────────────────────────────────────────────────
