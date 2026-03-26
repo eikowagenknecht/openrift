@@ -1,6 +1,6 @@
 import type { Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 
 import { COMPACT_THRESHOLD } from "@/components/cards/card-grid-constants";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
@@ -38,7 +38,9 @@ interface CardThumbnailProps {
   onAdd?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 
-export function CardThumbnail({
+// Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
+// scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
+export const CardThumbnail = memo(function CardThumbnail({
   printing,
   onClick,
   onSiblingClick,
@@ -71,7 +73,6 @@ export function CardThumbnail({
   const fanAngle = richEffects ? 8 : 1.5;
   const [fanReady, setFanReady] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
-
   return (
     <button
       type="button"
@@ -310,4 +311,4 @@ export function CardThumbnail({
       )}
     </button>
   );
-}
+});

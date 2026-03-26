@@ -107,7 +107,7 @@ export function ScrollIndicator({
       </div>
 
       {/* Ghost badges — set-section marks, visible only while dragging */}
-      {indicator.visible &&
+      {indicator.dragging &&
         multipleGroups &&
         snapPoints.map((pt) => (
           <div
