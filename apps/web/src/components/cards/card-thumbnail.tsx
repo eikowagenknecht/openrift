@@ -178,7 +178,9 @@ export const CardThumbnail = memo(function CardThumbnail({
                 ) : (
                   <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
                 ))}
-              {sibling.finish === ("foil" satisfies Finish) && <FoilOverlay active shimmer dim />}
+              {sibling.finish === ("foil" satisfies Finish) && (
+                <FoilOverlay active shimmer dim paused />
+              )}
             </div>
           );
         })}
