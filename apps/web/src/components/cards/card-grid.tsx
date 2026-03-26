@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useCardBrowserContext } from "@/components/card-browser-context";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
@@ -151,6 +151,136 @@ function SetHeaderLabel({
   );
 }
 
+// Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
+// scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
+// ⚠ pt-4 / pb-2 are mirrored as HEADER_PT / HEADER_PB above — update both together
+const HeaderRow = memo(function HeaderRow({
+  row,
+  onScrollToGroup,
+}: {
+  row: VRow & { kind: "header" };
+  onScrollToGroup: (setId: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 pt-4 pb-2">
+      <div className="h-px flex-1 bg-border" />
+      <SetHeaderLabel
+        slug={row.set.slug}
+        name={row.set.name}
+        cardCount={row.cardCount}
+        onClick={() => onScrollToGroup(row.set.id)}
+      />
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+});
+
+// Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
+// scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
+const CardRowContent = memo(function CardRowContent({
+  row,
+  columns,
+  labelHeight,
+  onCardClick,
+  onSiblingClick,
+  showImages,
+  selectedCardId,
+  flashCardId,
+  printingsByCardId,
+  priceRangeByCardId,
+  view,
+  visibleFields,
+  cardWidth,
+  eagerCount,
+  ownedCounts,
+  onAdd,
+}: {
+  row: VRow & { kind: "cards" };
+  columns: number;
+  labelHeight: number;
+  onCardClick: (printing: Printing) => void;
+  onSiblingClick: (printing: Printing) => void;
+  showImages: boolean;
+  selectedCardId?: string;
+  flashCardId: string | null;
+  printingsByCardId: Map<string, Printing[]>;
+  priceRangeByCardId: Map<string, { min: number; max: number }> | null;
+  view: "cards" | "printings";
+  visibleFields: VisibleFields;
+  cardWidth: number;
+  eagerCount: number;
+  ownedCounts: Map<string, number> | undefined;
+  onAdd?: (printing: Printing, anchorEl: HTMLElement) => void;
+}) {
+  // Track whether this row has been fully rendered before. Once rendered,
+  // keep showing real content even during scroll (memo prevents re-render anyway).
+  // Defer full rendering: show a lightweight placeholder on mount, then swap in
+  // real content when the browser is idle. During fast scroll the browser stays
+  // busy so placeholders persist; during slow scroll or once stopped, the idle
+  // callback fires quickly and real content appears.
+  const [deferred, setDeferred] = useState(true);
+  useEffect(() => {
+    if (!deferred) {
+      return;
+    }
+    const id = requestIdleCallback(() => setDeferred(false), { timeout: 300 });
+    return () => cancelIdleCallback(id);
+  }, [deferred]);
+
+  if (deferred) {
+    return (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: `${GAP}px`,
+        }}
+      >
+        {row.items.map((printing) => (
+          // ⚠ p-1.5 mirrors BUTTON_PAD in card-grid-constants — update both together
+          <div key={printing.id} className="rounded-lg p-1.5">
+            <div className="rounded-lg bg-muted/40" style={{ aspectRatio: `1 / ${CARD_ASPECT}` }} />
+            {labelHeight > 0 && <div style={{ height: labelHeight }} />}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        gap: `${GAP}px`,
+      }}
+    >
+      {row.items.map((printing, colIndex) => {
+        const flatIndex = row.cardsBefore + colIndex;
+        return (
+          <CardThumbnail
+            key={printing.id}
+            printing={printing}
+            onClick={onCardClick}
+            onSiblingClick={onSiblingClick}
+            showImages={showImages}
+            isSelected={printing.id === selectedCardId}
+            isFlashing={printing.id === flashCardId}
+            siblings={printingsByCardId.get(printing.card.id)}
+            priceRange={priceRangeByCardId?.get(printing.card.id)}
+            view={view}
+            visibleFields={visibleFields}
+            cardWidth={cardWidth}
+            priority={flatIndex < eagerCount}
+            ownedCount={ownedCounts?.get(printing.id)}
+            onAdd={onAdd}
+          />
+        );
+      })}
+    </div>
+  );
+});
+
 interface CardGridProps {
   cards: Printing[];
   totalCards: number;
@@ -206,7 +336,25 @@ export function CardGrid({
   // ── Group cards by set, then flatten into virtual rows ───────────
   const groups = groupCardsBySet(cards, setOrder);
   const multipleGroups = groups.length > 1;
-  const virtualRows = buildVirtualRows(groups, columns);
+  const virtualRowsCacheRef = useRef<{
+    cards: Printing[];
+    setOrder: SetInfo[];
+    columns: number;
+    rows: VRow[];
+  }>({ cards: [], setOrder: [], columns: 0, rows: [] });
+  if (
+    virtualRowsCacheRef.current.cards !== cards ||
+    virtualRowsCacheRef.current.setOrder !== setOrder ||
+    virtualRowsCacheRef.current.columns !== columns
+  ) {
+    virtualRowsCacheRef.current = {
+      cards,
+      setOrder,
+      columns,
+      rows: buildVirtualRows(groups, columns),
+    };
+  }
+  const virtualRows = virtualRowsCacheRef.current.rows;
 
   // ── Label height estimation ────────────────────────────────────────
   const labelHeight = estimateLabelHeight(visibleFields, thumbWidth, containerWidth);
@@ -310,9 +458,11 @@ export function CardGrid({
 
   // ── Helpers ────────────────────────────────────────────────────────
   const scrollToGroup = (setId: string) => {
-    const rowIndex = virtualRows.findIndex((r) => r.kind === "header" && r.set.id === setId);
+    const rowIndex = virtualRowsRef.current.findIndex(
+      (r) => r.kind === "header" && r.set.id === setId,
+    );
     if (rowIndex !== -1) {
-      virtualizer.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
+      virtualizerRef.current.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
     }
   };
 
@@ -405,48 +555,26 @@ export function CardGrid({
               }}
             >
               {row.kind === "header" ? (
-                // ⚠ pt-4 / pb-2 are mirrored as HEADER_PT / HEADER_PB above — update both together
-                <div className="flex items-center gap-3 pt-4 pb-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <SetHeaderLabel
-                    slug={row.set.slug}
-                    name={row.set.name}
-                    cardCount={row.cardCount}
-                    onClick={() => scrollToGroup(row.set.id)}
-                  />
-                  <div className="h-px flex-1 bg-border" />
-                </div>
+                <HeaderRow row={row} onScrollToGroup={scrollToGroup} />
               ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                    gap: `${GAP}px`,
-                  }}
-                >
-                  {row.items.map((printing, colIndex) => {
-                    const flatIndex = row.cardsBefore + colIndex;
-                    return (
-                      <CardThumbnail
-                        key={printing.id}
-                        printing={printing}
-                        onClick={onCardClick}
-                        onSiblingClick={onSiblingClick}
-                        showImages={showImages}
-                        isSelected={printing.id === selectedCardId}
-                        isFlashing={printing.id === flashCardId}
-                        siblings={printingsByCardId.get(printing.card.id)}
-                        priceRange={priceRangeByCardId?.get(printing.card.id)}
-                        view={view}
-                        visibleFields={visibleFields}
-                        cardWidth={thumbWidth}
-                        priority={flatIndex < eagerCount}
-                        ownedCount={ownedCounts?.get(printing.id)}
-                        onAdd={onAddCard}
-                      />
-                    );
-                  })}
-                </div>
+                <CardRowContent
+                  row={row}
+                  columns={columns}
+                  labelHeight={labelHeight}
+                  onCardClick={onCardClick}
+                  onSiblingClick={onSiblingClick}
+                  showImages={showImages}
+                  selectedCardId={selectedCardId}
+                  flashCardId={flashCardId}
+                  printingsByCardId={printingsByCardId}
+                  priceRangeByCardId={priceRangeByCardId}
+                  view={view}
+                  visibleFields={visibleFields}
+                  cardWidth={thumbWidth}
+                  eagerCount={eagerCount}
+                  ownedCounts={ownedCounts}
+                  onAdd={onAddCard}
+                />
               )}
             </div>
           );
