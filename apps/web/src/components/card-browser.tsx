@@ -7,8 +7,8 @@ import { CardGrid } from "@/components/cards/card-grid";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
 import { ActiveFilters } from "@/components/filters/active-filters";
-import { DesktopSidebarFilter, DesktopTopFilter } from "@/components/filters/filter-panels";
-import { DesktopOptionsBar, MobileOptionsBar } from "@/components/filters/options-bar";
+import { FilterPanelContent } from "@/components/filters/filter-panel-content";
+import { DesktopOptionsBar, MobileOptionsDrawer } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
 import { Pane } from "@/components/layout/panes";
@@ -123,28 +123,43 @@ export function CardBrowser() {
         <div className="flex items-start gap-3 mb-3">
           <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
           <DesktopOptionsBar className="hidden sm:flex" />
-          <MobileOptionsBar
-            availableFilters={availableFilters}
-            filteredCount={sortedCards.length}
-            setDisplayLabel={setDisplayLabel}
-            className="sm:hidden"
-          />
+          <MobileOptionsDrawer filteredCount={sortedCards.length} className="sm:hidden">
+            <div className="border-t pt-4">
+              <p className="mb-2.5 text-sm font-medium">Filters</p>
+              <div className="flex flex-col gap-4">
+                <FilterPanelContent
+                  availableFilters={availableFilters}
+                  setDisplayLabel={setDisplayLabel}
+                  layout="drawer"
+                />
+              </div>
+            </div>
+          </MobileOptionsDrawer>
         </div>
         {/* Filter panel */}
-        <DesktopTopFilter
-          availableFilters={availableFilters}
-          setDisplayLabel={setDisplayLabel}
-          className="hidden sm:flex wide:hidden"
-        />
+        <div className="hidden sm:flex wide:hidden flex-wrap gap-4">
+          <FilterPanelContent
+            availableFilters={availableFilters}
+            setDisplayLabel={setDisplayLabel}
+          />
+        </div>
         <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
         {/* Main area */}
         <div className="flex items-start gap-6 mt-4">
           {/* Main area: Left panel */}
           <Pane className="wide:block">
-            <DesktopSidebarFilter
-              availableFilters={availableFilters}
-              setDisplayLabel={setDisplayLabel}
-            />
+            <div className="overflow-y-auto rounded-lg px-3">
+              <div className="pt-4 pb-4">
+                <h2 className="text-lg font-semibold">Filters</h2>
+              </div>
+              <div className="space-y-4 pb-4">
+                <FilterPanelContent
+                  availableFilters={availableFilters}
+                  setDisplayLabel={setDisplayLabel}
+                  layout="drawer"
+                />
+              </div>
+            </div>
           </Pane>
           {/* Main area: Center */}
           <div

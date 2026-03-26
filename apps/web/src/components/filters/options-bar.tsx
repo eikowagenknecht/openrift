@@ -1,4 +1,4 @@
-import type { AvailableFilters, SortOption } from "@openrift/shared";
+import type { SortOption } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
@@ -8,6 +8,7 @@ import {
   SquareStack,
   SlidersHorizontal,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,6 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DisplaySettingsDropdown, DisplaySettingsInline } from "./display-settings";
-import { FilterPanelContent } from "./filter-panel-content";
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "id", label: "ID" },
@@ -287,18 +287,16 @@ export function DesktopOptionsBar({ className }: { className?: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  MobileOptionsBar — visible below sm                                */
+/*  MobileOptionsDrawer — visible below sm                             */
 /* ------------------------------------------------------------------ */
 
-export function MobileOptionsBar({
-  availableFilters,
+export function MobileOptionsDrawer({
   filteredCount,
-  setDisplayLabel,
+  children,
   className,
 }: {
-  availableFilters: AvailableFilters;
   filteredCount: number;
-  setDisplayLabel?: (code: string) => string;
+  children?: ReactNode;
   className?: string;
 }) {
   const {
@@ -314,11 +312,6 @@ export function MobileOptionsBar({
   } = useOptionsBarState();
 
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  const filterPanelProps = {
-    availableFilters,
-    setDisplayLabel,
-  };
 
   const unitLabel = view === "cards" ? "cards" : "printings";
 
@@ -361,12 +354,7 @@ export function MobileOptionsBar({
               <DisplaySettingsInline {...displayProps} />
             </div>
 
-            <div className="border-t pt-4">
-              <p className="mb-2.5 text-sm font-medium">Filters</p>
-              <div className="flex flex-col gap-4">
-                <FilterPanelContent {...filterPanelProps} layout="drawer" />
-              </div>
-            </div>
+            {children}
           </div>
           <DrawerFooter>
             <DrawerClose asChild>
