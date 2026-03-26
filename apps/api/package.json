@@ -21,6 +21,7 @@
   "dependencies": {
     "@hono/zod-validator": "0.7.6",
     "@openrift/shared": "workspace:*",
+    "@scalar/hono-api-reference": "0.10.5",
     "better-auth": "1.5.6",
     "croner": "10.0.1",
     "hono": "4.12.9",

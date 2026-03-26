@@ -26,6 +26,7 @@ import { shoppingListRoute } from "./routes/authenticated/shopping-list.js";
 import { tradeListsRoute } from "./routes/authenticated/trade-lists.js";
 import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
 import { catalogRoute } from "./routes/public/catalog.js";
+import { docsRoute } from "./routes/public/docs.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
 import { keywordStylesRoute } from "./routes/public/keyword-styles.js";
@@ -154,6 +155,9 @@ export function createApp(deps: AppDeps) {
       c.set("session", session?.session ?? null);
       await next();
     })
+
+    // ── Docs (no auth/session required) ─────────────────────────────────────
+    .route("/api", docsRoute)
 
     // ── Infrastructure (unversioned) ────────────────────────────────────────
     .route("/api", healthRoute)
