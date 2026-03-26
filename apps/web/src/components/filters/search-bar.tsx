@@ -1,0 +1,124 @@
+import type { SearchField } from "@openrift/shared";
+import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
+import { Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useDebounce } from "@/hooks/use-debounce";
+import { cn } from "@/lib/utils";
+
+const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
+  name: { label: "Name", prefix: "n:" },
+  cardText: { label: "Card Text", prefix: "d:" },
+  keywords: { label: "Keywords", prefix: "k:" },
+  tags: { label: "Tags", prefix: "t:" },
+  artist: { label: "Artist", prefix: "a:" },
+  id: { label: "ID", prefix: "id:" },
+};
+
+interface SearchBarProps {
+  totalCards: number;
+  filteredCount: number;
+}
+
+export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
+  const { filterState, searchScope, hasActiveFilters, view } = useFilterValues();
+  const { setSearch, toggleSearchField } = useFilterActions();
+
+  const unitLabel = view === "cards" ? "cards" : "printings";
+
+  const [localSearch, setLocalSearch] = useState(filterState.search);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const debouncedSearch = useDebounce(localSearch, 200);
+
+  const prevFilterSearch = useRef(filterState.search);
+
+  const showScopeChips = searchFocused;
+  const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
+
+  useEffect(() => {
+    // External change (e.g. clear all, clear search badge): sync local state
+    if (prevFilterSearch.current !== filterState.search) {
+      prevFilterSearch.current = filterState.search;
+      setLocalSearch(filterState.search);
+      return;
+    }
+
+    // Local change via debounce: push to URL
+    if (debouncedSearch !== filterState.search) {
+      prevFilterSearch.current = debouncedSearch;
+      setSearch(debouncedSearch);
+    }
+  }, [debouncedSearch, filterState.search, setSearch]);
+
+  const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
+
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search cards..."
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+          className={cn("pl-9", localSearch ? "pr-28" : "pr-20")}
+        />
+        <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+          <span className="pointer-events-none text-xs text-muted-foreground">
+            {cardCountLabel} {unitLabel}
+          </span>
+          {localSearch && (
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setLocalSearch("");
+                setSearch("");
+              }}
+              aria-label="Clear search"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </span>
+      </div>
+      <div
+        className={cn(
+          "flex items-start gap-2 overflow-hidden transition-all duration-200",
+          showScopeChips ? "mt-2 max-h-24 opacity-100" : "mt-0 max-h-0 opacity-0",
+        )}
+      >
+        <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
+        <div
+          className={cn("flex flex-wrap gap-1", hasPrefixes && "pointer-events-none opacity-40")}
+        >
+          {ALL_SEARCH_FIELDS.map((field) => {
+            const { label, prefix } = SEARCH_FIELD_LABELS[field];
+            const isActive = searchScope.includes(field);
+            return (
+              <Badge
+                key={field}
+                variant={isActive ? "default" : "outline"}
+                className="cursor-pointer gap-1 text-xs"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleSearchField(field)}
+              >
+                <span className="text-[10px] opacity-50">{prefix}</span>
+                {label}
+              </Badge>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

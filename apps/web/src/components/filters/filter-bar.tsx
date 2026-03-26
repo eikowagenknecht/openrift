@@ -1,5 +1,4 @@
-import type { AvailableFilters, SearchField, SortOption } from "@openrift/shared";
-import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
+import type { AvailableFilters, SortOption } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
@@ -7,13 +6,10 @@ import {
   Plus,
   Square,
   SquareStack,
-  Search,
   SlidersHorizontal,
-  X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import {
@@ -25,7 +21,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -34,25 +29,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DisplaySettingsDropdown, DisplaySettingsInline } from "./display-settings";
 import { FilterPanelContent } from "./filter-panel-content";
 
-const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
-  name: { label: "Name", prefix: "n:" },
-  cardText: { label: "Card Text", prefix: "d:" },
-  keywords: { label: "Keywords", prefix: "k:" },
-  tags: { label: "Tags", prefix: "t:" },
-  artist: { label: "Artist", prefix: "a:" },
-  id: { label: "ID", prefix: "id:" },
-};
-
 interface FilterBarProps {
   availableFilters: AvailableFilters;
-  totalCards: number;
   filteredCount: number;
   setDisplayLabel?: (code: string) => string;
 }
@@ -236,14 +220,9 @@ function ColumnControls({
 /*  Main FilterBar                                                     */
 /* ------------------------------------------------------------------ */
 
-export function FilterBar({
-  availableFilters,
-  totalCards,
-  filteredCount,
-  setDisplayLabel,
-}: FilterBarProps) {
-  const { filterState, sortBy, sortDir, hasActiveFilters, searchScope, view } = useFilterValues();
-  const { setSearch, setSortBy, setSortDir, setView, toggleSearchField } = useFilterActions();
+export function FilterBar({ availableFilters, filteredCount, setDisplayLabel }: FilterBarProps) {
+  const { sortBy, sortDir, hasActiveFilters, view } = useFilterValues();
+  const { setSortBy, setSortDir, setView } = useFilterActions();
 
   const showImages = useDisplayStore((s) => s.showImages);
   const setShowImages = useDisplayStore((s) => s.setShowImages);
@@ -257,30 +236,7 @@ export function FilterBar({
   const minColumnsLimit = useDisplayStore((s) => s.physicalMin);
   const autoColumns = useDisplayStore((s) => s.autoColumns);
 
-  const [localSearch, setLocalSearch] = useState(filterState.search);
-  const [searchFocused, setSearchFocused] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const debouncedSearch = useDebounce(localSearch, 200);
-
-  const prevFilterSearch = useRef(filterState.search);
-
-  const showScopeChips = searchFocused;
-  const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
-
-  useEffect(() => {
-    // External change (e.g. clear all, clear search badge): sync local state
-    if (prevFilterSearch.current !== filterState.search) {
-      prevFilterSearch.current = filterState.search;
-      setLocalSearch(filterState.search);
-      return;
-    }
-
-    // Local change via debounce: push to URL
-    if (debouncedSearch !== filterState.search) {
-      prevFilterSearch.current = debouncedSearch;
-      setSearch(debouncedSearch);
-    }
-  }, [debouncedSearch, filterState.search, setSearch]);
 
   const filterPanelProps = {
     availableFilters,
@@ -290,7 +246,6 @@ export function FilterBar({
   const filterSections = <FilterPanelContent {...filterPanelProps} layout="drawer" />;
 
   const unitLabel = view === "cards" ? "cards" : "printings";
-  const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
   const minColumns = minColumnsLimit;
 
   const columnProps = {
@@ -312,100 +267,31 @@ export function FilterBar({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search cards..."
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.currentTarget.blur();
-                }
-              }}
-              className={cn("pl-9", localSearch ? "pr-28" : "pr-20")}
-            />
-            <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
-              <span className="pointer-events-none text-xs text-muted-foreground">
-                {cardCountLabel} {unitLabel}
-              </span>
-              {localSearch && (
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    setLocalSearch("");
-                    setSearch("");
-                  }}
-                  aria-label="Clear search"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </span>
-          </div>
-          <div
-            className={cn(
-              "flex items-start gap-2 overflow-hidden transition-all duration-200",
-              showScopeChips ? "mt-2 max-h-24 opacity-100" : "mt-0 max-h-0 opacity-0",
-            )}
-          >
-            <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
-            <div
-              className={cn(
-                "flex flex-wrap gap-1",
-                hasPrefixes && "pointer-events-none opacity-40",
-              )}
-            >
-              {ALL_SEARCH_FIELDS.map((field) => {
-                const { label, prefix } = SEARCH_FIELD_LABELS[field];
-                const isActive = searchScope.includes(field);
-                return (
-                  <Badge
-                    key={field}
-                    variant={isActive ? "default" : "outline"}
-                    className="cursor-pointer gap-1 text-xs"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => toggleSearchField(field)}
-                  >
-                    <span className="text-[10px] opacity-50">{prefix}</span>
-                    {label}
-                  </Badge>
-                );
-              })}
-            </div>
-          </div>
+    <>
+      <div className="flex items-center gap-3">
+        {/* Desktop: inline sort, view, columns controls */}
+        <div className="hidden items-center gap-3 sm:flex">
+          <SortControls
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSortByChange={setSortBy}
+            onSortDirChange={setSortDir}
+          />
+          <ViewModeToggle view={view} onViewChange={setView} />
+          <ColumnControls {...columnProps} />
+          <DisplaySettingsDropdown {...displayProps} />
         </div>
-        <div className="flex items-center gap-3">
-          {/* Desktop: inline sort, view, columns controls */}
-          <div className="hidden items-center gap-3 sm:flex">
-            <SortControls
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onSortByChange={setSortBy}
-              onSortDirChange={setSortDir}
-            />
-            <ViewModeToggle view={view} onViewChange={setView} />
-            <ColumnControls {...columnProps} />
-            <DisplaySettingsDropdown {...displayProps} />
-          </div>
 
-          {/* Mobile: icon-only button that opens options drawer */}
-          <Button
-            variant="outline"
-            size="icon"
-            className="relative sm:hidden"
-            onClick={() => setSheetOpen(true)}
-            aria-label="Options"
-          >
-            <SlidersHorizontal className="size-4" />
-          </Button>
-        </div>
+        {/* Mobile: icon-only button that opens options drawer */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative sm:hidden"
+          onClick={() => setSheetOpen(true)}
+          aria-label="Options"
+        >
+          <SlidersHorizontal className="size-4" />
+        </Button>
       </div>
 
       {/* Desktop: inline filter sections (hidden at wide breakpoint where sidebar takes over) */}
@@ -455,6 +341,6 @@ export function FilterBar({
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
-    </div>
+    </>
   );
 }
