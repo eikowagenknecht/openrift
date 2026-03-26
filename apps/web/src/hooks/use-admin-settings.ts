@@ -25,7 +25,10 @@ export const useAdminSettingsStore = create<AdminSettingsState>()(
   ),
 );
 
-// Returns admin settings if the user is an admin, otherwise null.
+/**
+ * Returns admin settings if the user is an admin, otherwise null.
+ * @returns Admin settings or null for non-admins.
+ */
 export function useAdminSettings(): AdminSettings | null {
   const { data: isAdmin } = useIsAdmin();
   const settings = useAdminSettingsStore((s) => s.settings);

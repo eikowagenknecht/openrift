@@ -7,7 +7,10 @@ import { assertOk, client } from "@/lib/rpc-client";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
-// Fields synced to the database. Device-local prefs (e.g. maxColumns) are excluded.
+/**
+ * Fields synced to the database. Device-local prefs (e.g. maxColumns) are excluded.
+ * @returns Snapshot of preferences to persist server-side.
+ */
 function getPrefsSnapshot(): UserPreferencesResponse {
   const { showImages, richEffects, visibleFields } = useDisplayStore.getState();
   const { theme } = useThemeStore.getState();
