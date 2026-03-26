@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
-import { PREFERENCES_CACHE_KEY, useDisplayStore } from "@/stores/display-store";
+import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 function getPrefsSnapshot(): UserPreferencesResponse {
@@ -13,21 +13,12 @@ function getPrefsSnapshot(): UserPreferencesResponse {
   return { showImages, richEffects, cardFields, theme };
 }
 
-function writeCache(prefs: UserPreferencesResponse) {
-  try {
-    localStorage.setItem(PREFERENCES_CACHE_KEY, JSON.stringify(prefs));
-  } catch {
-    // Ignore storage errors
-  }
-}
-
 /**
  * Syncs display and theme stores with the server for authenticated users.
  * Call once in the app layout with `enabled` tied to session state.
  *
- * The display store reads from localStorage at module load, so the first
- * render already has the right values. This hook confirms against the
- * server and writes back on changes.
+ * The display store uses Zustand persist (localStorage) for instant hydration.
+ * This hook confirms against the server and writes back on changes.
  */
 export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
@@ -57,7 +48,6 @@ export function usePreferencesSync(enabled: boolean) {
       cardFields: data.cardFields,
     });
     useThemeStore.setState({ theme: data.theme });
-    writeCache(data);
 
     requestAnimationFrame(() => {
       hydrating.current = false;
@@ -77,7 +67,6 @@ export function usePreferencesSync(enabled: boolean) {
         return;
       }
       prev = next;
-      writeCache(getPrefsSnapshot());
 
       if (debounceTimer.current !== null) {
         clearTimeout(debounceTimer.current);
