@@ -9,8 +9,8 @@ function text(value: string): CardTextToken {
 function glyph(name: string): CardTextToken {
   return { type: "glyph", name };
 }
-function keyword(name: string): CardTextToken {
-  return { type: "keyword", name };
+function keyword(name: string, ...children: CardTextToken[]): CardTextToken {
+  return { type: "keyword", name, children: children.length > 0 ? children : [text(name)] };
 }
 function paren(...children: CardTextToken[]): CardTextToken {
   return { type: "paren", children };
@@ -115,6 +115,20 @@ describe("tokenizeCardText", () => {
 
   it("handles glyph with underscores in name", () => {
     expect(tokenizeCardText(":rb_rune_fury:")).toEqual([glyph("rune_fury")]);
+  });
+
+  it("parses keywords with glyphs inside", () => {
+    expect(tokenizeCardText("[Equip :rb_energy_1: :rb_rune_calm:]")).toEqual([
+      keyword("Equip", text("Equip "), glyph("energy_1"), text(" "), glyph("rune_calm")),
+    ]);
+  });
+
+  it("merges [>] into preceding keyword as pointed modifier", () => {
+    expect(tokenizeCardText("[Level 3][>]")).toEqual([{ ...keyword("Level 3"), pointed: true }]);
+  });
+
+  it("does not merge [>] without a preceding keyword", () => {
+    expect(tokenizeCardText("[>]")).toEqual([keyword(">")]);
   });
 
   it("handles italic wrapping parenthesized text", () => {

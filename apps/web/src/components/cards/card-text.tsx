@@ -12,7 +12,7 @@ const TOKEN_PATTERN = /:rb_(\w+):|\[([^\]]+)\]|\(([^)]+)\)|_((?::rb_\w+:|[^_])+)
 export type CardTextToken =
   | { type: "text"; value: string }
   | { type: "glyph"; name: string }
-  | { type: "keyword"; name: string }
+  | { type: "keyword"; name: string; children: CardTextToken[]; pointed?: boolean }
   | { type: "paren"; children: CardTextToken[] }
   | { type: "italic"; children: CardTextToken[] }
   | { type: "newline" };
@@ -29,7 +29,9 @@ export function tokenizeCardText(text: string): CardTextToken[] {
     if (match[1]) {
       tokens.push({ type: "glyph", name: match[1] });
     } else if (match[2]) {
-      tokens.push({ type: "keyword", name: match[2] });
+      const raw = match[2];
+      const name = raw.replaceAll(/:rb_\w+:/g, "").trim();
+      tokens.push({ type: "keyword", name, children: tokenizeCardText(raw) });
     } else if (match[3]) {
       tokens.push({ type: "paren", children: tokenizeCardText(match[3]) });
     } else if (match[4]) {
@@ -43,6 +45,16 @@ export function tokenizeCardText(text: string): CardTextToken[] {
 
   if (lastIndex < text.length) {
     tokens.push({ type: "text", value: text.slice(lastIndex) });
+  }
+
+  // Merge [>] into the preceding keyword as a shape modifier (pointed right edge).
+  for (let i = tokens.length - 1; i > 0; i--) {
+    const tok = tokens[i];
+    const prev = tokens[i - 1];
+    if (tok.type === "keyword" && tok.name === ">" && prev.type === "keyword") {
+      prev.pointed = true;
+      tokens.splice(i, 1);
+    }
   }
 
   return tokens;
@@ -82,19 +94,27 @@ function renderTokens(
             key={`${i}-kw`}
             type="button"
             className={cn(
-              "relative inline-flex cursor-pointer items-center px-1 align-baseline",
+              "relative inline-flex cursor-pointer items-center pl-2 pr-2.5 align-baseline",
               onKeywordClick && "hover:brightness-125",
             )}
-            onClick={() => onKeywordClick?.(token.name)}
+            onClick={() => onKeywordClick?.(token.name.replace(/\s+\d+$/, ""))}
           >
-            <span className="absolute inset-0 -skew-x-[15deg]" style={{ backgroundColor: kw.bg }} />
+            <span
+              className="absolute inset-0"
+              style={{
+                backgroundColor: kw.bg,
+                clipPath: token.pointed
+                  ? "polygon(0.3em 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%)"
+                  : "polygon(0.3em 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%)",
+              }}
+            />
             <span
               className={cn(
                 "relative text-[0.8em] font-semibold uppercase italic tracking-tight",
                 kw.dark ? "text-black" : "text-white",
               )}
             >
-              {token.name}
+              {renderTokens(token.children, styles, onKeywordClick)}
             </span>
           </button>
         );

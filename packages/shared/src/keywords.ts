@@ -43,7 +43,8 @@ export function extractKeywords(text: string): string[] {
   const re = /\[([^\]]+)\]/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    const parts = match[1].trim().split(/\s+/);
+    const stripped = match[1].replaceAll(/:rb_\w+:/g, "").trim();
+    const parts = stripped.split(/\s+/).filter(Boolean);
     const canonical = KEYWORD_LOOKUP.get(parts[0].toLowerCase());
     if (canonical) {
       const rest = parts.slice(1).join(" ");

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-26
+
+- fix: Icons inside keyword brackets (like Equip costs) now render correctly instead of showing raw text
+
 ## 2026-03-24
 
 - feat: The landing page now shows how many cards and printings are in the database
