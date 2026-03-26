@@ -10,12 +10,13 @@ function isSelfHosted(url: string): boolean {
 }
 
 /**
- * Returns true when a landscape card uses a self-hosted image that needs
- * CSS rotation (the CDN previously handled this server-side via `&or=270`).
+ * Returns true when a landscape card image needs a -90deg CSS rotation
+ * to display in portrait orientation. All landscape images use CSS rotation
+ * so that both CDN and self-hosted images follow the same code path.
  * @returns Whether the image needs a -90deg CSS rotation for display
  */
-export function needsCssRotation(imageUrl: string, orientation: string): boolean {
-  return orientation === "landscape" && isSelfHosted(imageUrl);
+export function needsCssRotation(orientation: string): boolean {
+  return orientation === "landscape";
 }
 
 /**
@@ -31,29 +32,23 @@ export const LANDSCAPE_ROTATION_STYLE: React.CSSProperties = {
   transform: "translate(-50%, -50%) rotate(-90deg)",
 };
 
-export function getCardImageUrl(
-  baseUrl: string,
-  size: "thumbnail" | "full",
-  orientation: string,
-): string {
+export function getCardImageUrl(baseUrl: string, size: "thumbnail" | "full"): string {
   if (isSelfHosted(baseUrl)) {
     return size === "thumbnail" ? `${baseUrl}-300w.webp` : `${baseUrl}-full.webp`;
   }
 
-  const orientationSuffix = orientation === "landscape" ? "&or=270" : "";
   if (size === "thumbnail") {
-    return appendParams(baseUrl, `w=300&fit=max&fm=webp&q=75${orientationSuffix}`);
+    return appendParams(baseUrl, "w=300&fit=max&fm=webp&q=75");
   }
-  return appendParams(baseUrl, `fm=webp${orientationSuffix}`);
+  return appendParams(baseUrl, "fm=webp");
 }
 
-export function getCardImageSrcSet(baseUrl: string, orientation: string): string {
+export function getCardImageSrcSet(baseUrl: string): string {
   if (isSelfHosted(baseUrl)) {
     return `${baseUrl}-300w.webp 300w, ${baseUrl}-400w.webp 400w`;
   }
 
-  const orientationSuffix = orientation === "landscape" ? "&or=270" : "";
   return THUMBNAIL_WIDTHS.map(
-    (w) => `${appendParams(baseUrl, `w=${w}&fit=max&fm=webp&q=75${orientationSuffix}`)} ${w}w`,
+    (w) => `${appendParams(baseUrl, `w=${w}&fit=max&fm=webp&q=75`)} ${w}w`,
   ).join(", ");
 }

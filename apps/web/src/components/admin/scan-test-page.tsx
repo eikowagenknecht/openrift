@@ -1,4 +1,3 @@
-import { getOrientation } from "@openrift/shared";
 import type { Printing } from "@openrift/shared";
 import { useRef, useState } from "react";
 
@@ -622,11 +621,7 @@ function MatchResults({
           >
             {match.printing.images[0] && (
               <img
-                src={getCardImageUrl(
-                  match.printing.images[0].url,
-                  "thumbnail",
-                  getOrientation(match.printing.card.type),
-                )}
+                src={getCardImageUrl(match.printing.images[0].url, "thumbnail")}
                 alt={match.printing.card.name}
                 className="h-16 w-auto rounded"
               />

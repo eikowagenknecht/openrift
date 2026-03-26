@@ -51,7 +51,7 @@ export function CardImage({
         className={hasImage && imgLoaded ? "invisible" : undefined}
       />
       {hasImage &&
-        (needsCssRotation(imageUrl, orientation) ? (
+        (needsCssRotation(orientation) ? (
           <div
             className={cn(
               "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
@@ -60,7 +60,7 @@ export function CardImage({
             style={LANDSCAPE_ROTATION_STYLE}
           >
             <img
-              src={getCardImageUrl(imageUrl, "full", orientation)}
+              src={getCardImageUrl(imageUrl, "full")}
               alt={card.name}
               className="size-full object-cover"
               onLoad={() => setImgLoaded(true)}
@@ -68,7 +68,7 @@ export function CardImage({
           </div>
         ) : (
           <img
-            src={getCardImageUrl(imageUrl, "full", orientation)}
+            src={getCardImageUrl(imageUrl, "full")}
             alt={card.name}
             className={cn(
               "absolute inset-0 block w-full transition-opacity duration-300",
