@@ -89,7 +89,7 @@ const bearerAuth: JsonObject = {
  * Builds the full OpenAPI 3.1.0 specification for the OpenRift API.
  * @returns OpenAPI document object
  */
-export function buildOpenApiSpec(): JsonObject {
+function buildOpenApiSpec(): JsonObject {
   return {
     openapi: "3.1.0",
     info: {
