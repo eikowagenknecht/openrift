@@ -217,10 +217,10 @@ function ColumnControls({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Main FilterBar                                                     */
+/*  Shared hook for filter bar state                                   */
 /* ------------------------------------------------------------------ */
 
-export function FilterBar({ availableFilters, filteredCount, setDisplayLabel }: FilterBarProps) {
+function useOptionsBarState() {
   const { sortBy, sortDir, hasActiveFilters, view } = useFilterValues();
   const { setSortBy, setSortDir, setView } = useFilterActions();
 
@@ -236,16 +236,6 @@ export function FilterBar({ availableFilters, filteredCount, setDisplayLabel }: 
   const minColumnsLimit = useDisplayStore((s) => s.physicalMin);
   const autoColumns = useDisplayStore((s) => s.autoColumns);
 
-  const [sheetOpen, setSheetOpen] = useState(false);
-
-  const filterPanelProps = {
-    availableFilters,
-    setDisplayLabel,
-  };
-
-  const filterSections = <FilterPanelContent {...filterPanelProps} layout="drawer" />;
-
-  const unitLabel = view === "cards" ? "cards" : "printings";
   const minColumns = minColumnsLimit;
 
   const columnProps = {
@@ -266,42 +256,103 @@ export function FilterBar({ availableFilters, filteredCount, setDisplayLabel }: 
       setCardFields((prev) => ({ ...prev, ...update })),
   };
 
+  return {
+    sortBy,
+    sortDir,
+    setSortBy,
+    setSortDir,
+    hasActiveFilters,
+    view,
+    setView,
+    columnProps,
+    displayProps,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  DesktopOptionsBar — visible sm and up                              */
+/* ------------------------------------------------------------------ */
+
+export function DesktopOptionsBar({ className }: { className?: string }) {
+  const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps, displayProps } =
+    useOptionsBarState();
+
   return (
-    <>
-      <div className="flex items-center gap-3">
-        {/* Desktop: inline sort, view, columns controls */}
-        <div className="hidden items-center gap-3 sm:flex">
-          <SortControls
-            sortBy={sortBy}
-            sortDir={sortDir}
-            onSortByChange={setSortBy}
-            onSortDirChange={setSortDir}
-          />
-          <ViewModeToggle view={view} onViewChange={setView} />
-          <ColumnControls {...columnProps} />
-          <DisplaySettingsDropdown {...displayProps} />
-        </div>
+    <div className={cn("items-center gap-3", className)}>
+      <SortControls
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortByChange={setSortBy}
+        onSortDirChange={setSortDir}
+      />
+      <ViewModeToggle view={view} onViewChange={setView} />
+      <ColumnControls {...columnProps} />
+      <DisplaySettingsDropdown {...displayProps} />
+    </div>
+  );
+}
 
-        {/* Mobile: icon-only button that opens options drawer */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="relative sm:hidden"
-          onClick={() => setSheetOpen(true)}
-          aria-label="Options"
-        >
-          <SlidersHorizontal className="size-4" />
-        </Button>
-      </div>
+/* ------------------------------------------------------------------ */
+/*  DesktopFilterPanel — inline filters, visible sm to wide            */
+/* ------------------------------------------------------------------ */
 
-      {/* Desktop: inline filter sections (hidden at wide breakpoint where sidebar takes over) */}
-      <div className="hidden flex-wrap gap-4 sm:flex wide:hidden">
-        <FilterPanelContent {...filterPanelProps} />
-      </div>
+export function DesktopFilterPanel({
+  availableFilters,
+  setDisplayLabel,
+  className,
+}: Omit<FilterBarProps, "filteredCount"> & { className?: string }) {
+  return (
+    <div className={cn("flex-wrap gap-4", className)}>
+      <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+    </div>
+  );
+}
 
-      {/* Mobile: bottom drawer with sort, display, and filter sections */}
+/* ------------------------------------------------------------------ */
+/*  MobileOptionsBar — visible below sm                                */
+/* ------------------------------------------------------------------ */
+
+export function MobileOptionsBar({
+  availableFilters,
+  filteredCount,
+  setDisplayLabel,
+  className,
+}: FilterBarProps & { className?: string }) {
+  const {
+    sortBy,
+    sortDir,
+    setSortBy,
+    setSortDir,
+    hasActiveFilters,
+    view,
+    setView,
+    columnProps,
+    displayProps,
+  } = useOptionsBarState();
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const filterPanelProps = {
+    availableFilters,
+    setDisplayLabel,
+  };
+
+  const unitLabel = view === "cards" ? "cards" : "printings";
+
+  return (
+    <div className={className}>
+      <Button
+        variant="outline"
+        size="icon"
+        className="relative"
+        onClick={() => setSheetOpen(true)}
+        aria-label="Options"
+      >
+        <SlidersHorizontal className="size-4" />
+      </Button>
+
       <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
-        <DrawerContent className="sm:hidden">
+        <DrawerContent>
           <DrawerHeader className="sr-only">
             <DrawerTitle>Options</DrawerTitle>
             <DrawerDescription>Sort, display, and filter options</DrawerDescription>
@@ -329,7 +380,9 @@ export function FilterBar({ availableFilters, filteredCount, setDisplayLabel }: 
 
             <div className="border-t pt-4">
               <p className="mb-2.5 text-sm font-medium">Filters</p>
-              <div className="flex flex-col gap-4">{filterSections}</div>
+              <div className="flex flex-col gap-4">
+                <FilterPanelContent {...filterPanelProps} layout="drawer" />
+              </div>
             </div>
           </div>
           <DrawerFooter>
@@ -341,6 +394,6 @@ export function FilterBar({ availableFilters, filteredCount, setDisplayLabel }: 
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
-    </>
+    </div>
   );
 }

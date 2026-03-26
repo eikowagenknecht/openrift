@@ -7,7 +7,11 @@ import { CardGrid } from "@/components/cards/card-grid";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
 import { ActiveFilters } from "@/components/filters/active-filters";
-import { FilterBar } from "@/components/filters/filter-bar";
+import {
+  DesktopFilterPanel,
+  DesktopOptionsBar,
+  MobileOptionsBar,
+} from "@/components/filters/filter-bar";
 import { FilterSidebar } from "@/components/filters/filter-sidebar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -116,14 +120,21 @@ export function CardBrowser() {
             printingsByCardId={printingsByCardId}
           />
         )}
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 mb-3">
           <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
-          <FilterBar
+          <DesktopOptionsBar className="hidden sm:flex" />
+          <MobileOptionsBar
             availableFilters={availableFilters}
             filteredCount={sortedCards.length}
             setDisplayLabel={setDisplayLabel}
+            className="sm:hidden"
           />
         </div>
+        <DesktopFilterPanel
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          className="hidden sm:flex wide:hidden"
+        />
         <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
 
         {/* Main Area */}
