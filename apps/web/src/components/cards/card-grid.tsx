@@ -29,7 +29,7 @@ import {
   SM_BREAKPOINT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
-import type { SetInfo } from "./card-grid-types";
+import type { IndicatorState, SetInfo, SnapPoint } from "./card-grid-types";
 import { buildVirtualRows, groupCardsBySet } from "./card-grid-types";
 import { CardThumbnail } from "./card-thumbnail";
 import { useGridKeyboardNav } from "./use-grid-keyboard-nav";
@@ -54,6 +54,131 @@ function SetHeaderLabel({
       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
         {cardCount}
       </span>
+    </>
+  );
+}
+
+function ScrollIndicator({
+  indicator,
+  indicatorRef,
+  cardIdRef,
+  dragTopRef,
+  isDraggingRef,
+  handleIndicatorPointerDown,
+  handleMoveRef,
+  handleUpRef,
+  handleMouseEnter,
+  handleMouseLeave,
+  multipleGroups,
+  snapPoints,
+}: {
+  indicator: IndicatorState;
+  indicatorRef: React.RefObject<HTMLDivElement | null>;
+  cardIdRef: React.RefObject<HTMLSpanElement | null>;
+  dragTopRef: React.RefObject<number>;
+  isDraggingRef: React.RefObject<boolean>;
+  handleIndicatorPointerDown: React.PointerEventHandler;
+  handleMoveRef: React.RefObject<(clientY: number) => void>;
+  handleUpRef: React.RefObject<() => void>;
+  handleMouseEnter: React.MouseEventHandler;
+  handleMouseLeave: React.MouseEventHandler;
+  multipleGroups: boolean;
+  snapPoints: SnapPoint[];
+}) {
+  return (
+    <>
+      {/* Scroll position indicator — appears while scrolling, fades out after idle.
+          Draggable: grab to scrub through the page; snaps to set headers on release. */}
+      <div
+        ref={indicatorRef}
+        className={cn(
+          "fixed z-20 transition-opacity duration-300",
+          indicator.visible ? "pointer-events-auto" : "pointer-events-none",
+          IS_COARSE_POINTER && "p-2 -m-2",
+        )}
+        style={{
+          right: 20,
+          top: 0,
+          transform: `translateY(calc(${indicator.dragging ? dragTopRef.current : indicator.indicatorTop}px - 50%))`,
+          willChange: "transform",
+          opacity: indicator.visible ? 1 : 0,
+          touchAction: "none",
+        }}
+        onPointerDown={handleIndicatorPointerDown}
+        onPointerMove={(e) => {
+          if (isDraggingRef.current) {
+            handleMoveRef.current(e.clientY);
+          }
+        }}
+        onPointerUp={() => {
+          if (isDraggingRef.current) {
+            handleUpRef.current();
+          }
+        }}
+        onPointerCancel={() => {
+          if (isDraggingRef.current) {
+            handleUpRef.current();
+          }
+        }}
+        onLostPointerCapture={() => {
+          if (isDraggingRef.current) {
+            handleUpRef.current();
+          }
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <div
+          className={cn(
+            "flex origin-right items-center gap-1.5 transition-transform duration-200 ease-out",
+            indicator.dragging ? "scale-110" : "scale-100",
+          )}
+        >
+          <div
+            className={cn(
+              "inline-flex items-center whitespace-nowrap rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none",
+              IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
+              indicator.dragging
+                ? "cursor-grabbing ring-primary/60"
+                : "cursor-grab ring-primary/40",
+            )}
+          >
+            <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
+          </div>
+          <div className="size-2 shrink-0 rounded-full bg-primary/70" />
+        </div>
+      </div>
+
+      {/* Ghost badges — set-section marks, visible only while dragging */}
+      {indicator.visible &&
+        multipleGroups &&
+        snapPoints.map((pt) => (
+          <div
+            key={pt.rowIndex}
+            className={cn(
+              "pointer-events-none fixed z-19 transition-opacity duration-300",
+              IS_COARSE_POINTER && "p-2 -m-2",
+            )}
+            style={{
+              right: 20,
+              top: pt.screenY,
+              transform: "translateY(-50%)",
+              opacity: indicator.dragging ? 1 : 0,
+            }}
+          >
+            <div className="flex items-center gap-1.5">
+              <div
+                className={cn(
+                  "whitespace-nowrap rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none",
+                  IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
+                )}
+              >
+                {pt.firstCardId || pt.setInfo.slug}
+              </div>
+              <div className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
+            </div>
+          </div>
+        ))}
     </>
   );
 }
@@ -154,8 +279,7 @@ export function CardGrid({
     if (row.kind === "header") {
       return HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB;
     }
-    const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
-    const imgHeight = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
+    const imgHeight = (thumbWidth - BUTTON_PAD * 2) * CARD_ASPECT;
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2);
   };
 
@@ -285,20 +409,9 @@ export function CardGrid({
   const eagerCount = columns * 2;
 
   // ── Render ─────────────────────────────────────────────────────────
-  return (
-    <div ref={containerRef}>
-      <CardGridDebug
-        enabled={debugOverlayEnabled}
-        virtualizer={virtualizer}
-        virtualRows={virtualRows}
-        containerRef={containerRef}
-        columns={columns}
-        labelHeight={labelHeight}
-        thumbWidth={thumbWidth}
-        cardFields={cardFields}
-        estimateSize={estimateSize}
-      />
-      {cards.length === 0 ? (
+  if (cards.length === 0) {
+    return (
+      <div ref={containerRef}>
         <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
           {totalCards === 0 ? (
             <>
@@ -319,194 +432,130 @@ export function CardGrid({
             </>
           )}
         </div>
-      ) : (
-        <>
-          {/* Scroll position indicator — appears while scrolling, fades out after idle.
-              Draggable: grab to scrub through the page; snaps to set headers on release. */}
-          <div
-            ref={indicatorRef}
-            className={cn(
-              "fixed z-20 transition-opacity duration-300",
-              indicator.visible ? "pointer-events-auto" : "pointer-events-none",
-              IS_COARSE_POINTER && "p-2 -m-2",
-            )}
-            style={{
-              right: 20,
-              top: 0,
-              transform: `translateY(calc(${indicator.dragging ? dragTopRef.current : indicator.indicatorTop}px - 50%))`,
-              willChange: "transform",
-              opacity: indicator.visible ? 1 : 0,
-              touchAction: "none",
-            }}
-            onPointerDown={handleIndicatorPointerDown}
-            onPointerMove={(e) => {
-              if (isDraggingRef.current) {
-                handleMoveRef.current(e.clientY);
-              }
-            }}
-            onPointerUp={() => {
-              if (isDraggingRef.current) {
-                handleUpRef.current();
-              }
-            }}
-            onPointerCancel={() => {
-              if (isDraggingRef.current) {
-                handleUpRef.current();
-              }
-            }}
-            onLostPointerCapture={() => {
-              if (isDraggingRef.current) {
-                handleUpRef.current();
-              }
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            <div
-              className={cn(
-                "flex origin-right items-center gap-1.5 transition-transform duration-200 ease-out",
-                indicator.dragging ? "scale-110" : "scale-100",
-              )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef}>
+      <CardGridDebug
+        enabled={debugOverlayEnabled}
+        virtualizer={virtualizer}
+        virtualRows={virtualRows}
+        containerRef={containerRef}
+        columns={columns}
+        labelHeight={labelHeight}
+        thumbWidth={thumbWidth}
+        cardFields={cardFields}
+        estimateSize={estimateSize}
+      />
+
+      <ScrollIndicator
+        indicator={indicator}
+        indicatorRef={indicatorRef}
+        cardIdRef={cardIdRef}
+        dragTopRef={dragTopRef}
+        isDraggingRef={isDraggingRef}
+        handleIndicatorPointerDown={handleIndicatorPointerDown}
+        handleMoveRef={handleMoveRef}
+        handleUpRef={handleUpRef}
+        handleMouseEnter={handleMouseEnter}
+        handleMouseLeave={handleMouseLeave}
+        multipleGroups={multipleGroups}
+        snapPoints={snapPoints}
+      />
+
+      {/* Sticky set header overlay */}
+      <div className="sticky z-10 h-0" style={{ top: APP_HEADER_HEIGHT }}>
+        {multipleGroups && activeHeaderRow && (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+              onClick={() => scrollToGroup(activeHeaderRow.set.name)}
             >
-              <div
-                className={cn(
-                  "inline-flex items-center whitespace-nowrap rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none",
-                  IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
-                  indicator.dragging
-                    ? "cursor-grabbing ring-primary/60"
-                    : "cursor-grab ring-primary/40",
-                )}
-              >
-                <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
-              </div>
-              <div className="size-2 shrink-0 rounded-full bg-primary/70" />
-            </div>
+              <SetHeaderLabel
+                slug={activeHeaderRow.set.slug}
+                name={activeHeaderRow.set.name}
+                cardCount={activeHeaderRow.cardCount}
+              />
+            </button>
           </div>
+        )}
+      </div>
+      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+        {items.map((vItem) => {
+          const row = virtualRows[vItem.index];
+          if (!row) {
+            return null;
+          }
 
-          {/* Ghost badges — set-section marks, visible only while dragging */}
-          {indicator.visible &&
-            multipleGroups &&
-            snapPoints.map((pt) => (
-              <div
-                key={pt.rowIndex}
-                className={cn(
-                  "pointer-events-none fixed z-19 transition-opacity duration-300",
-                  IS_COARSE_POINTER && "p-2 -m-2",
-                )}
-                style={{
-                  right: 20,
-                  top: pt.screenY,
-                  transform: "translateY(-50%)",
-                  opacity: indicator.dragging ? 1 : 0,
-                }}
-              >
-                <div className="flex items-center gap-1.5">
-                  <div
-                    className={cn(
-                      "whitespace-nowrap rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none",
-                      IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
-                    )}
+          return (
+            <div
+              key={vItem.key}
+              data-index={vItem.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${vItem.start - scrollMargin}px)`,
+              }}
+            >
+              {row.kind === "header" ? (
+                // ⚠ pt-4 / pb-2 are mirrored as HEADER_PT / HEADER_PB above — update both together
+                <div className="flex items-center gap-3 pt-4 pb-2">
+                  <div className="h-px flex-1 bg-border" />
+                  <button
+                    type="button"
+                    className="flex cursor-pointer items-center gap-2"
+                    onClick={() => scrollToGroup(row.set.name)}
                   >
-                    {pt.firstCardId || pt.setInfo.slug}
-                  </div>
-                  <div className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
+                    <SetHeaderLabel
+                      slug={row.set.slug}
+                      name={row.set.name}
+                      cardCount={row.cardCount}
+                    />
+                  </button>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
-              </div>
-            ))}
-
-          {/* Sticky set header overlay */}
-          <div className="sticky z-10 h-0" style={{ top: APP_HEADER_HEIGHT }}>
-            {multipleGroups && activeHeaderRow && (
-              <div className="flex justify-center pt-2">
-                <button
-                  type="button"
-                  className="flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1 shadow-sm ring-1 ring-border/50 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-                  onClick={() => scrollToGroup(activeHeaderRow.set.name)}
-                >
-                  <SetHeaderLabel
-                    slug={activeHeaderRow.set.slug}
-                    name={activeHeaderRow.set.name}
-                    cardCount={activeHeaderRow.cardCount}
-                  />
-                </button>
-              </div>
-            )}
-          </div>
-          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
-            {items.map((vItem) => {
-              const row = virtualRows[vItem.index];
-              if (!row) {
-                return null;
-              }
-
-              return (
+              ) : (
                 <div
-                  key={vItem.key}
-                  data-index={vItem.index}
-                  ref={virtualizer.measureElement}
                   style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${vItem.start - scrollMargin}px)`,
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                    gap: `${GAP}px`,
                   }}
                 >
-                  {row.kind === "header" ? (
-                    // ⚠ pt-4 / pb-2 are mirrored as HEADER_PT / HEADER_PB above — update both together
-                    <div className="flex items-center gap-3 pt-4 pb-2">
-                      <div className="h-px flex-1 bg-border" />
-                      <button
-                        type="button"
-                        className="flex cursor-pointer items-center gap-2"
-                        onClick={() => scrollToGroup(row.set.name)}
-                      >
-                        <SetHeaderLabel
-                          slug={row.set.slug}
-                          name={row.set.name}
-                          cardCount={row.cardCount}
-                        />
-                      </button>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                        gap: `${GAP}px`,
-                      }}
-                    >
-                      {row.items.map((printing, colIndex) => {
-                        const flatIndex = row.cardsBefore + colIndex;
-                        return (
-                          <CardThumbnail
-                            key={printing.id}
-                            printing={printing}
-                            onClick={onCardClick}
-                            onSiblingClick={onSiblingClick}
-                            showImages={showImages}
-                            isSelected={printing.id === selectedCardId}
-                            isFlashing={printing.id === flashCardId}
-                            siblings={printingsByCardId.get(printing.card.id)}
-                            priceRange={priceRangeByCardId?.get(printing.card.id)}
-                            view={view}
-                            cardFields={cardFields}
-                            cardWidth={thumbWidth}
-                            priority={flatIndex < eagerCount}
-                            ownedCount={ownedCounts?.get(printing.id)}
-                            onAdd={onAddCard}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
+                  {row.items.map((printing, colIndex) => {
+                    const flatIndex = row.cardsBefore + colIndex;
+                    return (
+                      <CardThumbnail
+                        key={printing.id}
+                        printing={printing}
+                        onClick={onCardClick}
+                        onSiblingClick={onSiblingClick}
+                        showImages={showImages}
+                        isSelected={printing.id === selectedCardId}
+                        isFlashing={printing.id === flashCardId}
+                        siblings={printingsByCardId.get(printing.card.id)}
+                        priceRange={priceRangeByCardId?.get(printing.card.id)}
+                        view={view}
+                        cardFields={cardFields}
+                        cardWidth={thumbWidth}
+                        priority={flatIndex < eagerCount}
+                        ownedCount={ownedCounts?.get(printing.id)}
+                        onAdd={onAddCard}
+                      />
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-        </>
-      )}
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
