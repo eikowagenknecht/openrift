@@ -3,45 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import type { CardFields } from "@/lib/card-fields";
+import { writeCachedPreferences } from "@/lib/preferences-cache";
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
-const CACHE_KEY = "user-preferences";
-
 function applyTheme(theme: "light" | "dark") {
   document.documentElement.classList.toggle("dark", theme === "dark");
-}
-
-function readCachedPreferences(): UserPreferencesResponse | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (raw) {
-      return JSON.parse(raw) as UserPreferencesResponse;
-    }
-  } catch {
-    // Ignore corrupt cache
-  }
-  return null;
-}
-
-function writeCachedPreferences(prefs: UserPreferencesResponse) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(prefs));
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-function applyPreferences(prefs: UserPreferencesResponse) {
-  useDisplayStore.setState({
-    showImages: prefs.showImages,
-    richEffects: prefs.richEffects,
-    cardFields: prefs.cardFields,
-  });
-  useThemeStore.setState({ theme: prefs.theme });
-  applyTheme(prefs.theme);
 }
 
 async function fetchPreferences(): Promise<UserPreferencesResponse> {
@@ -77,27 +46,24 @@ function prefsChanged(
   );
 }
 
+function getCurrentPrefs(): UserPreferencesResponse {
+  const { showImages, richEffects, cardFields } = useDisplayStore.getState();
+  const { theme } = useThemeStore.getState();
+  return { showImages, richEffects, cardFields, theme };
+}
+
 /**
  * Syncs display and theme stores with the server for authenticated users.
  * Call this once in the app layout, passing `enabled: true` when the user is logged in.
  *
- * On mount, applies cached preferences from localStorage for instant restoration,
- * then fetches from the server and overwrites if different.
+ * The display store initializes from the localStorage cache at module load time,
+ * so preferences are correct from the first render. This hook fetches the server
+ * values to confirm/overwrite, and writes back on changes.
  */
 export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const hydrating = useRef(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  const appliedCache = useRef(false);
-
-  // Apply cached preferences synchronously on first mount to avoid flash
-  if (enabled && !appliedCache.current) {
-    appliedCache.current = true;
-    const cached = readCachedPreferences();
-    if (cached) {
-      applyPreferences(cached);
-    }
-  }
 
   const { data } = useQuery({
     queryKey: queryKeys.preferences.all,
@@ -112,7 +78,13 @@ export function usePreferencesSync(enabled: boolean) {
     }
     hydrating.current = true;
 
-    applyPreferences(data);
+    useDisplayStore.setState({
+      showImages: data.showImages,
+      richEffects: data.richEffects,
+      cardFields: data.cardFields,
+    });
+    useThemeStore.setState({ theme: data.theme });
+    applyTheme(data.theme);
     writeCachedPreferences(data);
 
     // Allow a tick for the store subscriptions to fire before we start listening
@@ -123,12 +95,6 @@ export function usePreferencesSync(enabled: boolean) {
 
   // Subscribe to store changes and debounce-write to server
   useEffect(() => {
-    function getCurrentPrefs(): UserPreferencesResponse {
-      const { showImages, richEffects, cardFields } = useDisplayStore.getState();
-      const { theme } = useThemeStore.getState();
-      return { showImages, richEffects, cardFields, theme };
-    }
-
     function scheduleSave() {
       if (hydrating.current) {
         return;
