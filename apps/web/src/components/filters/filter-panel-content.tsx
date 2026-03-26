@@ -1,4 +1,5 @@
 import type { AvailableFilters, RangeKey } from "@openrift/shared";
+import type { ReactNode } from "react";
 
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ const RANGE_SECTIONS: {
   { key: "energy", label: "Energy" },
   { key: "might", label: "Might" },
   { key: "power", label: "Power" },
-  { key: "price", label: "Price", step: 1, formatValue: (v) => `$${v}` },
+  { key: "price", label: "TCG Price", step: 1, formatValue: (v) => `$${v}` },
 ];
 
 interface FilterPanelContentProps {
@@ -100,36 +101,26 @@ export function FilterPanelContent({
         />
       )}
       {(availableFilters.hasSigned || availableFilters.hasPromo) && (
-        <div className={layout === "drawer" ? "flex min-w-0 gap-2" : "block space-y-1.5"}>
-          <p
-            className={cn(
-              "text-xs font-medium text-muted-foreground",
-              layout === "drawer" && "w-16 shrink-0 pt-1",
-            )}
-          >
-            Special
-          </p>
-          <div className="flex flex-1 flex-wrap gap-1">
-            {availableFilters.hasSigned && (
-              <Badge
-                variant={filterState.signed === null ? "outline" : "default"}
-                className="cursor-pointer"
-                onClick={toggleSigned}
-              >
-                {filterState.signed === "false" ? "Not Signed" : "Signed"}
-              </Badge>
-            )}
-            {availableFilters.hasPromo && (
-              <Badge
-                variant={filterState.promo === null ? "outline" : "default"}
-                className="cursor-pointer"
-                onClick={togglePromo}
-              >
-                {filterState.promo === "false" ? "Not Promo" : "Promo"}
-              </Badge>
-            )}
-          </div>
-        </div>
+        <FilterSection label="Special" layout={layout}>
+          {availableFilters.hasSigned && (
+            <Badge
+              variant={filterState.signed === null ? "outline" : "default"}
+              className="cursor-pointer"
+              onClick={toggleSigned}
+            >
+              {filterState.signed === "false" ? "Not Signed" : "Signed"}
+            </Badge>
+          )}
+          {availableFilters.hasPromo && (
+            <Badge
+              variant={filterState.promo === null ? "outline" : "default"}
+              className="cursor-pointer"
+              onClick={togglePromo}
+            >
+              {filterState.promo === "false" ? "Not Promo" : "Promo"}
+            </Badge>
+          )}
+        </FilterSection>
       )}
       <div
         className={layout === "drawer" ? "flex flex-col gap-3" : "flex flex-row flex-wrap gap-4"}
@@ -189,7 +180,7 @@ function RangeFilterSection({
       <p
         className={cn(
           "text-xs font-medium text-muted-foreground",
-          layout === "drawer" && "w-16 shrink-0",
+          layout === "drawer" && "w-18 shrink-0",
         )}
       >
         {label}
@@ -230,16 +221,18 @@ function FilterSection({
   iconPath,
   displayLabel,
   layout = "inline",
+  children,
 }: {
   label: string;
-  options: string[];
-  selected: string[];
-  onToggle: (value: string) => void;
+  layout?: "inline" | "drawer";
+  children?: ReactNode;
+  options?: string[];
+  selected?: string[];
+  onToggle?: (value: string) => void;
   iconPath?: (value: string) => string | undefined;
   displayLabel?: (value: string) => string;
-  layout?: "inline" | "drawer";
 }) {
-  if (options.length === 0) {
+  if (!children && (!options || options.length === 0)) {
     return null;
   }
 
@@ -248,26 +241,27 @@ function FilterSection({
       <p
         className={cn(
           "text-xs font-medium text-muted-foreground",
-          layout === "drawer" && "w-16 shrink-0 pt-1",
+          layout === "drawer" && "w-18 shrink-0 pt-1",
         )}
       >
         {label}
       </p>
       <div className="flex flex-1 flex-wrap gap-1">
-        {options.map((option) => {
-          const icon = iconPath?.(option);
-          return (
-            <Badge
-              key={option}
-              variant={selected.includes(option) ? "default" : "outline"}
-              className="cursor-pointer gap-1"
-              onClick={() => onToggle(option)}
-            >
-              {icon && <CardIcon src={icon} />}
-              {displayLabel ? displayLabel(option) : option}
-            </Badge>
-          );
-        })}
+        {children ??
+          options?.map((option) => {
+            const icon = iconPath?.(option);
+            return (
+              <Badge
+                key={option}
+                variant={selected?.includes(option) ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => onToggle?.(option)}
+              >
+                {icon && <CardIcon src={icon} />}
+                {displayLabel ? displayLabel(option) : option}
+              </Badge>
+            );
+          })}
       </div>
     </div>
   );
