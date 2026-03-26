@@ -37,7 +37,7 @@ coverage/
 routeTree.gen.ts
 
 # Self-hosted card images (generated at runtime, bind-mounted in Docker)
-/card-images/
+card-images
 
 # Docker bind-mounted data (PostgreSQL, etc.)
 /data/

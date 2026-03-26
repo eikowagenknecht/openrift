@@ -5,9 +5,11 @@ interface FoilOverlayProps {
   shimmer?: boolean;
   /** Reduce intensity for background/stacked cards */
   dim?: boolean;
+  /** Start animation paused; unpause on group hover (e.g. fan siblings) */
+  paused?: boolean;
 }
 
-export function FoilOverlay({ active, shimmer, dim }: FoilOverlayProps) {
+export function FoilOverlay({ active, shimmer, dim, paused }: FoilOverlayProps) {
   return (
     <div
       className={cn(
@@ -18,6 +20,7 @@ export function FoilOverlay({ active, shimmer, dim }: FoilOverlayProps) {
         // 50% balances rainbow visibility without washing out card art; 25% for background cards
         active ? (dim ? "opacity-25" : "opacity-50") : "opacity-0",
         shimmer && active && "animate-foil-shimmer",
+        paused && "[animation-play-state:paused] group-hover:[animation-play-state:running]",
       )}
       style={
         shimmer
