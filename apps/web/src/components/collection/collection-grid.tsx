@@ -1,5 +1,6 @@
+import type { Printing } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { Check, Layers, Minus, Package, Plus, Trash2 } from "lucide-react";
+import { Check, Layers, Minus, Package, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -10,10 +11,62 @@ import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCollections } from "@/hooks/use-collections";
 import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
+import type { VisibleFields } from "@/lib/card-fields";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DisposeDialog } from "./dispose-dialog";
 import { MoveDialog } from "./move-dialog";
+
+interface SelectableCardProps {
+  printing: Printing;
+  isSelected: boolean;
+  onToggle: () => void;
+  showImages: boolean;
+  visibleFields: VisibleFields;
+  ownedCount?: number;
+}
+
+function SelectableCard({
+  printing,
+  isSelected,
+  onToggle,
+  showImages,
+  visibleFields,
+  ownedCount,
+}: SelectableCardProps) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label="Select card"
+        className={cn(
+          "absolute top-3 left-3 z-20 flex size-5 cursor-pointer items-center justify-center rounded border transition-all",
+          isSelected
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-white/70 bg-black/30 text-transparent hover:border-white hover:text-white/70",
+        )}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+      >
+        <Check className="size-3" />
+      </button>
+      {isSelected && (
+        <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
+      )}
+      <CardThumbnail
+        printing={printing}
+        onClick={onToggle}
+        showImages={showImages}
+        visibleFields={visibleFields}
+        view="printings"
+        ownedCount={ownedCount}
+      />
+    </div>
+  );
+}
 
 interface CollectionGridProps {
   collectionId?: string;
@@ -27,7 +80,8 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const showImages = useDisplayStore((state) => state.showImages);
   const visibleFields = useDisplayStore((state) => state.visibleFields);
 
-  const { selected, toggleSelect, toggleStack, selectAll, clearSelection } = useCardSelection();
+  const { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection } =
+    useCardSelection();
   const [stacked, setStacked] = useState(true);
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
@@ -58,8 +112,8 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     );
   };
 
-  const currentCollection = collections.find((col) => col.id === collectionId);
-  const addTarget = collectionId ?? collections.find((col) => col.isInbox)?.id;
+  const currentCollection = collections.find((collection) => collection.id === collectionId);
+  const addTarget = collectionId ?? collections.find((collection) => collection.isInbox)?.id;
 
   if (stacks.length === 0) {
     return (
@@ -121,7 +175,12 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           <Layers className="mr-1 size-3" />
           {stacked ? "Expand" : "Stack"}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => selectAll(allCopyIds)} className="text-xs">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => toggleSelectAll(allCopyIds)}
+          className="text-xs"
+        >
           {selected.size === totalCopies ? "Deselect all" : "Select all"}
         </Button>
       </div>
@@ -129,66 +188,27 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {/* Grid */}
       <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {stacked
-          ? stacks.map((stack) => {
-              const stackSelected = stack.copyIds.every((id) => selected.has(id));
-              return (
-                <div key={stack.printingId} className="relative">
-                  <button
-                    type="button"
-                    className={`absolute top-3 left-3 z-20 flex size-5 cursor-pointer items-center justify-center rounded border transition-all ${
-                      stackSelected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-white/70 bg-black/30 text-transparent hover:border-white hover:text-white/70"
-                    }`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleStack(stack.copyIds);
-                    }}
-                  >
-                    <Check className="size-3" />
-                  </button>
-                  {stackSelected && (
-                    <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
-                  )}
-                  <CardThumbnail
-                    printing={stack.printing}
-                    onClick={() => toggleStack(stack.copyIds)}
-                    showImages={showImages}
-                    visibleFields={visibleFields}
-                    view="printings"
-                    ownedCount={stack.copyIds.length > 1 ? stack.copyIds.length : undefined}
-                  />
-                </div>
-              );
-            })
+          ? stacks.map((stack) => (
+              <SelectableCard
+                key={stack.printingId}
+                printing={stack.printing}
+                isSelected={stack.copyIds.every((id) => selected.has(id))}
+                onToggle={() => toggleStack(stack.copyIds)}
+                showImages={showImages}
+                visibleFields={visibleFields}
+                ownedCount={stack.copyIds.length > 1 ? stack.copyIds.length : undefined}
+              />
+            ))
           : stacks.flatMap((stack) =>
               stack.copyIds.map((copyId) => (
-                <div key={copyId} className="relative">
-                  <button
-                    type="button"
-                    className={`absolute top-3 left-3 z-20 flex size-5 cursor-pointer items-center justify-center rounded border transition-all ${
-                      selected.has(copyId)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-white/70 bg-black/30 text-transparent hover:border-white hover:text-white/70"
-                    }`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleSelect(copyId);
-                    }}
-                  >
-                    <Check className="size-3" />
-                  </button>
-                  {selected.has(copyId) && (
-                    <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
-                  )}
-                  <CardThumbnail
-                    printing={stack.printing}
-                    onClick={() => toggleSelect(copyId)}
-                    showImages={showImages}
-                    visibleFields={visibleFields}
-                    view="printings"
-                  />
-                </div>
+                <SelectableCard
+                  key={copyId}
+                  printing={stack.printing}
+                  isSelected={selected.has(copyId)}
+                  onToggle={() => toggleSelect(copyId)}
+                  showImages={showImages}
+                  visibleFields={visibleFields}
+                />
               )),
             )}
       </div>
@@ -215,8 +235,8 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             <Trash2 className="mr-1 size-3.5" />
             Dispose
           </Button>
-          <Button variant="ghost" size="sm" onClick={clearSelection}>
-            ✕
+          <Button variant="ghost" size="sm" onClick={clearSelection} aria-label="Clear selection">
+            <X className="size-3.5" />
           </Button>
         </div>
       )}
@@ -224,7 +244,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       <MoveDialog
         open={moveOpen}
         onOpenChange={setMoveOpen}
-        collections={collections.filter((col) => col.id !== collectionId)}
+        collections={collections.filter((collection) => collection.id !== collectionId)}
         onMove={handleMove}
         isPending={moveCopies.isPending}
       />
