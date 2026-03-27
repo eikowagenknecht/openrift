@@ -149,10 +149,10 @@ html.hide-scrollbar::-webkit-scrollbar {
   --text-2xs--line-height: 1rem;
   --header-height: 3.5rem;
   --sticky-top: calc(var(--header-height) + 1rem);
-  --breakpoint-wide: 112.5rem;
-  --container-max-wide: 112.5rem;
-  --breakpoint-xwide: 140rem;
-  --container-max-xwide: 140rem;
+  --breakpoint-wide: 107.5rem;
+  --container-max-wide: 107.5rem;
+  --breakpoint-xwide: 135rem;
+  --container-max-xwide: 135rem;
   --breakpoint-xxwide: 160rem;
   --container-max-xxwide: 160rem;
   --aspect-card: 63 / 88; /* standard playing card (63×88mm) */
