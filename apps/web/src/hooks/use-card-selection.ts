@@ -4,7 +4,7 @@ interface UseCardSelectionResult {
   selected: Set<string>;
   toggleSelect: (copyId: string) => void;
   toggleStack: (copyIds: string[]) => void;
-  selectAll: (allCopyIds: string[]) => void;
+  toggleSelectAll: (allCopyIds: string[]) => void;
   clearSelection: () => void;
 }
 
@@ -42,7 +42,7 @@ export function useCardSelection(): UseCardSelectionResult {
     });
   };
 
-  const selectAll = (allCopyIds: string[]) => {
+  const toggleSelectAll = (allCopyIds: string[]) => {
     if (selected.size === allCopyIds.length) {
       setSelected(new Set());
     } else {
@@ -52,5 +52,5 @@ export function useCardSelection(): UseCardSelectionResult {
 
   const clearSelection = () => setSelected(new Set());
 
-  return { selected, toggleSelect, toggleStack, selectAll, clearSelection };
+  return { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection };
 }
