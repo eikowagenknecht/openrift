@@ -1,3 +1,4 @@
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { centsToDollars } from "@openrift/shared";
 import type {
   CatalogCardResponse,
@@ -5,12 +6,26 @@ import type {
   CatalogResponse,
   Marketplace,
 } from "@openrift/shared";
-import { Hono } from "hono";
+import { catalogResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
 import type { Variables } from "../../types.js";
 
-export const catalogRoute = new Hono<{ Variables: Variables }>()
+const getCatalog = createRoute({
+  method: "get",
+  path: "/catalog",
+  tags: ["Catalog"],
+  responses: {
+    200: {
+      content: { "application/json": { schema: catalogResponseSchema } },
+      description: "Full card catalog",
+    },
+  },
+});
+
+const catalogApp = new OpenAPIHono<{ Variables: Variables }>();
+catalogApp.use("/catalog", etag());
+export const catalogRoute = catalogApp
   /**
    * `GET /catalog` — Returns the full card catalog as {@link CatalogResponse}.
    *
@@ -18,7 +33,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
    * array (referencing cards by `cardId`), and a simple sets list. Latest
    * market prices are included directly on each printing.
    */
-  .get("/catalog", etag(), async (c) => {
+  .openapi(getCatalog, async (c) => {
     const { catalog, marketplace } = c.get("repos");
 
     const [sets, cardRows, printingRows, imageRows, priceRows] = await Promise.all([

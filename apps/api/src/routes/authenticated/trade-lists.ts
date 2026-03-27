@@ -1,5 +1,11 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { TradeListDetailResponse, TradeListListResponse } from "@openrift/shared";
+import {
+  tradeListDetailResponseSchema,
+  tradeListItemResponseSchema,
+  tradeListListResponseSchema,
+  tradeListResponseSchema,
+} from "@openrift/shared/response-schemas";
 import {
   createTradeListItemSchema,
   createTradeListSchema,
@@ -7,7 +13,6 @@ import {
   idParamSchema,
   updateTradeListSchema,
 } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -22,12 +27,103 @@ const patchFields: FieldMapping = {
   rules: (v) => ["rules", v ? JSON.stringify(v) : null],
 };
 
-export const tradeListsRoute = new Hono<{ Variables: Variables }>()
-  .basePath("/trade-lists")
-  .use(requireAuth)
+const listTradeLists = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Trade Lists"],
+  responses: {
+    200: {
+      content: { "application/json": { schema: tradeListListResponseSchema } },
+      description: "Success",
+    },
+  },
+});
 
+const createTradeList = createRoute({
+  method: "post",
+  path: "/",
+  tags: ["Trade Lists"],
+  request: {
+    body: { content: { "application/json": { schema: createTradeListSchema } } },
+  },
+  responses: {
+    201: {
+      content: { "application/json": { schema: tradeListResponseSchema } },
+      description: "Created",
+    },
+  },
+});
+
+const getTradeList = createRoute({
+  method: "get",
+  path: "/{id}",
+  tags: ["Trade Lists"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: tradeListDetailResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const updateTradeList = createRoute({
+  method: "patch",
+  path: "/{id}",
+  tags: ["Trade Lists"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: updateTradeListSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: tradeListResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const deleteTradeList = createRoute({
+  method: "delete",
+  path: "/{id}",
+  tags: ["Trade Lists"],
+  request: { params: idParamSchema },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const createTradeListItemRoute = createRoute({
+  method: "post",
+  path: "/{id}/items",
+  tags: ["Trade Lists"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: createTradeListItemSchema } } },
+  },
+  responses: {
+    201: {
+      content: { "application/json": { schema: tradeListItemResponseSchema } },
+      description: "Created",
+    },
+  },
+});
+
+const deleteTradeListItem = createRoute({
+  method: "delete",
+  path: "/{id}/items/{itemId}",
+  tags: ["Trade Lists"],
+  request: { params: idAndItemIdParamSchema },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const tradeListsApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/trade-lists");
+tradeListsApp.use(requireAuth);
+export const tradeListsRoute = tradeListsApp
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/", async (c) => {
+  .openapi(listTradeLists, async (c) => {
     const { tradeLists } = c.get("repos");
     const rows = await tradeLists.listForUser(getUserId(c));
     return c.json({
@@ -36,7 +132,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/", zValidator("json", createTradeListSchema), async (c) => {
+  .openapi(createTradeList, async (c) => {
     const { tradeLists } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -49,7 +145,7 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE (custom: returns trade list with enriched items) ────────────────
-  .get("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(getTradeList, async (c) => {
     const { tradeLists } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -69,26 +165,21 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .patch(
-    "/:id",
-    zValidator("param", idParamSchema),
-    zValidator("json", updateTradeListSchema),
-    async (c) => {
-      const { tradeLists } = c.get("repos");
-      const userId = getUserId(c);
-      const { id } = c.req.valid("param");
-      const body = c.req.valid("json");
-      const updates = buildPatchUpdates(body, patchFields);
-      const row = await tradeLists.update(id, userId, updates);
-      if (!row) {
-        throw new AppError(404, "NOT_FOUND", "Not found");
-      }
-      return c.json(toTradeList(row));
-    },
-  )
+  .openapi(updateTradeList, async (c) => {
+    const { tradeLists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
+    const updates = buildPatchUpdates(body, patchFields);
+    const row = await tradeLists.update(id, userId, updates);
+    if (!row) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
+    return c.json(toTradeList(row));
+  })
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(deleteTradeList, async (c) => {
     const { tradeLists } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await tradeLists.deleteByIdForUser(id, getUserId(c));
@@ -99,40 +190,35 @@ export const tradeListsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /trade-lists/:id/items ───────────────────────────────────────────
-  .post(
-    "/:id/items",
-    zValidator("param", idParamSchema),
-    zValidator("json", createTradeListItemSchema),
-    async (c) => {
-      const { tradeLists, copies } = c.get("repos");
-      const userId = getUserId(c);
-      const { id: tradeListId } = c.req.valid("param");
-      const body = c.req.valid("json");
+  .openapi(createTradeListItemRoute, async (c) => {
+    const { tradeLists, copies } = c.get("repos");
+    const userId = getUserId(c);
+    const { id: tradeListId } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-      // Verify trade list belongs to user
-      const tradeList = await tradeLists.exists(tradeListId, userId);
-      if (!tradeList) {
-        throw new AppError(404, "NOT_FOUND", "Trade list not found");
-      }
+    // Verify trade list belongs to user
+    const tradeList = await tradeLists.exists(tradeListId, userId);
+    if (!tradeList) {
+      throw new AppError(404, "NOT_FOUND", "Trade list not found");
+    }
 
-      // Verify copy belongs to user
-      const copy = await copies.existsForUser(body.copyId, userId);
-      if (!copy) {
-        throw new AppError(404, "NOT_FOUND", "Copy not found");
-      }
+    // Verify copy belongs to user
+    const copy = await copies.existsForUser(body.copyId, userId);
+    if (!copy) {
+      throw new AppError(404, "NOT_FOUND", "Copy not found");
+    }
 
-      const row = await tradeLists.createItem({
-        tradeListId: tradeListId,
-        userId: userId,
-        copyId: body.copyId,
-      });
+    const row = await tradeLists.createItem({
+      tradeListId: tradeListId,
+      userId: userId,
+      copyId: body.copyId,
+    });
 
-      return c.json(toTradeListItem(row), 201);
-    },
-  )
+    return c.json(toTradeListItem(row), 201);
+  })
 
   // ── DELETE /trade-lists/:id/items/:itemId ─────────────────────────────────
-  .delete("/:id/items/:itemId", zValidator("param", idAndItemIdParamSchema), async (c) => {
+  .openapi(deleteTradeListItem, async (c) => {
     const { tradeLists } = c.get("repos");
     const userId = getUserId(c);
     const { id: tradeListId, itemId } = c.req.valid("param");

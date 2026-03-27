@@ -1,5 +1,10 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { CopyCountResponse, CopyListResponse } from "@openrift/shared";
+import {
+  copyCountResponseSchema,
+  copyListResponseSchema,
+  copyResponseSchema,
+} from "@openrift/shared/response-schemas";
 import {
   addCopiesSchema,
   copiesQuerySchema,
@@ -7,7 +12,6 @@ import {
   idParamSchema,
   moveCopiesSchema,
 } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -15,14 +19,87 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import type { Variables } from "../../types.js";
 import { toCopy } from "../../utils/mappers.js";
 
-export const copiesRoute = new Hono<{ Variables: Variables }>()
-  .basePath("/copies")
-  .use(requireAuth)
+const listCopies = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Copies"],
+  request: { query: copiesQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: copyListResponseSchema } },
+      description: "Success",
+    },
+  },
+});
 
+const addCopies = createRoute({
+  method: "post",
+  path: "/",
+  tags: ["Copies"],
+  request: {
+    body: { content: { "application/json": { schema: addCopiesSchema } } },
+  },
+  responses: {
+    201: { description: "Created" },
+  },
+});
+
+const moveCopies = createRoute({
+  method: "post",
+  path: "/move",
+  tags: ["Copies"],
+  request: {
+    body: { content: { "application/json": { schema: moveCopiesSchema } } },
+  },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const disposeCopies = createRoute({
+  method: "post",
+  path: "/dispose",
+  tags: ["Copies"],
+  request: {
+    body: { content: { "application/json": { schema: disposeCopiesSchema } } },
+  },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const countCopies = createRoute({
+  method: "get",
+  path: "/count",
+  tags: ["Copies"],
+  responses: {
+    200: {
+      content: { "application/json": { schema: copyCountResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const getCopy = createRoute({
+  method: "get",
+  path: "/{id}",
+  tags: ["Copies"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: copyResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const copiesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/copies");
+copiesApp.use(requireAuth);
+export const copiesRoute = copiesApp
   // ── GET /copies ─────────────────────────────────────────────────────────────
   // All copies for the authenticated user (combined view)
 
-  .get("/", zValidator("query", copiesQuerySchema), async (c) => {
+  .openapi(listCopies, async (c) => {
     const { copies } = c.get("repos");
     const { cursor, limit: rawLimit } = c.req.valid("query");
     const limit = rawLimit ?? 200;
@@ -40,45 +117,45 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
   // ── POST /copies ────────────────────────────────────────────────────────────
   // Batch add copies (acquisition)
 
-  .post("/", zValidator("json", addCopiesSchema), async (c) => {
-    const { addCopies } = c.get("services");
+  .openapi(addCopies, async (c) => {
+    const { addCopies: addCopiesService } = c.get("services");
     const repos = c.get("repos");
     const transact = c.get("transact");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const created = await addCopies(repos, transact, userId, body.copies);
+    const created = await addCopiesService(repos, transact, userId, body.copies);
     return c.json(created, 201);
   })
 
   // ── POST /copies/move ───────────────────────────────────────────────────────
   // Move copies between collections (reorganization)
 
-  .post("/move", zValidator("json", moveCopiesSchema), async (c) => {
-    const { moveCopies } = c.get("services");
+  .openapi(moveCopies, async (c) => {
+    const { moveCopies: moveCopiesService } = c.get("services");
     const repos = c.get("repos");
     const transact = c.get("transact");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    await moveCopies(repos, transact, userId, body.copyIds, body.toCollectionId);
+    await moveCopiesService(repos, transact, userId, body.copyIds, body.toCollectionId);
     return c.body(null, 204);
   })
 
   // ── POST /copies/dispose ────────────────────────────────────────────────────
   // Dispose copies (disposal) — hard-deletes with metadata snapshot
 
-  .post("/dispose", zValidator("json", disposeCopiesSchema), async (c) => {
-    const { disposeCopies } = c.get("services");
+  .openapi(disposeCopies, async (c) => {
+    const { disposeCopies: disposeCopiesService } = c.get("services");
     const transact = c.get("transact");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    await disposeCopies(transact, userId, body.copyIds);
+    await disposeCopiesService(transact, userId, body.copyIds);
     return c.body(null, 204);
   })
 
   // ── GET /copies/count ───────────────────────────────────────────────────────
   // Returns owned count per printing for the authenticated user
 
-  .get("/count", async (c) => {
+  .openapi(countCopies, async (c) => {
     const { copies } = c.get("repos");
     const rows = await copies.countByPrintingForUser(getUserId(c));
 
@@ -90,7 +167,7 @@ export const copiesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /copies/:id ─────────────────────────────────────────────────────────
 
-  .get("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(getCopy, async (c) => {
     const { copies } = c.get("repos");
     const { id } = c.req.valid("param");
     const copy = await copies.getByIdForUser(id, getUserId(c));

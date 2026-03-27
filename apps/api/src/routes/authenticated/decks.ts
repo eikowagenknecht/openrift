@@ -1,4 +1,4 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type {
   DeckAvailabilityItemResponse,
   DeckAvailabilityResponse,
@@ -8,13 +8,19 @@ import type {
   DeckZone,
 } from "@openrift/shared";
 import {
+  deckAvailabilityResponseSchema,
+  deckCardsResponseSchema,
+  deckDetailResponseSchema,
+  deckListResponseSchema,
+  deckResponseSchema,
+} from "@openrift/shared/response-schemas";
+import {
   createDeckSchema,
   decksQuerySchema,
   idParamSchema,
   updateDeckCardsSchema,
   updateDeckSchema,
 } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -72,12 +78,107 @@ const patchFields: FieldMapping = {
   isPublic: "isPublic",
 };
 
-export const decksRoute = new Hono<{ Variables: Variables }>()
-  .basePath("/decks")
-  .use(requireAuth)
+const listDecks = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Decks"],
+  request: { query: decksQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckListResponseSchema } },
+      description: "Success",
+    },
+  },
+});
 
+const createDeck = createRoute({
+  method: "post",
+  path: "/",
+  tags: ["Decks"],
+  request: {
+    body: { content: { "application/json": { schema: createDeckSchema } } },
+  },
+  responses: {
+    201: {
+      content: { "application/json": { schema: deckResponseSchema } },
+      description: "Created",
+    },
+  },
+});
+
+const getDeck = createRoute({
+  method: "get",
+  path: "/{id}",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckDetailResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const updateDeck = createRoute({
+  method: "patch",
+  path: "/{id}",
+  tags: ["Decks"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: updateDeckSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const deleteDeck = createRoute({
+  method: "delete",
+  path: "/{id}",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const replaceDeckCards = createRoute({
+  method: "put",
+  path: "/{id}/cards",
+  tags: ["Decks"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: updateDeckCardsSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCardsResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const getDeckAvailability = createRoute({
+  method: "get",
+  path: "/{id}/availability",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckAvailabilityResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const decksApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/decks");
+decksApp.use(requireAuth);
+export const decksRoute = decksApp
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/", zValidator("query", decksQuerySchema), async (c) => {
+  .openapi(listDecks, async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { wanted } = c.req.valid("query");
@@ -86,7 +187,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/", zValidator("json", createDeckSchema), async (c) => {
+  .openapi(createDeck, async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -102,7 +203,7 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE (custom: returns deck with deck_cards joined) ───────────────────
-  .get("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(getDeck, async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -123,26 +224,21 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .patch(
-    "/:id",
-    zValidator("param", idParamSchema),
-    zValidator("json", updateDeckSchema),
-    async (c) => {
-      const { decks } = c.get("repos");
-      const userId = getUserId(c);
-      const { id } = c.req.valid("param");
-      const body = c.req.valid("json");
-      const updates = buildPatchUpdates(body, patchFields);
-      const row = await decks.update(id, userId, updates);
-      if (!row) {
-        throw new AppError(404, "NOT_FOUND", "Not found");
-      }
-      return c.json(toDeck(row));
-    },
-  )
+  .openapi(updateDeck, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
+    const updates = buildPatchUpdates(body, patchFields);
+    const row = await decks.update(id, userId, updates);
+    if (!row) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
+    return c.json(toDeck(row));
+  })
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(deleteDeck, async (c) => {
     const { decks } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await decks.deleteByIdForUser(id, getUserId(c));
@@ -154,34 +250,29 @@ export const decksRoute = new Hono<{ Variables: Variables }>()
 
   // ── PUT /decks/:id/cards ──────────────────────────────────────────────────
   // Full replace of deck cards
-  .put(
-    "/:id/cards",
-    zValidator("param", idParamSchema),
-    zValidator("json", updateDeckCardsSchema),
-    async (c) => {
-      const { decks } = c.get("repos");
-      const userId = getUserId(c);
-      const { id } = c.req.valid("param");
-      const body = c.req.valid("json");
+  .openapi(replaceDeckCards, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-      // Verify deck belongs to user
-      const deck = await decks.getIdAndFormat(id, userId);
-      if (!deck) {
-        throw new AppError(404, "NOT_FOUND", "Not found");
-      }
+    // Verify deck belongs to user
+    const deck = await decks.getIdAndFormat(id, userId);
+    if (!deck) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
 
-      validateFormatRules(deck.format, body.cards);
+    validateFormatRules(deck.format, body.cards);
 
-      await decks.replaceCards(id, body.cards);
+    await decks.replaceCards(id, body.cards);
 
-      const cardRows = await decks.cardsWithDetails(id, userId);
-      return c.json({ cards: cardRows.map((r) => toDeckCard(r)) });
-    },
-  )
+    const cardRows = await decks.cardsWithDetails(id, userId);
+    return c.json({ cards: cardRows.map((r) => toDeckCard(r)) });
+  })
 
   // ── GET /decks/:id/availability ───────────────────────────────────────────
   // For a wanted deck, returns per-card availability from deckbuilding collections
-  .get("/:id/availability", zValidator("param", idParamSchema), async (c) => {
+  .openapi(getDeckAvailability, async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");

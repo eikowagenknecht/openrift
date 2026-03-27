@@ -1,6 +1,5 @@
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
 
 import type { Variables } from "../../types.js";
 
@@ -23,13 +22,97 @@ const unignoreCandidatePrintingSchema = z.object({
   finish: z.string().min(1).nullable(),
 });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listIgnoredCandidates = createRoute({
+  method: "get",
+  path: "/ignored-candidates",
+  tags: ["Admin - Ignored Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            cards: z.array(
+              z.object({
+                id: z.string(),
+                provider: z.string(),
+                externalId: z.string(),
+                createdAt: z.string(),
+              }),
+            ),
+            printings: z.array(
+              z.object({
+                id: z.string(),
+                provider: z.string(),
+                externalId: z.string(),
+                finish: z.string().nullable(),
+                createdAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List ignored candidates",
+    },
+  },
+});
+
+const ignoreCard = createRoute({
+  method: "post",
+  path: "/ignored-candidates/cards",
+  tags: ["Admin - Ignored Candidates"],
+  request: {
+    body: { content: { "application/json": { schema: ignoreCandidateCardSchema } } },
+  },
+  responses: {
+    204: { description: "Card ignored" },
+  },
+});
+
+const unignoreCard = createRoute({
+  method: "delete",
+  path: "/ignored-candidates/cards",
+  tags: ["Admin - Ignored Candidates"],
+  request: {
+    body: { content: { "application/json": { schema: ignoreCandidateCardSchema } } },
+  },
+  responses: {
+    204: { description: "Card unignored" },
+  },
+});
+
+const ignorePrinting = createRoute({
+  method: "post",
+  path: "/ignored-candidates/printings",
+  tags: ["Admin - Ignored Candidates"],
+  request: {
+    body: { content: { "application/json": { schema: ignoreCandidatePrintingSchema } } },
+  },
+  responses: {
+    204: { description: "Printing ignored" },
+  },
+});
+
+const unignorePrinting = createRoute({
+  method: "delete",
+  path: "/ignored-candidates/printings",
+  tags: ["Admin - Ignored Candidates"],
+  request: {
+    body: { content: { "application/json": { schema: unignoreCandidatePrintingSchema } } },
+  },
+  responses: {
+    204: { description: "Printing unignored" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const ignoredCandidatesRoute = new Hono<{ Variables: Variables }>()
+export const ignoredCandidatesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── GET /admin/ignored-candidates ──────────────────────────────────────────────
 
-  .get("/ignored-candidates", async (c) => {
+  .openapi(listIgnoredCandidates, async (c) => {
     const { ignoredCandidates } = c.get("repos");
 
     const [cards, printings] = await Promise.all([
@@ -56,7 +139,7 @@ export const ignoredCandidatesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-candidates/cards ─────────────────────────────────────
 
-  .post("/ignored-candidates/cards", zValidator("json", ignoreCandidateCardSchema), async (c) => {
+  .openapi(ignoreCard, async (c) => {
     const { ignoredCandidates } = c.get("repos");
     const { provider, externalId } = c.req.valid("json");
 
@@ -66,7 +149,7 @@ export const ignoredCandidatesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /admin/ignored-candidates/cards ───────────────────────────────────
 
-  .delete("/ignored-candidates/cards", zValidator("json", ignoreCandidateCardSchema), async (c) => {
+  .openapi(unignoreCard, async (c) => {
     const { ignoredCandidates } = c.get("repos");
     const { provider, externalId } = c.req.valid("json");
 
@@ -76,28 +159,20 @@ export const ignoredCandidatesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-candidates/printings ─────────────────────────────────
 
-  .post(
-    "/ignored-candidates/printings",
-    zValidator("json", ignoreCandidatePrintingSchema),
-    async (c) => {
-      const { ignoredCandidates } = c.get("repos");
-      const { provider, externalId, finish } = c.req.valid("json");
+  .openapi(ignorePrinting, async (c) => {
+    const { ignoredCandidates } = c.get("repos");
+    const { provider, externalId, finish } = c.req.valid("json");
 
-      await ignoredCandidates.ignorePrinting({ provider, externalId, finish: finish ?? null });
-      return c.body(null, 204);
-    },
-  )
+    await ignoredCandidates.ignorePrinting({ provider, externalId, finish: finish ?? null });
+    return c.body(null, 204);
+  })
 
   // ── DELETE /admin/ignored-candidates/printings ───────────────────────────────
 
-  .delete(
-    "/ignored-candidates/printings",
-    zValidator("json", unignoreCandidatePrintingSchema),
-    async (c) => {
-      const { ignoredCandidates } = c.get("repos");
-      const { provider, externalId, finish } = c.req.valid("json");
+  .openapi(unignorePrinting, async (c) => {
+    const { ignoredCandidates } = c.get("repos");
+    const { provider, externalId, finish } = c.req.valid("json");
 
-      await ignoredCandidates.unignorePrinting(provider, externalId, finish);
-      return c.body(null, 204);
-    },
-  );
+    await ignoredCandidates.unignorePrinting(provider, externalId, finish);
+    return c.body(null, 204);
+  });

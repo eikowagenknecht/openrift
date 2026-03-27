@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./schemas": "./src/schemas.ts",
+    "./response-schemas": "./src/response-schemas.ts",
     "./utils": "./src/utils.ts",
     "./keywords": "./src/keywords.ts",
     "./types": "./src/types/index.ts",
@@ -24,6 +25,7 @@
     "make-admin": "bun --env-file=../../.env ../../scripts/make-admin.ts"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "8.5.0",
     "pino": "10.3.1",
     "zod": "4.3.6"
   },

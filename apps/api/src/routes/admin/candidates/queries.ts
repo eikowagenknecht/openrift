@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
 
 import {
   buildCandidateCardDetail,
@@ -8,39 +9,178 @@ import {
 } from "../../../services/candidate-queries.js";
 import type { Variables } from "../../../types.js";
 
-export const queriesRoute = new Hono<{ Variables: Variables }>()
-  .get("/all-cards", async (c) => {
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const allCards = createRoute({
+  method: "get",
+  path: "/all-cards",
+  tags: ["Admin - Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(
+            z.object({
+              id: z.string(),
+              slug: z.string(),
+              name: z.string(),
+              type: z.string(),
+            }),
+          ),
+        },
+      },
+      description: "All candidate cards",
+    },
+  },
+});
+
+const providerNames = createRoute({
+  method: "get",
+  path: "/provider-names",
+  tags: ["Admin - Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.array(z.string()) },
+      },
+      description: "Distinct provider names",
+    },
+  },
+});
+
+const providerStats = createRoute({
+  method: "get",
+  path: "/provider-stats",
+  tags: ["Admin - Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(
+            z.object({
+              provider: z.string(),
+              cardCount: z.number(),
+              printingCount: z.number(),
+              lastUpdated: z.string(),
+            }),
+          ),
+        },
+      },
+      description: "Provider statistics",
+    },
+  },
+});
+
+const candidateCardSummarySchema = z.object({
+  cardSlug: z.string().nullable(),
+  name: z.string(),
+  normalizedName: z.string(),
+  shortCodes: z.array(z.string()),
+  stagingShortCodes: z.array(z.string()),
+  candidateCount: z.number(),
+  uncheckedCardCount: z.number(),
+  uncheckedPrintingCount: z.number(),
+  hasGallery: z.boolean(),
+  suggestedCardSlug: z.string().nullable(),
+});
+
+const listCandidates = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Admin - Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.array(candidateCardSummarySchema) },
+      },
+      description: "Candidate card list",
+    },
+  },
+});
+
+const exportCandidates = createRoute({
+  method: "get",
+  path: "/export",
+  tags: ["Admin - Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.array(z.object({}).passthrough()) },
+      },
+      description: "Export candidates",
+    },
+  },
+});
+
+const getCandidateCard = createRoute({
+  method: "get",
+  path: "/{cardId}",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({}).passthrough() },
+      },
+      description: "Candidate card detail",
+    },
+  },
+});
+
+const getUnmatchedDetail = createRoute({
+  method: "get",
+  path: "/new/{name}",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ name: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({}).passthrough() },
+      },
+      description: "Unmatched candidate detail",
+    },
+  },
+});
+
+// ── Route ───────────────────────────────────────────────────────────────────
+
+export const queriesRoute = new OpenAPIHono<{ Variables: Variables }>()
+  .openapi(allCards, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await candidateCards.listAllCards());
   })
 
-  .get("/provider-names", async (c) => {
+  .openapi(providerNames, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await candidateCards.distinctProviderNames());
   })
 
-  .get("/provider-stats", async (c) => {
+  .openapi(providerStats, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await candidateCards.providerStats());
   })
 
-  .get("/", async (c) => {
+  .openapi(listCandidates, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await buildCandidateCardList(candidateCards));
   })
 
-  .get("/export", async (c) => {
+  .openapi(exportCandidates, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await buildExport(candidateCards));
   })
 
-  .get("/:cardId", async (c) => {
+  .openapi(getCandidateCard, async (c) => {
     const { candidateCards } = c.get("repos");
-    return c.json(await buildCandidateCardDetail(candidateCards, c.req.param("cardId")));
+    return c.json(await buildCandidateCardDetail(candidateCards, c.req.valid("param").cardId));
   })
 
-  .get("/new/:name", async (c) => {
+  .openapi(getUnmatchedDetail, async (c) => {
     const { candidateCards } = c.get("repos");
-    const name = decodeURIComponent(c.req.param("name"));
+    const name = decodeURIComponent(c.req.valid("param").name);
     return c.json(await buildUnmatchedDetail(candidateCards, name));
   });

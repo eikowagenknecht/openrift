@@ -19,7 +19,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@hono/zod-validator": "0.7.6",
+    "@hono/swagger-ui": "0.6.1",
+    "@hono/zod-openapi": "1.2.3",
     "@openrift/shared": "workspace:*",
     "better-auth": "1.5.6",
     "croner": "10.0.1",

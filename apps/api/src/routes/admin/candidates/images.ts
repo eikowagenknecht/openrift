@@ -1,9 +1,9 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem path join
 import { join } from "node:path";
 
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { v7 as uuidv7 } from "uuid";
+import { z } from "zod";
 
 import { AppError } from "../../../errors.js";
 import {
@@ -22,11 +22,113 @@ import {
   uploadImageFormSchema,
 } from "./schemas.js";
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const setImage = createRoute({
+  method: "post",
+  path: "/candidate-printings/{id}/set-image",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { "application/json": { schema: setImageSchema } } },
+  },
+  responses: {
+    204: { description: "Image set" },
+  },
+});
+
+const deleteImage = createRoute({
+  method: "delete",
+  path: "/printing-images/{imageId}",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ imageId: z.string() }),
+  },
+  responses: {
+    204: { description: "Image deleted" },
+  },
+});
+
+const activateImage = createRoute({
+  method: "post",
+  path: "/printing-images/{imageId}/activate",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ imageId: z.string() }),
+    body: { content: { "application/json": { schema: activateImageSchema } } },
+  },
+  responses: {
+    204: { description: "Image activation toggled" },
+  },
+});
+
+const unrehostImage = createRoute({
+  method: "post",
+  path: "/printing-images/{imageId}/unrehost",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ imageId: z.string() }),
+  },
+  responses: {
+    204: { description: "Image unrehosted" },
+  },
+});
+
+const rehostImage = createRoute({
+  method: "post",
+  path: "/printing-images/{imageId}/rehost",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ imageId: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ rehostedUrl: z.string() }) },
+      },
+      description: "Image rehosted",
+    },
+  },
+});
+
+const addImageUrl = createRoute({
+  method: "post",
+  path: "/printing/{printingId}/add-image-url",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ printingId: z.string() }),
+    body: { content: { "application/json": { schema: addImageUrlSchema } } },
+  },
+  responses: {
+    204: { description: "Image URL added" },
+  },
+});
+
+const uploadImage = createRoute({
+  method: "post",
+  path: "/printing/{printingId}/upload-image",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ printingId: z.string() }),
+    body: { content: { "multipart/form-data": { schema: uploadImageFormSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ rehostedUrl: z.string() }) },
+      },
+      description: "Image uploaded",
+    },
+  },
+});
+
+// ── Route ───────────────────────────────────────────────────────────────────
+
 // ── POST /candidate-printings/:id/set-image ────────────────────────────────────
-export const imagesRoute = new Hono<{ Variables: Variables }>()
-  .post("/candidate-printings/:id/set-image", zValidator("json", setImageSchema), async (c) => {
+export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
+  .openapi(setImage, async (c) => {
     const { printingImages } = c.get("repos");
-    const { id } = c.req.param();
+    const { id } = c.req.valid("param");
     const { mode } = c.req.valid("json");
 
     const ps = await printingImages.getCandidatePrintingById(id);
@@ -63,9 +165,9 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── DELETE /printing-images/:imageId ──────────────────────────────────────
-  .delete("/printing-images/:imageId", async (c) => {
+  .openapi(deleteImage, async (c) => {
     const { printingImages } = c.get("repos");
-    const { imageId } = c.req.param();
+    const { imageId } = c.req.valid("param");
 
     const image = await printingImages.getIdAndRehostedUrl(imageId);
 
@@ -88,38 +190,34 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /printing-images/:imageId/activate ──────────────────────────────
-  .post(
-    "/printing-images/:imageId/activate",
-    zValidator("json", activateImageSchema),
-    async (c) => {
-      const transact = c.get("transact");
-      const { printingImages } = c.get("repos");
-      const { imageId } = c.req.param();
-      const { active } = c.req.valid("json");
+  .openapi(activateImage, async (c) => {
+    const transact = c.get("transact");
+    const { printingImages } = c.get("repos");
+    const { imageId } = c.req.valid("param");
+    const { active } = c.req.valid("json");
 
-      const image = await printingImages.getForActivate(imageId);
+    const image = await printingImages.getForActivate(imageId);
 
-      if (!image) {
-        throw new AppError(404, "NOT_FOUND", "Printing image not found");
+    if (!image) {
+      throw new AppError(404, "NOT_FOUND", "Printing image not found");
+    }
+
+    await transact(async (trxRepos) => {
+      if (active) {
+        // Deactivate the current active image (if any)
+        await trxRepos.printingImages.deactivateActiveFront(image.printingId);
       }
 
-      await transact(async (trxRepos) => {
-        if (active) {
-          // Deactivate the current active image (if any)
-          await trxRepos.printingImages.deactivateActiveFront(image.printingId);
-        }
+      await trxRepos.printingImages.setActive(imageId, active);
+    });
 
-        await trxRepos.printingImages.setActive(imageId, active);
-      });
-
-      return c.body(null, 204);
-    },
-  )
+    return c.body(null, 204);
+  })
 
   // ── POST /printing-images/:imageId/unrehost ──────────────────────────────
-  .post("/printing-images/:imageId/unrehost", async (c) => {
+  .openapi(unrehostImage, async (c) => {
     const { printingImages } = c.get("repos");
-    const { imageId } = c.req.param();
+    const { imageId } = c.req.valid("param");
 
     const image = await printingImages.getIdAndUrls(imageId);
 
@@ -154,9 +252,9 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /printing-images/:imageId/rehost ────────────────────────────────
-  .post("/printing-images/:imageId/rehost", async (c) => {
+  .openapi(rehostImage, async (c) => {
     const { printingImages } = c.get("repos");
-    const { imageId } = c.req.param();
+    const { imageId } = c.req.valid("param");
 
     const image = await printingImages.getForRehost(imageId);
 
@@ -181,9 +279,9 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
-  .post("/printing/:printingId/add-image-url", zValidator("json", addImageUrlSchema), async (c) => {
+  .openapi(addImageUrl, async (c) => {
     const { printingImages } = c.get("repos");
-    const printingId = c.req.param("printingId");
+    const printingId = c.req.valid("param").printingId;
     const body = c.req.valid("json");
 
     if (!body.url?.trim()) {
@@ -206,45 +304,41 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /printing/:printingId/upload-image ──────────────────────────────
-  .post(
-    "/printing/:printingId/upload-image",
-    zValidator("form", uploadImageFormSchema),
-    async (c) => {
-      const { printingImages } = c.get("repos");
-      const printingId = c.req.param("printingId");
+  .openapi(uploadImage, async (c) => {
+    const { printingImages } = c.get("repos");
+    const printingId = c.req.valid("param").printingId;
 
-      const printing = await printingImages.getPrintingWithSetById(printingId);
+    const printing = await printingImages.getPrintingWithSetById(printingId);
 
-      if (!printing) {
-        throw new AppError(404, "NOT_FOUND", "Printing not found");
-      }
+    if (!printing) {
+      throw new AppError(404, "NOT_FOUND", "Printing not found");
+    }
 
-      const body = c.req.valid("form");
-      const file = body.file;
-      const mode = body.mode === "additional" ? ("additional" as const) : ("main" as const);
-      const provider = body.provider?.trim() || "upload";
+    const body = c.req.valid("form");
+    const file = body.file;
+    const mode = body.mode === "additional" ? ("additional" as const) : ("main" as const);
+    const provider = body.provider?.trim() || "upload";
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
-      const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
+    const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
 
-      // Pre-compute paths so rehostedUrl can be included in the INSERT
-      // (chk_printing_images_has_url requires at least one URL at insert time)
-      const imageId = uuidv7();
-      const rehostedUrl = imageRehostedUrl(printing.setSlug, imageId);
+    // Pre-compute paths so rehostedUrl can be included in the INSERT
+    // (chk_printing_images_has_url requires at least one URL at insert time)
+    const imageId = uuidv7();
+    const rehostedUrl = imageRehostedUrl(printing.setSlug, imageId);
 
-      await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
+    await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
 
-      await c.get("transact")(async (trxRepos) => {
-        await trxRepos.printingImages.insertUploadedImage({
-          id: imageId,
-          printingId: printing.id,
-          provider,
-          rehostedUrl,
-          mode,
-        });
+    await c.get("transact")(async (trxRepos) => {
+      await trxRepos.printingImages.insertUploadedImage({
+        id: imageId,
+        printingId: printing.id,
+        provider,
+        rehostedUrl,
+        mode,
       });
+    });
 
-      return c.json({ rehostedUrl });
-    },
-  );
+    return c.json({ rehostedUrl });
+  });

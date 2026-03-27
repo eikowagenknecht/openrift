@@ -1,8 +1,7 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { PromoTypeResponse } from "@openrift/shared";
 import { slugParamSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
@@ -19,7 +18,7 @@ const createPromoTypeSchema = z.object({
 });
 
 const reorderPromoTypesSchema = z.object({
-  ids: z.array(z.uuid()).min(1),
+  ids: z.array(z.string().uuid()).min(1),
 });
 
 const updatePromoTypeSchema = z.object({
@@ -32,13 +31,107 @@ const updatePromoTypeSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listPromoTypes = createRoute({
+  method: "get",
+  path: "/promo-types",
+  tags: ["Admin - Promo Types"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            promoTypes: z.array(
+              z.object({
+                id: z.string(),
+                slug: z.string(),
+                label: z.string(),
+                sortOrder: z.number(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List promo types",
+    },
+  },
+});
+
+const reorderPromoTypes = createRoute({
+  method: "put",
+  path: "/promo-types/reorder",
+  tags: ["Admin - Promo Types"],
+  request: {
+    body: { content: { "application/json": { schema: reorderPromoTypesSchema } } },
+  },
+  responses: {
+    204: { description: "Promo types reordered" },
+  },
+});
+
+const createPromoType = createRoute({
+  method: "post",
+  path: "/promo-types",
+  tags: ["Admin - Promo Types"],
+  request: {
+    body: { content: { "application/json": { schema: createPromoTypeSchema } } },
+  },
+  responses: {
+    201: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            promoType: z.object({
+              id: z.string(),
+              slug: z.string(),
+              label: z.string(),
+              sortOrder: z.number(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+            }),
+          }),
+        },
+      },
+      description: "Promo type created",
+    },
+  },
+});
+
+const updatePromoType = createRoute({
+  method: "patch",
+  path: "/promo-types/{id}",
+  tags: ["Admin - Promo Types"],
+  request: {
+    params: slugParamSchema,
+    body: { content: { "application/json": { schema: updatePromoTypeSchema } } },
+  },
+  responses: {
+    204: { description: "Promo type updated" },
+  },
+});
+
+const deletePromoType = createRoute({
+  method: "delete",
+  path: "/promo-types/{id}",
+  tags: ["Admin - Promo Types"],
+  request: {
+    params: slugParamSchema,
+  },
+  responses: {
+    204: { description: "Promo type deleted" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
+export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── GET /admin/promo-types ──────────────────────────────────────────────
 
-  .get("/promo-types", async (c) => {
+  .openapi(listPromoTypes, async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const rows = await repo.listAll();
     return c.json({
@@ -57,7 +150,7 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
 
   // ── PUT /admin/promo-types/reorder ─────────────────────────────────────
 
-  .put("/promo-types/reorder", zValidator("json", reorderPromoTypesSchema), async (c) => {
+  .openapi(reorderPromoTypes, async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const { ids } = c.req.valid("json");
 
@@ -87,7 +180,7 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/promo-types ─────────────────────────────────────────────
 
-  .post("/promo-types", zValidator("json", createPromoTypeSchema), async (c) => {
+  .openapi(createPromoType, async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const { slug, label, sortOrder } = c.req.valid("json");
 
@@ -102,45 +195,40 @@ export const adminPromoTypesRoute = new Hono<{ Variables: Variables }>()
 
   // ── PATCH /admin/promo-types/:id ────────────────────────────────────────
 
-  .patch(
-    "/promo-types/:id",
-    zValidator("param", slugParamSchema),
-    zValidator("json", updatePromoTypeSchema),
-    async (c) => {
-      const { promoTypes: repo } = c.get("repos");
-      const { id } = c.req.valid("param");
-      const body = c.req.valid("json");
+  .openapi(updatePromoType, async (c) => {
+    const { promoTypes: repo } = c.get("repos");
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-      const existing = await repo.getById(id);
-      if (!existing) {
-        throw new AppError(404, "NOT_FOUND", `Promo type not found`);
+    const existing = await repo.getById(id);
+    if (!existing) {
+      throw new AppError(404, "NOT_FOUND", `Promo type not found`);
+    }
+
+    if (body.slug !== undefined && body.slug !== existing.slug) {
+      const conflict = await repo.getBySlug(body.slug);
+      if (conflict) {
+        throw new AppError(409, "CONFLICT", `Slug "${body.slug}" already in use`);
       }
+    }
 
-      if (body.slug !== undefined && body.slug !== existing.slug) {
-        const conflict = await repo.getBySlug(body.slug);
-        if (conflict) {
-          throw new AppError(409, "CONFLICT", `Slug "${body.slug}" already in use`);
-        }
-      }
+    const slugChanging = body.slug !== undefined && body.slug !== existing.slug;
 
-      const slugChanging = body.slug !== undefined && body.slug !== existing.slug;
+    await repo.update(id, body);
 
-      await repo.update(id, body);
+    // Cascade slug rename to printing rows (file paths are UUID-based, no rename needed)
+    if (slugChanging) {
+      const oldSuffix = `:${existing.slug}`;
+      const newSuffix = `:${body.slug as string}`;
+      await repo.renamePrintingSlugs(id, oldSuffix, newSuffix);
+    }
 
-      // Cascade slug rename to printing rows (file paths are UUID-based, no rename needed)
-      if (slugChanging) {
-        const oldSuffix = `:${existing.slug}`;
-        const newSuffix = `:${body.slug as string}`;
-        await repo.renamePrintingSlugs(id, oldSuffix, newSuffix);
-      }
-
-      return c.body(null, 204);
-    },
-  )
+    return c.body(null, 204);
+  })
 
   // ── DELETE /admin/promo-types/:id ───────────────────────────────────────
 
-  .delete("/promo-types/:id", zValidator("param", slugParamSchema), async (c) => {
+  .openapi(deletePromoType, async (c) => {
     const { promoTypes: repo } = c.get("repos");
     const { id } = c.req.valid("param");
 

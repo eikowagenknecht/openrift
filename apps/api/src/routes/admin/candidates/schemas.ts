@@ -102,7 +102,7 @@ export const addImageUrlSchema = z.object({
 });
 
 export const uploadImageFormSchema = z.object({
-  file: z.instanceof(File),
+  file: z.instanceof(File).openapi({ type: "string", format: "binary" }),
   provider: z.string().optional(),
   mode: z.enum(["main", "additional"]).optional(),
 });

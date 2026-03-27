@@ -1,9 +1,9 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { CandidateCardUploadResponse } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import { RARITY_ORDER } from "@openrift/shared/types";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
-import { Hono } from "hono";
+import { z } from "zod";
 
 import { AppError } from "../../../errors.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
@@ -30,13 +30,400 @@ import {
   uploadCandidatesSchema,
 } from "./schemas.js";
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const autoCheck = createRoute({
+  method: "post",
+  path: "/auto-check",
+  tags: ["Admin - Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            candidateCardsChecked: z.number(),
+            candidatePrintingsChecked: z.number(),
+          }),
+        },
+      },
+      description: "Auto-check result",
+    },
+  },
+});
+
+const checkCandidateCard = createRoute({
+  method: "post",
+  path: "/{candidateCardId}/check",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ candidateCardId: z.string() }),
+  },
+  responses: {
+    204: { description: "Candidate card checked" },
+  },
+});
+
+const uncheckCandidateCard = createRoute({
+  method: "post",
+  path: "/{candidateCardId}/uncheck",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ candidateCardId: z.string() }),
+  },
+  responses: {
+    204: { description: "Candidate card unchecked" },
+  },
+});
+
+const checkAllCandidatePrintings = createRoute({
+  method: "post",
+  path: "/candidate-printings/check-all",
+  tags: ["Admin - Candidates"],
+  request: {
+    body: { content: { "application/json": { schema: checkAllCandidatePrintingsSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ updated: z.number() }) },
+      },
+      description: "All candidate printings checked",
+    },
+  },
+});
+
+const checkCandidatePrinting = createRoute({
+  method: "post",
+  path: "/candidate-printings/{id}/check",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ id: z.string() }),
+  },
+  responses: {
+    204: { description: "Candidate printing checked" },
+  },
+});
+
+const uncheckCandidatePrinting = createRoute({
+  method: "post",
+  path: "/candidate-printings/{id}/uncheck",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ id: z.string() }),
+  },
+  responses: {
+    204: { description: "Candidate printing unchecked" },
+  },
+});
+
+const checkAllForCard = createRoute({
+  method: "post",
+  path: "/{cardId}/check-all",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ updated: z.number() }) },
+      },
+      description: "All candidates for card checked",
+    },
+  },
+});
+
+const patchCandidatePrintingRoute = createRoute({
+  method: "patch",
+  path: "/candidate-printings/{id}",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { "application/json": { schema: patchCandidatePrintingSchema } } },
+  },
+  responses: {
+    204: { description: "Candidate printing updated" },
+  },
+});
+
+const deleteCandidatePrinting = createRoute({
+  method: "delete",
+  path: "/candidate-printings/{id}",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ id: z.string() }),
+  },
+  responses: {
+    204: { description: "Candidate printing deleted" },
+  },
+});
+
+const copyCandidatePrintingRoute = createRoute({
+  method: "post",
+  path: "/candidate-printings/{id}/copy",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { "application/json": { schema: copyCandidatePrintingSchema } } },
+  },
+  responses: {
+    204: { description: "Candidate printing copied" },
+  },
+});
+
+const linkCandidatePrintingsRoute = createRoute({
+  method: "post",
+  path: "/candidate-printings/link",
+  tags: ["Admin - Candidates"],
+  request: {
+    body: { content: { "application/json": { schema: linkCandidatePrintingsSchema } } },
+  },
+  responses: {
+    204: { description: "Candidate printings linked" },
+  },
+});
+
+const renameCard = createRoute({
+  method: "post",
+  path: "/{cardId}/rename",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+    body: { content: { "application/json": { schema: renameSchema } } },
+  },
+  responses: {
+    204: { description: "Card renamed" },
+  },
+});
+
+const acceptField = createRoute({
+  method: "post",
+  path: "/{cardId}/accept-field",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+    body: { content: { "application/json": { schema: acceptFieldSchema } } },
+  },
+  responses: {
+    204: { description: "Field accepted" },
+  },
+});
+
+const acceptPrintingField = createRoute({
+  method: "post",
+  path: "/printing/{printingId}/accept-field",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ printingId: z.string() }),
+    body: { content: { "application/json": { schema: acceptFieldSchema } } },
+  },
+  responses: {
+    204: { description: "Printing field accepted" },
+  },
+});
+
+const renamePrintingRoute = createRoute({
+  method: "post",
+  path: "/printing/{printingId}/rename",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ printingId: z.string() }),
+    body: { content: { "application/json": { schema: renameSchema } } },
+  },
+  responses: {
+    204: { description: "Printing renamed" },
+  },
+});
+
+const deletePrintingRoute = createRoute({
+  method: "delete",
+  path: "/printing/{printingId}",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ printingId: z.string() }),
+  },
+  responses: {
+    204: { description: "Printing deleted" },
+  },
+});
+
+const acceptNewCard = createRoute({
+  method: "post",
+  path: "/new/{name}/accept",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ name: z.string() }),
+    body: { content: { "application/json": { schema: acceptNewCardSchema } } },
+  },
+  responses: {
+    204: { description: "New card accepted" },
+  },
+});
+
+const acceptGallery = createRoute({
+  method: "post",
+  path: "/new/{name}/accept-gallery",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ name: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            cardSlug: z.string(),
+            printingsCreated: z.number(),
+            imagesRehosted: z.number(),
+          }),
+        },
+      },
+      description: "Gallery accepted",
+    },
+  },
+});
+
+const linkUnmatched = createRoute({
+  method: "post",
+  path: "/new/{name}/link",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ name: z.string() }),
+    body: { content: { "application/json": { schema: linkUnmatchedSchema } } },
+  },
+  responses: {
+    204: { description: "Unmatched candidates linked" },
+  },
+});
+
+const acceptPrintingRoute = createRoute({
+  method: "post",
+  path: "/{cardId}/accept-printing",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+    body: { content: { "application/json": { schema: acceptPrintingSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ printingId: z.string() }) },
+      },
+      description: "Printing accepted",
+    },
+  },
+});
+
+const uploadCandidates = createRoute({
+  method: "post",
+  path: "/upload",
+  tags: ["Admin - Candidates"],
+  request: {
+    body: { content: { "application/json": { schema: uploadCandidatesSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            provider: z.string(),
+            newCards: z.number(),
+            removedCards: z.number(),
+            updates: z.number(),
+            unchanged: z.number(),
+            newPrintings: z.number(),
+            removedPrintings: z.number(),
+            printingUpdates: z.number(),
+            printingsUnchanged: z.number(),
+            errors: z.array(z.string()),
+            newCardDetails: z.array(
+              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+            ),
+            removedCardDetails: z.array(
+              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+            ),
+            updatedCards: z.array(
+              z.object({
+                name: z.string(),
+                shortCode: z.string().nullable(),
+                fields: z.array(
+                  z.object({ field: z.string(), from: z.unknown(), to: z.unknown() }),
+                ),
+              }),
+            ),
+            newPrintingDetails: z.array(
+              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+            ),
+            removedPrintingDetails: z.array(
+              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+            ),
+            updatedPrintings: z.array(
+              z.object({
+                name: z.string(),
+                shortCode: z.string().nullable(),
+                fields: z.array(
+                  z.object({ field: z.string(), from: z.unknown(), to: z.unknown() }),
+                ),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Candidates uploaded",
+    },
+  },
+});
+
+const checkByProvider = createRoute({
+  method: "post",
+  path: "/by-provider/{provider}/check",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ provider: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            cardsChecked: z.number(),
+            printingsChecked: z.number(),
+          }),
+        },
+      },
+      description: "Provider candidates checked",
+    },
+  },
+});
+
+const deleteByProvider = createRoute({
+  method: "delete",
+  path: "/by-provider/{provider}",
+  tags: ["Admin - Candidates"],
+  request: {
+    params: z.object({ provider: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ provider: z.string(), deleted: z.number() }),
+        },
+      },
+      description: "Provider candidates deleted",
+    },
+  },
+});
+
+// ── Route ───────────────────────────────────────────────────────────────────
+
 /**
  * Bulk-mark candidates as checked when every acceptable field matches the active
- * card or printing.  Must be registered before /:candidateCardId/check so the
+ * card or printing.  Must be registered before /{candidateCardId}/check so the
  * wildcard doesn't swallow "auto-check".
  */
-export const mutationsRoute = new Hono<{ Variables: Variables }>()
-  .post("/auto-check", async (c) => {
+export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
+  .openapi(autoCheck, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
     const now = new Date();
 
@@ -52,9 +439,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /:candidateCardId/check ──────────────────────────────────────────────
-  .post("/:candidateCardId/check", async (c) => {
+  .openapi(checkCandidateCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const { candidateCardId } = c.req.param();
+    const { candidateCardId } = c.req.valid("param");
 
     const result = await mut.checkCandidateCard(candidateCardId);
 
@@ -66,9 +453,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /:candidateCardId/uncheck ────────────────────────────────────────────
-  .post("/:candidateCardId/uncheck", async (c) => {
+  .openapi(uncheckCandidateCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const { candidateCardId } = c.req.param();
+    const { candidateCardId } = c.req.valid("param");
 
     const result = await mut.uncheckCandidateCard(candidateCardId);
 
@@ -83,22 +470,18 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   // Mark all candidate_printings for a given printing as checked
   // NOTE: Must be registered before /:cardId/check-all to avoid
   // the :cardId wildcard matching "candidate-printings" as a card ID.
-  .post(
-    "/candidate-printings/check-all",
-    zValidator("json", checkAllCandidatePrintingsSchema),
-    async (c) => {
-      const { candidateMutations: mut } = c.get("repos");
-      const { printingId, extraIds } = c.req.valid("json");
+  .openapi(checkAllCandidatePrintings, async (c) => {
+    const { candidateMutations: mut } = c.get("repos");
+    const { printingId, extraIds } = c.req.valid("json");
 
-      const updated = await mut.checkAllCandidatePrintings(printingId, extraIds);
-      return c.json({ updated });
-    },
-  )
+    const updated = await mut.checkAllCandidatePrintings(printingId, extraIds);
+    return c.json({ updated });
+  })
 
   // ── POST /candidate-printings/:id/check ─────────────────────────────────────
-  .post("/candidate-printings/:id/check", async (c) => {
+  .openapi(checkCandidatePrinting, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const { id } = c.req.param();
+    const { id } = c.req.valid("param");
 
     const result = await mut.checkCandidatePrinting(id);
 
@@ -110,9 +493,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /candidate-printings/:id/uncheck ─────────────────────────────────────
-  .post("/candidate-printings/:id/uncheck", async (c) => {
+  .openapi(uncheckCandidatePrinting, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const { id } = c.req.param();
+    const { id } = c.req.valid("param");
 
     const result = await mut.uncheckCandidatePrinting(id);
 
@@ -125,11 +508,11 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /:cardId/check-all ──────────────────────────────────────────────
   // Mark all candidate_cards for a given card as checked
-  .post("/:cardId/check-all", async (c) => {
+  .openapi(checkAllForCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.param("cardId");
+    const cardSlug = c.req.valid("param").cardId;
 
-    // Resolve slug → card, then find candidates by name/alias
+    // Resolve slug -> card, then find candidates by name/alias
     const card = await mut.getCardBySlug(cardSlug);
     if (!card) {
       throw new AppError(404, "NOT_FOUND", "Card not found");
@@ -145,51 +528,47 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── PATCH /candidate-printings/:id ───────────────────────────────────────────
   // Update differentiator fields on a candidate_printing (e.g. fix wrong art_variant)
-  .patch(
-    "/candidate-printings/:id",
-    zValidator("json", patchCandidatePrintingSchema),
-    async (c) => {
-      const { candidateMutations: mut } = c.get("repos");
-      const { id } = c.req.param();
-      const body = c.req.valid("json");
+  .openapi(patchCandidatePrintingRoute, async (c) => {
+    const { candidateMutations: mut } = c.get("repos");
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-      const allowedFields = [
-        "artVariant",
-        "isSigned",
-        "promoTypeId",
-        "finish",
-        "collectorNumber",
-        "setId",
-        "shortCode",
-        "rarity",
-      ];
+    const allowedFields = [
+      "artVariant",
+      "isSigned",
+      "promoTypeId",
+      "finish",
+      "collectorNumber",
+      "setId",
+      "shortCode",
+      "rarity",
+    ];
 
-      const updates: Record<string, unknown> = {};
-      const bodyRecord = body as Record<string, unknown>;
-      for (const field of allowedFields) {
-        if (field in body) {
-          updates[field] = bodyRecord[field];
-        }
+    const updates: Record<string, unknown> = {};
+    const bodyRecord = body as Record<string, unknown>;
+    for (const field of allowedFields) {
+      if (field in body) {
+        updates[field] = bodyRecord[field];
       }
+    }
 
-      if (Object.keys(updates).length === 0) {
-        throw new AppError(400, "BAD_REQUEST", "No valid fields to update");
-      }
+    if (Object.keys(updates).length === 0) {
+      throw new AppError(400, "BAD_REQUEST", "No valid fields to update");
+    }
 
-      const result = await mut.patchCandidatePrinting(id, updates);
+    const result = await mut.patchCandidatePrinting(id, updates);
 
-      if (!result || result.numUpdatedRows === 0n) {
-        throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
-      }
+    if (!result || result.numUpdatedRows === 0n) {
+      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+    }
 
-      return c.body(null, 204);
-    },
-  )
+    return c.body(null, 204);
+  })
 
   // ── DELETE /candidate-printings/:id ──────────────────────────────────────
-  .delete("/candidate-printings/:id", async (c) => {
+  .openapi(deleteCandidatePrinting, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const { id } = c.req.param();
+    const { id } = c.req.valid("param");
 
     const result = await mut.deleteCandidatePrinting(id);
 
@@ -202,69 +581,61 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /candidate-printings/:id/copy ───────────────────────────────────
   // Duplicate a candidate_printing and link the copy to a different printing
-  .post(
-    "/candidate-printings/:id/copy",
-    zValidator("json", copyCandidatePrintingSchema),
-    async (c) => {
-      const { candidateMutations: mut } = c.get("repos");
-      const { id } = c.req.param();
-      const { printingId } = c.req.valid("json");
+  .openapi(copyCandidatePrintingRoute, async (c) => {
+    const { candidateMutations: mut } = c.get("repos");
+    const { id } = c.req.valid("param");
+    const { printingId } = c.req.valid("json");
 
-      if (!printingId) {
-        throw new AppError(400, "BAD_REQUEST", "printingId is required");
-      }
+    if (!printingId) {
+      throw new AppError(400, "BAD_REQUEST", "printingId is required");
+    }
 
-      const ps = await mut.getCandidatePrintingById(id);
+    const ps = await mut.getCandidatePrintingById(id);
 
-      if (!ps) {
-        throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
-      }
+    if (!ps) {
+      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+    }
 
-      const target = await mut.getPrintingDifferentiatorsById(printingId);
+    const target = await mut.getPrintingDifferentiatorsById(printingId);
 
-      if (!target) {
-        throw new AppError(404, "NOT_FOUND", "Target printing not found");
-      }
+    if (!target) {
+      throw new AppError(404, "NOT_FOUND", "Target printing not found");
+    }
 
-      await mut.copyCandidatePrinting(ps, target);
+    await mut.copyCandidatePrinting(ps, target);
 
-      return c.body(null, 204);
-    },
-  )
+    return c.body(null, 204);
+  })
 
   // ── POST /candidate-printings/link ───────────────────────────────────────
   // Bulk-link (or unlink) candidate printings to a printing
-  .post(
-    "/candidate-printings/link",
-    zValidator("json", linkCandidatePrintingsSchema),
-    async (c) => {
-      const { candidateMutations: mut } = c.get("repos");
-      const { candidatePrintingIds, printingId } = c.req.valid("json");
+  .openapi(linkCandidatePrintingsRoute, async (c) => {
+    const { candidateMutations: mut } = c.get("repos");
+    const { candidatePrintingIds, printingId } = c.req.valid("json");
 
-      if (!Array.isArray(candidatePrintingIds) || candidatePrintingIds.length === 0) {
-        throw new AppError(400, "BAD_REQUEST", "candidatePrintingIds[] required");
+    if (!Array.isArray(candidatePrintingIds) || candidatePrintingIds.length === 0) {
+      throw new AppError(400, "BAD_REQUEST", "candidatePrintingIds[] required");
+    }
+
+    await mut.linkCandidatePrintings(candidatePrintingIds, printingId);
+
+    // Persist or remove link overrides so links survive delete + re-upload
+    if (printingId) {
+      const p = await mut.getPrintingSlugById(printingId);
+      if (p) {
+        await mut.upsertPrintingLinkOverrides(candidatePrintingIds, p.slug);
       }
+    } else {
+      await mut.removePrintingLinkOverrides(candidatePrintingIds);
+    }
 
-      await mut.linkCandidatePrintings(candidatePrintingIds, printingId);
-
-      // Persist or remove link overrides so links survive delete + re-upload
-      if (printingId) {
-        const p = await mut.getPrintingSlugById(printingId);
-        if (p) {
-          await mut.upsertPrintingLinkOverrides(candidatePrintingIds, p.slug);
-        }
-      } else {
-        await mut.removePrintingLinkOverrides(candidatePrintingIds);
-      }
-
-      return c.body(null, 204);
-    },
-  )
+    return c.body(null, 204);
+  })
 
   // ── POST /:cardId/rename ──────────────────────────────────────────────────
-  .post("/:cardId/rename", zValidator("json", renameSchema), async (c) => {
+  .openapi(renameCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.param("cardId");
+    const cardSlug = c.req.valid("param").cardId;
     const { newId } = c.req.valid("json");
 
     if (!newId?.trim()) {
@@ -275,16 +646,16 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       return c.body(null, 204);
     }
 
-    // UUID PK is immutable — only the slug changes
+    // UUID PK is immutable -- only the slug changes
     await mut.renameCardSlug(cardSlug, newId.trim());
 
     return c.body(null, 204);
   })
 
   // ── POST /:cardId/accept-field ────────────────────────────────────────────
-  .post("/:cardId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
+  .openapi(acceptField, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.param("cardId");
+    const cardSlug = c.req.valid("param").cardId;
     const { field, value, source } = c.req.valid("json");
 
     if (!field) {
@@ -355,9 +726,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /printing/:printingId/accept-field ──────────────────────────────
-  .post("/printing/:printingId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
+  .openapi(acceptPrintingField, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const printingSlug = c.req.param("printingId");
+    const printingSlug = c.req.valid("param").printingId;
     const { field, value, source } = c.req.valid("json");
 
     if (!field) {
@@ -452,9 +823,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /printing/:printingId/rename ────────────────────────────────────
-  .post("/printing/:printingId/rename", zValidator("json", renameSchema), async (c) => {
+  .openapi(renamePrintingRoute, async (c) => {
     const { candidateMutations } = c.get("repos");
-    const printingSlug = c.req.param("printingId");
+    const printingSlug = c.req.valid("param").printingId;
     const { newId } = c.req.valid("json");
 
     if (!newId?.trim()) {
@@ -472,9 +843,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /printing/:printingId ─────────────────────────────────────────
   // Delete a printing and clean up all related data
-  .delete("/printing/:printingId", async (c) => {
+  .openapi(deletePrintingRoute, async (c) => {
     const { candidateMutations } = c.get("repos");
-    const printingSlug = c.req.param("printingId");
+    const printingSlug = c.req.valid("param").printingId;
 
     await deletePrinting(c.get("transact"), c.get("io"), { candidateMutations }, printingSlug);
 
@@ -483,8 +854,8 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /new/:name/accept ────────────────────────────────────────────────
   // Create new card from candidate data and link candidate_cards
-  .post("/new/:name/accept", zValidator("json", acceptNewCardSchema), async (c) => {
-    const normalizedName = decodeURIComponent(c.req.param("name"));
+  .openapi(acceptNewCard, async (c) => {
+    const normalizedName = decodeURIComponent(c.req.valid("param").name);
     const { cardFields } = c.req.valid("json");
 
     if (!cardFields) {
@@ -500,9 +871,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /new/:name/accept-gallery ───────────────────────────────────────
   // Create card + printings from gallery source, set images, and rehost
-  .post("/new/:name/accept-gallery", async (c) => {
+  .openapi(acceptGallery, async (c) => {
     const { candidateCards, candidateMutations, printingImages, promoTypes } = c.get("repos");
-    const normalizedName = decodeURIComponent(c.req.param("name"));
+    const normalizedName = decodeURIComponent(c.req.valid("param").name);
 
     const result = await acceptGalleryForNewCard(
       c.get("transact"),
@@ -516,9 +887,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /new/:name/link ──────────────────────────────────────────────────
   // Link unmatched candidates to an existing card
-  .post("/new/:name/link", zValidator("json", linkUnmatchedSchema), async (c) => {
+  .openapi(linkUnmatched, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const normalizedName = decodeURIComponent(c.req.param("name"));
+    const normalizedName = decodeURIComponent(c.req.valid("param").name);
     const { cardId: cardSlug } = c.req.valid("json");
 
     if (!cardSlug) {
@@ -540,9 +911,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /:cardId/accept-printing ─────────────────────────────────────────
   // Create a new printing from admin-selected fields, link all candidates in the group
-  .post("/:cardId/accept-printing", zValidator("json", acceptPrintingSchema), async (c) => {
+  .openapi(acceptPrintingRoute, async (c) => {
     const { candidateMutations, printingImages, promoTypes } = c.get("repos");
-    const cardSlug = c.req.param("cardId");
+    const cardSlug = c.req.valid("param").cardId;
     const { printingFields, candidatePrintingIds } = c.req.valid("json");
 
     const printingId = await acceptPrinting(
@@ -557,7 +928,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── POST /upload ──────────────────────────────────────────────────────────
-  .post("/upload", zValidator("json", uploadCandidatesSchema), async (c) => {
+  .openapi(uploadCandidates, async (c) => {
     const { provider, candidates: cards } = c.req.valid("json");
 
     const { ingestCandidates } = c.get("services");
@@ -585,9 +956,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /by-provider/:provider/check ────────────────────────────────────
   // Mark all candidate_cards and candidate_printings for a given provider as checked
-  .post("/by-provider/:provider/check", async (c) => {
+  .openapi(checkByProvider, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const provider = decodeURIComponent(c.req.param("provider"));
+    const provider = decodeURIComponent(c.req.valid("param").provider);
     if (!provider.trim()) {
       throw new AppError(400, "BAD_REQUEST", "Provider name is required");
     }
@@ -598,9 +969,9 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /by-provider/:provider ─────────────────────────────────────────
   // Delete all candidate_cards (and cascaded candidate_printings) for a given provider name
-  .delete("/by-provider/:provider", async (c) => {
+  .openapi(deleteByProvider, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const provider = decodeURIComponent(c.req.param("provider"));
+    const provider = decodeURIComponent(c.req.valid("param").provider);
     if (!provider.trim()) {
       throw new AppError(400, "BAD_REQUEST", "Provider name is required");
     }

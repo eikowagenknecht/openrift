@@ -1,8 +1,8 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { Marketplace, UserPreferencesResponse } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
+import { userPreferencesResponseSchema } from "@openrift/shared/response-schemas";
 import { updatePreferencesSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 import type { Selectable } from "kysely";
 
 import type { UserPreferencesTable } from "../../db/index.js";
@@ -37,17 +37,43 @@ function toResponse(row: Selectable<UserPreferencesTable> | undefined): UserPref
   };
 }
 
-export const preferencesRoute = new Hono<{ Variables: Variables }>()
-  .basePath("/preferences")
-  .use(requireAuth)
+const getPreferences = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Preferences"],
+  responses: {
+    200: {
+      content: { "application/json": { schema: userPreferencesResponseSchema } },
+      description: "Success",
+    },
+  },
+});
 
-  .get("/", async (c) => {
+const updatePreferences = createRoute({
+  method: "patch",
+  path: "/",
+  tags: ["Preferences"],
+  request: {
+    body: { content: { "application/json": { schema: updatePreferencesSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: userPreferencesResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const preferencesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/preferences");
+preferencesApp.use(requireAuth);
+export const preferencesRoute = preferencesApp
+  .openapi(getPreferences, async (c) => {
     const { userPreferences } = c.get("repos");
     const row = await userPreferences.getByUserId(getUserId(c));
     return c.json(toResponse(row));
   })
 
-  .patch("/", zValidator("json", updatePreferencesSchema), async (c) => {
+  .openapi(updatePreferences, async (c) => {
     const { userPreferences } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
