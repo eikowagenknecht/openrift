@@ -59,6 +59,13 @@ function CardImageContent({
     energy: number | null;
     might?: number | null;
     power?: number | null;
+    type?: string;
+    superTypes?: string[];
+    tags?: string[];
+    rulesText?: string | null;
+    effectText?: string | null;
+    mightBonus?: number | null;
+    flavorText?: string | null;
   };
   isFoilCard: boolean;
   tiltActive: boolean;
@@ -110,6 +117,13 @@ function CardImageContent({
           energy={card.energy}
           might={card.might}
           power={card.power}
+          type={card.type}
+          superTypes={card.superTypes}
+          tags={card.tags}
+          rulesText={card.rulesText}
+          effectText={card.effectText}
+          mightBonus={card.mightBonus}
+          flavorText={card.flavorText}
         />
       )}
       {isFoilCard && <FoilOverlay active={tiltActive} />}
@@ -152,7 +166,12 @@ export const CardThumbnail = memo(function CardThumbnail({
   ownedCount,
   onAdd,
 }: CardThumbnailProps) {
-  const { card } = printing;
+  const card = {
+    ...printing.card,
+    rulesText: printing.printedRulesText,
+    effectText: printing.printedEffectText,
+    flavorText: printing.flavorText,
+  };
   const imageUrl = printing.images[0]?.url ?? null;
   const orientation = getOrientation(card.type);
   const thumbnailUrl = showImages && imageUrl ? getCardImageUrl(imageUrl, "thumbnail") : null;

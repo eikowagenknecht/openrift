@@ -368,3 +368,18 @@ html.hide-scrollbar::-webkit-scrollbar {
     }
   }
 }
+
+@utility font-condensed {
+  font-stretch: condensed;
+}
+
+@utility card-text-scaled {
+  & p img {
+    width: 1em;
+    height: 1em;
+  }
+  & p button {
+    font-size: inherit;
+    padding-inline: 0.4em;
+  }
+}

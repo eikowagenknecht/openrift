@@ -43,40 +43,52 @@ export function CardImage({
         transformStyle: "preserve-3d",
       }}
     >
-      <CardPlaceholderImage
-        name={card.name}
-        domain={card.domains}
-        energy={card.energy}
-        might={card.might}
-        className={hasImage && imgLoaded ? "invisible" : undefined}
-      />
-      {hasImage &&
-        (needsCssRotation(orientation) ? (
-          <div
-            className={cn(
-              "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
-              imgLoaded ? "opacity-100" : "opacity-0",
-            )}
-            style={LANDSCAPE_ROTATION_STYLE}
-          >
+      {hasImage ? (
+        <>
+          <div className="aspect-card" />
+          {needsCssRotation(orientation) ? (
+            <div
+              className={cn(
+                "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
+                imgLoaded ? "opacity-100" : "opacity-0",
+              )}
+              style={LANDSCAPE_ROTATION_STYLE}
+            >
+              <img
+                src={getCardImageUrl(imageUrl, "full")}
+                alt={card.name}
+                className="size-full object-cover"
+                onLoad={() => setImgLoaded(true)}
+              />
+            </div>
+          ) : (
             <img
               src={getCardImageUrl(imageUrl, "full")}
               alt={card.name}
-              className="size-full object-cover"
+              className={cn(
+                "absolute inset-0 block w-full transition-opacity duration-300",
+                imgLoaded ? "opacity-100" : "opacity-0",
+              )}
               onLoad={() => setImgLoaded(true)}
             />
-          </div>
-        ) : (
-          <img
-            src={getCardImageUrl(imageUrl, "full")}
-            alt={card.name}
-            className={cn(
-              "absolute inset-0 block w-full transition-opacity duration-300",
-              imgLoaded ? "opacity-100" : "opacity-0",
-            )}
-            onLoad={() => setImgLoaded(true)}
-          />
-        ))}
+          )}
+        </>
+      ) : (
+        <CardPlaceholderImage
+          name={card.name}
+          domain={card.domains}
+          energy={card.energy}
+          might={card.might}
+          power={card.power}
+          type={card.type}
+          superTypes={card.superTypes}
+          tags={card.tags}
+          rulesText={printing.printedRulesText}
+          effectText={printing.printedEffectText}
+          mightBonus={card.mightBonus}
+          flavorText={printing.flavorText}
+        />
+      )}
       {showFoil && <FoilOverlay active={tiltActive} shimmer={showShimmer} />}
     </div>
   );
