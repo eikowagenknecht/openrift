@@ -8,7 +8,6 @@ import {
   StoreIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +48,6 @@ export function CollectionSidebar() {
         onSuccess: () => {
           setNewName("");
           setIsCreating(false);
-          toast.success("Collection created");
         },
       },
     );
@@ -78,7 +76,7 @@ export function CollectionSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Collections</SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             {collections?.map((col) => (
               <SidebarMenuItem key={col.id}>
                 <SidebarMenuButton
@@ -86,6 +84,7 @@ export function CollectionSidebar() {
                   render={
                     <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
                   }
+                  size="sm"
                 >
                   {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
                   <span className="flex-1 truncate">{col.name}</span>
@@ -114,7 +113,7 @@ export function CollectionSidebar() {
                     value={newName}
                     onChange={(event) => setNewName(event.target.value)}
                     placeholder="Collection name"
-                    className="h-7 text-xs"
+                    className="h-7 text-xs" // TODO: Style this better, the current style does not fit here
                     onBlur={() => {
                       if (!newName.trim()) {
                         setIsCreating(false);
@@ -152,7 +151,7 @@ export function CollectionSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarSeparator />
+        <SidebarSeparator className="mx-0" />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton render={<Link to="/cards" />}>
