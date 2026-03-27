@@ -36,14 +36,12 @@ function CollectionLayout() {
   const [title, setTitle] = useState("Collection");
 
   return (
-    <div className="flex-1">
-      <SidebarProvider className="min-h-0!">
-        <CollectionSidebar />
-        <CollectionTitleContext value={setTitle}>
-          <CollectionContent title={title} />
-        </CollectionTitleContext>
-      </SidebarProvider>
-    </div>
+    <SidebarProvider className="min-h-0!">
+      <CollectionSidebar />
+      <CollectionTitleContext value={setTitle}>
+        <CollectionContent title={title} />
+      </CollectionTitleContext>
+    </SidebarProvider>
   );
 }
 
