@@ -157,7 +157,7 @@ export function catalogRepo(db: Kysely<Database>) {
         }),
         ...plainColumns.map((col) => {
           const ref = sql.ref(col);
-          return sql`${ref} IS DISTINCT FROM ${fixTypographyExpr(col, { italicParens: false })}`;
+          return sql`${ref} IS DISTINCT FROM ${fixTypographyExpr(col, { italicParens: false, keywordGlyphs: false })}`;
         }),
       ];
       const where = sql.join(whereConditions, sql` OR `);
@@ -176,7 +176,7 @@ export function catalogRepo(db: Kysely<Database>) {
         updates[col] = fixTypographyExpr(col);
       }
       for (const col of plainColumns) {
-        updates[col] = fixTypographyExpr(col, { italicParens: false });
+        updates[col] = fixTypographyExpr(col, { italicParens: false, keywordGlyphs: false });
       }
 
       const result = await db
@@ -202,11 +202,14 @@ export function catalogRepo(db: Kysely<Database>) {
  *   (enabled by default, disable with `{ italicParens: false }` for flavor text)
  * @returns A Kysely raw SQL expression with chained REPLACE/REGEXP_REPLACE calls.
  */
-function fixTypographyExpr(column: string, options?: { italicParens?: boolean }) {
+function fixTypographyExpr(
+  column: string,
+  options?: { italicParens?: boolean; keywordGlyphs?: boolean },
+) {
   const col = sql.ref(column);
-  const { italicParens = true } = options ?? {};
+  const { italicParens = true, keywordGlyphs = true } = options ?? {};
   // Inner → outer: apostrophe, ellipsis, double quotes, minus sign
-  const base = sql`REGEXP_REPLACE(
+  let expr = sql`REGEXP_REPLACE(
     REGEXP_REPLACE(
       REPLACE(
         REPLACE(${col}, '''', E'\u2019'),
@@ -216,15 +219,25 @@ function fixTypographyExpr(column: string, options?: { italicParens?: boolean })
     ),
     '-([0-9])', E'\u2212\\1', 'g'
   )`;
-  if (!italicParens) {
-    return base;
+  if (keywordGlyphs) {
+    // Move trailing :rb_*: glyphs inside keyword brackets, then trim trailing space before ]
+    expr = sql`REGEXP_REPLACE(
+      REGEXP_REPLACE(
+        ${expr},
+        '\\[([A-Z][a-z]+)\\]\\s*((:rb_[a-z_0-9]+:\\s*)+)', '[\\1 \\2]', 'g'
+      ),
+      ':( +)\\]', ':]', 'g'
+    )`;
   }
-  // Italic parens: strip existing wrappers first, then re-add for all.
-  return sql`REGEXP_REPLACE(
-    REGEXP_REPLACE(
-      ${base},
-      '_\\(([^)]*)\\)_', '(\\1)', 'g'
-    ),
-    '\\(([^)]*)\\)', '_(\\1)_', 'g'
-  )`;
+  if (italicParens) {
+    // Italic parens: strip existing wrappers first, then re-add for all.
+    expr = sql`REGEXP_REPLACE(
+      REGEXP_REPLACE(
+        ${expr},
+        '_\\(([^)]*)\\)_', '(\\1)', 'g'
+      ),
+      '\\(([^)]*)\\)', '_(\\1)_', 'g'
+    )`;
+  }
+  return expr;
 }

@@ -237,7 +237,10 @@ export async function acceptPrinting(
       publicCode: printingFields.publicCode,
       printedRulesText: fixTypography(printingFields.printedRulesText ?? null),
       printedEffectText: fixTypography(printingFields.printedEffectText ?? null),
-      flavorText: fixTypography(printingFields.flavorText ?? null, { italicParens: false }),
+      flavorText: fixTypography(printingFields.flavorText ?? null, {
+        italicParens: false,
+        keywordGlyphs: false,
+      }),
     });
 
     if (printingFields.imageUrl) {

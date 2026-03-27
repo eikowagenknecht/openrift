@@ -285,7 +285,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   .post("/:cardId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
     const { candidateMutations: mut } = c.get("repos");
     const cardSlug = c.req.param("cardId");
-    const { field, value } = c.req.valid("json");
+    const { field, value, source } = c.req.valid("json");
 
     if (!field) {
       throw new AppError(400, "BAD_REQUEST", "field is required");
@@ -326,10 +326,10 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       }
     }
 
-    // Apply typography fixes to text fields
+    // Apply typography fixes to text fields only when accepting from a provider
     const textFields = new Set(["rulesText", "effectText"]);
     const finalValue =
-      textFields.has(field) && typeof normalized === "string"
+      source === "provider" && textFields.has(field) && typeof normalized === "string"
         ? fixTypography(normalized)
         : normalized;
 
@@ -358,7 +358,7 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
   .post("/printing/:printingId/accept-field", zValidator("json", acceptFieldSchema), async (c) => {
     const { candidateMutations: mut } = c.get("repos");
     const printingSlug = c.req.param("printingId");
-    const { field, value } = c.req.valid("json");
+    const { field, value, source } = c.req.valid("json");
 
     if (!field) {
       throw new AppError(400, "BAD_REQUEST", "field is required");
@@ -416,10 +416,18 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
       return c.body(null, 204);
     }
 
-    // Apply typography fixes to text fields
-    const printingTextFields = new Set(["printedRulesText", "printedEffectText", "flavorText"]);
-    if (printingTextFields.has(field) && typeof normalizedValue === "string") {
-      normalizedValue = fixTypography(normalizedValue);
+    // Apply typography fixes to text fields only when accepting from a provider
+    if (source === "provider") {
+      const printingTextFields = new Set(["printedRulesText", "printedEffectText"]);
+      if (printingTextFields.has(field) && typeof normalizedValue === "string") {
+        normalizedValue = fixTypography(normalizedValue);
+      }
+      if (field === "flavorText" && typeof normalizedValue === "string") {
+        normalizedValue = fixTypography(normalizedValue, {
+          italicParens: false,
+          keywordGlyphs: false,
+        });
+      }
     }
 
     // Candidate printings store setId as a slug; printings store it as a UUID FK

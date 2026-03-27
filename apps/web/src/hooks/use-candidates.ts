@@ -199,14 +199,16 @@ export function useAcceptCardField() {
       cardId,
       field,
       value,
+      source = "manual",
     }: {
       cardId: string;
       field: string;
       value: unknown;
+      source?: "provider" | "manual";
     }) => {
       const res = await client.api.v1.admin["candidates"][":cardId"]["accept-field"].$post({
         param: { cardId },
-        json: { field, value },
+        json: { field, value, source },
       });
       assertOk(res);
     },
@@ -220,16 +222,18 @@ export function useAcceptPrintingField() {
       printingId,
       field,
       value,
+      source = "manual",
     }: {
       printingId: string;
       field: string;
       value: unknown;
+      source?: "provider" | "manual";
     }) => {
       const res = await client.api.v1.admin["candidates"].printing[":printingId"][
         "accept-field"
       ].$post({
         param: { printingId },
-        json: { field, value },
+        json: { field, value, source },
       });
       assertOk(res);
     },

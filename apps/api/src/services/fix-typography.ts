@@ -1,5 +1,6 @@
 interface FixTypographyOptions {
   italicParens?: boolean;
+  keywordGlyphs?: boolean;
 }
 
 /**
@@ -10,6 +11,8 @@ interface FixTypographyOptions {
  * - Hyphen-minus before digit (-1) → minus sign (\u2212) before digit
  * - Parenthesized text (...) wrapped with underscores for italic rendering: _(...)_
  *   (enabled by default, disable with `{ italicParens: false }` for flavor text)
+ * - Keyword glyphs: `[Keyword] :rb_*:` → `[Keyword :rb_*:]`
+ *   (enabled by default, disable with `{ keywordGlyphs: false }` for non-rules text)
  *
  * @returns The text with typography fixes applied, or null if the input is null.
  */
@@ -19,12 +22,19 @@ export function fixTypography(text: string | null, options?: FixTypographyOption
   if (text === null) {
     return null;
   }
-  const { italicParens = true } = options ?? {};
+  const { italicParens = true, keywordGlyphs = true } = options ?? {};
   let result = text
     .replaceAll("'", "\u2019") // straight apostrophe → curly
     .replaceAll("...", "\u2026") // triple dots → ellipsis
     .replaceAll(/"([^"]*)"/g, "\u201C$1\u201D") // straight double quotes → curly
     .replaceAll(/-(\d)/g, "\u2212$1"); // hyphen before digit → minus sign
+  if (keywordGlyphs) {
+    // Move trailing :rb_*: glyphs inside keyword brackets: [Equip] :rb_x: → [Equip :rb_x:]
+    result = result.replaceAll(
+      /\[([A-Z][a-z]+)\]\s*((?::rb_\w+:\s*)+)/g,
+      (_, keyword, glyphs) => `[${keyword} ${glyphs.trim()}]`,
+    );
+  }
   if (italicParens) {
     // Italic parens: strip existing wrappers, then re-add for all
     result = result.replaceAll(/_\(([^)]*)\)_/g, "($1)").replaceAll(/\(([^)]*)\)/g, "_($1)_");

@@ -689,7 +689,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                 }
                 return;
               }
-              acceptCardField.mutate({ cardId, field, value });
+              acceptCardField.mutate({ cardId, field, value, source: "provider" });
             } else {
               setActiveCard((prev) => ({ ...prev, [field]: value }));
             }
@@ -739,7 +739,12 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                       }
                       const val = record[field.key];
                       if (val !== null && val !== undefined && val !== "") {
-                        acceptCardField.mutate({ cardId, field: field.key, value: val });
+                        acceptCardField.mutate({
+                          cardId,
+                          field: field.key,
+                          value: val,
+                          source: "provider",
+                        });
                       }
                     }
                   }}
@@ -969,7 +974,12 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                         providerNames={sourceNames}
                         providerSettings={providerSettings}
                         onCellClick={(field, value) => {
-                          acceptPrintingField.mutate({ printingId: printingSlug, field, value });
+                          acceptPrintingField.mutate({
+                            printingId: printingSlug,
+                            field,
+                            value,
+                            source: "provider",
+                          });
                         }}
                         onActiveChange={(field, value) => {
                           if (value === undefined) {

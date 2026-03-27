@@ -41,6 +41,7 @@ export const renameSchema = z.object({
 export const acceptFieldSchema = z.object({
   field: z.string(),
   value: z.unknown(),
+  source: z.enum(["provider", "manual"]).default("manual"),
 });
 
 export const acceptNewCardSchema = z.object({

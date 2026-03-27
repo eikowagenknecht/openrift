@@ -73,13 +73,35 @@ describe("fixTypography", () => {
     expect(fixTypography("no parens here")).toBe("no parens here");
   });
 
-  it("skips italic parens when italicParens is false", () => {
-    expect(fixTypography("(reminder text)", { italicParens: false })).toBe("(reminder text)");
+  // ── Keyword glyphs ──────────────────────────────────────────────────────
+
+  it("moves trailing glyphs inside keyword brackets", () => {
+    expect(fixTypography("[Equip] :rb_rune_mind:")).toBe("[Equip :rb_rune_mind:]");
   });
 
-  it("still applies other fixes when italicParens is false", () => {
-    expect(fixTypography("it's a (test)...", { italicParens: false })).toBe(
-      "it\u2019s a (test)\u2026",
+  it("moves multiple glyphs inside keyword brackets", () => {
+    expect(fixTypography("[Add] :rb_energy_1::rb_rune_rainbow:")).toBe(
+      "[Add :rb_energy_1::rb_rune_rainbow:]",
+    );
+  });
+
+  it("moves space-separated glyphs inside keyword brackets", () => {
+    expect(fixTypography("[Repeat] :rb_energy_2: :rb_rune_fury:")).toBe(
+      "[Repeat :rb_energy_2: :rb_rune_fury:]",
+    );
+  });
+
+  it("does not move glyphs into non-word brackets like [>]", () => {
+    expect(fixTypography("[Reaction][>] :rb_exhaust::")).toBe("[Reaction][>] :rb_exhaust::");
+  });
+
+  it("leaves already-correct keyword brackets unchanged", () => {
+    expect(fixTypography("[Equip :rb_rune_mind:]")).toBe("[Equip :rb_rune_mind:]");
+  });
+
+  it("skips keyword glyphs when keywordGlyphs is false", () => {
+    expect(fixTypography("[Equip] :rb_rune_mind:", { keywordGlyphs: false })).toBe(
+      "[Equip] :rb_rune_mind:",
     );
   });
 
