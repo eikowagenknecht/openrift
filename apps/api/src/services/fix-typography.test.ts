@@ -91,6 +91,12 @@ describe("fixTypography", () => {
     );
   });
 
+  it("preserves space after closing bracket when glyphs are moved inside", () => {
+    expect(fixTypography("[Repeat] :rb_energy_3: (You may pay the additional cost.)")).toBe(
+      "[Repeat :rb_energy_3:] _(You may pay the additional cost.)_",
+    );
+  });
+
   it("does not move glyphs into non-word brackets like [>]", () => {
     expect(fixTypography("[Reaction][>] :rb_exhaust::")).toBe("[Reaction][>] :rb_exhaust::");
   });
