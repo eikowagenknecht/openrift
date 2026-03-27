@@ -118,7 +118,7 @@ export function EmailSection({ currentEmail }: { currentEmail: string }) {
       <CardHeader>
         <CardTitle>Email Address</CardTitle>
         <CardDescription>
-          Your current email is <span className="font-medium text-foreground">{currentEmail}</span>.
+          Your current email is <span className="text-foreground font-medium">{currentEmail}</span>.
         </CardDescription>
       </CardHeader>
       <CardContent>

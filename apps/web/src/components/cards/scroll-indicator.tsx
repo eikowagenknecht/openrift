@@ -51,7 +51,7 @@ export function ScrollIndicator({
         className={cn(
           "fixed z-20 transition-opacity duration-300",
           indicator.visible ? "pointer-events-auto" : "pointer-events-none",
-          IS_COARSE_POINTER && "p-2 -m-2",
+          IS_COARSE_POINTER && "-m-2 p-2",
         )}
         style={{
           right: 20,
@@ -93,16 +93,16 @@ export function ScrollIndicator({
         >
           <div
             className={cn(
-              "inline-flex items-center whitespace-nowrap rounded-md bg-popover/90 font-mono font-medium text-popover-foreground shadow-md ring-1 backdrop-blur-sm select-none",
+              "bg-popover/90 text-popover-foreground inline-flex items-center rounded-md font-mono font-medium whitespace-nowrap shadow-md ring-1 backdrop-blur-sm select-none",
               IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
               indicator.dragging
-                ? "cursor-grabbing ring-primary/60"
-                : "cursor-grab ring-primary/40",
+                ? "ring-primary/60 cursor-grabbing"
+                : "ring-primary/40 cursor-grab",
             )}
           >
             <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>
           </div>
-          <div className="size-2 shrink-0 rounded-full bg-primary/70" />
+          <div className="bg-primary/70 size-2 shrink-0 rounded-full" />
         </div>
       </div>
 
@@ -121,7 +121,7 @@ export function ScrollIndicator({
             }}
             className={cn(
               "pointer-events-none fixed z-19 transition-opacity duration-300",
-              IS_COARSE_POINTER && "p-2 -m-2",
+              IS_COARSE_POINTER && "-m-2 p-2",
             )}
             style={{
               right: 20,
@@ -133,13 +133,13 @@ export function ScrollIndicator({
             <div className="flex items-center gap-1.5">
               <div
                 className={cn(
-                  "whitespace-nowrap rounded-md bg-popover/80 font-mono font-medium text-popover-foreground/70 ring-1 ring-border/50 backdrop-blur-sm select-none",
+                  "bg-popover/80 text-popover-foreground/70 ring-border/50 rounded-md font-mono font-medium whitespace-nowrap ring-1 backdrop-blur-sm select-none",
                   IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
                 )}
               >
                 {pt.setInfo.name}
               </div>
-              <div className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
+              <div className="bg-muted-foreground/60 size-1.5 shrink-0 rounded-full" />
             </div>
           </div>
         ))}

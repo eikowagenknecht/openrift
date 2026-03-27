@@ -358,12 +358,12 @@ export function AdminTable<TData, TDraft = TData>({
                         {canSort &&
                           (sorted ? (
                             sorted === "asc" ? (
-                              <ArrowUpIcon className="inline h-3.5 w-3.5 text-foreground" />
+                              <ArrowUpIcon className="text-foreground inline h-3.5 w-3.5" />
                             ) : (
-                              <ArrowDownIcon className="inline h-3.5 w-3.5 text-foreground" />
+                              <ArrowDownIcon className="text-foreground inline h-3.5 w-3.5" />
                             )
                           ) : (
-                            <ChevronsUpDownIcon className="inline h-3.5 w-3.5 text-muted-foreground/50" />
+                            <ChevronsUpDownIcon className="text-muted-foreground/50 inline h-3.5 w-3.5" />
                           ))}
                       </span>
                     </TableHead>
@@ -523,7 +523,7 @@ function SaveCancelButtons({
           Cancel
         </Button>
       </div>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive mt-1 text-xs">{error}</p>}
     </>
   );
 }
@@ -548,7 +548,7 @@ function DeleteButton<TData>({
     return (
       <AlertDialog>
         <AlertDialogTrigger
-          render={<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" />}
+          render={<Button variant="ghost" size="icon" className="text-destructive h-8 w-8" />}
         >
           <Trash2Icon className="h-4 w-4" />
         </AlertDialogTrigger>
@@ -557,7 +557,7 @@ function DeleteButton<TData>({
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription>{description}</AlertDialogDescription>
           </AlertDialogHeader>
-          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+          {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDeleteError("")}>Cancel</AlertDialogCancel>
             <AlertDialogPrimitive.Close

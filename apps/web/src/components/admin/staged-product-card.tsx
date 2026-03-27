@@ -56,7 +56,7 @@ export function StagedProductCard({
       : [];
 
   return (
-    <div className="rounded-lg border bg-background px-3 py-2.5">
+    <div className="bg-background rounded-lg border px-3 py-2.5">
       <div className="flex items-start justify-between gap-2">
         <p className="flex min-w-0 items-center gap-1 text-sm font-medium" title={sp.productName}>
           {isAssigned && (
@@ -71,7 +71,7 @@ export function StagedProductCard({
         </Badge>
       </div>
       {sp.groupName && (
-        <p className="truncate text-xs text-muted-foreground" title={sp.groupName}>
+        <p className="text-muted-foreground truncate text-xs" title={sp.groupName}>
           {sp.groupName}
         </p>
       )}
@@ -103,7 +103,7 @@ export function StagedProductCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-primary"
+              className="text-muted-foreground hover:text-primary h-6 px-1.5 text-xs"
               onClick={() => setShowAssign((v) => !v)}
               title={`${assignLabel} to a card`}
             >
@@ -115,7 +115,7 @@ export function StagedProductCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive h-6 px-1.5 text-xs"
               onClick={onIgnore}
               disabled={isIgnoring}
               title="Ignore this product"
@@ -128,7 +128,7 @@ export function StagedProductCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground h-6 px-1.5 text-xs"
               onClick={onUnignore}
               disabled={isUnignoring}
               title="Unignore — product will reappear on next refresh"
@@ -141,7 +141,7 @@ export function StagedProductCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive h-6 px-1.5 text-xs"
               onClick={onUnassign}
               disabled={isUnassigning}
               title="Unassign — remove manual card assignment"

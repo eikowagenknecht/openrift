@@ -6,7 +6,7 @@ export function Pane({ children, className }: { children: ReactNode; className?:
   return (
     <aside
       className={cn(
-        "hidden sticky top-(--sticky-top) w-[400px] shrink-0 max-h-[calc(100vh-var(--sticky-top))] overflow-y-auto",
+        "sticky top-(--sticky-top) hidden max-h-[calc(100vh-var(--sticky-top))] w-[400px] shrink-0 overflow-y-auto",
         className,
       )}
     >

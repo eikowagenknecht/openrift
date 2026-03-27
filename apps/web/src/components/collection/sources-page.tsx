@@ -78,7 +78,7 @@ export function SourcesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Sources track where your cards came from (stores, trades, gifts, etc.)
         </p>
         <Button size="sm" onClick={() => setIsCreating(true)} disabled={isCreating}>
@@ -126,7 +126,7 @@ export function SourcesPage() {
 
       <div className="divide-y rounded-lg border">
         {sources.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="text-muted-foreground py-8 text-center text-sm">
             No sources yet. Create one to track where your cards come from.
           </p>
         )}
@@ -160,11 +160,11 @@ export function SourcesPage() {
                 {source.name}
               </button>
             )}
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {new Date(source.createdAt).toLocaleDateString()}
             </span>
             <Button variant="ghost" size="icon-sm" onClick={() => setDeleteId(source.id)}>
-              <Trash2Icon className="size-3.5 text-muted-foreground" />
+              <Trash2Icon className="text-muted-foreground size-3.5" />
             </Button>
           </div>
         ))}

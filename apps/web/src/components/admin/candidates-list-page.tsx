@@ -161,18 +161,18 @@ function SortableHeader({
   return (
     <button
       type="button"
-      className="inline-flex cursor-pointer select-none items-center gap-1"
+      className="inline-flex cursor-pointer items-center gap-1 select-none"
       onClick={column.getToggleSortingHandler()}
     >
       {label}
       {sorted ? (
         sorted === "asc" ? (
-          <ArrowUpIcon className="inline h-3.5 w-3.5 text-foreground" />
+          <ArrowUpIcon className="text-foreground inline h-3.5 w-3.5" />
         ) : (
-          <ArrowDownIcon className="inline h-3.5 w-3.5 text-foreground" />
+          <ArrowDownIcon className="text-foreground inline h-3.5 w-3.5" />
         )
       ) : (
-        <ChevronsUpDownIcon className="inline h-3.5 w-3.5 text-muted-foreground/50" />
+        <ChevronsUpDownIcon className="text-muted-foreground/50 inline h-3.5 w-3.5" />
       )}
     </button>
   );
@@ -329,7 +329,7 @@ export function CandidatesListPage() {
                 {formatShortCodes(r.stagingShortCodes)
                   .split(", ")
                   .map((id, i, arr) => (
-                    <span key={`s-${id}`} className="italic text-muted-foreground/50">
+                    <span key={`s-${id}`} className="text-muted-foreground/50 italic">
                       {id}
                       {i < arr.length - 1 && ", "}
                     </span>
@@ -407,7 +407,7 @@ export function CandidatesListPage() {
         ))}
 
         <div className="relative ml-auto">
-          <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             placeholder="Search by name…"
             value={globalFilter}
@@ -418,7 +418,7 @@ export function CandidatesListPage() {
       </div>
 
       {rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">No candidates found.</p>
+        <p className="text-muted-foreground py-8 text-center text-sm">No candidates found.</p>
       ) : (
         <div className="[&>[data-slot=table-container]]:overflow-visible">
           <Table>

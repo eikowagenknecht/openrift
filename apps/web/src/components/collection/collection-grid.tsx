@@ -144,7 +144,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
   if (sortedStacks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
+      <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
         <Package className="size-10 opacity-50" />
         <p>No cards yet</p>
         <p className="text-xs">
@@ -168,7 +168,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   return (
     <div className="flex flex-col gap-4">
       {/* Stats bar */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex items-center gap-4 text-sm">
         <span>
           {totalCopies} card{totalCopies === 1 ? "" : "s"}
           {sortedStacks.length !== totalCopies && ` (${sortedStacks.length} unique)`}
@@ -214,7 +214,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 <div key={stack.printingId} className="relative">
                   <button
                     type="button"
-                    className={`absolute left-3 top-3 z-20 flex size-5 cursor-pointer items-center justify-center rounded border transition-all ${
+                    className={`absolute top-3 left-3 z-20 flex size-5 cursor-pointer items-center justify-center rounded border transition-all ${
                       stackSelected
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-white/70 bg-black/30 text-transparent hover:border-white hover:text-white/70"
@@ -227,7 +227,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     <Check className="size-3" />
                   </button>
                   {stackSelected && (
-                    <div className="pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2 ring-primary/50" />
+                    <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
                   )}
                   <CardThumbnail
                     printing={stack.printing}
@@ -245,7 +245,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 <div key={copyId} className="relative">
                   <button
                     type="button"
-                    className={`absolute left-3 top-3 z-20 flex size-5 cursor-pointer items-center justify-center rounded border transition-all ${
+                    className={`absolute top-3 left-3 z-20 flex size-5 cursor-pointer items-center justify-center rounded border transition-all ${
                       selected.has(copyId)
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-white/70 bg-black/30 text-transparent hover:border-white hover:text-white/70"
@@ -258,7 +258,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     <Check className="size-3" />
                   </button>
                   {selected.has(copyId) && (
-                    <div className="pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2 ring-primary/50" />
+                    <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
                   )}
                   <CardThumbnail
                     printing={stack.printing}
@@ -274,7 +274,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
       {/* Floating action bar */}
       {selected.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-border bg-background px-4 py-2 shadow-lg">
+        <div className="border-border bg-background fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 shadow-lg">
           <span className="text-sm font-medium">{selected.size} selected</span>
           <Button
             variant="secondary"

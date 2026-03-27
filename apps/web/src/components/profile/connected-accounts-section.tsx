@@ -60,10 +60,10 @@ export function ConnectedAccountsSection() {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground text-sm">Loading...</p>
         ) : (
           <div className="grid gap-3">
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-destructive text-sm">{error}</p>}
             {SOCIAL_PROVIDERS.map((provider) => {
               const isLinked = linkedProviderIds.has(provider.id);
               const isOnlyAccount = accounts.length <= 1;

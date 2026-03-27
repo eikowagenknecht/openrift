@@ -58,7 +58,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   return (
     <div className="min-w-0 flex-1">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
           placeholder="Search cards..."
           value={localSearch}
@@ -72,8 +72,8 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
           }}
           className={cn("pl-9", localSearch ? "pr-28" : "pr-20")}
         />
-        <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
-          <span className="pointer-events-none text-xs text-muted-foreground">
+        <span className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-2">
+          <span className="text-muted-foreground pointer-events-none text-xs">
             {cardCountLabel} {unitLabel}
           </span>
           {localSearch && (
@@ -97,7 +97,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
           showScopeChips ? "mt-2 max-h-24 opacity-100" : "mt-0 max-h-0 opacity-0",
         )}
       >
-        <span className="shrink-0 text-xs text-muted-foreground">Search in:</span>
+        <span className="text-muted-foreground shrink-0 text-xs">Search in:</span>
         <div
           className={cn("flex flex-wrap gap-1", hasPrefixes && "pointer-events-none opacity-40")}
         >

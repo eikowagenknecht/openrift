@@ -125,7 +125,7 @@ export function CandidateUploadPage() {
               onChange={handleFileChange}
             />
             {fileName && fileData && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {fileName} &mdash; {fileData.length} card{fileData.length === 1 ? "" : "s"}
               </p>
             )}
@@ -142,7 +142,7 @@ export function CandidateUploadPage() {
               Provider name <span className="text-red-500">*</span>
             </Label>
             <Popover open={providerOpen} onOpenChange={setProviderOpen}>
-              <PopoverTrigger className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50">
+              <PopoverTrigger className="border-input focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50">
                 <span className={provider ? "text-foreground" : "text-muted-foreground"}>
                   {provider || "Select or type a provider name..."}
                 </span>
@@ -164,7 +164,7 @@ export function CandidateUploadPage() {
                     onFocus={(e) => e.target.select()}
                   />
                   <CommandList>
-                    <CommandEmpty className="py-3 text-center text-sm text-muted-foreground">
+                    <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
                       No existing providers found.
                     </CommandEmpty>
                     {(() => {
@@ -212,7 +212,7 @@ export function CandidateUploadPage() {
                 </Command>
               </PopoverContent>
             </Popover>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               A unique label identifying where this data came from.
             </p>
           </div>
@@ -311,10 +311,10 @@ function ItemList({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-sm font-medium text-muted-foreground">{label}:</p>
+      <p className="text-muted-foreground text-sm font-medium">{label}:</p>
       <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
         <table className="w-full">
-          <thead className="sticky top-0 bg-muted">
+          <thead className="bg-muted sticky top-0">
             <tr className="text-left">
               <th className="px-2 py-1">Name</th>
               <th className="px-2 py-1">Short Code</th>
@@ -324,7 +324,7 @@ function ItemList({
             {items.map((item, i) => (
               <tr key={i}>
                 <td className="px-2 py-1 font-medium">{item.name}</td>
-                <td className="px-2 py-1 text-muted-foreground">{item.shortCode ?? "\u2014"}</td>
+                <td className="text-muted-foreground px-2 py-1">{item.shortCode ?? "\u2014"}</td>
               </tr>
             ))}
           </tbody>
@@ -347,10 +347,10 @@ function DiffTable({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-sm font-medium text-muted-foreground">{label}:</p>
+      <p className="text-muted-foreground text-sm font-medium">{label}:</p>
       <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
         <table className="w-full">
-          <thead className="sticky top-0 bg-muted">
+          <thead className="bg-muted sticky top-0">
             <tr className="text-left">
               <th className="px-2 py-1">Card</th>
               <th className="px-2 py-1">Short Code</th>
@@ -364,7 +364,7 @@ function DiffTable({
               item.fields.map((f, fi) => (
                 <tr key={`${ci}-${fi}`}>
                   <td className="px-2 py-1 font-medium">{item.name}</td>
-                  <td className="px-2 py-1 text-muted-foreground">{item.shortCode ?? "\u2014"}</td>
+                  <td className="text-muted-foreground px-2 py-1">{item.shortCode ?? "\u2014"}</td>
                   <td className="px-2 py-1">{f.field}</td>
                   <td
                     className="max-w-48 truncate px-2 py-1 text-red-600 dark:text-red-400"
@@ -521,7 +521,7 @@ function ManageProvidersCard({
       width: "w-24",
       align: "right",
       sortValue: (r) => r.stats?.cardCount ?? 0,
-      cell: (r) => <span className="text-sm text-muted-foreground">{r.stats?.cardCount ?? 0}</span>,
+      cell: (r) => <span className="text-muted-foreground text-sm">{r.stats?.cardCount ?? 0}</span>,
     },
     {
       header: "Printings",
@@ -529,7 +529,7 @@ function ManageProvidersCard({
       align: "right",
       sortValue: (r) => r.stats?.printingCount ?? 0,
       cell: (r) => (
-        <span className="text-sm text-muted-foreground">{r.stats?.printingCount ?? 0}</span>
+        <span className="text-muted-foreground text-sm">{r.stats?.printingCount ?? 0}</span>
       ),
     },
     {
@@ -537,7 +537,7 @@ function ManageProvidersCard({
       width: "w-44",
       sortValue: (r) => r.stats?.lastUpdated ?? null,
       cell: (r) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-muted-foreground text-sm">
           {r.stats
             ? new Date(r.stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19)
             : "—"}

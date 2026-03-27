@@ -19,9 +19,9 @@ export function CardDetailHeading({
     <div className={cn(truncate && "min-w-0")}>
       <h2 className={cn("text-lg font-semibold", truncate && "truncate")}>
         {card.name}
-        <span className="ml-2 text-sm font-normal text-muted-foreground">{setNumber}</span>
+        <span className="text-muted-foreground ml-2 text-sm font-normal">{setNumber}</span>
       </h2>
-      <div className="flex flex-wrap items-center gap-1.5 text-sm uppercase text-muted-foreground">
+      <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm uppercase">
         <span className="inline-flex items-center gap-1">
           <img
             src={getTypeIconPath(card.type, card.superTypes)}
@@ -38,7 +38,7 @@ export function CardDetailHeading({
             onClick={() => onTagClick?.(tag)}
           >
             <span className="absolute inset-0 -skew-x-[15deg] bg-black dark:bg-white" />
-            <span className="relative text-xs font-semibold uppercase italic tracking-wide scale-x-75 text-white dark:text-black">
+            <span className="relative scale-x-75 text-xs font-semibold tracking-wide text-white uppercase italic dark:text-black">
               {tag}
             </span>
           </button>

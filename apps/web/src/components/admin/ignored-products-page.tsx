@@ -47,7 +47,7 @@ export function IgnoredProductsPage() {
             href={config.productUrl(p.externalId)}
             target="_blank"
             rel="noreferrer"
-            className="font-mono text-primary underline underline-offset-4 hover:text-primary/80"
+            className="text-primary hover:text-primary/80 font-mono underline underline-offset-4"
           >
             #{p.externalId}
           </a>
@@ -65,7 +65,7 @@ export function IgnoredProductsPage() {
       width: "w-36",
       sortValue: (p) => p.createdAt,
       cell: (p) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {p.createdAt.slice(0, 16).replace("T", " ")}
         </span>
       ),
@@ -81,7 +81,7 @@ export function IgnoredProductsPage() {
       defaultSort={{ column: "Ignored At", direction: "desc" }}
       toolbar={
         products.length > 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {products.length} ignored product{products.length === 1 ? "" : "s"} across all
             marketplaces
           </p>

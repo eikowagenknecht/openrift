@@ -77,17 +77,17 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
   );
 
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2">
+    <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         {filterState.search && (
           <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">Search:</span>
+            <span className="text-muted-foreground text-xs">Search:</span>
             <Badge variant="secondary" className="gap-1">
               &ldquo;{filterState.search}&rdquo;
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="ml-0.5 hover:text-foreground"
+                className="hover:text-foreground ml-0.5"
               >
                 <X className="size-3" />
               </button>
@@ -96,7 +96,7 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
         )}
         {filterGroups.map(({ key, label, values, displayLabel: groupDisplayLabel }) => (
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
-            <span className="text-xs text-muted-foreground">{label}:</span>
+            <span className="text-muted-foreground text-xs">{label}:</span>
             {values.map((value) => {
               const icon = getFilterIconPath(key, value);
               const displayFn =
@@ -109,7 +109,7 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
                   <button
                     type="button"
                     onClick={() => toggleArrayFilter(key, value)}
-                    className="ml-0.5 hover:text-foreground"
+                    className="hover:text-foreground ml-0.5"
                   >
                     <X className="size-3" />
                   </button>
@@ -138,10 +138,10 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
         })}
         {filterState.signed !== null && (
           <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">Flag:</span>
+            <span className="text-muted-foreground text-xs">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.signed === "false" ? "Not Signed" : "Signed"}
-              <button type="button" onClick={clearSigned} className="ml-0.5 hover:text-foreground">
+              <button type="button" onClick={clearSigned} className="hover:text-foreground ml-0.5">
                 <X className="size-3" />
               </button>
             </Badge>
@@ -149,10 +149,10 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
         )}
         {filterState.promo !== null && (
           <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">Flag:</span>
+            <span className="text-muted-foreground text-xs">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.promo === "false" ? "Not Promo" : "Promo"}
-              <button type="button" onClick={clearPromo} className="ml-0.5 hover:text-foreground">
+              <button type="button" onClick={clearPromo} className="hover:text-foreground ml-0.5">
                 <X className="size-3" />
               </button>
             </Badge>
@@ -203,10 +203,10 @@ function RangeBadge({
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-xs text-muted-foreground">{label}:</span>
+      <span className="text-muted-foreground text-xs">{label}:</span>
       <Badge variant="secondary" className="gap-1">
         {valueLabel}
-        <button type="button" onClick={onClear} className="ml-0.5 hover:text-foreground">
+        <button type="button" onClick={onClear} className="hover:text-foreground ml-0.5">
           <X className="size-3" />
         </button>
       </Badge>

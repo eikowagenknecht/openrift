@@ -25,7 +25,7 @@ function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   ].filter(Boolean);
 
   return (
-    <div className="space-y-0.5 text-xs text-muted-foreground">
+    <div className="text-muted-foreground space-y-0.5 text-xs">
       <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
         <CheckIcon className="size-4" />
         Fetched {transformed.groups} groups, {transformed.products} products, {transformed.prices}{" "}

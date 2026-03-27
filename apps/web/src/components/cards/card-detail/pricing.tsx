@@ -135,14 +135,14 @@ function PriceChip({
       {...linkProps}
       title={label}
       className={cn(
-        `inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-sm font-semibold ${priceColorClass(value)}`,
+        `bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold ${priceColorClass(value)}`,
         url && "transition-opacity hover:opacity-70",
       )}
     >
       {icon ? (
         <img src={icon} alt={label} className={cn("h-3", iconClassName)} />
       ) : (
-        <span className="text-xs font-normal text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground text-xs font-normal">{label}</span>
       )}
       {formatValue(value)}
     </Wrapper>

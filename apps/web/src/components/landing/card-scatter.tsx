@@ -100,7 +100,7 @@ function CardShape({
     <button
       type="button"
       className={cn(
-        "aspect-[5/7] w-14 md:w-16 -translate-x-1/2 -translate-y-1/2 cursor-pointer pointer-events-auto rounded-lg border border-primary/10 bg-background transition-[border-color] duration-300 hover:border-primary/40 dark:border-primary/15 dark:hover:border-primary/50",
+        "border-primary/10 bg-background hover:border-primary/40 dark:border-primary/15 dark:hover:border-primary/50 pointer-events-auto aspect-[5/7] w-14 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-lg border transition-[border-color] duration-300 md:w-16",
         wobbling && "animate-wobble",
         hinting && "border-primary/40 dark:border-primary/50",
       )}
@@ -110,7 +110,7 @@ function CardShape({
     >
       <div
         className={cn(
-          "bg-foil absolute inset-0 animate-foil-shimmer rounded-[inherit] bg-[length:200%_200%] transition-opacity duration-700",
+          "bg-foil animate-foil-shimmer absolute inset-0 rounded-[inherit] bg-[length:200%_200%] transition-opacity duration-700",
           active ? "opacity-30" : "opacity-0",
         )}
         style={{ animationDelay: `${shimmerDelay}s` }}
@@ -247,7 +247,7 @@ export function CardScatter({
       <div
         ref={canvasRef}
         className={cn(
-          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+          "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
           isMobile ? "h-[1800px] w-[1200px]" : "h-[3000px] w-[8000px]",
         )}
       >
@@ -268,7 +268,7 @@ export function CardScatter({
                   !flyingAway.has(i) &&
                   !gone.has(i) &&
                   !visibleCards.has(i) &&
-                  "opacity-0 pointer-events-none",
+                  "pointer-events-none opacity-0",
               )}
               style={
                 {
@@ -298,7 +298,7 @@ export function CardScatter({
       </div>
 
       {collected > 0 && reachableCount > 0 && (
-        <div className="pointer-events-auto fixed top-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-primary/20 bg-background/80 px-4 py-1.5 text-xs tabular-nums text-muted-foreground backdrop-blur-sm">
+        <div className="border-primary/20 bg-background/80 text-muted-foreground pointer-events-auto fixed top-4 left-1/2 z-20 -translate-x-1/2 rounded-full border px-4 py-1.5 text-xs tabular-nums backdrop-blur-sm">
           {collected} / {reachableCount} collected
         </div>
       )}

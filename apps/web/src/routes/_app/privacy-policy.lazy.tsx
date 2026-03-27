@@ -6,7 +6,7 @@ export const Route = createLazyFileRoute("/_app/privacy-policy")({
 
 function PrivacyPolicyPage() {
   return (
-    <article className="mt-6 prose dark:prose-invert mx-auto max-w-2xl">
+    <article className="prose dark:prose-invert mx-auto mt-6 max-w-2xl">
       <h1>Privacy Policy</h1>
 
       <h2>1. Controller</h2>
@@ -192,7 +192,7 @@ function PrivacyPolicyPage() {
         practices or legal requirements. The current version is always available on this page.
       </p>
 
-      <p className="text-sm text-muted-foreground">Last updated: March 2026</p>
+      <p className="text-muted-foreground text-sm">Last updated: March 2026</p>
     </article>
   );
 }

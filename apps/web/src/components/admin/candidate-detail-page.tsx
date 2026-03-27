@@ -225,7 +225,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
     return (
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Card not found</h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           No card with ID &ldquo;{identifier}&rdquo; exists.
         </p>
       </div>
@@ -507,7 +507,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               </kbd>
             </Button>
           </div>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground flex items-center gap-2 text-sm">
             <span className={isCardIdStale ? "text-orange-600 line-through" : ""}>{cardId}</span>
             {isCardIdStale && (
               <>
@@ -546,7 +546,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           <h2 className="text-lg font-semibold">
             {(unmatchedData as NonNullable<typeof unmatchedData>).displayName}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Candidate card &mdash; {sources.length} source
             {sources.length === 1 ? "" : "s"}
           </p>
@@ -599,7 +599,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
             </Button>
           </div>
           {!hasRequiredFields && (
-            <p className="text-xs text-muted-foreground">Select name, type, and domains first.</p>
+            <p className="text-muted-foreground text-xs">Select name, type, and domains first.</p>
           )}
         </section>
       )}
@@ -622,7 +622,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           )}
         </div>
         {!isExisting && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Click a cell to select it for the new card. The Active column shows your selections.
           </p>
         )}
@@ -909,7 +909,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="ml-auto h-6 text-xs text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive ml-auto h-6 text-xs"
                     disabled={deletePrintingMutation.isPending}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1350,7 +1350,7 @@ function NewPrintingGroupCard({
       {isExpanded && (
         <>
           {!hasRequired && (
-            <p className="px-3 pb-2 text-xs text-muted-foreground">
+            <p className="text-muted-foreground px-3 pb-2 text-xs">
               Click cells to fill all required fields (marked with *).
             </p>
           )}
@@ -1472,17 +1472,17 @@ function ImagePreview({
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="flex aspect-[5/7] w-full items-center justify-center rounded border bg-muted/30 text-xs text-muted-foreground hover:bg-muted/50"
+          className="bg-muted/30 text-muted-foreground hover:bg-muted/50 flex aspect-[5/7] w-full items-center justify-center rounded border text-xs"
         >
           Failed to load — click to open
         </a>
       ) : (
-        <div className="flex aspect-[5/7] w-full items-center justify-center rounded border text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex aspect-[5/7] w-full items-center justify-center rounded border text-xs">
           No image
         </div>
       )}
       {resolution && url && !imgError && (
-        <span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+        <span className="absolute right-1.5 bottom-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
           {resolution}
         </span>
       )}
@@ -1567,7 +1567,7 @@ function GroupImagePreview({
         href={selected.url}
         target="_blank"
         rel="noreferrer"
-        className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground block truncate text-[10px]"
         title={selected.url}
       >
         {selected.url}
@@ -1725,7 +1725,7 @@ function PrintingImageSwitcher({
               href={effectiveImage.originalUrl}
               target="_blank"
               rel="noreferrer"
-              className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground block truncate text-[10px]"
               title={effectiveImage.originalUrl}
             >
               {effectiveImage.originalUrl}
@@ -1747,7 +1747,7 @@ function PrintingImageSwitcher({
               href={effectiveSource.url}
               target="_blank"
               rel="noreferrer"
-              className="block truncate text-[10px] text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground block truncate text-[10px]"
               title={effectiveSource.url}
             >
               {effectiveSource.url}
@@ -1777,7 +1777,7 @@ function PrintingImageSwitcher({
               External
             </Badge>
           )}
-          <span className="text-[10px] text-muted-foreground">{effectiveImage.provider}</span>
+          <span className="text-muted-foreground text-[10px]">{effectiveImage.provider}</span>
           <div className="ml-auto flex items-center gap-0.5">
             {effectiveImage.isActive ? (
               <Button
@@ -1833,7 +1833,7 @@ function PrintingImageSwitcher({
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 text-destructive"
+              className="text-destructive size-6"
               title="Remove"
               disabled={deletePrintingImage.isPending}
               onClick={() => deletePrintingImage.mutate(effectiveImage.id)}
@@ -1848,7 +1848,7 @@ function PrintingImageSwitcher({
           <Badge variant="outline" className="h-4 text-[10px] leading-none">
             Source
           </Badge>
-          <span className="text-[10px] text-muted-foreground">{effectiveSource.source}</span>
+          <span className="text-muted-foreground text-[10px]">{effectiveSource.source}</span>
           <div className="ml-auto flex items-center gap-0.5">
             <Button
               variant="ghost"

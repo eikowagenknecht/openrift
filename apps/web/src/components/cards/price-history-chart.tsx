@@ -131,16 +131,16 @@ export function PriceHistoryChart({
       {/* Chart */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <Loader2 className="text-muted-foreground size-5 animate-spin" />
         </div>
       )}
 
       {error && (
-        <p className="text-center text-sm text-destructive py-8">Failed to load price history.</p>
+        <p className="text-destructive py-8 text-center text-sm">Failed to load price history.</p>
       )}
 
       {!isLoading && !error && snapshots.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground py-8">
+        <p className="text-muted-foreground py-8 text-center text-sm">
           No price data available for this time range.
         </p>
       )}
@@ -176,7 +176,7 @@ export function PriceHistoryChart({
                 const market = snap.market as number | null;
                 const low = snap.low as number | null;
                 return (
-                  <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+                  <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
                     <p className="mb-1 font-medium">{String(snap.date)}</p>
                     <div className="space-y-0.5">
                       {market !== null && market !== undefined && (

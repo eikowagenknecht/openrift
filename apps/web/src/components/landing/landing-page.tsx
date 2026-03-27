@@ -36,12 +36,12 @@ export function LandingPage() {
       cardHinting={hinting}
       onAllCollected={handleAllCollected}
     >
-      <div className="flex flex-1 flex-col items-center gap-3 justify-center p-4">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4">
         <button type="button" className="cursor-pointer" onClick={handleLogoTap}>
           <img src="/logo.webp" alt="" className={cn("size-36", spinning && "animate-logo-spin")} />
         </button>
-        <h1 className="font-bold text-4xl md:text-5xl">OpenRift</h1>
-        <p className="text-center text-muted-foreground">
+        <h1 className="text-4xl font-bold md:text-5xl">OpenRift</h1>
+        <p className="text-muted-foreground text-center">
           Fast. Open. Ad-free. A Riftbound companion.
         </p>
 
@@ -61,10 +61,10 @@ export function LandingPage() {
           </Link>
         </div>
         {data && (
-          <p className="text-sm text-muted-foreground/70">
-            <span className="font-semibold text-foreground">{uniqueCards.toLocaleString()}</span>{" "}
+          <p className="text-muted-foreground/70 text-sm">
+            <span className="text-foreground font-semibold">{uniqueCards.toLocaleString()}</span>{" "}
             cards &middot;{" "}
-            <span className="font-semibold text-foreground">{printings.toLocaleString()}</span>{" "}
+            <span className="text-foreground font-semibold">{printings.toLocaleString()}</span>{" "}
             printings
           </p>
         )}

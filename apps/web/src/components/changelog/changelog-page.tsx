@@ -8,9 +8,9 @@ const changelogGroups = parseChangelog(changelogMd);
 
 function SkewedBadge({ text, color }: { text: string; color: string }) {
   return (
-    <span className="ml-1 relative inline-flex w-10 shrink-0 justify-center py-0.5">
+    <span className="relative ml-1 inline-flex w-10 shrink-0 justify-center py-0.5">
       <span className={`absolute inset-0 -skew-x-[15deg] ${color}`} />
-      <span className="relative -ml-0.5 text-sm font-semibold uppercase italic leading-none tracking-tight text-white">
+      <span className="relative -ml-0.5 text-sm leading-none font-semibold tracking-tight text-white uppercase italic">
         {text}
       </span>
     </span>
@@ -19,21 +19,21 @@ function SkewedBadge({ text, color }: { text: string; color: string }) {
 
 export function ChangelogPage() {
   return (
-    <div className="mt-6 mx-auto max-w-2xl">
+    <div className="mx-auto mt-6 max-w-2xl">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">What&apos;s new</h1>
-        <Link to="/roadmap" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link to="/roadmap" className="text-muted-foreground hover:text-foreground text-sm">
           Roadmap &rarr;
         </Link>
       </div>
       <div className="flex flex-col gap-6">
         {changelogGroups.map((group) => (
           <div key={group.date}>
-            <div className="py-2 sticky top-14 z-10 flex items-baseline justify-between border-b border-border bg-background pb-2">
-              <span className="text-sm font-semibold text-foreground">
+            <div className="border-border bg-background sticky top-14 z-10 flex items-baseline justify-between border-b py-2 pb-2">
+              <span className="text-foreground text-sm font-semibold">
                 {formatRelativeDate(group.date)}
               </span>
-              <span className="text-sm tabular-nums text-muted-foreground">{group.date}</span>
+              <span className="text-muted-foreground text-sm tabular-nums">{group.date}</span>
             </div>
             <ul className="space-y-2 pt-2">
               {group.entries.map((entry, i) => (

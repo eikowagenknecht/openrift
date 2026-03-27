@@ -77,7 +77,7 @@ export function ErrorMessageLayout({
       className={cn("flex flex-col items-center justify-center gap-4 px-4 text-center", className)}
     >
       {emoji && (
-        <div className="text-muted-foreground select-none text-4xl font-medium">{emoji}</div>
+        <div className="text-muted-foreground text-4xl font-medium select-none">{emoji}</div>
       )}
       <h1 className="text-xl font-semibold">{heading}</h1>
       {subtext && <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>}

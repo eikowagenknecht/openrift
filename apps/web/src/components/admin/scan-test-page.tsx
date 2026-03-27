@@ -173,12 +173,12 @@ export function ScanTestPage() {
 
   return (
     <div className="space-y-6">
-      <div className="text-sm text-muted-foreground">
+      <div className="text-muted-foreground text-sm">
         Test camera-based card scanning with two approaches: OCR (text recognition) and perceptual
         image hashing (visual similarity). Capture a card image and compare results.
       </div>
 
-      <p className="text-sm text-muted-foreground">{allPrintings.length} printings loaded.</p>
+      <p className="text-muted-foreground text-sm">{allPrintings.length} printings loaded.</p>
 
       {/* Camera section */}
       <Card>
@@ -202,15 +202,15 @@ export function ScanTestPage() {
             )}
           </div>
 
-          {cameraError && <p className="text-sm text-destructive">{cameraError}</p>}
+          {cameraError && <p className="text-destructive text-sm">{cameraError}</p>}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Live Feed</p>
+              <p className="text-muted-foreground mb-2 text-xs font-medium">Live Feed</p>
               <div className="relative overflow-hidden rounded-md">
                 <video
                   ref={videoRef}
-                  className="w-full rounded-md border bg-muted"
+                  className="bg-muted w-full rounded-md border"
                   playsInline
                   muted
                   style={{ display: cameraActive ? "block" : "none" }}
@@ -218,17 +218,17 @@ export function ScanTestPage() {
                 {cameraActive && <CardGuideOverlay />}
               </div>
               {!cameraActive && (
-                <div className="flex h-48 items-center justify-center rounded-md border bg-muted text-sm text-muted-foreground">
+                <div className="bg-muted text-muted-foreground flex h-48 items-center justify-center rounded-md border text-sm">
                   Camera off
                 </div>
               )}
             </div>
             <div>
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Captured Frame</p>
+              <p className="text-muted-foreground mb-2 text-xs font-medium">Captured Frame</p>
               {capturedImage ? (
                 <img src={capturedImage} alt="Captured" className="w-full rounded-md border" />
               ) : (
-                <div className="flex h-48 items-center justify-center rounded-md border bg-muted text-sm text-muted-foreground">
+                <div className="bg-muted text-muted-foreground flex h-48 items-center justify-center rounded-md border text-sm">
                   No capture yet
                 </div>
               )}
@@ -269,10 +269,10 @@ export function ScanTestPage() {
                 {ocrResult && (
                   <div className="space-y-4">
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground">
+                      <p className="text-muted-foreground text-xs font-medium">
                         Raw OCR Text ({ocrResult.elapsed}ms)
                       </p>
-                      <pre className="mt-1 max-h-40 overflow-auto rounded-md border bg-muted p-3 text-xs">
+                      <pre className="bg-muted mt-1 max-h-40 overflow-auto rounded-md border p-3 text-xs">
                         {ocrResult.rawText || "(no text detected)"}
                       </pre>
                     </div>
@@ -403,7 +403,7 @@ export function ScanTestPage() {
                           : 0
                       }
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Hashed {phashProgress.done} / {phashProgress.total} card images
                     </p>
                   </div>
@@ -411,7 +411,7 @@ export function ScanTestPage() {
 
                 {phashResult && (
                   <div className="space-y-4">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Hash: <code className="font-mono">{phashResult.hashComputed}</code> | Matched
                       in {phashResult.elapsed}ms
                     </p>
@@ -419,12 +419,12 @@ export function ScanTestPage() {
                     {/* Debug pipeline visualization */}
                     {phashResult.debug && (
                       <div>
-                        <p className="mb-2 text-xs font-medium text-muted-foreground">
+                        <p className="text-muted-foreground mb-2 text-xs font-medium">
                           Pipeline Debug
                         </p>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <p className="mb-1 text-xs text-muted-foreground">
+                            <p className="text-muted-foreground mb-1 text-xs">
                               1. Cropped ({Math.round((1 - 2 * phashConfig.borderInset) * 100)}%)
                             </p>
                             <img
@@ -434,7 +434,7 @@ export function ScanTestPage() {
                             />
                           </div>
                           <div>
-                            <p className="mb-1 text-xs text-muted-foreground">
+                            <p className="text-muted-foreground mb-1 text-xs">
                               2. Grid {phashResult.debug.gridW}&times;
                               {phashResult.debug.gridH} &rarr; {hashBitCount(phashConfig)} bits
                             </p>
@@ -446,7 +446,7 @@ export function ScanTestPage() {
                             />
                           </div>
                           <div>
-                            <p className="mb-1 text-xs text-muted-foreground">3. Hash bits</p>
+                            <p className="text-muted-foreground mb-1 text-xs">3. Hash bits</p>
                             <HashBitsViz hash={phashResult.hashComputed} />
                           </div>
                         </div>
@@ -533,7 +533,7 @@ function ParamSlider({
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="text-xs font-mono text-muted-foreground">{value}</span>
+        <span className="text-muted-foreground font-mono text-xs">{value}</span>
       </div>
       <Slider
         value={[value]}
@@ -605,12 +605,12 @@ function MatchResults({
   matches: { printing: Printing; score: number; detail: string }[];
 }) {
   if (matches.length === 0) {
-    return <p className="text-sm text-muted-foreground">No matches found.</p>;
+    return <p className="text-muted-foreground text-sm">No matches found.</p>;
   }
 
   return (
     <div>
-      <p className="mb-2 text-xs font-medium text-muted-foreground">
+      <p className="text-muted-foreground mb-2 text-xs font-medium">
         Top Matches ({matches.length})
       </p>
       <div className="space-y-2">
@@ -628,7 +628,7 @@ function MatchResults({
             )}
             <div className="flex-1">
               <p className="text-sm font-medium">{match.printing.card.name}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 {match.printing.setSlug} #{match.printing.collectorNumber} &middot;{" "}
                 {match.printing.rarity} &middot; {match.printing.publicCode}
               </p>
@@ -637,7 +637,7 @@ function MatchResults({
               <Badge variant={match.score > 0.8 ? "default" : "secondary"}>
                 {(match.score * 100).toFixed(1)}%
               </Badge>
-              <p className="mt-1 text-xs text-muted-foreground">{match.detail}</p>
+              <p className="text-muted-foreground mt-1 text-xs">{match.detail}</p>
             </div>
           </div>
         ))}

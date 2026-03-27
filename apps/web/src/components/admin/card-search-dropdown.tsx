@@ -52,12 +52,12 @@ export function CardSearchDropdown({
         autoFocus={autoFocus}
       />
       {showResults && search.length >= 2 && results.length > 0 && (
-        <div className="absolute top-full z-50 mt-1 max-h-60 min-w-full w-max overflow-y-auto rounded-md border bg-popover shadow-md">
+        <div className="bg-popover absolute top-full z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md">
           {results.map((item) => (
             <button
               key={item.id}
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+              className="hover:bg-muted flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm disabled:opacity-50"
               onMouseDown={(e) => e.preventDefault()}
               disabled={disabled}
               onClick={() => {
@@ -68,10 +68,10 @@ export function CardSearchDropdown({
             >
               <span className="truncate font-medium">{item.label}</span>
               {item.sublabel && (
-                <span className="shrink-0 text-xs text-muted-foreground">{item.sublabel}</span>
+                <span className="text-muted-foreground shrink-0 text-xs">{item.sublabel}</span>
               )}
               {item.detail && (
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                <span className="text-muted-foreground ml-auto shrink-0 text-xs">
                   {item.detail}
                 </span>
               )}
@@ -80,8 +80,8 @@ export function CardSearchDropdown({
         </div>
       )}
       {showResults && search.length >= 2 && results.length === 0 && (
-        <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-popover px-3 py-2 shadow-md">
-          <p className="text-xs text-muted-foreground">No matching cards</p>
+        <div className="bg-popover absolute top-full z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md">
+          <p className="text-muted-foreground text-xs">No matching cards</p>
         </div>
       )}
     </div>

@@ -31,14 +31,14 @@ function SettingsPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Developer Tools</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Diagnostic overlays and debugging aids. These settings are stored in your browser.
           </p>
         </div>
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-0.5">
             <Label htmlFor="debug-overlay">Debug overlay</Label>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Show card grid layout metrics (row heights, column count, virtualizer state)
             </p>
           </div>
@@ -53,7 +53,7 @@ function SettingsPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Data Maintenance</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Bulk operations on the database. These actions affect all users.
           </p>
         </div>
@@ -92,7 +92,7 @@ function FixTypographyCard() {
     <div className="space-y-3 rounded-lg border p-4">
       <div className="space-y-0.5">
         <Label>Fix typography</Label>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Replace straight quotes, triple dots, and hyphens before digits with proper Unicode
           characters, and ensure parenthesized text is wrapped with underscores for italic
           rendering, in all printing text fields.
@@ -106,7 +106,7 @@ function FixTypographyCard() {
 
         {previewCount !== null && !applied && (
           <>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               {previewCount === 0
                 ? "No rows need fixing."
                 : `${String(previewCount)} row${previewCount === 1 ? "" : "s"} would be updated.`}
@@ -127,7 +127,7 @@ function FixTypographyCard() {
       </div>
 
       {(preview.isError || apply.isError) && (
-        <p className="text-sm text-destructive">
+        <p className="text-destructive text-sm">
           {(preview.error ?? apply.error)?.message ?? "Something went wrong."}
         </p>
       )}

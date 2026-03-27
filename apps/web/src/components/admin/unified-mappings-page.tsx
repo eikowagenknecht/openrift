@@ -255,7 +255,7 @@ function MarketplaceProductColumn({
             />
           );
         })}
-        {allProducts.length === 0 && <p className="text-xs text-muted-foreground">No products</p>}
+        {allProducts.length === 0 && <p className="text-muted-foreground text-xs">No products</p>}
       </div>
     </div>
   );
@@ -285,7 +285,7 @@ function SuggestionButton({
         "flex w-full items-center rounded-md px-2 py-1.5 text-xs disabled:opacity-50",
         isStrong
           ? "border border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
-          : "border border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10",
+          : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 border border-dashed",
       )}
       disabled={disabled}
       onClick={onClick}
@@ -363,11 +363,11 @@ function UnifiedExpandedDetail({
   const isSaving = tcgSave.isPending || cmSave.isPending || ctSave.isPending;
 
   return (
-    <div className="flex flex-col gap-6 bg-muted/30 px-4 py-4 sm:flex-row sm:px-6">
+    <div className="bg-muted/30 flex flex-col gap-6 px-4 py-4 sm:flex-row sm:px-6">
       {/* Printings */}
       <div className="min-w-0 flex-1">
         <div className="mb-3 flex items-center gap-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Printings
           </h4>
           {totalSuggestions > 0 && (
@@ -402,7 +402,7 @@ function UnifiedExpandedDetail({
                 key={p.printingId}
                 className={cn(
                   "w-[280px] rounded-lg",
-                  hasAnyUnmapped && "ring-2 ring-destructive/40 bg-destructive/5",
+                  hasAnyUnmapped && "ring-destructive/40 bg-destructive/5 ring-2",
                 )}
               >
                 <CardThumbnail
@@ -418,7 +418,7 @@ function UnifiedExpandedDetail({
                   }}
                 />
                 <div className="space-y-1.5 px-2.5 pb-2">
-                  <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
                     <span>
                       {p.finish}
                       {p.artVariant === ("altart" satisfies ArtVariant) ? " · Alt Art" : ""}
@@ -434,9 +434,9 @@ function UnifiedExpandedDetail({
                   {p.tcgExternalId !== null &&
                   p.cmExternalId !== null &&
                   p.ctExternalId !== null ? (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                       <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                        <Badge variant="outline" className="px-1 py-0 text-[10px]">
                           TCG
                         </Badge>
                         <ProductLink config={TCG_CONFIG} externalId={p.tcgExternalId}>
@@ -453,7 +453,7 @@ function UnifiedExpandedDetail({
                         </button>
                       </span>
                       <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                        <Badge variant="outline" className="px-1 py-0 text-[10px]">
                           CM
                         </Badge>
                         <ProductLink config={CM_CONFIG} externalId={p.cmExternalId}>
@@ -470,7 +470,7 @@ function UnifiedExpandedDetail({
                         </button>
                       </span>
                       <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                        <Badge variant="outline" className="px-1 py-0 text-[10px]">
                           CT
                         </Badge>
                         <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
@@ -525,8 +525,8 @@ function UnifiedExpandedDetail({
                             />
                           </>
                         ) : (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                            <Badge variant="outline" className="px-1 py-0 text-[10px]">
                               TCG
                             </Badge>
                             <ProductLink config={TCG_CONFIG} externalId={p.tcgExternalId}>
@@ -581,8 +581,8 @@ function UnifiedExpandedDetail({
                             />
                           </>
                         ) : (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                            <Badge variant="outline" className="px-1 py-0 text-[10px]">
                               CM
                             </Badge>
                             <ProductLink config={CM_CONFIG} externalId={p.cmExternalId}>
@@ -637,8 +637,8 @@ function UnifiedExpandedDetail({
                             />
                           </>
                         ) : (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                            <Badge variant="outline" className="px-1 py-0 text-[10px]">
                               CT
                             </Badge>
                             <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
@@ -963,7 +963,7 @@ export function UnifiedMappingsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           {groups.length === 0
             ? "No products need mapping."
             : `${groups.length} card${groups.length === 1 ? "" : "s"} need${groups.length === 1 ? "s" : ""} attention`}
@@ -992,7 +992,7 @@ export function UnifiedMappingsPage() {
         </div>
       </div>
 
-      {isSaving && <p className="text-xs text-muted-foreground">Saving…</p>}
+      {isSaving && <p className="text-muted-foreground text-xs">Saving…</p>}
 
       {groups.length > 0 && (
         <div className="overflow-x-auto">

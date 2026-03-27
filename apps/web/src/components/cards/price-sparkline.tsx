@@ -52,7 +52,7 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
     <button
       type="button"
       onClick={() => setExpanded(true)}
-      className="group/spark relative block w-full rounded-lg transition-colors hover:bg-muted/50"
+      className="group/spark hover:bg-muted/50 relative block w-full rounded-lg transition-colors"
     >
       <ChartContainer config={chartConfig} className="aspect-auto h-12 w-full">
         <AreaChart data={snapshots} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
@@ -69,9 +69,9 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
               }
               const snap = payload[0].payload as TcgplayerSnapshot;
               return (
-                <div className="rounded-md bg-popover px-2 py-1 text-xs shadow-md">
+                <div className="bg-popover rounded-md px-2 py-1 text-xs shadow-md">
                   <span className="font-medium">{formatPrice(snap.market)}</span>
-                  <span className="ml-1.5 text-muted-foreground">{snap.date}</span>
+                  <span className="text-muted-foreground ml-1.5">{snap.date}</span>
                 </div>
               );
             }}
@@ -88,10 +88,10 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
           />
         </AreaChart>
       </ChartContainer>
-      <span className="pointer-events-none absolute bottom-0.5 left-1 text-[10px] text-muted-foreground/70">
+      <span className="text-muted-foreground/70 pointer-events-none absolute bottom-0.5 left-1 text-[10px]">
         30D
       </span>
-      <span className="pointer-events-none absolute right-1 bottom-0.5 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover/spark:opacity-100">
+      <span className="text-muted-foreground pointer-events-none absolute right-1 bottom-0.5 inline-flex items-center gap-0.5 text-[10px] opacity-0 transition-opacity group-hover/spark:opacity-100">
         <ChevronDown className="size-2.5" />
         Price history
       </span>

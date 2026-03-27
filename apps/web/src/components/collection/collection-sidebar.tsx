@@ -132,7 +132,7 @@ export function CollectionSidebar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start gap-2 text-muted-foreground"
+                  className="text-muted-foreground w-full justify-start gap-2"
                   onClick={() => setIsCreating(true)}
                 >
                   <PlusIcon className="size-4" />

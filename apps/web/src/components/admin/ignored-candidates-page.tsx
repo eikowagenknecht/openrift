@@ -48,7 +48,7 @@ export function IgnoredCandidatesPage() {
       width: "w-36",
       sortValue: (r) => r.createdAt,
       cell: (r) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {r.createdAt.slice(0, 16).replace("T", " ")}
         </span>
       ),
@@ -83,7 +83,7 @@ export function IgnoredCandidatesPage() {
       width: "w-36",
       sortValue: (r) => r.createdAt,
       cell: (r) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {r.createdAt.slice(0, 16).replace("T", " ")}
         </span>
       ),

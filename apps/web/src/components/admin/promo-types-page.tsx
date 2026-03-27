@@ -80,7 +80,7 @@ export function PromoTypesPage() {
       getRowKey={(pt) => pt.id}
       emptyText="No promo types yet."
       toolbar={
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Promo types classify promotional printings (e.g. Summoner Skirmish, Nexus Night).
         </p>
       }

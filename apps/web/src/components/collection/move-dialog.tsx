@@ -53,7 +53,7 @@ export function MoveDialog({
             </button>
           ))}
           {collections.length === 0 && (
-            <p className="py-4 text-center text-sm text-muted-foreground">
+            <p className="text-muted-foreground py-4 text-center text-sm">
               No other collections available.
             </p>
           )}

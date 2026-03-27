@@ -113,10 +113,10 @@ const roadmapItems: RoadmapItem[] = [
 
 export function RoadmapPage() {
   return (
-    <div className="mt-6 mx-auto w-full max-w-2xl">
+    <div className="mx-auto mt-6 w-full max-w-2xl">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">Roadmap</h1>
-        <Link to="/changelog" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link to="/changelog" className="text-muted-foreground hover:text-foreground text-sm">
           What&apos;s new &rarr;
         </Link>
       </div>
@@ -136,7 +136,7 @@ export function RoadmapPage() {
                 <span
                   className={cn(
                     "mb-2 hidden text-xs md:block",
-                    item.done ? "text-muted-foreground" : "italic text-muted-foreground/60",
+                    item.done ? "text-muted-foreground" : "text-muted-foreground/60 italic",
                   )}
                 >
                   {item.done ? item.date : "Soon™"}
@@ -171,24 +171,24 @@ export function RoadmapPage() {
               {/* Card */}
               <div className={cn("flex-1 pb-6", isLast && "pb-0")}>
                 {isFirstDone && (
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
                     Shipped
                   </p>
                 )}
                 {isFirst && !item.done && (
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
                     Planned
                   </p>
                 )}
                 <Card
                   size="sm"
-                  className={cn(!item.done && "border-dashed ring-muted-foreground/10")}
+                  className={cn(!item.done && "ring-muted-foreground/10 border-dashed")}
                 >
                   <CardHeader>
                     <CardTitle
                       className={cn(
                         "flex items-center gap-2",
-                        item.done ? "text-foreground" : "italic text-muted-foreground",
+                        item.done ? "text-foreground" : "text-muted-foreground italic",
                       )}
                     >
                       <span className={item.done ? "text-primary" : "text-muted-foreground/50"}>
@@ -205,7 +205,7 @@ export function RoadmapPage() {
                   <p
                     className={cn(
                       "px-3 pb-3 text-xs md:hidden",
-                      item.done ? "text-muted-foreground" : "italic text-muted-foreground/60",
+                      item.done ? "text-muted-foreground" : "text-muted-foreground/60 italic",
                     )}
                   >
                     {item.done ? item.date : "Soon™"}

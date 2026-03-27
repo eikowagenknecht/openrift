@@ -5,7 +5,7 @@ import { COMMIT_HASH } from "@/lib/env";
 
 export function Footer() {
   return (
-    <footer className="mx-auto p-4 text-center text-2xs text-muted-foreground/60">
+    <footer className="text-2xs text-muted-foreground/60 mx-auto p-4 text-center">
       <p>
         <Link to="/legal-notice" className="hover:text-muted-foreground">
           Legal Notice
@@ -24,7 +24,7 @@ export function Footer() {
           <svg
             role="img"
             viewBox="0 0 24 24"
-            className="mb-px mr-0.5 inline size-2.5 fill-current align-middle"
+            className="mr-0.5 mb-px inline size-2.5 fill-current align-middle"
           >
             <path d={siGithub.path} />
           </svg>

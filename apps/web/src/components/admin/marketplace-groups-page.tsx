@@ -66,7 +66,7 @@ const columns: AdminColumnDef<MarketplaceGroup>[] = [
             href={urlFn(g.groupId)}
             target="_blank"
             rel="noreferrer"
-            className="font-mono text-primary underline underline-offset-4 hover:text-primary/80"
+            className="text-primary hover:text-primary/80 font-mono underline underline-offset-4"
           >
             {g.groupId}
           </a>

@@ -23,7 +23,7 @@ export function PrintingPicker({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
         Versions
       </h3>
       <div className="space-y-1">
@@ -37,11 +37,11 @@ export function PrintingPicker({
               onClick={() => onSelect(p)}
               className={cn(
                 "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
-                isActive ? "bg-muted ring-1 ring-border" : "hover:bg-muted/50",
+                isActive ? "bg-muted ring-border ring-1" : "hover:bg-muted/50",
               )}
             >
               <span className="min-w-0 flex-1 truncate">
-                <span className="mr-1.5 font-mono text-xs text-muted-foreground">
+                <span className="text-muted-foreground mr-1.5 font-mono text-xs">
                   {formatCardId(p)}
                 </span>
                 {label}

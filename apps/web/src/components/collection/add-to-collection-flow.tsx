@@ -64,10 +64,10 @@ export function AddToCollectionFlow({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2">
+      <div className="border-primary/30 bg-primary/5 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2">
         <span className="text-sm font-medium">Adding to: {collectionName}</span>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Source:</span>
+          <span className="text-muted-foreground text-xs">Source:</span>
           {creatingSource ? (
             <form
               className="flex items-center gap-1"
@@ -94,7 +94,7 @@ export function AddToCollectionFlow({
                 value={newSourceName}
                 onChange={(e) => setNewSourceName(e.target.value)}
                 placeholder="e.g. Local Game Store"
-                className="h-7 w-40 rounded border bg-background px-2 text-xs"
+                className="bg-background h-7 w-40 rounded border px-2 text-xs"
                 autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
                 onBlur={() => {
                   if (!newSourceName.trim()) {
@@ -117,7 +117,7 @@ export function AddToCollectionFlow({
                   setAcquisitionSourceId(e.target.value);
                 }
               }}
-              className="h-7 rounded border bg-background px-2 text-xs"
+              className="bg-background h-7 rounded border px-2 text-xs"
             >
               <option value="">None</option>
               {sources?.map((s) => (

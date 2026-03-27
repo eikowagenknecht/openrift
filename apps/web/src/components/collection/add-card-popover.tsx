@@ -51,7 +51,7 @@ export function AddCardPopover({
   return (
     // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- popover content, not a standalone interactive element
     <div
-      className="flex w-64 flex-col gap-3 rounded-lg border bg-background p-3 shadow-lg"
+      className="bg-background flex w-64 flex-col gap-3 rounded-lg border p-3 shadow-lg"
       onClick={(e) => e.stopPropagation()}
     >
       <p className="truncate text-xs font-medium">{printing.card.name}</p>
@@ -59,7 +59,7 @@ export function AddCardPopover({
       {/* Printing picker (when multiple variants exist) */}
       {allPrintings.length > 1 && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Version</span>
+          <span className="text-muted-foreground text-xs">Version</span>
           <div className="max-h-32 space-y-0.5 overflow-y-auto">
             {allPrintings.map((p) => (
               <button
@@ -71,7 +71,7 @@ export function AddCardPopover({
                   selectedPrinting.id === p.id ? "bg-primary/10 text-primary" : "hover:bg-muted",
                 )}
               >
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground font-mono text-[10px]">
                   {formatCardId(p)}
                 </span>
                 <span className="min-w-0 flex-1 truncate">
@@ -95,7 +95,7 @@ export function AddCardPopover({
 
       {/* Quantity */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Qty</span>
+        <span className="text-muted-foreground text-xs">Qty</span>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"

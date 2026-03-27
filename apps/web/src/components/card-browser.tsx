@@ -129,7 +129,7 @@ export function CardBrowser() {
           />
         )}
         {/* Search bar */}
-        <div className="flex items-start gap-3 mb-3">
+        <div className="mb-3 flex items-start gap-3">
           <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
           <DesktopOptionsBar className="hidden sm:flex" />
           <MobileOptionsDrawer
@@ -148,7 +148,7 @@ export function CardBrowser() {
           </MobileOptionsDrawer>
         </div>
         {/* Filter panel */}
-        <div className="hidden sm:block wide:hidden space-y-3">
+        <div className="wide:hidden hidden space-y-3 sm:block">
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
             <FilterBadgeSections
               availableFilters={availableFilters}
@@ -160,10 +160,10 @@ export function CardBrowser() {
           </div>
         </div>
         {/* Main area */}
-        <div className="flex items-start gap-6 mt-4">
+        <div className="mt-4 flex items-start gap-6">
           {/* Main area: Left panel */}
           <Pane className="wide:block px-3">
-            <h2 className="text-lg font-semibold pb-4">Filters</h2>
+            <h2 className="pb-4 text-lg font-semibold">Filters</h2>
             <div className="space-y-4 pb-4">
               <FilterPanelContent
                 availableFilters={availableFilters}

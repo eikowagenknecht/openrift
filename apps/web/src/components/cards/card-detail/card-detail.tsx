@@ -1,5 +1,5 @@
 import type { Finish, Printing } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
+import { COLORLESS_DOMAIN, getOrientation } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
 import { ArrowLeft, X } from "lucide-react";
 import { useRef } from "react";
@@ -89,11 +89,11 @@ export function CardDetail({
 
   return (
     <div
-      className="overflow-y-auto bg-background rounded-lg px-3"
+      className="bg-background overflow-y-auto rounded-lg px-3"
       style={getDomainTintStyle(card.domains)}
     >
       {/* Mobile header */}
-      <div className="sticky top-0 z-10 border-b border-border/30 p-4 backdrop-blur md:hidden">
+      <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
             <ArrowLeft className="size-4" />
@@ -141,7 +141,7 @@ export function CardDetail({
           {card.might !== null && (
             <StatChip label="Might" value={card.might} icon="/images/might.svg" />
           )}
-          {!card.domains.includes("Colorless") &&
+          {!card.domains.includes(COLORLESS_DOMAIN) &&
             card.domains.map((d) => (
               <img
                 key={d}
@@ -166,8 +166,8 @@ export function CardDetail({
         {/* Text */}
         <div className="space-y-3 pt-2">
           {printing.printedRulesText && (
-            <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
-              <p className="text-sm text-muted-foreground">
+            <div className="border-border/50 bg-muted/30 rounded-lg border px-3 py-2.5">
+              <p className="text-muted-foreground text-sm">
                 <CardText text={printing.printedRulesText} onKeywordClick={onKeywordClick} />
               </p>
               {card.rulesText && card.rulesText !== printing.printedRulesText && (
@@ -178,11 +178,11 @@ export function CardDetail({
 
           {(printing.printedEffectText || (card.mightBonus !== null && card.mightBonus > 0)) && (
             <div
-              className="rounded-lg border border-border/50 px-3 py-2.5"
+              className="border-border/50 rounded-lg border px-3 py-2.5"
               style={getDomainGradientStyle(card.domains, "18")}
             >
               {printing.printedEffectText && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   <CardText text={printing.printedEffectText} onKeywordClick={onKeywordClick} />
                 </p>
               )}
@@ -202,7 +202,7 @@ export function CardDetail({
           )}
 
           {printing.flavorText && (
-            <p className="px-1 text-sm italic text-muted-foreground/70">{printing.flavorText}</p>
+            <p className="text-muted-foreground/70 px-1 text-sm italic">{printing.flavorText}</p>
           )}
         </div>
 

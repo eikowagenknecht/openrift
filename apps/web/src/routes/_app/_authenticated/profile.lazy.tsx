@@ -50,7 +50,7 @@ function ProfilePage() {
             <div className="flex flex-col gap-0.5">
               <CardTitle className="text-xl">{user.name || user.email}</CardTitle>
               <CardDescription>{user.email}</CardDescription>
-              {createdAt && <p className="text-xs text-muted-foreground">Joined {createdAt}</p>}
+              {createdAt && <p className="text-muted-foreground text-xs">Joined {createdAt}</p>}
             </div>
           </CardHeader>
         </Card>

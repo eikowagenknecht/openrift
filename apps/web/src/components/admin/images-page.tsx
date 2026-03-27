@@ -70,7 +70,7 @@ function MutationStatus({
           {verb} {count} / {total} images
         </p>
         {errors.length > 0 && (
-          <ul className="ml-5 mt-1 list-disc text-xs text-red-600 dark:text-red-400">
+          <ul className="mt-1 ml-5 list-disc text-xs text-red-600 dark:text-red-400">
             {errors.slice(0, 5).map((err) => (
               <li key={err}>{err}</li>
             ))}
@@ -122,7 +122,7 @@ function ErrorsList({ errors }: { errors: string[] }) {
     return null;
   }
   return (
-    <ul className="ml-5 mt-1 list-disc text-xs text-red-600 dark:text-red-400">
+    <ul className="mt-1 ml-5 list-disc text-xs text-red-600 dark:text-red-400">
       {errors.slice(0, 5).map((err) => (
         <li key={err}>{err}</li>
       ))}

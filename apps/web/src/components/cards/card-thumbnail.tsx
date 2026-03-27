@@ -1,4 +1,4 @@
-import type { Finish, Printing } from "@openrift/shared";
+import type { Domain, Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { memo, useRef, useState } from "react";
 
@@ -55,7 +55,7 @@ function CardImageContent({
   rotated: boolean;
   card: {
     name: string;
-    domains: string[];
+    domains: Domain[];
     energy: number | null;
     might?: number | null;
     power?: number | null;
@@ -174,7 +174,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       type="button"
       className={cn(
         // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-        "group relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "group focus-visible:ring-ring relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:z-10 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         otherPrintings.length > 0 && "hover:[--fan:1]",
       )}
       onMouseEnter={
@@ -208,7 +208,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       )}
       <div className="relative">
         {ownedCount !== undefined && ownedCount > 0 && (
-          <span className="absolute right-1.5 top-1.5 z-20 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground shadow">
+          <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold shadow">
             ×{ownedCount}
           </span>
         )}
@@ -216,7 +216,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           <button
             type="button"
             tabIndex={-1}
-            className="absolute left-1.5 top-1.5 z-20 flex size-7 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow transition-transform hover:scale-110"
+            className="bg-primary text-primary-foreground absolute top-1.5 left-1.5 z-20 flex size-7 cursor-pointer items-center justify-center rounded-full shadow transition-transform hover:scale-110"
             onClick={(e) => {
               e.stopPropagation();
               onAdd(printing, e.currentTarget);
@@ -239,8 +239,8 @@ export const CardThumbnail = memo(function CardThumbnail({
             <div
               key={sibling.id}
               className={cn(
-                "absolute inset-0 origin-bottom overflow-hidden border border-[var(--border-opaque)] bg-muted pointer-events-none",
-                richEffects && "hover:ring-2 hover:ring-primary/60",
+                "bg-muted pointer-events-none absolute inset-0 origin-bottom overflow-hidden border border-[var(--border-opaque)]",
+                richEffects && "hover:ring-primary/60 hover:ring-2",
                 richEffects && fanReady && "pointer-events-auto cursor-pointer",
               )}
               style={{
@@ -285,7 +285,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
               <div
                 ref={tilt.innerRef}
-                className={cn(AFTER_BORDER, richEffects && "hover:ring-2 hover:ring-primary/60")}
+                className={cn(AFTER_BORDER, richEffects && "hover:ring-primary/60 hover:ring-2")}
                 style={{ borderRadius: "inherit", ...TILT_STYLE }}
               >
                 <CardImageContent
@@ -309,7 +309,7 @@ export const CardThumbnail = memo(function CardThumbnail({
               className={cn(
                 "relative overflow-hidden",
                 AFTER_BORDER,
-                richEffects && "hover:ring-2 hover:ring-primary/60",
+                richEffects && "hover:ring-primary/60 hover:ring-2",
               )}
               style={{ borderRadius: CARD_BORDER_RADIUS, ...TILT_STYLE }}
             >

@@ -200,7 +200,7 @@ function MobileNavLink({ to, children }: { to: string; children: ReactNode }) {
     <SheetClose
       nativeButton={false}
       render={<Link to={to} />}
-      className="rounded-md px-2 py-1 hover:bg-muted"
+      className="hover:bg-muted rounded-md px-2 py-1"
     >
       {children}
     </SheetClose>
@@ -250,16 +250,16 @@ export function Header() {
   const showCollection = Boolean(session?.user) && collectionEnabled;
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-lg">
+    <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg">
       {/* ⚠ h-14 is mirrored as APP_HEADER_HEIGHT in card-grid.tsx — update both together */}
       <div
-        className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] px-3 md:grid-cols-[1fr_auto] items-center`}
+        className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-3 md:grid-cols-[1fr_auto]`}
       >
         {/* Left: Hamburger on mobile */}
         <MenuButton className="md:hidden" onClick={() => setMobileMenuOpen(true)} />
 
         {/* Left: logo + expanded menu on desktop */}
-        <div className="hidden md:flex gap-4">
+        <div className="hidden gap-4 md:flex">
           <LogoLink />
           <DesktopNav showCollection={showCollection} />
         </div>

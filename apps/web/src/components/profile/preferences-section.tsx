@@ -59,7 +59,7 @@ export function PreferencesSection() {
 
         <div className="space-y-2 border-t pt-4">
           <Label>Card fields</Label>
-          <p className="text-sm text-muted-foreground">Choose which fields to show on cards.</p>
+          <p className="text-muted-foreground text-sm">Choose which fields to show on cards.</p>
 
           <div className="space-y-3 pt-1">
             {CARD_FIELD_ITEMS.map((item) => (
@@ -68,7 +68,7 @@ export function PreferencesSection() {
                   <Label htmlFor={`pref-field-${item.key}`} className="font-normal">
                     {item.label}
                   </Label>
-                  <span className="text-xs text-muted-foreground">e.g. {item.example}</span>
+                  <span className="text-muted-foreground text-xs">e.g. {item.example}</span>
                 </div>
                 <Switch
                   id={`pref-field-${item.key}`}

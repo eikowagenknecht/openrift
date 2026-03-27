@@ -52,11 +52,11 @@ export function CardMetaLabel({
 
   return (
     // ⚠ space-y-0.5 and py-0.5 are mirrored as META_LINE_GAP / META_LABEL_PY in card-grid-constants.ts — update both together
-    <div className={cn("space-y-0.5 rounded-md bg-background px-1.5 py-0.5", className)}>
+    <div className={cn("bg-background space-y-0.5 rounded-md px-1.5 py-0.5", className)}>
       {compact ? (
         <>
           {(showNumber || showType || showRarity) && (
-            <div className="flex min-h-4 items-center justify-between gap-1 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex min-h-4 items-center justify-between gap-1 text-xs">
               {showNumber && (
                 <span className="truncate font-medium">
                   #{shortCode.slice(shortCode.lastIndexOf("-") + 1)}
@@ -104,7 +104,7 @@ export function CardMetaLabel({
           {(showType || showRarity) && (
             // ⚠ text-xs is mirrored as META_LINE_HEIGHT in card-grid.tsx — update both together
             // min-h-4: same WebKit workaround as above
-            <p className="flex min-h-4 items-center gap-1 truncate text-xs text-muted-foreground">
+            <p className="text-muted-foreground flex min-h-4 items-center gap-1 truncate text-xs">
               {showType && (
                 <>
                   <img

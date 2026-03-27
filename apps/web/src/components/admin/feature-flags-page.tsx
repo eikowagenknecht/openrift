@@ -44,7 +44,7 @@ export function FeatureFlagsPage() {
       header: "Description",
       cell: (f) =>
         f.description || (
-          <span className="text-sm italic text-muted-foreground">No description</span>
+          <span className="text-muted-foreground text-sm italic">No description</span>
         ),
       addCell: (d, set) => (
         <Input
@@ -81,7 +81,7 @@ export function FeatureFlagsPage() {
       getRowKey={(f) => f.key}
       emptyText="No feature flags yet."
       toolbar={
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Feature flags take effect on the next page load for all users.
         </p>
       }

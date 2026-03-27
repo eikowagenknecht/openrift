@@ -94,7 +94,7 @@ function renderTokens(
             key={`${i}-kw`}
             type="button"
             className={cn(
-              "relative inline-flex cursor-pointer items-center pl-2 pr-2.5 align-baseline",
+              "relative inline-flex cursor-pointer items-center pr-2.5 pl-2 align-baseline",
               onKeywordClick && "hover:brightness-125",
             )}
             onClick={() => onKeywordClick?.(token.name.replace(/\s+\d+$/, ""))}
@@ -110,7 +110,7 @@ function renderTokens(
             />
             <span
               className={cn(
-                "relative text-[0.8em] font-semibold uppercase italic tracking-tight",
+                "relative text-[0.8em] font-semibold tracking-tight uppercase italic",
                 kw.dark ? "text-black" : "text-white",
               )}
             >

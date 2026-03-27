@@ -318,8 +318,8 @@ export function CandidateSpreadsheet({
     <div className="w-fit max-w-full overflow-x-auto rounded-md border">
       <table className="table-fixed text-sm" style={{ width: 150 + 300 * (1 + sortedRows.length) }}>
         <thead>
-          <tr className="border-b bg-muted/50">
-            <th className="sticky left-0 z-10 w-[150px] bg-muted/50 px-3 py-2 text-left font-medium">
+          <tr className="bg-muted/50 border-b">
+            <th className="bg-muted/50 sticky left-0 z-10 w-[150px] px-3 py-2 text-left font-medium">
               Field
             </th>
             <th className="w-[300px] border-l px-3 py-2 text-left font-medium">Active</th>
@@ -337,7 +337,7 @@ export function CandidateSpreadsheet({
                   <span className="min-w-0 break-words">
                     {getProviderLabel(row, providerLabels)}
                     {"candidateCardId" in row && providerNames?.[row.candidateCardId] && (
-                      <span className="ml-1 text-muted-foreground">
+                      <span className="text-muted-foreground ml-1">
                         ({providerNames[row.candidateCardId]})
                       </span>
                     )}
@@ -389,21 +389,21 @@ export function CandidateSpreadsheet({
 
             const fieldRow = (
               <tr key={field.key} className="border-b last:border-b-0">
-                <td className="sticky left-0 z-10 bg-background px-3 py-1.5 font-medium">
+                <td className="bg-background sticky left-0 z-10 px-3 py-1.5 font-medium">
                   {field.label}
                   {isRequired && <span className="ml-0.5 text-red-500">*</span>}
                 </td>
                 <td
                   className={cn(
-                    "group/active relative break-words border-l px-3 py-1.5",
+                    "group/active relative border-l px-3 py-1.5 break-words",
                     field.multiline && "whitespace-pre-wrap",
                     field.readOnly && "bg-muted/30",
                     isMissing && "bg-red-50 dark:bg-red-950/20",
                     onActiveChange &&
                       !field.readOnly &&
                       (field.type === "boolean" || hasDropdown(field)
-                        ? "cursor-pointer hover:bg-muted/30"
-                        : "cursor-text hover:bg-muted/30"),
+                        ? "hover:bg-muted/30 cursor-pointer"
+                        : "hover:bg-muted/30 cursor-text"),
                   )}
                   onClick={() => {
                     if (!onActiveChange || field.readOnly || editingField === field.key) {
@@ -514,7 +514,7 @@ export function CandidateSpreadsheet({
                       ref={textareaRef}
                       defaultValue={hasValue(activeValue) ? String(activeValue) : ""}
                       rows={4}
-                      className="w-full resize-y rounded border border-primary bg-transparent p-1 text-sm outline-none"
+                      className="border-primary w-full resize-y rounded border bg-transparent p-1 text-sm outline-none"
                       // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
                       autoFocus
                       onBlur={(e) => commitEdit(field.key, e.target.value)}
@@ -536,7 +536,7 @@ export function CandidateSpreadsheet({
                             : String(activeValue)
                           : ""
                       }
-                      className="w-full border-b border-primary bg-transparent text-sm outline-none"
+                      className="border-primary w-full border-b bg-transparent text-sm outline-none"
                       // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
                       autoFocus
                       onBlur={(e) => commitEdit(field.key, e.target.value)}
@@ -590,7 +590,7 @@ export function CandidateSpreadsheet({
                     editingField !== field.key && (
                       <button
                         type="button"
-                        className="absolute right-1 top-1 hidden rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground group-hover/active:inline-flex"
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1 right-1 hidden rounded p-0.5 group-hover/active:inline-flex"
                         onClick={(e) => {
                           e.stopPropagation();
                           onActiveChange(field.key, null);
@@ -627,7 +627,7 @@ export function CandidateSpreadsheet({
                           : undefined
                       }
                       className={cn(
-                        "break-words border-l px-3 py-1.5",
+                        "border-l px-3 py-1.5 break-words",
                         field.multiline && "whitespace-pre-wrap",
                         isGallery(row, providerLabels) && "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
@@ -701,11 +701,11 @@ export function CandidateSpreadsheet({
               <Fragment key={`${field.key}+toggle`}>
                 {fieldRow}
                 <tr
-                  className="cursor-pointer border-b bg-muted/30 hover:bg-muted/50"
+                  className="bg-muted/30 hover:bg-muted/50 cursor-pointer border-b"
                   onClick={() => setCollapsed((c) => !c)}
                 >
                   <td
-                    className="sticky left-0 z-10 bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground"
+                    className="bg-muted/30 text-muted-foreground sticky left-0 z-10 px-3 py-1 text-xs font-medium"
                     colSpan={2 + sortedRows.length}
                   >
                     <span className="inline-flex items-center gap-1">

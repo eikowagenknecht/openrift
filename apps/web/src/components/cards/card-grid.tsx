@@ -150,7 +150,7 @@ function SetHeaderLabel({
       className={cn("flex cursor-pointer flex-row gap-3 text-sm", className)}
       onClick={onClick}
     >
-      <span className="font-medium text-muted-foreground">{slug}</span>
+      <span className="text-muted-foreground font-medium">{slug}</span>
       <span className="font-semibold">{name}</span>
       <span className="text-muted-foreground">{cardCount}</span>
     </button>
@@ -169,14 +169,14 @@ const HeaderRow = memo(function HeaderRow({
 }) {
   return (
     <div className="flex items-center gap-3 pt-4 pb-2">
-      <div className="h-px flex-1 bg-border" />
+      <div className="bg-border h-px flex-1" />
       <SetHeaderLabel
         slug={row.set.slug}
         name={row.set.name}
         cardCount={row.cardCount}
         onClick={() => onScrollToGroup(row.set.id)}
       />
-      <div className="h-px flex-1 bg-border" />
+      <div className="bg-border h-px flex-1" />
     </div>
   );
 });
@@ -258,7 +258,7 @@ const CardRowContent = memo(function CardRowContent({
         {row.items.map((printing) => (
           // ⚠ p-1.5 mirrors BUTTON_PAD in card-grid-constants — update both together
           <div key={printing.id} className="rounded-lg p-1.5">
-            <div className="rounded-lg bg-muted/40" style={{ aspectRatio: `1 / ${CARD_ASPECT}` }} />
+            <div className="bg-muted/40 rounded-lg" style={{ aspectRatio: `1 / ${CARD_ASPECT}` }} />
             {labelHeight > 0 && <div style={{ height: labelHeight }} />}
           </div>
         ))}
@@ -485,11 +485,11 @@ export function CardGrid({
         <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
           {totalCards === 0 ? (
             <>
-              <p className="text-lg font-medium text-muted-foreground">Couldn&apos;t load cards</p>
-              <p className="text-sm text-muted-foreground">The server may be unreachable</p>
+              <p className="text-muted-foreground text-lg font-medium">Couldn&apos;t load cards</p>
+              <p className="text-muted-foreground text-sm">The server may be unreachable</p>
               <button
                 type="button"
-                className="mt-3 text-sm text-muted-foreground underline"
+                className="text-muted-foreground mt-3 text-sm underline"
                 onClick={() => globalThis.location.reload()}
               >
                 Retry
@@ -497,8 +497,8 @@ export function CardGrid({
             </>
           ) : (
             <>
-              <p className="text-lg font-medium text-muted-foreground">No cards found</p>
-              <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+              <p className="text-muted-foreground text-lg font-medium">No cards found</p>
+              <p className="text-muted-foreground text-sm">Try adjusting your filters</p>
             </>
           )}
         </div>
@@ -537,7 +537,7 @@ export function CardGrid({
               name={activeHeaderRow.set.name}
               cardCount={activeHeaderRow.cardCount}
               onClick={() => scrollToGroup(activeHeaderRow.set.id)}
-              className="rounded-full bg-background/60 px-3 py-1 ring-1 shadow-sm ring-border/70 backdrop-blur"
+              className="bg-background/60 ring-border/70 rounded-full px-3 py-1 shadow-sm ring-1 backdrop-blur"
             />
           </div>
         )}

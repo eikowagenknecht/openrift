@@ -182,11 +182,11 @@ function RangeFilterSection({
   return (
     <div className="flex items-center gap-2">
       {/* Label */}
-      <p className="w-18 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="text-muted-foreground w-18 text-xs font-medium">{label}</p>
       {/* Slider with values */}
       <div className="flex flex-1 items-center gap-1">
         {/* Min value */}
-        <span className="shrink-0 text-right text-2xs tabular-nums text-muted-foreground">
+        <span className="text-2xs text-muted-foreground shrink-0 text-right tabular-nums">
           {fmt(resolvedMin)}
         </span>
         {/* Slider */}
@@ -207,7 +207,7 @@ function RangeFilterSection({
           className="flex-1"
         />
         {/* Max value */}
-        <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
+        <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">
           {fmt(resolvedMax)}
         </span>
       </div>
@@ -238,7 +238,7 @@ function FilterSection({
 
   return (
     <div className="flex min-w-0 gap-2">
-      <p className="w-18 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="text-muted-foreground w-18 text-xs font-medium">{label}</p>
       <div className="flex flex-1 flex-wrap gap-1">
         {children ??
           options?.map((option) => {
