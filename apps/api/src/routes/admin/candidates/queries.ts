@@ -48,6 +48,20 @@ const providerNames = createRoute({
   },
 });
 
+const distinctArtists = createRoute({
+  method: "get",
+  path: "/distinct-artists",
+  tags: ["Admin - Candidates"],
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.array(z.string()) },
+      },
+      description: "Distinct artist names from published printings",
+    },
+  },
+});
+
 const providerStats = createRoute({
   method: "get",
   path: "/provider-stats",
@@ -157,6 +171,11 @@ export const queriesRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(providerNames, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await candidateCards.distinctProviderNames());
+  })
+
+  .openapi(distinctArtists, async (c) => {
+    const { candidateCards } = c.get("repos");
+    return c.json(await candidateCards.distinctArtists());
   })
 
   .openapi(providerStats, async (c) => {

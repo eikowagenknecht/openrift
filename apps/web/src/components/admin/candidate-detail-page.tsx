@@ -83,6 +83,7 @@ import {
   useUnrehostPrintingImage,
   useUploadPrintingImage,
 } from "@/hooks/use-candidates";
+import { useDistinctArtists } from "@/hooks/use-distinct-artists";
 import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
 import { usePromoTypes } from "@/hooks/use-promo-types";
 import { useProviderSettings } from "@/hooks/use-provider-settings";
@@ -151,11 +152,13 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   // --- Promo types for dropdown + slug lookup ---
   const { data: promoTypesData } = usePromoTypes();
   const promoTypes = promoTypesData?.promoTypes ?? [];
+  const { data: artistSuggestions } = useDistinctArtists();
   const printingSourceFields = buildCandidatePrintingFields(
     promoTypes.map((pt: { id: string; label: string }) => ({
       value: pt.id,
       label: pt.label,
     })),
+    artistSuggestions,
   );
 
   // --- New-mode hooks ---

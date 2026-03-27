@@ -186,6 +186,17 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Distinct artist names from published printings, ordered alphabetically. */
+    async distinctArtists(): Promise<string[]> {
+      const rows = await db
+        .selectFrom("printings")
+        .select("artist")
+        .distinct()
+        .orderBy("artist")
+        .execute();
+      return rows.map((r) => r.artist);
+    },
+
     /** @returns Distinct provider names, ordered alphabetically. */
     async distinctProviderNames(): Promise<string[]> {
       const rows = await db
