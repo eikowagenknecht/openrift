@@ -735,16 +735,36 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Set slug + release date for given IDs. */
-    setInfoByIds(
-      setIds: string[],
-    ): Promise<{ id: string; slug: string; name: string; releasedAt: string | null }[]> {
+    setInfoByIds(setIds: string[]): Promise<
+      {
+        id: string;
+        slug: string;
+        name: string;
+        releasedAt: string | null;
+        printedTotal: number | null;
+      }[]
+    > {
       if (setIds.length === 0) {
         return Promise.resolve([]);
       }
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt"])
+        .select(["id", "slug", "name", "releasedAt", "printedTotal"])
         .where("id", "in", setIds)
+        .execute();
+    },
+
+    /** @returns Printed totals for sets identified by slug. */
+    setPrintedTotalBySlugs(
+      slugs: string[],
+    ): Promise<{ slug: string; printedTotal: number | null }[]> {
+      if (slugs.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("sets")
+        .select(["slug", "printedTotal"])
+        .where("slug", "in", slugs)
         .execute();
     },
 

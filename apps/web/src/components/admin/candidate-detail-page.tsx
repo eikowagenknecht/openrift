@@ -97,6 +97,7 @@ interface DetailData {
   candidatePrintingGroups: CandidatePrintingGroupResponse[];
   expectedCardId: string;
   printingImages: AdminPrintingImageResponse[];
+  setTotals: Record<string, number>;
 }
 
 interface UnmatchedData {
@@ -105,6 +106,7 @@ interface UnmatchedData {
   candidatePrintings: CandidatePrintingResponse[];
   candidatePrintingGroups: CandidatePrintingGroupResponse[];
   defaultCardId: string;
+  setTotals: Record<string, number>;
 }
 
 interface CandidateDetailPageProps {
@@ -259,6 +261,9 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   const printingImages: AdminPrintingImageResponse[] = isExisting
     ? (existingData as NonNullable<typeof existingData>).printingImages
     : [];
+  const setTotals: Record<string, number> = isExisting
+    ? ((existingData as NonNullable<typeof existingData>).setTotals ?? {})
+    : ((unmatchedData as NonNullable<typeof unmatchedData>).setTotals ?? {});
   const cardId = isExisting ? identifier : "";
 
   // --- Existing-mode computed values ---
@@ -1076,6 +1081,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               providerLabels={sourceLabels}
               providerNames={sourceNames}
               providerSettings={providerSettings}
+              setTotals={setTotals}
               isExpanded={!collapsedPrintings.has(group.groupKey)}
               onToggle={() => togglePrinting(group.groupKey)}
               onCheck={(id) => checkPrintingSource.mutate(id)}
@@ -1224,6 +1230,7 @@ function NewPrintingGroupCard({
   providerLabels,
   providerNames,
   providerSettings,
+  setTotals,
   isExpanded,
   onToggle,
   onCheck,
@@ -1246,6 +1253,7 @@ function NewPrintingGroupCard({
   providerLabels: Record<string, string>;
   providerNames: Record<string, string>;
   providerSettings: ProviderSettingResponse[];
+  setTotals: Record<string, number>;
   isExpanded: boolean;
   onToggle: () => void;
   onCheck: (id: string) => void;
@@ -1262,6 +1270,25 @@ function NewPrintingGroupCard({
   printingFields: FieldDef[];
 }) {
   const [activePrinting, setActivePrinting] = useState<Record<string, unknown>>({});
+
+  /**
+   * Append `/{printedTotal}` to a public code if the set total is known and not already present.
+   *
+   * @returns The record with publicCode updated, or unchanged if not applicable.
+   */
+  function withSetTotal(record: Record<string, unknown>): Record<string, unknown> {
+    const code = record.publicCode;
+    const setSlug = record.setId;
+    if (typeof code !== "string" || typeof setSlug !== "string") {
+      return record;
+    }
+    const total = setTotals[setSlug];
+    if (!total || code.includes("/")) {
+      return record;
+    }
+    return { ...record, publicCode: `${code}/${total}` };
+  }
+
   const hasRequired = REQUIRED_PRINTING_KEYS.every((k) => {
     const v = activePrinting[k];
     return v !== undefined && v !== null && v !== "";
@@ -1384,13 +1411,13 @@ function NewPrintingGroupCard({
                 providerNames={providerNames}
                 providerSettings={providerSettings}
                 onCellClick={(field, value) => {
-                  setActivePrinting((prev) => ({ ...prev, [field]: value }));
+                  setActivePrinting((prev) => withSetTotal({ ...prev, [field]: value }));
                 }}
                 onActiveChange={(field, value) => {
                   setActivePrinting((prev) =>
                     value === null || value === undefined
                       ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== field))
-                      : { ...prev, [field]: value },
+                      : withSetTotal({ ...prev, [field]: value }),
                   );
                 }}
                 onCheck={onCheck}
@@ -1419,7 +1446,7 @@ function NewPrintingGroupCard({
                         }
                         values[field.key] = val;
                       }
-                      setActivePrinting((prev) => ({ ...prev, ...values }));
+                      setActivePrinting((prev) => withSetTotal({ ...prev, ...values }));
                     }}
                     onIgnore={() =>
                       onIgnore(row.externalId, (row as unknown as Record<string, string>).finish)

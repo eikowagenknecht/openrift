@@ -412,6 +412,28 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   const setNameMap = new Map(setRows.map((s) => [s.id, s.name]));
   const setReleasedAtMap = new Map(setRows.map((s) => [s.id, s.releasedAt]));
 
+  // Build set slug → printedTotal map (used by the UI to append set totals to public codes)
+  const setTotals: Record<string, number> = {};
+  for (const row of setRows) {
+    if (row.printedTotal) {
+      setTotals[row.slug] = row.printedTotal;
+    }
+  }
+  // Also fetch totals for sets referenced by unlinked candidate printings (may differ from accepted sets)
+  const candidateSetSlugs = [
+    ...new Set(
+      candidatePrintings.filter((cp) => !cp.printingId && cp.setId).map((cp) => cp.setId as string),
+    ),
+  ].filter((slug) => !(slug in setTotals));
+  if (candidateSetSlugs.length > 0) {
+    const candidateSetRows = await repo.setPrintedTotalBySlugs(candidateSetSlugs);
+    for (const row of candidateSetRows) {
+      if (row.printedTotal) {
+        setTotals[row.slug] = row.printedTotal;
+      }
+    }
+  }
+
   // Resolve promo type IDs → slugs for computing expected printing IDs
   const promoTypeIds = [
     ...new Set(
@@ -508,6 +530,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     candidatePrintingGroups: filteredGroups,
     expectedCardId: deriveExpectedCardId(printings, setReleasedAtMap, filteredGroups, card?.slug),
     printingImages,
+    setTotals,
   };
 }
 
@@ -521,5 +544,6 @@ export async function buildUnmatchedDetail(repo: Repo, normName: string) {
     candidatePrintings: result.candidatePrintings,
     candidatePrintingGroups: result.candidatePrintingGroups,
     defaultCardId: result.expectedCardId,
+    setTotals: result.setTotals,
   };
 }
