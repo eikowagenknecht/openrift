@@ -30,7 +30,9 @@ import type {
 
 // ── Simple entity mappers ──────────────────────────────────────────────────
 
-export function toCollection(row: Selectable<CollectionsTable>): CollectionResponse {
+export function toCollection(
+  row: Selectable<CollectionsTable> & { copyCount?: number },
+): CollectionResponse {
   return {
     id: row.id,
     name: row.name,
@@ -39,6 +41,7 @@ export function toCollection(row: Selectable<CollectionsTable>): CollectionRespo
     isInbox: row.isInbox,
     sortOrder: row.sortOrder,
     shareToken: row.shareToken,
+    copyCount: row.copyCount ?? 0,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

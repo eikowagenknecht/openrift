@@ -26,25 +26,17 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
-import { useCopies } from "@/hooks/use-copies";
 
 export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
   const { data: collections } = useCollections();
-  const { data: allCopies } = useCopies();
   const createCollection = useCreateCollection();
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
 
-  const copyCounts = new Map<string, number>();
-  if (allCopies) {
-    for (const copy of allCopies) {
-      copyCounts.set(copy.collectionId, (copyCounts.get(copy.collectionId) ?? 0) + 1);
-    }
-  }
-  const totalCopies = allCopies?.length ?? 0;
+  const totalCopies = collections?.reduce((sum, col) => sum + col.copyCount, 0) ?? 0;
 
   const handleCreate = () => {
     const trimmed = newName.trim();
@@ -98,9 +90,9 @@ export function CollectionSidebar() {
                 >
                   {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
                   <span className="flex-1 truncate">{col.name}</span>
-                  {(copyCounts.get(col.id) ?? 0) > 0 && (
+                  {col.copyCount > 0 && (
                     <Badge variant="secondary" className="ml-auto text-[10px]">
-                      {copyCounts.get(col.id)}
+                      {col.copyCount}
                     </Badge>
                   )}
                 </SidebarMenuButton>
@@ -110,15 +102,15 @@ export function CollectionSidebar() {
               {isCreating ? (
                 <form
                   className="flex gap-1 px-2 py-1"
-                  onSubmit={(e) => {
-                    e.preventDefault();
+                  onSubmit={(event) => {
+                    event.preventDefault();
                     handleCreate();
                   }}
                 >
                   <Input
                     autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
                     value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
+                    onChange={(event) => setNewName(event.target.value)}
                     placeholder="Collection name"
                     className="h-7 text-xs"
                     onBlur={() => {

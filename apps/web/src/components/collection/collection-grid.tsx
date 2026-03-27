@@ -1,5 +1,3 @@
-import type { Printing } from "@openrift/shared";
-import { sortCards } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { Check, Layers, Minus, Package, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -8,9 +6,10 @@ import { toast } from "sonner";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useCards } from "@/hooks/use-cards";
+import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCollections } from "@/hooks/use-collections";
-import { useCopies, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
+import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
+import { useStackedCopies } from "@/hooks/use-stacked-copies";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DisposeDialog } from "./dispose-dialog";
@@ -20,97 +19,18 @@ interface CollectionGridProps {
   collectionId?: string;
 }
 
-/** Copies of the same printing, stacked into one visual entry. */
-interface StackedEntry {
-  printingId: string;
-  printing: Printing;
-  copyIds: string[];
-}
-
 export function CollectionGrid({ collectionId }: CollectionGridProps) {
-  const { data: copies } = useCopies(collectionId);
-  const { allPrintings } = useCards();
+  const { stacks, totalCopies } = useStackedCopies(collectionId);
   const { data: collections } = useCollections();
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
-  const showImages = useDisplayStore((s) => s.showImages);
-  const visibleFields = useDisplayStore((s) => s.visibleFields);
+  const showImages = useDisplayStore((state) => state.showImages);
+  const visibleFields = useDisplayStore((state) => state.visibleFields);
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { selected, toggleSelect, toggleStack, selectAll, clearSelection } = useCardSelection();
   const [stacked, setStacked] = useState(true);
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
-
-  // Build a map from printing ID → Printing for quick lookups
-  const printingById = new Map<string, Printing>();
-  for (const p of allPrintings) {
-    printingById.set(p.id, p);
-  }
-
-  // Group copies by printing ID into stacks
-  const stacks: StackedEntry[] = [];
-  const stackMap = new Map<string, StackedEntry>();
-  for (const copy of copies) {
-    const printing = printingById.get(copy.printingId);
-    if (!printing) {
-      continue;
-    }
-    const existing = stackMap.get(copy.printingId);
-    if (existing) {
-      existing.copyIds.push(copy.id);
-    } else {
-      const entry: StackedEntry = { printingId: copy.printingId, printing, copyIds: [copy.id] };
-      stackMap.set(copy.printingId, entry);
-      stacks.push(entry);
-    }
-  }
-
-  // Sort stacks in the same order as the main card browser (default: by card ID)
-  const sortedCards = sortCards(
-    stacks.map((s) => s.printing),
-    "id",
-  );
-  const stackByPrintingId = new Map(stacks.map((s) => [s.printingId, s]));
-  const sortedStacks = sortedCards
-    .map((c) => stackByPrintingId.get(c.id))
-    .filter((s): s is StackedEntry => s !== undefined);
-
-  const totalCopies = sortedStacks.reduce((sum, s) => sum + s.copyIds.length, 0);
-
-  const toggleSelect = (copyId: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(copyId)) {
-        next.delete(copyId);
-      } else {
-        next.add(copyId);
-      }
-      return next;
-    });
-  };
-
-  const toggleStack = (copyIds: string[]) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const allSelected = copyIds.every((id) => next.has(id));
-      for (const id of copyIds) {
-        if (allSelected) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
-      }
-      return next;
-    });
-  };
-
-  const selectAll = () => {
-    if (selected.size === totalCopies) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(sortedStacks.flatMap((s) => s.copyIds)));
-    }
-  };
 
   const handleMove = (toCollectionId: string) => {
     moveCopies.mutate(
@@ -118,7 +38,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {
         onSuccess: () => {
           toast.success(`Moved ${selected.size} card${selected.size > 1 ? "s" : ""}`);
-          setSelected(new Set());
+          clearSelection();
           setMoveOpen(false);
         },
       },
@@ -131,18 +51,17 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {
         onSuccess: () => {
           toast.success(`Removed ${selected.size} card${selected.size > 1 ? "s" : ""}`);
-          setSelected(new Set());
+          clearSelection();
           setDisposeOpen(false);
         },
       },
     );
   };
 
-  const currentCollection = collections.find((c) => c.id === collectionId);
+  const currentCollection = collections.find((col) => col.id === collectionId);
+  const addTarget = collectionId ?? collections.find((col) => col.isInbox)?.id;
 
-  const addTarget = collectionId ?? collections.find((c) => c.isInbox)?.id;
-
-  if (sortedStacks.length === 0) {
+  if (stacks.length === 0) {
     return (
       <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
         <Package className="size-10 opacity-50" />
@@ -165,13 +84,15 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     );
   }
 
+  const allCopyIds = stacks.flatMap((stack) => stack.copyIds);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Stats bar */}
       <div className="text-muted-foreground flex items-center gap-4 text-sm">
         <span>
           {totalCopies} card{totalCopies === 1 ? "" : "s"}
-          {sortedStacks.length !== totalCopies && ` (${sortedStacks.length} unique)`}
+          {stacks.length !== totalCopies && ` (${stacks.length} unique)`}
         </span>
         {selected.size > 0 && (
           <Badge variant="secondary" className="gap-1">
@@ -193,14 +114,14 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setStacked((s) => !s)}
+          onClick={() => setStacked((prev) => !prev)}
           className="text-xs"
           title={stacked ? "Show individual copies" : "Stack duplicates"}
         >
           <Layers className="mr-1 size-3" />
           {stacked ? "Expand" : "Stack"}
         </Button>
-        <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs">
+        <Button variant="ghost" size="sm" onClick={() => selectAll(allCopyIds)} className="text-xs">
           {selected.size === totalCopies ? "Deselect all" : "Select all"}
         </Button>
       </div>
@@ -208,7 +129,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {/* Grid */}
       <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {stacked
-          ? sortedStacks.map((stack) => {
+          ? stacks.map((stack) => {
               const stackSelected = stack.copyIds.every((id) => selected.has(id));
               return (
                 <div key={stack.printingId} className="relative">
@@ -219,8 +140,8 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-white/70 bg-black/30 text-transparent hover:border-white hover:text-white/70"
                     }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       toggleStack(stack.copyIds);
                     }}
                   >
@@ -240,7 +161,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 </div>
               );
             })
-          : sortedStacks.flatMap((stack) =>
+          : stacks.flatMap((stack) =>
               stack.copyIds.map((copyId) => (
                 <div key={copyId} className="relative">
                   <button
@@ -250,8 +171,8 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-white/70 bg-black/30 text-transparent hover:border-white hover:text-white/70"
                     }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       toggleSelect(copyId);
                     }}
                   >
@@ -294,7 +215,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             <Trash2 className="mr-1 size-3.5" />
             Dispose
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+          <Button variant="ghost" size="sm" onClick={clearSelection}>
             ✕
           </Button>
         </div>
@@ -303,7 +224,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       <MoveDialog
         open={moveOpen}
         onOpenChange={setMoveOpen}
-        collections={collections.filter((c) => c.id !== collectionId)}
+        collections={collections.filter((col) => col.id !== collectionId)}
         onMove={handleMove}
         isPending={moveCopies.isPending}
       />
