@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict oYyro9NsdH1cA78MeeK0MVZDSMM67wZ1xlajfkDBLAapxfPfsFJRHO7T3o55sxv
+\restrict 5dGHKMR1wlokA9XWB0doA3YViXyMUqGKdWCkCxjKx9NZrnfkL2QJUGB8lu6McJX
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -741,6 +741,21 @@ CREATE TABLE public.sets (
 
 
 --
+-- Name: site_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.site_settings (
+    key text NOT NULL,
+    value text NOT NULL,
+    scope text DEFAULT 'web'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT site_settings_key_check CHECK ((key <> ''::text)),
+    CONSTRAINT site_settings_scope_check CHECK ((scope = ANY (ARRAY['web'::text, 'api'::text])))
+);
+
+
+--
 -- Name: trade_list_items; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -775,17 +790,9 @@ CREATE TABLE public.trade_lists (
 
 CREATE TABLE public.user_preferences (
     user_id text NOT NULL,
-    show_images boolean DEFAULT true NOT NULL,
-    rich_effects boolean DEFAULT true NOT NULL,
-    card_field_number boolean DEFAULT true NOT NULL,
-    card_field_title boolean DEFAULT true NOT NULL,
-    card_field_type boolean DEFAULT true NOT NULL,
-    card_field_rarity boolean DEFAULT true NOT NULL,
-    card_field_price boolean DEFAULT true NOT NULL,
-    theme text DEFAULT 'light'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT user_preferences_theme_check CHECK ((theme = ANY (ARRAY['light'::text, 'dark'::text])))
+    data jsonb DEFAULT '{"showImages": true, "richEffects": true, "visibleFields": {"type": true, "price": true, "title": true, "number": true, "rarity": true}, "marketplaceOrder": ["tcgplayer", "cardmarket", "cardtrader"]}'::jsonb NOT NULL
 );
 
 
@@ -1177,6 +1184,14 @@ ALTER TABLE ONLY public.sets
 
 ALTER TABLE ONLY public.sets
     ADD CONSTRAINT sets_slug_key UNIQUE (slug);
+
+
+--
+-- Name: site_settings site_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.site_settings
+    ADD CONSTRAINT site_settings_pkey PRIMARY KEY (key);
 
 
 --
@@ -1638,6 +1653,13 @@ CREATE UNIQUE INDEX uq_wish_list_items_printing ON public.wish_list_items USING 
 --
 
 CREATE TRIGGER keyword_styles_set_updated_at BEFORE UPDATE ON public.keyword_styles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: site_settings site_settings_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER site_settings_set_updated_at BEFORE UPDATE ON public.site_settings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2172,5 +2194,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict oYyro9NsdH1cA78MeeK0MVZDSMM67wZ1xlajfkDBLAapxfPfsFJRHO7T3o55sxv
+\unrestrict 5dGHKMR1wlokA9XWB0doA3YViXyMUqGKdWCkCxjKx9NZrnfkL2QJUGB8lu6McJX
 

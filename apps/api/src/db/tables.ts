@@ -10,6 +10,7 @@ import type {
   Finish,
   Rarity,
   SuperType,
+  UserPreferencesResponse,
 } from "@openrift/shared/types";
 import type { ColumnType, Generated } from "kysely";
 
@@ -592,19 +593,11 @@ export interface SiteSettingsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── User preferences (migration 047) ────────────────────────────────────────
+// ─── User preferences (migration 047, consolidated in 050) ──────────────────
 
 export interface UserPreferencesTable {
   userId: string;
-  showImages: Generated<boolean>;
-  richEffects: Generated<boolean>;
-  cardFieldNumber: Generated<boolean>;
-  cardFieldTitle: Generated<boolean>;
-  cardFieldType: Generated<boolean>;
-  cardFieldRarity: Generated<boolean>;
-  cardFieldPrice: Generated<boolean>;
-  theme: Generated<string>;
-  marketplaceOrder: Generated<string[]>;
+  data: ColumnType<UserPreferencesResponse, string, string>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
