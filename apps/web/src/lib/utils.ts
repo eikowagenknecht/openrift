@@ -8,10 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Responsive container width classes shared by header and main content.
- * Widens in steps: 1280px (default) → 1800px (wide) → 2240px (xwide) → 2560px (xxwide).
+ * Widens in steps: 1280px (default) → 1720px (wide) → 2160px (xwide) → 2560px (xxwide).
  */
 export const CONTAINER_WIDTH =
-  "mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
+  "w-full mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
 
 /** Standard page padding applied by leaf routes that want the default inset. */
 export const PAGE_PADDING = "px-3 py-3";
