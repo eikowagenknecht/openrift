@@ -8,6 +8,8 @@ export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
 
 export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order" | "Colorless";
 
+export const COLORLESS_DOMAIN: Domain = "Colorless";
+
 export type SuperType = "Basic" | "Champion" | "Signature" | "Token";
 
 export type CardFace = "front" | "back";

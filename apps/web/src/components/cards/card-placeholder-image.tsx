@@ -1,20 +1,13 @@
+import type { Domain } from "@openrift/shared";
+import { COLORLESS_DOMAIN } from "@openrift/shared";
+
 import { getDomainGradientStyle } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
-export const DOMAIN_COLORS: Record<string, string> = {
-  Fury: "#CB212D",
-  Calm: "#16AA71",
-  Mind: "#227799",
-  Body: "#E2710C",
-  Chaos: "#6B4891",
-  Order: "#CDA902",
-  Colorless: "#737373",
-};
-
 interface CardPlaceholderImageProps {
   name: string;
-  domain: string[];
+  domain: Domain[];
   energy: number | null;
   might?: number | null;
   power?: number | null;
@@ -29,21 +22,23 @@ export function CardPlaceholderImage({
   power,
   className,
 }: CardPlaceholderImageProps) {
-  const primaryDomain = domain[0] ?? "Colorless";
+  const primaryDomain = domain[0] ?? COLORLESS_DOMAIN;
   const domainIconPath = getFilterIconPath("domains", primaryDomain);
   const bgStyle = getDomainGradientStyle(domain);
 
   return (
     <div
-      className={cn(
-        "relative flex aspect-card items-center justify-center overflow-hidden rounded-lg",
-        className,
-      )}
+      className={cn("aspect-card flex items-center overflow-hidden rounded-lg", className)}
       style={bgStyle}
+      role="img"
+      aria-label={`${name} placeholder — energy ${energy ?? "none"}, might ${might ?? "none"}, power ${power ?? "none"}`}
     >
       <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5">
-        {energy !== null && energy !== undefined && (
-          <div className="flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white">
+        {energy !== null && (
+          <div
+            className="flex size-8 items-center justify-center rounded-full bg-black/70 text-sm font-bold text-white"
+            aria-label={`Energy: ${energy}`}
+          >
             {energy}
           </div>
         )}
@@ -56,14 +51,17 @@ export function CardPlaceholderImage({
               key={index}
               src={domainIconPath}
               alt=""
-              className="ml-1 size-5 brightness-0 invert drop-shadow-md"
+              className="ml-1 size-5 brightness-0 drop-shadow-md invert"
             />
           ))}
       </div>
 
       {might !== null && might !== undefined && (
-        <div className="absolute top-2 right-2 flex h-8 items-center justify-center gap-0.5 rounded-md bg-black/70 px-2 text-sm font-bold text-white">
-          <img src="/images/might.svg" alt="Might" className="size-3.5" />
+        <div
+          className="absolute top-2 right-2 flex h-8 items-center justify-center gap-0.5 rounded-md bg-black/70 px-2 text-sm font-bold text-white"
+          aria-label={`Might: ${might}`}
+        >
+          <img src="/images/might.svg" alt="" className="size-3.5" />
           {might}
         </div>
       )}

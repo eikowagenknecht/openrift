@@ -1,4 +1,5 @@
-import type { CardType, Domain, SuperType } from "@openrift/shared";
+import type { CardType, SuperType } from "@openrift/shared";
+import { COLORLESS_DOMAIN } from "@openrift/shared";
 
 type FilterCategory =
   | "sets"
@@ -31,7 +32,7 @@ export function getFilterIconPath(category: FilterCategory, value: string): stri
   const lower = value.toLowerCase();
   switch (category) {
     case "domains": {
-      return `/images/domains/${lower}.${value === ("Colorless" satisfies Domain) ? "svg" : "webp"}`;
+      return `/images/domains/${lower}.${value === COLORLESS_DOMAIN ? "svg" : "webp"}`;
     }
     case "types": {
       return `/images/types/${lower}.svg`;

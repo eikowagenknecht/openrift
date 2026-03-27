@@ -1,6 +1,15 @@
 import type { Domain } from "@openrift/shared";
+import { COLORLESS_DOMAIN } from "@openrift/shared";
 
-import { DOMAIN_COLORS } from "@/components/cards/card-placeholder-image";
+export const DOMAIN_COLORS: Record<string, string> = {
+  Fury: "#CB212D",
+  Calm: "#16AA71",
+  Mind: "#227799",
+  Body: "#E2710C",
+  Chaos: "#6B4891",
+  Order: "#CDA902",
+  Colorless: "#737373",
+} satisfies Record<Domain, string>;
 
 export function getDomainGradientStyle(domains: string[], alpha = ""): React.CSSProperties {
   const c1 = (DOMAIN_COLORS[domains[0]] ?? "#737373") + alpha;
@@ -21,12 +30,12 @@ export function getDomainTintStyle(domains: string[]): React.CSSProperties {
 }
 
 export function formatDomainDisplay(domains: string[]): string {
-  if (domains.length === 1 && domains[0] === ("Colorless" satisfies Domain)) {
+  if (domains.length === 1 && domains[0] === COLORLESS_DOMAIN) {
     return "No Domain";
   }
   return domains.join(" / ");
 }
 
 export function formatDomainFilterLabel(value: string): string {
-  return value === ("Colorless" satisfies Domain) ? "None" : value;
+  return value === COLORLESS_DOMAIN ? "None" : value;
 }

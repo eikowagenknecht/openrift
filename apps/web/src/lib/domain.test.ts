@@ -1,18 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("@/components/cards/CardPlaceholderImage", () => ({
-  DOMAIN_COLORS: {
-    Fury: "#CB212D",
-    Calm: "#16AA71",
-    Mind: "#227799",
-    Body: "#E2710C",
-    Chaos: "#6B4891",
-    Order: "#CDA902",
-    Colorless: "#737373",
-  } as Record<string, string>,
-}));
-
-// oxlint-disable-next-line import/first -- must import after vi.mock
 import {
   formatDomainDisplay,
   formatDomainFilterLabel,

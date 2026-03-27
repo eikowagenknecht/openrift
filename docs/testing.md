@@ -76,14 +76,7 @@ For functions that take simple inputs (strings, numbers, `null`), just call them
   ```
 
 - Config lives in `apps/web/vitest.config.ts`. The `@/` alias and `jsdom` environment are preconfigured.
-- Use `vi.mock()` when the module under test imports something that has side effects or heavy dependencies (React components, DOM APIs, browser globals). If a utility only imports plain constants or types from such a module, mock just that export to avoid pulling in the entire dependency tree:
-
-  ```ts
-  import { vi } from "vitest";
-  vi.mock("@/components/cards/CardPlaceholderImage", () => ({
-    DOMAIN_COLORS: { Fury: "#CB212D", Calm: "#16AA71" },
-  }));
-  ```
+- Use `vi.mock()` when the module under test imports something that has side effects or heavy dependencies (React components, DOM APIs, browser globals). If a utility only imports plain constants or types from such a module, mock just that export to avoid pulling in the entire dependency tree.
 
 ## Integration Tests
 
