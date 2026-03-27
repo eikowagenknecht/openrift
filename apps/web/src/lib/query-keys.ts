@@ -6,6 +6,9 @@ export const queryKeys = {
   featureFlags: {
     all: ["feature-flags"] as const,
   },
+  siteSettings: {
+    all: ["site-settings"] as const,
+  },
   catalog: {
     all: ["catalog"] as const,
   },
@@ -46,6 +49,7 @@ export const queryKeys = {
     },
     marketplaceGroups: ["admin", "marketplace-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
+    siteSettings: ["admin", "site-settings"] as const,
     cronStatus: ["admin", "cron-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,
     renamePreview: ["admin", "rename-preview"] as const,

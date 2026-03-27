@@ -139,6 +139,14 @@ export interface FeatureFlagResponse {
   updatedAt: string;
 }
 
+export interface SiteSettingResponse {
+  key: string;
+  value: string;
+  scope: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PromoTypeResponse {
   id: string;
   slug: string;

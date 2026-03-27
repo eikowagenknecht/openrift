@@ -3,11 +3,13 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
+import { Analytics } from "@/components/analytics";
 import { RouteNotFoundFallback } from "@/components/error-message";
 import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/sonner";
 import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { siteSettingsQueryOptions } from "@/lib/site-settings";
 
 const TanStackRouterDevtools = PROD
   ? () => null
@@ -27,6 +29,11 @@ export const Route = createRootRouteWithContext<{
       // useSuspenseQuery in components doesn't re-throw the cached error.
       context.queryClient.setQueryData(featureFlagsQueryOptions.queryKey, {});
     }
+    try {
+      await context.queryClient.ensureQueryData(siteSettingsQueryOptions);
+    } catch {
+      context.queryClient.setQueryData(siteSettingsQueryOptions.queryKey, {});
+    }
   },
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
@@ -40,6 +47,7 @@ function RootComponent() {
         <Footer />
         <Toaster position="bottom-right" />
       </div>
+      <Analytics />
       <TanStackRouterDevtools />
     </NuqsAdapter>
   );

@@ -71,6 +71,8 @@ export type {
   PromoTypeResponse,
   ProviderSettingResponse,
   ProviderStatsResponse,
+  SiteSettingResponse,
+  SiteSettingsResponse,
   RegenerateImageResponse,
   RehostImageResponse,
   RehostStatusDiskStats,

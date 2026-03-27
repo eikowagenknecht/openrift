@@ -37,6 +37,8 @@ export type {
 
 export type { FeatureFlagsResponse } from "./feature-flags.js";
 
+export type { SiteSettingsResponse } from "./site-settings.js";
+
 export type { AcquisitionSourceListResponse, AcquisitionSourceResponse } from "./source.js";
 
 export type {
@@ -83,6 +85,7 @@ export type {
   CleanupOrphanedResponse,
   ClearRehostedResponse,
   FeatureFlagResponse,
+  SiteSettingResponse,
   IgnoredProductResponse,
   LowResImageEntry,
   LowResImagesResponse,

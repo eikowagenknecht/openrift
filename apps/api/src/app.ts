@@ -30,6 +30,7 @@ import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
 import { keywordStylesRoute } from "./routes/public/keyword-styles.js";
 import { pricesRoute } from "./routes/public/prices.js";
+import { siteSettingsRoute } from "./routes/public/site-settings.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {
@@ -163,6 +164,7 @@ export function createApp(deps: AppDeps) {
     .route("/api/v1", pricesRoute)
     .route("/api/v1", featureFlagsRoute)
     .route("/api/v1", keywordStylesRoute)
+    .route("/api/v1", siteSettingsRoute)
 
     // ── Authenticated routes (require a valid session) ────────────────────
     .route("/api/v1", collectionsRoute)

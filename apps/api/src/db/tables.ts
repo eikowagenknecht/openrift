@@ -580,6 +580,18 @@ export interface FeatureFlagsTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── Site settings (migration 048) ────────────────────────────────────────────
+
+export interface SiteSettingsTable {
+  /** CHECK: <> '' */
+  key: string;
+  value: string;
+  /** CHECK: IN ('web', 'api') */
+  scope: "web" | "api";
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── User preferences (migration 047) ────────────────────────────────────────
 
 export interface UserPreferencesTable {
@@ -660,6 +672,9 @@ export interface Database {
 
   // Keyword styles (migration 043)
   keywordStyles: KeywordStylesTable;
+
+  // Site settings (migration 048)
+  siteSettings: SiteSettingsTable;
 
   // User preferences (migration 047)
   userPreferences: UserPreferencesTable;

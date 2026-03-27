@@ -50,6 +50,8 @@ export type {
   Domain,
   FeatureFlagResponse,
   FeatureFlagsResponse,
+  SiteSettingResponse,
+  SiteSettingsResponse,
   FilterRange,
   Finish,
   IgnoredProductResponse,
