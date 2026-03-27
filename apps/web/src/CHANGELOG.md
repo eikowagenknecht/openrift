@@ -2,6 +2,7 @@
 
 ## 2026-03-27
 
+- fix: Marketplace preferences no longer show blank rows when stored settings get out of sync
 - feat: You can now choose which marketplaces to show and in what order — the first one appears on card thumbnails in the grid
 - fix: EUR prices (Cardmarket, CardTrader) now display as 1,23 € instead of €1.23
 - feat: Cards without images now show a full placeholder with card type, tags, rules text, effect text, and flavor text — like a mini text-only version of the real card

@@ -66,17 +66,20 @@ export const useDisplayStore = create<DisplayState>()(
         marketplaceOrder: state.marketplaceOrder,
         maxColumns: state.maxColumns,
       }),
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<DisplayState>),
-        visibleFields: {
-          ...DEFAULT_VISIBLE_FIELDS,
-          ...(persisted as Partial<DisplayState>)?.visibleFields,
-        },
-        marketplaceOrder: (persisted as Partial<DisplayState>)?.marketplaceOrder ?? [
-          ...ALL_MARKETPLACES,
-        ],
-      }),
+      merge: (persisted, current) => {
+        const data = persisted as Partial<DisplayState>;
+        const validSet = new Set<string>(ALL_MARKETPLACES);
+        const savedOrder = data?.marketplaceOrder?.filter((m) => validSet.has(m)) ?? [];
+        return {
+          ...current,
+          ...data,
+          visibleFields: {
+            ...DEFAULT_VISIBLE_FIELDS,
+            ...data?.visibleFields,
+          },
+          marketplaceOrder: savedOrder.length > 0 ? savedOrder : [...ALL_MARKETPLACES],
+        };
+      },
     },
   ),
 );
