@@ -7,7 +7,7 @@ import { Hono } from "hono";
 
 import { AppError } from "../../../errors.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
-import { fixTypography } from "../../../services/fix-typography.js";
+import { appendSetTotal, fixTypography } from "../../../services/fix-typography.js";
 import {
   acceptPrinting,
   deletePrinting,
@@ -428,6 +428,12 @@ export const mutationsRoute = new Hono<{ Variables: Variables }>()
           keywordGlyphs: false,
         });
       }
+    }
+
+    // Append set total to publicCode when accepting from a provider
+    if (source === "provider" && field === "publicCode" && typeof normalizedValue === "string") {
+      const setTotal = await mut.getSetPrintedTotalForPrinting(printingSlug);
+      normalizedValue = appendSetTotal(normalizedValue, setTotal?.printedTotal);
     }
 
     // Candidate printings store setId as a slug; printings store it as a UUID FK

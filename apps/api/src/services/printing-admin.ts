@@ -8,7 +8,7 @@ import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
-import { fixTypography } from "./fix-typography.js";
+import { appendSetTotal, fixTypography } from "./fix-typography.js";
 import { deleteRehostFiles } from "./image-rehost.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
@@ -207,9 +207,14 @@ export async function acceptPrinting(
     }
 
     let setUuid = "";
+    let setPrintedTotal: number | null = null;
     if (printingFields.setId) {
       const setRow = await trxRepos.candidateMutations.getSetIdBySlug(printingFields.setId);
       setUuid = setRow?.id ?? "";
+      if (setUuid) {
+        const setTotalRow = await trxRepos.sets.getPrintedTotal(setUuid);
+        setPrintedTotal = setTotalRow?.printedTotal ?? null;
+      }
     }
 
     const rawRarity = String(printingFields.rarity || ("Common" satisfies Rarity));
@@ -234,7 +239,7 @@ export async function acceptPrinting(
       promoTypeId: printingFields.promoTypeId ?? null,
       finish: (printingFields.finish ?? "normal") as Finish,
       artist: printingFields.artist,
-      publicCode: printingFields.publicCode,
+      publicCode: appendSetTotal(printingFields.publicCode, setPrintedTotal),
       printedRulesText: fixTypography(printingFields.printedRulesText ?? null),
       printedEffectText: fixTypography(printingFields.printedEffectText ?? null),
       flavorText: fixTypography(printingFields.flavorText ?? null, {

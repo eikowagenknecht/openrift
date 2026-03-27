@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fixTypography } from "./fix-typography.js";
+import { appendSetTotal, fixTypography } from "./fix-typography.js";
 
 describe("fixTypography", () => {
   it("returns null for null input", () => {
@@ -120,5 +120,27 @@ describe("fixTypography", () => {
     const once = fixTypography(input);
     const twice = fixTypography(once);
     expect(twice).toBe(once);
+  });
+});
+
+describe("appendSetTotal", () => {
+  it("appends printed total when missing", () => {
+    expect(appendSetTotal("SFD-109", 221)).toBe("SFD-109/221");
+  });
+
+  it("leaves code unchanged when total already present", () => {
+    expect(appendSetTotal("OGN-133/298", 298)).toBe("OGN-133/298");
+  });
+
+  it("leaves code unchanged when printedTotal is null", () => {
+    expect(appendSetTotal("SFD-109", null)).toBe("SFD-109");
+  });
+
+  it("leaves code unchanged when printedTotal is zero", () => {
+    expect(appendSetTotal("SFD-109", 0)).toBe("SFD-109");
+  });
+
+  it("handles art variant codes", () => {
+    expect(appendSetTotal("OGN-079a", 298)).toBe("OGN-079a/298");
   });
 });

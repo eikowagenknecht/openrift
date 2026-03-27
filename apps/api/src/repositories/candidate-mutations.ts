@@ -305,6 +305,18 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /** @returns The printed_total of the set a printing belongs to. */
+    getSetPrintedTotalForPrinting(
+      printingSlug: string,
+    ): Promise<{ printedTotal: number | null } | undefined> {
+      return db
+        .selectFrom("printings")
+        .innerJoin("sets", "sets.id", "printings.setId")
+        .select("sets.printedTotal")
+        .where("printings.slug", "=", printingSlug)
+        .executeTakeFirst();
+    },
+
     /** Update arbitrary fields on a printing by UUID. */
     async updatePrintingById(id: string, updates: Record<string, unknown>): Promise<void> {
       await db.updateTable("printings").set(updates).where("id", "=", id).execute();
