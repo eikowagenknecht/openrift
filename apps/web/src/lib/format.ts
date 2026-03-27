@@ -1,4 +1,5 @@
-import type { ArtVariant, Finish, Printing } from "@openrift/shared";
+import type { ArtVariant, Finish, Marketplace, Printing } from "@openrift/shared";
+import { EUR_MARKETPLACES } from "@openrift/shared";
 
 export const ART_VARIANT_LABELS: Record<string, string> = {
   normal: "Normal",
@@ -97,7 +98,7 @@ export function formatPriceEur(value?: number | null): string {
   if (value === null || value === undefined) {
     return "--";
   }
-  return `€${value.toFixed(2)}`;
+  return `${value.toFixed(2).replace(".", ",")} \u20AC`;
 }
 
 export function formatPriceCompact(value?: number | null): string {
@@ -119,4 +120,40 @@ export function formatPriceCompact(value?: number | null): string {
     return `$${k.toFixed(1)}k`;
   }
   return `$${Math.round(k)}k`;
+}
+
+function formatPriceCompactEur(value?: number | null): string {
+  if (value === null || value === undefined) {
+    return "--";
+  }
+  if (value < 10) {
+    return `${value.toFixed(2).replace(".", ",")} \u20AC`;
+  }
+  const rounded = Math.round(value);
+  if (rounded < 1000) {
+    return `${rounded} \u20AC`;
+  }
+  const k = rounded / 1000;
+  if (Math.round(k * 10) < 100) {
+    return `${k.toFixed(1).replace(".", ",")}k \u20AC`;
+  }
+  return `${Math.round(k)}k \u20AC`;
+}
+
+/**
+ * Pick the correct full-precision formatter for a marketplace's currency.
+ * @returns `formatPriceEur` for EUR marketplaces, `formatPrice` for USD.
+ */
+export function formatterForMarketplace(marketplace: Marketplace): (v?: number | null) => string {
+  return EUR_MARKETPLACES.has(marketplace) ? formatPriceEur : formatPrice;
+}
+
+/**
+ * Pick the correct compact formatter for a marketplace's currency.
+ * @returns `formatPriceCompactEur` for EUR marketplaces, `formatPriceCompact` for USD.
+ */
+export function compactFormatterForMarketplace(
+  marketplace: Marketplace,
+): (v?: number | null) => string {
+  return EUR_MARKETPLACES.has(marketplace) ? formatPriceCompactEur : formatPriceCompact;
 }

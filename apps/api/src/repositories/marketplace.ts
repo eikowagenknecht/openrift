@@ -10,21 +10,20 @@ import type { Database, MarketplaceSnapshotsTable, MarketplaceProductsTable } fr
 export function marketplaceRepo(db: Kysely<Database>) {
   return {
     /**
-     * Latest TCGPlayer market price for every printing.
+     * Latest market price per marketplace for every printing.
      *
      * Uses `DISTINCT ON` to efficiently pick only the most recent snapshot
-     * per source without scanning the full `marketplace_snapshots` table.
+     * per product without scanning the full `marketplace_snapshots` table.
      *
-     * @returns Rows with `printingId` and `marketCents`.
+     * @returns Rows with `printingId`, `marketplace`, and `marketCents`.
      */
-    latestPrices(): Promise<{ printingId: string; marketCents: number }[]> {
+    latestPrices(): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
       return db
         .selectFrom("marketplaceProducts as ps")
         .innerJoin("marketplaceSnapshots as snap", "snap.productId", "ps.id")
         .innerJoin("printings as p", "p.id", "ps.printingId")
-        .where("ps.marketplace", "=", "tcgplayer")
         .distinctOn("ps.id")
-        .select(["p.id as printingId", "snap.marketCents"])
+        .select(["p.id as printingId", "ps.marketplace", "snap.marketCents"])
         .orderBy("ps.id")
         .orderBy("snap.recordedAt", "desc")
         .execute();

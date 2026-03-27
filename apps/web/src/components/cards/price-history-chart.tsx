@@ -14,7 +14,8 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { usePriceHistory } from "@/hooks/use-price-history";
-import { formatPrice, formatPriceEur } from "@/lib/format";
+import { formatterForMarketplace } from "@/lib/format";
+import { useDisplayStore } from "@/stores/display-store";
 
 const TIME_RANGES: { value: TimeRange; label: string; days: number }[] = [
   { value: "7d", label: "7D", days: 7 },
@@ -44,7 +45,8 @@ export function PriceHistoryChart({
   const [internalRange, setInternalRange] = useState<TimeRange>("30d");
   const range = controlledRange ?? internalRange;
   const setRange = onRangeChange ?? setInternalRange;
-  const [source, setSource] = useState<Marketplace>("tcgplayer");
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const [source, setSource] = useState<Marketplace>(marketplaceOrder[0] ?? "tcgplayer");
 
   const { data: allData } = usePriceHistory(printingId, "all");
 
@@ -72,7 +74,7 @@ export function PriceHistoryChart({
 
   const { data, isLoading, error } = usePriceHistory(printingId, effectiveRange);
 
-  const currencyFormatter = source === "tcgplayer" ? formatPrice : formatPriceEur;
+  const currencyFormatter = formatterForMarketplace(source);
   const sourceData = data?.[source];
   const snapshots = (sourceData?.snapshots ?? []) as (
     | TcgplayerSnapshot
@@ -105,7 +107,7 @@ export function PriceHistoryChart({
           ))}
         </ButtonGroup>
         <ButtonGroup aria-label="Price source" className="ml-auto">
-          {(["tcgplayer", "cardmarket", "cardtrader"] as const).map((s) => {
+          {marketplaceOrder.map((s) => {
             const label = s === "tcgplayer" ? "TCG" : s === "cardmarket" ? "CM" : "CT";
             const available = data?.[s]?.available ?? false;
             return (

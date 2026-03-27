@@ -1,4 +1,4 @@
-import type { CardFilters, Printing, SortOption } from "@openrift/shared";
+import type { CardFilters, Marketplace, Printing, SortOption } from "@openrift/shared";
 import { comparePrintings, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
@@ -11,6 +11,7 @@ interface UseCardDataParams {
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
   ownedCountByPrinting: Record<string, number> | undefined;
+  favoriteMarketplace: Marketplace;
 }
 
 function toComparable(p: Printing, setOrderMap: Map<string, number>) {
@@ -69,18 +70,31 @@ function groupPrintingsByCardId(
 }
 
 /**
+ * Resolve the display price for a printing from the user's favorite marketplace.
+ * Falls back to `marketPrice` (TCGplayer) when `marketPrices` is absent.
+ * @returns The price or `undefined` if unavailable.
+ */
+export function resolvePrice(printing: Printing, marketplace: Marketplace): number | undefined {
+  return (
+    printing.marketPrices?.[marketplace] ??
+    (marketplace === "tcgplayer" ? printing.marketPrice : undefined)
+  );
+}
+
+/**
  * Compute min/max market price per cardId from grouped printings.
  * @returns A map from cardId to price range.
  */
 function computePriceRanges(
   printingsByCardId: Map<string, Printing[]>,
+  marketplace: Marketplace,
 ): Map<string, { min: number; max: number }> {
   const map = new Map<string, { min: number; max: number }>();
   for (const [cardId, printings] of printingsByCardId) {
     let min = Infinity;
     let max = -Infinity;
     for (const p of printings) {
-      const price = p.marketPrice;
+      const price = resolvePrice(p, marketplace);
       if (price !== null && price !== undefined) {
         min = Math.min(min, price);
         max = Math.max(max, price);
@@ -135,6 +149,7 @@ export function useCardData({
   sortDir,
   view,
   ownedCountByPrinting,
+  favoriteMarketplace,
 }: UseCardDataParams) {
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
@@ -151,7 +166,8 @@ export function useCardData({
 
   const printingsByCardId = groupPrintingsByCardId(allPrintings, setOrderMap);
 
-  const priceRangeByCardId = view === "cards" ? computePriceRanges(printingsByCardId) : null;
+  const priceRangeByCardId =
+    view === "cards" ? computePriceRanges(printingsByCardId, favoriteMarketplace) : null;
 
   const ownedCounts = ownedCountByPrinting
     ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)

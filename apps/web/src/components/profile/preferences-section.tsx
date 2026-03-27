@@ -1,4 +1,6 @@
-import { Moon, Sun } from "lucide-react";
+import type { Marketplace } from "@openrift/shared";
+import { ALL_MARKETPLACES } from "@openrift/shared";
+import { ArrowDown, ArrowUp, Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +17,18 @@ const CARD_FIELD_ITEMS = [
   { key: "price" as const, label: "Price", example: "$2.50" },
 ];
 
+const MARKETPLACE_LABELS: Record<Marketplace, string> = {
+  tcgplayer: "TCGplayer",
+  cardmarket: "Cardmarket",
+  cardtrader: "CardTrader",
+};
+
+const MARKETPLACE_CURRENCY: Record<Marketplace, string> = {
+  tcgplayer: "USD",
+  cardmarket: "EUR",
+  cardtrader: "EUR",
+};
+
 export function PreferencesSection() {
   const showImages = useDisplayStore((s) => s.showImages);
   const setShowImages = useDisplayStore((s) => s.setShowImages);
@@ -22,8 +36,35 @@ export function PreferencesSection() {
   const setRichEffects = useDisplayStore((s) => s.setRichEffects);
   const visibleFields = useDisplayStore((s) => s.visibleFields);
   const setVisibleFields = useDisplayStore((s) => s.setVisibleFields);
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const setMarketplaceOrder = useDisplayStore((s) => s.setMarketplaceOrder);
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
+
+  const enabledSet = new Set(marketplaceOrder);
+
+  function toggleMarketplace(marketplace: Marketplace) {
+    if (enabledSet.has(marketplace)) {
+      setMarketplaceOrder(marketplaceOrder.filter((m) => m !== marketplace));
+    } else {
+      setMarketplaceOrder([...marketplaceOrder, marketplace]);
+    }
+  }
+
+  function moveMarketplace(marketplace: Marketplace, direction: -1 | 1) {
+    const index = marketplaceOrder.indexOf(marketplace);
+    if (index === -1) {
+      return;
+    }
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= marketplaceOrder.length) {
+      return;
+    }
+    const next = [...marketplaceOrder];
+    next.splice(index, 1);
+    next.splice(newIndex, 0, marketplace);
+    setMarketplaceOrder(next);
+  }
 
   return (
     <Card>
@@ -79,6 +120,70 @@ export function PreferencesSection() {
                 />
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="space-y-2 border-t pt-4">
+          <Label>Marketplaces</Label>
+          <p className="text-muted-foreground text-sm">
+            Enable and reorder price sources. The first one is shown in the card grid.
+          </p>
+
+          <div className="space-y-1 pt-1">
+            {/* Show enabled marketplaces first (in order), then disabled ones */}
+            {[...marketplaceOrder, ...ALL_MARKETPLACES.filter((m) => !enabledSet.has(m))].map(
+              (marketplace) => {
+                const enabled = enabledSet.has(marketplace);
+                const index = marketplaceOrder.indexOf(marketplace);
+                return (
+                  <div
+                    key={marketplace}
+                    className="flex items-center justify-between gap-3 rounded-md px-2.5 py-1.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`pref-mp-${marketplace}`}
+                        checked={enabled}
+                        onCheckedChange={() => toggleMarketplace(marketplace)}
+                      />
+                      <Label htmlFor={`pref-mp-${marketplace}`} className="font-normal">
+                        {MARKETPLACE_LABELS[marketplace]}
+                      </Label>
+                      <span className="text-muted-foreground text-xs">
+                        {MARKETPLACE_CURRENCY[marketplace]}
+                      </span>
+                      {enabled && index === 0 && (
+                        <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-medium">
+                          Grid
+                        </span>
+                      )}
+                    </div>
+                    {enabled && (
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={index === 0}
+                          onClick={() => moveMarketplace(marketplace, -1)}
+                          aria-label={`Move ${MARKETPLACE_LABELS[marketplace]} up`}
+                        >
+                          <ArrowUp className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={index === marketplaceOrder.length - 1}
+                          onClick={() => moveMarketplace(marketplace, 1)}
+                          aria-label={`Move ${MARKETPLACE_LABELS[marketplace]} down`}
+                        >
+                          <ArrowDown className="size-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              },
+            )}
           </div>
         </div>
       </CardContent>

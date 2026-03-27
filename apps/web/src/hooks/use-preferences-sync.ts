@@ -12,9 +12,9 @@ import { useThemeStore } from "@/stores/theme-store";
  * @returns Snapshot of preferences to persist server-side.
  */
 function getPrefsSnapshot(): UserPreferencesResponse {
-  const { showImages, richEffects, visibleFields } = useDisplayStore.getState();
+  const { showImages, richEffects, visibleFields, marketplaceOrder } = useDisplayStore.getState();
   const { theme } = useThemeStore.getState();
-  return { showImages, richEffects, visibleFields, theme };
+  return { showImages, richEffects, visibleFields, theme, marketplaceOrder };
 }
 
 /**
@@ -51,6 +51,7 @@ export function usePreferencesSync(enabled: boolean) {
       showImages: data.showImages,
       richEffects: data.richEffects,
       visibleFields: data.visibleFields,
+      marketplaceOrder: data.marketplaceOrder,
     });
     useThemeStore.setState({ theme: data.theme });
 

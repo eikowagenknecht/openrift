@@ -169,6 +169,8 @@ export const createTradeListItemSchema = z.object({
   copyId: z.uuid(),
 });
 
+const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
+
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().optional(),
   richEffects: z.boolean().optional(),
@@ -182,4 +184,9 @@ export const updatePreferencesSchema = z.object({
     })
     .optional(),
   theme: z.enum(["light", "dark"]).optional(),
+  marketplaceOrder: z
+    .array(marketplaceEnum)
+    .max(3)
+    .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate marketplaces" })
+    .optional(),
 });

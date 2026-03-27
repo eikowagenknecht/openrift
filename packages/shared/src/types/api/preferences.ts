@@ -1,3 +1,5 @@
+import type { Marketplace } from "../pricing.js";
+
 export interface UserPreferencesResponse {
   showImages: boolean;
   richEffects: boolean;
@@ -9,4 +11,5 @@ export interface UserPreferencesResponse {
     price: boolean;
   };
   theme: "light" | "dark";
+  marketplaceOrder: Marketplace[];
 }

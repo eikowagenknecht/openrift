@@ -1,5 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
-import type { UserPreferencesResponse } from "@openrift/shared";
+import type { Marketplace, UserPreferencesResponse } from "@openrift/shared";
+import { ALL_MARKETPLACES } from "@openrift/shared";
 import { updatePreferencesSchema } from "@openrift/shared/schemas";
 import { Hono } from "hono";
 import type { Selectable } from "kysely";
@@ -14,6 +15,7 @@ const DEFAULTS: UserPreferencesResponse = {
   richEffects: true,
   visibleFields: { number: true, title: true, type: true, rarity: true, price: true },
   theme: "light",
+  marketplaceOrder: [...ALL_MARKETPLACES],
 };
 
 function toResponse(row: Selectable<UserPreferencesTable> | undefined): UserPreferencesResponse {
@@ -31,6 +33,7 @@ function toResponse(row: Selectable<UserPreferencesTable> | undefined): UserPref
       price: row.cardFieldPrice,
     },
     theme: row.theme as "light" | "dark",
+    marketplaceOrder: row.marketplaceOrder as Marketplace[],
   };
 }
 
@@ -75,6 +78,10 @@ export const preferencesRoute = new Hono<{ Variables: Variables }>()
       if (body.visibleFields.price !== undefined) {
         updates.cardFieldPrice = body.visibleFields.price;
       }
+    }
+
+    if (body.marketplaceOrder !== undefined) {
+      updates.marketplaceOrder = JSON.stringify(body.marketplaceOrder);
     }
 
     const row = await userPreferences.upsert(userId, updates);

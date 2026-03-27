@@ -1,69 +1,101 @@
-import type { Printing, TimeRange } from "@openrift/shared";
+import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { affiliateUrl, cardtraderAffiliateUrl } from "@/lib/affiliate";
 import { formatPrice, formatPriceEur, priceColorClass } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
+
+interface MarketplaceConfig {
+  label: string;
+  icon: string;
+  iconClassName: string;
+  formatValue: (v: number) => string;
+  getUrl: (productId: number) => string;
+}
+
+const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
+  tcgplayer: {
+    label: "TCGplayer",
+    icon: "/images/external/tcgplayer-38x28.webp",
+    iconClassName: "invert dark:invert-0",
+    formatValue: formatPrice,
+    getUrl: (id) => affiliateUrl(`https://www.tcgplayer.com/product/${id}`),
+  },
+  cardmarket: {
+    label: "Cardmarket",
+    icon: "/images/external/cardmarket-20x28.webp",
+    iconClassName: "invert dark:invert-0",
+    formatValue: formatPriceEur,
+    getUrl: (id) => `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${id}`,
+  },
+  cardtrader: {
+    label: "CardTrader",
+    icon: "/images/external/cardtrader-20x28.webp",
+    iconClassName: "invert dark:invert-0",
+    formatValue: formatPriceEur,
+    getUrl: (id) => cardtraderAffiliateUrl(`https://www.cardtrader.com/en/cards/${id}`),
+  },
+};
 
 export function PricingSection({ printing, range }: { printing: Printing; range: TimeRange }) {
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const { data: history } = usePriceHistory(printing.id, range);
-  const cmSnapshots = history?.cardmarket.snapshots;
-  const cmLatest = cmSnapshots?.length ? cmSnapshots.at(-1) : null;
-  const ctSnapshots = history?.cardtrader.snapshots;
-  const ctLatest = ctSnapshots?.length ? ctSnapshots.at(-1) : null;
 
-  if (printing.marketPrice === undefined && !cmLatest && !ctLatest) {
+  /** @returns The latest market price for a marketplace (from price history snapshots). */
+  function latestPrice(marketplace: Marketplace): number | null {
+    const snapshots = history?.[marketplace]?.snapshots;
+    if (!snapshots?.length) {
+      return null;
+    }
+    // oxlint-disable-next-line no-non-null-assertion -- length check above
+    return snapshots.at(-1)!.market;
+  }
+
+  // Resolve which marketplaces have data to show
+  const chips: { marketplace: Marketplace; value: number; url: string | null }[] = [];
+  for (const marketplace of marketplaceOrder) {
+    const config = MARKETPLACE_CONFIG[marketplace];
+    const productId = history?.[marketplace]?.productId ?? null;
+    const url = productId ? config.getUrl(productId) : null;
+
+    // For tcgplayer, prefer the inline marketPrice (available without history loading)
+    const value =
+      marketplace === "tcgplayer"
+        ? (printing.marketPrice ?? latestPrice(marketplace))
+        : latestPrice(marketplace);
+
+    if (value !== null && value !== undefined) {
+      chips.push({ marketplace, value, url });
+    }
+  }
+
+  if (chips.length === 0) {
     return null;
   }
 
-  const tcgProductId = history?.tcgplayer.productId;
-  const tcgUrl = tcgProductId
-    ? affiliateUrl(`https://www.tcgplayer.com/product/${tcgProductId}`)
-    : null;
-  const cmProductId = history?.cardmarket.productId;
-  const cmUrl = cmProductId
-    ? `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${cmProductId}`
-    : null;
-  const ctProductId = history?.cardtrader.productId;
-  const ctUrl = ctProductId
-    ? cardtraderAffiliateUrl(`https://www.cardtrader.com/en/cards/${ctProductId}`)
-    : null;
+  const favorite = marketplaceOrder[0] ?? "tcgplayer";
 
   return (
     <div className="flex items-center justify-end gap-1.5">
-      {printing.marketPrice !== undefined && (
-        <>
-          <PriceTrend printingId={printing.id} range={range} />
+      {chips[0]?.marketplace === favorite && (
+        <PriceTrend printingId={printing.id} range={range} marketplace={favorite} />
+      )}
+      {chips.map(({ marketplace, value, url }) => {
+        const config = MARKETPLACE_CONFIG[marketplace];
+        return (
           <PriceChip
-            label="TCGplayer"
-            icon="/images/external/tcgplayer-38x28.webp"
-            iconClassName="invert dark:invert-0"
-            value={printing.marketPrice}
-            url={tcgUrl}
+            key={marketplace}
+            label={config.label}
+            icon={config.icon}
+            iconClassName={config.iconClassName}
+            value={value}
+            url={url}
+            formatValue={config.formatValue}
           />
-        </>
-      )}
-      {cmLatest && (
-        <PriceChip
-          label="Cardmarket"
-          icon="/images/external/cardmarket-20x28.webp"
-          iconClassName="invert dark:invert-0"
-          value={cmLatest.market}
-          url={cmUrl}
-          formatValue={formatPriceEur}
-        />
-      )}
-      {ctLatest && (
-        <PriceChip
-          label="CardTrader"
-          icon="/images/external/cardtrader-20x28.webp"
-          iconClassName="invert dark:invert-0"
-          value={ctLatest.market}
-          url={ctUrl}
-          formatValue={formatPriceEur}
-        />
-      )}
+        );
+      })}
     </div>
   );
 }
@@ -75,9 +107,17 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   all: "all time",
 };
 
-function PriceTrend({ printingId, range = "30d" }: { printingId: string; range?: TimeRange }) {
+function PriceTrend({
+  printingId,
+  range = "30d",
+  marketplace,
+}: {
+  printingId: string;
+  range?: TimeRange;
+  marketplace: Marketplace;
+}) {
   const { data } = usePriceHistory(printingId, range);
-  const snapshots = data?.tcgplayer.snapshots;
+  const snapshots = data?.[marketplace]?.snapshots;
   if (!snapshots || snapshots.length < 2) {
     return null;
   }

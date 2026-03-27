@@ -34,7 +34,7 @@ export type {
 export { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE, SEARCH_PREFIX_MAP } from "./search.js";
 
 export type { Marketplace, TimeRange } from "./pricing.js";
-export { TIME_RANGE_DAYS } from "./pricing.js";
+export { ALL_MARKETPLACES, EUR_MARKETPLACES, TIME_RANGE_DAYS } from "./pricing.js";
 
 export type {
   AcquisitionSourceListResponse,

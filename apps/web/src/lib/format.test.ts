@@ -265,10 +265,14 @@ describe("formatPriceEur", () => {
   });
 
   it("formats zero", () => {
-    expect(formatPriceEur(0)).toBe("€0.00");
+    expect(formatPriceEur(0)).toBe("0,00 \u20AC");
   });
 
   it("formats a decimal value", () => {
-    expect(formatPriceEur(9.99)).toBe("€9.99");
+    expect(formatPriceEur(9.99)).toBe("9,99 \u20AC");
+  });
+
+  it("uses comma as decimal separator", () => {
+    expect(formatPriceEur(1.23)).toBe("1,23 \u20AC");
   });
 });

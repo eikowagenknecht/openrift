@@ -6,11 +6,12 @@ import { COMPACT_THRESHOLD } from "@/components/cards/card-grid-constants";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
+import { resolvePrice } from "@/hooks/use-card-data";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import type { VisibleFields } from "@/lib/card-fields";
 import { DEFAULT_VISIBLE_FIELDS } from "@/lib/card-fields";
 import { getDomainGradientStyle } from "@/lib/domain";
-import { formatPriceCompact, priceColorClass } from "@/lib/format";
+import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import {
   LANDSCAPE_ROTATION_STYLE,
   getCardImageSrcSet,
@@ -180,6 +181,10 @@ export const CardThumbnail = memo(function CardThumbnail({
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const richEffects = useDisplayStore((s) => s.richEffects);
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
+  const favoritePrice = resolvePrice(printing, favoriteMarketplace);
+  const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === ("foil" satisfies Finish);
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
   const compact = cardWidth !== undefined && cardWidth < COMPACT_THRESHOLD;
@@ -366,23 +371,23 @@ export const CardThumbnail = memo(function CardThumbnail({
             visibleFields={visibleFields}
           />
           {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
-          {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when printing.marketPrice is undefined */}
+          {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when favoritePrice is undefined */}
           {visibleFields.price && (
             <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
-              {printing.marketPrice !== undefined &&
+              {favoritePrice !== undefined &&
                 (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
                   <>
                     <span className={priceColorClass(priceRange.min)}>
-                      {formatPriceCompact(priceRange.min)}
+                      {compactFmt(priceRange.min)}
                     </span>
                     <span className="text-muted-foreground/60">&ndash;</span>
                     <span className={priceColorClass(priceRange.max)}>
-                      {formatPriceCompact(priceRange.max)}
+                      {compactFmt(priceRange.max)}
                     </span>
                   </>
                 ) : (
-                  <span className={priceColorClass(printing.marketPrice)}>
-                    {formatPriceCompact(printing.marketPrice)}
+                  <span className={priceColorClass(favoritePrice)}>
+                    {compactFmt(favoritePrice)}
                   </span>
                 ))}
             </p>

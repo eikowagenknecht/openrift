@@ -1,14 +1,15 @@
-import type { Printing } from "@openrift/shared";
+import type { Marketplace, Printing } from "@openrift/shared";
 
+import { resolvePrice } from "@/hooks/use-card-data";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import {
   formatCardId,
-  formatPrice,
-  formatPriceEur,
+  formatterForMarketplace,
   formatPrintingLabel,
   priceColorClass,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 
 export function PrintingPicker({
   current,
@@ -56,7 +57,7 @@ export function PrintingPicker({
                   />
                 )}
               </span>
-              <PrintingPrices marketPrice={p.marketPrice} printingId={p.id} />
+              <PrintingPrices printing={p} />
             </button>
           );
         })}
@@ -65,33 +66,40 @@ export function PrintingPicker({
   );
 }
 
-function PrintingPrices({
-  marketPrice,
-  printingId,
-}: {
-  marketPrice: number | undefined;
-  printingId: string;
-}) {
-  const { data: history } = usePriceHistory(printingId, "30d");
-  const cmSnapshots = history?.cardmarket?.snapshots;
-  const cmLatest = cmSnapshots?.length ? cmSnapshots.at(-1) : null;
+function PrintingPrices({ printing }: { printing: Printing }) {
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const { data: history } = usePriceHistory(printing.id, "30d");
 
-  if (marketPrice === undefined && !cmLatest) {
+  function priceFor(marketplace: Marketplace): number | null {
+    // Try inline catalog price first
+    const inline = resolvePrice(printing, marketplace);
+    if (inline !== undefined) {
+      return inline;
+    }
+    // Fall back to latest history snapshot
+    const snapshots = history?.[marketplace]?.snapshots;
+    return snapshots?.length ? (snapshots.at(-1)?.market ?? null) : null;
+  }
+
+  const entries: { marketplace: Marketplace; value: number }[] = [];
+  for (const marketplace of marketplaceOrder) {
+    const value = priceFor(marketplace);
+    if (value !== null) {
+      entries.push({ marketplace, value });
+    }
+  }
+
+  if (entries.length === 0) {
     return null;
   }
 
   return (
     <span className="flex shrink-0 items-center gap-1.5">
-      {marketPrice !== undefined && (
-        <span className={cn("text-xs font-semibold", priceColorClass(marketPrice))}>
-          {formatPrice(marketPrice)}
+      {entries.map(({ marketplace, value }) => (
+        <span key={marketplace} className={cn("text-xs font-semibold", priceColorClass(value))}>
+          {formatterForMarketplace(marketplace)(value)}
         </span>
-      )}
-      {cmLatest && (
-        <span className={cn("text-xs font-semibold", priceColorClass(cmLatest.market))}>
-          {formatPriceEur(cmLatest.market)}
-        </span>
-      )}
+      ))}
     </span>
   );
 }

@@ -34,12 +34,14 @@ const app = new Hono()
 
 const dbPrice = {
   printingId: "a0000000-0001-4000-a000-000000000001",
+  marketplace: "tcgplayer",
   marketCents: 275,
   recordedAt: new Date("2026-03-01"),
 };
 
 const dbPriceFoil = {
   printingId: "a0000000-0001-4000-a000-000000000002",
+  marketplace: "tcgplayer",
   marketCents: 800,
   recordedAt: new Date("2026-03-01"),
 };

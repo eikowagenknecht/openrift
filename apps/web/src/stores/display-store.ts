@@ -1,3 +1,5 @@
+import type { Marketplace } from "@openrift/shared";
+import { ALL_MARKETPLACES } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -11,6 +13,8 @@ interface DisplayState {
   setRichEffects: (value: boolean) => void;
   visibleFields: VisibleFields;
   setVisibleFields: (value: VisibleFields | ((prev: VisibleFields) => VisibleFields)) => void;
+  marketplaceOrder: Marketplace[];
+  setMarketplaceOrder: (value: Marketplace[]) => void;
   maxColumns: number | null;
   setMaxColumns: (value: number | null | ((prev: number | null) => number | null)) => void;
   // Column measurement state (derived from viewport, not persisted)
@@ -29,12 +33,14 @@ export const useDisplayStore = create<DisplayState>()(
       showImages: true,
       richEffects: true,
       visibleFields: DEFAULT_VISIBLE_FIELDS,
+      marketplaceOrder: [...ALL_MARKETPLACES],
       setShowImages: (value) => set({ showImages: value }),
       setRichEffects: (value) => set({ richEffects: value }),
       setVisibleFields: (value) =>
         set((state) => ({
           visibleFields: typeof value === "function" ? value(state.visibleFields) : value,
         })),
+      setMarketplaceOrder: (value) => set({ marketplaceOrder: value }),
 
       // localStorage only — intentionally not synced to DB (per-device setting)
       maxColumns: null,
@@ -57,6 +63,7 @@ export const useDisplayStore = create<DisplayState>()(
         showImages: state.showImages,
         richEffects: state.richEffects,
         visibleFields: state.visibleFields,
+        marketplaceOrder: state.marketplaceOrder,
         maxColumns: state.maxColumns,
       }),
       merge: (persisted, current) => ({
@@ -66,6 +73,9 @@ export const useDisplayStore = create<DisplayState>()(
           ...DEFAULT_VISIBLE_FIELDS,
           ...(persisted as Partial<DisplayState>)?.visibleFields,
         },
+        marketplaceOrder: (persisted as Partial<DisplayState>)?.marketplaceOrder ?? [
+          ...ALL_MARKETPLACES,
+        ],
       }),
     },
   ),

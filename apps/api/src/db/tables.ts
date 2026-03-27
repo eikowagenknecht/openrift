@@ -604,6 +604,7 @@ export interface UserPreferencesTable {
   cardFieldRarity: Generated<boolean>;
   cardFieldPrice: Generated<boolean>;
   theme: Generated<string>;
+  marketplaceOrder: Generated<string[]>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

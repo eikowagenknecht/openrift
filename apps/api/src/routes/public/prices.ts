@@ -25,9 +25,12 @@ export const pricesRoute = new Hono<{ Variables: Variables }>()
 
     const rows = await marketplace.latestPrices();
 
+    // This endpoint returns a simple printingId → USD price map (TCGplayer only).
     const prices: Record<string, number> = {};
     for (const row of rows) {
-      prices[row.printingId] = centsToDollars(row.marketCents);
+      if (row.marketplace === "tcgplayer") {
+        prices[row.printingId] = centsToDollars(row.marketCents);
+      }
     }
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");

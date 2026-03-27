@@ -1,4 +1,4 @@
-import type { TcgplayerSnapshot, TimeRange } from "@openrift/shared";
+import type { TimeRange } from "@openrift/shared";
 import { ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
 import { Area, AreaChart, Tooltip } from "recharts";
@@ -7,7 +7,8 @@ import { PriceHistoryChart } from "@/components/cards/price-history-chart";
 import { ChartContainer } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { usePriceHistory } from "@/hooks/use-price-history";
-import { formatPrice } from "@/lib/format";
+import { formatterForMarketplace } from "@/lib/format";
+import { useDisplayStore } from "@/stores/display-store";
 
 const chartConfig = {
   market: {
@@ -24,8 +25,11 @@ interface PriceSparklineProps {
 export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProps) {
   const [expanded, setExpanded] = useState(false);
   const [range, setRange] = useState<TimeRange>("30d");
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const favorite = marketplaceOrder[0] ?? "tcgplayer";
   const { data } = usePriceHistory(printingId, "30d");
-  const snapshots: TcgplayerSnapshot[] = data?.tcgplayer.snapshots ?? [];
+  const snapshots = data?.[favorite]?.snapshots ?? [];
+  const fmt = formatterForMarketplace(favorite);
   const gradientId = `sparkFill-${useId().replaceAll(":", "")}`;
 
   const handleRangeChange = (newRange: TimeRange) => {
@@ -67,10 +71,10 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
               if (!active || !payload?.length) {
                 return null;
               }
-              const snap = payload[0].payload as TcgplayerSnapshot;
+              const snap = payload[0].payload as { market: number; date: string };
               return (
                 <div className="bg-popover rounded-md px-2 py-1 text-xs shadow-md">
-                  <span className="font-medium">{formatPrice(snap.market)}</span>
+                  <span className="font-medium">{fmt(snap.market)}</span>
                   <span className="text-muted-foreground ml-1.5">{snap.date}</span>
                 </div>
               );

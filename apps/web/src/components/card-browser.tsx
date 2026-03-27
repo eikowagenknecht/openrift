@@ -54,6 +54,7 @@ export function CardBrowser() {
 
   const { filters, sortBy, sortDir, view, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
 
   const {
     availableFilters,
@@ -71,6 +72,7 @@ export function CardBrowser() {
     sortDir,
     view,
     ownedCountByPrinting,
+    favoriteMarketplace: marketplaceOrder[0] ?? "tcgplayer",
   });
 
   // Defer the expensive card grid re-render so the filter UI (badge highlight,

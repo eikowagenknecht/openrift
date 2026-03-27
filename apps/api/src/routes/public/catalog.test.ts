@@ -79,6 +79,7 @@ const dbImage = {
 
 const dbPrice = {
   printingId: "OGS-001:rare:normal:",
+  marketplace: "tcgplayer",
   marketCents: 275,
   recordedAt: new Date("2026-03-01"),
 };
@@ -231,6 +232,20 @@ describe("GET /api/v1/catalog", () => {
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings[0].marketPrice).toBe(2.75);
+    expect(json.printings[0].marketPrices).toEqual({ tcgplayer: 2.75 });
+  });
+
+  it("includes all marketplace prices on printing", async () => {
+    seedDefaults({
+      prices: [
+        dbPrice,
+        { printingId: "OGS-001:rare:normal:", marketplace: "cardmarket", marketCents: 350 },
+      ],
+    });
+    const res = await app.request("/api/v1/catalog");
+    const json = await res.json();
+    expect(json.printings[0].marketPrice).toBe(2.75);
+    expect(json.printings[0].marketPrices).toEqual({ tcgplayer: 2.75, cardmarket: 3.5 });
   });
 
   it("omits marketPrice when no price exists", async () => {
@@ -238,6 +253,7 @@ describe("GET /api/v1/catalog", () => {
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings[0].marketPrice).toBeUndefined();
+    expect(json.printings[0].marketPrices).toBeUndefined();
   });
 
   it("returns printings from multiple sets as flat array", async () => {
