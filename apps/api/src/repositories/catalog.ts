@@ -147,12 +147,19 @@ export function catalogRepo(db: Kysely<Database>) {
      * @returns The number of rows that would be (or were) updated.
      */
     async fixTypography(dryRun: boolean): Promise<number> {
-      const columns = ["printed_rules_text", "printed_effect_text", "flavor_text"] as const;
+      const italicParenColumns = ["printed_rules_text", "printed_effect_text"] as const;
+      const plainColumns = ["flavor_text"] as const;
 
-      const whereConditions = columns.map((col) => {
-        const ref = sql.ref(col);
-        return sql`${ref} IS DISTINCT FROM ${fixTypographyExpr(col)}`;
-      });
+      const whereConditions = [
+        ...italicParenColumns.map((col) => {
+          const ref = sql.ref(col);
+          return sql`${ref} IS DISTINCT FROM ${fixTypographyExpr(col)}`;
+        }),
+        ...plainColumns.map((col) => {
+          const ref = sql.ref(col);
+          return sql`${ref} IS DISTINCT FROM ${fixTypographyExpr(col, { italicParens: false })}`;
+        }),
+      ];
       const where = sql.join(whereConditions, sql` OR `);
 
       if (dryRun) {
@@ -165,8 +172,11 @@ export function catalogRepo(db: Kysely<Database>) {
       }
 
       const updates: Record<string, ReturnType<typeof fixTypographyExpr>> = {};
-      for (const col of columns) {
+      for (const col of italicParenColumns) {
         updates[col] = fixTypographyExpr(col);
+      }
+      for (const col of plainColumns) {
+        updates[col] = fixTypographyExpr(col, { italicParens: false });
       }
 
       const result = await db
@@ -189,24 +199,30 @@ export function catalogRepo(db: Kysely<Database>) {
  * - Paired straight double quotes ("…") → curly double quotes (\u201C…\u201D)
  * - Hyphen-minus before digit (-1) → minus sign (\u2212) before digit
  * - Parenthesized text (...) wrapped with underscores for italic rendering: _(...)_
+ *   (enabled by default, disable with `{ italicParens: false }` for flavor text)
  * @returns A Kysely raw SQL expression with chained REPLACE/REGEXP_REPLACE calls.
  */
-function fixTypographyExpr(column: string) {
+function fixTypographyExpr(column: string, options?: { italicParens?: boolean }) {
   const col = sql.ref(column);
-  // Inner → outer: apostrophe, ellipsis, double quotes, minus sign,
-  // then italic parens (strip existing wrappers first, then re-add for all).
+  const { italicParens = true } = options ?? {};
+  // Inner → outer: apostrophe, ellipsis, double quotes, minus sign
+  const base = sql`REGEXP_REPLACE(
+    REGEXP_REPLACE(
+      REPLACE(
+        REPLACE(${col}, '''', E'\u2019'),
+        '...', E'\u2026'
+      ),
+      '"([^"]*)"', E'\u201C\\1\u201D', 'g'
+    ),
+    '-([0-9])', E'\u2212\\1', 'g'
+  )`;
+  if (!italicParens) {
+    return base;
+  }
+  // Italic parens: strip existing wrappers first, then re-add for all.
   return sql`REGEXP_REPLACE(
     REGEXP_REPLACE(
-      REGEXP_REPLACE(
-        REGEXP_REPLACE(
-          REPLACE(
-            REPLACE(${col}, '''', E'\u2019'),
-            '...', E'\u2026'
-          ),
-          '"([^"]*)"', E'\u201C\\1\u201D', 'g'
-        ),
-        '-([0-9])', E'\u2212\\1', 'g'
-      ),
+      ${base},
       '_\\(([^)]*)\\)_', '(\\1)', 'g'
     ),
     '\\(([^)]*)\\)', '_(\\1)_', 'g'

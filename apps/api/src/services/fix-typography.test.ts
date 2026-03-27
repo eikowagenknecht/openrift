@@ -73,6 +73,16 @@ describe("fixTypography", () => {
     expect(fixTypography("no parens here")).toBe("no parens here");
   });
 
+  it("skips italic parens when italicParens is false", () => {
+    expect(fixTypography("(reminder text)", { italicParens: false })).toBe("(reminder text)");
+  });
+
+  it("still applies other fixes when italicParens is false", () => {
+    expect(fixTypography("it's a (test)...", { italicParens: false })).toBe(
+      "it\u2019s a (test)\u2026",
+    );
+  });
+
   // ── Combined ─────────────────────────────────────────────────────────────
 
   it("applies all fixes together", () => {
