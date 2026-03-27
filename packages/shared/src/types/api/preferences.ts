@@ -10,6 +10,6 @@ export interface UserPreferencesResponse {
     rarity: boolean;
     price: boolean;
   };
-  theme: "light" | "dark";
+  theme?: "light" | "dark";
   marketplaceOrder: Marketplace[];
 }

@@ -2,6 +2,7 @@
 
 ## 2026-03-27
 
+- fix: Dark theme no longer resets to light on page refresh for signed-in users
 - fix: Marketplace preferences no longer show blank rows when stored settings get out of sync
 - feat: You can now choose which marketplaces to show and in what order — the first one appears on card thumbnails in the grid
 - fix: EUR prices (Cardmarket, CardTrader) now display as 1,23 € instead of €1.23

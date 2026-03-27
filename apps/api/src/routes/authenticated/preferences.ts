@@ -14,7 +14,6 @@ const DEFAULTS: UserPreferencesResponse = {
   showImages: true,
   richEffects: true,
   visibleFields: { number: true, title: true, type: true, rarity: true, price: true },
-  theme: "light",
   marketplaceOrder: [...ALL_MARKETPLACES],
 };
 

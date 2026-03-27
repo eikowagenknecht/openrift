@@ -53,7 +53,9 @@ export function usePreferencesSync(enabled: boolean) {
       visibleFields: data.visibleFields,
       marketplaceOrder: data.marketplaceOrder,
     });
-    useThemeStore.setState({ theme: data.theme });
+    if (data.theme) {
+      useThemeStore.setState({ theme: data.theme });
+    }
 
     requestAnimationFrame(() => {
       hydrating.current = false;
