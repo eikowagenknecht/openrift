@@ -1,4 +1,5 @@
-import type { UserPreferencesResponse } from "@openrift/shared";
+import type { Marketplace, UserPreferencesResponse } from "@openrift/shared";
+import { ALL_MARKETPLACES } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
@@ -46,12 +47,19 @@ export function usePreferencesSync(enabled: boolean) {
     }
     hydrating.current = true;
 
-    // These are the only fields we persist to the server
+    // Validate marketplaceOrder in case the server returns corrupted data
+    const validSet = new Set<string>(ALL_MARKETPLACES);
+    const safeOrder = (
+      Array.isArray(data.marketplaceOrder)
+        ? data.marketplaceOrder.filter((marketplace) => validSet.has(marketplace))
+        : []
+    ) as Marketplace[];
+
     useDisplayStore.setState({
       showImages: data.showImages,
       richEffects: data.richEffects,
       visibleFields: data.visibleFields,
-      marketplaceOrder: data.marketplaceOrder,
+      marketplaceOrder: safeOrder.length > 0 ? safeOrder : [...ALL_MARKETPLACES],
     });
     if (data.theme) {
       useThemeStore.setState({ theme: data.theme });

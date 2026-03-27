@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections")({
 
 function CollectionLayout() {
   return (
-    <div className="-mx-4 -mt-6 flex-1">
+    <div className="flex-1">
       <SidebarProvider className="min-h-0!">
         <CollectionSidebar />
         <CollectionContent />

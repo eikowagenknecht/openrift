@@ -351,6 +351,7 @@ export const userPreferencesResponseSchema = z
       price: z.boolean(),
     }),
     theme: z.enum(["light", "dark"]).optional(),
+    marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])),
   })
   .openapi("UserPreferencesResponse");
 
