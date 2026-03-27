@@ -41,3 +41,19 @@ export function fixTypography(text: string | null, options?: FixTypographyOption
   }
   return result;
 }
+
+/**
+ * Append `/{printedTotal}` to a public code if it doesn't already contain a slash.
+ * E.g. `SFD-109` + `221` → `SFD-109/221`.
+ *
+ * @returns The public code with the set total appended, or unchanged if already present or total is unavailable.
+ */
+export function appendSetTotal(
+  publicCode: string,
+  printedTotal: number | null | undefined,
+): string {
+  if (!printedTotal || publicCode.includes("/")) {
+    return publicCode;
+  }
+  return `${publicCode}/${printedTotal}`;
+}
