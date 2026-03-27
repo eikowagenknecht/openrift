@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 
 import type { VisibleFields } from "@/lib/card-fields";
 import { DEFAULT_VISIBLE_FIELDS } from "@/lib/card-fields";
+import { sanitizePreferences } from "@/lib/sanitize-preferences";
 
 interface DisplayState {
   showImages: boolean;
@@ -67,17 +68,17 @@ export const useDisplayStore = create<DisplayState>()(
         maxColumns: state.maxColumns,
       }),
       merge: (persisted, current) => {
-        const data = persisted as Partial<DisplayState>;
-        const validSet = new Set<string>(ALL_MARKETPLACES);
-        const savedOrder = data?.marketplaceOrder?.filter((m) => validSet.has(m)) ?? [];
+        const safe = sanitizePreferences(persisted);
+        if (!safe) {
+          return current;
+        }
         return {
           ...current,
-          ...data,
-          visibleFields: {
-            ...DEFAULT_VISIBLE_FIELDS,
-            ...data?.visibleFields,
-          },
-          marketplaceOrder: savedOrder.length > 0 ? savedOrder : [...ALL_MARKETPLACES],
+          showImages: safe.showImages,
+          richEffects: safe.richEffects,
+          visibleFields: safe.visibleFields,
+          marketplaceOrder: safe.marketplaceOrder,
+          maxColumns: safe.maxColumns ?? current.maxColumns,
         };
       },
     },
