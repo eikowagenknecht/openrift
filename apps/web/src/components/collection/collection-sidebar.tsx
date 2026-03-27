@@ -61,6 +61,7 @@ export function CollectionSidebar() {
             <SidebarMenuButton
               isActive={currentPath === "/collections/" && !collectionId}
               render={<Link to="/collections" />}
+              size="sm"
             >
               <LayersIcon />
               <span className="flex-1">All Cards</span>
@@ -142,6 +143,7 @@ export function CollectionSidebar() {
               <SidebarMenuButton
                 isActive={currentPath === "/collections/sources"}
                 render={<Link to="/collections/sources" />}
+                size="sm"
               >
                 <StoreIcon />
                 <span>Sources</span>
