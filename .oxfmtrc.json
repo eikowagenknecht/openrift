@@ -1,5 +1,9 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": ["**/dist", "**/routeTree.gen.ts", "**/coverage"],
-  "experimentalSortImports": {}
+  "experimentalSortImports": {},
+  "sortTailwindcss": {
+    "attributes": ["class", "className"],
+    "functions": ["cn", "clsx"]
+  }
 }
