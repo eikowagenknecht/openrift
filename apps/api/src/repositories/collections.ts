@@ -1,6 +1,11 @@
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type { CollectionsTable, CopiesTable, Database } from "../db/index.js";
+
+interface CollectionWithCount extends Selectable<CollectionsTable> {
+  copyCount: number;
+}
 
 /**
  * Queries for user collections.
@@ -9,11 +14,16 @@ import type { CollectionsTable, CopiesTable, Database } from "../db/index.js";
  */
 export function collectionsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All collections for a user, inbox first, then by sort order and name. */
-    listForUser(userId: string): Promise<Selectable<CollectionsTable>[]> {
+    /** @returns All collections for a user with copy counts, inbox first, then by sort order and name. */
+    listForUser(userId: string): Promise<CollectionWithCount[]> {
       return db
         .selectFrom("collections")
-        .selectAll()
+        .selectAll("collections")
+        .select(
+          sql<number>`(select count(*)::int from copies where copies.collection_id = collections.id)`.as(
+            "copyCount",
+          ),
+        )
         .where("userId", "=", userId)
         .orderBy("isInbox", "desc")
         .orderBy("sortOrder")

@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CollectionGrid } from "@/components/collection/collection-grid";
+import { CollectionPending } from "@/components/collection/collection-pending";
 import { RouteErrorFallback } from "@/components/error-message";
-import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
-import { collectionsQueryOptions } from "@/hooks/use-collections";
+import { collectionsQueryOptions, useCollections } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
+
+import { useCollectionTitle } from "./route";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/$collectionId")({
   loader: async ({ context, params }) => {
@@ -16,20 +18,14 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
     ]);
   },
   component: CollectionDetail,
-  pendingComponent: CollectionDetailPending,
+  pendingComponent: CollectionPending,
   errorComponent: RouteErrorFallback,
 });
 
-function CollectionDetailPending() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-64 w-full" />
-    </div>
-  );
-}
-
 function CollectionDetail() {
   const { collectionId } = Route.useParams();
+  const { data: collections } = useCollections();
+  const collection = collections.find((col) => col.id === collectionId);
+  useCollectionTitle(collection?.name ?? "Collection");
   return <CollectionGrid collectionId={collectionId} />;
 }

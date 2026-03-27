@@ -6,6 +6,7 @@ export interface CollectionResponse {
   isInbox: boolean;
   sortOrder: number;
   shareToken: string | null;
+  copyCount: number;
   createdAt: string;
   updatedAt: string;
 }

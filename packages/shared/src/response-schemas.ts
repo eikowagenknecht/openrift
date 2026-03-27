@@ -166,6 +166,7 @@ export const collectionResponseSchema = z
     isInbox: z.boolean(),
     sortOrder: z.number(),
     shareToken: z.string().nullable(),
+    copyCount: z.number(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })

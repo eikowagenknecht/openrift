@@ -1,4 +1,5 @@
-import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createContext, use, useEffect, useState } from "react";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -6,10 +7,18 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 
-const pageTitles: Record<string, string> = {
-  "/_app/_authenticated/collections/": "All Cards",
-  "/_app/_authenticated/collections/sources": "Sources",
-};
+type SetTitle = (title: string) => void;
+
+// oxlint-disable-next-line no-empty-function -- default is a no-op before the provider mounts
+const CollectionTitleContext = createContext<SetTitle>(() => {});
+
+/** Call from a child route to set the collection layout header title. */
+export function useCollectionTitle(title: string) {
+  const setTitle = use(CollectionTitleContext);
+  useEffect(() => {
+    setTitle(title);
+  }, [setTitle, title]);
+}
 
 export const Route = createFileRoute("/_app/_authenticated/collections")({
   beforeLoad: async ({ context }) => {
@@ -24,21 +33,21 @@ export const Route = createFileRoute("/_app/_authenticated/collections")({
 });
 
 function CollectionLayout() {
+  const [title, setTitle] = useState("Collection");
+
   return (
     <div className="flex-1">
       <SidebarProvider className="min-h-0!">
         <CollectionSidebar />
-        <CollectionContent />
+        <CollectionTitleContext value={setTitle}>
+          <CollectionContent title={title} />
+        </CollectionTitleContext>
       </SidebarProvider>
     </div>
   );
 }
 
-function CollectionContent() {
-  const matches = useMatches();
-  const routeId = matches.at(-1)?.routeId ?? "";
-  const title = pageTitles[routeId] ?? "Collection";
-
+function CollectionContent({ title }: { title: string }) {
   return (
     <div className="relative flex w-full flex-1 flex-col">
       <header className="flex h-12 items-center gap-2 border-b px-4">
