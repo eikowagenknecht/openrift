@@ -39,7 +39,7 @@ function ProfilePage() {
     : null;
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center px-3 py-3">
       <div className="flex w-full max-w-2xl flex-col gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center gap-4">

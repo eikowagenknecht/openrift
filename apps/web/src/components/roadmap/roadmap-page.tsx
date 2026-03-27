@@ -113,7 +113,7 @@ const roadmapItems: RoadmapItem[] = [
 
 export function RoadmapPage() {
   return (
-    <div className="mx-auto mt-6 w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-2xl px-3 py-3">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">Roadmap</h1>
         <Link to="/changelog" className="text-muted-foreground hover:text-foreground text-sm">

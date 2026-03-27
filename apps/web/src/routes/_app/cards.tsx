@@ -4,18 +4,27 @@ import { CardBrowser } from "@/components/card-browser";
 import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
+import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/cards")({
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
-  component: CardBrowser,
+  component: CardsPage,
   pendingComponent: CardsPending,
   errorComponent: RouteErrorFallback,
 });
 
+function CardsPage() {
+  return (
+    <div className={PAGE_PADDING}>
+      <CardBrowser />
+    </div>
+  );
+}
+
 // Skeleton UI for the cards page while loading
 function CardsPending() {
   return (
-    <div className="space-y-4">
+    <div className={`${PAGE_PADDING} space-y-4`}>
       <Skeleton className="h-10 w-full rounded-lg" />
       <div className="min-w-0 flex-1">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">

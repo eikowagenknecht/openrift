@@ -13,6 +13,9 @@ export function cn(...inputs: ClassValue[]) {
 export const CONTAINER_WIDTH =
   "mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
 
+/** Standard page padding applied by leaf routes that want the default inset. */
+export const PAGE_PADDING = "px-3 py-3";
+
 /** Returns a safe relative redirect path, or `undefined` if the input is missing or unsafe.
  * @returns The sanitized path, or `undefined` if invalid.
  */
