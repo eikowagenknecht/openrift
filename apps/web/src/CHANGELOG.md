@@ -1,10 +1,14 @@
 # Changelog
 
+## 2026-03-27
+
+- feat: Cards without images now show a full placeholder with card type, tags, rules text, effect text, and flavor text — like a mini text-only version of the real card
+
 ## 2026-03-26
 
 - feat: Cards without images now show their power as repeated domain icons, matching the real card layout
-- fix: Battlefield cards no longer appear as squares in the card browser — they now fill the full card frame
 - feat: Your display preferences (theme, card images, rich effects, and visible card fields) now sync across devices when you're signed in
+- fix: Battlefield cards no longer appear as squares in the card browser — they now fill the full card frame
 - fix: Icons inside keyword brackets (like Equip costs) now render correctly instead of showing raw text
 - fix: Swiping to navigate between cards on mobile now only works on the card image, not the entire detail pane
 
@@ -38,8 +42,8 @@
 
 ## 2026-03-16
 
-- fix: Visiting an unknown URL now shows a themed "not found" page instead of a blank one
 - feat: Price data now loads faster thanks to browser caching
+- fix: Visiting an unknown URL now shows a themed "not found" page instead of a blank one
 
 ## 2026-03-13
 
@@ -56,9 +60,9 @@
 
 ## 2026-03-10
 
-- fix: App updates now install automatically instead of requiring a manual reload — fixes a crash loop on some devices where stale cached code prevented the update prompt from appearing
 - feat: OpenRift now has a landing page at / with sign-in and a quick link to browse cards
 - feat: There's a hidden easter egg on the landing page — see if you can find it
+- fix: App updates now install automatically instead of requiring a manual reload — fixes a crash loop on some devices where stale cached code prevented the update prompt from appearing
 
 ## 2026-03-09
 
