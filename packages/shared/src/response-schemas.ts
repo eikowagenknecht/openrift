@@ -350,7 +350,7 @@ export const userPreferencesResponseSchema = z
       rarity: z.boolean(),
       price: z.boolean(),
     }),
-    theme: z.enum(["light", "dark"]),
+    theme: z.enum(["light", "dark"]).optional(),
   })
   .openapi("UserPreferencesResponse");
 
