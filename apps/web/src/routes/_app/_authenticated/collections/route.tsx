@@ -49,11 +49,13 @@ function CollectionLayout() {
 function CollectionContent({ title }: { title: string }) {
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex h-12 items-center gap-2 px-4">
+      {/* Header only for mobile */}
+      <header className="flex h-12 items-center gap-2 px-4 md:hidden">
         <SidebarTrigger />
         <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
         <h1 className="text-sm font-medium">{title}</h1>
       </header>
+      {/* Main content */}
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <Outlet />
       </div>
