@@ -31,8 +31,8 @@ export function fixTypography(text: string | null, options?: FixTypographyOption
   if (keywordGlyphs) {
     // Move trailing :rb_*: glyphs inside keyword brackets: [Equip] :rb_x: → [Equip :rb_x:]
     result = result.replaceAll(
-      /\[([A-Z][a-z]+)\]\s*((?::rb_\w+:\s*)+)/g,
-      (_, keyword, glyphs) => `[${keyword} ${glyphs.trim()}]`,
+      /\[([A-Z][a-z]+)\]\s*(:rb_\w+:(?:\s*:rb_\w+:)*)/g,
+      (_, keyword, glyphs) => `[${keyword} ${glyphs}]`,
     );
   }
   if (italicParens) {
