@@ -23,6 +23,13 @@ import { Fragment, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -57,6 +64,8 @@ export interface FieldDef {
   multiline?: boolean;
   /** When true, the value is a string[] -- comma-separated input is split into an array on commit. */
   array?: boolean;
+  /** Free-text suggestions shown as a filterable combobox (user can still type a custom value). */
+  suggestions?: readonly string[];
 }
 
 const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
@@ -84,6 +93,7 @@ export const CANDIDATE_CARD_FIELDS: FieldDef[] = [
  * @returns The field definitions for candidate printings. */
 export function buildCandidatePrintingFields(
   promoTypes: readonly { value: string; label: string }[],
+  artistSuggestions?: readonly string[],
 ): FieldDef[] {
   return [
     { key: "externalId", label: "External ID", readOnly: true },
@@ -100,7 +110,11 @@ export function buildCandidatePrintingFields(
       label: "Promo Type",
       labeledOptions: promoTypes.length > 0 ? promoTypes : undefined,
     },
-    { key: "artist", label: "Artist" },
+    {
+      key: "artist",
+      label: "Artist",
+      suggestions: artistSuggestions?.length ? artistSuggestions : undefined,
+    },
     { key: "printedRulesText", label: "Printed Rules", multiline: true },
     { key: "printedEffectText", label: "Printed Effect", multiline: true },
     { key: "flavorText", label: "Flavor Text", multiline: true },
@@ -257,6 +271,54 @@ function isGallery(
   providerLabels?: Record<string, string>,
 ): boolean {
   return getProviderLabel(row, providerLabels) === "gallery";
+}
+
+/** Inline combobox: type to filter suggestions, pick one, or press Enter to use custom text.
+ * @returns A Command-based combobox element. */
+function SuggestionCombobox({
+  suggestions,
+  defaultValue,
+  onCommit,
+  onCancel,
+}: {
+  suggestions: readonly string[];
+  defaultValue: string;
+  onCommit: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const [inputValue, setInputValue] = useState(defaultValue);
+
+  return (
+    <Command
+      shouldFilter
+      className="border-primary rounded border"
+      onClick={(event: React.MouseEvent) => event.stopPropagation()}
+    >
+      <CommandInput
+        value={inputValue}
+        onValueChange={setInputValue}
+        placeholder="Type or select…"
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
+        autoFocus
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            onCommit(inputValue);
+          } else if (event.key === "Escape") {
+            onCancel();
+          }
+        }}
+      />
+      <CommandList>
+        <CommandEmpty className="px-2 py-1.5 text-xs">No matches</CommandEmpty>
+        {suggestions.map((suggestion) => (
+          <CommandItem key={suggestion} value={suggestion} onSelect={(value) => onCommit(value)}>
+            {suggestion}
+          </CommandItem>
+        ))}
+      </CommandList>
+    </Command>
+  );
 }
 
 export function CandidateSpreadsheet({
@@ -509,6 +571,13 @@ export function CandidateSpreadsheet({
                             ))}
                       </SelectContent>
                     </Select>
+                  ) : editingField === field.key && field.suggestions ? (
+                    <SuggestionCombobox
+                      suggestions={field.suggestions}
+                      defaultValue={hasValue(activeValue) ? String(activeValue) : ""}
+                      onCommit={(value) => commitEdit(field.key, value)}
+                      onCancel={() => setEditingField(null)}
+                    />
                   ) : editingField === field.key && field.multiline ? (
                     <textarea
                       ref={textareaRef}
