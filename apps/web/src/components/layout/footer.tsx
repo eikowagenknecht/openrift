@@ -33,7 +33,8 @@ export function Footer() {
       </p>
       <p className="mt-1">
         OpenRift was created under Riot Games&apos; &ldquo;Legal Jibber Jabber&rdquo; policy using
-        assets owned by Riot Games. Riot Games does not endorse or sponsor this project.
+        assets owned by Riot Games. Riot Games does not endorse or sponsor this project. Links to
+        TCGPlayer and CardTrader are affiliate links.
       </p>
     </footer>
   );
