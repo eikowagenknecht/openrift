@@ -49,7 +49,7 @@
     "// hono, @hono/node-server, lodash": "better-auth → prisma → @prisma/dev pins old versions",
     "// serialize-javascript": "vite-plugin-pwa → workbox → @rollup/plugin-terser pins ^6.0.1",
     "@hono/node-server": "1.19.11",
-    "hono": "4.12.7",
+    "hono": "4.12.9",
     "lodash": "4.17.23",
     "serialize-javascript": "7.0.4"
   },

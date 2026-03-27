@@ -1,6 +1,5 @@
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
 
 import type { Variables } from "../../types.js";
 
@@ -19,13 +18,39 @@ const deleteOverrideSchema = z.object({
   finish: z.string(),
 });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const createOverride = createRoute({
+  method: "post",
+  path: "/staging-card-overrides",
+  tags: ["Admin - Staging"],
+  request: {
+    body: { content: { "application/json": { schema: stagingCardOverrideSchema } } },
+  },
+  responses: {
+    204: { description: "Override created" },
+  },
+});
+
+const deleteOverride = createRoute({
+  method: "delete",
+  path: "/staging-card-overrides",
+  tags: ["Admin - Staging"],
+  request: {
+    body: { content: { "application/json": { schema: deleteOverrideSchema } } },
+  },
+  responses: {
+    204: { description: "Override deleted" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const stagingCardOverridesRoute = new Hono<{ Variables: Variables }>()
+export const stagingCardOverridesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── POST /admin/staging-card-overrides ────────────────────────────────────
 
-  .post("/staging-card-overrides", zValidator("json", stagingCardOverrideSchema), async (c) => {
+  .openapi(createOverride, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { marketplace, externalId, finish, cardId } = c.req.valid("json");
 
@@ -41,7 +66,7 @@ export const stagingCardOverridesRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /admin/staging-card-overrides ──────────────────────────────────
 
-  .delete("/staging-card-overrides", zValidator("json", deleteOverrideSchema), async (c) => {
+  .openapi(deleteOverride, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { marketplace, externalId, finish } = c.req.valid("json");
 

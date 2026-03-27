@@ -1,12 +1,16 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { CollectionListResponse, CopyListResponse } from "@openrift/shared";
+import {
+  collectionListResponseSchema,
+  collectionResponseSchema,
+  copyListResponseSchema,
+} from "@openrift/shared/response-schemas";
 import {
   copiesQuerySchema,
   createCollectionSchema,
   idParamSchema,
   updateCollectionSchema,
 } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -23,12 +27,93 @@ const patchFields: FieldMapping = {
   sortOrder: "sortOrder",
 };
 
-export const collectionsRoute = new Hono<{ Variables: Variables }>()
-  .basePath("/collections")
-  .use(requireAuth)
+const listCollections = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Collections"],
+  responses: {
+    200: {
+      content: { "application/json": { schema: collectionListResponseSchema } },
+      description: "Success",
+    },
+  },
+});
 
+const createCollection = createRoute({
+  method: "post",
+  path: "/",
+  tags: ["Collections"],
+  request: {
+    body: { content: { "application/json": { schema: createCollectionSchema } } },
+  },
+  responses: {
+    201: {
+      content: { "application/json": { schema: collectionResponseSchema } },
+      description: "Created",
+    },
+  },
+});
+
+const getCollection = createRoute({
+  method: "get",
+  path: "/{id}",
+  tags: ["Collections"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: collectionResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const updateCollection = createRoute({
+  method: "patch",
+  path: "/{id}",
+  tags: ["Collections"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: updateCollectionSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: collectionResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const deleteCollection = createRoute({
+  method: "delete",
+  path: "/{id}",
+  tags: ["Collections"],
+  request: { params: idParamSchema },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const getCollectionCopies = createRoute({
+  method: "get",
+  path: "/{id}/copies",
+  tags: ["Collections"],
+  request: {
+    params: idParamSchema,
+    query: copiesQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: copyListResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const collectionsApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/collections");
+collectionsApp.use(requireAuth);
+export const collectionsRoute = collectionsApp
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .get("/", async (c) => {
+  .openapi(listCollections, async (c) => {
     const { collections } = c.get("repos");
     const { ensureInbox } = c.get("services");
     const userId = getUserId(c);
@@ -40,7 +125,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .post("/", zValidator("json", createCollectionSchema), async (c) => {
+  .openapi(createCollection, async (c) => {
     const { collections } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
@@ -56,7 +141,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
-  .get("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(getCollection, async (c) => {
     const { collections } = c.get("repos");
     const { id } = c.req.valid("param");
     const row = await collections.getByIdForUser(id, getUserId(c));
@@ -67,30 +152,25 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .patch(
-    "/:id",
-    zValidator("param", idParamSchema),
-    zValidator("json", updateCollectionSchema),
-    async (c) => {
-      const { collections } = c.get("repos");
-      const userId = getUserId(c);
-      const { id } = c.req.valid("param");
-      const body = c.req.valid("json");
-      const updates = buildPatchUpdates(body, patchFields);
-      const row = await collections.update(id, userId, updates);
-      if (!row) {
-        throw new AppError(404, "NOT_FOUND", "Not found");
-      }
-      return c.json(toCollection(row));
-    },
-  )
+  .openapi(updateCollection, async (c) => {
+    const { collections } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
+    const updates = buildPatchUpdates(body, patchFields);
+    const row = await collections.update(id, userId, updates);
+    if (!row) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
+    return c.json(toCollection(row));
+  })
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
   // Validates not inbox, auto-moves remaining copies to inbox, then deletes.
-  .delete("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(deleteCollection, async (c) => {
     const repos = c.get("repos");
     const transact = c.get("transact");
-    const { ensureInbox, deleteCollection } = c.get("services");
+    const { ensureInbox, deleteCollection: deleteCollectionService } = c.get("services");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
@@ -106,7 +186,7 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
 
     const inboxId = await ensureInbox(repos, userId);
 
-    await deleteCollection(transact, {
+    await deleteCollectionService(transact, {
       collectionId: id,
       collectionName: collection.name,
       moveCopiesTo: inboxId,
@@ -118,30 +198,25 @@ export const collectionsRoute = new Hono<{ Variables: Variables }>()
   })
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
-  .get(
-    "/:id/copies",
-    zValidator("param", idParamSchema),
-    zValidator("query", copiesQuerySchema),
-    async (c) => {
-      const { collections, copies } = c.get("repos");
-      const userId = getUserId(c);
-      const { id } = c.req.valid("param");
-      const { cursor, limit: rawLimit } = c.req.valid("query");
-      const limit = rawLimit ?? 200;
+  .openapi(getCollectionCopies, async (c) => {
+    const { collections, copies } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const { cursor, limit: rawLimit } = c.req.valid("query");
+    const limit = rawLimit ?? 200;
 
-      // Verify collection belongs to user
-      const collection = await collections.exists(id, userId);
-      if (!collection) {
-        throw new AppError(404, "NOT_FOUND", "Not found");
-      }
+    // Verify collection belongs to user
+    const collection = await collections.exists(id, userId);
+    if (!collection) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
 
-      const rows = await copies.listForCollection(id, limit, cursor);
-      const hasMore = rows.length > limit;
-      const items = rows.slice(0, limit);
+    const rows = await copies.listForCollection(id, limit, cursor);
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit);
 
-      return c.json({
-        items: items.map((row) => toCopy(row)),
-        nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
-      } satisfies CopyListResponse);
-    },
-  );
+    return c.json({
+      items: items.map((row) => toCopy(row)),
+      nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
+    } satisfies CopyListResponse);
+  });

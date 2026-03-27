@@ -1,8 +1,7 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { MarketplaceGroupResponse } from "@openrift/shared";
 import { marketplaceGroupParamSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
@@ -13,11 +12,53 @@ const updateGroupSchema = z.object({
   name: z.string().nullable(),
 });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listGroups = createRoute({
+  method: "get",
+  path: "/marketplace-groups",
+  tags: ["Admin - Marketplace Groups"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            groups: z.array(
+              z.object({
+                marketplace: z.string(),
+                groupId: z.number(),
+                name: z.string().nullable(),
+                abbreviation: z.string().nullable(),
+                stagedCount: z.number(),
+                assignedCount: z.number(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List marketplace groups",
+    },
+  },
+});
+
+const updateGroup = createRoute({
+  method: "patch",
+  path: "/marketplace-groups/{marketplace}/{id}",
+  tags: ["Admin - Marketplace Groups"],
+  request: {
+    params: marketplaceGroupParamSchema,
+    body: { content: { "application/json": { schema: updateGroupSchema } } },
+  },
+  responses: {
+    204: { description: "Group updated" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
+export const marketplaceGroupsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
-  .get("/marketplace-groups", async (c) => {
+  .openapi(listGroups, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
 
     const [groups, stagingCounts, assignedCounts] = await Promise.all([
@@ -49,24 +90,15 @@ export const marketplaceGroupsRoute = new Hono<{ Variables: Variables }>()
     });
   })
 
-  .patch(
-    "/marketplace-groups/:marketplace/:id",
-    zValidator("param", marketplaceGroupParamSchema),
-    zValidator("json", updateGroupSchema),
-    async (c) => {
-      const { marketplaceAdmin: mktAdmin } = c.get("repos");
-      const { marketplace, id: groupId } = c.req.valid("param");
-      const { name } = c.req.valid("json");
+  .openapi(updateGroup, async (c) => {
+    const { marketplaceAdmin: mktAdmin } = c.get("repos");
+    const { marketplace, id: groupId } = c.req.valid("param");
+    const { name } = c.req.valid("json");
 
-      const updated = await mktAdmin.updateGroupName(marketplace, groupId, name);
-      if (!updated) {
-        throw new AppError(
-          404,
-          "NOT_FOUND",
-          `Marketplace group ${marketplace}/${groupId} not found`,
-        );
-      }
+    const updated = await mktAdmin.updateGroupName(marketplace, groupId, name);
+    if (!updated) {
+      throw new AppError(404, "NOT_FOUND", `Marketplace group ${marketplace}/${groupId} not found`);
+    }
 
-      return c.body(null, 204);
-    },
-  );
+    return c.body(null, 204);
+  });

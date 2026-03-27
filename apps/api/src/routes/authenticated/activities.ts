@@ -1,7 +1,10 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { ActivityDetailResponse, ActivityListResponse } from "@openrift/shared";
+import {
+  activityDetailResponseSchema,
+  activityListResponseSchema,
+} from "@openrift/shared/response-schemas";
 import { activitiesQuerySchema, idParamSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
 
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -9,13 +12,38 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import type { Variables } from "../../types.js";
 import { toActivity, toActivityItem } from "../../utils/mappers.js";
 
-export const activitiesRoute = new Hono<{ Variables: Variables }>()
-  .basePath("/activities")
-  .use(requireAuth)
+const listActivities = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Activities"],
+  request: { query: activitiesQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: activityListResponseSchema } },
+      description: "Success",
+    },
+  },
+});
 
+const getActivity = createRoute({
+  method: "get",
+  path: "/{id}",
+  tags: ["Activities"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: activityDetailResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const activitiesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/activities");
+activitiesApp.use(requireAuth);
+export const activitiesRoute = activitiesApp
   // ── GET /activities ───────────────────────────────────────────────────────────
 
-  .get("/", zValidator("query", activitiesQuerySchema), async (c) => {
+  .openapi(listActivities, async (c) => {
     const { activities } = c.get("repos");
     const userId = getUserId(c);
     const { cursor, limit: rawLimit } = c.req.valid("query");
@@ -35,7 +63,7 @@ export const activitiesRoute = new Hono<{ Variables: Variables }>()
 
   // ── GET /activities/:id ───────────────────────────────────────────────────────
 
-  .get("/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(getActivity, async (c) => {
     const { activities } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");

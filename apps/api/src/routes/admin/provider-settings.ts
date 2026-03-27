@@ -1,8 +1,7 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { ProviderSettingResponse } from "@openrift/shared";
 import { providerParamSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
@@ -18,13 +17,64 @@ const reorderSchema = z.object({
   providers: z.array(z.string().min(1)).min(1),
 });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listProviderSettings = createRoute({
+  method: "get",
+  path: "/provider-settings",
+  tags: ["Admin - Provider Settings"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            providerSettings: z.array(
+              z.object({
+                provider: z.string(),
+                sortOrder: z.number(),
+                isHidden: z.boolean(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List provider settings",
+    },
+  },
+});
+
+const reorderProviders = createRoute({
+  method: "put",
+  path: "/provider-settings/reorder",
+  tags: ["Admin - Provider Settings"],
+  request: {
+    body: { content: { "application/json": { schema: reorderSchema } } },
+  },
+  responses: {
+    204: { description: "Providers reordered" },
+  },
+});
+
+const updateProviderSetting = createRoute({
+  method: "patch",
+  path: "/provider-settings/{provider}",
+  tags: ["Admin - Provider Settings"],
+  request: {
+    params: providerParamSchema,
+    body: { content: { "application/json": { schema: updateSchema } } },
+  },
+  responses: {
+    204: { description: "Provider setting updated" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminProviderSettingsRoute = new Hono<{ Variables: Variables }>()
+export const adminProviderSettingsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── GET /admin/provider-settings ──────────────────────────────────────────
 
-  .get("/provider-settings", async (c) => {
+  .openapi(listProviderSettings, async (c) => {
     const { providerSettings: repo } = c.get("repos");
     const rows = await repo.listAll();
     return c.json({
@@ -40,7 +90,7 @@ export const adminProviderSettingsRoute = new Hono<{ Variables: Variables }>()
 
   // ── PUT /admin/provider-settings/reorder ──────────────────────────────────
 
-  .put("/provider-settings/reorder", zValidator("json", reorderSchema), async (c) => {
+  .openapi(reorderProviders, async (c) => {
     const { providerSettings: repo } = c.get("repos");
     const { providers } = c.req.valid("json");
 
@@ -55,16 +105,11 @@ export const adminProviderSettingsRoute = new Hono<{ Variables: Variables }>()
 
   // ── PATCH /admin/provider-settings/:provider ────────────────────────────────
 
-  .patch(
-    "/provider-settings/:provider",
-    zValidator("param", providerParamSchema),
-    zValidator("json", updateSchema),
-    async (c) => {
-      const { providerSettings: repo } = c.get("repos");
-      const { provider } = c.req.valid("param");
-      const body = c.req.valid("json");
+  .openapi(updateProviderSetting, async (c) => {
+    const { providerSettings: repo } = c.get("repos");
+    const { provider } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-      await repo.upsert(provider, body);
-      return c.body(null, 204);
-    },
-  );
+    await repo.upsert(provider, body);
+    return c.body(null, 204);
+  });

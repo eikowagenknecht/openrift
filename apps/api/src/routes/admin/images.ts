@@ -1,7 +1,6 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { RestoreImageUrlsResponse } from "@openrift/shared";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import {
   cleanupOrphanedFiles,
@@ -22,58 +21,319 @@ const restoreImageUrlsSchema = z.object({
   provider: z.string().min(1),
 });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const rehostImagesRoute = createRoute({
+  method: "post",
+  path: "/rehost-images",
+  tags: ["Admin - Images"],
+  request: {
+    query: z.object({ limit: z.coerce.number().int().min(1).optional() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            total: z.number(),
+            rehosted: z.number(),
+            skipped: z.number(),
+            failed: z.number(),
+            errors: z.array(z.string()),
+          }),
+        },
+      },
+      description: "Rehost images result",
+    },
+  },
+});
+
+const regenerateImagesRoute = createRoute({
+  method: "post",
+  path: "/regenerate-images",
+  tags: ["Admin - Images"],
+  request: {
+    query: z.object({ offset: z.coerce.number().int().min(0).optional() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            total: z.number(),
+            regenerated: z.number(),
+            failed: z.number(),
+            errors: z.array(z.string()),
+            hasMore: z.boolean(),
+            totalFiles: z.number(),
+          }),
+        },
+      },
+      description: "Regenerate images result",
+    },
+  },
+});
+
+const renamePreview = createRoute({
+  method: "get",
+  path: "/rename-preview",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ total: z.number(), misnamed: z.number() }),
+        },
+      },
+      description: "Rename preview",
+    },
+  },
+});
+
+const renameImages = createRoute({
+  method: "post",
+  path: "/rename-images",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            scanned: z.number(),
+            renamed: z.number(),
+            alreadyCorrect: z.number(),
+            failed: z.number(),
+            errors: z.array(z.string()),
+            hasMore: z.boolean(),
+          }),
+        },
+      },
+      description: "Rename images result",
+    },
+  },
+});
+
+const cleanupOrphaned = createRoute({
+  method: "post",
+  path: "/cleanup-orphaned",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            scanned: z.number(),
+            deleted: z.number(),
+            errors: z.array(z.string()),
+          }),
+        },
+      },
+      description: "Cleanup orphaned files result",
+    },
+  },
+});
+
+const clearRehosted = createRoute({
+  method: "post",
+  path: "/clear-rehosted",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ cleared: z.number() }),
+        },
+      },
+      description: "Clear rehosted result",
+    },
+  },
+});
+
+const rehostStatus = createRoute({
+  method: "get",
+  path: "/rehost-status",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            total: z.number(),
+            rehosted: z.number(),
+            external: z.number(),
+            orphanedFiles: z.number(),
+            sets: z.array(
+              z.object({
+                setId: z.string(),
+                setName: z.string(),
+                total: z.number(),
+                rehosted: z.number(),
+                external: z.number(),
+              }),
+            ),
+            disk: z.object({
+              totalBytes: z.number(),
+              sets: z.array(
+                z.object({
+                  setId: z.string(),
+                  bytes: z.number(),
+                  fileCount: z.number(),
+                }),
+              ),
+            }),
+          }),
+        },
+      },
+      description: "Rehost status",
+    },
+  },
+});
+
+const brokenImages = createRoute({
+  method: "get",
+  path: "/broken-images",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            total: z.number(),
+            broken: z.array(
+              z.object({
+                imageId: z.string(),
+                rehostedUrl: z.string(),
+                originalUrl: z.string().nullable(),
+                cardSlug: z.string(),
+                cardName: z.string(),
+                printingSlug: z.string(),
+                setSlug: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Broken images",
+    },
+  },
+});
+
+const lowResImages = createRoute({
+  method: "get",
+  path: "/low-res-images",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            total: z.number(),
+            lowRes: z.array(
+              z.object({
+                imageId: z.string(),
+                rehostedUrl: z.string(),
+                originalUrl: z.string().nullable(),
+                cardSlug: z.string(),
+                cardName: z.string(),
+                printingSlug: z.string(),
+                setSlug: z.string(),
+                width: z.number(),
+                height: z.number(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Low resolution images",
+    },
+  },
+});
+
+const missingImages = createRoute({
+  method: "get",
+  path: "/missing-images",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(
+            z.object({
+              cardId: z.string(),
+              slug: z.string(),
+              name: z.string(),
+            }),
+          ),
+        },
+      },
+      description: "Cards with missing images",
+    },
+  },
+});
+
+const restoreImageUrls = createRoute({
+  method: "post",
+  path: "/restore-image-urls",
+  tags: ["Admin - Images"],
+  request: {
+    body: { content: { "application/json": { schema: restoreImageUrlsSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ provider: z.string(), updated: z.number() }),
+        },
+      },
+      description: "Restore image URLs result",
+    },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const imagesRoute = new Hono<{ Variables: Variables }>()
+export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── Image rehosting ─────────────────────────────────────────────────────────
 
-  .post(
-    "/rehost-images",
-    zValidator("query", z.object({ limit: z.coerce.number().int().min(1).optional() })),
-    async (c) => {
-      const { printingImages } = c.get("repos");
-      const limit = c.req.valid("query").limit ?? 10;
-      const result = await rehostImages(c.get("io"), printingImages, limit);
-      return c.json(result);
-    },
-  )
+  .openapi(rehostImagesRoute, async (c) => {
+    const { printingImages } = c.get("repos");
+    const limit = c.req.valid("query").limit ?? 10;
+    const result = await rehostImages(c.get("io"), printingImages, limit);
+    return c.json(result);
+  })
 
-  .post(
-    "/regenerate-images",
-    zValidator("query", z.object({ offset: z.coerce.number().int().min(0).optional() })),
-    async (c) => {
-      const offset = c.req.valid("query").offset ?? 0;
-      const result = await regenerateImages(c.get("io"), offset);
-      return c.json(result);
-    },
-  )
+  .openapi(regenerateImagesRoute, async (c) => {
+    const offset = c.req.valid("query").offset ?? 0;
+    const result = await regenerateImages(c.get("io"), offset);
+    return c.json(result);
+  })
 
-  .get("/rename-preview", async (c) => {
+  .openapi(renamePreview, async (c) => {
     const { printingImages } = c.get("repos");
     const { total, stale } = await collectStaleImages(printingImages);
     return c.json({ total, misnamed: stale.length });
   })
 
-  .post("/rename-images", async (c) => {
+  .openapi(renameImages, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await renameStaleImages(c.get("io"), printingImages);
     return c.json(result);
   })
 
-  .post("/cleanup-orphaned", async (c) => {
+  .openapi(cleanupOrphaned, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await cleanupOrphanedFiles(c.get("io"), printingImages);
     return c.json(result);
   })
 
-  .post("/clear-rehosted", async (c) => {
+  .openapi(clearRehosted, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await clearAllRehosted(c.get("io"), printingImages);
     return c.json(result);
   })
 
-  .get("/rehost-status", async (c) => {
+  .openapi(rehostStatus, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await getRehostStatus(c.get("io"), printingImages);
     return c.json(result);
@@ -81,24 +341,24 @@ export const imagesRoute = new Hono<{ Variables: Variables }>()
 
   // ── Restore original URLs from a card source ──────────────────────────────
 
-  .get("/broken-images", async (c) => {
+  .openapi(brokenImages, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await findBrokenImages(c.get("io"), printingImages);
     return c.json(result);
   })
 
-  .get("/low-res-images", async (c) => {
+  .openapi(lowResImages, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await findLowResImages(c.get("io"), printingImages);
     return c.json(result);
   })
 
-  .get("/missing-images", async (c) => {
+  .openapi(missingImages, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await candidateCards.listCardsWithMissingImages());
   })
 
-  .post("/restore-image-urls", zValidator("json", restoreImageUrlsSchema), async (c) => {
+  .openapi(restoreImageUrls, async (c) => {
     const { printingImages } = c.get("repos");
     const { provider } = c.req.valid("json");
     const updated = await printingImages.restoreFromSources(provider);

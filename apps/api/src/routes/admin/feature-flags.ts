@@ -1,8 +1,7 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { FeatureFlagResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
@@ -26,13 +25,78 @@ const updateFlagSchema = z
     message: "At least one field (enabled, description) must be provided",
   });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listFlags = createRoute({
+  method: "get",
+  path: "/feature-flags",
+  tags: ["Admin - Feature Flags"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            flags: z.array(
+              z.object({
+                key: z.string(),
+                enabled: z.boolean(),
+                description: z.string().nullable(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List feature flags",
+    },
+  },
+});
+
+const createFlag = createRoute({
+  method: "post",
+  path: "/feature-flags",
+  tags: ["Admin - Feature Flags"],
+  request: {
+    body: { content: { "application/json": { schema: createFlagSchema } } },
+  },
+  responses: {
+    201: { description: "Flag created" },
+  },
+});
+
+const updateFlag = createRoute({
+  method: "patch",
+  path: "/feature-flags/{key}",
+  tags: ["Admin - Feature Flags"],
+  request: {
+    params: keyParamSchema,
+    body: { content: { "application/json": { schema: updateFlagSchema } } },
+  },
+  responses: {
+    204: { description: "Flag updated" },
+  },
+});
+
+const deleteFlag = createRoute({
+  method: "delete",
+  path: "/feature-flags/{key}",
+  tags: ["Admin - Feature Flags"],
+  request: {
+    params: keyParamSchema,
+  },
+  responses: {
+    204: { description: "Flag deleted" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
+export const adminFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── GET /feature-flags ───────────────────────────────────────────────────
 
-  .get("/feature-flags", async (c) => {
+  .openapi(listFlags, async (c) => {
     const { featureFlags: flagsRepo } = c.get("repos");
     const rows = await flagsRepo.listAll();
     return c.json({
@@ -50,7 +114,7 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /feature-flags ──────────────────────────────────────────────────
 
-  .post("/feature-flags", zValidator("json", createFlagSchema), async (c) => {
+  .openapi(createFlag, async (c) => {
     const { featureFlags: flagsRepo } = c.get("repos");
     const { key, description, enabled } = c.req.valid("json");
 
@@ -68,27 +132,22 @@ export const adminFeatureFlagsRoute = new Hono<{ Variables: Variables }>()
 
   // ── PATCH /feature-flags/:key ─────────────────────────────────────────────
 
-  .patch(
-    "/feature-flags/:key",
-    zValidator("param", keyParamSchema),
-    zValidator("json", updateFlagSchema),
-    async (c) => {
-      const { featureFlags: flagsRepo } = c.get("repos");
-      const { key } = c.req.valid("param");
-      const body = c.req.valid("json");
+  .openapi(updateFlag, async (c) => {
+    const { featureFlags: flagsRepo } = c.get("repos");
+    const { key } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-      const updated = await flagsRepo.update(key, body);
-      if (!updated) {
-        throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
-      }
+    const updated = await flagsRepo.update(key, body);
+    if (!updated) {
+      throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
+    }
 
-      return c.body(null, 204);
-    },
-  )
+    return c.body(null, 204);
+  })
 
   // ── DELETE /feature-flags/:key ────────────────────────────────────────────
 
-  .delete("/feature-flags/:key", zValidator("param", keyParamSchema), async (c) => {
+  .openapi(deleteFlag, async (c) => {
     const { featureFlags: flagsRepo } = c.get("repos");
     const { key } = c.req.valid("param");
 

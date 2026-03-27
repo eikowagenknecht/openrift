@@ -1,8 +1,7 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { SiteSettingResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import { AppError } from "../../errors.js";
 import type { Variables } from "../../types.js";
@@ -26,13 +25,76 @@ const updateSettingSchema = z
     message: "At least one field (value, scope) must be provided",
   });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listSettings = createRoute({
+  method: "get",
+  path: "/site-settings",
+  tags: ["Admin - Site Settings"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            settings: z.array(
+              z.object({
+                key: z.string(),
+                value: z.string(),
+                scope: z.string(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List site settings",
+    },
+  },
+});
+
+const createSetting = createRoute({
+  method: "post",
+  path: "/site-settings",
+  tags: ["Admin - Site Settings"],
+  request: {
+    body: { content: { "application/json": { schema: createSettingSchema } } },
+  },
+  responses: {
+    201: { description: "Created" },
+  },
+});
+
+const updateSetting = createRoute({
+  method: "patch",
+  path: "/site-settings/{key}",
+  tags: ["Admin - Site Settings"],
+  request: {
+    params: keyParamSchema,
+    body: { content: { "application/json": { schema: updateSettingSchema } } },
+  },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const deleteSetting = createRoute({
+  method: "delete",
+  path: "/site-settings/{key}",
+  tags: ["Admin - Site Settings"],
+  request: {
+    params: keyParamSchema,
+  },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminSiteSettingsRoute = new Hono<{ Variables: Variables }>()
+export const adminSiteSettingsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
-  // ── GET /site-settings ───────────────────────────────────────────────────
-
-  .get("/site-settings", async (c) => {
+  .openapi(listSettings, async (c) => {
     const { siteSettings } = c.get("repos");
     const rows = await siteSettings.listAll();
     return c.json({
@@ -48,9 +110,7 @@ export const adminSiteSettingsRoute = new Hono<{ Variables: Variables }>()
     });
   })
 
-  // ── POST /site-settings ──────────────────────────────────────────────────
-
-  .post("/site-settings", zValidator("json", createSettingSchema), async (c) => {
+  .openapi(createSetting, async (c) => {
     const { siteSettings } = c.get("repos");
     const { key, value, scope } = c.req.valid("json");
 
@@ -66,29 +126,20 @@ export const adminSiteSettingsRoute = new Hono<{ Variables: Variables }>()
     return c.body(null, 201);
   })
 
-  // ── PATCH /site-settings/:key ─────────────────────────────────────────────
+  .openapi(updateSetting, async (c) => {
+    const { siteSettings } = c.get("repos");
+    const { key } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-  .patch(
-    "/site-settings/:key",
-    zValidator("param", keyParamSchema),
-    zValidator("json", updateSettingSchema),
-    async (c) => {
-      const { siteSettings } = c.get("repos");
-      const { key } = c.req.valid("param");
-      const body = c.req.valid("json");
+    const updated = await siteSettings.update(key, body);
+    if (!updated) {
+      throw new AppError(404, "NOT_FOUND", `Setting "${key}" not found`);
+    }
 
-      const updated = await siteSettings.update(key, body);
-      if (!updated) {
-        throw new AppError(404, "NOT_FOUND", `Setting "${key}" not found`);
-      }
+    return c.body(null, 204);
+  })
 
-      return c.body(null, 204);
-    },
-  )
-
-  // ── DELETE /site-settings/:key ────────────────────────────────────────────
-
-  .delete("/site-settings/:key", zValidator("param", keyParamSchema), async (c) => {
+  .openapi(deleteSetting, async (c) => {
     const { siteSettings } = c.get("repos");
     const { key } = c.req.valid("param");
 

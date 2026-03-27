@@ -1,7 +1,6 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { IgnoredProductResponse } from "@openrift/shared";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import type { Variables } from "../../types.js";
 
@@ -17,13 +16,75 @@ const ignoreProductsSchema = z.object({
   products: z.array(ignoreProductItemSchema).min(1),
 });
 
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listIgnoredProducts = createRoute({
+  method: "get",
+  path: "/ignored-products",
+  tags: ["Admin - Ignored Products"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            products: z.array(
+              z.object({
+                marketplace: z.string(),
+                externalId: z.number(),
+                finish: z.string(),
+                productName: z.string(),
+                createdAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List ignored products",
+    },
+  },
+});
+
+const ignoreProducts = createRoute({
+  method: "post",
+  path: "/ignored-products",
+  tags: ["Admin - Ignored Products"],
+  request: {
+    body: { content: { "application/json": { schema: ignoreProductsSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ ignored: z.number() }) },
+      },
+      description: "Products ignored",
+    },
+  },
+});
+
+const unignoreProducts = createRoute({
+  method: "delete",
+  path: "/ignored-products",
+  tags: ["Admin - Ignored Products"],
+  request: {
+    body: { content: { "application/json": { schema: ignoreProductsSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ unignored: z.number() }) },
+      },
+      description: "Products unignored",
+    },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
+export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── GET /admin/ignored-products ─────────────────────────────────────────────
 
-  .get("/ignored-products", async (c) => {
+  .openapi(listIgnoredProducts, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const rows = await mktAdmin.listIgnoredProducts();
 
@@ -42,7 +103,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
   // ── POST /admin/ignored-products ────────────────────────────────────────────
 
-  .post("/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
+  .openapi(ignoreProducts, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { marketplace, products } = c.req.valid("json");
 
@@ -76,7 +137,7 @@ export const ignoredProductsRoute = new Hono<{ Variables: Variables }>()
 
   // ── DELETE /admin/ignored-products ──────────────────────────────────────────
 
-  .delete("/ignored-products", zValidator("json", ignoreProductsSchema), async (c) => {
+  .openapi(unignoreProducts, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { marketplace, products } = c.req.valid("json");
 

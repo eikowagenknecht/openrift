@@ -1,12 +1,13 @@
+import { swaggerUI } from "@hono/swagger-ui";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import type { ApiErrorResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
-import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Kysely } from "kysely";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
@@ -64,121 +65,131 @@ export function createApp(deps: AppDeps) {
     ? { ...defaultServices, ...deps.services }
     : defaultServices;
 
-  const app = new Hono<{ Variables: Variables }>()
+  const app = new OpenAPIHono<{ Variables: Variables }>();
 
-    // ── Global error handler ────────────────────────────────────────────────
-    // Normalizes all thrown errors into a consistent { error, code, details? } JSON shape.
-    // In dev mode, details (stack traces, Zod issues) are included for debugging.
-    // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Hono's onError API takes a callback
-    .onError((err, c) => {
-      if (err instanceof AppError) {
-        if (err.status >= 500) {
-          log.error({ err, method: c.req.method, path: c.req.path }, "AppError 5xx");
-        }
-        const body: ApiErrorResponse = { error: err.message, code: err.code };
-        if (config.isDev && err.details !== undefined) {
-          body.details = err.details;
-        }
-        return c.json(body, err.status as ContentfulStatusCode);
+  // ── Global error handler ────────────────────────────────────────────────
+  // Normalizes all thrown errors into a consistent { error, code, details? } JSON shape.
+  // In dev mode, details (stack traces, Zod issues) are included for debugging.
+  // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Hono's onError API takes a callback
+  app.onError((err, c) => {
+    if (err instanceof AppError) {
+      if (err.status >= 500) {
+        log.error({ err, method: c.req.method, path: c.req.path }, "AppError 5xx");
       }
-
-      if (err instanceof z.ZodError) {
-        const body: ApiErrorResponse = {
-          error: "Invalid request body",
-          code: "VALIDATION_ERROR",
-          details: err.issues.map((i) => ({ path: i.path, message: i.message })),
-        };
-        return c.json(body, 400);
+      const body: ApiErrorResponse = { error: err.message, code: err.code };
+      if (config.isDev && err.details !== undefined) {
+        body.details = err.details;
       }
+      return c.json(body, err.status as ContentfulStatusCode);
+    }
 
-      if (err instanceof HTTPException) {
-        const body: ApiErrorResponse = { error: err.message, code: "HTTP_ERROR" };
-        return c.json(body, err.status);
-      }
-
-      if (err instanceof SyntaxError) {
-        return c.json({ error: "Invalid JSON in request body", code: "BAD_REQUEST" }, 400);
-      }
-
-      log.error({ err, method: c.req.method, path: c.req.path }, "Unhandled error");
+    if (err instanceof z.ZodError) {
       const body: ApiErrorResponse = {
-        error: "Internal server error",
-        code: "INTERNAL_ERROR",
+        error: "Invalid request body",
+        code: "VALIDATION_ERROR",
+        details: err.issues.map((i) => ({ path: i.path, message: i.message })),
       };
-      if (config.isDev) {
-        body.details = { message: err.message, stack: err.stack };
-      }
-      return c.json(body, 500);
-    })
+      return c.json(body, 400);
+    }
 
-    // ── Global middleware ───────────────────────────────────────────────────
-    // CORS runs first so preflight OPTIONS requests are handled before any other work.
-    .use(
-      "/api/*",
-      cors({
-        credentials: true,
-        origin: (origin) => matchOrigin(origin, config.corsOrigin),
-      }),
-    )
+    if (err instanceof HTTPException) {
+      const body: ApiErrorResponse = { error: err.message, code: "HTTP_ERROR" };
+      return c.json(body, err.status);
+    }
 
-    // Make shared dependencies (repos, services, etc.) available via c.get() in all routes.
-    .use("/api/*", async (c, next) => {
-      c.set("io", deps.io ?? defaultIo);
-      c.set("auth", auth);
-      c.set("config", config);
-      c.set("repos", createRepos(db));
-      c.set("services", services);
-      c.set("transact", createTransact(db));
-      await next();
-    })
+    if (err instanceof SyntaxError) {
+      return c.json({ error: "Invalid JSON in request body", code: "BAD_REQUEST" }, 400);
+    }
 
-    // ── Auth ────────────────────────────────────────────────────────────────
-    // Apply rate limiting only to sensitive auth endpoints (sign-in, sign-up, etc.).
-    .use("/api/auth/*", async (c, next) => {
-      if (rateLimitedAuthPrefixes.some((p) => c.req.path.startsWith(p))) {
-        return authRateLimit(c, next);
-      }
-      await next();
-    })
+    log.error({ err, method: c.req.method, path: c.req.path }, "Unhandled error");
+    const body: ApiErrorResponse = {
+      error: "Internal server error",
+      code: "INTERNAL_ERROR",
+    };
+    if (config.isDev) {
+      body.details = { message: err.message, stack: err.stack };
+    }
+    return c.json(body, 500);
+  });
 
-    // Split into separate .get/.post — app.on() with method arrays + ** wildcards
-    // breaks Hono's router when other routes use fixed+param paths (e.g. /copies/count
-    // alongside /copies/:id).
-    .get("/api/auth/*", (c) => auth.handler(c.req.raw))
-    .post("/api/auth/*", (c) => auth.handler(c.req.raw))
+  // ── Global middleware ───────────────────────────────────────────────────
+  // CORS runs first so preflight OPTIONS requests are handled before any other work.
+  app.use(
+    "/api/*",
+    cors({
+      credentials: true,
+      origin: (origin) => matchOrigin(origin, config.corsOrigin),
+    }),
+  );
 
-    // Resolve the current user session (if any) so routes can access c.get("user").
-    // Runs on all /api/* routes — public routes simply see user as null.
-    .use("/api/*", async (c, next) => {
-      const session = await auth.api.getSession({ headers: c.req.raw.headers });
-      c.set("user", session?.user ?? null);
-      c.set("session", session?.session ?? null);
-      await next();
-    })
+  // Make shared dependencies (repos, services, etc.) available via c.get() in all routes.
+  app.use("/api/*", async (c, next) => {
+    c.set("io", deps.io ?? defaultIo);
+    c.set("auth", auth);
+    c.set("config", config);
+    c.set("repos", createRepos(db));
+    c.set("services", services);
+    c.set("transact", createTransact(db));
+    await next();
+  });
 
-    // ── Infrastructure (unversioned) ────────────────────────────────────────
-    .route("/api", healthRoute)
+  // ── Auth ────────────────────────────────────────────────────────────────
+  // Apply rate limiting only to sensitive auth endpoints (sign-in, sign-up, etc.).
+  app.use("/api/auth/*", async (c, next) => {
+    if (rateLimitedAuthPrefixes.some((p) => c.req.path.startsWith(p))) {
+      return authRateLimit(c, next);
+    }
+    await next();
+  });
 
-    // ── Public routes (no auth required) ───────────────────────────────────
-    .route("/api/v1", catalogRoute)
-    .route("/api/v1", pricesRoute)
-    .route("/api/v1", featureFlagsRoute)
-    .route("/api/v1", keywordStylesRoute)
-    .route("/api/v1", siteSettingsRoute)
+  // Split into separate .get/.post — app.on() with method arrays + ** wildcards
+  // breaks Hono's router when other routes use fixed+param paths (e.g. /copies/count
+  // alongside /copies/:id).
+  app.get("/api/auth/*", (c) => auth.handler(c.req.raw));
+  app.post("/api/auth/*", (c) => auth.handler(c.req.raw));
 
-    // ── Authenticated routes (require a valid session) ────────────────────
-    .route("/api/v1", collectionsRoute)
-    .route("/api/v1", acquisitionSourcesRoute)
-    .route("/api/v1", copiesRoute)
-    .route("/api/v1", activitiesRoute)
-    .route("/api/v1", decksRoute)
-    .route("/api/v1", preferencesRoute)
-    .route("/api/v1", wishListsRoute)
-    .route("/api/v1", tradeListsRoute)
-    .route("/api/v1", shoppingListRoute)
+  // Resolve the current user session (if any) so routes can access c.get("user").
+  // Runs on all /api/* routes — public routes simply see user as null.
+  app.use("/api/*", async (c, next) => {
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    c.set("user", session?.user ?? null);
+    c.set("session", session?.session ?? null);
+    await next();
+  });
 
-    // ── Admin routes (require admin role) ────────────────────────────────
-    .route("/api/v1", adminRoute);
+  // ── OpenAPI spec & Swagger UI ──────────────────────────────────────────
+  app.doc("/api/doc", {
+    openapi: "3.1.0",
+    info: { title: "OpenRift API", version: "1.0.0" },
+  });
+  app.get("/api/ui", swaggerUI({ url: "/api/doc" }));
 
-  return app;
+  // Route registrations are chained so TypeScript preserves the full route
+  // type map — the frontend RPC client (`AppType`) depends on this.
+  return (
+    app
+      // ── Infrastructure (unversioned) ──────────────────────────────────────
+      .route("/api", healthRoute)
+
+      // ── Public routes (no auth required) ─────────────────────────────────
+      .route("/api/v1", catalogRoute)
+      .route("/api/v1", pricesRoute)
+      .route("/api/v1", featureFlagsRoute)
+      .route("/api/v1", keywordStylesRoute)
+      .route("/api/v1", siteSettingsRoute)
+
+      // ── Authenticated routes (require a valid session) ──────────────────
+      .route("/api/v1", collectionsRoute)
+      .route("/api/v1", acquisitionSourcesRoute)
+      .route("/api/v1", copiesRoute)
+      .route("/api/v1", activitiesRoute)
+      .route("/api/v1", decksRoute)
+      .route("/api/v1", preferencesRoute)
+      .route("/api/v1", wishListsRoute)
+      .route("/api/v1", tradeListsRoute)
+      .route("/api/v1", shoppingListRoute)
+
+      // ── Admin routes (require admin role) ────────────────────────────────
+      .route("/api/v1", adminRoute)
+  );
 }

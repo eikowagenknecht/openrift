@@ -33,8 +33,6 @@ export const keyParamSchema = z.object({ key: z.string().min(1) });
 
 export const providerParamSchema = z.object({ provider: z.string().min(1) });
 
-export const numericIdParamSchema = z.object({ id: z.coerce.number().int().positive() });
-
 export const marketplaceGroupParamSchema = z.object({
   marketplace: z.string().min(1),
   id: z.coerce.number().int(),

@@ -1,8 +1,7 @@
-import { zValidator } from "@hono/zod-validator";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { AdminSetResponse } from "@openrift/shared";
 import { idParamSchema } from "@openrift/shared/schemas";
-import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 import { setFieldRules } from "../../db/schemas.js";
 import { AppError } from "../../errors.js";
@@ -24,16 +23,99 @@ const createSetSchema = z.object({
 });
 
 const reorderSetsSchema = z.object({
-  ids: z.array(z.uuid()).min(1),
+  ids: z.array(z.string().uuid()).min(1),
+});
+
+// ── Route definitions ───────────────────────────────────────────────────────
+
+const listSets = createRoute({
+  method: "get",
+  path: "/sets",
+  tags: ["Admin - Catalog"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            sets: z.array(
+              z.object({
+                id: z.string(),
+                slug: z.string(),
+                name: z.string(),
+                printedTotal: z.number().nullable(),
+                sortOrder: z.number(),
+                releasedAt: z.string().nullable(),
+                cardCount: z.number(),
+                printingCount: z.number(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "List sets",
+    },
+  },
+});
+
+const updateSet = createRoute({
+  method: "patch",
+  path: "/sets/{id}",
+  tags: ["Admin - Catalog"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: updateSetSchema } } },
+  },
+  responses: {
+    204: { description: "Set updated" },
+  },
+});
+
+const createSet = createRoute({
+  method: "post",
+  path: "/sets",
+  tags: ["Admin - Catalog"],
+  request: {
+    body: { content: { "application/json": { schema: createSetSchema } } },
+  },
+  responses: {
+    201: {
+      content: { "application/json": { schema: z.object({ id: z.string() }) } },
+      description: "Set created",
+    },
+  },
+});
+
+const deleteSet = createRoute({
+  method: "delete",
+  path: "/sets/{id}",
+  tags: ["Admin - Catalog"],
+  request: {
+    params: idParamSchema,
+  },
+  responses: {
+    204: { description: "Set deleted" },
+  },
+});
+
+const reorderSets = createRoute({
+  method: "put",
+  path: "/sets/reorder",
+  tags: ["Admin - Catalog"],
+  request: {
+    body: { content: { "application/json": { schema: reorderSetsSchema } } },
+  },
+  responses: {
+    204: { description: "Sets reordered" },
+  },
 });
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const catalogRoute = new Hono<{ Variables: Variables }>()
+export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── Sets CRUD ─────────────────────────────────────────────────────────────────
 
-  .get("/sets", async (c) => {
+  .openapi(listSets, async (c) => {
     const { sets: setsRepo } = c.get("repos");
 
     const [sets, cardCounts, printingCounts] = await Promise.all([
@@ -61,25 +143,20 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     });
   })
 
-  .patch(
-    "/sets/:id",
-    zValidator("param", idParamSchema),
-    zValidator("json", updateSetSchema),
-    async (c) => {
-      const { sets: setsRepo } = c.get("repos");
-      const { id } = c.req.valid("param");
-      const { name, printedTotal, releasedAt } = c.req.valid("json");
+  .openapi(updateSet, async (c) => {
+    const { sets: setsRepo } = c.get("repos");
+    const { id } = c.req.valid("param");
+    const { name, printedTotal, releasedAt } = c.req.valid("json");
 
-      const updated = await setsRepo.update(id, { name, printedTotal, releasedAt });
-      if (!updated) {
-        throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
-      }
+    const updated = await setsRepo.update(id, { name, printedTotal, releasedAt });
+    if (!updated) {
+      throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
+    }
 
-      return c.body(null, 204);
-    },
-  )
+    return c.body(null, 204);
+  })
 
-  .post("/sets", zValidator("json", createSetSchema), async (c) => {
+  .openapi(createSet, async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { id, name, printedTotal, releasedAt } = c.req.valid("json");
 
@@ -91,7 +168,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
     return c.json({ id: setId }, 201);
   })
 
-  .delete("/sets/:id", zValidator("param", idParamSchema), async (c) => {
+  .openapi(deleteSet, async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { id } = c.req.valid("param");
 
@@ -111,7 +188,7 @@ export const catalogRoute = new Hono<{ Variables: Variables }>()
 
   // ── Set reorder ───────────────────────────────────────────────────────────────
 
-  .put("/sets/reorder", zValidator("json", reorderSetsSchema), async (c) => {
+  .openapi(reorderSets, async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { ids } = c.req.valid("json");
 

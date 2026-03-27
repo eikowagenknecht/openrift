@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
 
 import { cronJobs } from "../../cron-jobs.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
@@ -17,19 +18,58 @@ import { adminSiteSettingsRoute } from "./site-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 
-export const adminRoute = new Hono<{ Variables: Variables }>()
+// ── Route definitions ────────────────────────────────────────────────────────
 
-  // ── Auth: all /admin/* routes require admin ───────────────────────────────
+const getMe = createRoute({
+  method: "get",
+  path: "/admin/me",
+  tags: ["Admin"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ isAdmin: z.boolean() }),
+        },
+      },
+      description: "Admin status",
+    },
+  },
+});
 
-  .use("/admin/*", requireAdmin)
+const getCronStatus = createRoute({
+  method: "get",
+  path: "/admin/cron-status",
+  tags: ["Admin"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            tcgplayer: z.object({ nextRun: z.string().nullable() }).nullable(),
+            cardmarket: z.object({ nextRun: z.string().nullable() }).nullable(),
+            cardtrader: z.object({ nextRun: z.string().nullable() }).nullable(),
+          }),
+        },
+      },
+      description: "Cron job status",
+    },
+  },
+});
 
+// ── Router ───────────────────────────────────────────────────────────────────
+
+const app = new OpenAPIHono<{ Variables: Variables }>();
+
+// ── Auth: all /admin/* routes require admin ───────────────────────────────
+app.use("/admin/*", requireAdmin);
+
+// Route chain is assigned so TypeScript preserves the full route type map.
+export const adminRoute = app
   // ── GET /admin/me ─────────────────────────────────────────────────────────
-
-  .get("/admin/me", (c) => c.json({ isAdmin: true }))
+  .openapi(getMe, (c) => c.json({ isAdmin: true }))
 
   // ── GET /admin/cron-status ────────────────────────────────────────────────
-
-  .get("/admin/cron-status", (c) =>
+  .openapi(getCronStatus, (c) =>
     c.json({
       tcgplayer: cronJobs.tcgplayer
         ? { nextRun: cronJobs.tcgplayer.nextRun()?.toISOString() ?? null }
@@ -44,7 +84,6 @@ export const adminRoute = new Hono<{ Variables: Variables }>()
   )
 
   // ── Mount sub-routes ──────────────────────────────────────────────────────
-
   .route("/admin", adminFeatureFlagsRoute)
   .route("/admin", ignoredProductsRoute)
   .route("/admin", ignoredCandidatesRoute)
