@@ -132,7 +132,7 @@ function SidebarProvider({
           } as React.CSSProperties
         }
         className={cn(
-          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-0 w-full", // custom: min-h-0 replaces min-h-svh — sidebar is nested in a flex layout, not a full-page wrapper
           className,
         )}
         {...props}
@@ -663,6 +663,23 @@ function SidebarMenuSubButton({
   });
 }
 
+// custom: wrapper for sidebars nested below the app header
+function NestedSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
+  return (
+    <Sidebar
+      className={cn(
+        // sticky! top-14: sit in document flow below the 3.5rem app header (default is fixed inset-y-0)
+        // h-[calc(...)]: fill remaining viewport height below header + border
+        // overflow-hidden!: prevent sidebar from scrolling externally (SidebarContent scrolls internally)
+        // w-0!: collapse width when offcanvas — sticky elements can't slide off-screen like fixed ones
+        "sticky! top-14 h-[calc(100svh-3.5rem-1px)]! overflow-hidden! group-data-[collapsible=offcanvas]:w-0!",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export {
   Sidebar,
   SidebarContent,
@@ -683,6 +700,7 @@ export {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  NestedSidebar,
   SidebarProvider,
   SidebarRail,
   SidebarSeparator,

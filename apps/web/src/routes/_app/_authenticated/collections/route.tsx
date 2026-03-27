@@ -37,8 +37,7 @@ function CollectionLayout() {
   const [title, setTitle] = useState("Collection");
 
   return (
-    // TODO: REMOVE min-h-0 once we migrate the rest of the collection pages to the new layout and can set it on the parent container instead of each child page
-    <SidebarProvider className="min-h-0!">
+    <SidebarProvider>
       <CollectionSidebar />
       <CollectionTitleContext value={setTitle}>
         <CollectionContent title={title} />
@@ -57,8 +56,8 @@ function CollectionContent({ title }: { title: string }) {
       </header>
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <Outlet />
-        <Footer />
       </div>
+      <Footer />
     </div>
   );
 }

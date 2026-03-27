@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import {
-  Sidebar,
+  NestedSidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -54,7 +54,7 @@ export function AdminSidebar() {
   const currentPath = matches.at(-1)?.fullPath;
 
   return (
-    <Sidebar className="sticky! top-14 h-[calc(100svh-3.5rem-1px)]! overflow-hidden! border-l-0! group-data-[collapsible=offcanvas]:w-0!">
+    <NestedSidebar>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Catalog</SidebarGroupLabel>
@@ -127,6 +127,6 @@ export function AdminSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-    </Sidebar>
+    </NestedSidebar>
   );
 }

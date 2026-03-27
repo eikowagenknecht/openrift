@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Sidebar,
+  NestedSidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -56,30 +56,29 @@ export function CollectionSidebar() {
   };
 
   return (
-    <Sidebar className="sticky! top-14 h-[calc(100svh-3.5rem-1px)]! border-l-0!">
+    <NestedSidebar>
       <SidebarHeader>
-        <Link to="/collections" className="px-2 py-1 text-lg font-semibold tracking-tight">
-          Collection
-        </Link>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={currentPath === "/collections/" && !collectionId}
+              render={<Link to="/collections" />}
+            >
+              <LayersIcon />
+              <span className="flex-1">All Cards</span>
+              {totalCopies > 0 && (
+                <Badge variant="ghost" className="ml-auto text-[10px]">
+                  {totalCopies}
+                </Badge>
+              )}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Collections</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={currentPath === "/collections" && !collectionId}
-                render={<Link to="/collections" />}
-              >
-                <LayersIcon />
-                <span className="flex-1">All Cards</span>
-                {totalCopies > 0 && (
-                  <Badge variant="secondary" className="ml-auto text-[10px]">
-                    {totalCopies}
-                  </Badge>
-                )}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             {collections?.map((col) => (
               <SidebarMenuItem key={col.id}>
                 <SidebarMenuButton
@@ -91,7 +90,10 @@ export function CollectionSidebar() {
                   {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
                   <span className="flex-1 truncate">{col.name}</span>
                   {col.copyCount > 0 && (
-                    <Badge variant="secondary" className="ml-auto text-[10px]">
+                    <Badge
+                      variant={col.isInbox ? "default" : "ghost"}
+                      className="ml-auto text-[10px]"
+                    >
                       {col.copyCount}
                     </Badge>
                   )}
@@ -160,6 +162,6 @@ export function CollectionSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-    </Sidebar>
+    </NestedSidebar>
   );
 }
