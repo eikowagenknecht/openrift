@@ -1,7 +1,7 @@
 import type { Domain } from "@openrift/shared";
 import { COLORLESS_DOMAIN } from "@openrift/shared";
 
-export const DOMAIN_COLORS: Record<string, string> = {
+const DOMAIN_COLORS: Record<string, string> = {
   Fury: "#CB212D",
   Calm: "#16AA71",
   Mind: "#227799",
