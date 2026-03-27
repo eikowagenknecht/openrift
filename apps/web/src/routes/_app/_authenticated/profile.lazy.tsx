@@ -1,5 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
+import { Footer } from "@/components/layout/footer";
 import { ConnectedAccountsSection } from "@/components/profile/connected-accounts-section";
 import { DangerZoneSection } from "@/components/profile/danger-zone-section";
 import { DisplayNameSection } from "@/components/profile/display-name-section";
@@ -39,29 +40,32 @@ function ProfilePage() {
     : null;
 
   return (
-    <div className="flex justify-center px-3 py-3">
-      <div className="flex w-full max-w-2xl flex-col gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-4">
-            <Avatar size="lg">
-              {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col gap-0.5">
-              <CardTitle className="text-xl">{user.name || user.email}</CardTitle>
-              <CardDescription>{user.email}</CardDescription>
-              {createdAt && <p className="text-muted-foreground text-xs">Joined {createdAt}</p>}
-            </div>
-          </CardHeader>
-        </Card>
+    <>
+      <div className="flex justify-center px-3 py-3">
+        <div className="flex w-full max-w-2xl flex-col gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Avatar size="lg">
+                {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-0.5">
+                <CardTitle className="text-xl">{user.name || user.email}</CardTitle>
+                <CardDescription>{user.email}</CardDescription>
+                {createdAt && <p className="text-muted-foreground text-xs">Joined {createdAt}</p>}
+              </div>
+            </CardHeader>
+          </Card>
 
-        <DisplayNameSection defaultName={user.name ?? ""} userId={user.id} />
-        <EmailSection currentEmail={user.email} />
-        <PasswordSection />
-        <PreferencesSection />
-        <ConnectedAccountsSection />
-        <DangerZoneSection />
+          <DisplayNameSection defaultName={user.name ?? ""} userId={user.id} />
+          <EmailSection currentEmail={user.email} />
+          <PasswordSection />
+          <PreferencesSection />
+          <ConnectedAccountsSection />
+          <DangerZoneSection />
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   );
 }

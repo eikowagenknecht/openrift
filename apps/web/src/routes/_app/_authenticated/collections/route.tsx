@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { createContext, use, useEffect, useState } from "react";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
+import { Footer } from "@/components/layout/footer";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import type { FeatureFlags } from "@/lib/feature-flags";
@@ -36,6 +37,7 @@ function CollectionLayout() {
   const [title, setTitle] = useState("Collection");
 
   return (
+    // TODO: REMOVE min-h-0 once we migrate the rest of the collection pages to the new layout and can set it on the parent container instead of each child page
     <SidebarProvider className="min-h-0!">
       <CollectionSidebar />
       <CollectionTitleContext value={setTitle}>
@@ -47,14 +49,15 @@ function CollectionLayout() {
 
 function CollectionContent({ title }: { title: string }) {
   return (
-    <div className="relative flex w-full flex-1 flex-col">
-      <header className="flex h-12 items-center gap-2 border-b px-4">
+    <div className="flex flex-1 flex-col">
+      <header className="flex h-12 items-center gap-2 px-4">
         <SidebarTrigger />
-        <Separator orientation="vertical" className="mx-1 h-4! self-center!" />
+        <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
         <h1 className="text-sm font-medium">{title}</h1>
       </header>
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <Outlet />
+        <Footer />
       </div>
     </div>
   );
