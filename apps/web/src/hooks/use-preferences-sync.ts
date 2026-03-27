@@ -1,10 +1,10 @@
-import type { Marketplace, UserPreferencesResponse } from "@openrift/shared";
-import { ALL_MARKETPLACES } from "@openrift/shared";
+import type { UserPreferencesResponse } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import { sanitizePreferences } from "@/lib/sanitize-preferences";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
@@ -45,24 +45,22 @@ export function usePreferencesSync(enabled: boolean) {
     if (!data) {
       return;
     }
+
+    const safe = sanitizePreferences(data);
+    if (!safe) {
+      return;
+    }
+
     hydrating.current = true;
 
-    // Validate marketplaceOrder in case the server returns corrupted data
-    const validSet = new Set<string>(ALL_MARKETPLACES);
-    const safeOrder = (
-      Array.isArray(data.marketplaceOrder)
-        ? data.marketplaceOrder.filter((marketplace) => validSet.has(marketplace))
-        : []
-    ) as Marketplace[];
-
     useDisplayStore.setState({
-      showImages: data.showImages,
-      richEffects: data.richEffects,
-      visibleFields: data.visibleFields,
-      marketplaceOrder: safeOrder.length > 0 ? safeOrder : [...ALL_MARKETPLACES],
+      showImages: safe.showImages,
+      richEffects: safe.richEffects,
+      visibleFields: safe.visibleFields,
+      marketplaceOrder: safe.marketplaceOrder,
     });
-    if (data.theme) {
-      useThemeStore.setState({ theme: data.theme });
+    if (safe.theme) {
+      useThemeStore.setState({ theme: safe.theme });
     }
 
     requestAnimationFrame(() => {
