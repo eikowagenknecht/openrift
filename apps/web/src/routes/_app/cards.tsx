@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { CardBrowser } from "@/components/card-browser";
 import { RouteErrorFallback } from "@/components/error-message";
+import { Footer } from "@/components/layout/footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -15,9 +16,12 @@ export const Route = createFileRoute("/_app/cards")({
 
 function CardsPage() {
   return (
-    <div className={PAGE_PADDING}>
-      <CardBrowser />
-    </div>
+    <>
+      <div className={PAGE_PADDING}>
+        <CardBrowser />
+      </div>
+      <Footer />
+    </>
   );
 }
 

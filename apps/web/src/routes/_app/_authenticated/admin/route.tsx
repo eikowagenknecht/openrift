@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect, useMatches } from "@tanstack/react-r
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { RouteErrorFallback } from "@/components/error-message";
+import { Footer } from "@/components/layout/footer";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminQueryOptions } from "@/hooks/use-admin";
@@ -60,6 +61,7 @@ function AdminContent() {
       </header>
       <div className="flex-1 p-4 sm:p-6">
         <Outlet />
+        <Footer />
       </div>
     </div>
   );

@@ -1,7 +1,17 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { LandingPage } from "@/components/landing/landing-page";
+import { Footer } from "@/components/layout/footer";
 
 export const Route = createLazyFileRoute("/")({
-  component: LandingPage,
+  component: LandingRoute,
 });
+
+function LandingRoute() {
+  return (
+    <>
+      <LandingPage />
+      <Footer />
+    </>
+  );
+}

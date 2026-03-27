@@ -1,3 +1,4 @@
+import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -133,6 +134,7 @@ export function RouteNotFoundFallback() {
         className="flex-1"
         goHome
       />
+      <Footer />
     </>
   );
 }

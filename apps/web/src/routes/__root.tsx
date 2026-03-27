@@ -5,7 +5,6 @@ import { lazy } from "react";
 
 import { Analytics } from "@/components/analytics";
 import { RouteNotFoundFallback } from "@/components/error-message";
-import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/sonner";
 import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -44,7 +43,6 @@ function RootComponent() {
     <NuqsAdapter>
       <div className="bg-background text-foreground flex min-h-screen flex-col">
         <Outlet />
-        <Footer />
         <Toaster position="bottom-right" />
       </div>
       <Analytics />
