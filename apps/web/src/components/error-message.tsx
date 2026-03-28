@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { buttonVariants } from "@/components/ui/button";
@@ -54,6 +56,27 @@ export function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function DevErrorDetails({ error }: { error: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-2 flex max-w-lg flex-col items-center gap-2">
+      <button
+        type="button"
+        className="text-muted-foreground text-xs underline"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        {open ? "Hide details" : "Show details"}
+      </button>
+      {open && (
+        <pre className="bg-muted text-muted-foreground max-h-60 w-full overflow-auto rounded-md p-3 text-left text-xs break-words whitespace-pre-wrap">
+          {error}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export function ErrorMessageLayout({
   emoji,
   heading,
@@ -75,20 +98,18 @@ export function ErrorMessageLayout({
 
   return (
     <div
-      className={cn("flex flex-col items-center justify-center gap-4 px-4 text-center", className)}
+      className={cn(
+        "flex flex-col items-center justify-center gap-4 px-4 py-8 text-center",
+        className,
+      )}
     >
       {emoji && (
         <div className="text-muted-foreground text-4xl font-medium select-none">{emoji}</div>
       )}
       <h1 className="text-xl font-semibold">{heading}</h1>
       {subtext && <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>}
-      {devError && (
-        <pre className="bg-muted text-muted-foreground mt-2 max-w-lg overflow-auto rounded-md p-3 text-left text-xs">
-          {devError}
-        </pre>
-      )}
       {hasActions && (
-        <div className="mt-2 flex gap-3">
+        <div className="flex gap-3">
           {goHome && (
             <a href="/" className={buttonVariants()}>
               Go home
@@ -105,6 +126,7 @@ export function ErrorMessageLayout({
           )}
         </div>
       )}
+      {devError && <DevErrorDetails error={devError} />}
     </div>
   );
 }
@@ -112,14 +134,17 @@ export function ErrorMessageLayout({
 export function RouteErrorFallback({ error }: { error?: unknown }) {
   const message = error instanceof Error ? error.message : error ? String(error) : undefined;
   return (
-    <ErrorMessageLayout
-      emoji={pick(EMOJIS)}
-      heading={pick(HEADINGS)}
-      subtext={pick(SUBTEXTS)}
-      className="flex-1"
-      reload
-      devError={message}
-    />
+    <>
+      <ErrorMessageLayout
+        emoji={pick(EMOJIS)}
+        heading={pick(HEADINGS)}
+        subtext={pick(SUBTEXTS)}
+        className="flex-1"
+        reload
+        devError={message}
+      />
+      <Footer />
+    </>
   );
 }
 

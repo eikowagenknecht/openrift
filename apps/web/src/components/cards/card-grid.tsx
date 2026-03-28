@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { SearchX, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -457,15 +458,16 @@ export function CardGrid({
   // ── Render ─────────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
-      <div ref={containerRef}>
-        <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
+      <div ref={containerRef} className="flex flex-1 flex-col">
+        <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 text-center">
           {totalItems === 0 ? (
             <>
-              <p className="text-muted-foreground text-lg font-medium">Couldn&apos;t load cards</p>
-              <p className="text-muted-foreground text-sm">The server may be unreachable</p>
+              <WifiOff className="size-10 opacity-50" />
+              <p>Couldn&apos;t load cards</p>
+              <p className="text-xs">The server may be unreachable.</p>
               <button
                 type="button"
-                className="text-muted-foreground mt-3 text-sm underline"
+                className="mt-1 text-sm underline"
                 onClick={() => globalThis.location.reload()}
               >
                 Retry
@@ -473,8 +475,9 @@ export function CardGrid({
             </>
           ) : (
             <>
-              <p className="text-muted-foreground text-lg font-medium">No cards found</p>
-              <p className="text-muted-foreground text-sm">Try adjusting your filters</p>
+              <SearchX className="size-10 opacity-50" />
+              <p>No cards found</p>
+              <p className="text-xs">Try adjusting your filters.</p>
             </>
           )}
         </div>

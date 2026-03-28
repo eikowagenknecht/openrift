@@ -52,13 +52,13 @@ export function CardViewer({
   children,
 }: CardViewerProps) {
   return (
-    <div>
+    <div className="flex flex-1 flex-col">
       {toolbar}
-      <div className="mt-4 flex items-start gap-6">
+      <div className="mt-4 flex flex-1 items-stretch gap-6">
         {leftPane}
         <div
           className={cn(
-            "min-w-0 flex-1 transition-opacity duration-150",
+            "flex min-w-0 flex-1 flex-col transition-opacity duration-150",
             stale ? "opacity-60" : "opacity-100",
           )}
         >

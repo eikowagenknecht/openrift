@@ -16,7 +16,7 @@ function AppLayout() {
   return (
     <>
       <Header />
-      <main className={`${CONTAINER_WIDTH}`}>
+      <main className={`flex flex-1 flex-col ${CONTAINER_WIDTH}`}>
         <Outlet />
       </main>
     </>

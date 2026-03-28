@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/cards")({
 function CardsPage() {
   return (
     <>
-      <div className={PAGE_PADDING}>
+      <div className={`flex flex-1 flex-col ${PAGE_PADDING}`}>
         <CardBrowser />
       </div>
       <Footer />
