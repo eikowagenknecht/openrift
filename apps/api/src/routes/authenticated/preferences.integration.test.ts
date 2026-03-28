@@ -71,7 +71,7 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       const json = parsePrefs(await res.json());
       expect(json.showImages).toBe(false);
       // Other defaults should be preserved in the first upsert
-      expect(json.richEffects).toBe(true);
+      expect(json.fancyFan).toBe(true);
       expect(json.visibleFields).toEqual(PREFERENCES_DEFAULTS.visibleFields);
       expect(json.marketplaceOrder).toEqual(PREFERENCES_DEFAULTS.marketplaceOrder);
     });
