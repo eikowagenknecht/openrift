@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PREFERENCES_DEFAULTS } from "../../repositories/user-preferences.js";
 import {
   createTestContext,
   createUnauthenticatedTestContext,
@@ -17,8 +18,7 @@ import {
 // repo's upsert reads `existing?.data` and spreads it, which produces
 // incorrect merges when data is a string. The first PATCH works (no existing
 // row), but subsequent PATCHes may produce unexpected results. This test
-// only validates the first PATCH and the status codes for subsequent ones.
-// See prompts/api-coverage-findings.md for details.
+// fully validates the first PATCH and only checks status codes for the rest.
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0044-4000-a000-000000000001";
@@ -35,11 +35,12 @@ afterAll(async () => {
 
 /** Parse preferences from the response, handling the bun jsonb-as-string quirk.
  *  @returns The parsed preferences object. */
-function parsePrefsResponse(json: unknown): Record<string, unknown> {
+function parsePrefs(json: unknown): Record<string, unknown> {
   return typeof json === "string" ? JSON.parse(json) : (json as Record<string, unknown>);
 }
 
 describe.skipIf(!ctx)("Preferences routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = ctx!;
 
   // ── GET /preferences ──────────────────────────────────────────────────────
@@ -49,9 +50,9 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       const res = await app.fetch(req("GET", "/preferences"));
       expect(res.status).toBe(200);
 
-      const json = parsePrefsResponse(await res.json());
-      expect(json.showImages).toBe(true);
-      expect(json.richEffects).toBe(true);
+      const json = await res.json();
+      // When no row exists, handler returns PREFERENCES_DEFAULTS directly (not from DB)
+      expect(json).toEqual(PREFERENCES_DEFAULTS);
     });
 
     it("returns a JSON content type", async () => {
@@ -60,15 +61,19 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
     });
   });
 
-  // ── PATCH /preferences ────────────────────────────────────────────────────
+  // ── PATCH /preferences ──────────────────────────────��─────────────────────
 
   describe("PATCH /preferences", () => {
-    it("updates showImages and returns 200", async () => {
+    it("first PATCH returns merged preferences with updated field", async () => {
       const res = await app.fetch(req("PATCH", "/preferences", { showImages: false }));
       expect(res.status).toBe(200);
 
-      const json = parsePrefsResponse(await res.json());
+      const json = parsePrefs(await res.json());
       expect(json.showImages).toBe(false);
+      // Other defaults should be preserved in the first upsert
+      expect(json.richEffects).toBe(true);
+      expect(json.visibleFields).toEqual(PREFERENCES_DEFAULTS.visibleFields);
+      expect(json.marketplaceOrder).toEqual(PREFERENCES_DEFAULTS.marketplaceOrder);
     });
 
     it("subsequent PATCH exercises the upsert on-conflict path", async () => {
@@ -81,15 +86,36 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       expect(res.status).toBe(200);
     });
 
-    it("rejects invalid theme value", async () => {
+    it("PATCH with visibleFields exercises partial-object merge", async () => {
+      const res = await app.fetch(
+        req("PATCH", "/preferences", { visibleFields: { price: false } }),
+      );
+      expect(res.status).toBe(200);
+    });
+
+    it("PATCH with empty body exercises no-op upsert", async () => {
+      const res = await app.fetch(req("PATCH", "/preferences", {}));
+      expect(res.status).toBe(200);
+    });
+
+    it("rejects invalid theme value with 400", async () => {
       const res = await app.fetch(req("PATCH", "/preferences", { theme: "neon" }));
       expect(res.status).toBe(400);
     });
 
-    it("rejects duplicate marketplaces", async () => {
+    it("rejects duplicate marketplaces with 400", async () => {
       const res = await app.fetch(
         req("PATCH", "/preferences", {
           marketplaceOrder: ["tcgplayer", "tcgplayer"],
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects invalid marketplace name with 400", async () => {
+      const res = await app.fetch(
+        req("PATCH", "/preferences", {
+          marketplaceOrder: ["unknown_marketplace"],
         }),
       );
       expect(res.status).toBe(400);
@@ -100,12 +126,14 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
 
   describe("auth enforcement", () => {
     it("returns 401 for unauthenticated GET", async () => {
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by outer skipIf
       const unauthed = unauthCtx!;
       const res = await unauthed.app.fetch(req("GET", "/preferences"));
       expect(res.status).toBe(401);
     });
 
     it("returns 401 for unauthenticated PATCH", async () => {
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by outer skipIf
       const unauthed = unauthCtx!;
       const res = await unauthed.app.fetch(req("PATCH", "/preferences", { showImages: false }));
       expect(res.status).toBe(401);
