@@ -25,6 +25,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
 export function CollectionSidebar() {
   const matches = useMatches();
@@ -32,6 +33,7 @@ export function CollectionSidebar() {
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
   const { data: collections } = useCollections();
   const createCollection = useCreateCollection();
+  const sourcesEnabled = useFeatureEnabled("acquisition-sources");
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
 
@@ -136,21 +138,23 @@ export function CollectionSidebar() {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Manage</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={currentPath === "/collections/sources"}
-                render={<Link to="/collections/sources" />}
-                size="sm"
-              >
-                <StoreIcon />
-                <span>Sources</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+        {sourcesEnabled && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Manage</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={currentPath === "/collections/sources"}
+                  render={<Link to="/collections/sources" />}
+                  size="sm"
+                >
+                  <StoreIcon />
+                  <span>Sources</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <SidebarSeparator className="mx-0" />
