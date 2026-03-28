@@ -201,45 +201,199 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fanAngle = richEffects ? 8 : 1.5;
   const [fanReady, setFanReady] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  return (
-    <button
-      type="button"
-      className={cn(
-        // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-        "group focus-visible:ring-ring relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:z-10 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-        otherPrintings.length > 0 && "hover:[--fan:1]",
+
+  const imageSection = (
+    <div className="relative">
+      {/* Owned count overlay — hidden when add strip is active */}
+      {!onQuickAdd && ownedCount !== undefined && ownedCount > 0 && (
+        <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold shadow">
+          ×{ownedCount}
+        </span>
       )}
-      onMouseEnter={
-        otherPrintings.length > 0
-          ? () => {
-              fanTimer.current = setTimeout(() => setFanReady(true), 200);
+      {otherPrintings.map((sibling, i) => {
+        const depth = otherPrintings.length - i;
+        const siblingImageUrl = sibling.images[0]?.url ?? null;
+        const siblingUrl =
+          richEffects && showImages && siblingImageUrl
+            ? getCardImageUrl(siblingImageUrl, "thumbnail")
+            : null;
+        return (
+          // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
+          <div
+            key={sibling.id}
+            className={cn(
+              "bg-muted pointer-events-none absolute inset-0 origin-bottom overflow-hidden border border-[var(--border-opaque)]",
+              richEffects && "hover:ring-primary/60 hover:ring-2",
+              richEffects && fanReady && "pointer-events-auto cursor-pointer",
+            )}
+            style={{
+              borderRadius: CARD_BORDER_RADIUS,
+              translate: `calc((1 - var(--fan, 0)) * ${depth * fanStep}px) calc((1 - var(--fan, 0)) * ${depth * fanStep}px)`,
+              rotate: `calc(var(--fan, 0) * ${depth * fanAngle}deg)`,
+              transition: "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out",
+            }}
+            onClick={
+              richEffects
+                ? (e) => {
+                    e.stopPropagation();
+                    (onSiblingClick ?? onClick)(sibling);
+                  }
+                : undefined
             }
-          : undefined
-      }
-      onMouseLeave={
-        otherPrintings.length > 0
-          ? () => {
-              if (fanTimer.current) {
-                clearTimeout(fanTimer.current);
-              }
-              setFanReady(false);
-            }
-          : undefined
-      }
-      style={isSelected ? getDomainGradientStyle(card.domains, "38") : undefined}
-      onClick={() => onClick(printing)}
-    >
-      {isFlashing && (
-        <div
-          className="pointer-events-none absolute inset-0 rounded-lg"
-          style={{
-            ...getDomainGradientStyle(card.domains, "C0"),
-            animation: "selection-flash 800ms ease-out forwards",
-          }}
-        />
+          >
+            {siblingUrl &&
+              (rotated ? (
+                <div
+                  className="absolute top-1/2 left-1/2 overflow-hidden"
+                  style={LANDSCAPE_ROTATION_STYLE}
+                >
+                  <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
+                </div>
+              ) : (
+                <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
+              ))}
+            {sibling.finish === ("foil" satisfies Finish) && (
+              <FoilOverlay active shimmer dim paused />
+            )}
+          </div>
+        );
+      })}
+      <div ref={tilt.containerRef} style={tilt.style} className="relative">
+        {rotated ? (
+          <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
+            <div
+              ref={tilt.innerRef}
+              className={cn(AFTER_BORDER, richEffects && "hover:ring-primary/60 hover:ring-2")}
+              style={{ borderRadius: "inherit", ...TILT_STYLE }}
+            >
+              <CardImageContent
+                thumbnailUrl={thumbnailUrl}
+                srcSet={srcSet}
+                sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                alt={card.name}
+                priority={Boolean(priority)}
+                imgLoaded={imgLoaded}
+                onImgLoad={() => setImgLoaded(true)}
+                rotated
+                card={card}
+                isFoilCard={isFoilCard}
+                tiltActive={tilt.active}
+              />
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={tilt.innerRef}
+            className={cn(
+              "relative overflow-hidden",
+              AFTER_BORDER,
+              richEffects && "hover:ring-primary/60 hover:ring-2",
+            )}
+            style={{ borderRadius: CARD_BORDER_RADIUS, ...TILT_STYLE }}
+          >
+            <CardImageContent
+              thumbnailUrl={thumbnailUrl}
+              srcSet={srcSet}
+              sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+              alt={card.name}
+              priority={Boolean(priority)}
+              imgLoaded={imgLoaded}
+              onImgLoad={() => setImgLoaded(true)}
+              rotated={false}
+              card={card}
+              isFoilCard={isFoilCard}
+              tiltActive={tilt.active}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const showLabels =
+    visibleFields.number ||
+    visibleFields.title ||
+    visibleFields.type ||
+    visibleFields.rarity ||
+    visibleFields.price;
+
+  const labelSection = showLabels && (
+    // ⚠ mt-2.5 is mirrored as LABEL_WRAPPER_MT in card-grid.tsx — update both together
+    <div className="relative z-10 mt-2.5">
+      <CardMetaLabel
+        shortCode={printing.shortCode}
+        name={card.name}
+        type={card.type}
+        superTypes={card.superTypes}
+        rarity={printing.rarity}
+        compact={compact}
+        visibleFields={visibleFields}
+      />
+      {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
+      {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when favoritePrice is undefined */}
+      {visibleFields.price && (
+        <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
+          {favoritePrice !== undefined &&
+            (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
+              <>
+                <span className={priceColorClass(priceRange.min)}>
+                  {compactFmt(priceRange.min)}
+                </span>
+                <span className="text-muted-foreground/60">&ndash;</span>
+                <span className={priceColorClass(priceRange.max)}>
+                  {compactFmt(priceRange.max)}
+                </span>
+              </>
+            ) : (
+              <span className={priceColorClass(favoritePrice)}>{compactFmt(favoritePrice)}</span>
+            ))}
+        </p>
       )}
-      {/* Add-mode control strip: [-] count [+] above the card image */}
-      {onQuickAdd && (
+    </div>
+  );
+
+  const flashOverlay = isFlashing && (
+    <div
+      className="pointer-events-none absolute inset-0 rounded-lg"
+      style={{
+        ...getDomainGradientStyle(card.domains, "C0"),
+        animation: "selection-flash 800ms ease-out forwards",
+      }}
+    />
+  );
+
+  const fanMouseEnter =
+    otherPrintings.length > 0
+      ? () => {
+          fanTimer.current = setTimeout(() => setFanReady(true), 200);
+        }
+      : undefined;
+
+  const fanMouseLeave =
+    otherPrintings.length > 0
+      ? () => {
+          if (fanTimer.current) {
+            clearTimeout(fanTimer.current);
+          }
+          setFanReady(false);
+        }
+      : undefined;
+
+  /* ── Add mode: outer <div> is inert, only the image area is a <button> ── */
+  if (onQuickAdd) {
+    return (
+      <div
+        className={cn(
+          // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
+          "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
+          otherPrintings.length > 0 && "hover:[--fan:1]",
+        )}
+        style={isSelected ? getDomainGradientStyle(card.domains, "38") : undefined}
+        onMouseEnter={fanMouseEnter}
+        onMouseLeave={fanMouseLeave}
+      >
+        {flashOverlay}
+        {/* Add-mode control strip: [-] count [+] above the card image */}
         <AddStrip
           printing={printing}
           ownedCount={ownedCount ?? 0}
@@ -250,157 +404,35 @@ export const CardThumbnail = memo(function CardThumbnail({
           onUndoAdd={onUndoAdd}
           onOpenVariants={onOpenVariants}
         />
-      )}
-      <div className="relative">
-        {/* Owned count overlay — hidden when add strip is active */}
-        {!onQuickAdd && ownedCount !== undefined && ownedCount > 0 && (
-          <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold shadow">
-            ×{ownedCount}
-          </span>
-        )}
-        {otherPrintings.map((sibling, i) => {
-          const depth = otherPrintings.length - i;
-          const siblingImageUrl = sibling.images[0]?.url ?? null;
-          const siblingUrl =
-            richEffects && showImages && siblingImageUrl
-              ? getCardImageUrl(siblingImageUrl, "thumbnail")
-              : null;
-          return (
-            // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
-            <div
-              key={sibling.id}
-              className={cn(
-                "bg-muted pointer-events-none absolute inset-0 origin-bottom overflow-hidden border border-[var(--border-opaque)]",
-                richEffects && "hover:ring-primary/60 hover:ring-2",
-                richEffects && fanReady && "pointer-events-auto cursor-pointer",
-              )}
-              style={{
-                borderRadius: CARD_BORDER_RADIUS,
-                translate: `calc((1 - var(--fan, 0)) * ${depth * fanStep}px) calc((1 - var(--fan, 0)) * ${depth * fanStep}px)`,
-                rotate: `calc(var(--fan, 0) * ${depth * fanAngle}deg)`,
-                transition: "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out",
-              }}
-              onClick={
-                richEffects
-                  ? (e) => {
-                      e.stopPropagation();
-                      (onSiblingClick ?? onClick)(sibling);
-                    }
-                  : undefined
-              }
-            >
-              {siblingUrl &&
-                (rotated ? (
-                  <div
-                    className="absolute top-1/2 left-1/2 overflow-hidden"
-                    style={LANDSCAPE_ROTATION_STYLE}
-                  >
-                    <img
-                      src={siblingUrl}
-                      alt=""
-                      loading="lazy"
-                      className="size-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
-                ))}
-              {sibling.finish === ("foil" satisfies Finish) && (
-                <FoilOverlay active shimmer dim paused />
-              )}
-            </div>
-          );
-        })}
-        <div ref={tilt.containerRef} style={tilt.style} className="relative">
-          {rotated ? (
-            <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
-              <div
-                ref={tilt.innerRef}
-                className={cn(AFTER_BORDER, richEffects && "hover:ring-primary/60 hover:ring-2")}
-                style={{ borderRadius: "inherit", ...TILT_STYLE }}
-              >
-                <CardImageContent
-                  thumbnailUrl={thumbnailUrl}
-                  srcSet={srcSet}
-                  sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                  alt={card.name}
-                  priority={Boolean(priority)}
-                  imgLoaded={imgLoaded}
-                  onImgLoad={() => setImgLoaded(true)}
-                  rotated
-                  card={card}
-                  isFoilCard={isFoilCard}
-                  tiltActive={tilt.active}
-                />
-              </div>
-            </div>
-          ) : (
-            <div
-              ref={tilt.innerRef}
-              className={cn(
-                "relative overflow-hidden",
-                AFTER_BORDER,
-                richEffects && "hover:ring-primary/60 hover:ring-2",
-              )}
-              style={{ borderRadius: CARD_BORDER_RADIUS, ...TILT_STYLE }}
-            >
-              <CardImageContent
-                thumbnailUrl={thumbnailUrl}
-                srcSet={srcSet}
-                sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                alt={card.name}
-                priority={Boolean(priority)}
-                imgLoaded={imgLoaded}
-                onImgLoad={() => setImgLoaded(true)}
-                rotated={false}
-                card={card}
-                isFoilCard={isFoilCard}
-                tiltActive={tilt.active}
-              />
-            </div>
-          )}
-        </div>
+        <button
+          type="button"
+          className="focus-visible:ring-ring w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
+          onClick={() => onClick(printing)}
+        >
+          {imageSection}
+        </button>
+        {labelSection}
       </div>
-      {(visibleFields.number ||
-        visibleFields.title ||
-        visibleFields.type ||
-        visibleFields.rarity ||
-        visibleFields.price) && (
-        // ⚠ mt-2.5 is mirrored as LABEL_WRAPPER_MT in card-grid.tsx — update both together
-        <div className="relative z-10 mt-2.5">
-          <CardMetaLabel
-            shortCode={printing.shortCode}
-            name={card.name}
-            type={card.type}
-            superTypes={card.superTypes}
-            rarity={printing.rarity}
-            compact={compact}
-            visibleFields={visibleFields}
-          />
-          {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
-          {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when favoritePrice is undefined */}
-          {visibleFields.price && (
-            <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
-              {favoritePrice !== undefined &&
-                (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
-                  <>
-                    <span className={priceColorClass(priceRange.min)}>
-                      {compactFmt(priceRange.min)}
-                    </span>
-                    <span className="text-muted-foreground/60">&ndash;</span>
-                    <span className={priceColorClass(priceRange.max)}>
-                      {compactFmt(priceRange.max)}
-                    </span>
-                  </>
-                ) : (
-                  <span className={priceColorClass(favoritePrice)}>
-                    {compactFmt(favoritePrice)}
-                  </span>
-                ))}
-            </p>
-          )}
-        </div>
+    );
+  }
+
+  /* ── Normal mode: the whole card is a single <button> ── */
+  return (
+    <button
+      type="button"
+      className={cn(
+        // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
+        "group focus-visible:ring-ring relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:z-10 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+        otherPrintings.length > 0 && "hover:[--fan:1]",
       )}
+      onMouseEnter={fanMouseEnter}
+      onMouseLeave={fanMouseLeave}
+      style={isSelected ? getDomainGradientStyle(card.domains, "38") : undefined}
+      onClick={() => onClick(printing)}
+    >
+      {flashOverlay}
+      {imageSection}
+      {labelSection}
     </button>
   );
 });
@@ -428,8 +460,6 @@ function AddStrip({
   onUndoAdd?: (printing: Printing) => void;
   onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
 }) {
-  const showCount = ownedCount > 0 || sessionAddedCount > 0 || hasVariants;
-
   return (
     // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
     <div className="relative z-10 mb-1 flex h-5 items-center justify-between">
@@ -448,40 +478,39 @@ function AddStrip({
         </svg>
       </button>
 
-      {showCount &&
-        (hasVariants && onOpenVariants ? (
-          <button
-            type="button"
-            tabIndex={-1}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenVariants(printing, e.currentTarget);
-            }}
-            className={cn(
-              "hover:text-foreground text-xs font-medium transition-colors",
-              ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
-            )}
-          >
-            ×{ownedCount}
-            {totalOwnedCount !== undefined && totalOwnedCount !== ownedCount && (
-              <span
-                className={ownedCount > 0 ? "text-muted-foreground/60" : "text-muted-foreground/30"}
-              >
-                {" "}
-                ({totalOwnedCount})
-              </span>
-            )}
-          </button>
-        ) : (
-          <span
-            className={cn(
-              "text-xs font-medium",
-              ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
-            )}
-          >
-            ×{ownedCount}
-          </span>
-        ))}
+      {hasVariants && onOpenVariants ? (
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenVariants(printing, e.currentTarget);
+          }}
+          className={cn(
+            "hover:text-foreground hover:bg-muted/50 rounded-sm px-1 text-xs font-medium transition-colors",
+            ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
+          )}
+        >
+          ×{ownedCount}
+          {totalOwnedCount !== undefined && totalOwnedCount !== ownedCount && (
+            <span
+              className={ownedCount > 0 ? "text-muted-foreground/60" : "text-muted-foreground/30"}
+            >
+              {" "}
+              ({totalOwnedCount})
+            </span>
+          )}
+        </button>
+      ) : (
+        <span
+          className={cn(
+            "text-xs font-medium",
+            ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
+          )}
+        >
+          ×{ownedCount}
+        </span>
+      )}
 
       <button
         type="button"

@@ -58,6 +58,9 @@ export function CardBrowser() {
   const addCopies = useAddCopies();
   const disposeCopies = useDisposeCopies();
 
+  // Which printing is shown on top when a fan-card sibling is clicked (cards view only)
+  const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
+
   // Variant popover state
   const [variantPopover, setVariantPopover] = useState<{
     cardId: string;
@@ -120,6 +123,11 @@ export function CardBrowser() {
     setShowAddedList(false);
     setVariantPopover(null);
     useSelectionStore.getState().selectCard(printing, items, findBy);
+  };
+
+  const handleSiblingClick = (printing: Printing) => {
+    handleGridCardClick(printing);
+    setTopPrintingOverrides((prev) => new Map(prev).set(printing.card.id, printing.id));
   };
 
   const searchAndClose = (query: string) => {
@@ -217,6 +225,14 @@ export function CardBrowser() {
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.card.id;
     const siblings = printingsByCardId.get(cardId);
+
+    // If the user clicked a fan-card sibling, show that printing on top instead
+    const overrideId = topPrintingOverrides.get(cardId);
+    const displayPrinting =
+      overrideId && siblings
+        ? (siblings.find((s) => s.id === overrideId) ?? item.printing)
+        : item.printing;
+
     const hasMultipleVariants = addMode && view === "cards" && (siblings?.length ?? 0) > 1;
     const totalOwned = hasMultipleVariants
       ? siblings?.reduce((sum, p) => sum + (ownedCountByPrinting?.[p.id] ?? 0), 0)
@@ -224,9 +240,9 @@ export function CardBrowser() {
 
     return (
       <CardThumbnail
-        printing={item.printing}
+        printing={displayPrinting}
         onClick={handleGridCardClick}
-        onSiblingClick={handleGridCardClick}
+        onSiblingClick={handleSiblingClick}
         showImages={showImages}
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
@@ -238,11 +254,11 @@ export function CardBrowser() {
         priority={ctx.priority}
         ownedCount={
           addMode
-            ? (ownedCountByPrinting?.[item.printing.id] ?? 0)
-            : ownedCounts?.get(item.printing.id)
+            ? (ownedCountByPrinting?.[displayPrinting.id] ?? 0)
+            : ownedCounts?.get(displayPrinting.id)
         }
         totalOwnedCount={totalOwned}
-        sessionAddedCount={addedItems.get(item.printing.id)?.quantity}
+        sessionAddedCount={addedItems.get(displayPrinting.id)?.quantity}
         onQuickAdd={handleQuickAdd}
         onUndoAdd={handleUndoAdd}
         onOpenVariants={handleOpenVariants}
