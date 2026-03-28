@@ -32,14 +32,14 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = (await res.json()) as CollectionResponse;
-      expect(json.id).toBeString();
+      expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("Test Collection");
       expect(json.description).toBeNull();
       expect(json.isInbox).toBe(false);
       expect(json.availableForDeckbuilding).toBe(true);
       expect(json.sortOrder).toBe(0);
-      expect(json.createdAt).toBeString();
-      expect(json.updatedAt).toBeString();
+      expect(json.createdAt).toBeTypeOf("string");
+      expect(json.updatedAt).toBeTypeOf("string");
       collectionId = json.id;
     });
 

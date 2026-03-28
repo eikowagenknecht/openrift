@@ -127,7 +127,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       expect(igpProduct.externalId).toBe(10_401);
       expect(igpProduct.finish).toBe("normal");
       expect(igpProduct.productName).toBe("IGP Stageable Product");
-      expect(igpProduct.createdAt).toBeString();
+      expect(igpProduct.createdAt).toBeTypeOf("string");
     });
   });
 

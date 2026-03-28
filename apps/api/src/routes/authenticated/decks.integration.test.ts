@@ -31,7 +31,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = await res.json();
-      expect(json.id).toBeString();
+      expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("My Deck");
       expect(json.format).toBe("standard");
       expect(json.isWanted).toBe(false);
@@ -169,7 +169,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const json = await res.json();
       expect(json.cards.length).toBe(2);
       // Card rows should include card info
-      expect(json.cards[0].cardName).toBeString();
+      expect(json.cards[0].cardName).toBeTypeOf("string");
       expect(json.cards[0].zone).toBe("main");
     });
 

@@ -174,10 +174,10 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.groups).toBeArray();
+      expect(json.groups).toEqual(expect.any(Array));
       expect(json.groups.length).toBeGreaterThanOrEqual(1);
       expect(json.unmatchedProducts).toBeDefined();
-      expect(json.allCards).toBeArray();
+      expect(json.allCards).toEqual(expect.any(Array));
 
       // Our seeded card should appear in groups
       const testGroup = json.groups.find(

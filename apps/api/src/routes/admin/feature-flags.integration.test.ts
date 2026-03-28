@@ -110,7 +110,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.flags).toBeArray();
+      expect(json.flags).toEqual(expect.any(Array));
 
       const fflFlags = json.flags.filter((f: { key: string }) => f.key.startsWith("ffl-"));
       expect(fflFlags).toHaveLength(2);
@@ -120,8 +120,8 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       expect(darkMode).toBeDefined();
       expect(darkMode.enabled).toBe(true);
       expect(darkMode.description).toBe("Toggle dark mode UI");
-      expect(darkMode.createdAt).toBeString();
-      expect(darkMode.updatedAt).toBeString();
+      expect(darkMode.createdAt).toBeTypeOf("string");
+      expect(darkMode.updatedAt).toBeTypeOf("string");
 
       const deckBuilder = fflFlags.find((f: { key: string }) => f.key === "ffl-deck-builder");
       expect(deckBuilder).toBeDefined();

@@ -11,7 +11,7 @@
   },
   "scripts": {
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov && COVERAGE=1 bun --env-file=../../.env run src/test/run-integration.ts",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov",
     "test:watch": "vitest",
     "test:integration": "bun --env-file=../../.env run src/test/run-integration.ts",
     "dev": "bun --env-file=../../.env --watch src/index.ts",

@@ -291,13 +291,13 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(json.tcgplayer.available).toBe(true);
       expect(json.tcgplayer.currency).toBe("USD");
       expect(json.tcgplayer.productId).toBe(90_001);
-      expect(json.tcgplayer.snapshots).toBeArray();
+      expect(json.tcgplayer.snapshots).toEqual(expect.any(Array));
       expect(json.tcgplayer.snapshots.length).toBeGreaterThanOrEqual(1);
 
       expect(json.cardmarket.available).toBe(true);
       expect(json.cardmarket.currency).toBe("EUR");
       expect(json.cardmarket.productId).toBe(90_002);
-      expect(json.cardmarket.snapshots).toBeArray();
+      expect(json.cardmarket.snapshots).toEqual(expect.any(Array));
       expect(json.cardmarket.snapshots.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -364,7 +364,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const json = await res.json();
 
       const snap = json.tcgplayer.snapshots[0];
-      expect(snap.date).toBeString();
+      expect(snap.date).toBeTypeOf("string");
       expect(typeof snap.market).toBe("number");
       expect(snap.market).toBe(2.5); // 250 cents
       expect(snap.low).toBe(1.2); // 120 cents
@@ -377,7 +377,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const json = await res.json();
 
       const snap = json.cardmarket.snapshots[0];
-      expect(snap.date).toBeString();
+      expect(snap.date).toBeTypeOf("string");
       expect(snap.market).toBe(1.8); // 180 cents
       expect(snap.low).toBe(1); // 100 cents
       expect(snap.trend).toBe(1.5); // 150 cents

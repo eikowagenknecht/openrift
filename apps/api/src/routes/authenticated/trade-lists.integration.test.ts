@@ -43,7 +43,7 @@ describe.skipIf(!ctx)("Trade Lists routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = await res.json();
-      expect(json.id).toBeString();
+      expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("My Trades");
       tradeListId = json.id;
     });
@@ -116,7 +116,7 @@ describe.skipIf(!ctx)("Trade Lists routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = await res.json();
-      expect(json.id).toBeString();
+      expect(json.id).toBeTypeOf("string");
       itemId = json.id;
     });
 

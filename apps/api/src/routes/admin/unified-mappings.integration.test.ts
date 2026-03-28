@@ -242,11 +242,11 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.groups).toBeArray();
+      expect(json.groups).toEqual(expect.any(Array));
       expect(json.unmatchedProducts).toBeDefined();
-      expect(json.unmatchedProducts.tcgplayer).toBeArray();
-      expect(json.unmatchedProducts.cardmarket).toBeArray();
-      expect(json.allCards).toBeArray();
+      expect(json.unmatchedProducts.tcgplayer).toEqual(expect.any(Array));
+      expect(json.unmatchedProducts.cardmarket).toEqual(expect.any(Array));
+      expect(json.allCards).toEqual(expect.any(Array));
     });
   });
 
@@ -265,9 +265,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Should have both marketplace staged products
       expect(alphaGroup.tcgplayer).toBeDefined();
-      expect(alphaGroup.tcgplayer.stagedProducts).toBeArray();
+      expect(alphaGroup.tcgplayer.stagedProducts).toEqual(expect.any(Array));
       expect(alphaGroup.cardmarket).toBeDefined();
-      expect(alphaGroup.cardmarket.stagedProducts).toBeArray();
+      expect(alphaGroup.cardmarket.stagedProducts).toEqual(expect.any(Array));
 
       // TCGPlayer staged product
       expect(alphaGroup.tcgplayer.stagedProducts.length).toBeGreaterThanOrEqual(1);
@@ -308,7 +308,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
       );
       expect(alphaGroup).toBeDefined();
-      expect(alphaGroup.cardId).toBeString();
+      expect(alphaGroup.cardId).toBeTypeOf("string");
       expect(alphaGroup.cardSlug).toBe("UNM-001");
       expect(alphaGroup.cardType).toBe("Unit");
       expect(alphaGroup.domains).toContain("Mind");
@@ -630,9 +630,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
       );
       expect(alphaGroup).toBeDefined();
-      expect(alphaGroup.superTypes).toBeArray();
+      expect(alphaGroup.superTypes).toEqual(expect.any(Array));
       expect(alphaGroup.might).toBeNull();
-      expect(alphaGroup.setId).toBeString();
+      expect(alphaGroup.setId).toBeTypeOf("string");
     });
   });
 
@@ -643,25 +643,25 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const json = await res.json();
 
-      expect(json.allCards).toBeArray();
+      expect(json.allCards).toEqual(expect.any(Array));
       expect(json.allCards.length).toBeGreaterThanOrEqual(2);
 
       const alphaCard = json.allCards.find(
         (c: { cardName: string }) => c.cardName === "UNM Alpha Card",
       );
       expect(alphaCard).toBeDefined();
-      expect(alphaCard.cardId).toBeString();
+      expect(alphaCard.cardId).toBeTypeOf("string");
       expect(alphaCard.cardName).toBe("UNM Alpha Card");
-      expect(alphaCard.setId).toBeString();
+      expect(alphaCard.setId).toBeTypeOf("string");
       expect(alphaCard.setName).toBe("UNM Unified Test Set");
-      expect(alphaCard.printings).toBeArray();
+      expect(alphaCard.printings).toEqual(expect.any(Array));
       expect(alphaCard.printings.length).toBeGreaterThanOrEqual(1);
 
       // allCards printing entries have specific fields
       const printing = alphaCard.printings[0];
-      expect(printing.printingId).toBeString();
-      expect(printing.shortCode).toBeString();
-      expect(printing.finish).toBeString();
+      expect(printing.printingId).toBeTypeOf("string");
+      expect(printing.shortCode).toBeTypeOf("string");
+      expect(printing.finish).toBeTypeOf("string");
       expect(typeof printing.collectorNumber).toBe("number");
       expect(typeof printing.isSigned).toBe("boolean");
     });
@@ -675,8 +675,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       const json = await res.json();
 
       expect(json.unmatchedProducts).toBeDefined();
-      expect(json.unmatchedProducts.tcgplayer).toBeArray();
-      expect(json.unmatchedProducts.cardmarket).toBeArray();
+      expect(json.unmatchedProducts.tcgplayer).toEqual(expect.any(Array));
+      expect(json.unmatchedProducts.cardmarket).toEqual(expect.any(Array));
     });
   });
 
@@ -752,11 +752,11 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaGroup).toBeDefined();
 
       // TCGPlayer assignedProducts should contain the mapped product
-      expect(alphaGroup.tcgplayer.assignedProducts).toBeArray();
+      expect(alphaGroup.tcgplayer.assignedProducts).toEqual(expect.any(Array));
       expect(alphaGroup.tcgplayer.assignedProducts.length).toBeGreaterThanOrEqual(1);
 
       // Cardmarket assignedProducts should also contain the mapped product
-      expect(alphaGroup.cardmarket.assignedProducts).toBeArray();
+      expect(alphaGroup.cardmarket.assignedProducts).toEqual(expect.any(Array));
       expect(alphaGroup.cardmarket.assignedProducts.length).toBeGreaterThanOrEqual(1);
 
       // Staged products should be empty after mapping (consumed by assignment)

@@ -135,11 +135,11 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.sets).toBeArray();
+      expect(json.sets).toEqual(expect.any(Array));
 
       const coreSet = json.sets.find((s: { slug: string }) => s.slug === "CAT-core-set");
       expect(coreSet).toBeDefined();
-      expect(coreSet.id).toBeString();
+      expect(coreSet.id).toBeTypeOf("string");
       expect(coreSet.slug).toBe("CAT-core-set");
       expect(coreSet.name).toBe("CAT Core Set");
       expect(coreSet.printedTotal).toBe(200);

@@ -25,11 +25,11 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = (await res.json()) as AcquisitionSourceResponse;
-      expect(json.id).toBeString();
+      expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("LGS Pickup");
       expect(json.description).toBeNull();
-      expect(json.createdAt).toBeString();
-      expect(json.updatedAt).toBeString();
+      expect(json.createdAt).toBeTypeOf("string");
+      expect(json.updatedAt).toBeTypeOf("string");
       sourceId = json.id;
     });
 

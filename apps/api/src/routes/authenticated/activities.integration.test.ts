@@ -56,8 +56,8 @@ describe.skipIf(!ctx)("Activities routes (integration)", () => {
 
       // Each activity should have expected fields
       const activity = json.items[0];
-      expect(activity.id).toBeString();
-      expect(activity.type).toBeString();
+      expect(activity.id).toBeTypeOf("string");
+      expect(activity.type).toBeTypeOf("string");
       activityId = activity.id;
     });
 
@@ -77,7 +77,7 @@ describe.skipIf(!ctx)("Activities routes (integration)", () => {
       const json = await res.json();
       expect(json.items).toHaveLength(1);
       // Should provide nextCursor when more items exist
-      expect(json.nextCursor).toBeString();
+      expect(json.nextCursor).toBeTypeOf("string");
     });
   });
 
@@ -91,16 +91,16 @@ describe.skipIf(!ctx)("Activities routes (integration)", () => {
       const json = await res.json();
       // Response shape is { activity, items }
       expect(json.activity.id).toBe(activityId);
-      expect(json.activity.type).toBeString();
+      expect(json.activity.type).toBeTypeOf("string");
       expect(json.activity.isAuto).toBe(true);
-      expect(json.activity.createdAt).toBeString();
+      expect(json.activity.createdAt).toBeTypeOf("string");
 
       expect(Array.isArray(json.items)).toBe(true);
       expect(json.items.length).toBeGreaterThanOrEqual(1);
       // Items should have enriched card info
       const item = json.items[0];
-      expect(item.printingId).toBeString();
-      expect(item.action).toBeString();
+      expect(item.printingId).toBeTypeOf("string");
+      expect(item.action).toBeTypeOf("string");
       expect(item.cardName).toBe(CARD_FURY_UNIT.name);
     });
 

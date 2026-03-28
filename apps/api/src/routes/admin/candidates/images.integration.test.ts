@@ -554,7 +554,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.rehostedUrl).toBeString();
+      expect(json.rehostedUrl).toBeTypeOf("string");
 
       // Verify rehostedUrl was set in DB
       const image = await db
@@ -563,7 +563,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("id", "=", mainImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(image!.rehostedUrl).toBeString();
+      expect(image!.rehostedUrl).toBeTypeOf("string");
     });
 
     it("returns 400 when image has no originalUrl", async () => {
@@ -613,7 +613,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("id", "=", mainImageId)
         .executeTakeFirst();
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(before!.rehostedUrl).toBeString();
+      expect(before!.rehostedUrl).toBeTypeOf("string");
 
       const res = await app.fetch(
         req("POST", `/admin/candidates/printing-images/${mainImageId}/unrehost`),
@@ -812,7 +812,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.rehostedUrl).toBeString();
+      expect(json.rehostedUrl).toBeTypeOf("string");
       expect(json.rehostedUrl).toContain("/card-images/CSI/");
 
       // Verify DB state: should be active with rehostedUrl
@@ -841,7 +841,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.rehostedUrl).toBeString();
+      expect(json.rehostedUrl).toBeTypeOf("string");
 
       // Verify DB state: should be inactive
       const images = await db
@@ -869,7 +869,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.rehostedUrl).toBeString();
+      expect(json.rehostedUrl).toBeTypeOf("string");
 
       // Verify default source is "upload" and default mode is "main" (active)
       const images = await db

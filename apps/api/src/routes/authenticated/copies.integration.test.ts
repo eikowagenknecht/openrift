@@ -54,7 +54,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
       const json = (await res.json()) as { id: string; printingId: string; collectionId: string }[];
       expect(json).toHaveLength(3);
-      expect(json[0].id).toBeString();
+      expect(json[0].id).toBeTypeOf("string");
       expect(json[0].printingId).toBe(PRINTING_1.id);
       expect(json[0].collectionId).toBe(collectionId);
       copyIds = json.map((c) => c.id);
@@ -103,9 +103,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
       // Each copy should have denormalized card info
       const copy = json[0];
-      expect(copy.id).toBeString();
-      expect(copy.printingId).toBeString();
-      expect(copy.collectionId).toBeString();
+      expect(copy.id).toBeTypeOf("string");
+      expect(copy.printingId).toBeTypeOf("string");
+      expect(copy.collectionId).toBeTypeOf("string");
       expect(copy.cardName).toBe(CARD_FURY_UNIT.name);
       expect(copy.cardType).toBe(CARD_FURY_UNIT.type);
     });
@@ -137,10 +137,10 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(json.collectionId).toBe(collectionId);
       expect(json.cardName).toBe(CARD_FURY_UNIT.name);
       // Should include the same fields as GET /copies
-      expect(json.artVariant).toBeString();
+      expect(json.artVariant).toBeTypeOf("string");
       expect(json.isSigned).toBe(false);
       expect(json.finish).toBe("normal");
-      expect(json.artist).toBeString();
+      expect(json.artist).toBeTypeOf("string");
     });
 
     it("returns 404 for non-existent copy", async () => {

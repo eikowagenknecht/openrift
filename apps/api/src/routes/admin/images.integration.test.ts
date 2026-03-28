@@ -245,10 +245,10 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(json.total).toBeNumber();
       expect(json.rehosted).toBeNumber();
       expect(json.external).toBeNumber();
-      expect(json.sets).toBeArray();
+      expect(json.sets).toEqual(expect.any(Array));
       expect(json.disk).toBeDefined();
       expect(json.disk.totalBytes).toBeNumber();
-      expect(json.disk.sets).toBeArray();
+      expect(json.disk.sets).toEqual(expect.any(Array));
     });
   });
 
@@ -277,7 +277,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(typeof json.renamed).toBe("number");
       expect(typeof json.alreadyCorrect).toBe("number");
       expect(typeof json.failed).toBe("number");
-      expect(json.errors).toBeArray();
+      expect(json.errors).toEqual(expect.any(Array));
       expect(typeof json.hasMore).toBe("boolean");
     });
   });
@@ -292,7 +292,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       const json = await res.json();
       expect(typeof json.scanned).toBe("number");
       expect(typeof json.deleted).toBe("number");
-      expect(json.errors).toBeArray();
+      expect(json.errors).toEqual(expect.any(Array));
     });
   });
 
@@ -305,7 +305,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
       const json = await res.json();
       expect(typeof json.total).toBe("number");
-      expect(json.broken).toBeArray();
+      expect(json.broken).toEqual(expect.any(Array));
     });
   });
 
@@ -318,7 +318,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
       const json = await res.json();
       expect(typeof json.total).toBe("number");
-      expect(json.lowRes).toBeArray();
+      expect(json.lowRes).toEqual(expect.any(Array));
     });
   });
 
@@ -330,7 +330,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toBeArray();
+      expect(json).toEqual(expect.any(Array));
     });
   });
 

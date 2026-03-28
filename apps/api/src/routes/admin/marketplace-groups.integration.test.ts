@@ -47,7 +47,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.groups).toBeArray();
+      expect(json.groups).toEqual(expect.any(Array));
 
       const cardmarketGroup = json.groups.find(
         (g: { marketplace: string; groupId: number }) =>
