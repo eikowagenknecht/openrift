@@ -21,14 +21,24 @@ export const PREFERENCES_DEFAULTS: UserPreferencesResponse = {
   marketplaceOrder: [...ALL_MARKETPLACES],
 };
 
+/** postgres.js under Bun returns jsonb columns as a string instead of a parsed
+ *  object. This helper normalises the value so callers always get an object. */
+function parseData(data: UserPreferencesResponse | string): UserPreferencesResponse {
+  return typeof data === "string"
+    ? (JSON.parse(data) as UserPreferencesResponse)
+    : data;
+}
+
 export function userPreferencesRepo(db: Kysely<Database>) {
   return {
-    getByUserId(userId: string): Promise<Selectable<UserPreferencesTable> | undefined> {
-      return db
+    async getByUserId(userId: string): Promise<Selectable<UserPreferencesTable> | undefined> {
+      const row = await db
         .selectFrom("userPreferences")
         .selectAll()
         .where("userId", "=", userId)
         .executeTakeFirst();
+      if (!row) return undefined;
+      return { ...row, data: parseData(row.data) };
     },
 
     async upsert(userId: string, incoming: PartialPreferences): Promise<UserPreferencesResponse> {
@@ -50,7 +60,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .returningAll()
         .executeTakeFirstOrThrow();
 
-      return row.data;
+      return parseData(row.data);
     },
   };
 }

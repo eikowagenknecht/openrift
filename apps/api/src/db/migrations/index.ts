@@ -53,6 +53,7 @@ import * as m047 from "./047-user-preferences.js";
 import * as m048 from "./048-site-settings.js";
 import * as m049 from "./049-marketplace-order.js";
 import * as m050 from "./050-preferences-jsonb.js";
+import * as m051 from "./051-fix-corrupted-preferences.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -105,4 +106,5 @@ export const migrations: Record<string, Migration> = {
   "048-site-settings": m048,
   "049-marketplace-order": m049,
   "050-preferences-jsonb": m050,
+  "051-fix-corrupted-preferences": m051,
 };
