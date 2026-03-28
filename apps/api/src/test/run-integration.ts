@@ -80,6 +80,15 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0041-4000-a000-000000000001", email: "repo-0041@test.com", isAdmin: false },
   { id: "a0000000-0042-4000-a000-000000000001", email: "repo-0042@test.com", isAdmin: false },
   { id: "a0000000-0043-4000-a000-000000000001", email: "repo-0043@test.com", isAdmin: false },
+  // Route integration tests — public + authenticated coverage
+  { id: "a0000000-0044-4000-a000-000000000001", email: "user-0044@test.com", isAdmin: false },
+  // Batch 3 — admin route integration tests (pre-promoted)
+  { id: "a0000000-0045-4000-a000-000000000001", email: "admin-0045@test.com", isAdmin: true },
+  { id: "a0000000-0046-4000-a000-000000000001", email: "admin-0046@test.com", isAdmin: true },
+  { id: "a0000000-0047-4000-a000-000000000001", email: "admin-0047@test.com", isAdmin: true },
+  { id: "a0000000-0048-4000-a000-000000000001", email: "admin-0048@test.com", isAdmin: true },
+  // Non-admin user for admin route 403 checks
+  { id: "a0000000-0049-4000-a000-000000000001", email: "user-0049@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -134,6 +143,16 @@ const PARALLEL_FILES = [
   "src/repositories/catalog.integration.test.ts",
   "src/repositories/sets.integration.test.ts",
   "src/repositories/keyword-styles.integration.test.ts",
+  // Route integration tests — public + authenticated coverage
+  "src/routes/public/health.integration.test.ts",
+  "src/routes/public/keyword-styles.integration.test.ts",
+  "src/routes/public/site-settings.integration.test.ts",
+  "src/routes/authenticated/preferences.integration.test.ts",
+  // Batch 3 — admin route integration tests
+  "src/routes/admin/promo-types.integration.test.ts",
+  "src/routes/admin/provider-settings.integration.test.ts",
+  "src/routes/admin/site-settings.integration.test.ts",
+  "src/routes/admin/ignored-candidates.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */
