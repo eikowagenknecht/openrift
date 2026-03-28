@@ -1,7 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { Minus, Plus } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useAddCopies } from "@/hooks/use-copies";
@@ -14,6 +13,7 @@ interface AddCardPopoverProps {
   collectionId: string;
   acquisitionSourceId?: string;
   onDone: () => void;
+  onAdded: (printing: Printing, quantity: number) => void;
 }
 
 export function AddCardPopover({
@@ -22,6 +22,7 @@ export function AddCardPopover({
   collectionId,
   acquisitionSourceId,
   onDone,
+  onAdded,
 }: AddCardPopoverProps) {
   const allPrintings = printings && printings.length > 1 ? printings : [printing];
   const [selectedPrinting, setSelectedPrinting] = useState<Printing>(printing);
@@ -39,7 +40,7 @@ export function AddCardPopover({
       { copies },
       {
         onSuccess: () => {
-          toast.success(`Added ${quantity}× ${printing.card.name}`);
+          onAdded(selectedPrinting, quantity);
           onDone();
         },
       },

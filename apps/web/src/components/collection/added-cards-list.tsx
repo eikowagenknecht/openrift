@@ -1,0 +1,76 @@
+import type { Printing } from "@openrift/shared";
+import { X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { getCardImageUrl } from "@/lib/images";
+
+export interface AddedEntry {
+  printing: Printing;
+  quantity: number;
+}
+
+interface AddedCardsListProps {
+  items: Map<string, AddedEntry>;
+  onCardClick: (printing: Printing) => void;
+  onClose: () => void;
+}
+
+export function AddedCardsList({ items, onCardClick, onClose }: AddedCardsListProps) {
+  const entries = [...items.values()].toReversed();
+  const totalCount = entries.reduce((sum, entry) => sum + entry.quantity, 0);
+
+  return (
+    <div className="bg-background rounded-lg px-3">
+      <div className="flex items-center justify-between pt-4 pb-3">
+        <div>
+          <h2 className="text-sm font-semibold">Added this session</h2>
+          <p className="text-muted-foreground text-xs">
+            {totalCount} {totalCount === 1 ? "copy" : "copies"}
+          </p>
+        </div>
+        <Button variant="ghost" size="icon-sm" onClick={onClose}>
+          <X className="size-4" />
+        </Button>
+      </div>
+      <div className="space-y-1 pb-4">
+        {entries.map((entry) => {
+          const imageUrl = entry.printing.images[0]?.url;
+          const thumbnailUrl = imageUrl ? getCardImageUrl(imageUrl, "thumbnail") : null;
+
+          return (
+            <button
+              key={entry.printing.id}
+              type="button"
+              onClick={() => onCardClick(entry.printing)}
+              className="hover:bg-muted flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors"
+            >
+              {thumbnailUrl ? (
+                <img
+                  src={thumbnailUrl}
+                  alt={entry.printing.card.name}
+                  className="h-12 w-auto rounded"
+                />
+              ) : (
+                <div className="bg-muted h-12 w-9 rounded" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{entry.printing.card.name}</p>
+                <p className="text-muted-foreground truncate text-xs">
+                  {formatCardId(entry.printing)}
+                  {" · "}
+                  {formatPrintingLabel(entry.printing)}
+                </p>
+              </div>
+              {entry.quantity > 1 && (
+                <span className="text-muted-foreground shrink-0 text-sm font-medium">
+                  ×{entry.quantity}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

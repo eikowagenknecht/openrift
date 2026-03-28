@@ -1,12 +1,14 @@
 import type { Printing } from "@openrift/shared";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
-import { Suspense, lazy, useDeferredValue, useRef } from "react";
+import { Suspense, lazy, useDeferredValue, useRef, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
 import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
+import type { AddedEntry } from "@/components/collection/added-cards-list";
+import { AddedCardsList } from "@/components/collection/added-cards-list";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   FilterBadgeSections,
@@ -52,6 +54,8 @@ export function CardBrowser() {
   const [adding] = useQueryState("adding", parseAsBoolean.withDefault(false));
   const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
   const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
+  const [addedItems, setAddedItems] = useState<Map<string, AddedEntry>>(new Map());
+  const [showAddedList, setShowAddedList] = useState(false);
 
   const { filters, sortBy, sortDir, view, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
@@ -105,6 +109,24 @@ export function CardBrowser() {
     }
   };
 
+  const handleAdded = (printing: Printing, quantity: number) => {
+    setAddedItems((prev) => {
+      const next = new Map(prev);
+      next.delete(printing.id);
+      const existing = prev.get(printing.id);
+      next.set(printing.id, {
+        printing,
+        quantity: (existing?.quantity ?? 0) + quantity,
+      });
+      return next;
+    });
+  };
+
+  const handleGridCardClick = (printing: Printing) => {
+    setShowAddedList(false);
+    handleCardClick(printing);
+  };
+
   const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.card.id) ?? []) : [];
 
   const gridSelectedId =
@@ -118,8 +140,8 @@ export function CardBrowser() {
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
     <CardThumbnail
       printing={item.printing}
-      onClick={handleCardClick}
-      onSiblingClick={handleCardClick}
+      onClick={handleGridCardClick}
+      onSiblingClick={handleGridCardClick}
       showImages={showImages}
       isSelected={ctx.isSelected}
       isFlashing={ctx.isFlashing}
@@ -142,6 +164,10 @@ export function CardBrowser() {
           ref={addFlowRef}
           collectionId={addingTo}
           printingsByCardId={printingsByCardId}
+          addedItems={addedItems}
+          onAdded={handleAdded}
+          showingAddedList={showAddedList}
+          onToggleAddedList={() => setShowAddedList((prev) => !prev)}
         />
       )}
       {/* Search bar */}
@@ -187,24 +213,46 @@ export function CardBrowser() {
     </Pane>
   );
 
-  const rightPane =
-    selectedCard && detailOpen && !isMobile ? (
-      <Pane className="md:block">
-        <Suspense fallback={<CardDetailSkeleton />}>
-          <CardDetail
-            printing={selectedCard}
-            onClose={handleDetailClose}
-            showImages={showImages}
-            onPrevCard={handlePrevCard}
-            onNextCard={handleNextCard}
-            onTagClick={(tag) => searchAndClose(`t:${tag}`)}
-            onKeywordClick={(keyword) => searchAndClose(`k:${keyword}`)}
-            printings={siblingPrintings}
-            onSelectPrinting={setSelectedCard}
+  const rightPane = (() => {
+    if (isMobile) {
+      return;
+    }
+
+    if (showAddedList && addedItems.size > 0) {
+      return (
+        <Pane className="md:block">
+          <AddedCardsList
+            items={addedItems}
+            onCardClick={(printing) => {
+              setShowAddedList(false);
+              handleCardClick(printing);
+            }}
+            onClose={() => setShowAddedList(false)}
           />
-        </Suspense>
-      </Pane>
-    ) : undefined;
+        </Pane>
+      );
+    }
+
+    if (selectedCard && detailOpen) {
+      return (
+        <Pane className="md:block">
+          <Suspense fallback={<CardDetailSkeleton />}>
+            <CardDetail
+              printing={selectedCard}
+              onClose={handleDetailClose}
+              showImages={showImages}
+              onPrevCard={handlePrevCard}
+              onNextCard={handleNextCard}
+              onTagClick={(tag) => searchAndClose(`t:${tag}`)}
+              onKeywordClick={(keyword) => searchAndClose(`k:${keyword}`)}
+              printings={siblingPrintings}
+              onSelectPrinting={setSelectedCard}
+            />
+          </Suspense>
+        </Pane>
+      );
+    }
+  })();
 
   return (
     <CardViewer
@@ -214,7 +262,7 @@ export function CardBrowser() {
       setOrder={sets}
       selectedItemId={gridSelectedId}
       keyboardNavItemId={selectedCard?.id}
-      onItemClick={handleCardClick}
+      onItemClick={handleGridCardClick}
       siblingPrintings={siblingPrintings}
       stale={isGridStale}
       toolbar={toolbar}
@@ -224,8 +272,20 @@ export function CardBrowser() {
       }
       rightPane={rightPane}
     >
-      {/* Mobile: fullscreen detail overlay */}
-      {selectedCard && detailOpen && isMobile && (
+      {/* Mobile: fullscreen overlays */}
+      {showAddedList && addedItems.size > 0 && isMobile && (
+        <MobileDetailOverlay>
+          <AddedCardsList
+            items={addedItems}
+            onCardClick={(printing) => {
+              setShowAddedList(false);
+              handleCardClick(printing);
+            }}
+            onClose={() => setShowAddedList(false)}
+          />
+        </MobileDetailOverlay>
+      )}
+      {selectedCard && detailOpen && isMobile && !showAddedList && (
         <MobileDetailOverlay>
           <Suspense fallback={<CardDetailSkeleton />}>
             <CardDetail

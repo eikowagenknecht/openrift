@@ -4,9 +4,11 @@ import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { AddCardPopover } from "@/components/collection/add-card-popover";
+import type { AddedEntry } from "@/components/collection/added-cards-list";
 import { Button } from "@/components/ui/button";
 import { useCreateAcquisitionSource, useAcquisitionSources } from "@/hooks/use-acquisition-sources";
 import { useCollections } from "@/hooks/use-collections";
+import { cn } from "@/lib/utils";
 
 export interface AddToCollectionFlowHandle {
   handleAddClick: (printing: Printing, anchorEl: HTMLElement) => void;
@@ -16,12 +18,20 @@ interface AddToCollectionFlowProps {
   ref: React.Ref<AddToCollectionFlowHandle>;
   collectionId: string;
   printingsByCardId: Map<string, Printing[]>;
+  addedItems: Map<string, AddedEntry>;
+  onAdded: (printing: Printing, quantity: number) => void;
+  showingAddedList: boolean;
+  onToggleAddedList: () => void;
 }
 
 export function AddToCollectionFlow({
   ref,
   collectionId,
   printingsByCardId,
+  addedItems,
+  onAdded,
+  showingAddedList,
+  onToggleAddedList,
 }: AddToCollectionFlowProps) {
   const { data: collections } = useCollections();
   const collectionName = collections?.find((c) => c.id === collectionId)?.name ?? "Collection";
@@ -32,6 +42,8 @@ export function AddToCollectionFlow({
   const [creatingSource, setCreatingSource] = useState(false);
   const [newSourceName, setNewSourceName] = useState("");
   const createSource = useCreateAcquisitionSource();
+
+  const totalAdded = [...addedItems.values()].reduce((sum, entry) => sum + entry.quantity, 0);
 
   const [popoverCard, setPopoverCard] = useState<Printing | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
@@ -130,6 +142,20 @@ export function AddToCollectionFlow({
           )}
         </div>
         <div className="flex-1" />
+        {addedItems.size > 0 && (
+          <button
+            type="button"
+            onClick={onToggleAddedList}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              showingAddedList
+                ? "bg-primary text-primary-foreground"
+                : "bg-primary/10 text-primary hover:bg-primary/20",
+            )}
+          >
+            {totalAdded} {totalAdded === 1 ? "card" : "cards"} added
+          </button>
+        )}
         <Button
           size="sm"
           onClick={() =>
@@ -158,6 +184,7 @@ export function AddToCollectionFlow({
               collectionId={collectionId}
               acquisitionSourceId={acquisitionSourceId || undefined}
               onDone={() => setPopoverCard(null)}
+              onAdded={onAdded}
             />
           </div>,
           document.body,
