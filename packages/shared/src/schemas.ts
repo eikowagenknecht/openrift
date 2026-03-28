@@ -169,9 +169,13 @@ export const createTradeListItemSchema = z.object({
 
 const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
+const foilEffectEnum = z.enum(["none", "static", "animated"]);
+
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().optional(),
-  richEffects: z.boolean().optional(),
+  fancyFan: z.boolean().optional(),
+  foilEffect: foilEffectEnum.optional(),
+  cardTilt: z.boolean().optional(),
   visibleFields: z
     .object({
       number: z.boolean().optional(),

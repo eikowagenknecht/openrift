@@ -13,7 +13,9 @@ export type PartialPreferences = {
 
 export const PREFERENCES_DEFAULTS: UserPreferencesResponse = {
   showImages: true,
-  richEffects: true,
+  fancyFan: true,
+  foilEffect: "animated",
+  cardTilt: true,
   visibleFields: { number: true, title: true, type: true, rarity: true, price: true },
   theme: "light",
   marketplaceOrder: [...ALL_MARKETPLACES],

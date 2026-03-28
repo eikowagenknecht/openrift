@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { FoilEffect, Marketplace } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -10,8 +10,12 @@ import { sanitizePreferences } from "@/lib/sanitize-preferences";
 interface DisplayState {
   showImages: boolean;
   setShowImages: (value: boolean) => void;
-  richEffects: boolean;
-  setRichEffects: (value: boolean) => void;
+  fancyFan: boolean;
+  setFancyFan: (value: boolean) => void;
+  foilEffect: FoilEffect;
+  setFoilEffect: (value: FoilEffect) => void;
+  cardTilt: boolean;
+  setCardTilt: (value: boolean) => void;
   visibleFields: VisibleFields;
   setVisibleFields: (value: VisibleFields | ((prev: VisibleFields) => VisibleFields)) => void;
   marketplaceOrder: Marketplace[];
@@ -32,11 +36,15 @@ export const useDisplayStore = create<DisplayState>()(
     (set) => ({
       // User preferences (localStorage + synced to DB for logged-in users)
       showImages: true,
-      richEffects: true,
+      fancyFan: true,
+      foilEffect: "animated" as FoilEffect,
+      cardTilt: true,
       visibleFields: DEFAULT_VISIBLE_FIELDS,
       marketplaceOrder: [...ALL_MARKETPLACES],
       setShowImages: (value) => set({ showImages: value }),
-      setRichEffects: (value) => set({ richEffects: value }),
+      setFancyFan: (value) => set({ fancyFan: value }),
+      setFoilEffect: (value) => set({ foilEffect: value }),
+      setCardTilt: (value) => set({ cardTilt: value }),
       setVisibleFields: (value) =>
         set((state) => ({
           visibleFields: typeof value === "function" ? value(state.visibleFields) : value,
@@ -62,7 +70,9 @@ export const useDisplayStore = create<DisplayState>()(
       name: "user-preferences",
       partialize: (state) => ({
         showImages: state.showImages,
-        richEffects: state.richEffects,
+        fancyFan: state.fancyFan,
+        foilEffect: state.foilEffect,
+        cardTilt: state.cardTilt,
         visibleFields: state.visibleFields,
         marketplaceOrder: state.marketplaceOrder,
         maxColumns: state.maxColumns,
@@ -75,7 +85,9 @@ export const useDisplayStore = create<DisplayState>()(
         return {
           ...current,
           showImages: safe.showImages,
-          richEffects: safe.richEffects,
+          fancyFan: safe.fancyFan,
+          foilEffect: safe.foilEffect,
+          cardTilt: safe.cardTilt,
           visibleFields: safe.visibleFields,
           marketplaceOrder: safe.marketplaceOrder,
           maxColumns: safe.maxColumns ?? current.maxColumns,

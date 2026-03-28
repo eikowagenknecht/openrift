@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { FoilEffect, Marketplace } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 import { ArrowDown, ArrowUp, Moon, Sun } from "lucide-react";
 
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
@@ -32,8 +33,12 @@ const MARKETPLACE_CURRENCY: Record<Marketplace, string> = {
 export function PreferencesSection() {
   const showImages = useDisplayStore((s) => s.showImages);
   const setShowImages = useDisplayStore((s) => s.setShowImages);
-  const richEffects = useDisplayStore((s) => s.richEffects);
-  const setRichEffects = useDisplayStore((s) => s.setRichEffects);
+  const fancyFan = useDisplayStore((s) => s.fancyFan);
+  const setFancyFan = useDisplayStore((s) => s.setFancyFan);
+  const foilEffect = useDisplayStore((s) => s.foilEffect);
+  const setFoilEffect = useDisplayStore((s) => s.setFoilEffect);
+  const cardTilt = useDisplayStore((s) => s.cardTilt);
+  const setCardTilt = useDisplayStore((s) => s.setCardTilt);
   const visibleFields = useDisplayStore((s) => s.visibleFields);
   const setVisibleFields = useDisplayStore((s) => s.setVisibleFields);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
@@ -90,11 +95,25 @@ export function PreferencesSection() {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="pref-effects">Rich effects</Label>
+          <Label htmlFor="pref-fan">Fancy card fan</Label>
           <Switch
-            id="pref-effects"
-            checked={richEffects}
-            onCheckedChange={(checked: boolean) => setRichEffects(checked)}
+            id="pref-fan"
+            checked={fancyFan}
+            onCheckedChange={(checked: boolean) => setFancyFan(checked)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <Label>Foil effect</Label>
+          <FoilEffectPicker value={foilEffect} onChange={setFoilEffect} />
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="pref-tilt">Card tilt on hover</Label>
+          <Switch
+            id="pref-tilt"
+            checked={cardTilt}
+            onCheckedChange={(checked: boolean) => setCardTilt(checked)}
           />
         </div>
 
@@ -188,5 +207,39 @@ export function PreferencesSection() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+const FOIL_OPTIONS: { value: FoilEffect; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "static", label: "Static" },
+  { value: "animated", label: "Animated" },
+];
+
+function FoilEffectPicker({
+  value,
+  onChange,
+}: {
+  value: FoilEffect;
+  onChange: (value: FoilEffect) => void;
+}) {
+  return (
+    <div className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5">
+      {FOIL_OPTIONS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={cn(
+            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",
+            value === option.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }

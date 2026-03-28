@@ -343,7 +343,9 @@ export const deckCardsResponseSchema = z
 export const userPreferencesResponseSchema = z
   .object({
     showImages: z.boolean(),
-    richEffects: z.boolean(),
+    fancyFan: z.boolean(),
+    foilEffect: z.enum(["none", "static", "animated"]),
+    cardTilt: z.boolean(),
     visibleFields: z.object({
       number: z.boolean(),
       title: z.boolean(),

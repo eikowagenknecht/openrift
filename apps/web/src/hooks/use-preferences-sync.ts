@@ -13,9 +13,10 @@ import { useThemeStore } from "@/stores/theme-store";
  * @returns Snapshot of preferences to persist server-side.
  */
 function getPrefsSnapshot(): UserPreferencesResponse {
-  const { showImages, richEffects, visibleFields, marketplaceOrder } = useDisplayStore.getState();
+  const { showImages, fancyFan, foilEffect, cardTilt, visibleFields, marketplaceOrder } =
+    useDisplayStore.getState();
   const { theme } = useThemeStore.getState();
-  return { showImages, richEffects, visibleFields, theme, marketplaceOrder };
+  return { showImages, fancyFan, foilEffect, cardTilt, visibleFields, theme, marketplaceOrder };
 }
 
 /**
@@ -55,7 +56,9 @@ export function usePreferencesSync(enabled: boolean) {
 
     useDisplayStore.setState({
       showImages: safe.showImages,
-      richEffects: safe.richEffects,
+      fancyFan: safe.fancyFan,
+      foilEffect: safe.foilEffect,
+      cardTilt: safe.cardTilt,
       visibleFields: safe.visibleFields,
       marketplaceOrder: safe.marketplaceOrder,
     });

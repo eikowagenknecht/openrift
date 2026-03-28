@@ -96,6 +96,7 @@ export type {
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
+  FoilEffect,
   UserPreferencesResponse,
   WishListDetailResponse,
   WishListItemResponse,

@@ -12,7 +12,6 @@ export function CardImage({
   orientation,
   showImages,
   showFoil,
-  tiltActive,
   showShimmer,
 }: {
   innerRef: React.RefCallback<HTMLElement>;
@@ -20,7 +19,6 @@ export function CardImage({
   orientation: "portrait" | "landscape";
   showImages?: boolean;
   showFoil: boolean;
-  tiltActive: boolean;
   showShimmer: boolean;
 }) {
   const { card } = printing;
@@ -89,7 +87,7 @@ export function CardImage({
           flavorText={printing.flavorText}
         />
       )}
-      {showFoil && <FoilOverlay active={tiltActive} shimmer={showShimmer} />}
+      {showFoil && <FoilOverlay active shimmer={showShimmer} />}
     </div>
   );
 }

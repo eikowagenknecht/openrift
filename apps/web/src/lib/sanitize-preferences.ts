@@ -1,14 +1,17 @@
-import type { Marketplace } from "@openrift/shared";
+import type { FoilEffect, Marketplace } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 
 import type { VisibleFields } from "@/lib/card-fields";
 import { DEFAULT_VISIBLE_FIELDS } from "@/lib/card-fields";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
+const VALID_FOIL_EFFECTS = new Set<string>(["none", "static", "animated"]);
 
 interface SanitizedPreferences {
   showImages: boolean;
-  richEffects: boolean;
+  fancyFan: boolean;
+  foilEffect: FoilEffect;
+  cardTilt: boolean;
   visibleFields: VisibleFields;
   marketplaceOrder: Marketplace[];
   theme?: "light" | "dark";
@@ -27,7 +30,18 @@ export function sanitizePreferences(data: unknown): SanitizedPreferences | null 
   const record = data as Record<string, unknown>;
 
   const showImages = typeof record.showImages === "boolean" ? record.showImages : true;
-  const richEffects = typeof record.richEffects === "boolean" ? record.richEffects : true;
+
+  // Migrate legacy `richEffects` boolean → new granular settings
+  const legacyRich = typeof record.richEffects === "boolean" ? record.richEffects : undefined;
+
+  const fancyFan = typeof record.fancyFan === "boolean" ? record.fancyFan : (legacyRich ?? true);
+  const foilEffect: FoilEffect =
+    typeof record.foilEffect === "string" && VALID_FOIL_EFFECTS.has(record.foilEffect)
+      ? (record.foilEffect as FoilEffect)
+      : legacyRich === false
+        ? "none"
+        : "animated";
+  const cardTilt = typeof record.cardTilt === "boolean" ? record.cardTilt : (legacyRich ?? true);
 
   const theme = record.theme === "light" || record.theme === "dark" ? record.theme : undefined;
 
@@ -54,7 +68,9 @@ export function sanitizePreferences(data: unknown): SanitizedPreferences | null 
 
   const result: SanitizedPreferences = {
     showImages,
-    richEffects,
+    fancyFan,
+    foilEffect,
+    cardTilt,
     visibleFields,
     marketplaceOrder: safeOrder.length > 0 ? safeOrder : [...ALL_MARKETPLACES],
   };

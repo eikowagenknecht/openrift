@@ -42,8 +42,7 @@ function CardImageContent({
   onImgLoad,
   rotated,
   card,
-  isFoilCard,
-  tiltActive,
+  showFoil,
 }: {
   thumbnailUrl: string | null;
   srcSet: string | undefined;
@@ -67,8 +66,7 @@ function CardImageContent({
     mightBonus?: number | null;
     flavorText?: string | null;
   };
-  isFoilCard: boolean;
-  tiltActive: boolean;
+  showFoil: boolean;
 }) {
   return (
     <>
@@ -126,7 +124,7 @@ function CardImageContent({
           flavorText={card.flavorText}
         />
       )}
-      {isFoilCard && <FoilOverlay active={tiltActive} />}
+      {showFoil && <FoilOverlay active />}
     </>
   );
 }
@@ -187,16 +185,19 @@ export const CardThumbnail = memo(function CardThumbnail({
   const rotated = needsCssRotation(orientation);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  const richEffects = useDisplayStore((s) => s.richEffects);
+  const fancyFan = useDisplayStore((s) => s.fancyFan);
+  const foilEffect = useDisplayStore((s) => s.foilEffect);
+  const cardTilt = useDisplayStore((s) => s.cardTilt);
+  const gridFoil = foilEffect !== "none";
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
   const favoritePrice = resolvePrice(printing, favoriteMarketplace);
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === ("foil" satisfies Finish);
-  const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
+  const tilt = useCardTilt({ mode: "pointer", enabled: cardTilt && !IS_COARSE_POINTER });
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
-  const fanAngle = richEffects ? 8 : 1.5;
+  const fanAngle = fancyFan ? 8 : 1.5;
   const [fanReady, setFanReady] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -212,7 +213,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         const depth = otherPrintings.length - i;
         const siblingImageUrl = sibling.images[0]?.url ?? null;
         const siblingUrl =
-          richEffects && showImages && siblingImageUrl
+          fancyFan && showImages && siblingImageUrl
             ? getCardImageUrl(siblingImageUrl, "thumbnail")
             : null;
         return (
@@ -221,8 +222,8 @@ export const CardThumbnail = memo(function CardThumbnail({
             key={sibling.id}
             className={cn(
               "bg-muted pointer-events-none absolute inset-0 origin-bottom overflow-hidden border border-[var(--border-opaque)]",
-              richEffects && "hover:ring-primary/60 hover:ring-2",
-              richEffects && fanReady && "pointer-events-auto cursor-pointer",
+              "hover:ring-primary/60 hover:ring-2",
+              fanReady && "pointer-events-auto cursor-pointer",
             )}
             style={{
               borderRadius: CARD_BORDER_RADIUS,
@@ -230,14 +231,10 @@ export const CardThumbnail = memo(function CardThumbnail({
               rotate: `calc(var(--fan, 0) * ${depth * fanAngle}deg)`,
               transition: "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out",
             }}
-            onClick={
-              richEffects
-                ? (e) => {
-                    e.stopPropagation();
-                    (onSiblingClick ?? onClick)(sibling);
-                  }
-                : undefined
-            }
+            onClick={(e) => {
+              e.stopPropagation();
+              (onSiblingClick ?? onClick)(sibling);
+            }}
           >
             {siblingUrl &&
               (rotated ? (
@@ -250,9 +247,7 @@ export const CardThumbnail = memo(function CardThumbnail({
               ) : (
                 <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
               ))}
-            {sibling.finish === ("foil" satisfies Finish) && (
-              <FoilOverlay active shimmer dim paused />
-            )}
+            {sibling.finish === ("foil" satisfies Finish) && gridFoil && <FoilOverlay active dim />}
           </div>
         );
       })}
@@ -261,7 +256,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
             <div
               ref={tilt.innerRef}
-              className={cn(AFTER_BORDER, richEffects && "hover:ring-primary/60 hover:ring-2")}
+              className={cn(AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
               style={{ borderRadius: "inherit", ...TILT_STYLE }}
             >
               <CardImageContent
@@ -274,8 +269,7 @@ export const CardThumbnail = memo(function CardThumbnail({
                 onImgLoad={() => setImgLoaded(true)}
                 rotated
                 card={card}
-                isFoilCard={isFoilCard}
-                tiltActive={tilt.active}
+                showFoil={isFoilCard && gridFoil}
               />
             </div>
           </div>
@@ -285,7 +279,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             className={cn(
               "relative overflow-hidden",
               AFTER_BORDER,
-              richEffects && "hover:ring-primary/60 hover:ring-2",
+              "hover:ring-primary/60 hover:ring-2",
             )}
             style={{ borderRadius: CARD_BORDER_RADIUS, ...TILT_STYLE }}
           >
@@ -299,8 +293,7 @@ export const CardThumbnail = memo(function CardThumbnail({
               onImgLoad={() => setImgLoaded(true)}
               rotated={false}
               card={card}
-              isFoilCard={isFoilCard}
-              tiltActive={tilt.active}
+              showFoil={isFoilCard && gridFoil}
             />
           </div>
         )}

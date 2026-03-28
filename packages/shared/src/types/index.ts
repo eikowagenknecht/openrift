@@ -84,6 +84,7 @@ export type {
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
+  FoilEffect,
   UserPreferencesResponse,
 } from "./api/index.js";
 

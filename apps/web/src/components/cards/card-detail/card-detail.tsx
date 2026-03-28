@@ -12,6 +12,7 @@ import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 
 import { CardDetailHeading } from "./card-detail-heading";
 import { CardFooter } from "./card-footer";
@@ -76,16 +77,27 @@ export function CardDetail({
     },
   );
 
+  const foilEffect = useDisplayStore((s) => s.foilEffect);
+  const cardTilt = useDisplayStore((s) => s.cardTilt);
+
   const gyro = useFoilGyroscope();
 
-  const foilMode = IS_COARSE_POINTER
+  const tiltMode = IS_COARSE_POINTER
     ? gyro.available && gyro.permissionState === "granted"
       ? ("gyro" as const)
       : ("none" as const)
     : ("pointer" as const);
 
-  const tilt = useCardTilt({ mode: foilMode, enabled: !IS_COARSE_POINTER || isFoil, gyro });
-  const showShimmer = IS_COARSE_POINTER && foilMode === "none";
+  const tilt = useCardTilt({
+    mode: tiltMode,
+    enabled: cardTilt && (!IS_COARSE_POINTER || isFoil),
+    gyro,
+  });
+
+  const showFoil = isFoil && foilEffect !== "none";
+  // Animated foil: static at rest, tilt-reactive on hover; shimmers when tilt unavailable.
+  const showShimmer =
+    foilEffect === "animated" && (!cardTilt || (IS_COARSE_POINTER && tiltMode === "none"));
 
   return (
     <div
@@ -124,8 +136,7 @@ export function CardDetail({
               printing={printing}
               orientation={orientation}
               showImages={showImages}
-              showFoil={isFoil}
-              tiltActive={tilt.active}
+              showFoil={showFoil}
               showShimmer={showShimmer}
             />
           </div>
