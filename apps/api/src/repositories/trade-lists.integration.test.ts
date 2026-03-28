@@ -58,7 +58,7 @@ describe.skipIf(!ctx)("tradeListsRepo (integration)", () => {
   it("creates a trade list", async () => {
     const list = await repo.create({ userId, name: "Haves", rules: null });
 
-    expect(list.id).toBeString();
+    expect(list.id).toBeTypeOf("string");
     expect(list.userId).toBe(userId);
     expect(list.name).toBe("Haves");
     expect(list.rules).toBeNull();
@@ -168,8 +168,8 @@ describe.skipIf(!ctx)("tradeListsRepo (integration)", () => {
       .executeTakeFirstOrThrow();
     copyId2 = copy2.id;
 
-    expect(copyId1).toBeString();
-    expect(copyId2).toBeString();
+    expect(copyId1).toBeTypeOf("string");
+    expect(copyId2).toBeTypeOf("string");
   });
 
   it("creates a trade list item", async () => {
@@ -179,7 +179,7 @@ describe.skipIf(!ctx)("tradeListsRepo (integration)", () => {
       copyId: copyId1,
     });
 
-    expect(item.id).toBeString();
+    expect(item.id).toBeTypeOf("string");
     expect(item.tradeListId).toBe(tradeListId);
     expect(item.copyId).toBe(copyId1);
     tradeListItemId = item.id;
@@ -194,8 +194,8 @@ describe.skipIf(!ctx)("tradeListsRepo (integration)", () => {
     expect(items[0].id).toBe(tradeListItemId);
     expect(items[0].copyId).toBe(copyId1);
     expect(items[0].printingId).toBe(PRINTING_1.id);
-    expect(items[0].cardName).toBeString();
-    expect(items[0].cardType).toBeString();
+    expect(items[0].cardName).toBeTypeOf("string");
+    expect(items[0].cardType).toBeTypeOf("string");
     expect(items[0].rarity).toBe("Epic");
     expect(items[0].finish).toBe("normal");
   });

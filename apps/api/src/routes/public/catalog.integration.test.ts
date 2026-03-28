@@ -28,7 +28,7 @@ if (ctx) {
     .values({
       printingId: SEED_PRINTING_ID,
       face: "front",
-      source: "cat-test",
+      provider: "cat-test",
       originalUrl: "https://example.com/cat-test-front.png",
       rehostedUrl: null,
       isActive: true,
