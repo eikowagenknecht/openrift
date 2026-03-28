@@ -273,4 +273,161 @@ describe("GET /api/v1/collections/:id/copies", () => {
     const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(404);
   });
+
+  it("returns nextCursor when hasMore copies", async () => {
+    mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
+    const items = Array.from({ length: 201 }, (_, idx) => ({
+      ...dbCopy,
+      id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
+      createdAt: new Date(now.getTime() - idx * 1000),
+    }));
+    mockCopiesRepo.listForCollection.mockResolvedValue(items);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.items).toHaveLength(200);
+    expect(json.nextCursor).toBeTruthy();
+  });
+
+  it("passes cursor and limit query params", async () => {
+    mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
+    mockCopiesRepo.listForCollection.mockResolvedValue([]);
+    await app.request(
+      `/api/v1/collections/${dbCollection.id}/copies?limit=10&cursor=2026-03-17T00:00:00.000Z`,
+    );
+    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(
+      dbCollection.id,
+      10,
+      "2026-03-17T00:00:00.000Z",
+    );
+  });
+
+  it("defaults limit to 200 when not provided", async () => {
+    mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
+    mockCopiesRepo.listForCollection.mockResolvedValue([]);
+    await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
+    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(dbCollection.id, 200, undefined);
+  });
+
+  it("returns null nextCursor when items exactly equal limit", async () => {
+    mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
+    const items = Array.from({ length: 200 }, (_, idx) => ({
+      ...dbCopy,
+      id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
+      createdAt: new Date(now.getTime() - idx * 1000),
+    }));
+    mockCopiesRepo.listForCollection.mockResolvedValue(items);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
+    const json = await res.json();
+    expect(json.items).toHaveLength(200);
+    expect(json.nextCursor).toBeNull();
+  });
+});
+
+describe("POST /api/v1/collections — argument passing", () => {
+  beforeEach(() => {
+    mockCollectionsRepo.create.mockReset();
+  });
+
+  it("passes correct defaults to repo.create", async () => {
+    mockCollectionsRepo.create.mockResolvedValue(dbCollection);
+    await app.request("/api/v1/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "New Collection" }),
+    });
+    expect(mockCollectionsRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "New Collection",
+      description: null,
+      availableForDeckbuilding: true,
+      isInbox: false,
+      sortOrder: 0,
+    });
+  });
+
+  it("passes explicit description and availableForDeckbuilding", async () => {
+    mockCollectionsRepo.create.mockResolvedValue(dbCollection);
+    await app.request("/api/v1/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Trade Binder",
+        description: "Cards for trade",
+        availableForDeckbuilding: false,
+      }),
+    });
+    expect(mockCollectionsRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "Trade Binder",
+      description: "Cards for trade",
+      availableForDeckbuilding: false,
+      isInbox: false,
+      sortOrder: 0,
+    });
+  });
+});
+
+describe("DELETE /api/v1/collections/:id — argument details", () => {
+  beforeEach(() => {
+    mockCollectionsRepo.getByIdForUser.mockReset();
+    mockDeleteCollection.mockReset();
+    mockEnsureInbox.mockReset();
+    mockEnsureInbox.mockResolvedValue("inbox-id");
+  });
+
+  it("passes collectionName from the fetched collection", async () => {
+    mockCollectionsRepo.getByIdForUser.mockResolvedValue(dbCollection);
+    await app.request(`/api/v1/collections/${dbCollection.id}`, { method: "DELETE" });
+    expect(mockDeleteCollection).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        collectionName: "Main Binder",
+      }),
+    );
+  });
+});
+
+describe("PATCH /api/v1/collections/:id — field updates", () => {
+  beforeEach(() => {
+    mockCollectionsRepo.update.mockReset();
+  });
+
+  it("updates sortOrder field", async () => {
+    const updated = { ...dbCollection, sortOrder: 5 };
+    mockCollectionsRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sortOrder: 5 }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockCollectionsRepo.update).toHaveBeenCalledWith(dbCollection.id, USER_ID, {
+      sortOrder: 5,
+    });
+  });
+
+  it("updates availableForDeckbuilding field", async () => {
+    const updated = { ...dbCollection, availableForDeckbuilding: false };
+    mockCollectionsRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ availableForDeckbuilding: false }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("updates description field", async () => {
+    const updated = { ...dbCollection, description: "Updated description" };
+    mockCollectionsRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: "Updated description" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.description).toBe("Updated description");
+  });
 });

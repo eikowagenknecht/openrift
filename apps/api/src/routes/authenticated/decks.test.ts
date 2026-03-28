@@ -349,4 +349,199 @@ describe("GET /api/v1/decks/:id/availability", () => {
     expect(json.items[0].owned).toBe(0);
     expect(json.items[0].shortfall).toBe(3);
   });
+
+  it("skips availableCopiesByCard when deck has no cards", async () => {
+    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
+    mockRepo.cardRequirements.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.items).toEqual([]);
+    expect(mockRepo.availableCopiesByCard).not.toHaveBeenCalled();
+  });
+
+  it("returns availability for multiple cards with mixed ownership", async () => {
+    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
+    mockRepo.cardRequirements.mockResolvedValue([
+      { cardId: "OGS-001", zone: "main", quantity: 4 },
+      { cardId: "OGS-002", zone: "sideboard", quantity: 2 },
+    ]);
+    mockRepo.availableCopiesByCard.mockResolvedValue([{ cardId: "OGS-001", count: 3 }]);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
+    const json = await res.json();
+    expect(json.items).toHaveLength(2);
+    expect(json.items[0]).toEqual({
+      cardId: "OGS-001",
+      zone: "main",
+      needed: 4,
+      owned: 3,
+      shortfall: 1,
+    });
+    expect(json.items[1]).toEqual({
+      cardId: "OGS-002",
+      zone: "sideboard",
+      needed: 2,
+      owned: 0,
+      shortfall: 2,
+    });
+  });
+});
+
+describe("GET /api/v1/decks — wanted filter false", () => {
+  beforeEach(() => {
+    mockRepo.listForUser.mockReset();
+  });
+
+  it("passes wanted=false when query is not 'true'", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    await app.request("/api/v1/decks?wanted=false");
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, false);
+  });
+
+  it("passes wanted=false when query param absent", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    await app.request("/api/v1/decks");
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, false);
+  });
+});
+
+describe("POST /api/v1/decks — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.create.mockReset();
+  });
+
+  it("passes defaults for optional fields", async () => {
+    mockRepo.create.mockResolvedValue(dbDeck);
+    await app.request("/api/v1/decks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Simple", format: "freeform" }),
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "Simple",
+      description: null,
+      format: "freeform",
+      isWanted: false,
+      isPublic: false,
+    });
+  });
+});
+
+describe("PATCH /api/v1/decks/:id — field updates", () => {
+  beforeEach(() => {
+    mockRepo.update.mockReset();
+  });
+
+  it("updates format field", async () => {
+    const updated = { ...dbDeck, format: "freeform" };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ format: "freeform" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.format).toBe("freeform");
+  });
+
+  it("updates isWanted field", async () => {
+    const updated = { ...dbDeck, isWanted: true };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isWanted: true }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.isWanted).toBe(true);
+  });
+
+  it("updates isPublic field", async () => {
+    const updated = { ...dbDeck, isPublic: true };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isPublic: true }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.isPublic).toBe(true);
+  });
+
+  it("updates description field", async () => {
+    const updated = { ...dbDeck, description: "Aggro build" };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: "Aggro build" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.description).toBe("Aggro build");
+  });
+});
+
+describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
+  beforeEach(() => {
+    mockRepo.getIdAndFormat.mockReset();
+    mockRepo.replaceCards.mockReset();
+    mockRepo.cardsWithDetails.mockReset();
+  });
+
+  it("returns the replaced cards from cardsWithDetails", async () => {
+    mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
+    mockRepo.replaceCards.mockResolvedValue(undefined);
+    mockRepo.cardsWithDetails.mockResolvedValue([dbDeckCard]);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cards: [{ cardId: "OGS-001", zone: "main", quantity: 4 }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.cards).toHaveLength(1);
+    expect(json.cards[0].cardId).toBe("OGS-001");
+    expect(json.cards[0].quantity).toBe(4);
+    expect(json.cards[0].domains).toEqual(["Fury"]);
+  });
+
+  it("calls replaceCards with the card data", async () => {
+    mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
+    mockRepo.replaceCards.mockResolvedValue(undefined);
+    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    const cards = [
+      { cardId: "OGS-001", zone: "main", quantity: 4 },
+      { cardId: "OGS-002", zone: "sideboard", quantity: 2 },
+    ];
+    await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cards }),
+    });
+    expect(mockRepo.replaceCards).toHaveBeenCalledWith(DECK_ID, cards);
+  });
+});
+
+describe("GET /api/v1/decks/:id — card details", () => {
+  beforeEach(() => {
+    mockRepo.getByIdForUser.mockReset();
+    mockRepo.cardsWithDetails.mockReset();
+  });
+
+  it("returns empty cards array when deck has no cards", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbDeck);
+    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.deck.id).toBe(DECK_ID);
+    expect(json.cards).toEqual([]);
+  });
 });

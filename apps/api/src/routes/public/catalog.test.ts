@@ -318,4 +318,81 @@ describe("GET /api/v1/catalog", () => {
     });
     expect(res.status).toBe(200);
   });
+
+  it("includes non-tcgplayer prices in marketPrices without setting marketPrice", async () => {
+    seedDefaults({
+      prices: [{ printingId: "OGS-001:rare:normal:", marketplace: "cardmarket", marketCents: 350 }],
+    });
+    const res = await app.request("/api/v1/catalog");
+    const json = await res.json();
+    // Only cardmarket — no tcgplayer, so marketPrice should be undefined
+    expect(json.printings[0].marketPrice).toBeUndefined();
+    expect(json.printings[0].marketPrices).toEqual({ cardmarket: 3.5 });
+  });
+
+  it("groups prices by printing ID across multiple printings", async () => {
+    const secondRow = {
+      ...dbPrintingRow,
+      id: "OGS-002:rare:normal:",
+      slug: "OGS-002:rare:normal:",
+      cardId: "OGS-001",
+      shortCode: "OGS-002",
+    };
+    seedDefaults({
+      printings: [dbPrintingRow, secondRow],
+      printingImages: [],
+      prices: [
+        { printingId: "OGS-001:rare:normal:", marketplace: "tcgplayer", marketCents: 100 },
+        { printingId: "OGS-002:rare:normal:", marketplace: "tcgplayer", marketCents: 500 },
+      ],
+    });
+    const res = await app.request("/api/v1/catalog");
+    const json = await res.json();
+    expect(json.printings[0].marketPrice).toBe(1);
+    expect(json.printings[1].marketPrice).toBe(5);
+  });
+
+  it("returns multiple images for a single printing", async () => {
+    seedDefaults({
+      printingImages: [
+        { printingId: "OGS-001:rare:normal:", face: "front", url: "https://example.com/front.jpg" },
+        { printingId: "OGS-001:rare:normal:", face: "back", url: "https://example.com/back.jpg" },
+      ],
+    });
+    const res = await app.request("/api/v1/catalog");
+    const json = await res.json();
+    expect(json.printings[0].images).toHaveLength(2);
+    expect(json.printings[0].images[0]).toEqual({
+      face: "front",
+      url: "https://example.com/front.jpg",
+    });
+    expect(json.printings[0].images[1]).toEqual({
+      face: "back",
+      url: "https://example.com/back.jpg",
+    });
+  });
+
+  it("handles printing with no images and no prices", async () => {
+    seedDefaults({
+      printingImages: [],
+      prices: [],
+    });
+    const res = await app.request("/api/v1/catalog");
+    const json = await res.json();
+    expect(json.printings[0].images).toEqual([]);
+    expect(json.printings[0].marketPrice).toBeUndefined();
+    expect(json.printings[0].marketPrices).toBeUndefined();
+  });
+
+  it("handles cardtrader marketplace prices", async () => {
+    seedDefaults({
+      prices: [
+        dbPrice,
+        { printingId: "OGS-001:rare:normal:", marketplace: "cardtrader", marketCents: 200 },
+      ],
+    });
+    const res = await app.request("/api/v1/catalog");
+    const json = await res.json();
+    expect(json.printings[0].marketPrices).toEqual({ tcgplayer: 2.75, cardtrader: 2 });
+  });
 });

@@ -129,4 +129,86 @@ describe("GET /api/v1/activities/:id", () => {
     const res = await app.request(`/api/v1/activities/${dbActivity.id}`);
     expect(res.status).toBe(404);
   });
+
+  it("returns activity with multiple items", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbActivity);
+    const secondItem = {
+      ...dbActivityItem,
+      id: "a0000000-0001-4000-a000-000000000031",
+      action: "moved",
+      fromCollectionId: "a0000000-0001-4000-a000-000000000060",
+      fromCollectionName: "Binder A",
+    };
+    mockRepo.itemsWithDetails.mockResolvedValue([dbActivityItem, secondItem]);
+    const res = await app.request(`/api/v1/activities/${dbActivity.id}`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.items).toHaveLength(2);
+    expect(json.items[0].action).toBe("added");
+    expect(json.items[1].action).toBe("moved");
+    expect(json.items[1].fromCollectionName).toBe("Binder A");
+  });
+
+  it("returns empty items array when activity has no items", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbActivity);
+    mockRepo.itemsWithDetails.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/activities/${dbActivity.id}`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.items).toEqual([]);
+  });
+});
+
+describe("GET /api/v1/activities — query parameters", () => {
+  beforeEach(() => {
+    mockRepo.listForUser.mockReset();
+  });
+
+  it("passes cursor and limit to repo", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    await app.request("/api/v1/activities?limit=25&cursor=2026-03-17T00:00:00.000Z");
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 25, "2026-03-17T00:00:00.000Z");
+  });
+
+  it("defaults limit to 50 when not provided", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    await app.request("/api/v1/activities");
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 50, undefined);
+  });
+
+  it("returns empty items when no activities exist", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    const res = await app.request("/api/v1/activities");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.items).toEqual([]);
+    expect(json.nextCursor).toBeNull();
+  });
+
+  it("returns null nextCursor when items exactly equal limit", async () => {
+    const items = Array.from({ length: 50 }, (_, idx) => ({
+      ...dbActivity,
+      id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
+      createdAt: new Date(now.getTime() - idx * 60_000),
+    }));
+    mockRepo.listForUser.mockResolvedValue(items);
+    const res = await app.request("/api/v1/activities");
+    const json = await res.json();
+    expect(json.items).toHaveLength(50);
+    expect(json.nextCursor).toBeNull();
+  });
+
+  it("maps all activity fields correctly", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbActivity]);
+    const res = await app.request("/api/v1/activities");
+    const json = await res.json();
+    const item = json.items[0];
+    expect(item.id).toBe(dbActivity.id);
+    expect(item.type).toBe("acquisition");
+    expect(item.name).toBe("Added 3 cards");
+    expect(item.description).toBeNull();
+    expect(item.isAuto).toBe(true);
+    expect(item.createdAt).toBe(now.toISOString());
+    expect(item.updatedAt).toBe(now.toISOString());
+  });
 });
