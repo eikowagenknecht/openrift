@@ -1,0 +1,125 @@
+import { afterAll, describe, expect, it } from "vitest";
+
+import { createDbContext } from "../test/integration-context.js";
+import { ignoredCandidatesRepo } from "./ignored-candidates.js";
+
+const ctx = createDbContext("a0000000-0039-4000-a000-000000000001");
+
+describe.skipIf(!ctx)("ignoredCandidatesRepo (integration)", () => {
+  const { db } = ctx!;
+  const repo = ignoredCandidatesRepo(db);
+
+  afterAll(async () => {
+    await db
+      .deleteFrom("ignoredCandidateCards")
+      .where("provider", "like", "test-prov-39%")
+      .execute();
+    await db
+      .deleteFrom("ignoredCandidatePrintings")
+      .where("provider", "like", "test-prov-39%")
+      .execute();
+  });
+
+  // ── Candidate cards ──────────────────────────────────────────────────────
+
+  it("ignoreCard inserts and getIgnoredCard retrieves it", async () => {
+    await repo.ignoreCard({ provider: "test-prov-39", externalId: "ext-card-1" });
+
+    const found = await repo.getIgnoredCard("test-prov-39", "ext-card-1");
+    expect(found).toBeDefined();
+    expect(found!.provider).toBe("test-prov-39");
+    expect(found!.externalId).toBe("ext-card-1");
+  });
+
+  it("ignoreCard is a no-op on conflict", async () => {
+    // Should not throw
+    await repo.ignoreCard({ provider: "test-prov-39", externalId: "ext-card-1" });
+  });
+
+  it("listIgnoredCards returns all ignored cards", async () => {
+    await repo.ignoreCard({ provider: "test-prov-39", externalId: "ext-card-2" });
+
+    const list = await repo.listIgnoredCards();
+    const ours = list.filter((c) => c.provider === "test-prov-39");
+    expect(ours.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("getIgnoredCard returns undefined for nonexistent entry", async () => {
+    const result = await repo.getIgnoredCard("test-prov-39", "nonexistent");
+    expect(result).toBeUndefined();
+  });
+
+  it("unignoreCard removes an ignored card", async () => {
+    const result = await repo.unignoreCard("test-prov-39", "ext-card-2");
+    expect(result.numDeletedRows).toBe(1n);
+
+    const found = await repo.getIgnoredCard("test-prov-39", "ext-card-2");
+    expect(found).toBeUndefined();
+  });
+
+  it("unignoreCard returns 0 for nonexistent entry", async () => {
+    const result = await repo.unignoreCard("test-prov-39", "nonexistent");
+    expect(result.numDeletedRows).toBe(0n);
+  });
+
+  // ── Candidate printings ──────────────────────────────────────────────────
+
+  it("ignorePrinting inserts and getIgnoredPrinting retrieves it", async () => {
+    await repo.ignorePrinting({
+      provider: "test-prov-39",
+      externalId: "ext-print-1",
+      finish: "foil",
+    });
+
+    const found = await repo.getIgnoredPrinting("test-prov-39", "ext-print-1");
+    expect(found).toBeDefined();
+    expect(found!.finish).toBe("foil");
+  });
+
+  it("ignorePrinting with null finish", async () => {
+    await repo.ignorePrinting({
+      provider: "test-prov-39",
+      externalId: "ext-print-2",
+      finish: null,
+    });
+
+    const found = await repo.getIgnoredPrinting("test-prov-39", "ext-print-2");
+    expect(found).toBeDefined();
+    expect(found!.finish).toBeNull();
+  });
+
+  it("ignorePrinting is a no-op on conflict", async () => {
+    await repo.ignorePrinting({
+      provider: "test-prov-39",
+      externalId: "ext-print-1",
+      finish: "foil",
+    });
+    // Should not throw
+  });
+
+  it("listIgnoredPrintings returns all ignored printings", async () => {
+    const list = await repo.listIgnoredPrintings();
+    const ours = list.filter((p) => p.provider === "test-prov-39");
+    expect(ours.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("getIgnoredPrinting returns undefined for nonexistent entry", async () => {
+    const result = await repo.getIgnoredPrinting("test-prov-39", "nonexistent");
+    expect(result).toBeUndefined();
+  });
+
+  it("unignorePrinting removes an ignored printing with specific finish", async () => {
+    const result = await repo.unignorePrinting("test-prov-39", "ext-print-1", "foil");
+    expect(result.numDeletedRows).toBe(1n);
+  });
+
+  it("unignorePrinting removes an ignored printing with null finish", async () => {
+    const result = await repo.unignorePrinting("test-prov-39", "ext-print-2", null);
+    expect(result.numDeletedRows).toBe(1n);
+  });
+
+  it("unignorePrinting returns 0 for nonexistent entry", async () => {
+    const result = await repo.unignorePrinting("test-prov-39", "nonexistent", null);
+    expect(result.numDeletedRows).toBe(0n);
+  });
+});

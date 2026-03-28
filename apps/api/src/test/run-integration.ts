@@ -69,6 +69,17 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0031-4000-a000-000000000001", email: "repo-0031@test.com", isAdmin: true },
   { id: "a0000000-0032-4000-a000-000000000001", email: "repo-0032@test.com", isAdmin: false },
   { id: "a0000000-0033-4000-a000-000000000001", email: "repo-0033@test.com", isAdmin: false },
+  // Batch 2 — repo coverage tests
+  { id: "a0000000-0034-4000-a000-000000000001", email: "repo-0034@test.com", isAdmin: false },
+  { id: "a0000000-0035-4000-a000-000000000001", email: "repo-0035@test.com", isAdmin: false },
+  { id: "a0000000-0036-4000-a000-000000000001", email: "repo-0036@test.com", isAdmin: false },
+  { id: "a0000000-0037-4000-a000-000000000001", email: "repo-0037@test.com", isAdmin: false },
+  { id: "a0000000-0038-4000-a000-000000000001", email: "repo-0038@test.com", isAdmin: false },
+  { id: "a0000000-0039-4000-a000-000000000001", email: "repo-0039@test.com", isAdmin: false },
+  { id: "a0000000-0040-4000-a000-000000000001", email: "repo-0040@test.com", isAdmin: false },
+  { id: "a0000000-0041-4000-a000-000000000001", email: "repo-0041@test.com", isAdmin: false },
+  { id: "a0000000-0042-4000-a000-000000000001", email: "repo-0042@test.com", isAdmin: false },
+  { id: "a0000000-0043-4000-a000-000000000001", email: "repo-0043@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -112,6 +123,17 @@ const PARALLEL_FILES = [
   "src/repositories/feature-flags.integration.test.ts",
   "src/repositories/trade-lists.integration.test.ts",
   "src/repositories/wish-lists.integration.test.ts",
+  // Batch 2 — repo coverage tests
+  "src/repositories/site-settings.integration.test.ts",
+  "src/repositories/provider-settings.integration.test.ts",
+  "src/repositories/promo-types.integration.test.ts",
+  "src/repositories/user-preferences.integration.test.ts",
+  "src/repositories/admins.integration.test.ts",
+  "src/repositories/ignored-candidates.integration.test.ts",
+  "src/repositories/health.integration.test.ts",
+  "src/repositories/catalog.integration.test.ts",
+  "src/repositories/sets.integration.test.ts",
+  "src/repositories/keyword-styles.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */
