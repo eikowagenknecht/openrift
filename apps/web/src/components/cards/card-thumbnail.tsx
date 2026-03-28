@@ -428,7 +428,7 @@ function AddStrip({
   onUndoAdd?: (printing: Printing) => void;
   onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
 }) {
-  const showCount = ownedCount > 0 || sessionAddedCount > 0;
+  const showCount = ownedCount > 0 || sessionAddedCount > 0 || hasVariants;
 
   return (
     // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
@@ -457,15 +457,30 @@ function AddStrip({
               e.stopPropagation();
               onOpenVariants(printing, e.currentTarget);
             }}
-            className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+            className={cn(
+              "hover:text-foreground text-xs font-medium transition-colors",
+              ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
+            )}
           >
             ×{ownedCount}
             {totalOwnedCount !== undefined && totalOwnedCount !== ownedCount && (
-              <span className="text-muted-foreground/60"> ({totalOwnedCount})</span>
+              <span
+                className={ownedCount > 0 ? "text-muted-foreground/60" : "text-muted-foreground/30"}
+              >
+                {" "}
+                ({totalOwnedCount})
+              </span>
             )}
           </button>
         ) : (
-          <span className="text-muted-foreground text-xs font-medium">×{ownedCount}</span>
+          <span
+            className={cn(
+              "text-xs font-medium",
+              ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
+            )}
+          >
+            ×{ownedCount}
+          </span>
         ))}
 
       <button

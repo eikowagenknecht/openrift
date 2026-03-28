@@ -43,7 +43,7 @@ export function AddToCollectionFlow({
   }));
 
   return (
-    <div className="border-primary/30 bg-primary/5 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2">
+    <div className="border-primary/30 bg-primary/5 mb-2 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2">
       <span className="text-sm font-medium">Adding to: {collectionName}</span>
       <div className="flex items-center gap-1.5">
         <span className="text-muted-foreground text-xs">Source:</span>

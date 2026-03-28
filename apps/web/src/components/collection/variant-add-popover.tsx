@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface VariantAddPopoverProps {
   printings: Printing[];
-  ownedCounts?: Map<string, number>;
+  ownedCounts?: Record<string, number>;
   addedItems: Map<string, AddedEntry>;
   onQuickAdd: (printing: Printing) => void;
   onUndoAdd: (printing: Printing) => void;
@@ -28,7 +28,7 @@ export function VariantAddPopover({
       onClick={(e) => e.stopPropagation()}
     >
       {printings.map((printing) => {
-        const owned = ownedCounts?.get(printing.id) ?? 0;
+        const owned = ownedCounts?.[printing.id] ?? 0;
         const sessionAdded = addedItems.get(printing.id)?.quantity ?? 0;
 
         return (
@@ -56,7 +56,10 @@ export function VariantAddPopover({
             <button
               type="button"
               tabIndex={-1}
-              onClick={() => onUndoAdd(printing)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUndoAdd(printing);
+              }}
               disabled={!sessionAdded}
               className={cn(
                 "flex size-5 shrink-0 items-center justify-center rounded transition-colors",
@@ -75,7 +78,10 @@ export function VariantAddPopover({
             <button
               type="button"
               tabIndex={-1}
-              onClick={() => onQuickAdd(printing)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onQuickAdd(printing);
+              }}
               className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 shrink-0 items-center justify-center rounded transition-colors"
             >
               <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">
