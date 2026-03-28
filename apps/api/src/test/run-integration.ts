@@ -157,6 +157,7 @@ const PARALLEL_FILES = [
   "src/repositories/printing-images.integration.test.ts",
   "src/repositories/price-refresh.integration.test.ts",
   "src/repositories/marketplace-transfer.integration.test.ts",
+  "src/repositories/candidate-cards.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */
