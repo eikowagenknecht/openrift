@@ -531,6 +531,15 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(404);
     });
+
+    it("returns 400 for empty printingId", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/candidate-printings/${psId}/copy`, {
+          printingId: "",
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
   });
 
   // ── Link / unlink candidate-printings ──────────────────────────────────────
@@ -582,6 +591,16 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       // Link with non-existent UUID violates FK constraint
       expect(res.status).toBe(500);
+    });
+
+    it("returns 400 for empty candidatePrintingIds array", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/candidate-printings/link`, {
+          candidatePrintingIds: [],
+          printingId: printing2Id,
+        }),
+      );
+      expect(res.status).toBe(400);
     });
   });
 
