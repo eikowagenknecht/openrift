@@ -225,4 +225,98 @@ describe("GET /api/v1/copies/:id", () => {
     const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
     expect(res.status).toBe(404);
   });
+
+  it("returns all mapped fields", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbCopy);
+    const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
+    const json = await res.json();
+    expect(json.printingId).toBe(dbCopy.printingId);
+    expect(json.collectionId).toBe(dbCopy.collectionId);
+    expect(json.acquisitionSourceId).toBeNull();
+    expect(json.cardId).toBe("OGS-001");
+    expect(json.setId).toBe("OGS");
+    expect(json.collectorNumber).toBe(1);
+    expect(json.rarity).toBe("Rare");
+    expect(json.artVariant).toBe("normal");
+    expect(json.isSigned).toBe(false);
+    expect(json.finish).toBe("normal");
+    expect(json.artist).toBe("Alice");
+    expect(json.imageUrl).toBe("https://example.com/img.jpg");
+    expect(json.createdAt).toBe(now.toISOString());
+    expect(json.updatedAt).toBe(now.toISOString());
+  });
+});
+
+describe("POST /api/v1/copies — service arguments", () => {
+  beforeEach(() => {
+    mockAddCopies.mockReset();
+  });
+
+  it("passes repos, transact, userId, and copies to addCopies service", async () => {
+    mockAddCopies.mockResolvedValue([]);
+    const copies = [{ printingId: PRINTING_ID, collectionId: COLLECTION_ID }];
+    await app.request("/api/v1/copies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copies }),
+    });
+    expect(mockAddCopies).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      USER_ID,
+      copies,
+    );
+  });
+});
+
+describe("POST /api/v1/copies/move — service arguments", () => {
+  beforeEach(() => {
+    mockMoveCopies.mockReset();
+  });
+
+  it("passes repos, transact, userId, copyIds, and toCollectionId to moveCopies service", async () => {
+    mockMoveCopies.mockResolvedValue(undefined);
+    const copyIds = [COPY_ID];
+    await app.request("/api/v1/copies/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds, toCollectionId: COLLECTION_ID }),
+    });
+    expect(mockMoveCopies).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      USER_ID,
+      copyIds,
+      COLLECTION_ID,
+    );
+  });
+});
+
+describe("POST /api/v1/copies/dispose — service arguments", () => {
+  beforeEach(() => {
+    mockDisposeCopies.mockReset();
+  });
+
+  it("passes transact, userId, and copyIds to disposeCopies service", async () => {
+    mockDisposeCopies.mockResolvedValue(undefined);
+    const copyIds = [COPY_ID];
+    await app.request("/api/v1/copies/dispose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds }),
+    });
+    expect(mockDisposeCopies).toHaveBeenCalledWith(expect.anything(), USER_ID, copyIds);
+  });
+});
+
+describe("GET /api/v1/copies — default limit", () => {
+  beforeEach(() => {
+    mockRepo.listForUser.mockReset();
+  });
+
+  it("defaults limit to 200 when not provided", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    await app.request("/api/v1/copies");
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 200, undefined);
+  });
 });

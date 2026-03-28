@@ -255,4 +255,137 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("filters only tcgplayer prices in GET /prices (ignores cardmarket)", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "tcgplayer",
+        marketCents: 100,
+      },
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "cardmarket",
+        marketCents: 200,
+      },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await res.json();
+    // Only tcgplayer price should appear
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toBe(1);
+    expect(Object.keys(json.prices)).toHaveLength(1);
+  });
+
+  it("defaults to 30d range when no range parameter is provided", async () => {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    expect(res.status).toBe(200);
+    // snapshots called with a cutoff date (30d in the past, not null)
+    const cutoffArg = mockMarketplaceRepo.snapshots.mock.calls[0]?.[1];
+    expect(cutoffArg).toBeInstanceOf(Date);
+  });
+
+  it("uses null cutoff for 'all' range", async () => {
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=all",
+    );
+    expect(res.status).toBe(200);
+    // 'all' range should pass null cutoff
+    const cutoffArg = mockMarketplaceRepo.snapshots.mock.calls[0]?.[1];
+    expect(cutoffArg).toBeNull();
+  });
+
+  it("accepts 90d range parameter", async () => {
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=90d",
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("returns cardtrader data when cardtrader source exists", async () => {
+    const ctSource = {
+      id: "ms-ct-1",
+      externalId: 99_999,
+      marketplace: "cardtrader",
+      printingId: "a0000000-0001-4000-a000-000000000001",
+    };
+    mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([
+      dbMarketplaceSource,
+      dbMarketplaceSourceCM,
+      ctSource,
+    ]);
+    const ctSnapshot = {
+      id: "snap-ct-1",
+      productId: "ms-ct-1",
+      recordedAt: new Date("2026-03-01"),
+      marketCents: 150,
+      lowCents: null,
+      midCents: null,
+      highCents: null,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (sourceId: string) => {
+      if (sourceId === "ms-ct-1") {
+        return [ctSnapshot];
+      }
+      if (sourceId === "ms-tcg-1") {
+        return [dbSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await res.json();
+    expect(json.cardtrader.available).toBe(true);
+    expect(json.cardtrader.currency).toBe("EUR");
+    expect(json.cardtrader.productId).toBe(99_999);
+    expect(json.cardtrader.snapshots).toHaveLength(1);
+    expect(json.cardtrader.snapshots[0].market).toBe(1.5);
+  });
+
+  it("returns unavailable cardtrader when no source exists", async () => {
+    mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([dbMarketplaceSource]);
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await res.json();
+    expect(json.cardtrader.available).toBe(false);
+    expect(json.cardtrader.productId).toBeNull();
+    expect(json.cardtrader.snapshots).toEqual([]);
+  });
+
+  it("converts cardmarket snapshot fields including trend and averages", async () => {
+    const cmSnapshot = {
+      id: "snap-cm-1",
+      productId: "ms-cm-1",
+      recordedAt: new Date("2026-03-02"),
+      marketCents: 300,
+      lowCents: 150,
+      midCents: null,
+      highCents: null,
+      trendCents: 280,
+      avg1Cents: 290,
+      avg7Cents: 310,
+      avg30Cents: 320,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (sourceId: string) => {
+      if (sourceId === "ms-cm-1") {
+        return [cmSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await res.json();
+    expect(json.cardmarket.snapshots[0].market).toBe(3);
+    expect(json.cardmarket.snapshots[0].low).toBe(1.5);
+    expect(json.cardmarket.snapshots[0].trend).toBe(2.8);
+    expect(json.cardmarket.snapshots[0].avg1).toBe(2.9);
+    expect(json.cardmarket.snapshots[0].avg7).toBe(3.1);
+    expect(json.cardmarket.snapshots[0].avg30).toBe(3.2);
+    expect(json.cardmarket.snapshots[0].date).toBe("2026-03-02");
+  });
+
+  it("rejects non-UUID printingId with 400", async () => {
+    const res = await app.request("/api/v1/prices/not-a-uuid/history");
+    expect(res.status).toBe(400);
+  });
 });

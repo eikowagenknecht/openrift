@@ -298,3 +298,186 @@ describe("DELETE /api/v1/wish-lists/:id/items/:itemId", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST /api/v1/wish-lists — rules serialization", () => {
+  beforeEach(() => {
+    mockRepo.create.mockReset();
+  });
+
+  it("passes null rules when no rules provided", async () => {
+    mockRepo.create.mockResolvedValue(dbWishList);
+    await app.request("/api/v1/wish-lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "No Rules" }),
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "No Rules",
+      rules: null,
+    });
+  });
+
+  it("serializes rules as JSON string", async () => {
+    mockRepo.create.mockResolvedValue({ ...dbWishList, rules: '{"priority":"high"}' });
+    await app.request("/api/v1/wish-lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "With Rules", rules: { priority: "high" } }),
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "With Rules",
+      rules: '{"priority":"high"}',
+    });
+  });
+});
+
+describe("PATCH /api/v1/wish-lists/:id — rules update", () => {
+  beforeEach(() => {
+    mockRepo.update.mockReset();
+  });
+
+  it("serializes rules via patchFields transform", async () => {
+    const updated = { ...dbWishList, rules: '{"minRarity":"Rare"}' };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rules: { minRarity: "Rare" } }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.update).toHaveBeenCalledWith(WISH_LIST_ID, USER_ID, {
+      rules: '{"minRarity":"Rare"}',
+    });
+  });
+
+  it("updates name field", async () => {
+    const updated = { ...dbWishList, name: "New Name" };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "New Name" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.update).toHaveBeenCalledWith(WISH_LIST_ID, USER_ID, { name: "New Name" });
+  });
+});
+
+describe("POST /api/v1/wish-lists/:id/items — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.exists.mockReset();
+    mockRepo.createItem.mockReset();
+  });
+
+  it("passes correct arguments with cardId", async () => {
+    mockRepo.exists.mockResolvedValue({ id: WISH_LIST_ID });
+    mockRepo.createItem.mockResolvedValue(dbWishListItem);
+    await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: "OGS-001", quantityDesired: 3 }),
+    });
+    expect(mockRepo.createItem).toHaveBeenCalledWith({
+      wishListId: WISH_LIST_ID,
+      userId: USER_ID,
+      cardId: "OGS-001",
+      printingId: null,
+      quantityDesired: 3,
+    });
+  });
+
+  it("passes correct arguments with printingId", async () => {
+    mockRepo.exists.mockResolvedValue({ id: WISH_LIST_ID });
+    mockRepo.createItem.mockResolvedValue({ ...dbWishListItem, cardId: null, printingId: "P-001" });
+    await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printingId: "P-001", quantityDesired: 1 }),
+    });
+    expect(mockRepo.createItem).toHaveBeenCalledWith({
+      wishListId: WISH_LIST_ID,
+      userId: USER_ID,
+      cardId: null,
+      printingId: "P-001",
+      quantityDesired: 1,
+    });
+  });
+
+  it("defaults quantityDesired to 1 when not provided", async () => {
+    mockRepo.exists.mockResolvedValue({ id: WISH_LIST_ID });
+    mockRepo.createItem.mockResolvedValue(dbWishListItem);
+    await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: "OGS-001" }),
+    });
+    expect(mockRepo.createItem).toHaveBeenCalledWith(
+      expect.objectContaining({ quantityDesired: 1 }),
+    );
+  });
+});
+
+describe("GET /api/v1/wish-lists/:id — detail response fields", () => {
+  beforeEach(() => {
+    mockRepo.getByIdForUser.mockReset();
+    mockRepo.items.mockReset();
+  });
+
+  it("maps all wish list fields correctly", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbWishList);
+    mockRepo.items.mockResolvedValue([dbWishListItem]);
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`);
+    const json = await res.json();
+    expect(json.wishList.id).toBe(WISH_LIST_ID);
+    expect(json.wishList.rules).toBeNull();
+    expect(json.wishList.createdAt).toBe(now.toISOString());
+    expect(json.wishList.updatedAt).toBe(now.toISOString());
+    expect(json.items[0].id).toBe(ITEM_ID);
+    expect(json.items[0].wishListId).toBe(WISH_LIST_ID);
+    expect(json.items[0].cardId).toBe("OGS-001");
+    expect(json.items[0].printingId).toBeNull();
+  });
+
+  it("returns empty items when wish list has no items", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbWishList);
+    mockRepo.items.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`);
+    const json = await res.json();
+    expect(json.items).toEqual([]);
+  });
+});
+
+describe("PATCH /api/v1/wish-lists/:id/items/:itemId — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.updateItem.mockReset();
+  });
+
+  it("passes correct arguments to updateItem", async () => {
+    const updated = { ...dbWishListItem, quantityDesired: 10 };
+    mockRepo.updateItem.mockResolvedValue(updated);
+    await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantityDesired: 10 }),
+    });
+    expect(mockRepo.updateItem).toHaveBeenCalledWith(ITEM_ID, WISH_LIST_ID, USER_ID, {
+      quantityDesired: 10,
+    });
+  });
+});
+
+describe("DELETE /api/v1/wish-lists/:id/items/:itemId — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.deleteItem.mockReset();
+  });
+
+  it("passes correct arguments to deleteItem", async () => {
+    mockRepo.deleteItem.mockResolvedValue({ numDeletedRows: 1n });
+    await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items/${ITEM_ID}`, {
+      method: "DELETE",
+    });
+    expect(mockRepo.deleteItem).toHaveBeenCalledWith(ITEM_ID, WISH_LIST_ID, USER_ID);
+  });
+});

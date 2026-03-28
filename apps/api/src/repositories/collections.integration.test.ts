@@ -241,9 +241,72 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     });
     // Don't track — we'll delete it ourselves
 
-    await repo.deleteByIdForUser(col.id, userId, db);
+    await repo.deleteByIdForUser(col.id, userId);
 
     const fetched = await repo.getByIdForUser(col.id, userId);
     expect(fetched).toBeUndefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // listIdAndNameByIds
+  // ---------------------------------------------------------------------------
+
+  it("returns id and name for given collection IDs", async () => {
+    const ids = createdCollectionIds.slice(0, 2);
+    const result = await repo.listIdAndNameByIds(ids);
+    expect(result.length).toBe(2);
+    for (const row of result) {
+      expect(row).toHaveProperty("id");
+      expect(row).toHaveProperty("name");
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // listCopiesInCollection + moveCopiesBetweenCollections
+  // ---------------------------------------------------------------------------
+
+  it("lists copies in a collection and moves them", async () => {
+    // Create two collections
+    const colA = await repo.create({
+      userId,
+      name: "Source Collection",
+      description: null,
+      availableForDeckbuilding: true,
+      isInbox: false,
+      sortOrder: 30,
+    });
+    createdCollectionIds.push(colA.id);
+
+    const colB = await repo.create({
+      userId,
+      name: "Dest Collection",
+      description: null,
+      availableForDeckbuilding: true,
+      isInbox: false,
+      sortOrder: 31,
+    });
+    createdCollectionIds.push(colB.id);
+
+    // Insert a copy into colA using a seed printing
+    const printingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+    await db.insertInto("copies").values({ userId, printingId, collectionId: colA.id }).execute();
+
+    // List copies in colA
+    const copies = await repo.listCopiesInCollection(colA.id);
+    expect(copies.length).toBe(1);
+    expect(copies[0].printingId).toBe(printingId);
+
+    // Move copies to colB
+    await repo.moveCopiesBetweenCollections(colA.id, colB.id);
+
+    // Verify move
+    const afterA = await repo.listCopiesInCollection(colA.id);
+    expect(afterA.length).toBe(0);
+
+    const afterB = await repo.listCopiesInCollection(colB.id);
+    expect(afterB.length).toBe(1);
+
+    // Clean up the copy
+    await db.deleteFrom("copies").where("collectionId", "=", colB.id).execute();
   });
 });
