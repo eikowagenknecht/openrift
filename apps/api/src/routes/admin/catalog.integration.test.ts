@@ -164,6 +164,20 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
   // ── PATCH /admin/sets/:id ─────────────────────────────────────────────────
 
   describe("PATCH /admin/sets/:id", () => {
+    it("returns 404 when updating a non-existent set", async () => {
+      const fakeUuid = "00000000-0000-4000-a000-ffffffffffff";
+      const res = await app.fetch(
+        req("PATCH", `/admin/sets/${fakeUuid}`, {
+          name: "Ghost Set",
+          printedTotal: 0,
+          releasedAt: null,
+        }),
+      );
+      expect(res.status).toBe(404);
+      const json = await res.json();
+      expect(json.code).toBe("NOT_FOUND");
+    });
+
     it("updates a set", async () => {
       const res = await app.fetch(
         req("PATCH", `/admin/sets/${setIds["CAT-core-set"]}`, {
@@ -226,6 +240,34 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       );
       expect(res.status).toBe(400);
     });
+
+    it("rejects reorder with duplicate set IDs (400)", async () => {
+      const getRes = await app.fetch(req("GET", "/admin/sets"));
+      const getJson = await getRes.json();
+      const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
+      const duped = [...allIds];
+      duped[duped.length - 1] = duped[0];
+
+      const res = await app.fetch(req("PUT", "/admin/sets/reorder", { ids: duped }));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.code).toBe("BAD_REQUEST");
+      expect(json.error).toContain("Duplicate");
+    });
+
+    it("rejects reorder with unknown set IDs (400)", async () => {
+      const getRes = await app.fetch(req("GET", "/admin/sets"));
+      const getJson = await getRes.json();
+      const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
+      const withUnknown = [...allIds];
+      withUnknown[0] = "00000000-0000-4000-a000-ffffffffffff";
+
+      const res = await app.fetch(req("PUT", "/admin/sets/reorder", { ids: withUnknown }));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.code).toBe("BAD_REQUEST");
+      expect(json.error).toContain("Unknown");
+    });
   });
 
   // ── DELETE /admin/sets/:id ──────────────────────────────────────────────
@@ -234,6 +276,74 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
     it("returns 400 for non-UUID id", async () => {
       const res = await app.fetch(req("DELETE", "/admin/sets/CAT-does-not-exist"));
       expect(res.status).toBe(400);
+    });
+
+    it("returns 409 when deleting a set that still has printings", async () => {
+      const createRes = await app.fetch(
+        req("POST", "/admin/sets", {
+          id: "CAT-has-prints",
+          name: "CAT Has Prints",
+          printedTotal: 1,
+          releasedAt: null,
+        }),
+      );
+      expect(createRes.status).toBe(201);
+      const { id: tempSetId } = await createRes.json();
+
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+      const { db: testDb } = ctx!;
+      const [tempCard] = await testDb
+        .insertInto("cards")
+        .values({
+          slug: "CAT-PRINT-001",
+          name: "CAT Print Card",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Mind"],
+          might: null,
+          energy: 1,
+          power: null,
+          mightBonus: null,
+          keywords: [],
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        })
+        .returning("id")
+        .execute();
+
+      await testDb
+        .insertInto("printings")
+        .values({
+          slug: "CAT-PRINT-001:normal:",
+          cardId: tempCard.id,
+          setId: tempSetId,
+          shortCode: "CAT-PRINT-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "Test",
+          publicCode: "CAT",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        })
+        .execute();
+
+      const delRes = await app.fetch(req("DELETE", `/admin/sets/${tempSetId}`));
+      expect(delRes.status).toBe(409);
+      const delJson = await delRes.json();
+      expect(delJson.code).toBe("CONFLICT");
+      expect(delJson.error).toContain("printing");
+
+      // Clean up
+      await testDb.deleteFrom("printings").where("slug", "=", "CAT-PRINT-001:normal:").execute();
+      await testDb.deleteFrom("cards").where("slug", "=", "CAT-PRINT-001").execute();
+      await app.fetch(req("DELETE", `/admin/sets/${tempSetId}`));
     });
 
     it("deletes an empty set", async () => {
