@@ -33,6 +33,19 @@ export default defineConfig({
         "src/test/**",
         "src/**/*.test.ts",
         "src/**/*.integration.test.ts",
+        // Type-only files (no executable code)
+        "src/db/tables.ts",
+        "src/db/types.ts",
+        "src/db/index.ts",
+        "src/types.ts",
+        "src/rpc-types.ts",
+        // Infrastructure bootstrap (Bun.serve, auth config, email config)
+        "src/index.ts",
+        "src/auth.ts",
+        "src/email.ts",
+        // More type-only / barrel files
+        "src/services/price-refresh/index.ts",
+        "src/services/price-refresh/types.ts",
       ],
     },
   },
