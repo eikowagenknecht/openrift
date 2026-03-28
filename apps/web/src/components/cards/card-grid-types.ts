@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { CardViewerItem } from "@/components/card-viewer-types";
 
 export interface SetInfo {
   id: string;
@@ -8,7 +8,7 @@ export interface SetInfo {
 
 export type VRow =
   | { kind: "header"; set: SetInfo; cardCount: number }
-  | { kind: "cards"; items: Printing[]; cardsBefore: number };
+  | { kind: "cards"; items: CardViewerItem[]; cardsBefore: number };
 
 export interface IndicatorState {
   cardId: string;

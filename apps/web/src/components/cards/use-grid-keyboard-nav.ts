@@ -8,7 +8,7 @@ interface UseGridKeyboardNavParams {
   selectedCardId?: string;
   virtualRows: VRow[];
   columns: number;
-  onCardClick: (printing: Printing) => void;
+  onCardClick?: (printing: Printing) => void;
   virtualizer: Virtualizer<Window, Element>;
   siblingPrintings?: Printing[];
 }
@@ -30,7 +30,7 @@ export function useGridKeyboardNav({
   siblingPrintingsRef.current = siblingPrintings;
 
   useEffect(() => {
-    if (!selectedCardId) {
+    if (!selectedCardId || !onCardClick) {
       return;
     }
 
@@ -65,7 +65,10 @@ export function useGridKeyboardNav({
         // Scroll grid to the target printing if it's in the current view
         for (let i = 0; i < virtualRows.length; i++) {
           const row = virtualRows[i];
-          if (row.kind === "cards" && row.items.some((c) => c.id === targetPrinting.id)) {
+          if (
+            row.kind === "cards" &&
+            row.items.some((item) => item.printing.id === targetPrinting.id)
+          ) {
             virtualizer.scrollToIndex(i, { align: "auto" });
             break;
           }
@@ -83,7 +86,7 @@ export function useGridKeyboardNav({
         }
         cardRowIndices.push(i);
         for (let c = 0; c < row.items.length; c++) {
-          cardPos.set(row.items[c].id, { vRowIndex: i, colIndex: c });
+          cardPos.set(row.items[c].printing.id, { vRowIndex: i, colIndex: c });
         }
       }
 
@@ -93,40 +96,40 @@ export function useGridKeyboardNav({
       }
 
       const crIdx = cardRowIndices.indexOf(current.vRowIndex);
-      let targetCard: Printing | undefined;
+      let targetPrinting: Printing | undefined;
       let targetRowIndex: number | undefined;
 
       if (e.key === "ArrowLeft") {
         if (current.colIndex > 0) {
           const row = virtualRows[current.vRowIndex];
           if (row.kind === "cards") {
-            targetCard = row.items[current.colIndex - 1];
+            targetPrinting = row.items[current.colIndex - 1].printing;
             targetRowIndex = current.vRowIndex;
           }
         } else if (crIdx > 0) {
           const prevRow = virtualRows[cardRowIndices[crIdx - 1]];
           if (prevRow.kind === "cards") {
-            targetCard = prevRow.items.at(-1);
+            targetPrinting = prevRow.items.at(-1)?.printing;
             targetRowIndex = cardRowIndices[crIdx - 1];
           }
         }
       } else if (e.key === "ArrowRight") {
         const row = virtualRows[current.vRowIndex];
         if (row.kind === "cards" && current.colIndex < row.items.length - 1) {
-          targetCard = row.items[current.colIndex + 1];
+          targetPrinting = row.items[current.colIndex + 1].printing;
           targetRowIndex = current.vRowIndex;
         } else if (crIdx < cardRowIndices.length - 1) {
           const nextRow = virtualRows[cardRowIndices[crIdx + 1]];
           if (nextRow.kind === "cards") {
-            targetCard = nextRow.items[0];
+            targetPrinting = nextRow.items[0].printing;
             targetRowIndex = cardRowIndices[crIdx + 1];
           }
         }
       }
 
-      if (targetCard && targetRowIndex !== undefined) {
+      if (targetPrinting && targetRowIndex !== undefined) {
         e.preventDefault();
-        onCardClick(targetCard);
+        onCardClick(targetPrinting);
         virtualizer.scrollToIndex(targetRowIndex, { align: "auto" });
       }
     };

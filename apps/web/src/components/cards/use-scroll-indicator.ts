@@ -1,7 +1,7 @@
-import type { Printing } from "@openrift/shared";
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import type { CardViewerItem } from "@/components/card-viewer-types";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 
 import { APP_HEADER_HEIGHT } from "./card-grid-constants";
@@ -94,18 +94,18 @@ export function useScrollIndicator({
       const threshold = globalThis.scrollY + APP_HEADER_HEIGHT + 1;
       const vItems = virtualizerRef.current.getVirtualItems();
       const rows = virtualRowsRef.current;
-      let firstCard: Printing | null = null;
+      let firstItem: CardViewerItem | null = null;
       for (const vItem of vItems) {
         const row = rows[vItem.index];
         if (!row || row.kind !== "cards") {
           continue;
         }
         if (vItem.start + vItem.size > threshold) {
-          firstCard = row.items[0] ?? null;
+          firstItem = row.items[0] ?? null;
           break;
         }
       }
-      if (!firstCard) {
+      if (!firstItem) {
         return;
       }
 
@@ -126,7 +126,7 @@ export function useScrollIndicator({
       // During drag: only update the card ID label.
       if (isDraggingRef.current) {
         if (cardIdRef.current) {
-          cardIdRef.current.textContent = firstCard.shortCode;
+          cardIdRef.current.textContent = firstItem.printing.shortCode;
         }
         return;
       }
@@ -145,12 +145,12 @@ export function useScrollIndicator({
       globalThis.clearTimeout(hideTimerRef.current);
       dragTopRef.current = indicatorTop;
       setIndicator((prev) => {
-        const sameCard = prev.cardId === firstCard.shortCode;
+        const sameCard = prev.cardId === firstItem.printing.shortCode;
         const sameTop = Math.abs(prev.indicatorTop - indicatorTop) < 0.5;
         if (prev.visible && sameCard && sameTop) {
           return prev;
         }
-        return { ...prev, cardId: firstCard.shortCode, indicatorTop, visible: true };
+        return { ...prev, cardId: firstItem.printing.shortCode, indicatorTop, visible: true };
       });
       hideTimerRef.current = globalThis.setTimeout(() => {
         if (!isHoveredRef.current) {
@@ -262,7 +262,7 @@ export function useScrollIndicator({
             }
             const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
             if (rowEnd > threshold) {
-              cardId = row.items[0]?.shortCode ?? "";
+              cardId = row.items[0]?.printing.shortCode ?? "";
               matchedRow = i;
               break;
             }
