@@ -22,4 +22,5 @@ export const HEADER_PT = 16; // pt-4 on header row
 export const HEADER_PB = 8; // pb-2 on header row
 export const HEADER_CONTENT_HEIGHT = 20; // text-sm line-height (tallest child)
 
+export const ADD_STRIP_HEIGHT = 24; // h-5 + mb-1 (20px buttons + 4px margin) — add-mode control strip above card image
 export const FALLBACK_ROW_HEIGHT = 200; // estimateRowHeight fallback for out-of-bounds index

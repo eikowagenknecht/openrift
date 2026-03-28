@@ -8,6 +8,7 @@ import { getCardImageUrl } from "@/lib/images";
 export interface AddedEntry {
   printing: Printing;
   quantity: number;
+  copyIds: string[];
 }
 
 interface AddedCardsListProps {

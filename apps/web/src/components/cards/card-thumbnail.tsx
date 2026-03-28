@@ -146,7 +146,11 @@ interface CardThumbnailProps {
   cardWidth?: number;
   priority?: boolean;
   ownedCount?: number;
-  onAdd?: (printing: Printing, anchorEl: HTMLElement) => void;
+  totalOwnedCount?: number;
+  sessionAddedCount?: number;
+  onQuickAdd?: (printing: Printing) => void;
+  onUndoAdd?: (printing: Printing) => void;
+  onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
@@ -165,7 +169,11 @@ export const CardThumbnail = memo(function CardThumbnail({
   cardWidth,
   priority,
   ownedCount,
-  onAdd,
+  totalOwnedCount,
+  sessionAddedCount,
+  onQuickAdd,
+  onUndoAdd,
+  onOpenVariants,
 }: CardThumbnailProps) {
   const card = {
     ...printing.card,
@@ -230,26 +238,25 @@ export const CardThumbnail = memo(function CardThumbnail({
           }}
         />
       )}
+      {/* Add-mode control strip: [-] count [+] above the card image */}
+      {onQuickAdd && (
+        <AddStrip
+          printing={printing}
+          ownedCount={ownedCount ?? 0}
+          totalOwnedCount={totalOwnedCount}
+          sessionAddedCount={sessionAddedCount ?? 0}
+          hasVariants={view === "cards" && (siblings?.length ?? 0) > 1}
+          onQuickAdd={onQuickAdd}
+          onUndoAdd={onUndoAdd}
+          onOpenVariants={onOpenVariants}
+        />
+      )}
       <div className="relative">
-        {ownedCount !== undefined && ownedCount > 0 && (
+        {/* Owned count overlay — hidden when add strip is active */}
+        {!onQuickAdd && ownedCount !== undefined && ownedCount > 0 && (
           <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold shadow">
             ×{ownedCount}
           </span>
-        )}
-        {onAdd && (
-          <button
-            type="button"
-            tabIndex={-1}
-            className="bg-primary text-primary-foreground absolute top-1.5 left-1.5 z-20 flex size-7 cursor-pointer items-center justify-center rounded-full shadow transition-transform hover:scale-110"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdd(printing, e.currentTarget);
-            }}
-          >
-            <svg viewBox="0 0 16 16" fill="currentColor" className="size-4">
-              <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
-            </svg>
-          </button>
         )}
         {otherPrintings.map((sibling, i) => {
           const depth = otherPrintings.length - i;
@@ -397,3 +404,83 @@ export const CardThumbnail = memo(function CardThumbnail({
     </button>
   );
 });
+
+/**
+ * Compact [-] count [+] strip rendered above the card image in add mode.
+ * @returns The add-mode control strip.
+ */
+function AddStrip({
+  printing,
+  ownedCount,
+  totalOwnedCount,
+  sessionAddedCount,
+  hasVariants,
+  onQuickAdd,
+  onUndoAdd,
+  onOpenVariants,
+}: {
+  printing: Printing;
+  ownedCount: number;
+  totalOwnedCount?: number;
+  sessionAddedCount: number;
+  hasVariants: boolean;
+  onQuickAdd: (printing: Printing) => void;
+  onUndoAdd?: (printing: Printing) => void;
+  onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
+}) {
+  const showCount = ownedCount > 0 || sessionAddedCount > 0;
+
+  return (
+    // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
+    <div className="relative z-10 mb-1 flex h-5 items-center justify-between">
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={(e) => {
+          e.stopPropagation();
+          onUndoAdd?.(printing);
+        }}
+        disabled={!sessionAddedCount}
+        className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 items-center justify-center rounded transition-colors disabled:pointer-events-none disabled:opacity-30"
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
+          <path d="M3 7a1 1 0 0 0 0 2h10a1 1 0 1 0 0-2H3z" />
+        </svg>
+      </button>
+
+      {showCount &&
+        (hasVariants && onOpenVariants ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenVariants(printing, e.currentTarget);
+            }}
+            className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+          >
+            ×{ownedCount}
+            {totalOwnedCount !== undefined && totalOwnedCount !== ownedCount && (
+              <span className="text-muted-foreground/60"> ({totalOwnedCount})</span>
+            )}
+          </button>
+        ) : (
+          <span className="text-muted-foreground text-xs font-medium">×{ownedCount}</span>
+        ))}
+
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={(e) => {
+          e.stopPropagation();
+          onQuickAdd(printing);
+        }}
+        className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 items-center justify-center rounded transition-colors"
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
+          <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
+        </svg>
+      </button>
+    </div>
+  );
+}

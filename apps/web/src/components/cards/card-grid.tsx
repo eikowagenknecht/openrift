@@ -278,6 +278,8 @@ interface CardGridProps {
   keyboardNavItemId?: string;
   onItemClick?: (printing: Printing) => void;
   siblingPrintings?: Printing[];
+  /** Extra height added to each card row (e.g. add-mode strip). */
+  addStripHeight?: number;
 }
 
 export function CardGrid({
@@ -289,6 +291,7 @@ export function CardGrid({
   keyboardNavItemId,
   onItemClick,
   siblingPrintings,
+  addStripHeight = 0,
 }: CardGridProps) {
   // ── Display preferences (what to show on each card) ──────────────
   const visibleFields = useDisplayStore((s) => s.visibleFields);
@@ -351,7 +354,7 @@ export function CardGrid({
       return HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB;
     }
     const imgHeight = (thumbWidth - BUTTON_PAD * 2) * CARD_ASPECT;
-    return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2);
+    return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2 + addStripHeight);
   };
 
   // Precompute cumulative start offsets for each row.
