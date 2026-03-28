@@ -272,3 +272,172 @@ describe("DELETE /api/v1/trade-lists/:id/items/:itemId", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST /api/v1/trade-lists — rules serialization", () => {
+  beforeEach(() => {
+    mockRepo.create.mockReset();
+  });
+
+  it("passes null rules when no rules provided", async () => {
+    mockRepo.create.mockResolvedValue(dbTradeList);
+    await app.request("/api/v1/trade-lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "No Rules" }),
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "No Rules",
+      rules: null,
+    });
+  });
+
+  it("serializes rules as JSON string", async () => {
+    mockRepo.create.mockResolvedValue({ ...dbTradeList, rules: '{"minValue":5}' });
+    await app.request("/api/v1/trade-lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "With Rules", rules: { minValue: 5 } }),
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "With Rules",
+      rules: '{"minValue":5}',
+    });
+  });
+});
+
+describe("PATCH /api/v1/trade-lists/:id — rules update", () => {
+  beforeEach(() => {
+    mockRepo.update.mockReset();
+  });
+
+  it("serializes rules via patchFields transform", async () => {
+    const updated = { ...dbTradeList, rules: '{"maxCards":10}' };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/trade-lists/${TRADE_LIST_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rules: { maxCards: 10 } }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.update).toHaveBeenCalledWith(TRADE_LIST_ID, USER_ID, {
+      rules: '{"maxCards":10}',
+    });
+  });
+
+  it("passes null rules when rules is null", async () => {
+    const updated = { ...dbTradeList, rules: null };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/trade-lists/${TRADE_LIST_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rules: null }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.update).toHaveBeenCalledWith(TRADE_LIST_ID, USER_ID, { rules: null });
+  });
+
+  it("updates name field", async () => {
+    const updated = { ...dbTradeList, name: "Renamed" };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/trade-lists/${TRADE_LIST_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Renamed" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.update).toHaveBeenCalledWith(TRADE_LIST_ID, USER_ID, { name: "Renamed" });
+  });
+});
+
+describe("GET /api/v1/trade-lists/:id — detail response fields", () => {
+  beforeEach(() => {
+    mockRepo.getByIdForUser.mockReset();
+    mockRepo.itemsWithDetails.mockReset();
+  });
+
+  it("maps all trade list fields correctly", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbTradeList);
+    mockRepo.itemsWithDetails.mockResolvedValue([dbTradeListItem]);
+    const res = await app.request(`/api/v1/trade-lists/${TRADE_LIST_ID}`);
+    const json = await res.json();
+    expect(json.tradeList.id).toBe(TRADE_LIST_ID);
+    expect(json.tradeList.rules).toBeNull();
+    expect(json.tradeList.createdAt).toBe(now.toISOString());
+    expect(json.tradeList.updatedAt).toBe(now.toISOString());
+    expect(json.items[0].id).toBe(ITEM_ID);
+    expect(json.items[0].tradeListId).toBe(TRADE_LIST_ID);
+    expect(json.items[0].copyId).toBe(COPY_ID);
+    expect(json.items[0].collectionId).toBe("a0000000-0001-4000-a000-000000000040");
+    expect(json.items[0].setId).toBe("OGS");
+    expect(json.items[0].rarity).toBe("Rare");
+    expect(json.items[0].finish).toBe("normal");
+  });
+
+  it("returns empty items when trade list has no items", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbTradeList);
+    mockRepo.itemsWithDetails.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/trade-lists/${TRADE_LIST_ID}`);
+    const json = await res.json();
+    expect(json.items).toEqual([]);
+  });
+});
+
+describe("POST /api/v1/trade-lists/:id/items — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.exists.mockReset();
+    mockCopiesRepo.existsForUser.mockReset();
+    mockRepo.createItem.mockReset();
+  });
+
+  it("passes correct arguments to createItem", async () => {
+    mockRepo.exists.mockResolvedValue({ id: TRADE_LIST_ID });
+    mockCopiesRepo.existsForUser.mockResolvedValue({ id: COPY_ID });
+    mockRepo.createItem.mockResolvedValue({
+      id: ITEM_ID,
+      tradeListId: TRADE_LIST_ID,
+      copyId: COPY_ID,
+      userId: USER_ID,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await app.request(`/api/v1/trade-lists/${TRADE_LIST_ID}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyId: COPY_ID }),
+    });
+    expect(mockRepo.createItem).toHaveBeenCalledWith({
+      tradeListId: TRADE_LIST_ID,
+      userId: USER_ID,
+      copyId: COPY_ID,
+    });
+  });
+});
+
+describe("DELETE /api/v1/trade-lists/:id/items/:itemId — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.deleteItem.mockReset();
+  });
+
+  it("passes correct arguments to deleteItem", async () => {
+    mockRepo.deleteItem.mockResolvedValue({ numDeletedRows: 1n });
+    await app.request(`/api/v1/trade-lists/${TRADE_LIST_ID}/items/${ITEM_ID}`, {
+      method: "DELETE",
+    });
+    expect(mockRepo.deleteItem).toHaveBeenCalledWith(ITEM_ID, TRADE_LIST_ID, USER_ID);
+  });
+});
+
+describe("GET /api/v1/trade-lists — empty list", () => {
+  beforeEach(() => {
+    mockRepo.listForUser.mockReset();
+  });
+
+  it("returns empty items array when no trade lists exist", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    const res = await app.request("/api/v1/trade-lists");
+    const json = await res.json();
+    expect(json.items).toEqual([]);
+  });
+});

@@ -158,4 +158,73 @@ describe("buildShoppingList", () => {
     expect(result[1].cardId).toBe("card-1");
     expect(result[0].stillNeeded).toBeGreaterThanOrEqual(result[1].stillNeeded);
   });
+
+  it("aggregates owned copies across multiple printings of the same card", async () => {
+    const repos = createMockRepos({
+      ownedRows: [
+        { cardId: "card-1", printingId: "print-1", count: 2 },
+        { cardId: "card-1", printingId: "print-2", count: 1 },
+      ],
+      deckCardRows: [{ deckId: "deck-1", deckName: "Deck A", cardId: "card-1", quantity: 4 }],
+    });
+
+    const result = await buildShoppingList(repos, "user-1");
+    expect(result).toHaveLength(1);
+    expect(result[0].owned).toBe(3);
+    expect(result[0].stillNeeded).toBe(1);
+  });
+
+  it("aggregates demand from multiple decks for the same card", async () => {
+    const repos = createMockRepos({
+      deckCardRows: [
+        { deckId: "deck-1", deckName: "Deck A", cardId: "card-1", quantity: 2 },
+        { deckId: "deck-2", deckName: "Deck B", cardId: "card-1", quantity: 3 },
+      ],
+    });
+
+    const result = await buildShoppingList(repos, "user-1");
+    expect(result).toHaveLength(1);
+    expect(result[0].totalDemand).toBe(5);
+    expect(result[0].sources).toHaveLength(2);
+  });
+
+  it("handles wish list items with both cardId and printingId", async () => {
+    const repos = createMockRepos({
+      wishItemRows: [
+        {
+          wishListId: "wl-1",
+          wishListName: "Wish A",
+          cardId: "card-1",
+          printingId: "print-1",
+          quantityDesired: 2,
+        },
+      ],
+    });
+
+    const result = await buildShoppingList(repos, "user-1");
+    // Should produce both a card-level item and a printing-level item
+    const cardItem = result.find((item) => item.cardId === "card-1");
+    const printingItem = result.find((item) => item.printingId === "print-1");
+    expect(cardItem).toBeDefined();
+    expect(printingItem).toBeDefined();
+  });
+
+  it("produces printing-level items with null cardId", async () => {
+    const repos = createMockRepos({
+      wishItemRows: [
+        {
+          wishListId: "wl-1",
+          wishListName: "Wish A",
+          cardId: null,
+          printingId: "print-1",
+          quantityDesired: 3,
+        },
+      ],
+    });
+
+    const result = await buildShoppingList(repos, "user-1");
+    const printingItem = result.find((item) => item.printingId === "print-1");
+    expect(printingItem).toBeDefined();
+    expect(printingItem?.cardId).toBeNull();
+  });
 });
