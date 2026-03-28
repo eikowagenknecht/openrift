@@ -83,18 +83,18 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const res = await app.fetch(req("GET", "/decks"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
-      expect(Array.isArray(json)).toBe(true);
-      expect(json.length).toBe(3);
+      const json = (await res.json()) as { items: unknown[] };
+      expect(Array.isArray(json.items)).toBe(true);
+      expect(json.items.length).toBe(3);
     });
 
     it("filters by wanted=true", async () => {
       const res = await app.fetch(req("GET", "/decks?wanted=true"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { isWanted: boolean }[];
-      expect(json.length).toBe(1);
-      expect(json[0].isWanted).toBe(true);
+      const json = (await res.json()) as { items: { isWanted: boolean }[] };
+      expect(json.items.length).toBe(1);
+      expect(json.items[0].isWanted).toBe(true);
     });
   });
 
@@ -161,7 +161,9 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
           ],
         }),
       );
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { cards: unknown[] };
+      expect(Array.isArray(json.cards)).toBe(true);
     });
 
     it("verifies cards were saved via GET", async () => {
@@ -200,10 +202,9 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
           cards: [{ cardId: CARD_FURY_UNIT.id, zone: "main", quantity: 40 }],
         }),
       );
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(200);
 
-      const getRes = await app.fetch(req("GET", `/decks/${deckId}`));
-      const json = await getRes.json();
+      const json = (await res.json()) as { cards: unknown[] };
       expect(json.cards.length).toBe(1);
     });
 
@@ -230,19 +231,21 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = (await res.json()) as {
-        cardId: string;
-        needed: number;
-        owned: number;
-        shortfall: number;
-      }[];
-      expect(Array.isArray(json)).toBe(true);
+        items: {
+          cardId: string;
+          needed: number;
+          owned: number;
+          shortfall: number;
+        }[];
+      };
+      expect(Array.isArray(json.items)).toBe(true);
       // Deck has 1 card entry (CARD_FURY_UNIT with quantity 40), should show availability
-      expect(json.length).toBe(1);
-      expect(json[0].cardId).toBe(CARD_FURY_UNIT.id);
-      expect(json[0].needed).toBe(40);
+      expect(json.items.length).toBe(1);
+      expect(json.items[0].cardId).toBe(CARD_FURY_UNIT.id);
+      expect(json.items[0].needed).toBe(40);
       // We added 1 copy of PRINTING_1 which maps to CARD_FURY_UNIT
-      expect(json[0].owned).toBeGreaterThanOrEqual(1);
-      expect(json[0].shortfall).toBe(json[0].needed - json[0].owned);
+      expect(json.items[0].owned).toBeGreaterThanOrEqual(1);
+      expect(json.items[0].shortfall).toBe(json.items[0].needed - json.items[0].owned);
     });
 
     it("returns 404 for non-existent deck", async () => {

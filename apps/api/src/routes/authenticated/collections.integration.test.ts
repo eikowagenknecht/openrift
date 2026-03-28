@@ -88,8 +88,8 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", "/collections"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionResponse[];
-      const inbox = json.find((c) => c.isInbox);
+      const json = (await res.json()) as { items: CollectionResponse[] };
+      const inbox = json.items.find((c) => c.isInbox);
       expect(inbox).toBeDefined();
       // The expect above guarantees inbox is defined
       inboxId = (inbox as NonNullable<typeof inbox>).id;
@@ -99,19 +99,19 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", "/collections"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as CollectionResponse[];
-      expect(Array.isArray(json)).toBe(true);
+      const json = (await res.json()) as { items: CollectionResponse[] };
+      expect(Array.isArray(json.items)).toBe(true);
       // 3 created + 1 auto-inbox = 4
-      expect(json.length).toBeGreaterThanOrEqual(4);
+      expect(json.items.length).toBeGreaterThanOrEqual(4);
     });
 
     it("returns inbox first, then remaining collections sorted", async () => {
       const res = await app.fetch(req("GET", "/collections"));
-      const json = (await res.json()) as CollectionResponse[];
+      const json = (await res.json()) as { items: CollectionResponse[] };
       // Inbox should always come first
-      expect(json[0].isInbox).toBe(true);
+      expect(json.items[0].isInbox).toBe(true);
       // The rest should be sorted by sortOrder then name
-      const rest = json.slice(1).map((c) => c.name);
+      const rest = json.items.slice(1).map((c) => c.name);
       const sorted = rest.toSorted((a, b) => a.localeCompare(b));
       expect(rest).toEqual(sorted);
     });
@@ -191,9 +191,9 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("GET", `/collections/${collectionId}/copies`));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
-      expect(Array.isArray(json)).toBe(true);
-      expect(json).toHaveLength(0);
+      const json = (await res.json()) as { items: unknown[] };
+      expect(Array.isArray(json.items)).toBe(true);
+      expect(json.items).toHaveLength(0);
     });
 
     it("returns 404 for non-existent collection", async () => {
@@ -207,36 +207,12 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
   describe("DELETE /collections/:id", () => {
     it("rejects deleting the inbox collection", async () => {
-      const res = await app.fetch(
-        req("DELETE", `/collections/${inboxId}?move_copies_to=${collectionId}`),
-      );
+      const res = await app.fetch(req("DELETE", `/collections/${inboxId}`));
       expect(res.status).toBe(400);
     });
 
-    it("rejects deleting without move_copies_to param", async () => {
+    it("deletes a collection and auto-moves copies to inbox", async () => {
       const res = await app.fetch(req("DELETE", `/collections/${secondCollectionId}`));
-      expect(res.status).toBe(400);
-    });
-
-    it("rejects moving copies to the same collection being deleted", async () => {
-      const res = await app.fetch(
-        req("DELETE", `/collections/${secondCollectionId}?move_copies_to=${secondCollectionId}`),
-      );
-      expect(res.status).toBe(400);
-    });
-
-    it("rejects moving copies to a non-existent target", async () => {
-      const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(
-        req("DELETE", `/collections/${secondCollectionId}?move_copies_to=${fakeId}`),
-      );
-      expect(res.status).toBe(404);
-    });
-
-    it("deletes a collection and moves copies to inbox", async () => {
-      const res = await app.fetch(
-        req("DELETE", `/collections/${secondCollectionId}?move_copies_to=${inboxId}`),
-      );
       expect(res.status).toBe(204);
     });
 
@@ -247,9 +223,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
     it("returns 404 when deleting non-existent collection", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(
-        req("DELETE", `/collections/${fakeId}?move_copies_to=${inboxId}`),
-      );
+      const res = await app.fetch(req("DELETE", `/collections/${fakeId}`));
       expect(res.status).toBe(404);
     });
   });

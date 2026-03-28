@@ -7,10 +7,15 @@ const ctx = createTestContext(USER_ID);
 
 const SEED_SET_ID = "019cf052-e002-78ef-b032-cc585ba33eb3";
 const SEED_PRINTING_ID = "019cf052-e020-7222-b8bf-3c9fc2151abc";
-const SEED_TCG_SOURCE_ID = "019cf052-a62c-7993-b36e-917d2cbf013a";
+
+// Must use "tcgplayer" because the catalog route checks `prices?.tcgplayer`
+// to populate the `marketPrice` field.
+const MARKETPLACE = "tcgplayer";
 
 describe.skipIf(!ctx)("Catalog route (integration)", () => {
   const { app, db } = ctx!;
+
+  let productId = "";
 
   beforeAll(async () => {
     await db
@@ -26,10 +31,56 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       .onConflict((oc) => oc.columns(["printingId", "face", "provider"]).doNothing())
       .execute();
 
+    // Seed data has a tcgplayer product for this printing; look it up
+    // so we can attach our snapshot to it.
+    const existing = await db
+      .selectFrom("marketplaceProducts")
+      .select("id")
+      .where("marketplace", "=", MARKETPLACE)
+      .where("printingId", "=", SEED_PRINTING_ID)
+      .executeTakeFirst();
+
+    if (existing) {
+      productId = existing.id;
+    } else {
+      // If seed data was somehow removed, create our own product
+      const groupRow = await db
+        .selectFrom("marketplaceGroups")
+        .select("groupId")
+        .where("marketplace", "=", MARKETPLACE)
+        .executeTakeFirst();
+
+      const groupId = groupRow?.groupId ?? 24_439;
+
+      await db
+        .insertInto("marketplaceGroups")
+        .values({
+          marketplace: MARKETPLACE,
+          groupId,
+          name: "Cat Test TCG Group",
+          abbreviation: null,
+        })
+        .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
+        .execute();
+
+      const [product] = await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: MARKETPLACE,
+          groupId,
+          externalId: 999_001,
+          productName: "Annie Fiery (Cat Test)",
+          printingId: SEED_PRINTING_ID,
+        })
+        .returning("id")
+        .execute();
+      productId = product.id;
+    }
+
     await db
       .insertInto("marketplaceSnapshots")
       .values({
-        productId: SEED_TCG_SOURCE_ID,
+        productId,
         recordedAt: new Date("2026-03-15T10:00:00Z"),
         marketCents: 350,
         lowCents: 200,
@@ -46,11 +97,13 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
   afterAll(async () => {
     await db.deleteFrom("printingImages").where("provider", "=", "cat-test").execute();
-    await db
-      .deleteFrom("marketplaceSnapshots")
-      .where("productId", "=", SEED_TCG_SOURCE_ID)
-      .where("recordedAt", "=", new Date("2026-03-15T10:00:00Z"))
-      .execute();
+    if (productId) {
+      await db
+        .deleteFrom("marketplaceSnapshots")
+        .where("productId", "=", productId)
+        .where("recordedAt", "=", new Date("2026-03-15T10:00:00Z"))
+        .execute();
+    }
   });
 
   describe("GET /catalog", () => {

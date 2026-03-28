@@ -1358,9 +1358,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.newCards).toBeNumber();
-      expect(json.updates).toBeNumber();
-      expect(json.unchanged).toBeNumber();
+      expect(json.newCards).toBeTypeOf("number");
+      expect(json.updates).toBeTypeOf("number");
+      expect(json.unchanged).toBeTypeOf("number");
     });
 
     it("returns 400 for empty source", async () => {
@@ -1815,7 +1815,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       const json = await res.json();
       expect(json.cardsChecked).toBeGreaterThanOrEqual(1);
-      expect(json.printingsChecked).toBeNumber();
+      expect(json.printingsChecked).toBeTypeOf("number");
     });
 
     it("returns 400 for empty provider", async () => {

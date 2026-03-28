@@ -96,13 +96,13 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const res = await app.fetch(req("GET", "/copies"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
-      expect(Array.isArray(json)).toBe(true);
+      const json = (await res.json()) as { items: Record<string, unknown>[] };
+      expect(Array.isArray(json.items)).toBe(true);
       // 3 from first add + 1 from inbox add = 4
-      expect(json.length).toBe(4);
+      expect(json.items.length).toBe(4);
 
       // Each copy should have denormalized card info
-      const copy = json[0];
+      const copy = json.items[0];
       expect(copy.id).toBeTypeOf("string");
       expect(copy.printingId).toBeTypeOf("string");
       expect(copy.collectionId).toBeTypeOf("string");
@@ -118,10 +118,10 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const res = await app.fetch(req("GET", "/copies/count"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
+      const json = (await res.json()) as { items: Record<string, number> };
       // 2 of PRINTING_1, 2 of PRINTING_2 (1 explicit + 1 inbox)
-      expect(json[PRINTING_1.id]).toBe(2);
-      expect(json[PRINTING_2.id]).toBe(2);
+      expect(json.items[PRINTING_1.id]).toBe(2);
+      expect(json.items[PRINTING_2.id]).toBe(2);
     });
   });
 

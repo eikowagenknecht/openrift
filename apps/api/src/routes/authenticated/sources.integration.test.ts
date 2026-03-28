@@ -64,11 +64,11 @@ describe.skipIf(!ctx)("Sources routes (integration)", () => {
       const res = await app.fetch(req("GET", "/acquisition-sources"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as AcquisitionSourceResponse[];
-      expect(json.length).toBe(2);
+      const json = (await res.json()) as { items: AcquisitionSourceResponse[] };
+      expect(json.items.length).toBe(2);
       // Should be sorted alphabetically by name
-      expect(json[0].name).toBe("LGS Pickup");
-      expect(json[1].name).toBe("Online Store");
+      expect(json.items[0].name).toBe("LGS Pickup");
+      expect(json.items[1].name).toBe("Online Store");
     });
   });
 

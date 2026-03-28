@@ -143,7 +143,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(coreSet.slug).toBe("CAT-core-set");
       expect(coreSet.name).toBe("CAT Core Set");
       expect(coreSet.printedTotal).toBe(200);
-      expect(coreSet.sortOrder).toBeNumber();
+      expect(coreSet.sortOrder).toBeTypeOf("number");
       expect(coreSet.releasedAt).toBe("2025-01-15");
       expect(coreSet.cardCount).toBe(0);
       expect(coreSet.printingCount).toBe(0);

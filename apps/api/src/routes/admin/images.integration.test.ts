@@ -242,12 +242,12 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.total).toBeNumber();
-      expect(json.rehosted).toBeNumber();
-      expect(json.external).toBeNumber();
+      expect(json.total).toBeTypeOf("number");
+      expect(json.rehosted).toBeTypeOf("number");
+      expect(json.external).toBeTypeOf("number");
       expect(json.sets).toEqual(expect.any(Array));
       expect(json.disk).toBeDefined();
-      expect(json.disk.totalBytes).toBeNumber();
+      expect(json.disk.totalBytes).toBeTypeOf("number");
       expect(json.disk.sets).toEqual(expect.any(Array));
     });
   });
@@ -345,7 +345,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
       const json = await res.json();
       expect(json.provider).toBe("img-source");
-      expect(json.updated).toBeNumber();
+      expect(json.updated).toBeTypeOf("number");
 
       // Verify a printing_images row was created
       const images = await db

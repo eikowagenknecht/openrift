@@ -67,9 +67,9 @@ describe.skipIf(!ctx)("Trade Lists routes (integration)", () => {
       const res = await app.fetch(req("GET", "/trade-lists"));
       expect(res.status).toBe(200);
 
-      const json = await res.json();
-      expect(Array.isArray(json)).toBe(true);
-      expect(json.length).toBe(2);
+      const json = (await res.json()) as { items: unknown[] };
+      expect(Array.isArray(json.items)).toBe(true);
+      expect(json.items.length).toBe(2);
     });
   });
 
