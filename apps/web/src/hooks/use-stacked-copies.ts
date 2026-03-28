@@ -5,7 +5,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useCopies } from "@/hooks/use-copies";
 
 /** Copies of the same printing, stacked into one visual entry. */
-interface StackedEntry {
+export interface StackedEntry {
   printingId: string;
   printing: Printing;
   copyIds: string[];

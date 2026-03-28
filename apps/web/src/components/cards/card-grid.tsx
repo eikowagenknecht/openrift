@@ -1,8 +1,9 @@
 import type { Printing } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { useCardBrowserContext } from "@/components/card-browser-context";
+import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import type { VisibleFields } from "@/lib/card-fields";
@@ -30,7 +31,6 @@ import {
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
 import type { SetInfo, VRow } from "./card-grid-types";
-import { CardThumbnail } from "./card-thumbnail";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useGridKeyboardNav } from "./use-grid-keyboard-nav";
 import { useStickyHeader } from "./use-sticky-header";
@@ -39,15 +39,15 @@ export type { SetInfo } from "./card-grid-types";
 
 interface CardGroup {
   set: SetInfo;
-  cards: Printing[];
+  items: CardViewerItem[];
 }
 
-function groupCardsBySet(cards: Printing[], setOrder: SetInfo[]): CardGroup[] {
-  const bySet = Map.groupBy(cards, (printing) => printing.setId);
+function groupItemsBySet(items: CardViewerItem[], setOrder: SetInfo[]): CardGroup[] {
+  const bySet = Map.groupBy(items, (item) => item.printing.setId);
 
   return setOrder.flatMap((setInfo) => {
-    const setCards = bySet.get(setInfo.id);
-    return setCards ? [{ set: setInfo, cards: setCards }] : [];
+    const setItems = bySet.get(setInfo.id);
+    return setItems ? [{ set: setInfo, items: setItems }] : [];
   });
 }
 
@@ -57,10 +57,10 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
   let cardsBefore = 0;
   for (const group of groups) {
     if (showHeaders) {
-      rows.push({ kind: "header", set: group.set, cardCount: group.cards.length });
+      rows.push({ kind: "header", set: group.set, cardCount: group.items.length });
     }
-    for (let i = 0; i < group.cards.length; i += columns) {
-      const items = group.cards.slice(i, i + columns);
+    for (let i = 0; i < group.items.length; i += columns) {
+      const items = group.items.slice(i, i + columns);
       rows.push({ kind: "cards", items, cardsBefore });
       cardsBefore += items.length;
     }
@@ -187,36 +187,20 @@ const CardRowContent = memo(function CardRowContent({
   row,
   columns,
   labelHeight,
-  onCardClick,
-  onSiblingClick,
-  showImages,
-  selectedCardId,
+  selectedItemId,
   flashCardId,
-  printingsByCardId,
-  priceRangeByCardId,
-  view,
-  visibleFields,
   cardWidth,
   eagerCount,
-  ownedCounts,
-  onAdd,
+  renderCard,
 }: {
   row: VRow & { kind: "cards" };
   columns: number;
   labelHeight: number;
-  onCardClick: (printing: Printing) => void;
-  onSiblingClick: (printing: Printing) => void;
-  showImages: boolean;
-  selectedCardId?: string;
+  selectedItemId?: string;
   flashCardId: string | null;
-  printingsByCardId: Map<string, Printing[]>;
-  priceRangeByCardId: Map<string, { min: number; max: number }> | null;
-  view: "cards" | "printings";
-  visibleFields: VisibleFields;
   cardWidth: number;
   eagerCount: number;
-  ownedCounts: Map<string, number> | undefined;
-  onAdd?: (printing: Printing, anchorEl: HTMLElement) => void;
+  renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
 }) {
   // Track whether this row has been fully rendered before. Once rendered,
   // keep showing real content even during scroll (memo prevents re-render anyway).
@@ -255,9 +239,9 @@ const CardRowContent = memo(function CardRowContent({
   if (deferred) {
     return (
       <div style={gridStyle}>
-        {row.items.map((printing) => (
+        {row.items.map((item) => (
           // ⚠ p-1.5 mirrors BUTTON_PAD in card-grid-constants — update both together
-          <div key={printing.id} className="rounded-lg p-1.5">
+          <div key={item.id} className="rounded-lg p-1.5">
             <div className="bg-muted/40 rounded-lg" style={{ aspectRatio: `1 / ${CARD_ASPECT}` }} />
             {labelHeight > 0 && <div style={{ height: labelHeight }} />}
           </div>
@@ -268,26 +252,17 @@ const CardRowContent = memo(function CardRowContent({
 
   return (
     <div style={gridStyle}>
-      {row.items.map((printing, colIndex) => {
+      {row.items.map((item, colIndex) => {
         const flatIndex = row.cardsBefore + colIndex;
         return (
-          <CardThumbnail
-            key={printing.id}
-            printing={printing}
-            onClick={onCardClick}
-            onSiblingClick={onSiblingClick}
-            showImages={showImages}
-            isSelected={printing.id === selectedCardId}
-            isFlashing={printing.id === flashCardId}
-            siblings={printingsByCardId.get(printing.card.id)}
-            priceRange={priceRangeByCardId?.get(printing.card.id)}
-            view={view}
-            visibleFields={visibleFields}
-            cardWidth={cardWidth}
-            priority={flatIndex < eagerCount}
-            ownedCount={ownedCounts?.get(printing.id)}
-            onAdd={onAdd}
-          />
+          <Fragment key={item.id}>
+            {renderCard(item, {
+              isSelected: item.id === selectedItemId || item.printing.id === selectedItemId,
+              isFlashing: item.id === flashCardId || item.printing.id === flashCardId,
+              cardWidth,
+              priority: flatIndex < eagerCount,
+            })}
+          </Fragment>
         );
       })}
     </div>
@@ -295,34 +270,27 @@ const CardRowContent = memo(function CardRowContent({
 });
 
 interface CardGridProps {
-  cards: Printing[];
-  totalCards: number;
-  setOrder: SetInfo[];
-  selectedCardId?: string;
-  keyboardNavCardId?: string;
+  items: CardViewerItem[];
+  totalItems: number;
+  renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
+  setOrder?: SetInfo[];
+  selectedItemId?: string;
+  keyboardNavItemId?: string;
+  onItemClick?: (printing: Printing) => void;
+  siblingPrintings?: Printing[];
 }
 
 export function CardGrid({
-  cards,
-  totalCards,
+  items,
+  totalItems,
+  renderCard,
   setOrder,
-  selectedCardId,
-  keyboardNavCardId,
+  selectedItemId,
+  keyboardNavItemId,
+  onItemClick,
+  siblingPrintings,
 }: CardGridProps) {
-  // ── Card data & interaction handlers (passed down to each CardThumbnail) ──
-  const {
-    printingsByCardId,
-    priceRangeByCardId,
-    ownedCounts,
-    view,
-    onCardClick,
-    onSiblingClick,
-    onAddCard,
-    siblingPrintings,
-  } = useCardBrowserContext();
-
   // ── Display preferences (what to show on each card) ──────────────
-  const showImages = useDisplayStore((s) => s.showImages);
   const visibleFields = useDisplayStore((s) => s.visibleFields);
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
@@ -346,22 +314,24 @@ export function CardGrid({
 
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
-  // ── Group cards by set, then flatten into virtual rows ───────────
-  const groups = groupCardsBySet(cards, setOrder);
+  // ── Group items by set, then flatten into virtual rows ───────────
+  const groups = setOrder
+    ? groupItemsBySet(items, setOrder)
+    : [{ set: { id: "_all", slug: "", name: "" }, items }];
   const multipleGroups = groups.length > 1;
   const virtualRowsCacheRef = useRef<{
-    cards: Printing[];
-    setOrder: SetInfo[];
+    items: CardViewerItem[];
+    setOrder: SetInfo[] | undefined;
     columns: number;
     rows: VRow[];
-  }>({ cards: [], setOrder: [], columns: 0, rows: [] });
+  }>({ items: [], setOrder: undefined, columns: 0, rows: [] });
   if (
-    virtualRowsCacheRef.current.cards !== cards ||
+    virtualRowsCacheRef.current.items !== items ||
     virtualRowsCacheRef.current.setOrder !== setOrder ||
     virtualRowsCacheRef.current.columns !== columns
   ) {
     virtualRowsCacheRef.current = {
-      cards,
+      items,
       setOrder,
       columns,
       rows: buildVirtualRows(groups, columns),
@@ -396,7 +366,7 @@ export function CardGrid({
       return;
     }
     setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
-  }, [cards, containerRef]);
+  }, [items, containerRef]);
 
   // ── Virtualizer ────────────────────────────────────────────────────
   const virtualizer = useWindowVirtualizer({
@@ -418,10 +388,10 @@ export function CardGrid({
   });
 
   useGridKeyboardNav({
-    selectedCardId: keyboardNavCardId ?? selectedCardId,
+    selectedCardId: keyboardNavItemId ?? selectedItemId,
     virtualRows,
     columns,
-    onCardClick,
+    onCardClick: onItemClick,
     virtualizer,
     siblingPrintings,
   });
@@ -437,7 +407,10 @@ export function CardGrid({
     const rows = virtualRowsRef.current;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      if (row.kind === "cards" && row.items.some((c) => c.id === cardId)) {
+      if (
+        row.kind === "cards" &&
+        row.items.some((item) => item.id === cardId || item.printing.id === cardId)
+      ) {
         virtualizerRef.current.scrollToIndex(i, { align: "auto" });
         return;
       }
@@ -447,22 +420,22 @@ export function CardGrid({
   const [flashCardId, setFlashCardId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedCardId) {
+    if (!selectedItemId) {
       return;
     }
-    scrollToCard(selectedCardId);
-    setFlashCardId(selectedCardId);
+    scrollToCard(selectedItemId);
+    setFlashCardId(selectedItemId);
     const timer = setTimeout(() => setFlashCardId(null), 800);
     return () => clearTimeout(timer);
-  }, [selectedCardId]);
+  }, [selectedItemId]);
 
   // Re-scroll the selected card into view when columns change.
   useEffect(() => {
-    if (!selectedCardId) {
+    if (!selectedItemId) {
       return;
     }
-    scrollToCard(selectedCardId);
-  }, [columns, selectedCardId]);
+    scrollToCard(selectedItemId);
+  }, [columns, selectedItemId]);
 
   // ── Helpers ────────────────────────────────────────────────────────
   const scrollToGroup = (setId: string) => {
@@ -474,16 +447,16 @@ export function CardGrid({
     }
   };
 
-  const items = virtualizer.getVirtualItems();
+  const virtualItems = virtualizer.getVirtualItems();
 
   const eagerCount = columns * 2;
 
   // ── Render ─────────────────────────────────────────────────────────
-  if (cards.length === 0) {
+  if (items.length === 0) {
     return (
       <div ref={containerRef}>
         <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">
-          {totalCards === 0 ? (
+          {totalItems === 0 ? (
             <>
               <p className="text-muted-foreground text-lg font-medium">Couldn&apos;t load cards</p>
               <p className="text-muted-foreground text-sm">The server may be unreachable</p>
@@ -543,7 +516,7 @@ export function CardGrid({
         )}
       </div>
       <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
-        {items.map((vItem) => {
+        {virtualItems.map((vItem) => {
           const row = virtualRows[vItem.index];
           if (!row) {
             return null;
@@ -569,19 +542,11 @@ export function CardGrid({
                   row={row}
                   columns={columns}
                   labelHeight={labelHeight}
-                  onCardClick={onCardClick}
-                  onSiblingClick={onSiblingClick}
-                  showImages={showImages}
-                  selectedCardId={selectedCardId}
+                  selectedItemId={selectedItemId}
                   flashCardId={flashCardId}
-                  printingsByCardId={printingsByCardId}
-                  priceRangeByCardId={priceRangeByCardId}
-                  view={view}
-                  visibleFields={visibleFields}
                   cardWidth={thumbWidth}
                   eagerCount={eagerCount}
-                  ownedCounts={ownedCounts}
-                  onAdd={onAddCard}
+                  renderCard={renderCard}
                 />
               )}
             </div>

@@ -58,7 +58,7 @@ export function computeSnapPoints({
     for (let j = i + 1; j < virtualRows.length; j++) {
       const next = virtualRows[j];
       if (next.kind === "cards" && next.items.length > 0) {
-        firstCardId = next.items[0].shortCode;
+        firstCardId = next.items[0].printing.shortCode;
         break;
       }
       if (next.kind === "header") {

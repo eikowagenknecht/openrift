@@ -1,9 +1,17 @@
 import type { Printing } from "@openrift/shared";
 import { useEffect, useState } from "react";
 
+import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
-export function useCardDetailNav(sortedCards: Printing[], view: string) {
+/**
+ * Manages detail-pane navigation state for a list of card viewer items.
+ * @returns Selected card, detail open/close handlers, and prev/next navigation.
+ */
+export function useCardDetailNav(
+  items: CardViewerItem[],
+  findBy: "card" | "printing" = "printing",
+) {
   const [selectedCard, setSelectedCard] = useState<Printing | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -40,9 +48,9 @@ export function useCardDetailNav(sortedCards: Printing[], view: string) {
 
   const handleCardClick = (printing: Printing) => {
     const index =
-      view === "cards"
-        ? sortedCards.findIndex((c) => c.card.id === printing.card.id)
-        : sortedCards.findIndex((c) => c.id === printing.id);
+      findBy === "card"
+        ? items.findIndex((item) => item.printing.card.id === printing.card.id)
+        : items.findIndex((item) => item.printing.id === printing.id);
     setSelectedCard(printing);
     setSelectedIndex(index);
     setDetailOpen(true);
@@ -61,16 +69,16 @@ export function useCardDetailNav(sortedCards: Printing[], view: string) {
   const handlePrevCard =
     selectedIndex > 0
       ? () => {
-          const prev = sortedCards[selectedIndex - 1];
+          const prev = items[selectedIndex - 1].printing;
           setSelectedCard(prev);
           setSelectedIndex(selectedIndex - 1);
         }
       : undefined;
 
   const handleNextCard =
-    selectedIndex >= 0 && selectedIndex < sortedCards.length - 1
+    selectedIndex >= 0 && selectedIndex < items.length - 1
       ? () => {
-          const next = sortedCards[selectedIndex + 1];
+          const next = items[selectedIndex + 1].printing;
           setSelectedCard(next);
           setSelectedIndex(selectedIndex + 1);
         }
