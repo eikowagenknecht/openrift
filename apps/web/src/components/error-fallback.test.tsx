@@ -14,7 +14,7 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("All good")).toBeInTheDocument();
   });
 
-  it("renders an error UI when a child throws", () => {
+  it("renders an error UI when a child throws", async () => {
     // Suppress React's error boundary console.error noise in test output
     const spy = vi.spyOn(console, "error").mockImplementation(vi.fn());
 
@@ -28,11 +28,14 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    // Should show the error stack trace
-    expect(screen.getByText(/kaboom/)).toBeInTheDocument();
     // Should show action buttons
     expect(screen.getByText("Reshuffle")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go home" })).toHaveAttribute("href", "/");
+
+    // Error details are hidden behind a toggle
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Show details"));
+    expect(screen.getByText(/kaboom/)).toBeInTheDocument();
 
     spy.mockRestore();
   });
