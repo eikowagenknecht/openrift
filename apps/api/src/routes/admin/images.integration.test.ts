@@ -252,6 +252,88 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
   });
 
+  // ── GET /admin/rename-preview ───────────────────────────────────────────
+
+  describe("GET /admin/rename-preview", () => {
+    it("returns total and misnamed counts", async () => {
+      const res = await app.fetch(req("GET", "/admin/rename-preview"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(typeof json.total).toBe("number");
+      expect(typeof json.misnamed).toBe("number");
+    });
+  });
+
+  // ── POST /admin/rename-images ─────────────────────────────────────────
+
+  describe("POST /admin/rename-images", () => {
+    it("returns rename result shape", async () => {
+      const res = await app.fetch(req("POST", "/admin/rename-images"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(typeof json.scanned).toBe("number");
+      expect(typeof json.renamed).toBe("number");
+      expect(typeof json.alreadyCorrect).toBe("number");
+      expect(typeof json.failed).toBe("number");
+      expect(json.errors).toBeArray();
+      expect(typeof json.hasMore).toBe("boolean");
+    });
+  });
+
+  // ── POST /admin/cleanup-orphaned ──────────────────────────────────────
+
+  describe("POST /admin/cleanup-orphaned", () => {
+    it("returns cleanup result shape", async () => {
+      const res = await app.fetch(req("POST", "/admin/cleanup-orphaned"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(typeof json.scanned).toBe("number");
+      expect(typeof json.deleted).toBe("number");
+      expect(json.errors).toBeArray();
+    });
+  });
+
+  // ── GET /admin/broken-images ──────────────────────────────────────────
+
+  describe("GET /admin/broken-images", () => {
+    it("returns broken images result shape", async () => {
+      const res = await app.fetch(req("GET", "/admin/broken-images"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(typeof json.total).toBe("number");
+      expect(json.broken).toBeArray();
+    });
+  });
+
+  // ── GET /admin/low-res-images ─────────────────────────────────────────
+
+  describe("GET /admin/low-res-images", () => {
+    it("returns low-res images result shape", async () => {
+      const res = await app.fetch(req("GET", "/admin/low-res-images"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(typeof json.total).toBe("number");
+      expect(json.lowRes).toBeArray();
+    });
+  });
+
+  // ── GET /admin/missing-images ─────────────────────────────────────────
+
+  describe("GET /admin/missing-images", () => {
+    it("returns cards with missing images", async () => {
+      const res = await app.fetch(req("GET", "/admin/missing-images"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json).toBeArray();
+    });
+  });
+
   // ── POST /admin/restore-image-urls ─────────────────────────────────────
 
   describe("POST /admin/restore-image-urls", () => {
