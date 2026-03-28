@@ -14,9 +14,6 @@ export const META_LINE_HEIGHT = 16; // text-xs line-height (see note about sm:te
 export const META_LINE_GAP = 2; // space-y-0.5 between CardMetaLabel lines
 export const PRICE_MT = 2; // mt-0.5 on price <p>
 export const PRICE_LINE_HEIGHT = 16; // min-h-4 on price <p> (always rendered when visibleFields.price is on)
-export const META_LINE_HEIGHT_SM = 20; // sm:text-sm line-height (line 1, non-compact only)
-export const SM_BREAKPOINT = 640; // Tailwind sm: breakpoint (px)
-export const COMPACT_THRESHOLD = 190; // cardWidth below which CardThumbnail uses compact layout
 
 export const HEADER_PT = 16; // pt-4 on header row
 export const HEADER_PB = 8; // pb-2 on header row

@@ -15,7 +15,6 @@ import {
   APP_HEADER_HEIGHT,
   BUTTON_PAD,
   CARD_ASPECT,
-  COMPACT_THRESHOLD,
   FALLBACK_ROW_HEIGHT,
   GAP,
   HEADER_CONTENT_HEIGHT,
@@ -25,10 +24,8 @@ import {
   META_LABEL_PY,
   META_LINE_GAP,
   META_LINE_HEIGHT,
-  META_LINE_HEIGHT_SM,
   PRICE_LINE_HEIGHT,
   PRICE_MT,
-  SM_BREAKPOINT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
 import type { SetInfo, VRow } from "./card-grid-types";
@@ -69,11 +66,7 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
   return rows;
 }
 
-function estimateLabelHeight(
-  visibleFields: VisibleFields | undefined,
-  thumbWidth: number,
-  containerWidth: number,
-): number {
+function estimateLabelHeight(visibleFields: VisibleFields | undefined): number {
   const fields = visibleFields ?? {
     number: true,
     title: true,
@@ -92,11 +85,8 @@ function estimateLabelHeight(
     height += META_LABEL_PY;
     const hasLine1 = fields.number || fields.title;
     const hasLine2 = fields.type || fields.rarity;
-    const compact = thumbWidth < COMPACT_THRESHOLD;
-    const aboveSm = containerWidth >= SM_BREAKPOINT;
-    const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
     if (hasLine1) {
-      height += line1Height;
+      height += META_LINE_HEIGHT;
     }
     if (hasLine1 && hasLine2) {
       height += META_LINE_GAP;
@@ -344,7 +334,7 @@ export function CardGrid({
   const virtualRows = virtualRowsCacheRef.current.rows;
 
   // ── Label height estimation ────────────────────────────────────────
-  const labelHeight = estimateLabelHeight(visibleFields, thumbWidth, containerWidth);
+  const labelHeight = estimateLabelHeight(visibleFields);
 
   const estimateRowHeight = (index: number): number => {
     const row = virtualRows[index];
@@ -494,7 +484,6 @@ export function CardGrid({
         containerRef={containerRef}
         columns={columns}
         labelHeight={labelHeight}
-        thumbWidth={thumbWidth}
         visibleFields={visibleFields}
         estimateRowHeight={estimateRowHeight}
       />

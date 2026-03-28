@@ -2,7 +2,6 @@ import type { Domain, Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { memo, useRef, useState } from "react";
 
-import { COMPACT_THRESHOLD } from "@/components/cards/card-grid-constants";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
@@ -195,7 +194,6 @@ export const CardThumbnail = memo(function CardThumbnail({
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === ("foil" satisfies Finish);
   const tilt = useCardTilt({ mode: "pointer", enabled: !IS_COARSE_POINTER });
-  const compact = cardWidth !== undefined && cardWidth < COMPACT_THRESHOLD;
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
   const fanAngle = richEffects ? 8 : 1.5;
@@ -326,7 +324,6 @@ export const CardThumbnail = memo(function CardThumbnail({
         type={card.type}
         superTypes={card.superTypes}
         rarity={printing.rarity}
-        compact={compact}
         visibleFields={visibleFields}
       />
       {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}

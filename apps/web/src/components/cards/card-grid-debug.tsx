@@ -6,16 +6,13 @@ import type { VisibleFields } from "@/lib/card-fields";
 import {
   BUTTON_PAD,
   CARD_ASPECT,
-  COMPACT_THRESHOLD,
   GAP,
   LABEL_WRAPPER_MT,
   META_LABEL_PY,
   META_LINE_GAP,
   META_LINE_HEIGHT,
-  META_LINE_HEIGHT_SM,
   PRICE_LINE_HEIGHT,
   PRICE_MT,
-  SM_BREAKPOINT,
 } from "./card-grid-constants";
 
 type VRow = { kind: "header" } | { kind: "cards" };
@@ -27,7 +24,6 @@ interface CardGridDebugProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   columns: number;
   labelHeight: number;
-  thumbWidth: number;
   visibleFields: VisibleFields | undefined;
   estimateRowHeight: (index: number) => number;
 }
@@ -95,7 +91,6 @@ export function CardGridDebug({
   containerRef,
   columns,
   labelHeight,
-  thumbWidth,
   visibleFields,
   estimateRowHeight,
 }: CardGridDebugProps) {
@@ -131,11 +126,8 @@ export function CardGridDebug({
       };
       const hasMetaFields = fields.number || fields.title || fields.type || fields.rarity;
       const hasLabel = hasMetaFields || fields.price;
-      const compact = thumbWidth < COMPACT_THRESHOLD;
-      const aboveSm = globalThis.innerWidth >= SM_BREAKPOINT;
       const hasLine1 = fields.number || fields.title;
       const hasLine2 = fields.type || fields.rarity;
-      const line1Height = !compact && aboveSm ? META_LINE_HEIGHT_SM : META_LINE_HEIGHT;
 
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const interLoaded = document.fonts.check('12px "Inter Variable"');
@@ -184,7 +176,7 @@ export function CardGridDebug({
 
             let expMeta = META_LABEL_PY;
             if (hasLine1) {
-              expMeta += line1Height;
+              expMeta += META_LINE_HEIGHT;
             }
             if (hasLine1 && hasLine2) {
               expMeta += META_LINE_GAP;
@@ -210,9 +202,9 @@ export function CardGridDebug({
                 : "";
               metaChildren.push({
                 label: "L1",
-                exp: line1Height,
+                exp: META_LINE_HEIGHT,
                 meas: l1Rect?.height ?? 0,
-                note: `${!compact && aboveSm ? "sm:text-sm" : "text-xs"} ${l1Info}\n          ${l1Box}`,
+                note: `text-xs ${l1Info}\n          ${l1Box}`,
               });
               childIdx++;
             }
