@@ -19,8 +19,15 @@ import {
 
 const mockIo: Io = {
   ...defaultIo,
-  // Return empty results in the format each price API expects
-  fetch: async () => Response.json({ results: [], createdAt: null }, { status: 200 }),
+  // Return empty results in the format each price API expects.
+  // CardTrader endpoints expect JSON arrays; TCGPlayer/Cardmarket expect { results: [] }.
+  fetch: async (input: string | URL | Request) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.includes("cardtrader.com")) {
+      return Response.json([], { status: 200 });
+    }
+    return Response.json({ results: [], createdAt: null }, { status: 200 });
+  },
 };
 
 const ADMIN_USER_ID = "a0000000-0019-4000-a000-000000000001";
@@ -395,6 +402,39 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
       const json = await res.json();
       expect(json).toHaveProperty("transformed");
+    });
+  });
+
+  // ── POST /admin/refresh-cardtrader-prices ─────────────────────────────
+
+  describe("POST /admin/refresh-cardtrader-prices", () => {
+    it("returns 200 with refresh result", async () => {
+      const res = await app.fetch(req("POST", "/admin/refresh-cardtrader-prices"));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json).toHaveProperty("transformed");
+      expect(json).toHaveProperty("upserted");
+    });
+  });
+
+  // ── POST /admin/fix-typography ────────────────────────────────────────
+
+  describe("POST /admin/fix-typography", () => {
+    it("returns affected count in dry-run mode", async () => {
+      const res = await app.fetch(req("POST", "/admin/fix-typography", { dryRun: true }));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(typeof json.affectedCount).toBe("number");
+    });
+
+    it("returns affected count in actual mode", async () => {
+      const res = await app.fetch(req("POST", "/admin/fix-typography", { dryRun: false }));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(typeof json.affectedCount).toBe("number");
     });
   });
 });

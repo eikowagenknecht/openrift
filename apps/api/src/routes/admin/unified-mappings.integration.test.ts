@@ -136,6 +136,10 @@ if (ctx) {
     .insertInto("marketplaceGroups")
     .values({ marketplace: "cardmarket", groupId: 10_301, name: "UNM CM Group" })
     .execute();
+  await db
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "cardtrader", groupId: 10_302, name: "UNM CT Group" })
+    .execute();
 
   // TCGPlayer staging row for Alpha Card
   await db
@@ -197,6 +201,27 @@ if (ctx) {
       avg1Cents: null,
       avg7Cents: null,
       avg30Cents: null,
+    })
+    .execute();
+
+  // CardTrader staging row for Alpha Card (covers ctMapPrices in marketplace-configs.ts)
+  await db
+    .insertInto("marketplaceStaging")
+    .values({
+      marketplace: "cardtrader",
+      externalId: 44_444,
+      groupId: 10_302,
+      productName: "UNM Alpha Card Normal",
+      finish: "normal",
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 150,
+      lowCents: 90,
+      midCents: 120,
+      highCents: 200,
+      trendCents: 130,
+      avg1Cents: 110,
+      avg7Cents: 115,
+      avg30Cents: 125,
     })
     .execute();
 }
