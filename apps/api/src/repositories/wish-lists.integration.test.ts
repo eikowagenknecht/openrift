@@ -49,7 +49,7 @@ describe.skipIf(!ctx)("wishListsRepo (integration)", () => {
   it("creates a wish list", async () => {
     const list = await repo.create({ userId, name: "Wants", rules: null });
 
-    expect(list.id).toBeString();
+    expect(list.id).toBeTypeOf("string");
     expect(list.userId).toBe(userId);
     expect(list.name).toBe("Wants");
     expect(list.rules).toBeNull();
@@ -143,7 +143,7 @@ describe.skipIf(!ctx)("wishListsRepo (integration)", () => {
       quantityDesired: 2,
     });
 
-    expect(item.id).toBeString();
+    expect(item.id).toBeTypeOf("string");
     expect(item.wishListId).toBe(wishListId);
     expect(item.cardId).toBe(CARD_FURY_UNIT.id);
     expect(item.printingId).toBeNull();
@@ -162,7 +162,7 @@ describe.skipIf(!ctx)("wishListsRepo (integration)", () => {
       quantityDesired: 1,
     });
 
-    expect(item.id).toBeString();
+    expect(item.id).toBeTypeOf("string");
     expect(item.printingId).toBe(PRINTING_1.id);
     expect(item.cardId).toBeNull();
     itemByPrintingId = item.id;
