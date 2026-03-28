@@ -3,7 +3,7 @@ import { ChevronRight, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { useAddCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -50,23 +50,18 @@ export function QuickAddPalette({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPortal>
-        <DialogOverlay />
-        <div
-          data-slot="dialog-content"
-          className="fixed top-[20%] left-1/2 z-50 w-full max-w-md -translate-x-1/2 outline-none"
-        >
-          <DialogTitle className="sr-only">Quick add to {collectionName}</DialogTitle>
-          <div className="bg-background ring-foreground/10 overflow-hidden rounded-xl shadow-lg ring-1">
-            <PaletteInner
-              collectionId={collectionId}
-              collectionName={collectionName}
-              printingsByCardId={printingsByCardId}
-              ownedCountByPrinting={ownedCountByPrinting}
-            />
-          </div>
-        </div>
-      </DialogPortal>
+      <DialogContent
+        showCloseButton={false}
+        className="top-[20%] max-w-md -translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-md"
+      >
+        <DialogTitle className="sr-only">Quick add to {collectionName}</DialogTitle>
+        <PaletteInner
+          collectionId={collectionId}
+          collectionName={collectionName}
+          printingsByCardId={printingsByCardId}
+          ownedCountByPrinting={ownedCountByPrinting}
+        />
+      </DialogContent>
     </Dialog>
   );
 }
