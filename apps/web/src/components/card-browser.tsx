@@ -1,8 +1,8 @@
 import type { Printing } from "@openrift/shared";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
-import { Suspense, lazy, useDeferredValue, useRef, useState } from "react";
+import { useDeferredValue, useRef, useState } from "react";
 
-import { CardViewer } from "@/components/card-viewer";
+import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
@@ -24,9 +24,9 @@ import {
 import { SearchBar } from "@/components/filters/search-bar";
 import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
 import { Pane } from "@/components/layout/panes";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SelectionDetailPane } from "@/components/selection-detail-pane";
+import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
-import { useCardDetailNav } from "@/hooks/use-card-detail-nav";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
@@ -34,12 +34,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
 import { useDisplayStore } from "@/stores/display-store";
-
-const cardDetailImport = import("@/components/cards/card-detail");
-const CardDetail = lazy(async () => {
-  const m = await cardDetailImport;
-  return { default: m.CardDetail };
-});
+import { useSelectionStore } from "@/stores/selection-store";
 
 export function CardBrowser() {
   useHideScrollbar();
@@ -92,20 +87,17 @@ export function CardBrowser() {
     printing,
   }));
 
-  const {
-    selectedCard,
-    setSelectedCard,
-    detailOpen,
-    handleCardClick,
-    handleDetailClose,
-    handlePrevCard,
-    handleNextCard,
-  } = useCardDetailNav(items, view === "cards" ? "card" : "printing");
+  const findBy = view === "cards" ? "card" : ("printing" as const);
+
+  const handleGridCardClick = (printing: Printing) => {
+    setShowAddedList(false);
+    useSelectionStore.getState().selectCard(printing, items, findBy);
+  };
 
   const searchAndClose = (query: string) => {
     setSearch(query);
     if (isMobile) {
-      handleDetailClose();
+      useSelectionStore.getState().closeDetail();
     }
   };
 
@@ -121,18 +113,6 @@ export function CardBrowser() {
       return next;
     });
   };
-
-  const handleGridCardClick = (printing: Printing) => {
-    setShowAddedList(false);
-    handleCardClick(printing);
-  };
-
-  const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.card.id) ?? []) : [];
-
-  const gridSelectedId =
-    view === "cards" && selectedCard
-      ? (deferredSortedCards.find((c) => c.card.id === selectedCard.card.id)?.id ?? selectedCard.id)
-      : selectedCard?.id;
 
   const onAddCard: ((p: Printing, el: HTMLElement) => void) | undefined =
     adding && addingTo ? (p, el) => addFlowRef.current?.handleAddClick(p, el) : undefined;
@@ -223,47 +203,33 @@ export function CardBrowser() {
         <Pane className="md:block">
           <AddedCardsList
             items={addedItems}
-            onCardClick={(printing) => {
-              setShowAddedList(false);
-              handleCardClick(printing);
-            }}
+            onCardClick={handleGridCardClick}
             onClose={() => setShowAddedList(false)}
           />
         </Pane>
       );
     }
 
-    if (selectedCard && detailOpen) {
-      return (
-        <Pane className="md:block">
-          <Suspense fallback={<CardDetailSkeleton />}>
-            <CardDetail
-              printing={selectedCard}
-              onClose={handleDetailClose}
-              showImages={showImages}
-              onPrevCard={handlePrevCard}
-              onNextCard={handleNextCard}
-              onTagClick={(tag) => searchAndClose(`t:${tag}`)}
-              onKeywordClick={(keyword) => searchAndClose(`k:${keyword}`)}
-              printings={siblingPrintings}
-              onSelectPrinting={setSelectedCard}
-            />
-          </Suspense>
-        </Pane>
-      );
-    }
+    return (
+      <SelectionDetailPane
+        items={items}
+        printingsByCardId={printingsByCardId}
+        showImages={showImages}
+        onSearchAndClose={searchAndClose}
+      />
+    );
   })();
 
   return (
-    <CardViewer
+    <BrowserCardViewer
       items={items}
       totalItems={allPrintings.length}
       renderCard={renderCard}
       setOrder={sets}
-      selectedItemId={gridSelectedId}
-      keyboardNavItemId={selectedCard?.id}
+      deferredSortedCards={deferredSortedCards}
+      printingsByCardId={printingsByCardId}
+      view={view}
       onItemClick={handleGridCardClick}
-      siblingPrintings={siblingPrintings}
       stale={isGridStale}
       toolbar={toolbar}
       leftPane={leftPane}
@@ -277,53 +243,19 @@ export function CardBrowser() {
         <MobileDetailOverlay>
           <AddedCardsList
             items={addedItems}
-            onCardClick={(printing) => {
-              setShowAddedList(false);
-              handleCardClick(printing);
-            }}
+            onCardClick={handleGridCardClick}
             onClose={() => setShowAddedList(false)}
           />
         </MobileDetailOverlay>
       )}
-      {selectedCard && detailOpen && isMobile && !showAddedList && (
-        <MobileDetailOverlay>
-          <Suspense fallback={<CardDetailSkeleton />}>
-            <CardDetail
-              printing={selectedCard}
-              onClose={handleDetailClose}
-              showImages={showImages}
-              onPrevCard={handlePrevCard}
-              onNextCard={handleNextCard}
-              onTagClick={(tag) => searchAndClose(`t:${tag}`)}
-              onKeywordClick={(keyword) => searchAndClose(`k:${keyword}`)}
-              printings={siblingPrintings}
-              onSelectPrinting={setSelectedCard}
-            />
-          </Suspense>
-        </MobileDetailOverlay>
+      {!showAddedList && isMobile && (
+        <SelectionMobileOverlay
+          items={items}
+          printingsByCardId={printingsByCardId}
+          showImages={showImages}
+          onSearchAndClose={searchAndClose}
+        />
       )}
-    </CardViewer>
-  );
-}
-
-function CardDetailSkeleton() {
-  return (
-    <div className="bg-background rounded-lg px-3">
-      <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
-        <div className="space-y-1.5">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-      </div>
-      <div className="space-y-4 p-4 md:p-0 md:pb-4">
-        <Skeleton className="aspect-card w-full rounded-xl" />
-        <div className="flex justify-center gap-1.5">
-          <Skeleton className="h-7 w-16 rounded-md" />
-          <Skeleton className="h-7 w-16 rounded-md" />
-          <Skeleton className="h-7 w-16 rounded-md" />
-        </div>
-        <Skeleton className="h-20 w-full rounded-lg" />
-      </div>
-    </div>
+    </BrowserCardViewer>
   );
 }

@@ -151,6 +151,7 @@ export function useCardData({
   ownedCountByPrinting,
   favoriteMarketplace,
 }: UseCardDataParams) {
+  "use memo";
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
   const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
