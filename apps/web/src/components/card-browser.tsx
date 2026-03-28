@@ -205,7 +205,10 @@ export function CardBrowser() {
           cardId: printing.card.id,
           pos: {
             top: rect.bottom + 4,
-            left: Math.max(8, Math.min(rect.left, globalThis.innerWidth - 240)),
+            left: Math.max(
+              8,
+              Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
+            ),
           },
         });
       }
@@ -214,10 +217,10 @@ export function CardBrowser() {
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.card.id;
     const siblings = printingsByCardId.get(cardId);
-    const totalOwned =
-      addMode && view === "cards" && siblings && siblings.length > 1
-        ? siblings.reduce((sum, p) => sum + (ownedCounts?.get(p.id) ?? 0), 0)
-        : undefined;
+    const hasMultipleVariants = addMode && view === "cards" && (siblings?.length ?? 0) > 1;
+    const totalOwned = hasMultipleVariants
+      ? siblings?.reduce((sum, p) => sum + (ownedCountByPrinting?.[p.id] ?? 0), 0)
+      : undefined;
 
     return (
       <CardThumbnail
@@ -233,7 +236,11 @@ export function CardBrowser() {
         visibleFields={visibleFields}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
-        ownedCount={ownedCounts?.get(item.printing.id)}
+        ownedCount={
+          addMode
+            ? (ownedCountByPrinting?.[item.printing.id] ?? 0)
+            : ownedCounts?.get(item.printing.id)
+        }
         totalOwnedCount={totalOwned}
         sessionAddedCount={addedItems.get(item.printing.id)?.quantity}
         onQuickAdd={handleQuickAdd}
@@ -382,7 +389,7 @@ export function CardBrowser() {
           >
             <VariantAddPopover
               printings={variantPrintings}
-              ownedCounts={ownedCounts}
+              ownedCounts={ownedCountByPrinting}
               addedItems={addedItems}
               onQuickAdd={handleQuickAdd}
               onUndoAdd={handleUndoAdd}
