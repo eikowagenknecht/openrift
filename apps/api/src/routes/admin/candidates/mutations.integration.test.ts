@@ -1390,6 +1390,443 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
+  // ── Uncheck card source ──────────────────────────────────────────────────
+
+  describe("POST /:candidateCardId/uncheck", () => {
+    it("unchecks a checked candidate card", async () => {
+      // Ensure the card is checked first
+      await db
+        .updateTable("candidateCards")
+        .set({ checkedAt: new Date() })
+        .where("id", "=", cardShortCode)
+        .execute();
+
+      const res = await app.fetch(req("POST", `${P}/${cardShortCode}/uncheck`));
+      expect(res.status).toBe(204);
+
+      // Verify unchecked
+      const row = await db
+        .selectFrom("candidateCards")
+        .select("checkedAt")
+        .where("id", "=", cardShortCode)
+        .executeTakeFirstOrThrow();
+      expect(row.checkedAt).toBeNull();
+    });
+
+    it("returns 404 for non-existent candidate card", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(req("POST", `${P}/${fakeId}/uncheck`));
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Uncheck printing source ────────────────────────────────────────────
+
+  describe("POST /candidate-printings/:id/uncheck", () => {
+    it("unchecks a checked candidate printing", async () => {
+      // Ensure the printing is checked first
+      await db
+        .updateTable("candidatePrintings")
+        .set({ checkedAt: new Date() })
+        .where("id", "=", psId)
+        .execute();
+
+      const res = await app.fetch(req("POST", `${P}/candidate-printings/${psId}/uncheck`));
+      expect(res.status).toBe(204);
+
+      // Verify unchecked
+      const row = await db
+        .selectFrom("candidatePrintings")
+        .select("checkedAt")
+        .where("id", "=", psId)
+        .executeTakeFirstOrThrow();
+      expect(row.checkedAt).toBeNull();
+    });
+
+    it("returns 404 for non-existent candidate printing", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(req("POST", `${P}/candidate-printings/${fakeId}/uncheck`));
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Accept-field with provider source (typography fixes) ──────────────
+
+  describe("POST /:cardId/accept-field (provider source)", () => {
+    it("applies typography fixes when source is provider", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "rulesText",
+          value: 'Some "quoted" text',
+          source: "provider",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("cards")
+        .select("rulesText")
+        .where("slug", "=", cardSlug)
+        .executeTakeFirstOrThrow();
+      // fixTypography converts straight quotes to curly quotes
+      expect(row.rulesText).toBeDefined();
+
+      // Restore
+      await db
+        .updateTable("cards")
+        .set({ rulesText: "Flash", keywords: ["Flash"] })
+        .where("slug", "=", cardSlug)
+        .execute();
+    });
+
+    it("normalizes null to empty array for array fields like superTypes", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "superTypes",
+          value: null,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("cards")
+        .select("superTypes")
+        .where("slug", "=", cardSlug)
+        .executeTakeFirstOrThrow();
+      expect(row.superTypes).toEqual([]);
+    });
+
+    it("normalizes null to empty array for tags field", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "tags",
+          value: null,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const row = await db
+        .selectFrom("cards")
+        .select("tags")
+        .where("slug", "=", cardSlug)
+        .executeTakeFirstOrThrow();
+      expect(row.tags).toEqual([]);
+    });
+
+    it("returns 400 for missing field", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/${cardSlug}/accept-field`, {
+          field: "",
+          value: "foo",
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 when updating rulesText on non-existent card", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/NONEXISTENT-SLUG/accept-field`, {
+          field: "rulesText",
+          value: "test",
+        }),
+      );
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Accept printing field (extended coverage) ─────────────────────────
+
+  describe("POST /printing/:printingId/accept-field (extended)", () => {
+    it("applies typography to printedRulesText from provider source", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "printedRulesText",
+          value: 'Deal "damage" to target',
+          source: "provider",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // Verify the value was set (typography may have changed quotes)
+      const row = await db
+        .selectFrom("printings")
+        .select("printedRulesText")
+        .where("slug", "=", "CSM-001:normal:")
+        .executeTakeFirstOrThrow();
+      expect(row.printedRulesText).toBeDefined();
+
+      // Restore
+      await db
+        .updateTable("printings")
+        .set({ printedRulesText: "Flash" })
+        .where("slug", "=", "CSM-001:normal:")
+        .execute();
+    });
+
+    it("applies typography to printedEffectText from provider source", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "printedEffectText",
+          value: "Effect text here",
+          source: "provider",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // Restore
+      await db
+        .updateTable("printings")
+        .set({ printedEffectText: null })
+        .where("slug", "=", "CSM-001:normal:")
+        .execute();
+    });
+
+    it("applies typography to flavorText from provider source", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "flavorText",
+          value: 'Some "flavor" (with parens)',
+          source: "provider",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // Restore
+      await db
+        .updateTable("printings")
+        .set({ flavorText: null })
+        .where("slug", "=", "CSM-001:normal:")
+        .execute();
+    });
+
+    it("appends set total to publicCode from provider source", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "publicCode",
+          value: "CSM-001",
+          source: "provider",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // The set has printedTotal=2, so publicCode should be appended
+      const row = await db
+        .selectFrom("printings")
+        .select("publicCode")
+        .where("slug", "=", "CSM-001:normal:")
+        .executeTakeFirstOrThrow();
+      expect(row.publicCode).toBeDefined();
+
+      // Restore
+      await db
+        .updateTable("printings")
+        .set({ publicCode: "CSM" })
+        .where("slug", "=", "CSM-001:normal:")
+        .execute();
+    });
+
+    it("resolves setId from slug to UUID when accepting setId field", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "setId",
+          value: "CSM-TEST",
+        }),
+      );
+      expect(res.status).toBe(204);
+    });
+
+    it("returns 404 when setting setId to non-existent slug", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "setId",
+          value: "NONEXISTENT-SET",
+        }),
+      );
+      expect(res.status).toBe(404);
+    });
+
+    it("updates promoTypeId and rebuilds slug", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "promoTypeId",
+          value: promoTypeId,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // The slug should have been rebuilt to include the promo type
+      const row = await db
+        .selectFrom("printings")
+        .select(["slug", "promoTypeId"])
+        .where("id", "=", printingId)
+        .executeTakeFirstOrThrow();
+      expect(row.promoTypeId).toBe(promoTypeId);
+      // slug now includes promo suffix
+      expect(row.slug).toContain("promo");
+
+      // Restore: set promoTypeId back to null and rebuild slug
+      await db
+        .updateTable("printings")
+        .set({ promoTypeId: null, slug: "CSM-001:normal:" })
+        .where("id", "=", printingId)
+        .execute();
+    });
+
+    it("returns 400 for missing field", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+          field: "",
+          value: "foo",
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+  });
+
+  // ── Delete printing ────────────────────────────────────────────────────
+
+  describe("DELETE /printing/:printingId", () => {
+    it("deletes a printing and cleans up related data", async () => {
+      // Create a disposable printing for this test
+      const [disposablePrinting] = await db
+        .insertInto("printings")
+        .values({
+          slug: "CSM-DELETE-TEST:normal:",
+          cardId: cardId,
+          setId: setId,
+          shortCode: "CSM-DELETE-TEST",
+          collectorNumber: 80,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "Del Artist",
+          publicCode: "CSM",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        })
+        .returning("id")
+        .execute();
+
+      // Add an image to the printing
+      await db
+        .insertInto("printingImages")
+        .values({
+          printingId: disposablePrinting.id,
+          face: "front",
+          provider: "test",
+          originalUrl: "https://example.com/delete-test.png",
+          rehostedUrl: null,
+          isActive: true,
+        })
+        .execute();
+
+      // Create a candidate printing linked to this printing
+      await db
+        .insertInto("candidatePrintings")
+        .values({
+          candidateCardId: csForAcceptNewId,
+          printingId: disposablePrinting.id,
+          shortCode: "CSM-DELETE-TEST",
+          setId: "CSM-TEST",
+          setName: "CSM Test Set",
+          collectorNumber: 80,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "Del Artist",
+          publicCode: "CSM",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "CSM-DELETE-TEST-PS",
+          extraData: null,
+        })
+        .execute();
+
+      const res = await app.fetch(req("DELETE", `${P}/printing/CSM-DELETE-TEST:normal:`));
+      expect(res.status).toBe(204);
+
+      // Verify printing is gone
+      const row = await db
+        .selectFrom("printings")
+        .select("id")
+        .where("slug", "=", "CSM-DELETE-TEST:normal:")
+        .executeTakeFirst();
+      expect(row).toBeUndefined();
+    });
+  });
+
+  // ── Check by provider ──────────────────────────────────────────────────
+
+  describe("POST /by-provider/:provider/check", () => {
+    it("marks all candidates for a provider as checked", async () => {
+      // Reset all csm-gallery candidates to unchecked
+      await db
+        .updateTable("candidateCards")
+        .set({ checkedAt: null })
+        .where("provider", "=", "csm-gallery")
+        .execute();
+      // Also reset candidate printings for that provider
+      const ccIds = await db
+        .selectFrom("candidateCards")
+        .select("id")
+        .where("provider", "=", "csm-gallery")
+        .execute();
+      if (ccIds.length > 0) {
+        await db
+          .updateTable("candidatePrintings")
+          .set({ checkedAt: null })
+          .where(
+            "candidateCardId",
+            "in",
+            ccIds.map((r) => r.id),
+          )
+          .execute();
+      }
+
+      const res = await app.fetch(req("POST", `${P}/by-provider/csm-gallery/check`));
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.cardsChecked).toBeGreaterThanOrEqual(1);
+      expect(json.printingsChecked).toBeNumber();
+    });
+
+    it("returns 400 for empty provider", async () => {
+      const res = await app.fetch(req("POST", `${P}/by-provider/%20/check`));
+      expect(res.status).toBe(400);
+    });
+  });
+
+  // ── Link unmatched (extended) ──────────────────────────────────────────
+
+  describe("POST /new/:name/link (extended)", () => {
+    it("returns 400 for missing cardId", async () => {
+      const res = await app.fetch(
+        req("POST", `${P}/new/somename/link`, {
+          cardId: "",
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+  });
+
+  // ── Accept new card (extended) ─────────────────────────────────────────
+
+  describe("POST /new/:name/accept (extended)", () => {
+    it("returns 400 for missing cardFields", async () => {
+      const res = await app.fetch(req("POST", `${P}/new/somename/accept`, {}));
+      expect(res.status).toBe(400);
+    });
+  });
+
   // ── Delete by source ────────────────────────────────────────────────────
   // (last — removes all card_sources for a source, cascading to printing_sources)
 
