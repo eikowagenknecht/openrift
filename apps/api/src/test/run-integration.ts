@@ -153,6 +153,9 @@ const PARALLEL_FILES = [
   "src/routes/admin/provider-settings.integration.test.ts",
   "src/routes/admin/site-settings.integration.test.ts",
   "src/routes/admin/ignored-candidates.integration.test.ts",
+  // Batch 4 — additional repo coverage
+  "src/repositories/printing-images.integration.test.ts",
+  "src/repositories/price-refresh.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */
