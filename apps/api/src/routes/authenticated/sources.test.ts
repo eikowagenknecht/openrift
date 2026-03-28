@@ -176,3 +176,101 @@ describe("DELETE /api/v1/acquisition-sources/:id", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST /api/v1/acquisition-sources — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.create.mockReset();
+  });
+
+  it("passes correct arguments with description", async () => {
+    mockRepo.create.mockResolvedValue(dbSource);
+    await app.request("/api/v1/acquisition-sources", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "TCGplayer", description: "Online marketplace" }),
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "TCGplayer",
+      description: "Online marketplace",
+    });
+  });
+
+  it("passes null description when omitted", async () => {
+    mockRepo.create.mockResolvedValue({ ...dbSource, description: null });
+    await app.request("/api/v1/acquisition-sources", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "LGS" }),
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      userId: USER_ID,
+      name: "LGS",
+      description: null,
+    });
+  });
+});
+
+describe("PATCH /api/v1/acquisition-sources/:id — field updates", () => {
+  beforeEach(() => {
+    mockRepo.update.mockReset();
+  });
+
+  it("updates description field", async () => {
+    const updated = { ...dbSource, description: "Updated desc" };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: "Updated desc" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.update).toHaveBeenCalledWith(dbSource.id, USER_ID, {
+      description: "Updated desc",
+    });
+  });
+
+  it("updates both name and description", async () => {
+    const updated = { ...dbSource, name: "New Name", description: "New desc" };
+    mockRepo.update.mockResolvedValue(updated);
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "New Name", description: "New desc" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.update).toHaveBeenCalledWith(dbSource.id, USER_ID, {
+      name: "New Name",
+      description: "New desc",
+    });
+  });
+});
+
+describe("GET /api/v1/acquisition-sources/:id — field mapping", () => {
+  beforeEach(() => {
+    mockRepo.getByIdForUser.mockReset();
+  });
+
+  it("returns all mapped fields", async () => {
+    mockRepo.getByIdForUser.mockResolvedValue(dbSource);
+    const res = await app.request(`/api/v1/acquisition-sources/${dbSource.id}`);
+    const json = await res.json();
+    expect(json.id).toBe(dbSource.id);
+    expect(json.name).toBe("TCGplayer");
+    expect(json.description).toBe("Online marketplace");
+    expect(json.createdAt).toBe(now.toISOString());
+    expect(json.updatedAt).toBe(now.toISOString());
+  });
+});
+
+describe("DELETE /api/v1/acquisition-sources/:id — argument passing", () => {
+  beforeEach(() => {
+    mockRepo.deleteByIdForUser.mockReset();
+  });
+
+  it("passes correct arguments to deleteByIdForUser", async () => {
+    mockRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 1n });
+    await app.request(`/api/v1/acquisition-sources/${dbSource.id}`, { method: "DELETE" });
+    expect(mockRepo.deleteByIdForUser).toHaveBeenCalledWith(dbSource.id, USER_ID);
+  });
+});

@@ -12,15 +12,22 @@ import type { Io } from "../io.js";
 // ─── Import module under test ───────────────────────────────────────────
 import {
   CARD_IMAGES_DIR,
+  cleanupOrphanedFiles,
   clearAllRehosted,
+  collectStaleImages,
   deleteRehostFiles,
   downloadImage,
+  findBrokenImages,
+  findLowResImages,
   getRehostStatus,
+  imageRehostedUrl,
   processAndSave,
   regenerateImages,
   rehostFilesExist,
   rehostImages,
+  rehostSingleImage,
   renameRehostFiles,
+  renameStaleImages,
 } from "./image-rehost.js";
 
 // ─── Mock fs functions (provided via io parameter) ──────────────────────
@@ -594,5 +601,318 @@ describe("getRehostStatus", () => {
     expect(result.total).toBe(15);
     expect(result.rehosted).toBe(8);
     expect(result.external).toBe(7);
+  });
+
+  it("counts orphaned files on disk with no matching DB entry", async () => {
+    const repo = makeMockRepo({
+      selectResult: [{ setId: "s", setName: "Set", total: 1, rehosted: 1 }],
+    });
+    // allRehostedUrls returns empty → every disk file is orphaned
+    repo.allRehostedUrls = vi.fn(() => Promise.resolve([]));
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("s1", true)];
+      }
+      return ["img-001-300w.webp", "img-002-full.webp"];
+    });
+
+    const result = await getRehostStatus(mockIo, repo);
+    expect(result.orphanedFiles).toBe(2);
+  });
+});
+
+describe("imageRehostedUrl", () => {
+  it("builds the canonical rehosted URL", () => {
+    expect(imageRehostedUrl("set-1", "img-uuid")).toBe("/card-images/set-1/img-uuid");
+  });
+});
+
+describe("rehostSingleImage", () => {
+  it("does nothing when image has no originalUrl", async () => {
+    const repo = {
+      getForRehost: vi.fn(async () => ({ originalUrl: null, setSlug: "s" })),
+      updateRehostedUrl: vi.fn(async () => {}),
+    } as any;
+
+    await rehostSingleImage(mockIo, repo, "img-1");
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when image is not found", async () => {
+    const repo = {
+      getForRehost: vi.fn(async () => null),
+      updateRehostedUrl: vi.fn(async () => {}),
+    } as any;
+
+    await rehostSingleImage(mockIo, repo, "img-1");
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("downloads, processes, and updates the rehosted URL", async () => {
+    const repo = {
+      getForRehost: vi.fn(async () => ({
+        originalUrl: "https://example.com/img.png",
+        setSlug: "set-a",
+      })),
+      updateRehostedUrl: vi.fn(async () => {}),
+    } as any;
+
+    await rehostSingleImage(mockIo, repo, "img-uuid");
+
+    expect(mockFetch).toHaveBeenCalled();
+    expect(mockWriteFile).toHaveBeenCalled();
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("img-uuid", "/card-images/set-a/img-uuid");
+  });
+
+  it("swallows download errors silently", async () => {
+    mockFetch.mockRejectedValue(new Error("timeout"));
+    const repo = {
+      getForRehost: vi.fn(async () => ({
+        originalUrl: "https://example.com/img.png",
+        setSlug: "set-a",
+      })),
+      updateRehostedUrl: vi.fn(async () => {}),
+    } as any;
+
+    // Should not throw
+    await rehostSingleImage(mockIo, repo, "img-uuid");
+
+    expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe("collectStaleImages", () => {
+  it("returns empty stale list when all images match", async () => {
+    const repo = {
+      listAllRehosted: vi.fn(async () => [
+        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/set-a/img-1" },
+      ]),
+    } as any;
+
+    const result = await collectStaleImages(repo);
+
+    expect(result.total).toBe(1);
+    expect(result.stale).toHaveLength(0);
+  });
+
+  it("identifies stale images with mismatched URLs", async () => {
+    const repo = {
+      listAllRehosted: vi.fn(async () => [
+        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/old-set/old-name" },
+      ]),
+    } as any;
+
+    const result = await collectStaleImages(repo);
+
+    expect(result.stale).toHaveLength(1);
+    expect(result.stale[0].oldUrl).toBe("/card-images/old-set/old-name");
+    expect(result.stale[0].newUrl).toBe("/card-images/set-a/img-1");
+  });
+});
+
+describe("renameStaleImages", () => {
+  it("renames stale images and updates DB", async () => {
+    const repo = {
+      listAllRehosted: vi.fn(async () => [
+        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/old-set/old-name" },
+      ]),
+      updateRehostedUrl: vi.fn(async () => {}),
+    } as any;
+    mockReaddir.mockResolvedValue(["old-name-orig.png", "old-name-300w.webp"]);
+
+    const result = await renameStaleImages(mockIo, repo);
+
+    expect(result.renamed).toBe(1);
+    expect(result.alreadyCorrect).toBe(0);
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("img-1", "/card-images/set-a/img-1");
+  });
+
+  it("counts rename failures", async () => {
+    const repo = {
+      listAllRehosted: vi.fn(async () => [
+        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/old-set/old-name" },
+      ]),
+      updateRehostedUrl: vi.fn(async () => {
+        throw new Error("DB error");
+      }),
+    } as any;
+    mockReaddir.mockResolvedValue(["old-name-orig.png"]);
+
+    const result = await renameStaleImages(mockIo, repo);
+
+    expect(result.failed).toBe(1);
+    expect(result.errors).toHaveLength(1);
+  });
+});
+
+describe("cleanupOrphanedFiles", () => {
+  it("deletes files with no matching DB entry", async () => {
+    const repo = {
+      allRehostedUrls: vi.fn(async () => ["/card-images/set-a/img-1"]),
+    } as any;
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("set-a", true)];
+      }
+      return ["img-1-300w.webp", "orphan-300w.webp"];
+    });
+
+    const result = await cleanupOrphanedFiles(mockIo, repo);
+
+    expect(result.scanned).toBe(2);
+    expect(result.deleted).toBe(1);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("reports unlink errors", async () => {
+    const repo = {
+      allRehostedUrls: vi.fn(async () => []),
+    } as any;
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("set-a", true)];
+      }
+      return ["orphan-300w.webp"];
+    });
+    mockUnlink.mockRejectedValue(new Error("EPERM"));
+
+    const result = await cleanupOrphanedFiles(mockIo, repo);
+
+    expect(result.scanned).toBe(1);
+    expect(result.deleted).toBe(0);
+    expect(result.errors).toHaveLength(1);
+  });
+});
+
+describe("findBrokenImages", () => {
+  it("returns empty broken list when all files exist", async () => {
+    const repo = {
+      listAllRehostedWithContext: vi.fn(async () => [
+        {
+          imageId: "img-1",
+          rehostedUrl: "/card-images/set-a/img-1",
+          originalUrl: "https://example.com/img.png",
+          cardSlug: "c-1",
+          cardName: "Card",
+          printingSlug: "p-1",
+          setSlug: "set-a",
+        },
+      ]),
+    } as any;
+    mockReaddir.mockResolvedValue(["img-1-orig.png"]);
+
+    const result = await findBrokenImages(mockIo, repo);
+
+    expect(result.total).toBe(1);
+    expect(result.broken).toHaveLength(0);
+  });
+
+  it("identifies broken images with no files on disk", async () => {
+    const repo = {
+      listAllRehostedWithContext: vi.fn(async () => [
+        {
+          imageId: "img-1",
+          rehostedUrl: "/card-images/set-a/img-1",
+          originalUrl: "https://example.com/img.png",
+          cardSlug: "c-1",
+          cardName: "Card",
+          printingSlug: "p-1",
+          setSlug: "set-a",
+        },
+      ]),
+    } as any;
+    mockReaddir.mockRejectedValue(new Error("ENOENT"));
+
+    const result = await findBrokenImages(mockIo, repo);
+
+    expect(result.total).toBe(1);
+    expect(result.broken).toHaveLength(1);
+    expect(result.broken[0].imageId).toBe("img-1");
+  });
+});
+
+describe("findLowResImages", () => {
+  it("returns empty when all images are high-res", async () => {
+    const mockSharpMeta: any = {
+      metadata: () => Promise.resolve({ width: 800, height: 1200 }),
+    };
+    const customIo = {
+      ...mockIo,
+      sharp: (() => mockSharpMeta) as any,
+    };
+
+    const repo = {
+      listAllRehostedWithContext: vi.fn(async () => [
+        {
+          imageId: "img-1",
+          rehostedUrl: "/card-images/set-a/img-1",
+          originalUrl: "https://example.com/img.png",
+          cardSlug: "c-1",
+          cardName: "Card",
+          printingSlug: "p-1",
+          setSlug: "set-a",
+        },
+      ]),
+    } as any;
+
+    const result = await findLowResImages(customIo, repo);
+
+    expect(result.total).toBe(1);
+    expect(result.lowRes).toHaveLength(0);
+  });
+
+  it("identifies images below the width threshold", async () => {
+    const mockSharpMeta: any = {
+      metadata: () => Promise.resolve({ width: 400, height: 600 }),
+    };
+    const customIo = {
+      ...mockIo,
+      sharp: (() => mockSharpMeta) as any,
+    };
+
+    const repo = {
+      listAllRehostedWithContext: vi.fn(async () => [
+        {
+          imageId: "img-1",
+          rehostedUrl: "/card-images/set-a/img-1",
+          originalUrl: "https://example.com/img.png",
+          cardSlug: "c-1",
+          cardName: "Card",
+          printingSlug: "p-1",
+          setSlug: "set-a",
+        },
+      ]),
+    } as any;
+
+    const result = await findLowResImages(customIo, repo);
+
+    expect(result.total).toBe(1);
+    expect(result.lowRes).toHaveLength(1);
+    expect(result.lowRes[0].width).toBe(400);
+  });
+
+  it("skips images where file read fails", async () => {
+    mockReadFile.mockRejectedValue(new Error("ENOENT"));
+    const repo = {
+      listAllRehostedWithContext: vi.fn(async () => [
+        {
+          imageId: "img-1",
+          rehostedUrl: "/card-images/set-a/img-1",
+          originalUrl: "https://example.com/img.png",
+          cardSlug: "c-1",
+          cardName: "Card",
+          printingSlug: "p-1",
+          setSlug: "set-a",
+        },
+      ]),
+    } as any;
+
+    const result = await findLowResImages(mockIo, repo);
+
+    expect(result.total).toBe(1);
+    expect(result.lowRes).toHaveLength(0);
   });
 });

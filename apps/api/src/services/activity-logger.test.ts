@@ -158,4 +158,61 @@ describe("createActivity", () => {
 
     expect(id).toBe("act-99");
   });
+
+  it("defaults to current date when no date is provided", async () => {
+    const before = Date.now();
+    const { repos, insertedActivities } = createMockRepos("act-date");
+
+    await createActivity(repos, {
+      userId: "user-1",
+      type: "acquisition",
+      items: [],
+    });
+
+    const vals = insertedActivities[0] as any;
+    expect(vals.date.getTime()).toBeGreaterThanOrEqual(before);
+    expect(vals.date.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("serializes metadataSnapshot as JSON string", async () => {
+    const { repos, insertedItems } = createMockRepos("act-meta");
+
+    await createActivity(repos, {
+      userId: "user-1",
+      type: "disposal",
+      items: [
+        {
+          printingId: "print-1",
+          action: "removed",
+          metadataSnapshot: { copyId: "c-1", acquisitionSourceId: "src-1" },
+        },
+      ],
+    });
+
+    const items = insertedItems[0] as any[];
+    expect(items[0].metadataSnapshot).toBe('{"copyId":"c-1","acquisitionSourceId":"src-1"}');
+  });
+
+  it("sets null fields for missing optional item fields", async () => {
+    const { repos, insertedItems } = createMockRepos("act-nulls");
+
+    await createActivity(repos, {
+      userId: "user-1",
+      type: "acquisition",
+      items: [
+        {
+          printingId: "print-1",
+          action: "added",
+        },
+      ],
+    });
+
+    const items = insertedItems[0] as any[];
+    expect(items[0].copyId).toBeNull();
+    expect(items[0].fromCollectionId).toBeNull();
+    expect(items[0].fromCollectionName).toBeNull();
+    expect(items[0].toCollectionId).toBeNull();
+    expect(items[0].toCollectionName).toBeNull();
+    expect(items[0].metadataSnapshot).toBeNull();
+  });
 });

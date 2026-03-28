@@ -528,4 +528,63 @@ describe("refreshCardmarketPrices", () => {
       expect(logUpsertSpy).toHaveBeenCalledWith(log, ZERO_COUNTS);
     });
   });
+
+  // ── Edge cases ────────────────────────────────────────────────────────
+
+  describe("edge cases", () => {
+    it("handles both normal and foil for the same product in staging", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
+
+      await refreshCardmarketPrices(stubFetch, repos, log);
+
+      const staging = upsertStaging();
+      const normalRow = staging.find(
+        (row: StagingRow) => row.externalId === 845_712 && row.finish === "normal",
+      );
+      const foilRow = staging.find(
+        (row: StagingRow) => row.externalId === 845_712 && row.finish === "foil",
+      );
+      expect(normalRow).toBeDefined();
+      expect(foilRow).toBeDefined();
+    });
+
+    it("sets midCents and highCents to null for Cardmarket", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
+
+      await refreshCardmarketPrices(stubFetch, repos, log);
+
+      const staging = upsertStaging();
+      expect(staging[0].midCents).toBeNull();
+      expect(staging[0].highCents).toBeNull();
+    });
+
+    it("upserts cardmarket marketplace config", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING], [PRICE_BLAZING]);
+
+      await refreshCardmarketPrices(stubFetch, repos, log);
+
+      // Config should be "cardmarket"
+      expect(upsertSpy.mock.calls[0][2]).toEqual({ marketplace: "cardmarket" });
+    });
+
+    it("correctly computes group rows from unique expansion IDs", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      // Two products in the same expansion
+      const product2 = { idProduct: 845_713, name: "Another Card", idExpansion: 6286 };
+      setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING, product2], [PRICE_BLAZING]);
+
+      const result = await refreshCardmarketPrices(stubFetch, repos, log);
+
+      // Only one unique expansion
+      expect(result.transformed.groups).toBe(1);
+      expect(result.transformed.products).toBe(2);
+    });
+  });
 });

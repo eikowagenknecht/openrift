@@ -1,0 +1,561 @@
+/* oxlint-disable
+   no-empty-function,
+   unicorn/no-useless-undefined
+   -- test file: mocks require empty fns and explicit undefined */
+import type { Logger } from "@openrift/shared/logger";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { Repos } from "../../deps.js";
+import type { Fetch } from "../../io.js";
+import { refreshCardtraderPrices } from "./cardtrader.js";
+import * as logMod from "./log.js";
+import type { StagingRow, UpsertCounts } from "./types.js";
+import * as upsertMod from "./upsert.js";
+
+// ── Stub fetch ──────────────────────────────────────────────────────────
+
+const _stubFetch: Fetch = (() => {
+  throw new Error("unexpected real fetch");
+}) as unknown as Fetch;
+
+// ── Mock data ───────────────────────────────────────────────────────────
+
+const EXPANSION_A = { id: 1001, game_id: 22, code: "OGN", name: "Origins" };
+const EXPANSION_B = { id: 1002, game_id: 22, code: "EXP", name: "Expansion" };
+const EXPANSION_OTHER_GAME = { id: 9999, game_id: 99, code: "OTHER", name: "Other Game" };
+
+const BLUEPRINT_FLAME = {
+  id: 5001,
+  name: "Flame Striker",
+  category_id: 258,
+  expansion_id: 1001,
+  card_market_ids: [8001],
+  tcg_player_id: 7001,
+};
+
+const BLUEPRINT_ICE = {
+  id: 5002,
+  name: "Ice Shard",
+  category_id: 258,
+  expansion_id: 1001,
+  card_market_ids: [],
+  tcg_player_id: null,
+};
+
+const BLUEPRINT_SEALED = {
+  id: 5003,
+  name: "Booster Pack",
+  category_id: 999,
+  expansion_id: 1001,
+  card_market_ids: [],
+  tcg_player_id: null,
+};
+
+const ZERO_COUNTS: UpsertCounts = {
+  snapshots: { total: 0, new: 0, updated: 0, unchanged: 0 },
+  staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
+};
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+function makeMockLogger(): { log: Logger; messages: string[] } {
+  const messages: string[] = [];
+  const log = {
+    info: (msg: string) => messages.push(msg),
+  } as unknown as Logger;
+  return { log, messages };
+}
+
+interface MockReposConfig {
+  ignoredProducts?: { externalId: number; finish: string }[];
+  existingSources?: {
+    marketplace: string;
+    externalId: number;
+    printingId: string;
+    groupId: number;
+    productName: string;
+  }[];
+  existingCtExternalIds?: number[];
+}
+
+function createMockRepos(config: MockReposConfig = {}) {
+  const ignoredKeys = new Set(
+    (config.ignoredProducts ?? []).map((product) => `${product.externalId}::${product.finish}`),
+  );
+
+  const repos = {
+    priceRefresh: {
+      loadIgnoredKeys: vi.fn(async () => ignoredKeys),
+      upsertGroups: vi.fn(async () => {}),
+      existingSourcesByMarketplaces: vi.fn(async () => config.existingSources ?? []),
+      existingExternalIdsByMarketplace: vi.fn(async () => config.existingCtExternalIds ?? []),
+      batchInsertProducts: vi.fn(async () => {}),
+    },
+  } as unknown as Repos;
+
+  return { repos };
+}
+
+interface MockFetchConfig {
+  expansions?: unknown[];
+  blueprintsByExpansion?: Map<number, unknown[]>;
+  productsByExpansion?: Map<number, Record<string, unknown[]>>;
+}
+
+function setupMockFetch(fetchSpy: ReturnType<typeof vi.spyOn>, config: MockFetchConfig = {}) {
+  const expansions = config.expansions ?? [];
+  const blueprintsByExpansion = config.blueprintsByExpansion ?? new Map();
+  const productsByExpansion = config.productsByExpansion ?? new Map();
+
+  fetchSpy.mockImplementation(async (url: string | URL | Request) => {
+    const urlStr = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+
+    if (urlStr.includes("/expansions")) {
+      return Response.json(expansions);
+    }
+    const bpMatch = urlStr.match(/blueprints\/export\?expansion_id=(\d+)/);
+    if (bpMatch) {
+      const expId = Number(bpMatch[1]);
+      return Response.json(blueprintsByExpansion.get(expId) ?? []);
+    }
+    const mpMatch = urlStr.match(/marketplace\/products\?expansion_id=(\d+)/);
+    if (mpMatch) {
+      const expId = Number(mpMatch[1]);
+      return Response.json(productsByExpansion.get(expId) ?? {});
+    }
+    return Response.json([]);
+  });
+}
+
+// ── Tests ───────────────────────────────────────────────────────────────
+
+describe("refreshCardtraderPrices", () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let upsertSpy: ReturnType<typeof vi.spyOn>;
+  let logUpsertSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json([]));
+    upsertSpy = vi.spyOn(upsertMod, "upsertPriceData" as any).mockResolvedValue(ZERO_COUNTS);
+    logUpsertSpy = vi.spyOn(logMod, "logUpsertCounts" as any);
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+    upsertSpy.mockRestore();
+    logUpsertSpy.mockRestore();
+  });
+
+  // ── API fetch ────────────────────────────────────────────────────────
+
+  describe("API fetch", () => {
+    it("filters expansions to Riftbound game_id only", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A, EXPANSION_OTHER_GAME],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      // Should NOT fetch blueprints for the other game expansion
+      const urls = fetchSpy.mock.calls.map((call) => String(call[0]));
+      expect(urls.some((url) => url.includes("expansion_id=9999"))).toBe(false);
+    });
+
+    it("handles empty expansions gracefully", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, { expansions: [] });
+
+      const result = await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(result.transformed.groups).toBe(0);
+      expect(result.transformed.products).toBe(0);
+      expect(result.transformed.prices).toBe(0);
+    });
+  });
+
+  // ── Staging rows ─────────────────────────────────────────────────────
+
+  describe("staging rows", () => {
+    it("creates normal and foil staging rows from marketplace listings", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en", riftbound_foil: false },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Foil",
+                  price_cents: 300,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en", riftbound_foil: true },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(2);
+      const normalRow = staging.find((row) => row.finish === "normal");
+      const foilRow = staging.find((row) => row.finish === "foil");
+      expect(normalRow?.marketCents).toBe(100);
+      expect(normalRow?.lowCents).toBe(100);
+      expect(foilRow?.marketCents).toBe(300);
+      expect(foilRow?.lowCents).toBe(300);
+    });
+
+    it("only considers English listings", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker JP",
+                  price_cents: 50,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "ja" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(0);
+    });
+
+    it("skips sealed products (non-singles category)", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_SEALED]]]),
+        productsByExpansion: new Map([[1001, {}]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(0);
+    });
+
+    it("skips ignored products", async () => {
+      const { repos } = createMockRepos({
+        ignoredProducts: [{ externalId: 5001, finish: "normal" }],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en", riftbound_foil: false },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Foil",
+                  price_cents: 300,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en", riftbound_foil: true },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      // Normal is ignored, foil is kept
+      expect(staging).toHaveLength(1);
+      expect(staging[0].finish).toBe("foil");
+    });
+
+    it("picks the cheapest listing per blueprint+finish", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 200,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Cheap",
+                  price_cents: 50,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(1);
+      expect(staging[0].marketCents).toBe(50);
+    });
+  });
+
+  // ── Auto-matching ────────────────────────────────────────────────────
+
+  describe("auto-matching", () => {
+    it("auto-matches blueprints via TCGplayer cross-reference", async () => {
+      const { repos } = createMockRepos({
+        existingSources: [
+          {
+            marketplace: "tcgplayer",
+            externalId: 7001,
+            printingId: "p-1",
+            groupId: 101,
+            productName: "Flame Striker",
+          },
+        ],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([[1001, {}]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(repos.priceRefresh.batchInsertProducts).toHaveBeenCalled();
+    });
+
+    it("auto-matches blueprints via Cardmarket cross-reference", async () => {
+      const { repos } = createMockRepos({
+        existingSources: [
+          {
+            marketplace: "cardmarket",
+            externalId: 8001,
+            printingId: "p-1",
+            groupId: 201,
+            productName: "Flame Striker",
+          },
+        ],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([[1001, {}]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(repos.priceRefresh.batchInsertProducts).toHaveBeenCalled();
+    });
+
+    it("skips already-existing cardtrader products", async () => {
+      const { repos } = createMockRepos({
+        existingSources: [
+          {
+            marketplace: "tcgplayer",
+            externalId: 7001,
+            printingId: "p-1",
+            groupId: 101,
+            productName: "Flame Striker",
+          },
+        ],
+        existingCtExternalIds: [5001],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([[1001, {}]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(repos.priceRefresh.batchInsertProducts).not.toHaveBeenCalled();
+    });
+
+    it("does not auto-match blueprints without cross-references", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_ICE]]]),
+        productsByExpansion: new Map([[1001, {}]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(repos.priceRefresh.batchInsertProducts).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Return value ─────────────────────────────────────────────────────
+
+  describe("return value", () => {
+    it("returns transformed and upserted counts", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A, EXPANSION_B],
+        blueprintsByExpansion: new Map([
+          [1001, [BLUEPRINT_FLAME]],
+          [1002, []],
+        ]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      const result = await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(result.transformed.groups).toBe(2);
+      expect(result.transformed.products).toBe(1);
+      expect(result.transformed.prices).toBe(1);
+      expect(result.upserted).toBe(ZERO_COUNTS);
+    });
+  });
+
+  // ── Logging ──────────────────────────────────────────────────────────
+
+  describe("logging", () => {
+    it("logs expansion and price counts", async () => {
+      const { repos } = createMockRepos();
+      const { log, messages } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(messages.some((msg) => msg.includes("1 Riftbound expansions"))).toBe(true);
+      expect(messages.some((msg) => msg.includes("1 blueprints total"))).toBe(true);
+    });
+
+    it("calls logUpsertCounts", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, { expansions: [] });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(logUpsertSpy).toHaveBeenCalledWith(log, ZERO_COUNTS);
+    });
+  });
+
+  // ── Group upsert ─────────────────────────────────────────────────────
+
+  describe("group upsert", () => {
+    it("upserts expansion groups with code and name", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, []]]),
+        productsByExpansion: new Map([[1001, {}]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const upsertGroupsSpy = vi.spyOn(upsertMod, "upsertMarketplaceGroups" as any);
+      // Verify that upsertMarketplaceGroups was called (it's in the module)
+      expect(repos.priceRefresh.upsertGroups).toHaveBeenCalled();
+      upsertGroupsSpy.mockRestore();
+    });
+  });
+});

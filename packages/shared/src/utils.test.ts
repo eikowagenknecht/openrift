@@ -8,6 +8,9 @@ import {
   comparePrintings,
   emptyToNull,
   formatDateUTC,
+  formatShortCodes,
+  getOrientation,
+  mostCommonValue,
   normalizeNameForMatching,
   toCents,
   unique,
@@ -316,5 +319,91 @@ describe("emptyToNull", () => {
   it("returns the string for whitespace-only input", () => {
     // Whitespace is truthy, so it passes through
     expect(emptyToNull("  ")).toBe("  ");
+  });
+});
+
+describe("getOrientation", () => {
+  it("returns landscape for Battlefield type", () => {
+    expect(getOrientation("Battlefield")).toBe("landscape");
+  });
+
+  it("returns portrait for Unit type", () => {
+    expect(getOrientation("Unit")).toBe("portrait");
+  });
+
+  it("returns portrait for Spell type", () => {
+    expect(getOrientation("Spell")).toBe("portrait");
+  });
+
+  it("returns portrait for Legend type", () => {
+    expect(getOrientation("Legend")).toBe("portrait");
+  });
+
+  it("returns portrait for Rune type", () => {
+    expect(getOrientation("Rune")).toBe("portrait");
+  });
+
+  it("returns portrait for Gear type", () => {
+    expect(getOrientation("Gear")).toBe("portrait");
+  });
+});
+
+describe("mostCommonValue", () => {
+  it("returns empty string for empty array", () => {
+    expect(mostCommonValue([])).toBe("");
+  });
+
+  it("returns the single element for single-element array", () => {
+    expect(mostCommonValue(["hello"])).toBe("hello");
+  });
+
+  it("returns the most frequent value", () => {
+    expect(mostCommonValue(["a", "b", "a", "c", "a"])).toBe("a");
+  });
+
+  it("returns the first most-frequent value when tied", () => {
+    expect(mostCommonValue(["a", "b", "b", "a"])).toBe("a");
+  });
+
+  it("handles all-same values", () => {
+    expect(mostCommonValue(["x", "x", "x"])).toBe("x");
+  });
+
+  it("handles all-unique values (returns first)", () => {
+    expect(mostCommonValue(["a", "b", "c"])).toBe("a");
+  });
+});
+
+describe("formatShortCodes", () => {
+  it("returns empty string for empty array", () => {
+    expect(formatShortCodes([])).toBe("");
+  });
+
+  it("returns a single code without count", () => {
+    expect(formatShortCodes(["OGN-027"])).toBe("OGN-027");
+  });
+
+  it("returns multiple unique codes sorted alphabetically", () => {
+    expect(formatShortCodes(["OGN-027", "OGN-001"])).toBe("OGN-001, OGN-027");
+  });
+
+  it("adds count for duplicates", () => {
+    expect(formatShortCodes(["OGN-027", "OGN-027"])).toBe("OGN-027 ×2");
+  });
+
+  it("mixes single and duplicate codes", () => {
+    expect(formatShortCodes(["OGN-027", "OGN-001", "OGN-027"])).toBe("OGN-001, OGN-027 ×2");
+  });
+
+  it("sorts codes alphabetically regardless of input order", () => {
+    expect(formatShortCodes(["ZZZ-001", "AAA-001", "MMM-001"])).toBe("AAA-001, MMM-001, ZZZ-001");
+  });
+
+  it("handles triple duplicates", () => {
+    expect(formatShortCodes(["OGN-027", "OGN-027", "OGN-027"])).toBe("OGN-027 ×3");
+  });
+
+  it("handles codes with variant suffixes", () => {
+    expect(formatShortCodes(["OGN-027a", "OGN-027", "OGN-027a"])).toBe("OGN-027, OGN-027a ×2");
   });
 });

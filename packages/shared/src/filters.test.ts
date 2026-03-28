@@ -884,6 +884,124 @@ describe("filterCards", () => {
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Fire Dragon");
   });
+
+  // -- promoType filter: detailed branch coverage --
+
+  it("filters by promoTypes when isPromo is null (type-only filter)", () => {
+    const cards = [
+      makePrinting({
+        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
+        card: { id: "p1", name: "Nexus Card" },
+      }),
+      makePrinting({
+        promoType: { id: "2", slug: "launch-day", label: "Launch Day" },
+        card: { id: "p2", name: "Launch Card" },
+      }),
+      makePrinting({
+        promoType: null,
+        card: { id: "p3", name: "Regular Card" },
+      }),
+    ];
+    // isPromo null + promoTypes = filter by slug only
+    const result = filterCards(cards, emptyFilters({ isPromo: null, promoTypes: ["nexus-night"] }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Nexus Card");
+  });
+
+  it("filters by isPromo=true with specific promoTypes", () => {
+    const cards = [
+      makePrinting({
+        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
+        card: { id: "p1", name: "Nexus Card" },
+      }),
+      makePrinting({
+        promoType: { id: "2", slug: "launch-day", label: "Launch Day" },
+        card: { id: "p2", name: "Launch Card" },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ isPromo: true, promoTypes: ["nexus-night"] }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Nexus Card");
+  });
+
+  it("filters by isPromo=true with empty promoTypes returns all promos", () => {
+    const cards = [
+      makePrinting({
+        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
+        card: { id: "p1", name: "Nexus Card" },
+      }),
+      makePrinting({
+        promoType: null,
+        card: { id: "p2", name: "Regular Card" },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ isPromo: true, promoTypes: [] }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Nexus Card");
+  });
+
+  it("promoTypes filter excludes non-promo cards when isPromo is null", () => {
+    const cards = [
+      makePrinting({
+        promoType: null,
+        card: { id: "r", name: "Regular Card" },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ isPromo: null, promoTypes: ["nexus-night"] }));
+    expect(result).toHaveLength(0);
+  });
+
+  // -- Range edge case: value below min --
+
+  it("excludes value below min in range filter", () => {
+    const cards = [
+      makePrinting({
+        card: {
+          id: "low",
+          name: "Low Energy",
+          type: "Unit",
+          superTypes: [],
+          domains: [],
+          energy: 1,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ energy: { min: 3, max: null } }));
+    expect(result).toHaveLength(0);
+  });
+
+  // -- Range edge case: value above max --
+
+  it("excludes value above max in range filter", () => {
+    const cards = [
+      makePrinting({
+        card: {
+          id: "high",
+          name: "High Energy",
+          type: "Unit",
+          superTypes: [],
+          domains: [],
+          energy: 10,
+          might: null,
+          power: null,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ];
+    const result = filterCards(cards, emptyFilters({ energy: { min: null, max: 5 } }));
+    expect(result).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

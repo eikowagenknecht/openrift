@@ -682,4 +682,59 @@ describe("refreshTcgplayerPrices", () => {
       expect(logUpsertSpy).toHaveBeenCalledWith(log, ZERO_COUNTS);
     });
   });
+
+  // ── Edge cases ────────────────────────────────────────────────────────
+
+  describe("edge cases", () => {
+    it("handles groups with missing products or prices gracefully", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      // Group exists but neither products nor prices are set in the maps
+      setupFetchJson(fetchJsonSpy, {
+        groups: [GROUP_A],
+        // No productsByGroup or pricesByGroup entries for GROUP_A
+      });
+
+      await refreshTcgplayerPrices(stubFetch, repos, log);
+
+      const staging = upsertStaging(upsertSpy);
+      expect(staging).toHaveLength(0);
+    });
+
+    it("uses cleanName for staging product name", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupFetchJson(fetchJsonSpy, {
+        groups: [GROUP_A],
+        productsByGroup: new Map([
+          [101, [{ ...PRODUCT_FLAME, name: "Flame Striker (V1)", cleanName: "Flame Striker" }]],
+        ]),
+        pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
+      });
+
+      await refreshTcgplayerPrices(stubFetch, repos, log);
+
+      const staging = upsertStaging(upsertSpy);
+      expect(staging[0].productName).toBe("Flame Striker");
+    });
+
+    it("sets trendCents, avg1Cents, avg7Cents, avg30Cents to null for TCGplayer", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupFetchJson(fetchJsonSpy, {
+        groups: [GROUP_A],
+        productsByGroup: new Map([[101, [PRODUCT_FLAME]]]),
+        pricesByGroup: new Map([[101, [PRICE_FLAME_NORMAL]]]),
+        lastModified: LAST_MODIFIED,
+      });
+
+      await refreshTcgplayerPrices(stubFetch, repos, log);
+
+      const staging = upsertStaging(upsertSpy);
+      expect(staging[0].trendCents).toBeNull();
+      expect(staging[0].avg1Cents).toBeNull();
+      expect(staging[0].avg7Cents).toBeNull();
+      expect(staging[0].avg30Cents).toBeNull();
+    });
+  });
 });

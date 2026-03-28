@@ -198,4 +198,78 @@ describe("disposeCopies", () => {
 
     await disposeCopies(transact, "user-1", ["copy-1"]);
   });
+
+  it("disposes multiple copies at once", async () => {
+    const repos = createMockRepos({
+      fetchedCopies: [
+        {
+          id: "copy-1",
+          printingId: "p-1",
+          collectionId: "col-1",
+          collectionName: "Main",
+          acquisitionSourceId: "src-1",
+        },
+        {
+          id: "copy-2",
+          printingId: "p-2",
+          collectionId: "col-1",
+          collectionName: "Main",
+          acquisitionSourceId: null,
+        },
+      ],
+    });
+    const transact = mockTransact(repos);
+
+    await disposeCopies(transact, "user-1", ["copy-1", "copy-2"]);
+  });
+});
+
+describe("addCopies — additional branches", () => {
+  it("deduplicates explicit collection IDs before validation", async () => {
+    const repos = createMockRepos({
+      ownedCollections: [{ id: "col-1" }],
+      insertedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", acquisitionSourceId: null },
+        { id: "copy-2", printingId: "p-2", collectionId: "col-1", acquisitionSourceId: null },
+      ],
+      collections: [{ id: "col-1", name: "Main" }],
+    });
+    const transact = mockTransact(repos);
+
+    const result = await addCopies(repos, transact, "user-1", [
+      { printingId: "p-1", collectionId: "col-1" },
+      { printingId: "p-2", collectionId: "col-1" },
+    ]);
+
+    expect(result).toHaveLength(2);
+  });
+
+  it("maps acquisitionSourceId to null when not provided", async () => {
+    const repos = createMockRepos({
+      insertedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "inbox-id", acquisitionSourceId: null },
+      ],
+      collections: [{ id: "inbox-id", name: "Inbox" }],
+    });
+    const transact = mockTransact(repos);
+
+    const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
+
+    expect(result[0].acquisitionSourceId).toBeNull();
+  });
+});
+
+describe("moveCopies — additional branches", () => {
+  it("calls moveBatch and createActivity with correct arguments", async () => {
+    const repos = createMockRepos({
+      targetCollection: { id: "col-2", name: "Target" },
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
+        { id: "copy-2", printingId: "p-2", collectionId: "col-1", collectionName: "Source" },
+      ],
+    });
+    const transact = mockTransact(repos);
+
+    await moveCopies(repos, transact, "user-1", ["copy-1", "copy-2"], "col-2");
+  });
 });
