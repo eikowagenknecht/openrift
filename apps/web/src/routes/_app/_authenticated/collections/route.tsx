@@ -48,7 +48,7 @@ function CollectionLayout() {
 
 function CollectionContent({ title }: { title: string }) {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
       {/* Header only for mobile */}
       <header className="flex h-12 items-center gap-2 px-4 md:hidden">
         <SidebarTrigger />
