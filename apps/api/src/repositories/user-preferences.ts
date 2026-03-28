@@ -22,11 +22,10 @@ export const PREFERENCES_DEFAULTS: UserPreferencesResponse = {
 };
 
 /** postgres.js under Bun returns jsonb columns as a string instead of a parsed
- *  object. This helper normalises the value so callers always get an object. */
+ *  object. This helper normalises the value so callers always get an object.
+ *  @returns the parsed preferences object */
 function parseData(data: UserPreferencesResponse | string): UserPreferencesResponse {
-  return typeof data === "string"
-    ? (JSON.parse(data) as UserPreferencesResponse)
-    : data;
+  return typeof data === "string" ? (JSON.parse(data) as UserPreferencesResponse) : data;
 }
 
 export function userPreferencesRepo(db: Kysely<Database>) {
@@ -37,7 +36,9 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .selectAll()
         .where("userId", "=", userId)
         .executeTakeFirst();
-      if (!row) return undefined;
+      if (!row) {
+        return undefined;
+      }
       return { ...row, data: parseData(row.data) };
     },
 
