@@ -42,6 +42,15 @@ if (flag?.enabled) {
 
 `featureEnabled()` returns `false` for any flag that doesn't exist in the database. This means you can push code that references a flag before creating it in the admin panel — it will be treated as disabled until you create and enable it.
 
+## Active flags
+
+| Key                   | Description                                            | Gated areas                                                                                     |
+| --------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `collection`          | Collection feature (browse, manage, add cards)         | Header nav link, `/collections` route tree                                                      |
+| `acquisition-sources` | Track where cards were acquired (stores, trades, etc.) | Source selector in add-to-collection flow, "Sources" sidebar link, `/collections/sources` route |
+
+Keep this table up to date when adding or removing flags.
+
 ## Lifecycle
 
 1. **Create** the flag in the admin panel (starts disabled)
