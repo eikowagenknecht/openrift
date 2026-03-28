@@ -290,4 +290,47 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
 
     expect(result.numDeletedRows).toBe(0n);
   });
+
+  // ---------------------------------------------------------------------------
+  // availableCopiesByCard
+  // ---------------------------------------------------------------------------
+
+  it("returns copy count per card from deckbuilding collections", async () => {
+    // Create a collection that is available for deckbuilding
+    const col = await db
+      .insertInto("collections")
+      .values({
+        userId,
+        name: "Deckbuilding Test",
+        description: null,
+        availableForDeckbuilding: true,
+        isInbox: false,
+        sortOrder: 50,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    // Insert a copy using seed data
+    const seedPrintingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+    await db
+      .insertInto("copies")
+      .values({ userId, printingId: seedPrintingId, collectionId: col.id })
+      .execute();
+
+    const result = await repo.availableCopiesByCard(userId, [seedCardId]);
+    expect(result.length).toBe(1);
+    expect(result[0].cardId).toBe(seedCardId);
+    expect(result[0].count).toBeGreaterThanOrEqual(1);
+
+    // Clean up
+    await db.deleteFrom("copies").where("collectionId", "=", col.id).execute();
+    await db.deleteFrom("collections").where("id", "=", col.id).execute();
+  });
+
+  it("returns empty for cards not in any deckbuilding collection", async () => {
+    const result = await repo.availableCopiesByCard(userId, [
+      "a0000000-0000-4000-a000-000000000000",
+    ]);
+    expect(result).toEqual([]);
+  });
 });
