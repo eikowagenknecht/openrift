@@ -20,6 +20,7 @@ interface BrowserCardViewerProps {
   leftPane?: ReactNode;
   aboveGrid?: ReactNode;
   rightPane?: ReactNode;
+  addStripHeight?: number;
   children?: ReactNode;
 }
 

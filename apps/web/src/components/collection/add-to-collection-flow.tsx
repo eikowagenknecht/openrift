@@ -1,9 +1,6 @@
-import type { Printing } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useImperativeHandle, useState } from "react";
 
-import { AddCardPopover } from "@/components/collection/add-card-popover";
 import type { AddedEntry } from "@/components/collection/added-cards-list";
 import { Button } from "@/components/ui/button";
 import { useCreateAcquisitionSource, useAcquisitionSources } from "@/hooks/use-acquisition-sources";
@@ -11,15 +8,13 @@ import { useCollections } from "@/hooks/use-collections";
 import { cn } from "@/lib/utils";
 
 export interface AddToCollectionFlowHandle {
-  handleAddClick: (printing: Printing, anchorEl: HTMLElement) => void;
+  getAcquisitionSourceId: () => string | undefined;
 }
 
 interface AddToCollectionFlowProps {
   ref: React.Ref<AddToCollectionFlowHandle>;
   collectionId: string;
-  printingsByCardId: Map<string, Printing[]>;
   addedItems: Map<string, AddedEntry>;
-  onAdded: (printing: Printing, quantity: number) => void;
   showingAddedList: boolean;
   onToggleAddedList: () => void;
 }
@@ -27,9 +22,7 @@ interface AddToCollectionFlowProps {
 export function AddToCollectionFlow({
   ref,
   collectionId,
-  printingsByCardId,
   addedItems,
-  onAdded,
   showingAddedList,
   onToggleAddedList,
 }: AddToCollectionFlowProps) {
@@ -45,150 +38,102 @@ export function AddToCollectionFlow({
 
   const totalAdded = [...addedItems.values()].reduce((sum, entry) => sum + entry.quantity, 0);
 
-  const [popoverCard, setPopoverCard] = useState<Printing | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Close popover on outside click
-  useEffect(() => {
-    if (!popoverCard) {
-      return;
-    }
-    const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setPopoverCard(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [popoverCard]);
-
-  const handleAddClick = (printing: Printing, anchorEl: HTMLElement) => {
-    const rect = anchorEl.getBoundingClientRect();
-    setPopoverPos({
-      top: rect.bottom + 4,
-      left: Math.max(8, Math.min(rect.left, globalThis.innerWidth - 240)),
-    });
-    setPopoverCard(printing);
-  };
-
-  useImperativeHandle(ref, () => ({ handleAddClick }));
+  useImperativeHandle(ref, () => ({
+    getAcquisitionSourceId: () => acquisitionSourceId || undefined,
+  }));
 
   return (
-    <>
-      <div className="border-primary/30 bg-primary/5 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2">
-        <span className="text-sm font-medium">Adding to: {collectionName}</span>
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground text-xs">Source:</span>
-          {creatingSource ? (
-            <form
-              className="flex items-center gap-1"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const trimmed = newSourceName.trim();
-                if (!trimmed) {
-                  return;
-                }
-                createSource.mutate(
-                  { name: trimmed },
-                  {
-                    onSuccess: (source) => {
-                      setAcquisitionSourceId(source.id);
-                      setCreatingSource(false);
-                      setNewSourceName("");
-                    },
-                  },
-                );
-              }}
-            >
-              <input
-                type="text"
-                value={newSourceName}
-                onChange={(e) => setNewSourceName(e.target.value)}
-                placeholder="e.g. Local Game Store"
-                className="bg-background h-7 w-40 rounded border px-2 text-xs"
-                autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
-                onBlur={() => {
-                  if (!newSourceName.trim()) {
+    <div className="border-primary/30 bg-primary/5 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2">
+      <span className="text-sm font-medium">Adding to: {collectionName}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-muted-foreground text-xs">Source:</span>
+        {creatingSource ? (
+          <form
+            className="flex items-center gap-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = newSourceName.trim();
+              if (!trimmed) {
+                return;
+              }
+              createSource.mutate(
+                { name: trimmed },
+                {
+                  onSuccess: (source) => {
+                    setAcquisitionSourceId(source.id);
                     setCreatingSource(false);
-                  }
-                }}
-              />
-              <Button type="submit" size="sm" variant="secondary" disabled={createSource.isPending}>
-                Add
-              </Button>
-            </form>
-          ) : (
-            <select
-              value={acquisitionSourceId}
-              onChange={(e) => {
-                if (e.target.value === "__new__") {
-                  setCreatingSource(true);
-                  setAcquisitionSourceId("");
-                } else {
-                  setAcquisitionSourceId(e.target.value);
+                    setNewSourceName("");
+                  },
+                },
+              );
+            }}
+          >
+            <input
+              type="text"
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              placeholder="e.g. Local Game Store"
+              className="bg-background h-7 w-40 rounded border px-2 text-xs"
+              autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
+              onBlur={() => {
+                if (!newSourceName.trim()) {
+                  setCreatingSource(false);
                 }
               }}
-              className="bg-background h-7 rounded border px-2 text-xs"
-            >
-              <option value="">None</option>
-              {sources?.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-              <option value="__new__">+ Create new…</option>
-            </select>
-          )}
-        </div>
-        <div className="flex-1" />
-        {addedItems.size > 0 && (
-          <button
-            type="button"
-            onClick={onToggleAddedList}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-              showingAddedList
-                ? "bg-primary text-primary-foreground"
-                : "bg-primary/10 text-primary hover:bg-primary/20",
-            )}
-          >
-            {totalAdded} {totalAdded === 1 ? "card" : "cards"} added
-          </button>
-        )}
-        <Button
-          size="sm"
-          onClick={() =>
-            void navigate({
-              to: "/collections/$collectionId",
-              params: { collectionId },
-            })
-          }
-        >
-          Done
-        </Button>
-      </div>
-
-      {/* Add card popover (portal) */}
-      {popoverCard &&
-        popoverPos &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            className="fixed z-[100]"
-            style={{ top: popoverPos.top, left: popoverPos.left }}
-          >
-            <AddCardPopover
-              printing={popoverCard}
-              printings={printingsByCardId.get(popoverCard.card.id)}
-              collectionId={collectionId}
-              acquisitionSourceId={acquisitionSourceId || undefined}
-              onDone={() => setPopoverCard(null)}
-              onAdded={onAdded}
             />
-          </div>,
-          document.body,
+            <Button type="submit" size="sm" variant="secondary" disabled={createSource.isPending}>
+              Add
+            </Button>
+          </form>
+        ) : (
+          <select
+            value={acquisitionSourceId}
+            onChange={(e) => {
+              if (e.target.value === "__new__") {
+                setCreatingSource(true);
+                setAcquisitionSourceId("");
+              } else {
+                setAcquisitionSourceId(e.target.value);
+              }
+            }}
+            className="bg-background h-7 rounded border px-2 text-xs"
+          >
+            <option value="">None</option>
+            {sources?.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+            <option value="__new__">+ Create new…</option>
+          </select>
         )}
-    </>
+      </div>
+      <div className="flex-1" />
+      {addedItems.size > 0 && (
+        <button
+          type="button"
+          onClick={onToggleAddedList}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            showingAddedList
+              ? "bg-primary text-primary-foreground"
+              : "bg-primary/10 text-primary hover:bg-primary/20",
+          )}
+        >
+          {totalAdded} {totalAdded === 1 ? "card" : "cards"} added
+        </button>
+      )}
+      <Button
+        size="sm"
+        onClick={() =>
+          void navigate({
+            to: "/collections/$collectionId",
+            params: { collectionId },
+          })
+        }
+      >
+        Done
+      </Button>
+    </div>
   );
 }

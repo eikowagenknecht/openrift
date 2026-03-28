@@ -24,6 +24,8 @@ interface CardViewerProps {
   /** Content rendered above the grid inside the center column. */
   aboveGrid?: ReactNode;
   rightPane?: ReactNode;
+  /** Extra height added to each card row (e.g. add-mode strip). */
+  addStripHeight?: number;
   children?: ReactNode;
 }
 
@@ -46,6 +48,7 @@ export function CardViewer({
   leftPane,
   aboveGrid,
   rightPane,
+  addStripHeight,
   children,
 }: CardViewerProps) {
   return (
@@ -69,6 +72,7 @@ export function CardViewer({
             keyboardNavItemId={keyboardNavItemId}
             onItemClick={onItemClick}
             siblingPrintings={siblingPrintings}
+            addStripHeight={addStripHeight}
           />
         </div>
         {rightPane}
