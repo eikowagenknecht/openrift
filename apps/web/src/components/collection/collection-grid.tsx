@@ -1,6 +1,8 @@
+import type { Printing } from "@openrift/shared";
+import { comparePrintings } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { Check, Layers, Minus, Package, Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { Check, Layers, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CardViewer } from "@/components/card-viewer";
@@ -9,15 +11,19 @@ import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useCardSelection } from "@/hooks/use-card-selection";
+import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
+import { useOwnedCount } from "@/hooks/use-owned-count";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
+import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DisposeDialog } from "./dispose-dialog";
 import { MoveDialog } from "./move-dialog";
+import { QuickAddPalette } from "./quick-add-palette";
 
 function SelectionCheckbox({
   isSelected,
@@ -63,6 +69,43 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const [stacked, setStacked] = useState(true);
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+
+  // Data for quick-add palette
+  const { allPrintings, sets } = useCards();
+  const { data: session } = useSession();
+  const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
+
+  const setOrderMap = new Map(sets.map((s, index) => [s.id, index]));
+
+  function toComparable(p: Printing) {
+    return { ...p, setOrder: setOrderMap.get(p.setId), promoTypeSlug: p.promoType?.slug };
+  }
+
+  const printingsByCardId = new Map<string, Printing[]>();
+  for (const p of allPrintings) {
+    let group = printingsByCardId.get(p.card.id);
+    if (!group) {
+      group = [];
+      printingsByCardId.set(p.card.id, group);
+    }
+    group.push(p);
+  }
+  for (const group of printingsByCardId.values()) {
+    group.sort((a, b) => comparePrintings(toComparable(a), toComparable(b)));
+  }
+
+  // Cmd+K / Ctrl+K shortcut
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setQuickAddOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   const handleMove = (toCollectionId: string) => {
     moveCopies.mutate(
@@ -95,24 +138,42 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
   if (stacks.length === 0) {
     return (
-      <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
-        <Package className="size-10 opacity-50" />
-        <p>No cards yet</p>
-        <p className="text-xs">
-          Browse the card catalog and add cards to{" "}
-          {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
-        </p>
+      <>
+        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
+          <Package className="size-10 opacity-50" />
+          <p>No cards yet</p>
+          <p className="text-xs">
+            Browse the card catalog and add cards to{" "}
+            {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
+          </p>
+          {addTarget && (
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
+                <Search className="mr-1 size-3.5" />
+                Quick add
+              </Button>
+              <Link
+                to="/cards"
+                search={{ adding: true, addingTo: addTarget }}
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Plus className="mr-1 size-3.5" />
+                Browse & add
+              </Link>
+            </div>
+          )}
+        </div>
         {addTarget && (
-          <Link
-            to="/cards"
-            search={{ adding: true, addingTo: addTarget }}
-            className={buttonVariants({ size: "sm" })}
-          >
-            <Plus className="mr-1 size-3.5" />
-            Add cards
-          </Link>
+          <QuickAddPalette
+            open={quickAddOpen}
+            onOpenChange={setQuickAddOpen}
+            collectionId={addTarget}
+            collectionName={currentCollection?.name ?? "Collection"}
+            printingsByCardId={printingsByCardId}
+            ownedCountByPrinting={ownedCountByPrinting}
+          />
         )}
-      </div>
+      </>
     );
   }
 
@@ -184,14 +245,28 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       )}
       <div className="flex-1" />
       {addTarget && (
-        <Link
-          to="/cards"
-          search={{ adding: true, addingTo: addTarget }}
-          className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs" })}
-        >
-          <Plus className="mr-1 size-3" />
-          Add cards
-        </Link>
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setQuickAddOpen(true)}
+            className="text-xs"
+          >
+            <Search className="mr-1 size-3" />
+            Quick add
+            <kbd className="bg-muted text-muted-foreground ml-1.5 hidden rounded px-1 py-0.5 font-mono text-[10px] sm:inline">
+              ⌘K
+            </kbd>
+          </Button>
+          <Link
+            to="/cards"
+            search={{ adding: true, addingTo: addTarget }}
+            className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs" })}
+          >
+            <Plus className="mr-1 size-3" />
+            Browse & add
+          </Link>
+        </>
       )}
       <Button
         variant="ghost"
@@ -259,6 +334,16 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         onConfirm={handleDispose}
         isPending={disposeCopies.isPending}
       />
+      {addTarget && (
+        <QuickAddPalette
+          open={quickAddOpen}
+          onOpenChange={setQuickAddOpen}
+          collectionId={addTarget}
+          collectionName={currentCollection?.name ?? "Collection"}
+          printingsByCardId={printingsByCardId}
+          ownedCountByPrinting={ownedCountByPrinting}
+        />
+      )}
     </CardViewer>
   );
 }

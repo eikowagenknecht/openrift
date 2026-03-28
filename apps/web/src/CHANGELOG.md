@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-28
+
+- feat: Press ⌘K in any collection to open a quick-add palette — type a card name, pick a printing, and add it without leaving the page
+
 ## 2026-03-27
 
 - fix: Dark theme no longer resets to light on page refresh for signed-in users
