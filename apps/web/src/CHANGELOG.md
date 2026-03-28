@@ -2,6 +2,7 @@
 
 ## 2026-03-28
 
+- feat: "Browse & add" now opens the full card browser inline within the collection page — the sidebar stays visible so you always know which collection you're adding to
 - feat: Press ⌘K in any collection to open a quick-add palette — type a card name, pick a printing, and add it without leaving the page
 - fix: Owned count now shows consistently for all cards in add mode, not just cards with multiple printings
 - fix: Clicking above or below a card in add mode no longer accidentally opens the detail pane — only the card image is clickable

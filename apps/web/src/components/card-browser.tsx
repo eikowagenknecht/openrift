@@ -33,15 +33,18 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
-import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-export function CardBrowser() {
-  useHideScrollbar();
+interface CardBrowserProps {
+  collectionId?: string;
+  onDone?: () => void;
+}
+
+export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrowserProps = {}) {
   const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
   const visibleFields = useDisplayStore((s) => s.visibleFields);
@@ -49,9 +52,11 @@ export function CardBrowser() {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  // Adding mode state
-  const [adding] = useQueryState("adding", parseAsBoolean.withDefault(false));
-  const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
+  // Adding mode state — props override URL params when CardBrowser is used inline
+  const [addingParam] = useQueryState("adding", parseAsBoolean.withDefault(false));
+  const [addingToParam] = useQueryState("addingTo", parseAsString.withDefault(""));
+  const adding = collectionIdProp ? true : addingParam;
+  const addingTo = collectionIdProp ?? addingToParam;
   const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
   const [addedItems, setAddedItems] = useState<Map<string, AddedEntry>>(new Map());
   const [showAddedList, setShowAddedList] = useState(false);
@@ -276,6 +281,7 @@ export function CardBrowser() {
           addedItems={addedItems}
           showingAddedList={showAddedList}
           onToggleAddedList={() => setShowAddedList((prev) => !prev)}
+          onDone={onDone}
         />
       )}
       {/* Search bar */}

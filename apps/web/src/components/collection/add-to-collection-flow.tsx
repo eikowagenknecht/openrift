@@ -18,6 +18,7 @@ interface AddToCollectionFlowProps {
   addedItems: Map<string, AddedEntry>;
   showingAddedList: boolean;
   onToggleAddedList: () => void;
+  onDone?: () => void;
 }
 
 export function AddToCollectionFlow({
@@ -26,6 +27,7 @@ export function AddToCollectionFlow({
   addedItems,
   showingAddedList,
   onToggleAddedList,
+  onDone,
 }: AddToCollectionFlowProps) {
   const { data: collections } = useCollections();
   const collectionName = collections?.find((c) => c.id === collectionId)?.name ?? "Collection";
@@ -129,12 +131,16 @@ export function AddToCollectionFlow({
       )}
       <Button
         size="sm"
-        onClick={() =>
-          void navigate({
-            to: "/collections/$collectionId",
-            params: { collectionId },
-          })
-        }
+        onClick={() => {
+          if (onDone) {
+            onDone();
+          } else {
+            void navigate({
+              to: "/collections/$collectionId",
+              params: { collectionId },
+            });
+          }
+        }}
       >
         Done
       </Button>

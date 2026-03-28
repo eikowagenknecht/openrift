@@ -1,15 +1,17 @@
 import type { Printing } from "@openrift/shared";
 import { comparePrintings } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
 import { Check, Layers, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
+import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { CardBrowser } from "@/components/card-browser";
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
@@ -20,6 +22,7 @@ import { useStackedCopies } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+import { useSelectionStore } from "@/stores/selection-store";
 
 import { DisposeDialog } from "./dispose-dialog";
 import { MoveDialog } from "./move-dialog";
@@ -71,6 +74,24 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
+  // Inline browse & add mode
+  const [browsing, setBrowsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
+  const [, setAddingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
+  const { clearAllFilters } = useFilterActions();
+
+  const startBrowsing = (targetId: string) => {
+    void setBrowsing(true);
+    void setAddingTo(targetId);
+  };
+
+  const handleCloseBrowsing = () => {
+    clearAllFilters();
+    void setBrowsing(null);
+    void setAddingTo(null);
+    useSelectionStore.getState().closeDetail();
+    globalThis.scrollTo(0, 0);
+  };
+
   // Data for quick-add palette
   const { allPrintings, sets } = useCards();
   const { data: session } = useSession();
@@ -95,9 +116,12 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     group.sort((a, b) => comparePrintings(toComparable(a), toComparable(b)));
   }
 
-  // Cmd+K / Ctrl+K shortcut
+  // Cmd+K / Ctrl+K shortcut (skip when inline browser is open — it has its own search)
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (browsing) {
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         setQuickAddOpen((prev) => !prev);
@@ -105,7 +129,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, []);
+  }, [browsing]);
 
   const handleMove = (toCollectionId: string) => {
     moveCopies.mutate(
@@ -136,6 +160,11 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const currentCollection = collections.find((collection) => collection.id === collectionId);
   const addTarget = collectionId ?? collections.find((collection) => collection.isInbox)?.id;
 
+  // Inline browse & add: render CardBrowser in place of the collection grid
+  if (browsing && addTarget) {
+    return <CardBrowser collectionId={addTarget} onDone={handleCloseBrowsing} />;
+  }
+
   if (stacks.length === 0) {
     return (
       <>
@@ -152,14 +181,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 <Search className="mr-1 size-3.5" />
                 Quick add
               </Button>
-              <Link
-                to="/cards"
-                search={{ adding: true, addingTo: addTarget }}
-                className={buttonVariants({ size: "sm" })}
-              >
+              <Button size="sm" onClick={() => startBrowsing(addTarget)}>
                 <Plus className="mr-1 size-3.5" />
                 Browse & add
-              </Link>
+              </Button>
             </div>
           )}
         </div>
@@ -258,14 +283,15 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
               ⌘K
             </kbd>
           </Button>
-          <Link
-            to="/cards"
-            search={{ adding: true, addingTo: addTarget }}
-            className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs" })}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => startBrowsing(addTarget)}
+            className="text-xs"
           >
             <Plus className="mr-1 size-3" />
             Browse & add
-          </Link>
+          </Button>
         </>
       )}
       <Button

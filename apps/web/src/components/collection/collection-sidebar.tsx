@@ -7,6 +7,7 @@ import {
   PlusIcon,
   StoreIcon,
 } from "lucide-react";
+import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,8 @@ export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
+  const [addingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
+  const activeCollectionId = collectionId ?? (addingTo || undefined);
   const { data: collections } = useCollections();
   const createCollection = useCreateCollection();
   const sourcesEnabled = useFeatureEnabled("acquisition-sources");
@@ -61,7 +64,7 @@ export function CollectionSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              isActive={currentPath === "/collections/" && !collectionId}
+              isActive={currentPath === "/collections/" && !activeCollectionId}
               render={<Link to="/collections" />}
               size="sm"
             >
@@ -83,7 +86,7 @@ export function CollectionSidebar() {
             {collections?.map((col) => (
               <SidebarMenuItem key={col.id}>
                 <SidebarMenuButton
-                  isActive={collectionId === col.id}
+                  isActive={activeCollectionId === col.id}
                   render={
                     <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
                   }
