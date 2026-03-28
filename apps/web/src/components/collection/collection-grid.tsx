@@ -257,13 +257,13 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   };
 
   const toolbar = (
-    <div className="text-muted-foreground flex items-center gap-4 text-sm">
-      <span>
+    <div className="text-muted-foreground flex items-center gap-1 text-sm sm:gap-4">
+      <span className="shrink-0">
         {totalCopies} card{totalCopies === 1 ? "" : "s"}
         {stacks.length !== totalCopies && ` (${stacks.length} unique)`}
       </span>
       {selected.size > 0 && (
-        <Badge variant="secondary" className="gap-1">
+        <Badge variant="secondary" className="hidden gap-1 sm:flex">
           <Check className="size-3" />
           {selected.size} selected
         </Badge>
@@ -276,9 +276,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             size="sm"
             onClick={() => setQuickAddOpen(true)}
             className="text-xs"
+            title="Quick add"
           >
-            <Search className="mr-1 size-3" />
-            Quick add
+            <Search className="size-3 sm:mr-1" />
+            <span className="hidden sm:inline">Quick add</span>
             <kbd className="bg-muted text-muted-foreground ml-1.5 hidden rounded px-1 py-0.5 font-mono text-[10px] sm:inline">
               ⌘K
             </kbd>
@@ -288,9 +289,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             size="sm"
             onClick={() => startBrowsing(addTarget)}
             className="text-xs"
+            title="Browse & add"
           >
-            <Plus className="mr-1 size-3" />
-            Browse & add
+            <Plus className="size-3 sm:mr-1" />
+            <span className="hidden sm:inline">Browse & add</span>
           </Button>
         </>
       )}
@@ -301,16 +303,20 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         className="text-xs"
         title={stacked ? "Show individual copies" : "Stack duplicates"}
       >
-        <Layers className="mr-1 size-3" />
-        {stacked ? "Expand" : "Stack"}
+        <Layers className="size-3 sm:mr-1" />
+        <span className="hidden sm:inline">{stacked ? "Expand" : "Stack"}</span>
       </Button>
       <Button
         variant="ghost"
         size="sm"
         onClick={() => toggleSelectAll(allCopyIds)}
         className="text-xs"
+        title={selected.size === totalCopies ? "Deselect all" : "Select all"}
       >
-        {selected.size === totalCopies ? "Deselect all" : "Select all"}
+        <span className="sm:hidden">{selected.size === totalCopies ? "Deselect" : "All"}</span>
+        <span className="hidden sm:inline">
+          {selected.size === totalCopies ? "Deselect all" : "Select all"}
+        </span>
       </Button>
     </div>
   );

@@ -47,11 +47,11 @@ export function AddToCollectionFlow({
   }));
 
   return (
-    <div className="border-primary/30 bg-primary/5 mb-2 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2">
-      <span className="text-sm font-medium">Adding to: {collectionName}</span>
+    <div className="border-primary/30 bg-primary/5 mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border px-2 py-0.5 text-xs sm:gap-3 sm:rounded-lg sm:px-4 sm:py-2 sm:text-sm">
+      <span className="font-medium">Adding to: {collectionName}</span>
       {sourcesEnabled && (
         <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground text-xs">Source:</span>
+          <span className="text-muted-foreground">Source:</span>
           {creatingSource ? (
             <form
               className="flex items-center gap-1"
@@ -78,7 +78,7 @@ export function AddToCollectionFlow({
                 value={newSourceName}
                 onChange={(e) => setNewSourceName(e.target.value)}
                 placeholder="e.g. Local Game Store"
-                className="bg-background h-7 w-40 rounded border px-2 text-xs"
+                className="bg-background h-7 w-40 rounded border px-2"
                 autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
                 onBlur={() => {
                   if (!newSourceName.trim()) {
@@ -101,7 +101,7 @@ export function AddToCollectionFlow({
                   setAcquisitionSourceId(e.target.value);
                 }
               }}
-              className="bg-background h-7 rounded border px-2 text-xs"
+              className="bg-background h-7 rounded border px-2"
             >
               <option value="">None</option>
               {sources?.map((s) => (
@@ -120,7 +120,7 @@ export function AddToCollectionFlow({
           type="button"
           onClick={onToggleAddedList}
           className={cn(
-            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            "rounded-full px-2 py-0.5 font-medium transition-colors sm:px-3 sm:py-1",
             showingAddedList
               ? "bg-primary text-primary-foreground"
               : "bg-primary/10 text-primary hover:bg-primary/20",
