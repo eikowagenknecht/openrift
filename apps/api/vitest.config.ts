@@ -19,8 +19,8 @@ try {
 
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.ts", "src/**/*.integration.test.ts"],
-    exclude: ["src/db/migrations/migrations.integration.test.ts"],
+    include: ["src/**/*.test.ts"],
+    exclude: ["src/**/*.integration.test.ts"],
     globalSetup: ["src/test/vitest-global-setup.ts"],
     setupFiles: ["src/test/vitest-setup.ts"],
     pool: "forks",
