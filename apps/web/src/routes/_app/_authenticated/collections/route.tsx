@@ -21,6 +21,9 @@ export function useCollectionTitle(title: string) {
   }, [setTitle, title]);
 }
 
+/** Portal slot for add-mode controls in the mobile header. */
+export const AddModeSlotContext = createContext<HTMLDivElement | null>(null);
+
 export const Route = createFileRoute("/_app/_authenticated/collections")({
   beforeLoad: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
@@ -47,19 +50,24 @@ function CollectionLayout() {
 }
 
 function CollectionContent({ title }: { title: string }) {
+  const [addModeSlot, setAddModeSlot] = useState<HTMLDivElement | null>(null);
+
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
-      {/* Header only for mobile */}
-      <header className="flex h-12 items-center gap-2 px-4 md:hidden">
-        <SidebarTrigger />
-        <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
-        <h1 className="text-sm font-medium">{title}</h1>
-      </header>
-      {/* Main content */}
-      <div className="flex-1 p-4 sm:p-6">
-        <Outlet />
+    <AddModeSlotContext value={addModeSlot}>
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+        {/* Header only for mobile */}
+        <header className="flex h-12 items-center gap-2 px-4 md:hidden">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
+          <h1 className="text-sm font-medium">{title}</h1>
+          <div ref={setAddModeSlot} className="flex flex-1 items-center gap-2" />
+        </header>
+        {/* Main content */}
+        <div className="flex-1 p-4 sm:p-6">
+          <Outlet />
+        </div>
+        <Footer />
       </div>
-      <Footer />
-    </div>
+    </AddModeSlotContext>
   );
 }
