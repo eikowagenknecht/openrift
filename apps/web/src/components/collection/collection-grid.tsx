@@ -165,43 +165,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     return <CardBrowser collectionId={addTarget} onDone={handleCloseBrowsing} />;
   }
 
-  if (stacks.length === 0) {
-    return (
-      <>
-        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
-          <Package className="size-10 opacity-50" />
-          <p>No cards yet</p>
-          <p className="text-xs">
-            Browse the card catalog and add cards to{" "}
-            {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
-          </p>
-          {addTarget && (
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
-                <Search className="mr-1 size-3.5" />
-                Quick add
-              </Button>
-              <Button size="sm" onClick={() => startBrowsing(addTarget)}>
-                <Plus className="mr-1 size-3.5" />
-                Browse & add
-              </Button>
-            </div>
-          )}
-        </div>
-        {addTarget && (
-          <QuickAddPalette
-            open={quickAddOpen}
-            onOpenChange={setQuickAddOpen}
-            collectionId={addTarget}
-            collectionName={currentCollection?.name ?? "Collection"}
-            printingsByCardId={printingsByCardId}
-            ownedCountByPrinting={ownedCountByPrinting}
-          />
-        )}
-      </>
-    );
-  }
-
   // Build item list and lookup map for renderCard
   const stackByItemId = new Map<string, StackedEntry>();
   const items: CardViewerItem[] = stacked
@@ -322,50 +285,86 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   );
 
   return (
-    <CardViewer items={items} totalItems={totalCopies} renderCard={renderCard} toolbar={toolbar}>
-      {/* Floating action bar */}
-      {selected.size > 0 && (
-        <div className="border-border bg-background fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 shadow-lg">
-          <span className="text-sm font-medium">{selected.size} selected</span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setMoveOpen(true)}
-            disabled={moveCopies.isPending}
-          >
-            <Minus className="mr-1 size-3.5" />
-            Move
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setDisposeOpen(true)}
-            disabled={disposeCopies.isPending}
-          >
-            <Trash2 className="mr-1 size-3.5" />
-            Dispose
-          </Button>
-          <Button variant="ghost" size="sm" onClick={clearSelection} aria-label="Clear selection">
-            <X className="size-3.5" />
-          </Button>
+    <>
+      {stacks.length === 0 ? (
+        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
+          <Package className="size-10 opacity-50" />
+          <p>No cards yet</p>
+          <p className="text-xs">
+            Browse the card catalog and add cards to{" "}
+            {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
+          </p>
+          {addTarget && (
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
+                <Search className="mr-1 size-3.5" />
+                Quick add
+              </Button>
+              <Button size="sm" onClick={() => startBrowsing(addTarget)}>
+                <Plus className="mr-1 size-3.5" />
+                Browse & add
+              </Button>
+            </div>
+          )}
         </div>
+      ) : (
+        <CardViewer
+          items={items}
+          totalItems={totalCopies}
+          renderCard={renderCard}
+          toolbar={toolbar}
+        >
+          {/* Floating action bar */}
+          {selected.size > 0 && (
+            <div className="border-border bg-background fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 shadow-lg">
+              <span className="text-sm font-medium">{selected.size} selected</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setMoveOpen(true)}
+                disabled={moveCopies.isPending}
+              >
+                <Minus className="mr-1 size-3.5" />
+                Move
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDisposeOpen(true)}
+                disabled={disposeCopies.isPending}
+              >
+                <Trash2 className="mr-1 size-3.5" />
+                Dispose
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSelection}
+                aria-label="Clear selection"
+              >
+                <X className="size-3.5" />
+              </Button>
+            </div>
+          )}
+
+          <MoveDialog
+            open={moveOpen}
+            onOpenChange={setMoveOpen}
+            collections={collections.filter((collection) => collection.id !== collectionId)}
+            onMove={handleMove}
+            isPending={moveCopies.isPending}
+          />
+
+          <DisposeDialog
+            open={disposeOpen}
+            onOpenChange={setDisposeOpen}
+            count={selected.size}
+            onConfirm={handleDispose}
+            isPending={disposeCopies.isPending}
+          />
+        </CardViewer>
       )}
 
-      <MoveDialog
-        open={moveOpen}
-        onOpenChange={setMoveOpen}
-        collections={collections.filter((collection) => collection.id !== collectionId)}
-        onMove={handleMove}
-        isPending={moveCopies.isPending}
-      />
-
-      <DisposeDialog
-        open={disposeOpen}
-        onOpenChange={setDisposeOpen}
-        count={selected.size}
-        onConfirm={handleDispose}
-        isPending={disposeCopies.isPending}
-      />
       {addTarget && (
         <QuickAddPalette
           open={quickAddOpen}
@@ -376,6 +375,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           ownedCountByPrinting={ownedCountByPrinting}
         />
       )}
-    </CardViewer>
+    </>
   );
 }

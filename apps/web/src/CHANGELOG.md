@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-29
+
+- fix: Quick add search input no longer resets after adding the first card to an empty collection
+
 ## 2026-03-28
 
 - feat: "Browse & add" now opens the full card browser inline within the collection page — the sidebar stays visible so you always know which collection you're adding to
