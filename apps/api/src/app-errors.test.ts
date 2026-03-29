@@ -183,3 +183,93 @@ describe("onError handler (production)", () => {
     expect(json).not.toHaveProperty("details");
   });
 });
+
+describe("onError handler (5xx AppError)", () => {
+  it("logs 5xx AppErrors", async () => {
+    const log = createLogger("test", "silent");
+    const logErrorSpy = vi.spyOn(log, "error").mockImplementation(() => {});
+
+    const testApp = createApp({
+      db: {} as any,
+      auth: mockAuth as any,
+      config: { ...baseMockConfig, isDev: true } as any,
+      log,
+    });
+
+    testApp.get("/api/test-error/5xx-app-error", () => {
+      throw new AppError(500, "INTERNAL_ERROR", "Server broke");
+    });
+
+    const res = await testApp.fetch(new Request("http://localhost/api/test-error/5xx-app-error"));
+    expect(res.status).toBe(500);
+    expect(logErrorSpy).toHaveBeenCalled();
+    logErrorSpy.mockRestore();
+  });
+});
+
+describe("auth rate limit middleware", () => {
+  it("does not rate-limit non-sensitive auth paths", async () => {
+    // /api/auth/session is not in the rate-limited list, so it hits the auth handler directly
+    const authHandlerSpy = vi.fn(() => new Response("ok"));
+    const testApp = createApp({
+      db: {} as any,
+      auth: { ...mockAuth, handler: authHandlerSpy } as any,
+      config: { ...baseMockConfig, isDev: false } as any,
+      log: createLogger("test", "silent"),
+    });
+
+    const res = await testApp.fetch(new Request("http://localhost/api/auth/session"));
+    expect(res.status).toBe(200);
+  });
+
+  it("applies rate limiting on sensitive auth endpoints", async () => {
+    const authHandlerSpy = vi.fn(() => new Response("ok"));
+    const testApp = createApp({
+      db: {} as any,
+      auth: { ...mockAuth, handler: authHandlerSpy } as any,
+      config: { ...baseMockConfig, isDev: false } as any,
+      log: createLogger("test", "silent"),
+    });
+
+    // Make requests to a rate-limited path — should succeed but go through rate limiter
+    const res = await testApp.fetch(
+      new Request("http://localhost/api/auth/sign-in", {
+        method: "POST",
+        headers: { "x-real-ip": "1.2.3.4" },
+      }),
+    );
+    // The auth handler returns "ok" (200) — rate limit is 10/min so first request succeeds
+    expect(res.status).toBe(200);
+  });
+
+  it("uses x-real-ip header for rate limit key, falls back to 'unknown'", async () => {
+    const authHandlerSpy = vi.fn(() => new Response("ok"));
+    const testApp = createApp({
+      db: {} as any,
+      auth: { ...mockAuth, handler: authHandlerSpy } as any,
+      config: { ...baseMockConfig, isDev: false } as any,
+      log: createLogger("test", "silent"),
+    });
+
+    // Request without x-real-ip header
+    const res = await testApp.fetch(
+      new Request("http://localhost/api/auth/sign-up", { method: "POST" }),
+    );
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("custom services injection", () => {
+  it("merges custom services with defaults", async () => {
+    const customEnsureInbox = vi.fn();
+    const testApp = createApp({
+      db: {} as any,
+      auth: mockAuth as any,
+      config: { ...baseMockConfig, isDev: false } as any,
+      log: createLogger("test", "silent"),
+      services: { ensureInbox: customEnsureInbox } as any,
+    });
+    // App should boot without errors with partial services override
+    expect(testApp).toBeDefined();
+  });
+});

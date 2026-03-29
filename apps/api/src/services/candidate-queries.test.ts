@@ -1,0 +1,2400 @@
+/* oxlint-disable
+   no-empty-function,
+   unicorn/no-useless-undefined
+   -- test file: mocks require empty fns and explicit undefined */
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+import { AppError } from "../errors.js";
+import {
+  buildCandidateCardList,
+  buildExport,
+  buildCandidateCardDetail,
+  buildUnmatchedDetail,
+} from "./candidate-queries.js";
+
+// ---------------------------------------------------------------------------
+// Mock repo factory
+// ---------------------------------------------------------------------------
+
+function createMockRepo(overrides: Record<string, unknown> = {}) {
+  return {
+    listCardsForSourceList: vi.fn().mockResolvedValue([]),
+    listCandidateCardsForSourceList: vi.fn().mockResolvedValue([]),
+    listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+    listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+    listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    exportCards: vi.fn().mockResolvedValue([]),
+    exportPrintings: vi.fn().mockResolvedValue([]),
+    cardForDetail: vi.fn().mockResolvedValue(undefined),
+    cardNameAliases: vi.fn().mockResolvedValue([]),
+    candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+    candidatePrintingsForDetail: vi.fn().mockResolvedValue([]),
+    printingsForDetail: vi.fn().mockResolvedValue([]),
+    setInfoByIds: vi.fn().mockResolvedValue([]),
+    setPrintedTotalBySlugs: vi.fn().mockResolvedValue([]),
+    promoTypeSlugsByIds: vi.fn().mockResolvedValue([]),
+    printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    ...overrides,
+  } as any;
+}
+
+// ---------------------------------------------------------------------------
+// buildCandidateCardList
+// ---------------------------------------------------------------------------
+
+describe("buildCandidateCardList", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns empty array when no cards or candidates exist", async () => {
+    const repo = createMockRepo();
+    const result = await buildCandidateCardList(repo);
+    expect(result).toEqual([]);
+  });
+
+  it("returns cards with matched candidate groups", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "card-1", slug: "fireball", name: "Fireball", normName: "fireball" },
+        ]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "fireball",
+          name: "Fireball",
+          provider: "gallery",
+          checkedAt: null,
+        },
+      ]),
+      listPrintingsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ cardId: "card-1", shortCode: "OGN-001" }]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].cardSlug).toBe("fireball");
+    expect(result[0].name).toBe("Fireball");
+    expect(result[0].shortCodes).toEqual(["OGN-001"]);
+    expect(result[0].candidateCount).toBe(1);
+    expect(result[0].hasGallery).toBe(true);
+    expect(result[0].uncheckedCardCount).toBe(1);
+  });
+
+  it("matches candidate cards via aliases", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "card-1", slug: "fireball", name: "Fireball", normName: "fireball" },
+        ]),
+      listCandidateCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "cc-1", normName: "firebal", name: "Firebal", provider: "ocr", checkedAt: null },
+        ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ normName: "firebal", cardId: "card-1" }]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].cardSlug).toBe("fireball");
+    expect(result[0].candidateCount).toBe(1);
+  });
+
+  it("reports unmatched candidate groups with null cardSlug", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "newcard",
+          name: "New Card",
+          provider: "gallery",
+          checkedAt: null,
+        },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].cardSlug).toBeNull();
+    expect(result[0].name).toBe("New Card");
+    expect(result[0].normalizedName).toBe("newcard");
+  });
+
+  it("counts unchecked printings across a candidate group", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "card-1", slug: "fireball", name: "Fireball", normName: "fireball" },
+        ]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "fireball",
+          name: "Fireball",
+          provider: "gallery",
+          checkedAt: null,
+        },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        { candidateCardId: "cc-1", shortCode: "OGN-001", checkedAt: null, printingId: null },
+        {
+          candidateCardId: "cc-1",
+          shortCode: "OGN-002",
+          checkedAt: new Date(),
+          printingId: null,
+        },
+        {
+          candidateCardId: "cc-1",
+          shortCode: "OGN-003",
+          checkedAt: null,
+          printingId: "printing-1",
+        },
+      ]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result[0].uncheckedPrintingCount).toBe(1);
+    expect(result[0].stagingShortCodes).toEqual(["OGN-001"]);
+  });
+
+  it("collects staging short codes only for unchecked unlinked candidate printings", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "cc-1", normName: "bolt", name: "Bolt", provider: "ocr", checkedAt: null },
+        ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        { candidateCardId: "cc-1", shortCode: "SFD-100", checkedAt: null, printingId: null },
+        { candidateCardId: "cc-1", shortCode: "SFD-101", checkedAt: null, printingId: null },
+        {
+          candidateCardId: "cc-1",
+          shortCode: "SFD-102",
+          checkedAt: new Date(),
+          printingId: null,
+        },
+      ]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result[0].stagingShortCodes).toEqual(["SFD-100", "SFD-101"]);
+  });
+
+  it("merges multiple candidate groups from aliases and direct match", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "card-1", slug: "fireball", name: "Fireball", normName: "fireball" },
+        ]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "fireball",
+          name: "Fireball",
+          provider: "gallery",
+          checkedAt: null,
+        },
+        { id: "cc-2", normName: "firebal", name: "Firebal", provider: "ocr", checkedAt: null },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ normName: "firebal", cardId: "card-1" }]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].candidateCount).toBe(2);
+  });
+
+  it("returns suggestedCardSlug for unmatched entries matching card prefix", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "card-1", slug: "fireball", name: "Fireball", normName: "fireball" },
+        ]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "fireballultimate",
+          name: "Fireball Ultimate",
+          provider: "gallery",
+          checkedAt: null,
+        },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result).toHaveLength(2);
+    const unmatched = result.find((r) => r.cardSlug === null);
+    expect(unmatched?.suggestedCardSlug).toBe("fireball");
+  });
+
+  it("returns null suggestedCardSlug when no prefix match found", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "card-1", slug: "fireball", name: "Fireball", normName: "fireball" },
+        ]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "zzznomatch",
+          name: "No Match",
+          provider: "gallery",
+          checkedAt: null,
+        },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+    const unmatched = result.find((r) => r.cardSlug === null);
+    expect(unmatched?.suggestedCardSlug).toBeNull();
+  });
+
+  it("prefers longest normName prefix for suggested card slug", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "card-1", slug: "fire", name: "Fire", normName: "fire" },
+        { id: "card-2", slug: "fireball", name: "Fireball", normName: "fireball" },
+      ]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          normName: "fireballultimate",
+          name: "Fireball Ultimate",
+          provider: "gallery",
+          checkedAt: null,
+        },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+    const unmatched = result.find((r) => r.cardSlug === null);
+    expect(unmatched?.suggestedCardSlug).toBe("fireball");
+  });
+
+  it("handles multiple printings on the same card", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([
+        { cardId: "card-1", shortCode: "OGN-001" },
+        { cardId: "card-1", shortCode: "OGN-002" },
+      ]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result[0].shortCodes).toEqual(["OGN-001", "OGN-002"]);
+    expect(result[0].candidateCount).toBe(0);
+    expect(result[0].hasGallery).toBe(false);
+  });
+
+  it("reports hasGallery false when no gallery provider", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "cc-1", normName: "bolt", name: "Bolt", provider: "ocr", checkedAt: null },
+        ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+    expect(result[0].hasGallery).toBe(false);
+  });
+
+  it("counts checked candidate cards correctly", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "cc-1", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: new Date() },
+        { id: "cc-2", normName: "bolt", name: "Bolt", provider: "ocr", checkedAt: null },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+    expect(result[0].uncheckedCardCount).toBe(1);
+  });
+
+  it("handles card with no candidate group (null group)", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo);
+
+    expect(result[0].candidateCount).toBe(0);
+    expect(result[0].stagingShortCodes).toEqual([]);
+    expect(result[0].uncheckedCardCount).toBe(0);
+    expect(result[0].uncheckedPrintingCount).toBe(0);
+    expect(result[0].hasGallery).toBe(false);
+    expect(result[0].suggestedCardSlug).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildExport
+// ---------------------------------------------------------------------------
+
+describe("buildExport", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns empty array when no cards exist", async () => {
+    const repo = createMockRepo();
+    const result = await buildExport(repo);
+    expect(result).toEqual([]);
+  });
+
+  it("maps card fields to snake_case export format", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "OGN-001",
+          name: "Fireball",
+          type: "Spell",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 3,
+          energy: 2,
+          power: null,
+          mightBonus: null,
+          rulesText: "Deal damage",
+          effectText: null,
+          tags: ["burn"],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildExport(repo);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].card).toEqual({
+      name: "Fireball",
+      type: "Spell",
+      super_types: [],
+      domains: ["Fury"],
+      might: 3,
+      energy: 2,
+      power: null,
+      might_bonus: null,
+      rules_text: "Deal damage",
+      effect_text: null,
+      tags: ["burn"],
+      short_code: "OGN-001",
+      external_id: "card-1",
+      extra_data: null,
+    });
+  });
+
+  it("maps printings to snake_case with image_url preference", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "OGN-001",
+          name: "Fireball",
+          type: "Spell",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 3,
+          energy: 2,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "OGN-001",
+          setSlug: "origin",
+          setName: "Origin Set",
+          collectorNumber: 1,
+          rarity: "Rare",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "Jane Doe",
+          publicCode: "001",
+          printedRulesText: "Deal damage",
+          printedEffectText: null,
+          flavorText: "Burn it",
+          originalUrl: "http://orig.com/img.jpg",
+          rehostedUrl: null,
+          imageId: null,
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+
+    expect(result[0].printings).toHaveLength(1);
+    expect(result[0].printings[0].image_url).toBe("http://orig.com/img.jpg");
+    expect(result[0].printings[0].extra_data).toBeNull();
+  });
+
+  it("prefers originalUrl over rehostedUrl for image_url", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "OGN-001",
+          name: "X",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 1,
+          energy: 1,
+          power: 1,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "OGN-001",
+          setSlug: "origin",
+          setName: "Origin",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          originalUrl: "http://orig.com",
+          rehostedUrl: "http://rehost.com",
+          imageId: null,
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+    expect(result[0].printings[0].image_url).toBe("http://orig.com");
+  });
+
+  it("falls back to rehostedUrl when originalUrl is null", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "OGN-001",
+          name: "X",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 1,
+          energy: 1,
+          power: 1,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "OGN-001",
+          setSlug: "origin",
+          setName: "Origin",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          originalUrl: null,
+          rehostedUrl: "http://rehost.com",
+          imageId: null,
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+    expect(result[0].printings[0].image_url).toBe("http://rehost.com");
+  });
+
+  it("returns null image_url when both originalUrl and rehostedUrl are null", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "X",
+          name: "X",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 1,
+          energy: 1,
+          power: 1,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "X-001",
+          setSlug: "x",
+          setName: "X",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          originalUrl: null,
+          rehostedUrl: null,
+          imageId: null,
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+    expect(result[0].printings[0].image_url).toBeNull();
+  });
+
+  it("includes imageId in extra_data when present", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "X",
+          name: "X",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 1,
+          energy: 1,
+          power: 1,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "X-001",
+          setSlug: "x",
+          setName: "X",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          originalUrl: null,
+          rehostedUrl: null,
+          imageId: "img-123",
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+    expect(result[0].printings[0].extra_data).toEqual({ image_id: "img-123" });
+  });
+
+  it("groups printings by card id", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "C1",
+          name: "C1",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 1,
+          energy: 1,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        },
+        {
+          id: "card-2",
+          slug: "C2",
+          name: "C2",
+          type: "Spell",
+          superTypes: [],
+          domains: ["Calm"],
+          might: null,
+          energy: 2,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "C1-001",
+          setSlug: "s",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          originalUrl: null,
+          rehostedUrl: null,
+          imageId: null,
+        },
+        {
+          id: "p-2",
+          cardId: "card-1",
+          shortCode: "C1-002",
+          setSlug: "s",
+          setName: "S",
+          collectorNumber: 2,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "foil",
+          artist: "A",
+          publicCode: "002",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          originalUrl: null,
+          rehostedUrl: null,
+          imageId: null,
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+
+    expect(result[0].printings).toHaveLength(2);
+    expect(result[1].printings).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildCandidateCardDetail
+// ---------------------------------------------------------------------------
+
+describe("buildCandidateCardDetail", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("throws MISSING_ALIAS when matched card has no aliases", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        normName: "fireball",
+        type: "Spell",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 3,
+        energy: 2,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        rulesText: "Deal damage",
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([]),
+    });
+
+    await expect(buildCandidateCardDetail(repo, "fireball")).rejects.toThrow(AppError);
+    await expect(buildCandidateCardDetail(repo, "fireball")).rejects.toThrow("no name aliases");
+  });
+
+  it("returns card detail with all fields for matched card", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        normName: "fireball",
+        type: "Spell",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 3,
+        energy: 2,
+        power: null,
+        mightBonus: null,
+        keywords: ["burn"],
+        rulesText: "Deal damage",
+        effectText: null,
+        tags: [],
+        comment: "a comment",
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "fireball" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "fireball");
+
+    expect(result.card).not.toBeNull();
+    expect(result.card?.slug).toBe("fireball");
+    expect(result.displayName).toBe("Fireball");
+  });
+
+  it("returns null card for unmatched identifier", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "Unknown Card",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Fury"],
+          might: 1,
+          energy: 1,
+          power: 1,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: "UNK-001",
+          externalId: "ext-1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "unknowncard");
+
+    expect(result.card).toBeNull();
+    expect(result.displayName).toBe("Unknown Card");
+  });
+
+  it("uses shortest candidate name for unmatched displayName", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "a",
+          name: "Long Name Here",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "e1",
+          extraData: null,
+          checkedAt: null,
+        },
+        {
+          id: "cc-2",
+          provider: "b",
+          name: "Short",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "e2",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "somecard");
+    expect(result.displayName).toBe("Short");
+  });
+
+  it("uses identifier as displayName when no candidates", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "unknownid");
+    expect(result.displayName).toBe("unknownid");
+  });
+
+  it("formats printings with set slug and expectedPrintingId", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        normName: "fireball",
+        type: "Spell",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 3,
+        energy: 2,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "fireball" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "OGN-001:normal:",
+          cardId: "card-1",
+          setId: "set-uuid-1",
+          shortCode: "OGN-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi.fn().mockResolvedValue([
+        {
+          id: "set-uuid-1",
+          slug: "origin",
+          name: "Origin Set",
+          releasedAt: "2026-01-01",
+          printedTotal: 100,
+        },
+      ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "fireball");
+
+    expect(result.printings).toHaveLength(1);
+    expect(result.printings[0].setId).toBe("origin");
+    expect(result.printings[0].setName).toBe("Origin Set");
+    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:normal:");
+  });
+
+  it("resolves promo type slugs for expectedPrintingId", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        normName: "fireball",
+        type: "Spell",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 3,
+        energy: 2,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "fireball" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "OGN-001:foil:promo",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-001",
+          collectorNumber: 1,
+          rarity: "Rare",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: "promo-uuid",
+          finish: "foil",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-1", slug: "origin", name: "Origin", releasedAt: null, printedTotal: null },
+        ]),
+      promoTypeSlugsByIds: vi.fn().mockResolvedValue([{ id: "promo-uuid", slug: "promo" }]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "fireball");
+    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:foil:promo");
+  });
+
+  it("groups unlinked candidate printings into candidatePrintingGroups", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-001",
+          setId: "s1",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+        {
+          id: "cp-2",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-001",
+          setId: "s1",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "B",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p2",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+
+    expect(result.candidatePrintingGroups).toHaveLength(1);
+    expect(result.candidatePrintingGroups[0].shortCodes).toEqual(["cp-1", "cp-2"]);
+    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:normal:");
+  });
+
+  it("excludes linked candidate printings from grouping", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: "linked-printing",
+          shortCode: "OGN-001",
+          setId: "s1",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.candidatePrintingGroups).toHaveLength(0);
+  });
+
+  it("resolves finish from rarity when finish is null", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-001",
+          setId: "s1",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: "Rare",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: null,
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:foil:");
+  });
+
+  it("resolves finish to normal for Common/Uncommon rarity", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-001",
+          setId: "s1",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: null,
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:normal:");
+  });
+
+  it("resolves finish to empty string when both finish and rarity are null", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-001",
+          setId: "s1",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: null,
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: null,
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::");
+  });
+
+  it("formats candidate card checkedAt as ISO string", async () => {
+    const testDate = new Date("2026-01-15T10:30:00Z");
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: testDate,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.sources[0].checkedAt).toBe(testDate.toISOString());
+  });
+
+  it("returns null checkedAt when candidate card checkedAt is null", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.sources[0].checkedAt).toBeNull();
+  });
+
+  it("fetches set printed totals for unlinked candidate printings", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-001",
+          setId: "candidate-set-slug",
+          setName: "S",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      setPrintedTotalBySlugs: vi
+        .fn()
+        .mockResolvedValue([{ slug: "candidate-set-slug", printedTotal: 200 }]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.setTotals["candidate-set-slug"]).toBe(200);
+    expect(repo.setPrintedTotalBySlugs).toHaveBeenCalledWith(["candidate-set-slug"]);
+  });
+
+  it("derives expectedCardId from earliest normal printing", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        normName: "fireball",
+        type: "Spell",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 3,
+        energy: 2,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "fireball" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "SFD-113:normal:",
+          cardId: "card-1",
+          setId: "set-2",
+          shortCode: "SFD-113",
+          collectorNumber: 113,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "113",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+        {
+          id: "p-2",
+          slug: "OGN-001:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi.fn().mockResolvedValue([
+        {
+          id: "set-1",
+          slug: "origin",
+          name: "Origin",
+          releasedAt: "2025-01-01",
+          printedTotal: null,
+        },
+        {
+          id: "set-2",
+          slug: "second",
+          name: "Second",
+          releasedAt: "2026-01-01",
+          printedTotal: null,
+        },
+      ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "fireball");
+    expect(result.expectedCardId).toBe("OGN-001");
+  });
+
+  it("falls back to all printings when no normal variants exist", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "fireball",
+        name: "Fireball",
+        normName: "fireball",
+        type: "Spell",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 3,
+        energy: 2,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "fireball" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "OGN-001a:foil:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-001a",
+          collectorNumber: 1,
+          rarity: "Rare",
+          artVariant: "alternate",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "foil",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi.fn().mockResolvedValue([
+        {
+          id: "set-1",
+          slug: "origin",
+          name: "Origin",
+          releasedAt: "2025-01-01",
+          printedTotal: null,
+        },
+      ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "fireball");
+    expect(result.expectedCardId).toBe("OGN-001");
+  });
+
+  it("derives expectedCardId from candidate printing groups when no printings", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-002a",
+          setId: "s1",
+          setName: "S",
+          collectorNumber: 2,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "002",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.expectedCardId).toBe("OGN-002");
+  });
+
+  it("returns current slug as expectedCardId when no printings or groups", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "existing-slug",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "existing-slug");
+    expect(result.expectedCardId).toBe("existing-slug");
+  });
+
+  it("returns empty string expectedCardId when no printings, groups, or slug", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "nothing");
+    expect(result.expectedCardId).toBe("");
+  });
+
+  it("sorts printings by expectedPrintingId", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-2",
+          slug: "OGN-002:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-002",
+          collectorNumber: 2,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "002",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+        {
+          id: "p-1",
+          slug: "OGN-001:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-1", slug: "origin", name: "Origin", releasedAt: null, printedTotal: null },
+        ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:normal:");
+    expect(result.printings[1].expectedPrintingId).toBe("OGN-002:normal:");
+  });
+
+  it("includes set totals for accepted printings", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "OGN-001:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-1", slug: "origin", name: "Origin", releasedAt: null, printedTotal: 150 },
+        ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.setTotals).toEqual({ origin: 150 });
+  });
+
+  it("does not duplicate set totals already fetched from accepted printings", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "X",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "OGN-002",
+          setId: "origin",
+          setName: "Origin",
+          collectorNumber: 2,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "002",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      printingsForDetail: vi.fn().mockResolvedValue([]),
+      setInfoByIds: vi.fn().mockResolvedValue([]),
+      setPrintedTotalBySlugs: vi.fn().mockResolvedValue([{ slug: "origin", printedTotal: 150 }]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    expect(result.setTotals).toEqual({ origin: 150 });
+  });
+
+  it("skips set totals query when no unlinked candidate printing sets differ", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "nothing");
+    expect(repo.setPrintedTotalBySlugs).not.toHaveBeenCalled();
+    expect(result.setTotals).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildUnmatchedDetail
+// ---------------------------------------------------------------------------
+
+describe("buildUnmatchedDetail", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("delegates to buildCandidateCardDetail and reshapes result", async () => {
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cc-1",
+          provider: "gallery",
+          name: "New Card",
+          type: null,
+          superTypes: [],
+          domains: [],
+          might: null,
+          energy: null,
+          power: null,
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+          tags: [],
+          shortCode: null,
+          externalId: "ext",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+    });
+
+    const result = await buildUnmatchedDetail(repo, "newcard");
+
+    expect(result.displayName).toBe("New Card");
+    expect(result.sources).toHaveLength(1);
+    expect(result).toHaveProperty("defaultCardId");
+    expect(result).toHaveProperty("setTotals");
+    expect(result).toHaveProperty("candidatePrintings");
+    expect(result).toHaveProperty("candidatePrintingGroups");
+    expect(result).not.toHaveProperty("card");
+    expect(result).not.toHaveProperty("printings");
+    expect(result).not.toHaveProperty("printingImages");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareShortCodes branch coverage (via deriveExpectedCardId)
+// ---------------------------------------------------------------------------
+
+describe("compareShortCodes branches via deriveExpectedCardId", () => {
+  it("falls back to localeCompare when short codes do not match regex", async () => {
+    // Short codes without the standard prefix-number pattern hit line 88
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: [],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "zzz:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "zzz",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+        {
+          id: "p-2",
+          slug: "aaa:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "aaa",
+          collectorNumber: 2,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "002",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-1", slug: "s", name: "S", releasedAt: "2025-01-01", printedTotal: null },
+        ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    // "aaa" sorts before "zzz" via localeCompare
+    expect(result.expectedCardId).toBe("aaa");
+  });
+
+  it("sorts by prefix when prefixes differ", async () => {
+    // Different prefixes with same number hit line 92
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: [],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "ZZZ-001:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "ZZZ-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+        {
+          id: "p-2",
+          slug: "AAA-001:normal:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "AAA-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-1", slug: "s", name: "S", releasedAt: "2025-01-01", printedTotal: null },
+        ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    // AAA- sorts before ZZZ- by prefix
+    expect(result.expectedCardId).toBe("AAA-001");
+  });
+
+  it("sorts by suffix when prefix and number are equal", async () => {
+    // Same prefix and number, different suffix hit line 98
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: [],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "OGN-001b:foil:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-001b",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "alternate",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "foil",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+        {
+          id: "p-2",
+          slug: "OGN-001a:foil:",
+          cardId: "card-1",
+          setId: "set-1",
+          shortCode: "OGN-001a",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "alternate",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "foil",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-1", slug: "s", name: "S", releasedAt: "2025-01-01", printedTotal: null },
+        ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    // All are non-normal, so all printings used; OGN-001a sorts before OGN-001b by suffix
+    expect(result.expectedCardId).toBe("OGN-001");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deriveExpectedCardId date-sorting branches
+// ---------------------------------------------------------------------------
+
+describe("deriveExpectedCardId date-sorting branches", () => {
+  it("sorts printing with date before printing with null date (line 143)", async () => {
+    // First element has a date, second doesn't → compare(a,b) hits dateA && !dateB → return -1
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: [],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "AAA-001:normal:",
+          cardId: "card-1",
+          setId: "set-has-date",
+          shortCode: "AAA-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+        {
+          id: "p-2",
+          slug: "ZZZ-999:normal:",
+          cardId: "card-1",
+          setId: "set-no-date",
+          shortCode: "ZZZ-999",
+          collectorNumber: 999,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "999",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi.fn().mockResolvedValue([
+        {
+          id: "set-has-date",
+          slug: "dated",
+          name: "Dated",
+          releasedAt: "2025-01-01",
+          printedTotal: null,
+        },
+        {
+          id: "set-no-date",
+          slug: "undated",
+          name: "Undated",
+          releasedAt: null,
+          printedTotal: null,
+        },
+      ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    // The printing with a date (AAA-001) should sort first
+    expect(result.expectedCardId).toBe("AAA-001");
+  });
+
+  it("sorts printing with null date after printing with date (line 146)", async () => {
+    // Reverse order: dateA null, dateB present → return 1 (line 146)
+    const repo = createMockRepo({
+      cardForDetail: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: [],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        rulesText: null,
+        effectText: null,
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          slug: "AAA-001:normal:",
+          cardId: "card-1",
+          setId: "set-no-date",
+          shortCode: "AAA-001",
+          collectorNumber: 1,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+        {
+          id: "p-2",
+          slug: "ZZZ-999:normal:",
+          cardId: "card-1",
+          setId: "set-has-date",
+          shortCode: "ZZZ-999",
+          collectorNumber: 999,
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "A",
+          publicCode: "999",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+        },
+      ]),
+      setInfoByIds: vi.fn().mockResolvedValue([
+        {
+          id: "set-no-date",
+          slug: "undated",
+          name: "Undated",
+          releasedAt: null,
+          printedTotal: null,
+        },
+        {
+          id: "set-has-date",
+          slug: "dated",
+          name: "Dated",
+          releasedAt: "2026-06-01",
+          printedTotal: null,
+        },
+      ]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardDetail(repo, "x");
+    // The printing with a date should still sort first despite AAA < ZZZ
+    expect(result.expectedCardId).toBe("ZZZ-999");
+  });
+});

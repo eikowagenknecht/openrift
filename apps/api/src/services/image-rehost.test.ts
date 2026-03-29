@@ -552,6 +552,23 @@ describe("getRehostStatus", () => {
     });
   });
 
+  it("skips non-directory entries in disk scan", async () => {
+    const repo = makeMockRepo({
+      selectResult: [{ setId: "set1", setName: "Set One", total: 2, rehosted: 1 }],
+    });
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("set1", true), dirent(".gitkeep", false)];
+      }
+      return ["f1.webp"];
+    });
+
+    const result = await getRehostStatus(mockIo, repo);
+    // Only set1 should appear in disk stats — .gitkeep skipped via continue
+    expect(result.disk.sets).toHaveLength(1);
+    expect(result.disk.sets[0].setId).toBe("set1");
+  });
+
   it("computes disk stats across multiple set directories", async () => {
     const repo = makeMockRepo({
       selectResult: [{ setId: "s1", setName: "S1", total: 3, rehosted: 3 }],
