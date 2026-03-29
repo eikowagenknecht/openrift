@@ -162,8 +162,7 @@ export function useCardData({
   const displayCards =
     view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
 
-  const sorted = sortCards(displayCards, sortBy);
-  const sortedCards = sortDir === "desc" ? sorted.toReversed() : sorted;
+  const sortedCards = sortCards(displayCards, sortBy, sortDir);
 
   const printingsByCardId = groupPrintingsByCardId(allPrintings, setOrderMap);
 

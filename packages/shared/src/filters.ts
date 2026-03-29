@@ -9,6 +9,7 @@ import type {
   PromoType,
   Rarity,
   SearchField,
+  SortDirection,
   SortOption,
   SuperType,
 } from "./types/index.js";
@@ -337,22 +338,27 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
  * const byPrice = sortCards(filteredPrintings, "price");
  * ```
  */
-export function sortCards(printings: Printing[], sortBy: SortOption): Printing[] {
+export function sortCards(
+  printings: Printing[],
+  sortBy: SortOption,
+  sortDir: SortDirection = "asc",
+): Printing[] {
+  const dir = sortDir === "desc" ? -1 : 1;
   if (sortBy === "name") {
-    return printings.toSorted((a, b) => a.card.name.localeCompare(b.card.name));
+    return printings.toSorted((a, b) => dir * a.card.name.localeCompare(b.card.name));
   }
   if (sortBy === "id") {
-    return printings.toSorted((a, b) => a.shortCode.localeCompare(b.shortCode));
+    return printings.toSorted((a, b) => dir * a.shortCode.localeCompare(b.shortCode));
   }
   if (sortBy === "energy") {
-    return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.card.energy));
+    return printings.toSorted((a, b) => dir * compareWithFallback(a, b, (p) => p.card.energy));
   }
   if (sortBy === "rarity") {
     return printings.toSorted(
       (a, b) =>
-        RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) ||
-        a.card.name.localeCompare(b.card.name),
+        dir * (RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)) ||
+        a.shortCode.localeCompare(b.shortCode),
     );
   }
-  return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.marketPrice));
+  return printings.toSorted((a, b) => dir * compareWithFallback(a, b, (p) => p.marketPrice));
 }

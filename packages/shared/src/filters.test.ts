@@ -1341,9 +1341,74 @@ describe("sortCards", () => {
     expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 
-  it("sorts by rarity using RARITY_ORDER, breaking ties by name", () => {
+  it("sorts by rarity using RARITY_ORDER, breaking ties by shortCode", () => {
     const result = sortCards(printings, "rarity");
     expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo", "Charlie"]);
+  });
+
+  it("keeps shortCode tiebreaker ascending when rarity sort is desc", () => {
+    const tied = [
+      makePrinting({
+        shortCode: "SET1-003",
+        rarity: "Common",
+        card: {
+          id: "c3",
+          name: "Zeta",
+          type: "Unit",
+          superTypes: [],
+          domains: [],
+          energy: 1,
+          might: 0,
+          power: 0,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+      makePrinting({
+        shortCode: "SET1-001",
+        rarity: "Common",
+        card: {
+          id: "c1",
+          name: "Alpha",
+          type: "Unit",
+          superTypes: [],
+          domains: [],
+          energy: 1,
+          might: 0,
+          power: 0,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+      makePrinting({
+        shortCode: "SET1-002",
+        rarity: "Rare",
+        card: {
+          id: "c2",
+          name: "Bravo",
+          type: "Unit",
+          superTypes: [],
+          domains: [],
+          energy: 1,
+          might: 0,
+          power: 0,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: "",
+          effectText: "",
+        },
+      }),
+    ];
+    // desc reverses rarity (Rare first) but tiebreaker stays ascending
+    const result = sortCards(tied, "rarity", "desc");
+    expect(result.map((p) => p.shortCode)).toEqual(["SET1-002", "SET1-001", "SET1-003"]);
   });
 
   describe("price sort", () => {
