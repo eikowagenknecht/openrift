@@ -1,6 +1,5 @@
 import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
-  ArrowLeftIcon,
   BookOpenIcon,
   HistoryIcon,
   ImportIcon,
@@ -13,19 +12,16 @@ import { parseAsBoolean, useQueryState } from "nuqs";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   NestedSidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
@@ -133,15 +129,14 @@ export function CollectionSidebar() {
                   />
                 </form>
               ) : (
-                <Button
-                  variant="ghost"
+                <SidebarMenuButton
                   size="sm"
-                  className="text-muted-foreground w-full justify-start gap-2"
+                  className="text-muted-foreground"
                   onClick={() => setIsCreating(true)}
                 >
                   <PlusIcon className="size-4" />
-                  New collection
-                </Button>
+                  <span>New collection</span>
+                </SidebarMenuButton>
               )}
             </SidebarMenuItem>
           </SidebarMenu>
@@ -184,17 +179,6 @@ export function CollectionSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarSeparator className="mx-0" />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton render={<Link to="/cards" />}>
-              <ArrowLeftIcon />
-              <span>Browse cards</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </NestedSidebar>
   );
 }

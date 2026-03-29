@@ -2,6 +2,7 @@
 
 ## 2026-03-29
 
+- fix: Active and hovered items in the collection sidebar are now more visually distinct
 - fix: Alt art printings of the same card now sort in a consistent, stable order instead of sometimes appearing shuffled
 - fix: Sorting by price descending now shows the most expensive printing in each stack first, and cards without a price always appear at the end
 - fix: Sorting by rarity now keeps cards in consistent card-ID order within the same rarity, regardless of sort direction
