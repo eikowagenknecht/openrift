@@ -1,13 +1,12 @@
 import type { Printing } from "@openrift/shared";
 
-import type { AddedEntry } from "@/components/collection/added-cards-list";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useAddModeStore } from "@/stores/add-mode-store";
 
 interface VariantAddPopoverProps {
   printings: Printing[];
   ownedCounts?: Record<string, number>;
-  addedItems: Map<string, AddedEntry>;
   onQuickAdd: (printing: Printing) => void;
   onUndoAdd: (printing: Printing) => void;
 }
@@ -15,10 +14,10 @@ interface VariantAddPopoverProps {
 export function VariantAddPopover({
   printings,
   ownedCounts,
-  addedItems,
   onQuickAdd,
   onUndoAdd,
 }: VariantAddPopoverProps) {
+  const addedItems = useAddModeStore((s) => s.addedItems);
   const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
 
   return (
