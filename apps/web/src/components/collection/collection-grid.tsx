@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { comparePrintings } from "@openrift/shared";
 import { Check, Layers, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
-import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
+import { parseAsBoolean, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -76,18 +76,15 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
   // Inline browse & add mode
   const [browsing, setBrowsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
-  const [, setAddingTo] = useQueryState("addingTo", parseAsString.withDefault(""));
   const { clearAllFilters } = useFilterActions();
 
-  const startBrowsing = (targetId: string) => {
+  const startBrowsing = () => {
     void setBrowsing(true);
-    void setAddingTo(targetId);
   };
 
   const handleCloseBrowsing = () => {
     clearAllFilters();
     void setBrowsing(null);
-    void setAddingTo(null);
     useSelectionStore.getState().closeDetail();
     globalThis.scrollTo(0, 0);
   };
@@ -250,7 +247,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => startBrowsing(addTarget)}
+            onClick={startBrowsing}
             className="text-xs"
             title="Browse & add"
           >
@@ -300,7 +297,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 <Search className="mr-1 size-3.5" />
                 Quick add
               </Button>
-              <Button size="sm" onClick={() => startBrowsing(addTarget)}>
+              <Button size="sm" onClick={startBrowsing}>
                 <Plus className="mr-1 size-3.5" />
                 Browse & add
               </Button>
