@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  toActivity,
-  toActivityItem,
+  toCollectionEvent,
   toCollection,
   toCopy,
   toDeck,
@@ -313,106 +312,44 @@ describe("toCopy", () => {
 });
 
 // ---------------------------------------------------------------------------
-// toActivity
+// toCollectionEvent
 // ---------------------------------------------------------------------------
 
-describe("toActivity", () => {
-  const baseRow = {
-    id: "act-1",
-    userId: "user-1",
-    type: "acquisition" as const,
-    name: "Bought cards",
-    date: new Date("2025-06-15T00:00:00.000Z"),
-    description: "From the store",
-    isAuto: false,
-    createdAt: NOW,
-    updatedAt: LATER,
-  };
-
-  it("converts a valid activity row to ActivityResponse", () => {
-    const result = toActivity(baseRow);
-    expect(result).toEqual({
-      id: "act-1",
-      type: "acquisition",
-      name: "Bought cards",
-      date: "2025-06-15",
-      description: "From the store",
-      isAuto: false,
-      createdAt: "2025-06-15T12:00:00.000Z",
-      updatedAt: "2025-06-16T08:30:00.000Z",
-    });
-  });
-
-  it("handles null name and description", () => {
-    const result = toActivity({ ...baseRow, name: null, description: null });
-    expect(result.name).toBeNull();
-    expect(result.description).toBeNull();
-  });
-
-  it("parses all valid activity types", () => {
-    for (const type of ["acquisition", "disposal", "trade", "reorganization"] as const) {
-      const result = toActivity({ ...baseRow, type });
-      expect(result.type).toBe(type);
-    }
-  });
-
-  it("throws on invalid activity type", () => {
-    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- testing invalid input
-    const row = { ...baseRow, type: "invalid-type" as any };
-    expect(() => toActivity(row)).toThrow();
-  });
-
-  it("formats date as UTC date string (YYYY-MM-DD)", () => {
-    const result = toActivity({ ...baseRow, date: new Date("2025-12-31T23:59:59.000Z") });
-    expect(result.date).toBe("2025-12-31");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// toActivityItem
-// ---------------------------------------------------------------------------
-
-describe("toActivityItem", () => {
-  it("maps a denormalized activity item row", () => {
-    const result = toActivityItem({
-      id: "ai-1",
-      activityId: "act-1",
-      activityType: "acquisition",
+describe("toCollectionEvent", () => {
+  it("maps an enriched collection event row", () => {
+    const result = toCollectionEvent({
+      id: "ev-1",
+      action: "added",
       copyId: "copy-1",
       printingId: "p-1",
-      action: "added",
       fromCollectionId: null,
       fromCollectionName: null,
       toCollectionId: "col-1",
       toCollectionName: "Main",
-      metadataSnapshot: { foo: "bar" },
       createdAt: NOW,
-      setId: "set-1",
-      collectorNumber: 5,
+      shortCode: "OGS-005",
       rarity: "Rare",
       imageUrl: "https://example.com/img.jpg",
       cardName: "Shadow Knight",
       cardType: "Unit",
+      cardSuperTypes: ["Champion"],
     });
     expect(result).toEqual({
-      id: "ai-1",
-      activityId: "act-1",
-      activityType: "acquisition",
+      id: "ev-1",
+      action: "added",
       copyId: "copy-1",
       printingId: "p-1",
-      action: "added",
       fromCollectionId: null,
       fromCollectionName: null,
       toCollectionId: "col-1",
       toCollectionName: "Main",
-      metadataSnapshot: { foo: "bar" },
       createdAt: "2025-06-15T12:00:00.000Z",
-      setId: "set-1",
-      collectorNumber: 5,
+      shortCode: "OGS-005",
       rarity: "Rare",
       imageUrl: "https://example.com/img.jpg",
       cardName: "Shadow Knight",
       cardType: "Unit",
+      cardSuperTypes: ["Champion"],
     });
   });
 });

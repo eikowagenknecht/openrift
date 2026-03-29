@@ -1,6 +1,5 @@
 import type {
   ActivityAction,
-  ActivityType,
   ArtVariant,
   CardFace,
   CardType,
@@ -294,37 +293,22 @@ export interface CopiesTable {
   updatedAt: UpdatedAt;
 }
 
-export interface ActivitiesTable {
-  id: Generated<string>;
-  userId: string;
-  type: ActivityType;
-  name: string | null;
-  date: Date;
-  description: string | null;
-  isAuto: boolean;
-  createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
-}
-
 /**
  * CHECK: action/collection presence —
  *   added → to_collection_id NOT NULL,
  *   removed → from_collection_id NOT NULL,
  *   moved → both NOT NULL.
  */
-export interface ActivityItemsTable {
+export interface CollectionEventsTable {
   id: Generated<string>;
-  activityId: string;
   userId: string;
-  activityType: ActivityType;
-  copyId: string | null;
-  printingId: string;
   action: ActivityAction;
+  printingId: string;
+  copyId: string | null;
   fromCollectionId: string | null;
   fromCollectionName: string | null;
   toCollectionId: string | null;
   toCollectionName: string | null;
-  metadataSnapshot: unknown;
   createdAt: CreatedAt;
 }
 
@@ -631,8 +615,7 @@ export interface Database {
   collections: CollectionsTable;
   acquisitionSources: AcquisitionSourcesTable;
   copies: CopiesTable;
-  activities: ActivitiesTable;
-  activityItems: ActivityItemsTable;
+  collectionEvents: CollectionEventsTable;
   decks: DecksTable;
   deckCards: DeckCardsTable;
   wishLists: WishListsTable;

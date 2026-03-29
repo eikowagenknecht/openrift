@@ -62,11 +62,7 @@ export const SUPER_TYPE_ORDER: readonly SuperType[] = [
 ] as const;
 
 // If you add a value here, also update the CHECK constraint in a new migration
-// (see 009-collection-tracking.ts — chk_activities_type).
-export type ActivityType = "acquisition" | "disposal" | "trade" | "reorganization";
-
-// If you add a value here, also update the CHECK constraint in a new migration
-// (see 009-collection-tracking.ts — chk_activity_items_action).
+// (see 052-flatten-activities.ts — chk_collection_events_action).
 export type ActivityAction = "added" | "removed" | "moved";
 
 // If you add a value here, also update the CHECK constraint in a new migration

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import {
-  activitiesQuerySchema,
+  collectionEventsQuerySchema,
   addCopiesSchema,
   copiesQuerySchema,
   createCollectionSchema,
@@ -396,28 +396,28 @@ describe("keyParamSchema", () => {
   });
 });
 
-describe("activitiesQuerySchema", () => {
+describe("collectionEventsQuerySchema", () => {
   it("accepts empty query", () => {
-    expect(activitiesQuerySchema.safeParse({}).success).toBe(true);
+    expect(collectionEventsQuerySchema.safeParse({}).success).toBe(true);
   });
 
   it("accepts cursor and limit", () => {
     expect(
-      activitiesQuerySchema.safeParse({ cursor: "2025-01-01T00:00:00Z", limit: 25 }).success,
+      collectionEventsQuerySchema.safeParse({ cursor: "2025-01-01T00:00:00Z", limit: 25 }).success,
     ).toBe(true);
   });
 
   it("coerces string limit to number", () => {
-    const result = activitiesQuerySchema.parse({ limit: "50" });
+    const result = collectionEventsQuerySchema.parse({ limit: "50" });
     expect(result.limit).toBe(50);
   });
 
   it("rejects limit over 100", () => {
-    expect(activitiesQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+    expect(collectionEventsQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
   });
 
   it("rejects limit under 1", () => {
-    expect(activitiesQuerySchema.safeParse({ limit: 0 }).success).toBe(false);
+    expect(collectionEventsQuerySchema.safeParse({ limit: 0 }).success).toBe(false);
   });
 });
 

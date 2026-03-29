@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5dGHKMR1wlokA9XWB0doA3YViXyMUqGKdWCkCxjKx9NZrnfkL2QJUGB8lu6McJX
+\restrict F2V0lRr2VjhqHlWn0EUHvfqkXug7Dn357RLIYnLIAq4JJ4mBzaAXb8uit9cGZEi
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -18,20 +18,6 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
-
---
--- Name: public; Type: SCHEMA; Schema: -; Owner: -
---
-
--- *not* creating schema, since initdb creates it
-
-
---
--- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON SCHEMA public IS '';
-
 
 --
 -- Name: candidate_cards_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
@@ -149,48 +135,6 @@ CREATE TABLE public.acquisition_sources (
     description text,
     created_at timestamp with time zone DEFAULT now() CONSTRAINT sources_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT sources_updated_at_not_null NOT NULL
-);
-
-
---
--- Name: activities; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.activities (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    user_id text NOT NULL,
-    type text NOT NULL,
-    name text,
-    date date DEFAULT CURRENT_DATE NOT NULL,
-    description text,
-    is_auto boolean DEFAULT false NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_activities_type CHECK ((type = ANY (ARRAY['acquisition'::text, 'disposal'::text, 'trade'::text, 'reorganization'::text])))
-);
-
-
---
--- Name: activity_items; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.activity_items (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    activity_id uuid NOT NULL,
-    user_id text NOT NULL,
-    activity_type text NOT NULL,
-    copy_id uuid,
-    action text NOT NULL,
-    from_collection_id uuid,
-    from_collection_name text,
-    to_collection_id uuid,
-    to_collection_name text,
-    metadata_snapshot jsonb,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    printing_id uuid CONSTRAINT activity_items_new_printing_id_not_null NOT NULL,
-    CONSTRAINT chk_activity_items_action CHECK ((action = ANY (ARRAY['added'::text, 'removed'::text, 'moved'::text]))),
-    CONSTRAINT chk_activity_items_collection_presence CHECK ((((action = 'added'::text) AND (to_collection_id IS NOT NULL)) OR ((action = 'removed'::text) AND (from_collection_id IS NOT NULL)) OR ((action = 'moved'::text) AND (from_collection_id IS NOT NULL) AND (to_collection_id IS NOT NULL)))),
-    CONSTRAINT chk_activity_items_type_action CHECK ((((activity_type = 'acquisition'::text) AND (action = 'added'::text)) OR ((activity_type = 'disposal'::text) AND (action = 'removed'::text)) OR ((activity_type = 'trade'::text) AND (action = ANY (ARRAY['added'::text, 'removed'::text]))) OR ((activity_type = 'reorganization'::text) AND (action = 'moved'::text))))
 );
 
 
@@ -337,6 +281,26 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text)),
     CONSTRAINT chk_cards_super_types_values CHECK ((super_types <@ ARRAY['Basic'::text, 'Champion'::text, 'Signature'::text, 'Token'::text])),
     CONSTRAINT chk_cards_type CHECK ((type = ANY (ARRAY['Legend'::text, 'Unit'::text, 'Rune'::text, 'Spell'::text, 'Gear'::text, 'Battlefield'::text, 'Other'::text])))
+);
+
+
+--
+-- Name: collection_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.collection_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    action text NOT NULL,
+    printing_id uuid NOT NULL,
+    copy_id uuid,
+    from_collection_id uuid,
+    from_collection_name text,
+    to_collection_id uuid,
+    to_collection_name text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_collection_events_action CHECK ((action = ANY (ARRAY['added'::text, 'removed'::text, 'moved'::text]))),
+    CONSTRAINT chk_collection_events_collection_presence CHECK ((((action = 'added'::text) AND (to_collection_id IS NOT NULL)) OR ((action = 'removed'::text) AND (from_collection_id IS NOT NULL)) OR ((action = 'moved'::text) AND (from_collection_id IS NOT NULL) AND (to_collection_id IS NOT NULL))))
 );
 
 
@@ -792,7 +756,8 @@ CREATE TABLE public.user_preferences (
     user_id text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    data jsonb DEFAULT '{"showImages": true, "richEffects": true, "visibleFields": {"type": true, "price": true, "title": true, "number": true, "rarity": true}, "marketplaceOrder": ["tcgplayer", "cardmarket", "cardtrader"]}'::jsonb NOT NULL
+    data jsonb DEFAULT '{"showImages": true, "richEffects": true, "visibleFields": {"type": true, "price": true, "title": true, "number": true, "rarity": true}, "marketplaceOrder": ["tcgplayer", "cardmarket", "cardtrader"]}'::jsonb NOT NULL,
+    CONSTRAINT user_preferences_data_max_size CHECK ((length((data)::text) <= 8192))
 );
 
 
@@ -867,22 +832,6 @@ ALTER TABLE ONLY public.accounts
 
 
 --
--- Name: activities activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.activities
-    ADD CONSTRAINT activities_pkey PRIMARY KEY (id);
-
-
---
--- Name: activity_items activity_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.activity_items
-    ADD CONSTRAINT activity_items_pkey PRIMARY KEY (id);
-
-
---
 -- Name: admins admins_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -928,6 +877,14 @@ ALTER TABLE ONLY public.cards
 
 ALTER TABLE ONLY public.cards
     ADD CONSTRAINT cards_slug_key UNIQUE (slug);
+
+
+--
+-- Name: collection_events collection_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_events
+    ADD CONSTRAINT collection_events_pkey PRIMARY KEY (id);
 
 
 --
@@ -1227,14 +1184,6 @@ ALTER TABLE ONLY public.trade_lists
 
 
 --
--- Name: activities uq_activities_id_user_type; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.activities
-    ADD CONSTRAINT uq_activities_id_user_type UNIQUE (id, user_id, type);
-
-
---
 -- Name: collections uq_collections_id_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1369,27 +1318,6 @@ CREATE INDEX idx_acquisition_sources_user_id ON public.acquisition_sources USING
 
 
 --
--- Name: idx_activities_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_activities_user_id ON public.activities USING btree (user_id);
-
-
---
--- Name: idx_activity_items_activity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_activity_items_activity ON public.activity_items USING btree (activity_id);
-
-
---
--- Name: idx_activity_items_copy; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_activity_items_copy ON public.activity_items USING btree (copy_id);
-
-
---
 -- Name: idx_candidate_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1443,6 +1371,20 @@ CREATE UNIQUE INDEX idx_candidate_printings_card_external_id ON public.candidate
 --
 
 CREATE INDEX idx_cards_norm_name ON public.cards USING btree (norm_name);
+
+
+--
+-- Name: idx_collection_events_copy; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collection_events_copy ON public.collection_events USING btree (copy_id);
+
+
+--
+-- Name: idx_collection_events_user_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collection_events_user_created ON public.collection_events USING btree (user_id, created_at);
 
 
 --
@@ -1698,13 +1640,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.acquisition_sources FO
 
 
 --
--- Name: activities trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.activities FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
 -- Name: admins trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1895,22 +1830,6 @@ ALTER TABLE ONLY public.accounts
 
 
 --
--- Name: activities activities_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.activities
-    ADD CONSTRAINT activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: activity_items activity_items_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.activity_items
-    ADD CONSTRAINT activity_items_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
-
-
---
 -- Name: admins admins_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1932,6 +1851,22 @@ ALTER TABLE ONLY public.candidate_printings
 
 ALTER TABLE ONLY public.card_name_aliases
     ADD CONSTRAINT card_name_aliases_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: collection_events collection_events_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_events
+    ADD CONSTRAINT collection_events_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
+
+
+--
+-- Name: collection_events collection_events_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_events
+    ADD CONSTRAINT collection_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -1983,35 +1918,27 @@ ALTER TABLE ONLY public.decks
 
 
 --
--- Name: activity_items fk_activity_items_activity_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: collection_events fk_collection_events_copy_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.activity_items
-    ADD CONSTRAINT fk_activity_items_activity_user FOREIGN KEY (activity_id, user_id, activity_type) REFERENCES public.activities(id, user_id, type) ON DELETE CASCADE;
-
-
---
--- Name: activity_items fk_activity_items_copy_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.activity_items
-    ADD CONSTRAINT fk_activity_items_copy_user FOREIGN KEY (copy_id, user_id) REFERENCES public.copies(id, user_id) ON DELETE SET NULL (copy_id);
+ALTER TABLE ONLY public.collection_events
+    ADD CONSTRAINT fk_collection_events_copy_user FOREIGN KEY (copy_id, user_id) REFERENCES public.copies(id, user_id) ON DELETE SET NULL (copy_id);
 
 
 --
--- Name: activity_items fk_activity_items_from_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: collection_events fk_collection_events_from_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.activity_items
-    ADD CONSTRAINT fk_activity_items_from_collection_user FOREIGN KEY (from_collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE SET NULL (from_collection_id);
+ALTER TABLE ONLY public.collection_events
+    ADD CONSTRAINT fk_collection_events_from_collection_user FOREIGN KEY (from_collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE SET NULL (from_collection_id);
 
 
 --
--- Name: activity_items fk_activity_items_to_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: collection_events fk_collection_events_to_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.activity_items
-    ADD CONSTRAINT fk_activity_items_to_collection_user FOREIGN KEY (to_collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE SET NULL (to_collection_id);
+ALTER TABLE ONLY public.collection_events
+    ADD CONSTRAINT fk_collection_events_to_collection_user FOREIGN KEY (to_collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE SET NULL (to_collection_id);
 
 
 --
@@ -2194,5 +2121,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 5dGHKMR1wlokA9XWB0doA3YViXyMUqGKdWCkCxjKx9NZrnfkL2QJUGB8lu6McJX
+\unrestrict F2V0lRr2VjhqHlWn0EUHvfqkXug7Dn357RLIYnLIAq4JJ4mBzaAXb8uit9cGZEi
 

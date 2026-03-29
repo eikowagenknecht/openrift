@@ -100,7 +100,7 @@ const PARALLEL_FILES = [
   "src/authorization.integration.test.ts",
   "src/routes/collections.integration.test.ts",
   "src/routes/copies.integration.test.ts",
-  "src/routes/activities.integration.test.ts",
+  "src/routes/collection-events.integration.test.ts",
   "src/routes/wish-lists.integration.test.ts",
   "src/routes/trade-lists.integration.test.ts",
   "src/routes/shopping-list.integration.test.ts",
@@ -123,7 +123,7 @@ const PARALLEL_FILES = [
   "src/routes/admin/images.integration.test.ts",
   "src/routes/admin/candidates/images.integration.test.ts",
   // Repository integration tests
-  "src/repositories/activities.integration.test.ts",
+  "src/repositories/collection-events.integration.test.ts",
   "src/repositories/collections.integration.test.ts",
   "src/repositories/copies.integration.test.ts",
   "src/repositories/decks.integration.test.ts",

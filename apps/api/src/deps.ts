@@ -2,11 +2,11 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
 import { acquisitionSourcesRepo } from "./repositories/acquisition-sources.js";
-import { activitiesRepo } from "./repositories/activities.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { candidateCardsRepo } from "./repositories/candidate-cards.js";
 import { candidateMutationsRepo } from "./repositories/candidate-mutations.js";
 import { catalogRepo } from "./repositories/catalog.js";
+import { collectionEventsRepo } from "./repositories/collection-events.js";
 import { collectionsRepo } from "./repositories/collections.js";
 import { copiesRepo } from "./repositories/copies.js";
 import { decksRepo } from "./repositories/decks.js";
@@ -28,16 +28,16 @@ import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { wishListsRepo } from "./repositories/wish-lists.js";
-import { createActivity } from "./services/activity-logger.js";
 import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
+import { logEvents } from "./services/event-logger.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
 import { buildShoppingList } from "./services/shopping-list.js";
 
 export interface Repos {
-  activities: ReturnType<typeof activitiesRepo>;
+  collectionEvents: ReturnType<typeof collectionEventsRepo>;
   admins: ReturnType<typeof adminsRepo>;
   candidateMutations: ReturnType<typeof candidateMutationsRepo>;
   candidateCards: ReturnType<typeof candidateCardsRepo>;
@@ -68,7 +68,7 @@ export interface Repos {
 
 export interface Services {
   ensureInbox: typeof ensureInbox;
-  createActivity: typeof createActivity;
+  logEvents: typeof logEvents;
   deleteCollection: typeof deleteCollection;
   addCopies: typeof addCopies;
   moveCopies: typeof moveCopies;
@@ -80,7 +80,7 @@ export interface Services {
 
 export function createRepos(db: Kysely<Database>): Repos {
   return {
-    activities: activitiesRepo(db),
+    collectionEvents: collectionEventsRepo(db),
     admins: adminsRepo(db),
     candidateMutations: candidateMutationsRepo(db),
     candidateCards: candidateCardsRepo(db),
@@ -119,7 +119,7 @@ export function createTransact(db: Kysely<Database>): Transact {
 
 export const services: Services = {
   ensureInbox,
-  createActivity,
+  logEvents,
   deleteCollection,
   addCopies,
   moveCopies,

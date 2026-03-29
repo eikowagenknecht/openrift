@@ -10,7 +10,6 @@ const domainSchema = z.enum(["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "
 const superTypeSchema = z.enum(["Basic", "Champion", "Signature", "Token"]);
 const artVariantSchema = z.enum(["normal", "altart", "overnumbered"]);
 const finishSchema = z.enum(["normal", "foil"]);
-const activityTypeSchema = z.enum(["acquisition", "disposal", "trade", "reorganization"]);
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
 const deckFormatSchema = z.enum(["standard", "freeform"]);
 const deckZoneSchema = z.enum(["main", "sideboard"]);
@@ -227,57 +226,34 @@ export const acquisitionSourceListResponseSchema = z
   .object({ items: z.array(acquisitionSourceResponseSchema) })
   .openapi("AcquisitionSourceListResponse");
 
-// ── Activities ───────────────────────────────────────────────────────────────
+// ── Collection Events ────────────────────────────────────────────────────────
 
-const activityResponseSchema = z
+const collectionEventResponseSchema = z
   .object({
     id: z.string(),
-    type: activityTypeSchema,
-    name: z.string().nullable(),
-    date: z.string(),
-    description: z.string().nullable(),
-    isAuto: z.boolean(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
-  })
-  .openapi("ActivityResponse");
-
-const activityItemResponseSchema = z
-  .object({
-    id: z.string(),
-    activityId: z.string(),
-    activityType: activityTypeSchema,
+    action: activityActionSchema,
     copyId: z.string().nullable(),
     printingId: z.string(),
-    action: activityActionSchema,
     fromCollectionId: z.string().nullable(),
     fromCollectionName: z.string().nullable(),
     toCollectionId: z.string().nullable(),
     toCollectionName: z.string().nullable(),
-    metadataSnapshot: z.unknown(),
     createdAt: z.string(),
-    setId: z.string(),
-    collectorNumber: z.number(),
+    shortCode: z.string(),
     rarity: raritySchema,
     imageUrl: z.string().nullable(),
     cardName: z.string(),
     cardType: cardTypeSchema,
+    cardSuperTypes: z.array(z.string()),
   })
-  .openapi("ActivityItemResponse");
+  .openapi("CollectionEventResponse");
 
-export const activityListResponseSchema = z
+export const collectionEventListResponseSchema = z
   .object({
-    items: z.array(activityResponseSchema),
+    items: z.array(collectionEventResponseSchema),
     nextCursor: z.string().nullable(),
   })
-  .openapi("ActivityListResponse");
-
-export const activityDetailResponseSchema = z
-  .object({
-    activity: activityResponseSchema,
-    items: z.array(activityItemResponseSchema),
-  })
-  .openapi("ActivityDetailResponse");
+  .openapi("CollectionEventListResponse");
 
 // ── Decks ────────────────────────────────────────────────────────────────────
 

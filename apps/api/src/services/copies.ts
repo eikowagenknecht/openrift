@@ -1,6 +1,6 @@
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
-import { createActivity } from "./activity-logger.js";
+import { logEvents } from "./event-logger.js";
 import { ensureInbox } from "./inbox.js";
 
 interface AddCopyInput {
@@ -53,18 +53,17 @@ export async function addCopies(
     const collectionRows = await trxRepos.collections.listIdAndNameByIds(collectionIds);
     const collectionNames = new Map(collectionRows.map((col) => [col.id, col.name]));
 
-    await createActivity(trxRepos, {
-      userId,
-      type: "acquisition",
-      isAuto: true,
-      items: copyRows.map((row) => ({
-        copyId: row.id,
-        printingId: row.printingId,
+    await logEvents(
+      trxRepos,
+      copyRows.map((row) => ({
+        userId,
         action: "added" as const,
+        printingId: row.printingId,
+        copyId: row.id,
         toCollectionId: row.collectionId,
         toCollectionName: collectionNames.get(row.collectionId) ?? null,
       })),
-    });
+    );
 
     return copyRows;
   });
@@ -110,21 +109,19 @@ export async function moveCopies(
       toCollectionId,
     );
 
-    // Log reorganization activity
-    await createActivity(trxRepos, {
-      userId,
-      type: "reorganization",
-      isAuto: true,
-      items: copies.map((copy) => ({
-        copyId: copy.id,
-        printingId: copy.printingId,
+    await logEvents(
+      trxRepos,
+      copies.map((copy) => ({
+        userId,
         action: "moved" as const,
+        printingId: copy.printingId,
+        copyId: copy.id,
         fromCollectionId: copy.collectionId,
         fromCollectionName: copy.collectionName,
         toCollectionId: target.id,
         toCollectionName: target.name,
       })),
-    });
+    );
   });
 }
 
@@ -145,23 +142,18 @@ export async function disposeCopies(
       throw new AppError(404, "NOT_FOUND", "One or more copies not found");
     }
 
-    // Log disposal activity before deleting (so copy FK is still valid)
-    await createActivity(trxRepos, {
-      userId,
-      type: "disposal",
-      isAuto: true,
-      items: copies.map((copy) => ({
-        copyId: copy.id,
-        printingId: copy.printingId,
+    // Log disposal events before deleting (so copy FK is still valid)
+    await logEvents(
+      trxRepos,
+      copies.map((copy) => ({
+        userId,
         action: "removed" as const,
+        printingId: copy.printingId,
+        copyId: copy.id,
         fromCollectionId: copy.collectionId,
         fromCollectionName: copy.collectionName,
-        metadataSnapshot: {
-          copyId: copy.id,
-          acquisitionSourceId: copy.acquisitionSourceId,
-        },
       })),
-    });
+    );
 
     // Hard-delete copies (activity_items.copy_id → SET NULL via FK)
     await trxRepos.copies.deleteBatch(

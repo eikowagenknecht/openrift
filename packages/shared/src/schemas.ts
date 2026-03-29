@@ -38,9 +38,7 @@ export const marketplaceGroupParamSchema = z.object({
   id: z.coerce.number().int(),
 });
 
-export const activityTypeSchema = z.enum(["acquisition", "disposal", "trade", "reorganization"]);
-
-export const activitiesQuerySchema = z.object({
+export const collectionEventsQuerySchema = z.object({
   cursor: z.string().datetime().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });

@@ -54,6 +54,7 @@ import * as m048 from "./048-site-settings.js";
 import * as m049 from "./049-marketplace-order.js";
 import * as m050 from "./050-preferences-jsonb.js";
 import * as m051 from "./051-fix-corrupted-preferences.js";
+import * as m052 from "./052-flatten-activities.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -107,4 +108,5 @@ export const migrations: Record<string, Migration> = {
   "049-marketplace-order": m049,
   "050-preferences-jsonb": m050,
   "051-fix-corrupted-preferences": m051,
+  "052-flatten-activities": m052,
 };
