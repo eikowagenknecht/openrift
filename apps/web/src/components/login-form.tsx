@@ -65,7 +65,7 @@ export function LoginForm({
       setServerError(form, error);
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
     void queryClient.invalidateQueries({ queryKey: queryKeys.admin.me });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
@@ -112,7 +112,7 @@ export function LoginForm({
       }
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
     void queryClient.invalidateQueries({ queryKey: queryKeys.admin.me });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
