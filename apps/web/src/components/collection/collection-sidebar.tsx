@@ -3,6 +3,7 @@ import {
   ArrowLeftIcon,
   BookOpenIcon,
   HistoryIcon,
+  ImportIcon,
   InboxIcon,
   LayersIcon,
   PlusIcon,
@@ -148,6 +149,16 @@ export function CollectionSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={currentPath === "/collections/import"}
+                render={<Link to="/collections/import" />}
+                size="sm"
+              >
+                <ImportIcon />
+                <span>Import</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={currentPath === "/collections/activity"}

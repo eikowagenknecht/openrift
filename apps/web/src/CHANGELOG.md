@@ -2,6 +2,7 @@
 
 ## 2026-03-29
 
+- feat: Import your collection from Piltover Archive or RiftCore — upload or paste a CSV export, preview matched cards, resolve any ambiguous printings, and import into any collection
 - fix: "Browse & add" button now navigates to your inbox when used from the all-cards view instead of doing nothing
 - fix: Logging in no longer requires a page refresh before navigating to protected pages like Profile
 - feat: New Activity page in the collection sidebar shows a timeline of every card you've added, removed, or moved — grouped by day with card counts and value summaries
