@@ -4,19 +4,54 @@ import { useEffect, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
-import { sanitizePreferences } from "@/lib/sanitize-preferences";
+import { sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
+import type { DisplayOverrides } from "@/stores/display-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 /**
- * Fields synced to the database. Device-local prefs (e.g. maxColumns) are excluded.
+ * Build the PATCH body from current store state.
+ * Sends only explicitly-set values (non-null overrides).
+ * Null overrides are sent as `null` to tell the API to remove the key.
  * @returns Snapshot of preferences to persist server-side.
  */
-function getPrefsSnapshot(): UserPreferencesResponse {
-  const { showImages, fancyFan, foilEffect, cardTilt, visibleFields, marketplaceOrder } =
-    useDisplayStore.getState();
-  const { theme } = useThemeStore.getState();
-  return { showImages, fancyFan, foilEffect, cardTilt, visibleFields, theme, marketplaceOrder };
+function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null } {
+  const { overrides } = useDisplayStore.getState();
+  const { preference } = useThemeStore.getState();
+
+  const result: Record<string, unknown> = {};
+
+  // Top-level display overrides
+  if (overrides.showImages !== null) {
+    result.showImages = overrides.showImages;
+  }
+  if (overrides.fancyFan !== null) {
+    result.fancyFan = overrides.fancyFan;
+  }
+  if (overrides.foilEffect !== null) {
+    result.foilEffect = overrides.foilEffect;
+  }
+  if (overrides.cardTilt !== null) {
+    result.cardTilt = overrides.cardTilt;
+  }
+
+  // Visible fields — only include non-null sub-fields
+  const vfEntries = Object.entries(overrides.visibleFields).filter(([, v]) => v !== null);
+  if (vfEntries.length > 0) {
+    result.visibleFields = Object.fromEntries(vfEntries);
+  }
+
+  // Marketplace order
+  if (overrides.marketplaceOrder !== null) {
+    result.marketplaceOrder = overrides.marketplaceOrder;
+  }
+
+  // Theme
+  if (preference !== null) {
+    result.theme = preference;
+  }
+
+  return result as UserPreferencesResponse;
 }
 
 /**
@@ -47,24 +82,13 @@ export function usePreferencesSync(enabled: boolean) {
       return;
     }
 
-    const safe = sanitizePreferences(data);
-    if (!safe) {
-      return;
-    }
-
     hydrating.current = true;
 
-    useDisplayStore.setState({
-      showImages: safe.showImages,
-      fancyFan: safe.fancyFan,
-      foilEffect: safe.foilEffect,
-      cardTilt: safe.cardTilt,
-      visibleFields: safe.visibleFields,
-      marketplaceOrder: safe.marketplaceOrder,
-    });
-    if (safe.theme) {
-      useThemeStore.setState({ theme: safe.theme });
-    }
+    const overrides: DisplayOverrides = sanitizeServerResponse(data);
+    useDisplayStore.getState().hydrateOverrides(overrides);
+
+    const theme = sanitizeTheme((data as Record<string, unknown>).theme);
+    useThemeStore.getState().setTheme(theme);
 
     requestAnimationFrame(() => {
       hydrating.current = false;

@@ -84,8 +84,11 @@ export type {
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
   FoilEffect,
+  ResolvedPreferences,
+  Theme,
   UserPreferencesResponse,
 } from "./api/index.js";
+export { PREFERENCE_DEFAULTS } from "./api/index.js";
 
 export type {
   CollectionEventListResponse,

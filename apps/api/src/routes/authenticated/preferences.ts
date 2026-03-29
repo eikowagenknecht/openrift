@@ -5,7 +5,6 @@ import { updatePreferencesSchema } from "@openrift/shared/schemas";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import type { PartialPreferences } from "../../repositories/user-preferences.js";
-import { PREFERENCES_DEFAULTS } from "../../repositories/user-preferences.js";
 import type { Variables } from "../../types.js";
 
 const getPreferences = createRoute({
@@ -41,7 +40,7 @@ export const preferencesRoute = preferencesApp
   .openapi(getPreferences, async (c) => {
     const { userPreferences } = c.get("repos");
     const row = await userPreferences.getByUserId(getUserId(c));
-    return c.json(row?.data ?? PREFERENCES_DEFAULTS);
+    return c.json(row?.data ?? {});
   })
 
   .openapi(updatePreferences, async (c) => {

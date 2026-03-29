@@ -1,24 +1,13 @@
-import { ALL_MARKETPLACES } from "@openrift/shared";
 import type { UserPreferencesResponse } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 
 import type { Database, UserPreferencesTable } from "../db/index.js";
 
-/** Partial preferences matching the shape accepted by the PATCH endpoint. */
+/** Incoming PATCH body — values can be null (reset to default) or undefined (don't touch). */
 export type PartialPreferences = {
   [K in keyof UserPreferencesResponse]?: UserPreferencesResponse[K] extends Record<string, unknown>
-    ? Partial<UserPreferencesResponse[K]>
-    : UserPreferencesResponse[K];
-};
-
-export const PREFERENCES_DEFAULTS: UserPreferencesResponse = {
-  showImages: true,
-  fancyFan: true,
-  foilEffect: "animated",
-  cardTilt: true,
-  visibleFields: { number: true, title: true, type: true, rarity: true, price: true },
-  theme: "light",
-  marketplaceOrder: [...ALL_MARKETPLACES],
+    ? Partial<UserPreferencesResponse[K]> | null
+    : UserPreferencesResponse[K] | null;
 };
 
 /** postgres.js under Bun returns jsonb columns as a string instead of a parsed
@@ -44,15 +33,40 @@ export function userPreferencesRepo(db: Kysely<Database>) {
 
     async upsert(userId: string, incoming: PartialPreferences): Promise<UserPreferencesResponse> {
       const existing = await this.getByUserId(userId);
-      const current = existing?.data ?? PREFERENCES_DEFAULTS;
-      const merged: UserPreferencesResponse = {
-        ...current,
-        ...incoming,
-        visibleFields: {
-          ...current.visibleFields,
-          ...incoming.visibleFields,
-        },
-      };
+      const current: Record<string, unknown> = (existing?.data as Record<string, unknown>) ?? {};
+
+      // Merge: null removes the key (reset to default), undefined skips, value sets.
+      // Build a new object to avoid dynamic deletes.
+      const draft = new Map(Object.entries(current));
+      for (const [key, value] of Object.entries(incoming)) {
+        if (value === undefined) {
+          continue;
+        }
+        if (value === null) {
+          draft.delete(key);
+        } else if (key === "visibleFields" && typeof value === "object") {
+          const currentVf =
+            typeof draft.get("visibleFields") === "object" && draft.get("visibleFields") !== null
+              ? (draft.get("visibleFields") as Record<string, unknown>)
+              : {};
+          const vfMap = new Map(Object.entries(currentVf));
+          for (const [vfKey, vfVal] of Object.entries(value as Record<string, unknown>)) {
+            if (vfVal === null) {
+              vfMap.delete(vfKey);
+            } else if (vfVal !== undefined) {
+              vfMap.set(vfKey, vfVal);
+            }
+          }
+          if (vfMap.size > 0) {
+            draft.set("visibleFields", Object.fromEntries(vfMap));
+          } else {
+            draft.delete("visibleFields");
+          }
+        } else {
+          draft.set(key, value);
+        }
+      }
+      const merged = Object.fromEntries(draft);
 
       const row = await db
         .insertInto("userPreferences")

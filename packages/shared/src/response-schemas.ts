@@ -318,19 +318,21 @@ export const deckCardsResponseSchema = z
 
 export const userPreferencesResponseSchema = z
   .object({
-    showImages: z.boolean(),
-    fancyFan: z.boolean(),
-    foilEffect: z.enum(["none", "static", "animated"]),
-    cardTilt: z.boolean(),
-    visibleFields: z.object({
-      number: z.boolean(),
-      title: z.boolean(),
-      type: z.boolean(),
-      rarity: z.boolean(),
-      price: z.boolean(),
-    }),
-    theme: z.enum(["light", "dark"]).optional(),
-    marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])),
+    showImages: z.boolean().optional(),
+    fancyFan: z.boolean().optional(),
+    foilEffect: z.enum(["none", "static", "animated"]).optional(),
+    cardTilt: z.boolean().optional(),
+    visibleFields: z
+      .object({
+        number: z.boolean().optional(),
+        title: z.boolean().optional(),
+        type: z.boolean().optional(),
+        rarity: z.boolean().optional(),
+        price: z.boolean().optional(),
+      })
+      .optional(),
+    theme: z.enum(["light", "dark", "auto"]).optional(),
+    marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])).optional(),
   })
   .openapi("UserPreferencesResponse");
 

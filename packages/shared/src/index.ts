@@ -94,6 +94,8 @@ export type {
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
   FoilEffect,
+  ResolvedPreferences,
+  Theme,
   UserPreferencesResponse,
   WishListDetailResponse,
   WishListItemResponse,
@@ -112,6 +114,7 @@ export {
   SEARCH_PREFIX_MAP,
   SUPER_TYPE_ORDER,
   ALL_MARKETPLACES,
+  PREFERENCE_DEFAULTS,
   EUR_MARKETPLACES,
   TIME_RANGE_DAYS,
 } from "./types/index.js";

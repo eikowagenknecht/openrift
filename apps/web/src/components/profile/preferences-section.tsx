@@ -1,6 +1,6 @@
-import type { FoilEffect, Marketplace } from "@openrift/shared";
+import type { FoilEffect, Marketplace, Theme } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
-import { ArrowDown, ArrowUp, Moon, Sun } from "lucide-react";
+import { ArrowDown, ArrowUp, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,8 +43,11 @@ export function PreferencesSection() {
   const setVisibleFields = useDisplayStore((s) => s.setVisibleFields);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const setMarketplaceOrder = useDisplayStore((s) => s.setMarketplaceOrder);
-  const theme = useThemeStore((s) => s.theme);
-  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const overrides = useDisplayStore((s) => s.overrides);
+  const resetPreference = useDisplayStore((s) => s.resetPreference);
+  const resetVisibleField = useDisplayStore((s) => s.resetVisibleField);
+  const themePreference = useThemeStore((s) => s.preference);
+  const setTheme = useThemeStore((s) => s.setTheme);
 
   const enabledSet = new Set(marketplaceOrder);
 
@@ -79,42 +82,71 @@ export function PreferencesSection() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="pref-theme">Theme</Label>
-          <Button variant="outline" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
-            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          </Button>
+          <Label>Theme</Label>
+          <div className="flex items-center gap-1.5">
+            <ThemePicker value={themePreference} onChange={setTheme} />
+            {themePreference !== null && (
+              <ResetButton onClick={() => setTheme(null)} label="Reset theme" />
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="pref-images">Show card images</Label>
-          <Switch
-            id="pref-images"
-            checked={showImages}
-            onCheckedChange={(checked: boolean) => setShowImages(checked)}
-          />
+          <div className="flex items-center gap-1.5">
+            <Switch
+              id="pref-images"
+              checked={showImages}
+              onCheckedChange={(checked: boolean) => setShowImages(checked)}
+            />
+            {overrides.showImages !== null && (
+              <ResetButton
+                onClick={() => resetPreference("showImages")}
+                label="Reset show images"
+              />
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="pref-fan">Fancy card fan</Label>
-          <Switch
-            id="pref-fan"
-            checked={fancyFan}
-            onCheckedChange={(checked: boolean) => setFancyFan(checked)}
-          />
+          <div className="flex items-center gap-1.5">
+            <Switch
+              id="pref-fan"
+              checked={fancyFan}
+              onCheckedChange={(checked: boolean) => setFancyFan(checked)}
+            />
+            {overrides.fancyFan !== null && (
+              <ResetButton onClick={() => resetPreference("fancyFan")} label="Reset fancy fan" />
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">
           <Label>Foil effect</Label>
-          <FoilEffectPicker value={foilEffect} onChange={setFoilEffect} />
+          <div className="flex items-center gap-1.5">
+            <FoilEffectPicker value={foilEffect} onChange={setFoilEffect} />
+            {overrides.foilEffect !== null && (
+              <ResetButton
+                onClick={() => resetPreference("foilEffect")}
+                label="Reset foil effect"
+              />
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="pref-tilt">Card tilt on hover</Label>
-          <Switch
-            id="pref-tilt"
-            checked={cardTilt}
-            onCheckedChange={(checked: boolean) => setCardTilt(checked)}
-          />
+          <div className="flex items-center gap-1.5">
+            <Switch
+              id="pref-tilt"
+              checked={cardTilt}
+              onCheckedChange={(checked: boolean) => setCardTilt(checked)}
+            />
+            {overrides.cardTilt !== null && (
+              <ResetButton onClick={() => resetPreference("cardTilt")} label="Reset card tilt" />
+            )}
+          </div>
         </div>
 
         <div className="space-y-2 border-t pt-4">
@@ -130,23 +162,41 @@ export function PreferencesSection() {
                   </Label>
                   <span className="text-muted-foreground text-xs">e.g. {item.example}</span>
                 </div>
-                <Switch
-                  id={`pref-field-${item.key}`}
-                  checked={visibleFields[item.key]}
-                  onCheckedChange={(checked: boolean) =>
-                    setVisibleFields({ ...visibleFields, [item.key]: checked })
-                  }
-                />
+                <div className="flex items-center gap-1.5">
+                  <Switch
+                    id={`pref-field-${item.key}`}
+                    checked={visibleFields[item.key]}
+                    onCheckedChange={(checked: boolean) =>
+                      setVisibleFields({ ...visibleFields, [item.key]: checked })
+                    }
+                  />
+                  {overrides.visibleFields[item.key] !== null && (
+                    <ResetButton
+                      onClick={() => resetVisibleField(item.key)}
+                      label={`Reset ${item.label}`}
+                    />
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
 
         <div className="space-y-2 border-t pt-4">
-          <Label>Marketplaces</Label>
-          <p className="text-muted-foreground text-sm">
-            Enable and reorder price sources. The first one is shown in the card grid.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Marketplaces</Label>
+              <p className="text-muted-foreground text-sm">
+                Enable and reorder price sources. The first one is shown in the card grid.
+              </p>
+            </div>
+            {overrides.marketplaceOrder !== null && (
+              <ResetButton
+                onClick={() => resetPreference("marketplaceOrder")}
+                label="Reset marketplace order"
+              />
+            )}
+          </div>
 
           <div className="space-y-1 pt-1">
             {/* Show enabled marketplaces first (in order), then disabled ones */}
@@ -210,6 +260,22 @@ export function PreferencesSection() {
   );
 }
 
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+function ResetButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-muted-foreground hover:text-foreground transition-colors"
+      aria-label={label}
+      title="Reset to default"
+    >
+      <RotateCcw className="size-3.5" />
+    </button>
+  );
+}
+
 const FOIL_OPTIONS: { value: FoilEffect; label: string }[] = [
   { value: "none", label: "None" },
   { value: "static", label: "Static" },
@@ -228,6 +294,40 @@ function FoilEffectPicker({
       {FOIL_OPTIONS.map((option) => (
         <button
           key={option.value}
+          type="button"
+          className={cn(
+            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",
+            value === option.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const THEME_OPTIONS: { value: Theme | null; label: string }[] = [
+  { value: null, label: "Auto" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function ThemePicker({
+  value,
+  onChange,
+}: {
+  value: Theme | null;
+  onChange: (value: Theme | null) => void;
+}) {
+  return (
+    <div className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5">
+      {THEME_OPTIONS.map((option) => (
+        <button
+          key={option.value ?? "auto"}
           type="button"
           className={cn(
             "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",

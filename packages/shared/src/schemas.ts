@@ -169,24 +169,28 @@ const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const foilEffectEnum = z.enum(["none", "static", "animated"]);
 
+const themeEnum = z.enum(["light", "dark", "auto"]);
+
 export const updatePreferencesSchema = z.object({
-  showImages: z.boolean().optional(),
-  fancyFan: z.boolean().optional(),
-  foilEffect: foilEffectEnum.optional(),
-  cardTilt: z.boolean().optional(),
+  showImages: z.boolean().nullable().optional(),
+  fancyFan: z.boolean().nullable().optional(),
+  foilEffect: foilEffectEnum.nullable().optional(),
+  cardTilt: z.boolean().nullable().optional(),
   visibleFields: z
     .object({
-      number: z.boolean().optional(),
-      title: z.boolean().optional(),
-      type: z.boolean().optional(),
-      rarity: z.boolean().optional(),
-      price: z.boolean().optional(),
+      number: z.boolean().nullable().optional(),
+      title: z.boolean().nullable().optional(),
+      type: z.boolean().nullable().optional(),
+      rarity: z.boolean().nullable().optional(),
+      price: z.boolean().nullable().optional(),
     })
+    .nullable()
     .optional(),
-  theme: z.enum(["light", "dark"]).optional(),
+  theme: themeEnum.nullable().optional(),
   marketplaceOrder: z
     .array(marketplaceEnum)
     .max(3)
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate marketplaces" })
+    .nullable()
     .optional(),
 });
