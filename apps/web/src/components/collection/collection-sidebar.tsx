@@ -8,6 +8,7 @@ import {
   PlusIcon,
   StoreIcon,
 } from "lucide-react";
+import { parseAsBoolean, useQueryState } from "nuqs";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
+  const [browsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
   const { data: collections } = useCollections();
   const createCollection = useCreateCollection();
   const sourcesEnabled = useFeatureEnabled("acquisition-sources");
@@ -92,13 +94,17 @@ export function CollectionSidebar() {
                 >
                   {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
                   <span className="flex-1 truncate">{col.name}</span>
-                  {col.copyCount > 0 && (
-                    <Badge
-                      variant={col.isInbox ? "default" : "ghost"}
-                      className="ml-auto text-[10px]"
-                    >
-                      {col.copyCount}
-                    </Badge>
+                  {browsing && collectionId === col.id ? (
+                    <span className="ml-auto size-2.5 animate-pulse rounded-full bg-red-500" />
+                  ) : (
+                    col.copyCount > 0 && (
+                      <Badge
+                        variant={col.isInbox ? "default" : "ghost"}
+                        className="ml-auto text-[10px]"
+                      >
+                        {col.copyCount}
+                      </Badge>
+                    )
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>

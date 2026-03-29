@@ -1,13 +1,12 @@
 import type { Printing } from "@openrift/shared";
-import { useEffect, useDeferredValue, useRef, useState } from "react";
+import { use, useEffect, useDeferredValue, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
-import type { AddToCollectionFlowHandle } from "@/components/collection/add-to-collection-flow";
-import { AddToCollectionFlow } from "@/components/collection/add-to-collection-flow";
+import type { AddedEntry } from "@/components/collection/added-cards-list";
 import { AddedCardsList } from "@/components/collection/added-cards-list";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
@@ -27,6 +26,7 @@ import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { Button } from "@/components/ui/button";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -34,7 +34,8 @@ import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
-import { useAddModeStore } from "@/stores/add-mode-store";
+import { cn } from "@/lib/utils";
+import { AddModeSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -52,18 +53,20 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
   const addMode = Boolean(collectionIdProp);
-  const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
+  const addModeSlot = use(AddModeSlotContext);
+  const [addedItems, setAddedItems] = useState<Map<string, AddedEntry>>(new Map());
+  const [showAddedList, setShowAddedList] = useState(false);
   const addCopies = useAddCopies();
   const disposeCopies = useDisposeCopies();
-
-  // Store subscriptions — only for rendering decisions, not passed into renderCard
-  const showAddedList = useAddModeStore((s) => s.showAddedList);
-  const hasAddedItems = useAddModeStore((s) => s.addedItems.size > 0);
-  const variantPopover = useAddModeStore((s) => s.variantPopover);
 
   // Which printing is shown on top when a fan-card sibling is clicked (cards view only)
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
+  // Variant popover state
+  const [variantPopover, setVariantPopover] = useState<{
+    cardId: string;
+    pos: { top: number; left: number };
+  } | null>(null);
   const variantPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,19 +75,12 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
     }
     const handleClick = (event: MouseEvent) => {
       if (variantPopoverRef.current && !variantPopoverRef.current.contains(event.target as Node)) {
-        useAddModeStore.getState().closeVariants();
+        setVariantPopover(null);
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [variantPopover]);
-
-  // Reset add-mode store when leaving add mode
-  useEffect(() => {
-    if (!addMode) {
-      useAddModeStore.getState().reset();
-    }
-  }, [addMode]);
 
   const { filters, sortBy, sortDir, view, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
@@ -124,8 +120,8 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const findBy = view === "cards" ? "card" : ("printing" as const);
 
   const handleGridCardClick = (printing: Printing) => {
-    useAddModeStore.getState().closeAddedList();
-    useAddModeStore.getState().closeVariants();
+    setShowAddedList(false);
+    setVariantPopover(null);
     useSelectionStore.getState().selectCard(printing, items, findBy);
   };
 
@@ -142,25 +138,31 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   };
 
   // ── Quick-add / undo ────────────────────────────────────────────────
-  // Handlers read add-mode state from getState() instead of closures so
-  // that renderCard stays stable across add/undo operations.
   const handleQuickAdd = collectionIdProp
     ? (printing: Printing) => {
-        const sourceId = addFlowRef.current?.getAcquisitionSourceId();
         addCopies.mutate(
           {
             copies: [
               {
                 printingId: printing.id,
                 collectionId: collectionIdProp,
-                acquisitionSourceId: sourceId,
               },
             ],
           },
           {
             onSuccess: (data) => {
               const copyId = (data as { id: string }[])[0].id;
-              useAddModeStore.getState().recordAdd(printing, copyId);
+              setAddedItems((prev) => {
+                const next = new Map(prev);
+                const existing = prev.get(printing.id);
+                next.delete(printing.id);
+                next.set(printing.id, {
+                  printing,
+                  quantity: (existing?.quantity ?? 0) + 1,
+                  copyIds: [...(existing?.copyIds ?? []), copyId],
+                });
+                return next;
+              });
             },
           },
         );
@@ -169,7 +171,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
 
   const handleUndoAdd = addMode
     ? (printing: Printing) => {
-        const entry = useAddModeStore.getState().addedItems.get(printing.id);
+        const entry = addedItems.get(printing.id);
         if (!entry || entry.copyIds.length === 0) {
           return;
         }
@@ -181,7 +183,25 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
           { copyIds: [copyIdToRemove] },
           {
             onSuccess: () => {
-              useAddModeStore.getState().recordUndo(printing.id);
+              setAddedItems((prev) => {
+                const next = new Map(prev);
+                const existing = prev.get(printing.id);
+                if (!existing) {
+                  return next;
+                }
+                const newCopyIds = existing.copyIds.slice(0, -1);
+                if (newCopyIds.length === 0) {
+                  next.delete(printing.id);
+                } else {
+                  next.delete(printing.id);
+                  next.set(printing.id, {
+                    ...existing,
+                    quantity: existing.quantity - 1,
+                    copyIds: newCopyIds,
+                  });
+                }
+                return next;
+              });
             },
           },
         );
@@ -191,12 +211,15 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const handleOpenVariants = addMode
     ? (printing: Printing, anchorEl: HTMLElement) => {
         const rect = anchorEl.getBoundingClientRect();
-        useAddModeStore.getState().openVariants(printing.card.id, {
-          top: rect.bottom + 4,
-          left: Math.max(
-            8,
-            Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
-          ),
+        setVariantPopover({
+          cardId: printing.card.id,
+          pos: {
+            top: rect.bottom + 4,
+            left: Math.max(
+              8,
+              Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
+            ),
+          },
         });
       }
     : undefined;
@@ -237,6 +260,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
             : ownedCounts?.get(displayPrinting.id)
         }
         totalOwnedCount={totalOwned}
+        sessionAddedCount={addedItems.get(displayPrinting.id)?.quantity}
         onQuickAdd={handleQuickAdd}
         onUndoAdd={handleUndoAdd}
         onOpenVariants={handleOpenVariants}
@@ -244,16 +268,52 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
     );
   };
 
+  const totalAdded = [...addedItems.values()].reduce((sum, entry) => sum + entry.quantity, 0);
+
+  const addedPillDesktop = addedItems.size > 0 && (
+    <button
+      type="button"
+      onClick={() => setShowAddedList((prev) => !prev)}
+      className={cn(
+        "h-8 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
+        showAddedList
+          ? "bg-primary text-primary-foreground"
+          : "bg-primary/10 text-primary hover:bg-primary/20",
+      )}
+    >
+      {totalAdded} {totalAdded === 1 ? "card" : "cards"} added
+    </button>
+  );
+
+  const addedPillMobile = addedItems.size > 0 && (
+    <button
+      type="button"
+      onClick={() => setShowAddedList((prev) => !prev)}
+      className={cn(
+        "rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors",
+        showAddedList
+          ? "bg-primary text-primary-foreground"
+          : "bg-primary/10 text-primary hover:bg-primary/20",
+      )}
+    >
+      {totalAdded} {totalAdded === 1 ? "card" : "cards"} added
+    </button>
+  );
+
   const toolbar = (
     <>
-      {/* Collection add bar */}
-      {collectionIdProp && (
-        <AddToCollectionFlow ref={addFlowRef} collectionId={collectionIdProp} onDone={onDone} />
-      )}
       {/* Search bar */}
       <div className="mb-3 flex items-start gap-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
         <DesktopOptionsBar className="hidden sm:flex" />
+        {addMode && (
+          <div className="hidden items-center gap-3 md:flex">
+            {addedPillDesktop}
+            <Button className="h-8" size="sm" onClick={() => onDone?.()}>
+              Done
+            </Button>
+          </div>
+        )}
         <MobileOptionsDrawer
           doneLabel={
             hasActiveFilters
@@ -298,12 +358,13 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
       return;
     }
 
-    if (showAddedList && hasAddedItems) {
+    if (showAddedList && addedItems.size > 0) {
       return (
         <Pane className="md:block">
           <AddedCardsList
+            items={addedItems}
             onCardClick={handleGridCardClick}
-            onClose={() => useAddModeStore.getState().closeAddedList()}
+            onClose={() => setShowAddedList(false)}
           />
         </Pane>
       );
@@ -344,11 +405,12 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
         addStripHeight={addMode ? ADD_STRIP_HEIGHT : 0}
       >
         {/* Mobile: fullscreen overlays */}
-        {showAddedList && hasAddedItems && isMobile && (
+        {showAddedList && addedItems.size > 0 && isMobile && (
           <MobileDetailOverlay>
             <AddedCardsList
+              items={addedItems}
               onCardClick={handleGridCardClick}
-              onClose={() => useAddModeStore.getState().closeAddedList()}
+              onClose={() => setShowAddedList(false)}
             />
           </MobileDetailOverlay>
         )}
@@ -376,11 +438,28 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
             <VariantAddPopover
               printings={variantPrintings}
               ownedCounts={ownedCountByPrinting}
+              addedItems={addedItems}
               onQuickAdd={handleQuickAdd}
               onUndoAdd={handleUndoAdd}
             />
           </div>,
           document.body,
+        )}
+
+      {/* Mobile header: pulsing dot + pill + Done (portaled into layout header slot) */}
+      {addMode &&
+        isMobile &&
+        addModeSlot &&
+        createPortal(
+          <>
+            <span className="size-2 animate-pulse rounded-full bg-red-500" />
+            <div className="flex-1" />
+            {addedPillMobile}
+            <Button size="sm" onClick={() => onDone?.()}>
+              Done
+            </Button>
+          </>,
+          addModeSlot,
         )}
     </>
   );
