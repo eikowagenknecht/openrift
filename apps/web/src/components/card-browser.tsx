@@ -213,7 +213,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
         showImages={showImages}
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
-        siblings={siblings}
+        siblings={view === "cards" ? siblings : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
         view={view}
         visibleFields={visibleFields}
