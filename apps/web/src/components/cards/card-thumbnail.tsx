@@ -19,6 +19,7 @@ import {
 } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
+import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 
 const CARD_BORDER_RADIUS = "5% / 3.6%";
@@ -144,7 +145,6 @@ interface CardThumbnailProps {
   priority?: boolean;
   ownedCount?: number;
   totalOwnedCount?: number;
-  sessionAddedCount?: number;
   onQuickAdd?: (printing: Printing) => void;
   onUndoAdd?: (printing: Printing) => void;
   onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
@@ -167,11 +167,11 @@ export const CardThumbnail = memo(function CardThumbnail({
   priority,
   ownedCount,
   totalOwnedCount,
-  sessionAddedCount,
   onQuickAdd,
   onUndoAdd,
   onOpenVariants,
 }: CardThumbnailProps) {
+  const sessionAddedCount = useAddModeStore((s) => s.addedItems.get(printing.id)?.quantity ?? 0);
   const card = {
     ...printing.card,
     rulesText: printing.printedRulesText,

@@ -4,20 +4,15 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
-
-export interface AddedEntry {
-  printing: Printing;
-  quantity: number;
-  copyIds: string[];
-}
+import { useAddModeStore } from "@/stores/add-mode-store";
 
 interface AddedCardsListProps {
-  items: Map<string, AddedEntry>;
   onCardClick: (printing: Printing) => void;
   onClose: () => void;
 }
 
-export function AddedCardsList({ items, onCardClick, onClose }: AddedCardsListProps) {
+export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
+  const items = useAddModeStore((s) => s.addedItems);
   const entries = [...items.values()].toReversed();
   const totalCount = entries.reduce((sum, entry) => sum + entry.quantity, 0);
 

@@ -1,12 +1,12 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useImperativeHandle, useState } from "react";
 
-import type { AddedEntry } from "@/components/collection/added-cards-list";
 import { Button } from "@/components/ui/button";
 import { useCreateAcquisitionSource, useAcquisitionSources } from "@/hooks/use-acquisition-sources";
 import { useCollections } from "@/hooks/use-collections";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { cn } from "@/lib/utils";
+import { useAddModeStore } from "@/stores/add-mode-store";
 
 export interface AddToCollectionFlowHandle {
   getAcquisitionSourceId: () => string | undefined;
@@ -15,20 +15,14 @@ export interface AddToCollectionFlowHandle {
 interface AddToCollectionFlowProps {
   ref: React.Ref<AddToCollectionFlowHandle>;
   collectionId: string;
-  addedItems: Map<string, AddedEntry>;
-  showingAddedList: boolean;
-  onToggleAddedList: () => void;
   onDone?: () => void;
 }
 
-export function AddToCollectionFlow({
-  ref,
-  collectionId,
-  addedItems,
-  showingAddedList,
-  onToggleAddedList,
-  onDone,
-}: AddToCollectionFlowProps) {
+export function AddToCollectionFlow({ ref, collectionId, onDone }: AddToCollectionFlowProps) {
+  const addedItems = useAddModeStore((s) => s.addedItems);
+  const showingAddedList = useAddModeStore((s) => s.showAddedList);
+  const toggleAddedList = useAddModeStore((s) => s.toggleAddedList);
+
   const { data: collections } = useCollections();
   const collectionName = collections?.find((c) => c.id === collectionId)?.name ?? "Collection";
   const sourcesEnabled = useFeatureEnabled("acquisition-sources");
@@ -118,7 +112,7 @@ export function AddToCollectionFlow({
       {addedItems.size > 0 && (
         <button
           type="button"
-          onClick={onToggleAddedList}
+          onClick={toggleAddedList}
           className={cn(
             "rounded-full px-2 py-0.5 font-medium transition-colors sm:px-3 sm:py-1",
             showingAddedList
