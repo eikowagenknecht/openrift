@@ -16,7 +16,7 @@
     "test:integration": "bun --env-file=../../.env run src/test/run-integration.ts",
     "dev": "bun --env-file=../../.env --watch src/index.ts",
     "start": "bun --env-file=../../.env src/index.ts",
-    "build": "tsc"
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' tsc"
   },
   "dependencies": {
     "@hono/swagger-ui": "0.6.1",

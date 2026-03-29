@@ -7,6 +7,8 @@
     "strict": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
