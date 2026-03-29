@@ -6,7 +6,6 @@ import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
-import type { AddedEntry } from "@/components/collection/added-cards-list";
 import { AddedCardsList } from "@/components/collection/added-cards-list";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
@@ -36,6 +35,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { AddModeSlotContext } from "@/routes/_app/_authenticated/collections/route";
+import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -54,19 +54,15 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
 
   const addMode = Boolean(collectionIdProp);
   const addModeSlot = use(AddModeSlotContext);
-  const [addedItems, setAddedItems] = useState<Map<string, AddedEntry>>(new Map());
-  const [showAddedList, setShowAddedList] = useState(false);
+  const addedItems = useAddModeStore((s) => s.addedItems);
+  const showAddedList = useAddModeStore((s) => s.showAddedList);
+  const variantPopover = useAddModeStore((s) => s.variantPopover);
   const addCopies = useAddCopies();
   const disposeCopies = useDisposeCopies();
 
   // Which printing is shown on top when a fan-card sibling is clicked (cards view only)
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
-  // Variant popover state
-  const [variantPopover, setVariantPopover] = useState<{
-    cardId: string;
-    pos: { top: number; left: number };
-  } | null>(null);
   const variantPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,7 +71,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
     }
     const handleClick = (event: MouseEvent) => {
       if (variantPopoverRef.current && !variantPopoverRef.current.contains(event.target as Node)) {
-        setVariantPopover(null);
+        useAddModeStore.getState().closeVariants();
       }
     };
     document.addEventListener("mousedown", handleClick);
@@ -120,8 +116,8 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const findBy = view === "cards" ? "card" : ("printing" as const);
 
   const handleGridCardClick = (printing: Printing) => {
-    setShowAddedList(false);
-    setVariantPopover(null);
+    useAddModeStore.getState().closeAddedList();
+    useAddModeStore.getState().closeVariants();
     useSelectionStore.getState().selectCard(printing, items, findBy);
   };
 
@@ -152,17 +148,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
           {
             onSuccess: (data) => {
               const copyId = (data as { id: string }[])[0].id;
-              setAddedItems((prev) => {
-                const next = new Map(prev);
-                const existing = prev.get(printing.id);
-                next.delete(printing.id);
-                next.set(printing.id, {
-                  printing,
-                  quantity: (existing?.quantity ?? 0) + 1,
-                  copyIds: [...(existing?.copyIds ?? []), copyId],
-                });
-                return next;
-              });
+              useAddModeStore.getState().recordAdd(printing, copyId);
             },
           },
         );
@@ -171,7 +157,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
 
   const handleUndoAdd = addMode
     ? (printing: Printing) => {
-        const entry = addedItems.get(printing.id);
+        const entry = useAddModeStore.getState().addedItems.get(printing.id);
         if (!entry || entry.copyIds.length === 0) {
           return;
         }
@@ -183,25 +169,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
           { copyIds: [copyIdToRemove] },
           {
             onSuccess: () => {
-              setAddedItems((prev) => {
-                const next = new Map(prev);
-                const existing = prev.get(printing.id);
-                if (!existing) {
-                  return next;
-                }
-                const newCopyIds = existing.copyIds.slice(0, -1);
-                if (newCopyIds.length === 0) {
-                  next.delete(printing.id);
-                } else {
-                  next.delete(printing.id);
-                  next.set(printing.id, {
-                    ...existing,
-                    quantity: existing.quantity - 1,
-                    copyIds: newCopyIds,
-                  });
-                }
-                return next;
-              });
+              useAddModeStore.getState().recordUndo(printing.id);
             },
           },
         );
@@ -211,15 +179,12 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const handleOpenVariants = addMode
     ? (printing: Printing, anchorEl: HTMLElement) => {
         const rect = anchorEl.getBoundingClientRect();
-        setVariantPopover({
-          cardId: printing.card.id,
-          pos: {
-            top: rect.bottom + 4,
-            left: Math.max(
-              8,
-              Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
-            ),
-          },
+        useAddModeStore.getState().openVariants(printing.card.id, {
+          top: rect.bottom + 4,
+          left: Math.max(
+            8,
+            Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
+          ),
         });
       }
     : undefined;
@@ -260,7 +225,6 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
             : ownedCounts?.get(displayPrinting.id)
         }
         totalOwnedCount={totalOwned}
-        sessionAddedCount={addedItems.get(displayPrinting.id)?.quantity}
         onQuickAdd={handleQuickAdd}
         onUndoAdd={handleUndoAdd}
         onOpenVariants={handleOpenVariants}
@@ -273,7 +237,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const addedPillDesktop = addedItems.size > 0 && (
     <button
       type="button"
-      onClick={() => setShowAddedList((prev) => !prev)}
+      onClick={() => useAddModeStore.getState().toggleAddedList()}
       className={cn(
         "h-8 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
         showAddedList
@@ -288,7 +252,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const addedPillMobile = addedItems.size > 0 && (
     <button
       type="button"
-      onClick={() => setShowAddedList((prev) => !prev)}
+      onClick={() => useAddModeStore.getState().toggleAddedList()}
       className={cn(
         "rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors",
         showAddedList
@@ -362,9 +326,8 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
       return (
         <Pane className="md:block">
           <AddedCardsList
-            items={addedItems}
             onCardClick={handleGridCardClick}
-            onClose={() => setShowAddedList(false)}
+            onClose={() => useAddModeStore.getState().closeAddedList()}
           />
         </Pane>
       );
@@ -408,9 +371,8 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
         {showAddedList && addedItems.size > 0 && isMobile && (
           <MobileDetailOverlay>
             <AddedCardsList
-              items={addedItems}
               onCardClick={handleGridCardClick}
-              onClose={() => setShowAddedList(false)}
+              onClose={() => useAddModeStore.getState().closeAddedList()}
             />
           </MobileDetailOverlay>
         )}
@@ -438,7 +400,6 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
             <VariantAddPopover
               printings={variantPrintings}
               ownedCounts={ownedCountByPrinting}
-              addedItems={addedItems}
               onQuickAdd={handleQuickAdd}
               onUndoAdd={handleUndoAdd}
             />
