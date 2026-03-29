@@ -115,7 +115,7 @@ describe("normalizeNameForMatching", () => {
 describe("comparePrintings", () => {
   const base = {
     setId: "SET-A",
-    collectorNumber: 1,
+    shortCode: "SET-A-001",
     artVariant: "normal" as ArtVariant,
     rarity: "Common" as Rarity,
     finish: "normal" as Finish,
@@ -147,9 +147,9 @@ describe("comparePrintings", () => {
     expect(comparePrintings(a, b)).toBeLessThan(0);
   });
 
-  it("sorts by collectorNumber when setId is equal", () => {
-    const a = { ...base, collectorNumber: 5 };
-    const b = { ...base, collectorNumber: 10 };
+  it("sorts by shortCode when setId is equal", () => {
+    const a = { ...base, shortCode: "SET-A-005" };
+    const b = { ...base, shortCode: "SET-A-010" };
     expect(comparePrintings(a, b)).toBeLessThan(0);
     expect(comparePrintings(b, a)).toBeGreaterThan(0);
   });
@@ -219,7 +219,7 @@ describe("comparePrintings", () => {
   });
 
   it("applies tiebreakers in correct priority order", () => {
-    // Same set and collector number, but different art variant and rarity
+    // Same set and shortCode, but different art variant and rarity
     const a = { ...base, artVariant: "normal" as ArtVariant, rarity: "Epic" as Rarity };
     const b = { ...base, artVariant: "altart" as ArtVariant, rarity: "Common" as Rarity };
     // artVariant should decide before rarity: normal(0) < altart(1)

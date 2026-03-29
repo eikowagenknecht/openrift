@@ -2,6 +2,7 @@
 
 ## 2026-03-29
 
+- fix: Alt art printings of the same card now sort in a consistent, stable order instead of sometimes appearing shuffled
 - fix: Sorting by price descending now shows the most expensive printing in each stack first, and cards without a price always appear at the end
 - fix: Sorting by rarity now keeps cards in consistent card-ID order within the same rarity, regardless of sort direction
 - feat: Import your collection from Piltover Archive or RiftCore — upload or paste a CSV export, preview matched cards, resolve any ambiguous printings, and import into any collection
