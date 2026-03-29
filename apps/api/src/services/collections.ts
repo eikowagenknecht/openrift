@@ -1,5 +1,5 @@
 import type { Transact } from "../deps.js";
-import { createActivity } from "./activity-logger.js";
+import { logEvents } from "./event-logger.js";
 
 interface DeleteCollectionOpts {
   collectionId: string;
@@ -11,7 +11,7 @@ interface DeleteCollectionOpts {
 
 /**
  * Deletes a collection, atomically relocating its copies to the target
- * collection and logging a reorganization activity.
+ * collection and logging move events.
  */
 export async function deleteCollection(
   transact: Transact,
@@ -25,21 +25,19 @@ export async function deleteCollection(
     if (copies.length > 0) {
       await trxRepos.collections.moveCopiesBetweenCollections(collectionId, moveCopiesTo);
 
-      await createActivity(trxRepos, {
-        userId,
-        type: "reorganization",
-        name: `Moved cards from deleted collection "${collectionName}"`,
-        isAuto: true,
-        items: copies.map((copy) => ({
-          copyId: copy.id,
-          printingId: copy.printingId,
+      await logEvents(
+        trxRepos,
+        copies.map((copy) => ({
+          userId,
           action: "moved" as const,
+          printingId: copy.printingId,
+          copyId: copy.id,
           fromCollectionId: collectionId,
           fromCollectionName: collectionName,
           toCollectionId: moveCopiesTo,
           toCollectionName: targetName,
         })),
-      });
+      );
     }
 
     await trxRepos.collections.deleteByIdForUser(collectionId, userId);

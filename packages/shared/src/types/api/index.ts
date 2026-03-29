@@ -11,12 +11,7 @@ export type {
   CatalogSetResponse,
 } from "./catalog.js";
 
-export type {
-  ActivityDetailResponse,
-  ActivityItemResponse,
-  ActivityListResponse,
-  ActivityResponse,
-} from "./activity.js";
+export type { CollectionEventListResponse, CollectionEventResponse } from "./collection-event.js";
 
 export type {
   CollectionListResponse,

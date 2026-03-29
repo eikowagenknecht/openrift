@@ -28,6 +28,9 @@ export const queryKeys = {
   acquisitionSources: {
     all: ["acquisition-sources"] as const,
   },
+  collectionEvents: {
+    all: ["collection-events"] as const,
+  },
   ownedCount: {
     all: ["ownedCount"] as const,
   },

@@ -1,6 +1,5 @@
 import type {
-  ActivityItemResponse,
-  ActivityResponse,
+  CollectionEventResponse,
   CollectionResponse,
   CopyResponse,
   DeckAvailabilityItemResponse,
@@ -13,12 +12,9 @@ import type {
   WishListItemResponse,
   WishListResponse,
 } from "@openrift/shared";
-import { formatDateUTC } from "@openrift/shared";
-import { activityTypeSchema } from "@openrift/shared/schemas";
 import type { Selectable } from "kysely";
 
 import type {
-  ActivitiesTable,
   CollectionsTable,
   DecksTable,
   AcquisitionSourcesTable,
@@ -111,16 +107,43 @@ export function toWishListItem(row: Selectable<WishListItemsTable>): WishListIte
   };
 }
 
-export function toActivity(row: Selectable<ActivitiesTable>): ActivityResponse {
+/**
+ * Maps an enriched collection event row to CollectionEventResponse.
+ * @returns The serialized collection event response.
+ */
+export function toCollectionEvent(row: {
+  id: string;
+  action: string;
+  copyId: string | null;
+  printingId: string;
+  fromCollectionId: string | null;
+  fromCollectionName: string | null;
+  toCollectionId: string | null;
+  toCollectionName: string | null;
+  createdAt: Date;
+  shortCode: string;
+  rarity: string;
+  imageUrl: string | null;
+  cardName: string;
+  cardType: string;
+  cardSuperTypes: string[];
+}): CollectionEventResponse {
   return {
     id: row.id,
-    type: activityTypeSchema.parse(row.type),
-    name: row.name,
-    date: formatDateUTC(row.date),
-    description: row.description,
-    isAuto: row.isAuto,
+    action: row.action as CollectionEventResponse["action"],
+    copyId: row.copyId,
+    printingId: row.printingId,
+    fromCollectionId: row.fromCollectionId,
+    fromCollectionName: row.fromCollectionName,
+    toCollectionId: row.toCollectionId,
+    toCollectionName: row.toCollectionName,
     createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+    shortCode: row.shortCode,
+    rarity: row.rarity as CollectionEventResponse["rarity"],
+    imageUrl: row.imageUrl,
+    cardName: row.cardName,
+    cardType: row.cardType as CollectionEventResponse["cardType"],
+    cardSuperTypes: row.cardSuperTypes,
   };
 }
 
@@ -199,52 +222,6 @@ export function toDeckCard(row: {
     energy: row.energy,
     might: row.might,
     power: row.power,
-  };
-}
-
-/**
- * Maps a denormalized activity item row to ActivityItemResponse.
- * @returns The serialized activity item response.
- */
-export function toActivityItem(row: {
-  id: string;
-  activityId: string;
-  activityType: string;
-  copyId: string | null;
-  printingId: string;
-  action: string;
-  fromCollectionId: string | null;
-  fromCollectionName: string | null;
-  toCollectionId: string | null;
-  toCollectionName: string | null;
-  metadataSnapshot: unknown;
-  createdAt: Date;
-  setId: string;
-  collectorNumber: number;
-  rarity: string;
-  imageUrl: string | null;
-  cardName: string;
-  cardType: string;
-}): ActivityItemResponse {
-  return {
-    id: row.id,
-    activityId: row.activityId,
-    activityType: row.activityType as ActivityItemResponse["activityType"],
-    copyId: row.copyId,
-    printingId: row.printingId,
-    action: row.action as ActivityItemResponse["action"],
-    fromCollectionId: row.fromCollectionId,
-    fromCollectionName: row.fromCollectionName,
-    toCollectionId: row.toCollectionId,
-    toCollectionName: row.toCollectionName,
-    metadataSnapshot: row.metadataSnapshot,
-    createdAt: row.createdAt.toISOString(),
-    setId: row.setId,
-    collectorNumber: row.collectorNumber,
-    rarity: row.rarity as ActivityItemResponse["rarity"],
-    imageUrl: row.imageUrl,
-    cardName: row.cardName,
-    cardType: row.cardType as ActivityItemResponse["cardType"],
   };
 }
 

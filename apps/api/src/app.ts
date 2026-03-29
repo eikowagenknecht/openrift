@@ -18,7 +18,7 @@ import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { acquisitionSourcesRoute } from "./routes/authenticated/acquisition-sources.js";
-import { activitiesRoute } from "./routes/authenticated/activities.js";
+import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
 import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
@@ -182,7 +182,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", collectionsRoute)
       .route("/api/v1", acquisitionSourcesRoute)
       .route("/api/v1", copiesRoute)
-      .route("/api/v1", activitiesRoute)
+      .route("/api/v1", collectionEventsRoute)
       .route("/api/v1", decksRoute)
       .route("/api/v1", preferencesRoute)
       .route("/api/v1", wishListsRoute)

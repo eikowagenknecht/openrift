@@ -48,9 +48,8 @@ function createMockRepos(overrides: {
       moveBatch: () => Promise.resolve(),
       deleteBatch: () => Promise.resolve(),
     },
-    activities: {
-      create: () => Promise.resolve("act-1"),
-      createItems: () => Promise.resolve([]),
+    collectionEvents: {
+      insert: () => Promise.resolve(),
     },
   } as unknown as Repos;
 
@@ -260,7 +259,7 @@ describe("addCopies — additional branches", () => {
 });
 
 describe("moveCopies — additional branches", () => {
-  it("calls moveBatch and createActivity with correct arguments", async () => {
+  it("calls moveBatch and logEvents with correct arguments", async () => {
     const repos = createMockRepos({
       targetCollection: { id: "col-2", name: "Target" },
       fetchedCopies: [

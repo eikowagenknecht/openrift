@@ -1,6 +1,5 @@
 export type {
   ActivityAction,
-  ActivityType,
   ArtVariant,
   CardFace,
   CardType,
@@ -89,10 +88,8 @@ export type {
 } from "./api/index.js";
 
 export type {
-  ActivityDetailResponse,
-  ActivityItemResponse,
-  ActivityListResponse,
-  ActivityResponse,
+  CollectionEventListResponse,
+  CollectionEventResponse,
   CollectionListResponse,
   CollectionResponse,
   CopyCountResponse,

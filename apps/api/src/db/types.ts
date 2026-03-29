@@ -1,8 +1,7 @@
 // Re-export all table types from the local tables file (single source of truth).
 export type {
   AcquisitionSourcesTable,
-  ActivitiesTable,
-  ActivityItemsTable,
+  CollectionEventsTable,
   CandidateCardsTable,
   CandidatePrintingsTable,
   CardNameAliasesTable,

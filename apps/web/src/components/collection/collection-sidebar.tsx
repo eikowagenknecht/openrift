@@ -2,6 +2,7 @@ import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   BookOpenIcon,
+  HistoryIcon,
   InboxIcon,
   LayersIcon,
   PlusIcon,
@@ -141,10 +142,20 @@ export function CollectionSidebar() {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
-        {sourcesEnabled && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Manage</SidebarGroupLabel>
-            <SidebarMenu>
+        <SidebarGroup>
+          <SidebarGroupLabel>Manage</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={currentPath === "/collections/activity"}
+                render={<Link to="/collections/activity" />}
+                size="sm"
+              >
+                <HistoryIcon />
+                <span>Activity</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            {sourcesEnabled && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={currentPath === "/collections/sources"}
@@ -155,9 +166,9 @@ export function CollectionSidebar() {
                   <span>Sources</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-        )}
+            )}
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <SidebarSeparator className="mx-0" />

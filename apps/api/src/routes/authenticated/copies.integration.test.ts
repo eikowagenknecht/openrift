@@ -208,19 +208,19 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
-  // ── Activity logging ────────────────────────────────────────────────────────
+  // ── Event logging ────────────────────────────────────────────────────────────
 
-  describe("Activity logging", () => {
-    it("created activities for copy operations", async () => {
-      const res = await app.fetch(req("GET", "/activities"));
+  describe("Event logging", () => {
+    it("created collection events for copy operations", async () => {
+      const res = await app.fetch(req("GET", "/collection-events"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: { type: string }[] };
-      const types = json.items.map((a) => a.type);
-      // Should have: acquisition (x2), reorganization (move), disposal
-      expect(types).toContain("acquisition");
-      expect(types).toContain("reorganization");
-      expect(types).toContain("disposal");
+      const json = (await res.json()) as { items: { action: string }[] };
+      const actions = json.items.map((e) => e.action);
+      // Should have: added (x3 from setup), moved, removed
+      expect(actions).toContain("added");
+      expect(actions).toContain("moved");
+      expect(actions).toContain("removed");
     });
   });
 });

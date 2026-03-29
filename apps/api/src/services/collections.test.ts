@@ -29,9 +29,8 @@ function createMockRepos(
       moveCopiesBetweenCollections,
       deleteByIdForUser,
     },
-    activities: {
-      create: vi.fn(async () => "act-1"),
-      createItems: vi.fn(async () => []),
+    collectionEvents: {
+      insert: vi.fn(async () => {}),
     },
   } as unknown as Repos;
 
@@ -89,12 +88,12 @@ describe("deleteCollection", () => {
     expect(deleteByIdForUser).toHaveBeenCalledWith("col-1", "user-1");
   });
 
-  it("logs a reorganization activity when copies are moved", async () => {
+  it("logs move events when copies are moved", async () => {
     const { repos } = createMockRepos({
       copies: [{ id: "copy-1", printingId: "p-1" }],
     });
     const transact = mockTransact(repos);
-    const createSpy = (repos as any).activities.create;
+    const insertSpy = (repos as any).collectionEvents.insert;
 
     await deleteCollection(transact, {
       collectionId: "col-1",
@@ -104,17 +103,17 @@ describe("deleteCollection", () => {
       userId: "user-1",
     });
 
-    expect(createSpy).toHaveBeenCalledTimes(1);
-    const activityArgs = createSpy.mock.calls[0][0];
-    expect(activityArgs.userId).toBe("user-1");
-    expect(activityArgs.type).toBe("reorganization");
-    expect(activityArgs.isAuto).toBe(true);
+    expect(insertSpy).toHaveBeenCalledTimes(1);
+    const events = insertSpy.mock.calls[0][0];
+    expect(events).toHaveLength(1);
+    expect(events[0].action).toBe("moved");
+    expect(events[0].userId).toBe("user-1");
   });
 
-  it("does not log activity when collection is empty", async () => {
+  it("does not log events when collection is empty", async () => {
     const { repos } = createMockRepos({ copies: [] });
     const transact = mockTransact(repos);
-    const createSpy = (repos as any).activities.create;
+    const insertSpy = (repos as any).collectionEvents.insert;
 
     await deleteCollection(transact, {
       collectionId: "col-1",
@@ -124,6 +123,6 @@ describe("deleteCollection", () => {
       userId: "user-1",
     });
 
-    expect(createSpy).not.toHaveBeenCalled();
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 });

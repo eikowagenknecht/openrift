@@ -1,7 +1,6 @@
 export type {
   AcquisitionSourcesTable,
-  ActivitiesTable,
-  ActivityItemsTable,
+  CollectionEventsTable,
   CandidateCardsTable,
   CandidatePrintingsTable,
   CardNameAliasesTable,
