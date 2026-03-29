@@ -2,6 +2,7 @@
 
 ## 2026-03-29
 
+- fix: Logging in no longer requires a page refresh before navigating to protected pages like Profile
 - feat: New Activity page in the collection sidebar shows a timeline of every card you've added, removed, or moved — grouped by day with card counts and value summaries
 - feat: Filter your activity by action type, collection, or date range (today, 7 days, 30 days)
 - fix: Quick add search input no longer resets after adding the first card to an empty collection
