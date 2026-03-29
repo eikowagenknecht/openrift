@@ -22,6 +22,7 @@ import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -98,6 +99,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     clearAllFilters();
     void setBrowsing(null);
     useSelectionStore.getState().closeDetail();
+    useAddModeStore.getState().reset();
     globalThis.scrollTo(0, 0);
   };
 
