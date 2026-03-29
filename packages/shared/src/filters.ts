@@ -163,7 +163,9 @@ function matchesPromo(
 }
 
 /**
- * Compares by a nullable numeric value, falling back to card name when values are missing or tied.
+ * Compares by a nullable numeric value. Nulls are always pushed to the end,
+ * the primary comparison respects `dir`, and the tiebreaker (shortCode) is
+ * always ascending.
  *
  * @returns A negative, zero, or positive number for sort ordering.
  */
@@ -171,19 +173,22 @@ function compareWithFallback(
   a: Printing,
   b: Printing,
   getValue: (p: Printing) => number | null | undefined,
+  dir: 1 | -1,
 ): number {
   const va = getValue(a);
   const vb = getValue(b);
-  if (va === null || va === undefined) {
-    if (vb === null || vb === undefined) {
-      return a.card.name.localeCompare(b.card.name);
-    }
+  const aNullish = va === null || va === undefined;
+  const bNullish = vb === null || vb === undefined;
+  if (aNullish && bNullish) {
+    return a.shortCode.localeCompare(b.shortCode);
+  }
+  if (aNullish) {
     return 1;
   }
-  if (vb === null || vb === undefined) {
+  if (bNullish) {
     return -1;
   }
-  return va - vb || a.card.name.localeCompare(b.card.name);
+  return dir * (va - vb) || a.shortCode.localeCompare(b.shortCode);
 }
 
 function matchesSearch(
@@ -326,32 +331,41 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
   };
 }
 
+export interface SortCardsOptions {
+  sortDir?: SortDirection;
+  /** Override the price used for sorting (e.g. stack min/max in cards view). */
+  getPrice?: (p: Printing) => number | null | undefined;
+}
+
 /**
- * Sorts a printings array by the given sort option. Each sort mode uses a
- * secondary sort on card name for stable ordering when primary values tie.
- * Null stats/prices are pushed to the end.
+ * Sorts a printings array by the given sort option. Direction applies only to
+ * the primary key; the tiebreaker (shortCode) is always ascending. Null
+ * stats/prices are always pushed to the end.
  *
  * @returns A new sorted array (does not mutate the input).
  *
  * @example
  * ```ts
- * const byPrice = sortCards(filteredPrintings, "price");
+ * const byPrice = sortCards(filteredPrintings, "price", { sortDir: "desc" });
  * ```
  */
 export function sortCards(
   printings: Printing[],
   sortBy: SortOption,
-  sortDir: SortDirection = "asc",
+  options: SortCardsOptions = {},
 ): Printing[] {
-  const dir = sortDir === "desc" ? -1 : 1;
+  const dir: 1 | -1 = options.sortDir === "desc" ? -1 : 1;
   if (sortBy === "name") {
-    return printings.toSorted((a, b) => dir * a.card.name.localeCompare(b.card.name));
+    return printings.toSorted(
+      (a, b) =>
+        dir * a.card.name.localeCompare(b.card.name) || a.shortCode.localeCompare(b.shortCode),
+    );
   }
   if (sortBy === "id") {
     return printings.toSorted((a, b) => dir * a.shortCode.localeCompare(b.shortCode));
   }
   if (sortBy === "energy") {
-    return printings.toSorted((a, b) => dir * compareWithFallback(a, b, (p) => p.card.energy));
+    return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.card.energy, dir));
   }
   if (sortBy === "rarity") {
     return printings.toSorted(
@@ -360,5 +374,6 @@ export function sortCards(
         a.shortCode.localeCompare(b.shortCode),
     );
   }
-  return printings.toSorted((a, b) => dir * compareWithFallback(a, b, (p) => p.marketPrice));
+  const getPrice = options.getPrice ?? ((p: Printing) => p.marketPrice);
+  return printings.toSorted((a, b) => compareWithFallback(a, b, getPrice, dir));
 }

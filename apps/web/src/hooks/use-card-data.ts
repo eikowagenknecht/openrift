@@ -1,4 +1,10 @@
-import type { CardFilters, Marketplace, Printing, SortOption } from "@openrift/shared";
+import type {
+  CardFilters,
+  Marketplace,
+  Printing,
+  SortCardsOptions,
+  SortOption,
+} from "@openrift/shared";
 import { comparePrintings, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
@@ -162,12 +168,22 @@ export function useCardData({
   const displayCards =
     view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
 
-  const sortedCards = sortCards(displayCards, sortBy, sortDir);
-
   const printingsByCardId = groupPrintingsByCardId(allPrintings, setOrderMap);
 
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, favoriteMarketplace) : null;
+
+  const sortOptions: SortCardsOptions = { sortDir };
+  if (sortBy === "price" && priceRangeByCardId) {
+    sortOptions.getPrice = (p) => {
+      const range = priceRangeByCardId.get(p.card.id);
+      if (!range) {
+        return resolvePrice(p, favoriteMarketplace) ?? null;
+      }
+      return sortDir === "desc" ? range.max : range.min;
+    };
+  }
+  const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   const ownedCounts = ownedCountByPrinting
     ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)
