@@ -125,13 +125,11 @@ function computeRowStarts(
 function SetHeaderLabel({
   slug,
   name,
-  cardCount,
   onClick,
   className,
 }: {
   slug: string;
   name: string;
-  cardCount: number;
   onClick: () => void;
   className?: string;
 }) {
@@ -143,7 +141,6 @@ function SetHeaderLabel({
     >
       <span className="text-muted-foreground font-medium">{slug}</span>
       <span className="font-semibold">{name}</span>
-      <span className="text-muted-foreground">{cardCount}</span>
     </button>
   );
 }
@@ -164,7 +161,6 @@ const HeaderRow = memo(function HeaderRow({
       <SetHeaderLabel
         slug={row.set.slug}
         name={row.set.name}
-        cardCount={row.cardCount}
         onClick={() => onScrollToGroup(row.set.id)}
       />
       <div className="bg-border h-px flex-1" />
@@ -503,7 +499,6 @@ export function CardGrid({
             <SetHeaderLabel
               slug={activeHeaderRow.set.slug}
               name={activeHeaderRow.set.name}
-              cardCount={activeHeaderRow.cardCount}
               onClick={() => scrollToGroup(activeHeaderRow.set.id)}
               className="bg-background/60 ring-border/70 rounded-full px-3 py-1 shadow-sm ring-1 backdrop-blur"
             />
