@@ -1,5 +1,4 @@
 import type { Printing } from "@openrift/shared";
-import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { useEffect, useDeferredValue, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -52,11 +51,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  // Adding mode state — props override URL params when CardBrowser is used inline
-  const [addingParam] = useQueryState("adding", parseAsBoolean.withDefault(false));
-  const [addingToParam] = useQueryState("addingTo", parseAsString.withDefault(""));
-  const adding = collectionIdProp ? true : addingParam;
-  const addingTo = collectionIdProp ?? addingToParam;
+  const addMode = Boolean(collectionIdProp);
   const addFlowRef = useRef<AddToCollectionFlowHandle>(null);
   const [addedItems, setAddedItems] = useState<Map<string, AddedEntry>>(new Map());
   const [showAddedList, setShowAddedList] = useState(false);
@@ -122,7 +117,6 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   }));
 
   const findBy = view === "cards" ? "card" : ("printing" as const);
-  const addMode = adding && Boolean(addingTo);
 
   const handleGridCardClick = (printing: Printing) => {
     setShowAddedList(false);
@@ -143,13 +137,17 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   };
 
   // ── Quick-add / undo ────────────────────────────────────────────────
-  const handleQuickAdd = addMode
+  const handleQuickAdd = collectionIdProp
     ? (printing: Printing) => {
         const sourceId = addFlowRef.current?.getAcquisitionSourceId();
         addCopies.mutate(
           {
             copies: [
-              { printingId: printing.id, collectionId: addingTo, acquisitionSourceId: sourceId },
+              {
+                printingId: printing.id,
+                collectionId: collectionIdProp,
+                acquisitionSourceId: sourceId,
+              },
             ],
           },
           {
@@ -274,10 +272,10 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   const toolbar = (
     <>
       {/* Collection add bar */}
-      {addMode && (
+      {collectionIdProp && (
         <AddToCollectionFlow
           ref={addFlowRef}
-          collectionId={addingTo}
+          collectionId={collectionIdProp}
           addedItems={addedItems}
           showingAddedList={showAddedList}
           onToggleAddedList={() => setShowAddedList((prev) => !prev)}
