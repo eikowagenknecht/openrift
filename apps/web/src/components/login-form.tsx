@@ -225,66 +225,74 @@ export function LoginForm({
           </form>
         </TabsContent>
         <TabsContent value="otp">
-          <FieldGroup>
-            {otpStep === "email" ? (
-              <>
-                {otpEmailError && <FieldError>{otpEmailError}</FieldError>}
-                <Field>
-                  <FieldLabel htmlFor="otp-email">Email</FieldLabel>
-                  <Input
-                    id="otp-email"
-                    type="email"
-                    placeholder={emailPlaceholder}
-                    value={otpEmail}
-                    onChange={(e) => setOtpEmail(e.target.value)}
-                    aria-invalid={Boolean(otpEmailError)}
-                  />
-                </Field>
-                <Field>
-                  <Button type="button" disabled={otpLoading} onClick={handleSendOtp}>
-                    {otpLoading ? "Sending..." : "Send code"}
-                  </Button>
-                </Field>
-              </>
-            ) : (
-              <>
-                {otpError && <FieldError>{otpError}</FieldError>}
-                <div className="flex justify-center">
-                  <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
-                <Field>
-                  <Button
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (otpStep === "email") {
+                handleSendOtp();
+              } else {
+                handleVerifyOtp();
+              }
+            }}
+            noValidate
+          >
+            <FieldGroup>
+              {otpStep === "email" ? (
+                <>
+                  {otpEmailError && <FieldError>{otpEmailError}</FieldError>}
+                  <Field>
+                    <FieldLabel htmlFor="otp-email">Email</FieldLabel>
+                    <Input
+                      id="otp-email"
+                      type="email"
+                      placeholder={emailPlaceholder}
+                      value={otpEmail}
+                      onChange={(e) => setOtpEmail(e.target.value)}
+                      aria-invalid={Boolean(otpEmailError)}
+                    />
+                  </Field>
+                  <Field>
+                    <Button type="submit" disabled={otpLoading}>
+                      {otpLoading ? "Sending..." : "Send code"}
+                    </Button>
+                  </Field>
+                </>
+              ) : (
+                <>
+                  {otpError && <FieldError>{otpError}</FieldError>}
+                  <div className="flex justify-center">
+                    <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <Field>
+                    <Button type="submit" disabled={otp.length < 6 || otpLoading}>
+                      {otpLoading ? "Verifying..." : "Verify"}
+                    </Button>
+                  </Field>
+                  <button
                     type="button"
-                    disabled={otp.length < 6 || otpLoading}
-                    onClick={handleVerifyOtp}
+                    className="text-muted-foreground text-center text-sm underline underline-offset-2"
+                    disabled={otpLoading}
+                    onClick={() => {
+                      setOtpStep("email");
+                      setOtp("");
+                      setOtpError("");
+                    }}
                   >
-                    {otpLoading ? "Verifying..." : "Verify"}
-                  </Button>
-                </Field>
-                <button
-                  type="button"
-                  className="text-muted-foreground text-center text-sm underline underline-offset-2"
-                  disabled={otpLoading}
-                  onClick={() => {
-                    setOtpStep("email");
-                    setOtp("");
-                    setOtpError("");
-                  }}
-                >
-                  Use a different email
-                </button>
-              </>
-            )}
-          </FieldGroup>
+                    Use a different email
+                  </button>
+                </>
+              )}
+            </FieldGroup>
+          </form>
         </TabsContent>
       </Tabs>
       <SocialAuthButtons redirectTo={redirectTo} />
