@@ -2,15 +2,15 @@
 
 ## 2026-03-29
 
+- feat: Import your collection from Piltover Archive or RiftCore — upload or paste a CSV export, preview matched cards, resolve any ambiguous printings, and import into any collection
+- feat: New Activity page in the collection sidebar shows a timeline of every card you've added, removed, or moved — grouped by day with card counts and value summaries
+- feat: Filter your activity by action type, collection, or date range (today, 7 days, 30 days)
 - fix: Active and hovered items in the collection sidebar are now more visually distinct
 - fix: Alt art printings of the same card now sort in a consistent, stable order instead of sometimes appearing shuffled
 - fix: Sorting by price descending now shows the most expensive printing in each stack first, and cards without a price always appear at the end
 - fix: Sorting by rarity now keeps cards in consistent card-ID order within the same rarity, regardless of sort direction
-- feat: Import your collection from Piltover Archive or RiftCore — upload or paste a CSV export, preview matched cards, resolve any ambiguous printings, and import into any collection
 - fix: "Browse & add" button now navigates to your inbox when used from the all-cards view instead of doing nothing
 - fix: Logging in no longer requires a page refresh before navigating to protected pages like Profile
-- feat: New Activity page in the collection sidebar shows a timeline of every card you've added, removed, or moved — grouped by day with card counts and value summaries
-- feat: Filter your activity by action type, collection, or date range (today, 7 days, 30 days)
 - fix: Quick add search input no longer resets after adding the first card to an empty collection
 
 ## 2026-03-28
