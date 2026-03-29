@@ -255,7 +255,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             <Search className="size-3 sm:mr-1" />
             <span className="hidden sm:inline">Quick add</span>
             <kbd className="bg-muted text-muted-foreground ml-1.5 hidden rounded px-1 py-0.5 font-mono text-[10px] sm:inline">
-              ⌘K
+              {navigator.platform.startsWith("Mac") ? "⌘K" : "Ctrl+K"}
             </kbd>
           </Button>
           <Button
