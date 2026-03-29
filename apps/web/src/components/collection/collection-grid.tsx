@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { comparePrintings } from "@openrift/shared";
+import { useNavigate } from "@tanstack/react-router";
 import { Check, Layers, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
@@ -77,9 +78,20 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   // Inline browse & add mode
   const [browsing, setBrowsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
   const { clearAllFilters } = useFilterActions();
+  const navigate = useNavigate();
+
+  const inboxId = collections.find((collection) => collection.isInbox)?.id;
 
   const startBrowsing = () => {
-    void setBrowsing(true);
+    if (collectionId) {
+      void setBrowsing(true);
+    } else if (inboxId) {
+      void navigate({
+        to: "/collections/$collectionId",
+        params: { collectionId: inboxId },
+        search: { browsing: true },
+      });
+    }
   };
 
   const handleCloseBrowsing = () => {
