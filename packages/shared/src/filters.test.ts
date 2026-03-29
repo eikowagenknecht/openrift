@@ -1335,9 +1335,9 @@ describe("sortCards", () => {
     expect(result.map((p) => p.shortCode)).toEqual(["SET1-001", "SET1-002", "SET1-003"]);
   });
 
-  it("sorts by energy, breaking ties by name", () => {
+  it("sorts by energy, breaking ties by shortCode", () => {
     const result = sortCards(printings, "energy");
-    // Alpha(2) and Bravo(2) tied → alphabetical; then Charlie(5)
+    // Alpha(2) and Bravo(2) tied → SET1-001 < SET1-002; then Charlie(5)
     expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 
@@ -1407,7 +1407,7 @@ describe("sortCards", () => {
       }),
     ];
     // desc reverses rarity (Rare first) but tiebreaker stays ascending
-    const result = sortCards(tied, "rarity", "desc");
+    const result = sortCards(tied, "rarity", { sortDir: "desc" });
     expect(result.map((p) => p.shortCode)).toEqual(["SET1-002", "SET1-001", "SET1-003"]);
   });
 
@@ -1473,9 +1473,10 @@ describe("sortCards", () => {
       expect(result.map((p) => p.card.name)).toEqual(["Cheap", "Expensive", "No Price"]);
     });
 
-    it("breaks price ties by name", () => {
+    it("breaks price ties by shortCode", () => {
       const tiedPrintings = [
         makePrinting({
+          shortCode: "SET1-002",
           marketPrice: 5,
           card: {
             id: "b",
@@ -1494,6 +1495,7 @@ describe("sortCards", () => {
           },
         }),
         makePrinting({
+          shortCode: "SET1-001",
           marketPrice: 5,
           card: {
             id: "a",
@@ -1516,9 +1518,10 @@ describe("sortCards", () => {
       expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo"]);
     });
 
-    it("sorts all-null-price printings by name", () => {
+    it("sorts all-null-price printings by shortCode", () => {
       const nullPrintings = [
         makePrinting({
+          shortCode: "SET1-002",
           card: {
             id: "z",
             name: "Zed",
@@ -1536,6 +1539,7 @@ describe("sortCards", () => {
           },
         }),
         makePrinting({
+          shortCode: "SET1-001",
           card: {
             id: "a",
             name: "Amy",
@@ -1555,6 +1559,179 @@ describe("sortCards", () => {
       ];
       const result = sortCards(nullPrintings, "price");
       expect(result.map((p) => p.card.name)).toEqual(["Amy", "Zed"]);
+    });
+
+    it("keeps nulls last when sorting price desc", () => {
+      const priceMix = [
+        makePrinting({
+          shortCode: "SET1-002",
+          card: {
+            id: "n",
+            name: "No Price",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          shortCode: "SET1-001",
+          marketPrice: 10,
+          card: {
+            id: "m",
+            name: "Mid Price",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          shortCode: "SET1-003",
+          marketPrice: 50,
+          card: {
+            id: "h",
+            name: "High Price",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+      ];
+      const result = sortCards(priceMix, "price", { sortDir: "desc" });
+      expect(result.map((p) => p.card.name)).toEqual(["High Price", "Mid Price", "No Price"]);
+    });
+
+    it("keeps nulls last when sorting energy desc", () => {
+      const energyMix = [
+        makePrinting({
+          shortCode: "SET1-002",
+          card: {
+            id: "n",
+            name: "No Energy",
+            type: "Spell",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          shortCode: "SET1-001",
+          card: {
+            id: "h",
+            name: "High Energy",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: 8,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          shortCode: "SET1-003",
+          card: {
+            id: "l",
+            name: "Low Energy",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: 1,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+      ];
+      const result = sortCards(energyMix, "energy", { sortDir: "desc" });
+      expect(result.map((p) => p.card.name)).toEqual(["High Energy", "Low Energy", "No Energy"]);
+    });
+
+    it("uses custom getPrice for price sort", () => {
+      const printingsWithCustomPrice = [
+        makePrinting({
+          shortCode: "SET1-001",
+          marketPrice: 5,
+          card: {
+            id: "a",
+            name: "Alpha",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+        makePrinting({
+          shortCode: "SET1-002",
+          marketPrice: 20,
+          card: {
+            id: "b",
+            name: "Bravo",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            rulesText: "",
+            effectText: "",
+          },
+        }),
+      ];
+      // Override so Alpha appears more expensive
+      const result = sortCards(printingsWithCustomPrice, "price", {
+        sortDir: "desc",
+        getPrice: (p) => (p.card.id === "a" ? 100 : 1),
+      });
+      expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo"]);
     });
   });
 
@@ -1600,9 +1777,10 @@ describe("sortCards", () => {
       expect(result.map((p) => p.card.name)).toEqual(["Low Energy", "No Energy"]);
     });
 
-    it("sorts non-null energy before null, null by name", () => {
+    it("sorts non-null energy before null, null by shortCode", () => {
       const energyPrintings = [
         makePrinting({
+          shortCode: "SET1-002",
           card: {
             id: "z",
             name: "Zeta Null",
@@ -1620,6 +1798,7 @@ describe("sortCards", () => {
           },
         }),
         makePrinting({
+          shortCode: "SET1-001",
           card: {
             id: "a",
             name: "Alpha Null",

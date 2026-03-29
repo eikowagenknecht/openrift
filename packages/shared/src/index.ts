@@ -121,6 +121,7 @@ export {
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
+export type { SortCardsOptions } from "./filters.js";
 
 export {
   buildPrintingId,
