@@ -1,0 +1,1253 @@
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { AppError } from "../../../errors.js";
+import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
+import { appendSetTotal, fixTypography } from "../../../services/fix-typography.js";
+import {
+  acceptPrinting,
+  deletePrinting,
+  renamePrinting,
+  updatePrintingPromoType,
+} from "../../../services/printing-admin.js";
+import { mutationsRoute } from "./mutations";
+
+// ---------------------------------------------------------------------------
+// Mock service modules — vitest hoists vi.mock() automatically
+// ---------------------------------------------------------------------------
+
+vi.mock("../../../services/printing-admin.js", () => ({
+  acceptPrinting: vi.fn(),
+  deletePrinting: vi.fn(),
+  renamePrinting: vi.fn(),
+  updatePrintingPromoType: vi.fn(),
+}));
+
+vi.mock("../../../services/accept-gallery.js", () => ({
+  acceptGalleryForNewCard: vi.fn(),
+}));
+
+vi.mock("../../../services/fix-typography.js", () => ({
+  fixTypography: vi.fn((text: string) => text),
+  appendSetTotal: vi.fn((code: string) => code),
+}));
+
+const mockAcceptPrinting = vi.mocked(acceptPrinting);
+const mockDeletePrinting = vi.mocked(deletePrinting);
+const mockRenamePrinting = vi.mocked(renamePrinting);
+const mockUpdatePrintingPromoType = vi.mocked(updatePrintingPromoType);
+const mockAcceptGalleryForNewCard = vi.mocked(acceptGalleryForNewCard);
+const mockFixTypography = vi.mocked(fixTypography);
+const mockAppendSetTotal = vi.mocked(appendSetTotal);
+
+// ---------------------------------------------------------------------------
+// Mock repos
+// ---------------------------------------------------------------------------
+
+const mockMut = {
+  autoCheckCandidateCards: vi.fn(),
+  autoCheckCandidatePrintings: vi.fn(),
+  checkCandidateCard: vi.fn(),
+  uncheckCandidateCard: vi.fn(),
+  checkAllCandidatePrintings: vi.fn(),
+  checkCandidatePrinting: vi.fn(),
+  uncheckCandidatePrinting: vi.fn(),
+  getCardBySlug: vi.fn(),
+  getCardAliases: vi.fn(),
+  checkAllCandidateCards: vi.fn(),
+  patchCandidatePrinting: vi.fn(),
+  deleteCandidatePrinting: vi.fn(),
+  getCandidatePrintingById: vi.fn(),
+  getPrintingDifferentiatorsById: vi.fn(),
+  copyCandidatePrinting: vi.fn(),
+  linkCandidatePrintings: vi.fn(),
+  getPrintingSlugById: vi.fn(),
+  upsertPrintingLinkOverrides: vi.fn(),
+  removePrintingLinkOverrides: vi.fn(),
+  renameCardSlug: vi.fn(),
+  updateCardBySlug: vi.fn(),
+  getCardTexts: vi.fn(),
+  updatePrintingBySlug: vi.fn(),
+  getSetPrintedTotalForPrinting: vi.fn(),
+  getCardIdBySlug: vi.fn(),
+  acceptNewCardFromSources: vi.fn(),
+  createNameAliases: vi.fn(),
+  checkByProvider: vi.fn(),
+  deleteByProvider: vi.fn(),
+};
+
+const mockCandidateCards = {};
+const mockPrintingImages = {};
+const mockPromoTypes = {};
+const mockSets = {
+  getBySlug: vi.fn(),
+};
+
+const mockTrxMut = {
+  acceptNewCardFromSources: vi.fn(),
+  createNameAliases: vi.fn(),
+};
+
+const mockIngestCandidates = vi.fn();
+
+const mockTransact = vi.fn(
+  async (
+    callback: (repos: {
+      candidateMutations: typeof mockTrxMut;
+      printingImages: object;
+    }) => Promise<unknown>,
+  ) => callback({ candidateMutations: mockTrxMut, printingImages: {} }),
+);
+
+// ---------------------------------------------------------------------------
+// Test app
+// ---------------------------------------------------------------------------
+
+const USER_ID = "a0000000-0001-4000-a000-000000000001";
+const mockIo = { fetch: vi.fn() };
+
+const app = new Hono()
+  .use("*", async (c, next) => {
+    c.set("user", { id: USER_ID });
+    c.set("io", mockIo as never);
+    c.set("transact", mockTransact as never);
+    c.set("repos", {
+      candidateMutations: mockMut,
+      candidateCards: mockCandidateCards,
+      printingImages: mockPrintingImages,
+      promoTypes: mockPromoTypes,
+      sets: mockSets,
+    } as never);
+    c.set("services", {
+      ingestCandidates: mockIngestCandidates,
+    } as never);
+    await next();
+  })
+  .route("/api/v1", mutationsRoute)
+  .onError((err, c) => {
+    if (err instanceof AppError) {
+      return c.json({ error: err.message, code: err.code }, err.status as 400);
+    }
+    throw err;
+  });
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("POST /api/v1/auto-check", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with checked counts", async () => {
+    mockMut.autoCheckCandidateCards.mockResolvedValue({ numAffectedRows: 5n });
+    mockMut.autoCheckCandidatePrintings.mockResolvedValue({ numAffectedRows: 10n });
+
+    const res = await app.request("/api/v1/auto-check", { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({
+      candidateCardsChecked: 5,
+      candidatePrintingsChecked: 10,
+    });
+  });
+});
+
+describe("POST /api/v1/:candidateCardId/check", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on success", async () => {
+    mockMut.checkCandidateCard.mockResolvedValue({ numUpdatedRows: 1n });
+
+    const res = await app.request("/api/v1/cc-1/check", { method: "POST" });
+    expect(res.status).toBe(204);
+    expect(mockMut.checkCandidateCard).toHaveBeenCalledWith("cc-1");
+  });
+
+  it("returns 404 when candidate card not found", async () => {
+    mockMut.checkCandidateCard.mockResolvedValue({ numUpdatedRows: 0n });
+
+    const res = await app.request("/api/v1/cc-1/check", { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 when result is null", async () => {
+    mockMut.checkCandidateCard.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/cc-1/check", { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/:candidateCardId/uncheck", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on success", async () => {
+    mockMut.uncheckCandidateCard.mockResolvedValue({ numUpdatedRows: 1n });
+
+    const res = await app.request("/api/v1/cc-1/uncheck", { method: "POST" });
+    expect(res.status).toBe(204);
+    expect(mockMut.uncheckCandidateCard).toHaveBeenCalledWith("cc-1");
+  });
+
+  it("returns 404 when candidate card not found", async () => {
+    mockMut.uncheckCandidateCard.mockResolvedValue({ numUpdatedRows: 0n });
+
+    const res = await app.request("/api/v1/cc-1/uncheck", { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 when result is null", async () => {
+    mockMut.uncheckCandidateCard.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/cc-1/uncheck", { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/candidate-printings/check-all", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with updated count", async () => {
+    mockMut.checkAllCandidatePrintings.mockResolvedValue(5);
+
+    const res = await app.request("/api/v1/candidate-printings/check-all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printingId: "p-1", extraIds: ["e-1", "e-2"] }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ updated: 5 });
+    expect(mockMut.checkAllCandidatePrintings).toHaveBeenCalledWith("p-1", ["e-1", "e-2"]);
+  });
+
+  it("works without optional fields", async () => {
+    mockMut.checkAllCandidatePrintings.mockResolvedValue(0);
+
+    const res = await app.request("/api/v1/candidate-printings/check-all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ updated: 0 });
+  });
+});
+
+describe("POST /api/v1/candidate-printings/:id/check", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on success", async () => {
+    mockMut.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+
+    const res = await app.request("/api/v1/candidate-printings/cp-1/check", { method: "POST" });
+    expect(res.status).toBe(204);
+    expect(mockMut.checkCandidatePrinting).toHaveBeenCalledWith("cp-1");
+  });
+
+  it("returns 404 when not found", async () => {
+    mockMut.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
+
+    const res = await app.request("/api/v1/candidate-printings/unknown/check", { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/candidate-printings/:id/uncheck", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on success", async () => {
+    mockMut.uncheckCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+
+    const res = await app.request("/api/v1/candidate-printings/cp-1/uncheck", { method: "POST" });
+    expect(res.status).toBe(204);
+    expect(mockMut.uncheckCandidatePrinting).toHaveBeenCalledWith("cp-1");
+  });
+
+  it("returns 404 when not found", async () => {
+    mockMut.uncheckCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
+
+    const res = await app.request("/api/v1/candidate-printings/unknown/uncheck", {
+      method: "POST",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 when result is null", async () => {
+    mockMut.uncheckCandidatePrinting.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/candidate-printings/unknown/uncheck", {
+      method: "POST",
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/:cardId/check-all", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with updated count", async () => {
+    mockMut.getCardBySlug.mockResolvedValue({ id: "card-uuid", name: "Fire Dragon" });
+    mockMut.getCardAliases.mockResolvedValue([{ normName: "fire-dragon-alt" }]);
+    mockMut.checkAllCandidateCards.mockResolvedValue(3);
+
+    const res = await app.request("/api/v1/fire-dragon/check-all", { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ updated: 3 });
+    expect(mockMut.checkAllCandidateCards).toHaveBeenCalledWith(
+      expect.arrayContaining(["fire-dragon-alt"]),
+      "card-uuid",
+    );
+  });
+
+  it("returns 404 when card not found", async () => {
+    mockMut.getCardBySlug.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/unknown-card/check-all", { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+
+  it("deduplicates normalized name variants", async () => {
+    mockMut.getCardBySlug.mockResolvedValue({ id: "card-uuid", name: "Fire Dragon" });
+    mockMut.getCardAliases.mockResolvedValue([]);
+    mockMut.checkAllCandidateCards.mockResolvedValue(1);
+
+    await app.request("/api/v1/fire-dragon/check-all", { method: "POST" });
+    const callArgs = mockMut.checkAllCandidateCards.mock.calls[0];
+    const uniqueVariants = new Set(callArgs[0]);
+    expect(uniqueVariants.size).toBe(callArgs[0].length);
+  });
+});
+
+describe("PATCH /api/v1/candidate-printings/:id", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on successful patch", async () => {
+    mockMut.patchCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+
+    const res = await app.request("/api/v1/candidate-printings/cp-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ artVariant: "alternate", finish: "foil" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.patchCandidatePrinting).toHaveBeenCalledWith("cp-1", {
+      artVariant: "alternate",
+      finish: "foil",
+    });
+  });
+
+  it("returns 400 when no valid fields provided", async () => {
+    const res = await app.request("/api/v1/candidate-printings/cp-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("No valid fields");
+  });
+
+  it("returns 404 when candidate printing not found", async () => {
+    mockMut.patchCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
+
+    const res = await app.request("/api/v1/candidate-printings/unknown", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rarity: "Rare" }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 when result is null", async () => {
+    mockMut.patchCandidatePrinting.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/candidate-printings/unknown", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isSigned: true }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /api/v1/candidate-printings/:id", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on success", async () => {
+    mockMut.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 1n });
+
+    const res = await app.request("/api/v1/candidate-printings/cp-1", { method: "DELETE" });
+    expect(res.status).toBe(204);
+    expect(mockMut.deleteCandidatePrinting).toHaveBeenCalledWith("cp-1");
+  });
+
+  it("returns 404 when not found", async () => {
+    mockMut.deleteCandidatePrinting.mockResolvedValue({ numDeletedRows: 0n });
+
+    const res = await app.request("/api/v1/candidate-printings/unknown", { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 when result is null", async () => {
+    mockMut.deleteCandidatePrinting.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/candidate-printings/unknown", { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/candidate-printings/:id/copy", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on successful copy", async () => {
+    const candidatePrinting = { id: "cp-1", name: "Fire Dragon" };
+    const targetPrinting = { id: "p-2", slug: "p-2" };
+    mockMut.getCandidatePrintingById.mockResolvedValue(candidatePrinting);
+    mockMut.getPrintingDifferentiatorsById.mockResolvedValue(targetPrinting);
+    mockMut.copyCandidatePrinting.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/candidate-printings/cp-1/copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printingId: "p-2" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.copyCandidatePrinting).toHaveBeenCalledWith(candidatePrinting, targetPrinting);
+  });
+
+  it("returns 400 when printingId is empty", async () => {
+    const res = await app.request("/api/v1/candidate-printings/cp-1/copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printingId: "" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 404 when candidate printing not found", async () => {
+    mockMut.getCandidatePrintingById.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/candidate-printings/unknown/copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printingId: "p-2" }),
+    });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.error).toContain("Candidate printing not found");
+  });
+
+  it("returns 404 when target printing not found", async () => {
+    mockMut.getCandidatePrintingById.mockResolvedValue({ id: "cp-1" });
+    mockMut.getPrintingDifferentiatorsById.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/candidate-printings/cp-1/copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printingId: "unknown" }),
+    });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.error).toContain("Target printing not found");
+  });
+});
+
+describe("POST /api/v1/candidate-printings/link", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 and upserts link overrides when linking", async () => {
+    mockMut.linkCandidatePrintings.mockResolvedValue(undefined);
+    mockMut.getPrintingSlugById.mockResolvedValue({ slug: "OGS-001" });
+    mockMut.upsertPrintingLinkOverrides.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/candidate-printings/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        candidatePrintingIds: ["cp-1", "cp-2"],
+        printingId: "p-1",
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.linkCandidatePrintings).toHaveBeenCalledWith(["cp-1", "cp-2"], "p-1");
+    expect(mockMut.upsertPrintingLinkOverrides).toHaveBeenCalledWith(["cp-1", "cp-2"], "OGS-001");
+  });
+
+  it("removes link overrides when unlinking (printingId is null)", async () => {
+    mockMut.linkCandidatePrintings.mockResolvedValue(undefined);
+    mockMut.removePrintingLinkOverrides.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/candidate-printings/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        candidatePrintingIds: ["cp-1"],
+        printingId: null,
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.removePrintingLinkOverrides).toHaveBeenCalledWith(["cp-1"]);
+  });
+
+  it("skips link override upsert when printing slug not found", async () => {
+    mockMut.linkCandidatePrintings.mockResolvedValue(undefined);
+    mockMut.getPrintingSlugById.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/candidate-printings/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        candidatePrintingIds: ["cp-1"],
+        printingId: "p-1",
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.upsertPrintingLinkOverrides).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when candidatePrintingIds is empty", async () => {
+    const res = await app.request("/api/v1/candidate-printings/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        candidatePrintingIds: [],
+        printingId: "p-1",
+      }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("candidatePrintingIds[] required");
+  });
+});
+
+describe("POST /api/v1/:cardId/rename", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on successful rename", async () => {
+    mockMut.renameCardSlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "flame-drake" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.renameCardSlug).toHaveBeenCalledWith("fire-dragon", "flame-drake");
+  });
+
+  it("returns 204 without renaming when newId matches current slug", async () => {
+    const res = await app.request("/api/v1/fire-dragon/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "fire-dragon" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.renameCardSlug).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when newId is empty", async () => {
+    const res = await app.request("/api/v1/fire-dragon/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "  " }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("newId is required");
+  });
+});
+
+describe("POST /api/v1/:cardId/accept-field", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockFixTypography.mockImplementation((text: string) => text);
+  });
+
+  it("returns 204 and updates card field", async () => {
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "name", value: "Flame Drake" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { name: "Flame Drake" });
+  });
+
+  it("returns 400 when field is not provided", async () => {
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "", value: "test" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when field is not allowed", async () => {
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "notAllowed", value: "test" }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("Invalid field");
+  });
+
+  it("normalizes null to empty array for array fields", async () => {
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "superTypes", value: null }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { superTypes: [] });
+  });
+
+  it("normalizes null to empty array for tags field", async () => {
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "tags", value: null }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { tags: [] });
+  });
+
+  it("applies fixTypography when source is provider and field is rulesText", async () => {
+    mockFixTypography.mockReturnValue("Fixed rules text");
+    mockMut.getCardTexts.mockResolvedValue({ rulesText: "old", effectText: "effect" });
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        field: "rulesText",
+        value: "Raw rules text",
+        source: "provider",
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockFixTypography).toHaveBeenCalledWith("Raw rules text");
+  });
+
+  it("recomputes keywords when rulesText changes", async () => {
+    mockMut.getCardTexts.mockResolvedValue({ rulesText: "old", effectText: "effect" });
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "rulesText", value: "new rules" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.getCardTexts).toHaveBeenCalledWith("fire-dragon");
+    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith(
+      "fire-dragon",
+      expect.objectContaining({ rulesText: "new rules", keywords: expect.any(Array) }),
+    );
+  });
+
+  it("recomputes keywords when effectText changes", async () => {
+    mockMut.getCardTexts.mockResolvedValue({ rulesText: "rules", effectText: "old" });
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "effectText", value: "new effect" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.getCardTexts).toHaveBeenCalledWith("fire-dragon");
+  });
+
+  it("returns 404 when card not found during keyword recompute", async () => {
+    mockMut.getCardTexts.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/unknown/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "rulesText", value: "text" }),
+    });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.error).toContain("Card not found");
+  });
+
+  it("does not apply fixTypography when source is manual", async () => {
+    mockMut.getCardTexts.mockResolvedValue({ rulesText: "old", effectText: "effect" });
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "rulesText", value: "Raw text", source: "manual" }),
+    });
+    expect(mockFixTypography).not.toHaveBeenCalled();
+  });
+
+  it("accepts might field with numeric value", async () => {
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "might", value: 3 }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { might: 3 });
+  });
+
+  it("returns 400 when card field value fails validation", async () => {
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "might", value: -5 }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.code).toBe("VALIDATION_ERROR");
+    expect(json.error).toContain("Invalid value for might");
+  });
+
+  it("deduplicates keywords when recomputing for rulesText", async () => {
+    mockMut.getCardTexts.mockResolvedValue({
+      rulesText: "[Shield] old text",
+      effectText: "[Shield] effect",
+    });
+    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "rulesText", value: "[Shield] new text [Shield]" }),
+    });
+    expect(res.status).toBe(204);
+    // Keywords should be deduplicated
+    const updateArgs = mockMut.updateCardBySlug.mock.calls[0][1];
+    expect(updateArgs.keywords).toBeDefined();
+    const uniqueKeywords = new Set(updateArgs.keywords);
+    expect(uniqueKeywords.size).toBe(updateArgs.keywords.length);
+  });
+});
+
+describe("POST /api/v1/printing/:printingId/accept-field", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockFixTypography.mockImplementation((text: string) => text);
+    mockAppendSetTotal.mockImplementation((code: string) => code);
+  });
+
+  it("returns 204 and updates printing field", async () => {
+    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "artist", value: "Alice" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMut.updatePrintingBySlug).toHaveBeenCalledWith("OGS-001", "artist", "Alice");
+  });
+
+  it("returns 400 when field is not provided", async () => {
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "", value: "test" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when field is not allowed", async () => {
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "invalidField", value: "test" }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("Invalid field");
+  });
+
+  it("delegates to updatePrintingPromoType when field is promoTypeId", async () => {
+    mockUpdatePrintingPromoType.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "promoTypeId", value: "promo-type-1" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockUpdatePrintingPromoType).toHaveBeenCalledWith(
+      expect.objectContaining({ candidateMutations: mockMut }),
+      "OGS-001",
+      "promo-type-1",
+    );
+    expect(mockMut.updatePrintingBySlug).not.toHaveBeenCalled();
+  });
+
+  it("passes null to updatePrintingPromoType when value is empty string", async () => {
+    mockUpdatePrintingPromoType.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "promoTypeId", value: "" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockUpdatePrintingPromoType).toHaveBeenCalledWith(expect.anything(), "OGS-001", null);
+  });
+
+  it("applies fixTypography for printedRulesText from provider", async () => {
+    mockFixTypography.mockReturnValue("Fixed text");
+    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        field: "printedRulesText",
+        value: "Raw text",
+        source: "provider",
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockFixTypography).toHaveBeenCalledWith("Raw text");
+    expect(mockMut.updatePrintingBySlug).toHaveBeenCalledWith(
+      "OGS-001",
+      "printedRulesText",
+      "Fixed text",
+    );
+  });
+
+  it("applies fixTypography with special options for flavorText from provider", async () => {
+    mockFixTypography.mockReturnValue("Fixed flavor");
+    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        field: "flavorText",
+        value: "Raw flavor",
+        source: "provider",
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockFixTypography).toHaveBeenCalledWith("Raw flavor", {
+      italicParens: false,
+      keywordGlyphs: false,
+    });
+  });
+
+  it("calls appendSetTotal for publicCode from provider", async () => {
+    mockAppendSetTotal.mockReturnValue("OGS-001/100");
+    mockMut.getSetPrintedTotalForPrinting.mockResolvedValue({ printedTotal: 100 });
+    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        field: "publicCode",
+        value: "OGS-001",
+        source: "provider",
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockAppendSetTotal).toHaveBeenCalledWith("OGS-001", 100);
+  });
+
+  it("resolves setId slug to UUID", async () => {
+    mockSets.getBySlug.mockResolvedValue({ id: "set-uuid-1" });
+    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "setId", value: "origin-set" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockSets.getBySlug).toHaveBeenCalledWith("origin-set");
+    expect(mockMut.updatePrintingBySlug).toHaveBeenCalledWith("OGS-001", "setId", "set-uuid-1");
+  });
+
+  it("returns 404 when set slug not found", async () => {
+    mockSets.getBySlug.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "setId", value: "nonexistent" }),
+    });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.error).toContain("Set not found");
+  });
+
+  it("normalizes rarity case", async () => {
+    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "rarity", value: "common" }),
+    });
+    expect(res.status).toBe(204);
+  });
+
+  it("returns 400 when printing field value fails validation", async () => {
+    const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "collectorNumber", value: -1 }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.code).toBe("VALIDATION_ERROR");
+    expect(json.error).toContain("Invalid value for collectorNumber");
+  });
+});
+
+describe("POST /api/v1/printing/:printingId/rename", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on successful rename", async () => {
+    mockRenamePrinting.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "OGS-002" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockRenamePrinting).toHaveBeenCalledWith(
+      expect.objectContaining({ candidateMutations: mockMut }),
+      "OGS-001",
+      "OGS-002",
+    );
+  });
+
+  it("returns 204 without renaming when newId matches current slug", async () => {
+    const res = await app.request("/api/v1/printing/OGS-001/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "OGS-001" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockRenamePrinting).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when newId is empty", async () => {
+    const res = await app.request("/api/v1/printing/OGS-001/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "  " }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("newId is required");
+  });
+});
+
+describe("DELETE /api/v1/printing/:printingId", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on successful deletion", async () => {
+    mockDeletePrinting.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/printing/OGS-001", { method: "DELETE" });
+    expect(res.status).toBe(204);
+    expect(mockDeletePrinting).toHaveBeenCalledWith(
+      mockTransact,
+      mockIo,
+      expect.objectContaining({ candidateMutations: mockMut }),
+      "OGS-001",
+    );
+  });
+});
+
+describe("POST /api/v1/new/:name/accept", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on successful accept", async () => {
+    mockTrxMut.acceptNewCardFromSources.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/new/Fire%20Dragon/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cardFields: {
+          id: "fire-dragon",
+          name: "Fire Dragon",
+          type: "Unit",
+          domains: ["Fury"],
+        },
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockTrxMut.acceptNewCardFromSources).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "fire-dragon", name: "Fire Dragon" }),
+      "Fire Dragon",
+    );
+  });
+
+  it("returns 400 when cardFields is missing", async () => {
+    const res = await app.request("/api/v1/new/Fire%20Dragon/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/new/:name/accept-gallery", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with gallery accept result", async () => {
+    const result = { cardSlug: "fire-dragon", printingsCreated: 3, imagesRehosted: 3 };
+    mockAcceptGalleryForNewCard.mockResolvedValue(result);
+
+    const res = await app.request("/api/v1/new/Fire%20Dragon/accept-gallery", { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual(result);
+    expect(mockAcceptGalleryForNewCard).toHaveBeenCalledWith(
+      mockTransact,
+      mockIo,
+      expect.objectContaining({
+        candidateCards: mockCandidateCards,
+        candidateMutations: mockMut,
+      }),
+      "Fire Dragon",
+    );
+  });
+});
+
+describe("POST /api/v1/new/:name/link", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 204 on successful link", async () => {
+    mockMut.getCardIdBySlug.mockResolvedValue({ id: "card-uuid" });
+    mockTrxMut.createNameAliases.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/new/Fire%20Dragon/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: "fire-dragon" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockTrxMut.createNameAliases).toHaveBeenCalledWith("Fire Dragon", "card-uuid");
+  });
+
+  it("returns 400 when cardId is missing", async () => {
+    const res = await app.request("/api/v1/new/Fire%20Dragon/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: "" }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("cardId required");
+  });
+
+  it("returns 404 when target card not found", async () => {
+    mockMut.getCardIdBySlug.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/new/Fire%20Dragon/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: "nonexistent" }),
+    });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.error).toContain("Target card not found");
+  });
+});
+
+describe("POST /api/v1/:cardId/accept-printing", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with printingId", async () => {
+    mockAcceptPrinting.mockResolvedValue("printing-uuid");
+
+    const res = await app.request("/api/v1/fire-dragon/accept-printing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        printingFields: {
+          shortCode: "FD",
+          collectorNumber: 1,
+          artist: "Alice",
+          publicCode: "OGS-001",
+        },
+        candidatePrintingIds: ["cp-1", "cp-2"],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ printingId: "printing-uuid" });
+    expect(mockAcceptPrinting).toHaveBeenCalledWith(
+      mockTransact,
+      expect.objectContaining({ candidateMutations: mockMut }),
+      "fire-dragon",
+      expect.objectContaining({ shortCode: "FD" }),
+      ["cp-1", "cp-2"],
+    );
+  });
+});
+
+describe("POST /api/v1/upload", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with upload result", async () => {
+    const result = {
+      provider: "test-provider",
+      newCards: 5,
+      removedCards: 0,
+      updates: 2,
+      unchanged: 3,
+      newPrintings: 10,
+      removedPrintings: 0,
+      printingUpdates: 1,
+      printingsUnchanged: 9,
+      errors: [],
+      newCardDetails: [{ name: "New Card", shortCode: "NC" }],
+      removedCardDetails: [],
+      updatedCards: [],
+      newPrintingDetails: [],
+      removedPrintingDetails: [],
+      updatedPrintings: [],
+    };
+    mockIngestCandidates.mockResolvedValue(result);
+
+    const res = await app.request("/api/v1/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: "test-provider",
+        candidates: [
+          {
+            card: {
+              name: "New Card",
+              external_id: "ext-1",
+            },
+            printings: [
+              {
+                short_code: "NC-001",
+                external_id: "p-ext-1",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.provider).toBe("test-provider");
+    expect(json.newCards).toBe(5);
+    expect(mockIngestCandidates).toHaveBeenCalledWith(
+      mockTransact,
+      "test-provider",
+      expect.any(Array),
+    );
+  });
+});
+
+describe("POST /api/v1/by-provider/:provider/check", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with check result", async () => {
+    mockMut.checkByProvider.mockResolvedValue({
+      cardsChecked: 10,
+      printingsChecked: 20,
+    });
+
+    const res = await app.request("/api/v1/by-provider/tcgplayer/check", { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ cardsChecked: 10, printingsChecked: 20 });
+    expect(mockMut.checkByProvider).toHaveBeenCalledWith("tcgplayer", expect.any(Date));
+  });
+
+  it("returns 400 when provider is empty", async () => {
+    const res = await app.request("/api/v1/by-provider/%20/check", { method: "POST" });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("Provider name is required");
+  });
+});
+
+describe("DELETE /api/v1/by-provider/:provider", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with delete result", async () => {
+    mockMut.deleteByProvider.mockResolvedValue(15);
+
+    const res = await app.request("/api/v1/by-provider/tcgplayer", { method: "DELETE" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ provider: "tcgplayer", deleted: 15 });
+    expect(mockMut.deleteByProvider).toHaveBeenCalledWith("tcgplayer");
+  });
+
+  it("returns 400 when provider is empty", async () => {
+    const res = await app.request("/api/v1/by-provider/%20", { method: "DELETE" });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("Provider name is required");
+  });
+});

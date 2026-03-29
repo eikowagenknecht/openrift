@@ -393,6 +393,60 @@ describe("acceptPrinting", () => {
     ).rejects.toThrow("Invalid rarity");
   });
 
+  it("creates a printing with a valid promoTypeId", async () => {
+    const upsertPrinting = vi.fn(async () => "p-uuid");
+    const insertImage = vi.fn(async () => {});
+    const linkAndCheckCandidatePrintings = vi.fn(async () => {});
+
+    const repos = {
+      candidateMutations: {
+        getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
+        getPrintingCardIdBySlug: vi.fn(async () => null),
+        getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
+        upsertPrinting,
+        linkAndCheckCandidatePrintings,
+      },
+      printingImages: { insertImage },
+      promoTypes: {
+        getById: vi.fn(async () => ({ slug: "showcase" })),
+      },
+      sets: {
+        upsert: vi.fn(async () => {}),
+        getPrintedTotal: vi.fn(async () => null),
+      },
+    };
+
+    const trxRepos = {
+      ...repos,
+      candidateMutations: {
+        ...repos.candidateMutations,
+        getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
+      },
+    };
+
+    const transact = mockTransact(trxRepos);
+
+    const result = await acceptPrinting(
+      transact,
+      repos as any,
+      "card-slug",
+      {
+        shortCode: "OGN-001",
+        setId: "ogn",
+        setName: "Origins",
+        collectorNumber: 1,
+        rarity: "Common",
+        artist: "Artist A",
+        publicCode: "001",
+        promoTypeId: "promo-uuid",
+      },
+      ["cp-1"],
+    );
+
+    expect(result).toBe("OGN-001:normal:showcase");
+    expect(repos.promoTypes.getById).toHaveBeenCalledWith("promo-uuid");
+  });
+
   it("does not insert image when imageUrl is absent", async () => {
     const upsertPrinting = vi.fn(async () => "p-uuid");
     const insertImage = vi.fn(async () => {});

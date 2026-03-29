@@ -455,6 +455,102 @@ describe("refreshCardtraderPrices", () => {
     });
   });
 
+  describe("ctFetch edge cases", () => {
+    it("throws on HTTP error response", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+
+      // Make the expansions endpoint return an error
+      fetchSpy.mockResolvedValueOnce(
+        new Response("Server Error", { status: 500, statusText: "Internal Server Error" }),
+      );
+
+      await expect(
+        refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token"),
+      ).rejects.toThrow("HTTP 500");
+    });
+
+    it("unwraps {array: [...]} response format", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+
+      // Return expansions wrapped in {array: [...]}
+      fetchSpy.mockImplementation(async (url: string | URL | Request) => {
+        const urlStr =
+          typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+        if (urlStr.includes("/expansions")) {
+          return Response.json({ array: [EXPANSION_A] });
+        }
+        if (urlStr.includes("blueprints/export")) {
+          return Response.json([]);
+        }
+        if (urlStr.includes("marketplace/products")) {
+          return Response.json({});
+        }
+        return Response.json([]);
+      });
+
+      const result = await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+      expect(result.transformed.groups).toBe(1);
+    });
+  });
+
+  describe("marketplace listing edge cases", () => {
+    it("skips blueprints with empty listing arrays", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([[1001, { "5001": [] }]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(0);
+    });
+
+    it("picks the cheapest foil listing when multiple exist", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Foil Expensive",
+                  price_cents: 500,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en", riftbound_foil: true },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Foil Cheap",
+                  price_cents: 150,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en", riftbound_foil: true },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      const foilRow = staging.find((row) => row.finish === "foil");
+      expect(foilRow).toBeDefined();
+      expect(foilRow?.marketCents).toBe(150);
+    });
+  });
+
   // ── Return value ─────────────────────────────────────────────────────
 
   describe("return value", () => {
