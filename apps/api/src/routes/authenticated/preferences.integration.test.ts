@@ -1,6 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { PREFERENCES_DEFAULTS } from "../../repositories/user-preferences.js";
 import {
   createTestContext,
   createUnauthenticatedTestContext,
@@ -46,13 +45,13 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
   // ── GET /preferences ──────────────────────────────────────────────────────
 
   describe("GET /preferences", () => {
-    it("returns 200 with defaults when no preferences saved", async () => {
+    it("returns 200 with empty object when no preferences saved", async () => {
       const res = await app.fetch(req("GET", "/preferences"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      // When no row exists, handler returns PREFERENCES_DEFAULTS directly (not from DB)
-      expect(json).toEqual(PREFERENCES_DEFAULTS);
+      // When no row exists, handler returns {} — client resolves defaults
+      expect(json).toEqual({});
     });
 
     it("returns a JSON content type", async () => {
@@ -64,16 +63,14 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
   // ── PATCH /preferences ──────────────────────────────��─────────────────────
 
   describe("PATCH /preferences", () => {
-    it("first PATCH returns merged preferences with updated field", async () => {
+    it("first PATCH returns only the stored field", async () => {
       const res = await app.fetch(req("PATCH", "/preferences", { showImages: false }));
       expect(res.status).toBe(200);
 
       const json = parsePrefs(await res.json());
       expect(json.showImages).toBe(false);
-      // Other defaults should be preserved in the first upsert
-      expect(json.fancyFan).toBe(true);
-      expect(json.visibleFields).toEqual(PREFERENCES_DEFAULTS.visibleFields);
-      expect(json.marketplaceOrder).toEqual(PREFERENCES_DEFAULTS.marketplaceOrder);
+      // Only explicitly-set fields are stored; missing fields resolve to defaults client-side
+      expect(json.fancyFan).toBeUndefined();
     });
 
     it("subsequent PATCH exercises the upsert on-conflict path", async () => {

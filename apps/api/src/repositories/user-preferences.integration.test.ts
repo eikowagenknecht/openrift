@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
-import { PREFERENCES_DEFAULTS, userPreferencesRepo } from "./user-preferences.js";
+import { userPreferencesRepo } from "./user-preferences.js";
 
 const ctx = createDbContext("a0000000-0037-4000-a000-000000000001");
 
@@ -25,14 +25,11 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  it("upsert creates preferences for new user with merged defaults", async () => {
+  it("upsert creates preferences for new user with only the provided field", async () => {
     const result = parsePrefs(await repo.upsert(userId, { showImages: false }));
     expect(result.showImages).toBe(false);
-    // Other fields come from PREFERENCES_DEFAULTS
-    expect(result.richEffects).toBe(PREFERENCES_DEFAULTS.richEffects);
-    expect(result.theme).toBe(PREFERENCES_DEFAULTS.theme);
-    expect(result.visibleFields).toEqual(PREFERENCES_DEFAULTS.visibleFields);
-    expect(result.marketplaceOrder).toEqual(PREFERENCES_DEFAULTS.marketplaceOrder);
+    // Only explicitly-set fields are stored; missing fields resolve to defaults client-side
+    expect(Object.keys(result)).toEqual(["showImages"]);
   });
 
   it("getByUserId returns saved preferences after upsert", async () => {
@@ -41,7 +38,8 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
     expect(row!.userId).toBe(userId);
     const data = parsePrefs(row!.data);
     expect(data.showImages).toBe(false);
-    expect(data.theme).toBe("light");
+    // theme is not stored (using default), so it should be absent
+    expect(data.theme).toBeUndefined();
   });
 
   it("upsert on existing row exercises the on-conflict path", async () => {

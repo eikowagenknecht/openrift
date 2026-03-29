@@ -1,8 +1,8 @@
+import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { PREFERENCES_DEFAULTS } from "../../repositories/user-preferences.js";
 import { preferencesRoute } from "./preferences";
 
 // ---------------------------------------------------------------------------
@@ -11,7 +11,7 @@ import { preferencesRoute } from "./preferences";
 
 const mockRepo = {
   getByUserId: vi.fn(() => Promise.resolve(undefined as object | undefined)),
-  upsert: vi.fn(() => Promise.resolve(PREFERENCES_DEFAULTS)),
+  upsert: vi.fn(() => Promise.resolve({})),
 };
 
 // ---------------------------------------------------------------------------
@@ -43,18 +43,18 @@ describe("GET /api/v1/preferences", () => {
     vi.resetAllMocks();
   });
 
-  it("returns defaults when no preferences exist", async () => {
+  it("returns empty object when no preferences exist", async () => {
     mockRepo.getByUserId.mockResolvedValue(undefined);
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual(PREFERENCES_DEFAULTS);
+    expect(json).toEqual({});
     expect(mockRepo.getByUserId).toHaveBeenCalledWith(USER_ID);
   });
 
   it("returns stored preferences when they exist", async () => {
     const storedPrefs = {
-      ...PREFERENCES_DEFAULTS,
+      ...PREFERENCE_DEFAULTS,
       showImages: false,
       theme: "dark",
     };
@@ -66,12 +66,12 @@ describe("GET /api/v1/preferences", () => {
     expect(json.theme).toBe("dark");
   });
 
-  it("returns defaults when row exists but data is null", async () => {
+  it("returns empty object when row exists but data is null", async () => {
     mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: null });
     const res = await app.request("/api/v1/preferences");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual(PREFERENCES_DEFAULTS);
+    expect(json).toEqual({});
   });
 });
 
@@ -81,8 +81,7 @@ describe("PATCH /api/v1/preferences", () => {
   });
 
   it("returns 200 with updated preferences", async () => {
-    const updated = { ...PREFERENCES_DEFAULTS, showImages: false };
-    mockRepo.upsert.mockResolvedValue(updated);
+    mockRepo.upsert.mockResolvedValue({ showImages: false });
     const res = await app.request("/api/v1/preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -95,8 +94,7 @@ describe("PATCH /api/v1/preferences", () => {
   });
 
   it("updates theme preference", async () => {
-    const updated = { ...PREFERENCES_DEFAULTS, theme: "dark" };
-    mockRepo.upsert.mockResolvedValue(updated);
+    mockRepo.upsert.mockResolvedValue({ theme: "dark" });
     const res = await app.request("/api/v1/preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -108,11 +106,7 @@ describe("PATCH /api/v1/preferences", () => {
   });
 
   it("updates visibleFields partial object", async () => {
-    const updated = {
-      ...PREFERENCES_DEFAULTS,
-      visibleFields: { ...PREFERENCES_DEFAULTS.visibleFields, price: false },
-    };
-    mockRepo.upsert.mockResolvedValue(updated);
+    mockRepo.upsert.mockResolvedValue({ visibleFields: { price: false } });
     const res = await app.request("/api/v1/preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -123,25 +117,20 @@ describe("PATCH /api/v1/preferences", () => {
     expect(json.visibleFields.price).toBe(false);
   });
 
-  it("updates richEffects preference", async () => {
-    const updated = { ...PREFERENCES_DEFAULTS, richEffects: false };
-    mockRepo.upsert.mockResolvedValue(updated);
+  it("updates fancyFan preference", async () => {
+    mockRepo.upsert.mockResolvedValue({ fancyFan: false });
     const res = await app.request("/api/v1/preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ richEffects: false }),
+      body: JSON.stringify({ fancyFan: false }),
     });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.richEffects).toBe(false);
+    expect(json.fancyFan).toBe(false);
   });
 
   it("updates marketplaceOrder preference", async () => {
-    const updated = {
-      ...PREFERENCES_DEFAULTS,
-      marketplaceOrder: ["cardmarket", "tcgplayer"],
-    };
-    mockRepo.upsert.mockResolvedValue(updated);
+    mockRepo.upsert.mockResolvedValue({ marketplaceOrder: ["cardmarket", "tcgplayer"] });
     const res = await app.request("/api/v1/preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -171,7 +160,7 @@ describe("PATCH /api/v1/preferences", () => {
   });
 
   it("allows empty body (all fields optional)", async () => {
-    mockRepo.upsert.mockResolvedValue(PREFERENCES_DEFAULTS);
+    mockRepo.upsert.mockResolvedValue({});
     const res = await app.request("/api/v1/preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
