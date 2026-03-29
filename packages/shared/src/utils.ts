@@ -37,7 +37,7 @@ export function normalizeNameForMatching(name: string): string {
 interface ComparablePrinting {
   setId?: string | null;
   setOrder?: number;
-  collectorNumber: number;
+  shortCode: string;
   artVariant: ArtVariant | null;
   rarity: Rarity | string;
   finish: Finish | string;
@@ -48,7 +48,7 @@ interface ComparablePrinting {
 /**
  * Compare two printings for canonical ordering.
  * Sort order: set (by `setOrder` when available, else `setId` string) →
- * collector number → art variant → rarity → finish → signed → promo type.
+ * short code → art variant → rarity → finish → signed → promo type.
  * Null/empty art variants are treated as "normal".
  * Use as a comparator for `.sort()` to get canonical printing order.
  *
@@ -64,7 +64,7 @@ export function comparePrintings(a: ComparablePrinting, b: ComparablePrinting): 
       : (a.setId ?? "").localeCompare(b.setId ?? "");
   return (
     setCompare ||
-    a.collectorNumber - b.collectorNumber ||
+    a.shortCode.localeCompare(b.shortCode) ||
     ART_VARIANT_ORDER.indexOf(av(a.artVariant)) - ART_VARIANT_ORDER.indexOf(av(b.artVariant)) ||
     RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity) ||
     FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish) ||
