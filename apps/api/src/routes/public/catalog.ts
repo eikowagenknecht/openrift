@@ -36,7 +36,7 @@ export const catalogRoute = catalogApp
   .openapi(getCatalog, async (c) => {
     const { catalog, marketplace } = c.get("repos");
 
-    const [sets, cardRows, printingRows, imageRows, priceRows, banRows, totalCopies] =
+    const [sets, cardRows, printingRows, imageRows, priceRows, banRows, totalCopies, languages] =
       await Promise.all([
         catalog.sets(),
         catalog.cards(),
@@ -45,6 +45,7 @@ export const catalogRoute = catalogApp
         marketplace.latestPrices(),
         catalog.cardBans(),
         catalog.totalCopies(),
+        catalog.languages(),
       ]);
 
     // Build per-printing, per-marketplace price map
@@ -94,6 +95,7 @@ export const catalogRoute = catalogApp
       cards,
       printings,
       totalCopies,
+      languages,
     };
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");

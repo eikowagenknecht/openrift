@@ -430,6 +430,8 @@ export async function ingestCandidates(
           printedEffectText: emptyToNull(p.printed_effect_text),
           imageUrl: p.image_url ?? null,
           flavorText: p.flavor_text ?? null,
+          language: p.language ?? null,
+          printedName: p.printed_name ?? null,
           externalId: p.external_id,
           extraData: jsonOrNull(p.extra_data),
         };

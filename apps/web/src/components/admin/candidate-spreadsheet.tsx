@@ -94,6 +94,7 @@ export const CANDIDATE_CARD_FIELDS: FieldDef[] = [
 export function buildCandidatePrintingFields(
   promoTypes: readonly { value: string; label: string }[],
   artistSuggestions?: readonly string[],
+  languages?: readonly { value: string; label: string }[],
 ): FieldDef[] {
   return [
     { key: "externalId", label: "External ID", readOnly: true },
@@ -115,6 +116,12 @@ export function buildCandidatePrintingFields(
       label: "Artist",
       suggestions: artistSuggestions?.length ? artistSuggestions : undefined,
     },
+    {
+      key: "language",
+      label: "Language",
+      labeledOptions: languages && languages.length > 0 ? languages : undefined,
+    },
+    { key: "printedName", label: "Printed Name" },
     { key: "printedRulesText", label: "Printed Rules", multiline: true },
     { key: "printedEffectText", label: "Printed Effect", multiline: true },
     { key: "flavorText", label: "Flavor Text", multiline: true },

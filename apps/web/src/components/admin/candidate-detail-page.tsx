@@ -85,6 +85,7 @@ import {
 } from "@/hooks/use-candidates";
 import { useDistinctArtists } from "@/hooks/use-distinct-artists";
 import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
+import { useLanguages } from "@/hooks/use-languages";
 import { usePromoTypes } from "@/hooks/use-promo-types";
 import { useProviderSettings } from "@/hooks/use-provider-settings";
 import { cn } from "@/lib/utils";
@@ -153,6 +154,8 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   // --- Promo types for dropdown + slug lookup ---
   const { data: promoTypesData } = usePromoTypes();
   const promoTypes = promoTypesData?.promoTypes ?? [];
+  const { data: languagesData } = useLanguages();
+  const languagesList = languagesData?.languages ?? [];
   const { data: artistSuggestions } = useDistinctArtists();
   const printingSourceFields = buildCandidatePrintingFields(
     promoTypes.map((pt: { id: string; label: string }) => ({
@@ -160,6 +163,10 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
       label: pt.label,
     })),
     artistSuggestions,
+    languagesList.map((lang: { code: string; name: string }) => ({
+      value: lang.code,
+      label: lang.name,
+    })),
   );
 
   // --- New-mode hooks ---

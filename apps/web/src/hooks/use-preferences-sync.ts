@@ -26,6 +26,7 @@ function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null }
     foilEffect: overrides.foilEffect,
     cardTilt: overrides.cardTilt,
     marketplaceOrder: overrides.marketplaceOrder,
+    languages: overrides.languages,
     theme: preference,
   } as UserPreferencesResponse;
 }

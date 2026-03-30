@@ -730,6 +730,8 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       "printedRulesText",
       "printedEffectText",
       "flavorText",
+      "language",
+      "printedName",
       "comment",
     ]);
 

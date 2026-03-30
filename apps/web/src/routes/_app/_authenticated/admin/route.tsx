@@ -19,6 +19,7 @@ const pageTitles: Record<string, string> = {
   "/_app/_authenticated/admin/settings": "Settings",
   "/_app/_authenticated/admin/feature-flags": "Feature Flags",
   "/_app/_authenticated/admin/promo-types": "Promo Types",
+  "/_app/_authenticated/admin/languages": "Languages",
   "/_app/_authenticated/admin/scan": "Scan Test",
   "/_app/_authenticated/admin/cards_/$cardSlug": "Card Source",
   "/_app/_authenticated/admin/cards_/new/$name": "New Card",

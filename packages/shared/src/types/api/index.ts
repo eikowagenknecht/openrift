@@ -7,6 +7,7 @@ export type { KeywordStyleEntry, KeywordStylesResponse } from "./keyword-style.j
 
 export type {
   CatalogCardResponse,
+  CatalogLanguageResponse,
   CatalogPrintingResponse,
   CatalogResponse,
   CatalogSetResponse,
@@ -85,6 +86,7 @@ export type {
   FeatureFlagResponse,
   SiteSettingResponse,
   IgnoredProductResponse,
+  LanguageResponse,
   LowResImageEntry,
   LowResImagesResponse,
   MappingPrintingResponse,

@@ -18,7 +18,14 @@ export function CardDetailHeading({
   return (
     <div className={cn(truncate && "min-w-0")}>
       <h2 className={cn("text-lg font-semibold", truncate && "truncate")}>
-        {card.name}
+        {printing.printedName && printing.printedName !== card.name ? (
+          <>
+            {printing.printedName}
+            <span className="text-muted-foreground ml-1.5 text-sm font-normal">({card.name})</span>
+          </>
+        ) : (
+          card.name
+        )}
         <span className="text-muted-foreground ml-2 text-sm font-normal">{setNumber}</span>
       </h2>
       <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm uppercase">

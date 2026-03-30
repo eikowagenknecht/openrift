@@ -46,6 +46,8 @@ function stubCatalogPrintingResponse(
     printedRulesText: null,
     printedEffectText: null,
     flavorText: null,
+    printedName: null,
+    language: "EN",
     cardId: "00000000-0000-0000-0000-000000000001",
     ...overrides,
   };
@@ -75,6 +77,7 @@ const CATALOG_RESPONSE: CatalogResponse = {
     }),
   ],
   totalCopies: 150,
+  languages: [{ code: "EN", name: "English" }],
 };
 
 function createWrapper() {

@@ -100,41 +100,47 @@ function matchOcrText(rawText: string, printings: Printing[]): OcrMatch[] {
       }
     }
 
-    // Try fuzzy name matching
-    const normalizedCardName = normalizeNameForMatching(printing.card.name);
-    for (const line of lines) {
-      const normalizedLine = normalizeNameForMatching(line);
-      if (normalizedLine.length < 3) {
-        continue;
-      }
-
-      if (normalizedLine === normalizedCardName) {
-        const match: OcrMatch = {
-          printing,
-          confidence: 0.85,
-          rawText,
-          matchedOn: "name",
-        };
-        if (!best || match.confidence > best.confidence) {
-          best = match;
+    // Try fuzzy name matching (check both card name and printed name)
+    const namesToCheck = [printing.card.name];
+    if (printing.printedName && printing.printedName !== printing.card.name) {
+      namesToCheck.push(printing.printedName);
+    }
+    for (const nameToMatch of namesToCheck) {
+      const normalizedCardName = normalizeNameForMatching(nameToMatch);
+      for (const line of lines) {
+        const normalizedLine = normalizeNameForMatching(line);
+        if (normalizedLine.length < 3) {
+          continue;
         }
-      } else if (
-        normalizedCardName.includes(normalizedLine) ||
-        normalizedLine.includes(normalizedCardName)
-      ) {
-        const shorter = Math.min(normalizedLine.length, normalizedCardName.length);
-        const longer = Math.max(normalizedLine.length, normalizedCardName.length);
-        const ratio = shorter / longer;
-        if (ratio > 0.5) {
-          const confidence = 0.4 + ratio * 0.4;
+
+        if (normalizedLine === normalizedCardName) {
           const match: OcrMatch = {
             printing,
-            confidence,
+            confidence: 0.85,
             rawText,
             matchedOn: "name",
           };
           if (!best || match.confidence > best.confidence) {
             best = match;
+          }
+        } else if (
+          normalizedCardName.includes(normalizedLine) ||
+          normalizedLine.includes(normalizedCardName)
+        ) {
+          const shorter = Math.min(normalizedLine.length, normalizedCardName.length);
+          const longer = Math.max(normalizedLine.length, normalizedCardName.length);
+          const ratio = shorter / longer;
+          if (ratio > 0.5) {
+            const confidence = 0.4 + ratio * 0.4;
+            const match: OcrMatch = {
+              printing,
+              confidence,
+              rawText,
+              matchedOn: "name",
+            };
+            if (!best || match.confidence > best.confidence) {
+              best = match;
+            }
           }
         }
       }

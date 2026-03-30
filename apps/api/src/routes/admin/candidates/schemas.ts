@@ -83,6 +83,8 @@ export const acceptPrintingSchema = z.object({
     printedEffectText: printingFieldRules.printedEffectText.optional(),
     flavorText: printingFieldRules.flavorText.optional(),
     imageUrl: candidatePrintingFieldRules.imageUrl.optional(),
+    language: z.string().min(1).max(5).optional(),
+    printedName: z.string().min(1).optional().nullable(),
   }),
   candidatePrintingIds: z.array(z.string()),
 });
@@ -137,6 +139,8 @@ const ingestPrintingSchema = z.object({
   flavor_text: nullStr,
   external_id: z.string(),
   extra_data: z.unknown().nullable().optional().default(null),
+  language: nullStr,
+  printed_name: nullStr,
 });
 
 const ingestCardFieldsSchema = z.object({

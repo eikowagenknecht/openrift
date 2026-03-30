@@ -106,6 +106,8 @@ export interface PrintingsTable {
   flavorText: string | null;
   /** CHECK: <> '' */
   comment: string | null;
+  language: string;
+  printedName: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -455,6 +457,9 @@ export interface CandidatePrintingsTable {
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
 
+  language: string | null;
+  printedName: string | null;
+
   checkedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -514,6 +519,16 @@ export interface CardNameAliasesTable {
   normName: string;
   /** FK: ON DELETE CASCADE */
   cardId: string;
+}
+
+// ─── Languages (migration 054) ───────────────────────────────────────────────
+
+export interface LanguagesTable {
+  code: string;
+  name: string;
+  sortOrder: number;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 // ─── Promo types (migration 034) ──────────────────────────────────────────────
@@ -657,6 +672,9 @@ export interface Database {
 
   // Image archive (migration 013)
   printingImages: PrintingImagesTable;
+
+  // Languages (migration 054)
+  languages: LanguagesTable;
 
   // Promo types (migration 034)
   promoTypes: PromoTypesTable;

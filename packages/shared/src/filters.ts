@@ -81,7 +81,10 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
   const { card } = printing;
   const lower = text.toLowerCase();
   if (field === "name") {
-    return card.name.toLowerCase().includes(lower);
+    return (
+      card.name.toLowerCase().includes(lower) ||
+      (printing.printedName?.toLowerCase().includes(lower) ?? false)
+    );
   }
   if (field === "cardText") {
     return (

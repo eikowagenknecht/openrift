@@ -27,9 +27,16 @@ export interface CatalogPrintingResponse {
   printedRulesText: string | null;
   printedEffectText: string | null;
   flavorText: string | null;
+  printedName: string | null;
+  language: string;
   marketPrice?: number;
   marketPrices?: Partial<Record<Marketplace, number>>;
   cardId: string;
+}
+
+export interface CatalogLanguageResponse {
+  code: string;
+  name: string;
 }
 
 export interface CatalogResponse {
@@ -37,4 +44,5 @@ export interface CatalogResponse {
   cards: Record<string, CatalogCardResponse>;
   printings: CatalogPrintingResponse[];
   totalCopies: number;
+  languages: CatalogLanguageResponse[];
 }

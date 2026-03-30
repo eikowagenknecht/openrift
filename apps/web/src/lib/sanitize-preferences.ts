@@ -76,6 +76,7 @@ function nullOverrides(): DisplayOverrides {
     foilEffect: null,
     cardTilt: null,
     marketplaceOrder: null,
+    languages: null,
   };
 }
 
@@ -114,12 +115,17 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
       )
     : null;
 
+  const safeLanguages = Array.isArray(record.languages)
+    ? record.languages.filter((lang): lang is string => typeof lang === "string" && lang.length > 0)
+    : null;
+
   return {
     showImages,
     fancyFan,
     foilEffect,
     cardTilt,
     marketplaceOrder: safeOrder && safeOrder.length > 0 ? safeOrder : null,
+    languages: safeLanguages && safeLanguages.length > 0 ? safeLanguages : null,
   };
 }
 

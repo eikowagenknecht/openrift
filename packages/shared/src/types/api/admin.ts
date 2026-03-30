@@ -42,6 +42,9 @@ export interface CandidatePrintingResponse {
   externalId: string;
   extraData: unknown | null;
 
+  language: string | null;
+  printedName: string | null;
+
   checkedAt: string | null;
 }
 
@@ -151,6 +154,14 @@ export interface PromoTypeResponse {
   id: string;
   slug: string;
   label: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LanguageResponse {
+  code: string;
+  name: string;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

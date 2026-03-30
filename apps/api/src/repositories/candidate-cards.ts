@@ -583,6 +583,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "printedRulesText",
           "printedEffectText",
           "flavorText",
+          "printedName",
+          "language",
           "comment",
         ])
         .where("cardId", "=", cardId)
@@ -640,6 +642,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "printedEffectText"
         | "imageUrl"
         | "flavorText"
+        | "language"
+        | "printedName"
         | "externalId"
         | "extraData"
         | "checkedAt"
@@ -670,6 +674,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.printedEffectText",
           "ps.imageUrl",
           "ps.flavorText",
+          "ps.language",
+          "ps.printedName",
           "ps.externalId",
           "ps.extraData",
           "ps.checkedAt",
