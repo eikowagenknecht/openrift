@@ -353,11 +353,11 @@ function ExportSection() {
         <p className="text-muted-foreground text-sm">Download your collection as a CSV file.</p>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="export-collection">
-            Collection
-          </label>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium" htmlFor="export-collection">
+          Collection
+        </label>
+        <div className="flex flex-wrap items-center gap-3">
           <Select
             value={exportCollectionId}
             onValueChange={(value) => setExportCollectionId(value ?? "__all__")}
@@ -379,21 +379,21 @@ function ExportSection() {
               ))}
             </SelectContent>
           </Select>
-        </div>
 
-        <Button onClick={handleExport} disabled={isLoading || copyCount === 0}>
-          {isLoading ? (
-            <>
-              <Loader2Icon className="mr-2 size-4 animate-spin" />
-              Loading...
-            </>
-          ) : (
-            <>
-              <DownloadIcon className="mr-2 size-4" />
-              Export {copyCount} {copyCount === 1 ? "copy" : "copies"}
-            </>
-          )}
-        </Button>
+          <Button onClick={handleExport} disabled={isLoading || copyCount === 0}>
+            {isLoading ? (
+              <>
+                <Loader2Icon className="mr-2 size-4 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <DownloadIcon className="mr-2 size-4" />
+                Export {copyCount} {copyCount === 1 ? "copy" : "copies"}
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
