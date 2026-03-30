@@ -5,6 +5,7 @@ interface AddedEntry {
   printing: Printing;
   quantity: number;
   copyIds: string[];
+  pendingCount: number;
 }
 
 interface AddModeState {
@@ -12,6 +13,8 @@ interface AddModeState {
   showAddedList: boolean;
   variantPopover: { cardId: string; pos: { top: number; left: number } } | null;
 
+  incrementPending: (printing: Printing) => void;
+  decrementPending: (printingId: string) => void;
   recordAdd: (printing: Printing, copyId: string) => void;
   recordUndo: (printingId: string) => void;
   toggleAddedList: () => void;
@@ -26,6 +29,37 @@ export const useAddModeStore = create<AddModeState>()((set) => ({
   showAddedList: false,
   variantPopover: null,
 
+  incrementPending: (printing) =>
+    set((state) => {
+      const next = new Map(state.addedItems);
+      const existing = state.addedItems.get(printing.id);
+      // delete + set preserves insertion order (most recently touched last)
+      next.delete(printing.id);
+      next.set(printing.id, {
+        printing,
+        quantity: existing?.quantity ?? 0,
+        copyIds: existing?.copyIds ?? [],
+        pendingCount: (existing?.pendingCount ?? 0) + 1,
+      });
+      return { addedItems: next };
+    }),
+
+  decrementPending: (printingId) =>
+    set((state) => {
+      const existing = state.addedItems.get(printingId);
+      if (!existing || existing.pendingCount <= 0) {
+        return state;
+      }
+      const next = new Map(state.addedItems);
+      const newPending = existing.pendingCount - 1;
+      if (existing.quantity === 0 && newPending === 0) {
+        next.delete(printingId);
+      } else {
+        next.set(printingId, { ...existing, pendingCount: newPending });
+      }
+      return { addedItems: next };
+    }),
+
   recordAdd: (printing, copyId) =>
     set((state) => {
       const next = new Map(state.addedItems);
@@ -36,6 +70,7 @@ export const useAddModeStore = create<AddModeState>()((set) => ({
         printing,
         quantity: (existing?.quantity ?? 0) + 1,
         copyIds: [...(existing?.copyIds ?? []), copyId],
+        pendingCount: existing?.pendingCount ?? 0,
       });
       return { addedItems: next };
     }),
@@ -48,7 +83,7 @@ export const useAddModeStore = create<AddModeState>()((set) => ({
       }
       const next = new Map(state.addedItems);
       const newCopyIds = existing.copyIds.slice(0, -1);
-      if (newCopyIds.length === 0) {
+      if (newCopyIds.length === 0 && existing.pendingCount === 0) {
         next.delete(printingId);
       } else {
         next.delete(printingId);

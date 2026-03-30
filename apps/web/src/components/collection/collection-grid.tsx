@@ -243,21 +243,24 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   };
 
   const handleQuickAdd = addTarget
-    ? (printing: Printing) => {
-        addCopies.mutate(
-          { copies: [{ printingId: printing.id, collectionId: addTarget }] },
-          {
-            onSuccess: (data) => {
-              const copyId = (data as { id: string }[])[0].id;
-              useAddModeStore.getState().recordAdd(printing, copyId);
-            },
-          },
-        );
+    ? async (printing: Printing) => {
+        useAddModeStore.getState().incrementPending(printing);
+        try {
+          const data = await addCopies.mutateAsync({
+            copies: [{ printingId: printing.id, collectionId: addTarget }],
+          });
+          const copyId = (data as { id: string }[])[0].id;
+          useAddModeStore.getState().recordAdd(printing, copyId);
+        } catch {
+          // Server-side add failed — pending count is the only thing to clean up
+        } finally {
+          useAddModeStore.getState().decrementPending(printing.id);
+        }
       }
     : undefined;
 
   const handleUndoAdd = isAddMode
-    ? (printing: Printing) => {
+    ? async (printing: Printing) => {
         const entry = useAddModeStore.getState().addedItems.get(printing.id);
         if (!entry || entry.copyIds.length === 0) {
           return;
@@ -266,14 +269,14 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         if (!copyIdToRemove) {
           return;
         }
-        addModeDisposeCopies.mutate(
-          { copyIds: [copyIdToRemove] },
-          {
-            onSuccess: () => {
-              useAddModeStore.getState().recordUndo(printing.id);
-            },
-          },
-        );
+        // Optimistic: remove from store immediately so rapid clicks read distinct IDs
+        useAddModeStore.getState().recordUndo(printing.id);
+        try {
+          await addModeDisposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
+        } catch {
+          // Rollback on failure
+          useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
+        }
       }
     : undefined;
 
@@ -461,7 +464,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   };
 
   // ── Toolbar ─────────────────────────────────────────────────────────
-  const totalAdded = [...addedItems.values()].reduce((sum, entry) => sum + entry.quantity, 0);
+  const totalAdded = [...addedItems.values()].reduce(
+    (sum, entry) => sum + entry.quantity + entry.pendingCount,
+    0,
+  );
 
   const addedPillDesktop = addedItems.size > 0 && (
     <button
