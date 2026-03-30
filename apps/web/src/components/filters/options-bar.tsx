@@ -2,6 +2,7 @@ import type { AvailableFilters, SortOption } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
+  Copy,
   Minus,
   Plus,
   Square,
@@ -102,11 +103,13 @@ function ViewModeToggle({
   compact,
   view,
   onViewChange,
+  showCopies,
   className,
 }: {
   compact?: boolean;
-  view: "cards" | "printings";
-  onViewChange: (v: "cards" | "printings") => void;
+  view: "cards" | "printings" | "copies";
+  onViewChange: (v: "cards" | "printings" | "copies") => void;
+  showCopies?: boolean;
   className?: string;
 }) {
   return (
@@ -131,6 +134,18 @@ function ViewModeToggle({
         <SquareStack className={compact ? undefined : "size-4"} />
         {compact && "Printings"}
       </Button>
+      {showCopies && (
+        <Button
+          variant={view === "copies" ? "default" : "outline"}
+          size={compact ? "sm" : "icon"}
+          className={compact ? "gap-1.5 text-xs" : undefined}
+          onClick={() => onViewChange("copies")}
+          title={compact ? undefined : "Every individual copy"}
+        >
+          <Copy className={compact ? undefined : "size-4"} />
+          {compact && "Copies"}
+        </Button>
+      )}
     </ButtonGroup>
   );
 }
@@ -250,7 +265,13 @@ function useOptionsBarState() {
 /*  DesktopOptionsBar — visible sm and up                              */
 /* ------------------------------------------------------------------ */
 
-export function DesktopOptionsBar({ className }: { className?: string }) {
+export function DesktopOptionsBar({
+  className,
+  showCopies,
+}: {
+  className?: string;
+  showCopies?: boolean;
+}) {
   const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps } =
     useOptionsBarState();
 
@@ -262,7 +283,7 @@ export function DesktopOptionsBar({ className }: { className?: string }) {
         onSortByChange={setSortBy}
         onSortDirChange={setSortDir}
       />
-      <ViewModeToggle view={view} onViewChange={setView} />
+      <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
       <ColumnControls {...columnProps} />
     </div>
   );
@@ -319,7 +340,7 @@ export function MobileOptionsDrawer({
 /*  Mobile drawer sections — self-contained, composable                */
 /* ------------------------------------------------------------------ */
 
-export function MobileOptionsContent() {
+export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = {}) {
   const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps } =
     useOptionsBarState();
 
@@ -334,7 +355,13 @@ export function MobileOptionsContent() {
         onSortDirChange={setSortDir}
       />
       <div className="flex items-center gap-2">
-        <ViewModeToggle compact view={view} onViewChange={setView} className="mr-auto" />
+        <ViewModeToggle
+          compact
+          view={view}
+          onViewChange={setView}
+          showCopies={showCopies}
+          className="mr-auto"
+        />
         <ColumnControls compact {...columnProps} />
       </div>
     </div>

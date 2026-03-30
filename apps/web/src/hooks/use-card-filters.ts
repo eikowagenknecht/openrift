@@ -88,7 +88,7 @@ export function useFilterValues() {
 
   const sortBy = filterState.sort as SortOption;
   const sortDir = filterState.sortDir as SortDirection;
-  const view = filterState.view as "cards" | "printings";
+  const view = filterState.view as "cards" | "printings" | "copies";
 
   const hasActiveFilters =
     filterState.search !== "" ||
@@ -225,7 +225,7 @@ export function useFilterActions() {
     void setFilterState({ sortDir: dir === "asc" ? null : dir });
   };
 
-  const setView = (v: "cards" | "printings") => {
+  const setView = (v: "cards" | "printings" | "copies") => {
     void setFilterState({ view: v === "cards" ? null : v });
   };
 
