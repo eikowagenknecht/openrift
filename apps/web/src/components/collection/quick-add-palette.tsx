@@ -88,6 +88,7 @@ function PaletteInner({
   const [expandedIndex, setExpandedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const scrollOnChange = useRef(false);
   const addCopies = useAddCopies();
   const disposeCopies = useDisposeCopies();
   const addedItems = useAddModeStore((s) => s.addedItems);
@@ -109,8 +110,12 @@ function PaletteInner({
     setExpandedCardId(null);
   }, [results.length]);
 
-  // Scroll selected item into view
+  // Scroll selected item into view (keyboard navigation only)
   useEffect(() => {
+    if (!scrollOnChange.current) {
+      return;
+    }
+    scrollOnChange.current = false;
     const list = listRef.current;
     if (!list) {
       return;
@@ -181,6 +186,9 @@ function PaletteInner({
     : false;
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      scrollOnChange.current = true;
+    }
     if (event.key === "ArrowDown") {
       event.preventDefault();
       if (expandedCardId) {
