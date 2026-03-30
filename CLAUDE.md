@@ -60,14 +60,20 @@ docker exec openrift-db-1 pg_dump -U openrift --schema-only --no-owner --no-priv
 
 ## Conventions
 
-- **React Compiler** is enabled — do not add `useMemo`, `useCallback`, or `React.memo` in new code.
+- **React Compiler** is enabled — do not add `useMemo`, `useCallback`, or `React.memo` in new code. In `infer` mode, `use`-prefixed functions that don't call hooks are silently skipped — add a `"use memo"` directive to force compilation.
 - **Commits:** Conventional Commits enforced by commitlint (`feat:`, `fix:`, `refactor:`, etc.)
 - **TypeScript:** Strict mode, `noUnusedLocals`, `noUnusedParameters` enabled. Target is ES2024 — prefer modern APIs like `Map.groupBy()`, `Promise.withResolvers()`, `.toSorted()`, `.toReversed()`, `.at()` over hand-rolled equivalents.
 - **Styling:** Tailwind utility classes with CSS variables for theming (light/dark). Use `cn()` from `@/lib/utils` for conditional class merging.
 - **Linting:** oxlint (primary) + oxfmt. Always lint before committing (`bun lint`). To suppress a rule, use `oxlint-disable` comments (not `eslint-disable`) with a reason: `// oxlint-disable-next-line rule/name -- reason`. When writing JSDoc (`/** */`) comments on functions, always include a `@returns` tag — oxlint enforces `jsdoc/require-returns`.
 - **shadcn/ui components:** Components in `apps/web/src/components/ui/` are scaffolded from shadcn's `base-nova` style. Add new ones via `bunx shadcn@latest add <name>`. When customizing a scaffolded component, add a `// custom: <reason>` comment on every changed/added line. This makes it easy to re-scaffold and diff to re-apply customizations. Never modify scaffolded code without a comment.
 - **Dependencies:** Always pin exact versions — no carets (`^`) or tildes (`~`). E.g. `"vitest": "4.0.18"`.
-- **Tests:** Run with `bun run test` (turbo → vitest), **not** `bun test` (bun's built-in runner, skips vitest/jsdom config).
+- **Tests:** Run with `bun run test` (turbo → vitest), **not** `bun test` (bun's built-in runner, skips vitest/jsdom config). Integration tests must use temporary databases (`setupTestDb()`), never the real dev/prod database — always drop the temp DB in `afterAll`.
+- **HTML links:** Use `rel="noreferrer"` on external links (`target="_blank"`). Don't add `noopener` — `noreferrer` already implies it.
+- **UI primitives:** BaseUI, not Radix — don't import from `@radix-ui/*`. BaseUI's `<Select.Value>` does not auto-resolve labels; always pass `items` to `<Select.Root>` when values differ from display labels.
+- **Naming:** Use descriptive variable names. Never use single-letter or ultra-short names like `f`, `h`, `s`.
+- **Function signatures:** Prefer `?` optional params over `| undefined` to avoid oxfmt conflicts.
+- **Async code:** Use `async`/`await` instead of `.then(() => {})` for void promises. Always use braces after `if` — oxlint's `curly` rule requires it.
+- **Dev servers:** Never suggest restarting dev servers as a debugging step — they always serve current code. Find the actual bug.
 - `@/` alias in the web app maps to `apps/web/src/`
 
 See `docs/contributing.md` for full conventions.
@@ -110,4 +116,4 @@ If you are about to use Edit, Write, or Bash to modify a file and you are NOT in
 
 It must always read as a proper sentence, not a fragment. Avoid starting with "Added" or "Added the ability to" — just say what the feature does for the user. For fixes, briefly describe what was broken and how it's now fixed.
 
-Group multiple entries under the same date. Add new entries at the top, no matter the type. Don't add entries for: chore, refactor, perf, ci, docs, or internal fixes that users won't notice.
+Group multiple entries under the same date. Add new entries at the top, no matter the type. Don't add entries for: chore, refactor, perf, ci, docs, admin-only features, or internal fixes that users won't notice.
