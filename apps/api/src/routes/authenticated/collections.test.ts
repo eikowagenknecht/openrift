@@ -24,6 +24,10 @@ const mockCopiesRepo = {
   listForCollection: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockUserPreferencesRepo = {
+  getByUserId: vi.fn(() => Promise.resolve(undefined)),
+};
+
 const mockEnsureInbox = vi.fn(() => Promise.resolve("inbox-id"));
 const mockDeleteCollection = vi.fn(() => Promise.resolve());
 
@@ -40,6 +44,7 @@ const app = new Hono()
     c.set("repos", {
       collections: mockCollectionsRepo,
       copies: mockCopiesRepo,
+      userPreferences: mockUserPreferencesRepo,
     } as never);
     c.set("services", {
       ensureInbox: mockEnsureInbox,
@@ -69,6 +74,7 @@ const dbCollection = {
   isInbox: false,
   availableForDeckbuilding: true,
   sortOrder: 0,
+  shareToken: null,
   createdAt: now,
   updatedAt: now,
 };
