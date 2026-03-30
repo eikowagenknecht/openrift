@@ -2,6 +2,8 @@
 
 ## 2026-03-30
 
+- feat: Quick add palette (⌘K) now lets you undo cards added by mistake — each printing row shows a minus button, or press Shift+Enter to undo the selected printing
+- feat: Quick add palette now always expands to show printings before adding, making the flow consistent for all cards
 - feat: Clicking a card in the Activity page opens it in the card browser with full details
 - feat: Collections now have full search and filters — find cards by name, type, rarity, and more without entering add mode
 - feat: Selection checkboxes are hidden by default and appear when you click "Select" or Ctrl+click a card, keeping the default view clean

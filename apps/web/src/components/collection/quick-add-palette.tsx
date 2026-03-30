@@ -5,11 +5,12 @@ import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import { useAddCopies } from "@/hooks/use-copies";
+import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useAddModeStore } from "@/stores/add-mode-store";
 
 interface QuickAddPaletteProps {
   open: boolean;
@@ -86,6 +87,8 @@ function PaletteInner({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const addCopies = useAddCopies();
+  const disposeCopies = useDisposeCopies();
+  const addedItems = useAddModeStore((s) => s.addedItems);
 
   const results = searchCards(query, printingsByCardId, ownedCountByPrinting);
 
@@ -113,12 +116,38 @@ function PaletteInner({
         copies: [{ printingId: printing.id, collectionId }],
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          const copyId = (data as { id: string }[])[0].id;
+          useAddModeStore.getState().recordAdd(printing, copyId);
           toast.success(`Added 1× ${printing.card.name}`);
           inputRef.current?.focus();
         },
         onError: () => {
           toast.error(`Failed to add ${printing.card.name}`);
+        },
+      },
+    );
+  };
+
+  const handleUndo = (printing: Printing) => {
+    const entry = useAddModeStore.getState().addedItems.get(printing.id);
+    if (!entry || entry.copyIds.length === 0) {
+      return;
+    }
+    const copyIdToRemove = entry.copyIds.at(-1);
+    if (!copyIdToRemove) {
+      return;
+    }
+    disposeCopies.mutate(
+      { copyIds: [copyIdToRemove] },
+      {
+        onSuccess: () => {
+          useAddModeStore.getState().recordUndo(printing.id);
+          toast.success(`Removed 1× ${printing.card.name}`);
+          inputRef.current?.focus();
+        },
+        onError: () => {
+          toast.error(`Failed to remove ${printing.card.name}`);
         },
       },
     );
@@ -130,6 +159,15 @@ function PaletteInner({
     setExpandedCardId(null);
     inputRef.current?.focus();
   };
+
+  // Determine if the currently selected printing (when expanded) has session adds, for footer hint
+  const expandedCard = expandedCardId
+    ? results.find((r) => r.cardId === expandedCardId)
+    : undefined;
+  const selectedPrinting = expandedCard?.printings[expandedIndex];
+  const canUndoSelected = selectedPrinting
+    ? (addedItems.get(selectedPrinting.id)?.quantity ?? 0) > 0
+    : false;
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "ArrowDown") {
@@ -156,7 +194,7 @@ function PaletteInner({
       }
     } else if (event.key === "ArrowRight" || (event.key === "Tab" && !event.shiftKey)) {
       const card = results[selectedIndex];
-      if (card && card.printings.length > 1 && !expandedCardId) {
+      if (card && !expandedCardId) {
         event.preventDefault();
         setExpandedCardId(card.cardId);
         setExpandedIndex(0);
@@ -169,17 +207,17 @@ function PaletteInner({
       if (expandedCardId) {
         const card = results.find((r) => r.cardId === expandedCardId);
         if (card) {
-          handleAdd(card.printings[expandedIndex]);
+          if (event.shiftKey) {
+            handleUndo(card.printings[expandedIndex]);
+          } else {
+            handleAdd(card.printings[expandedIndex]);
+          }
         }
       } else {
         const card = results[selectedIndex];
         if (card) {
-          if (card.printings.length > 1) {
-            setExpandedCardId(card.cardId);
-            setExpandedIndex(0);
-          } else {
-            handleAdd(card.defaultPrinting);
-          }
+          setExpandedCardId(card.cardId);
+          setExpandedIndex(0);
         }
       }
     } else if (event.key === "Escape") {
@@ -249,9 +287,14 @@ function PaletteInner({
           const isSelected = index === selectedIndex && !expandedCardId;
           const isExpanded = expandedCardId === card.cardId;
           const uniqueSets = [...new Set(card.printings.map((p) => p.setSlug.toUpperCase()))];
+          const sessionAddedForCard = card.printings.reduce(
+            (sum, printing) => sum + (addedItems.get(printing.id)?.quantity ?? 0),
+            0,
+          );
 
           return (
             <div key={card.cardId}>
+              {/* Card row — always expands to show printings */}
               <button
                 type="button"
                 data-selected={isSelected || isExpanded}
@@ -260,13 +303,9 @@ function PaletteInner({
                   (isSelected || isExpanded) && "bg-accent",
                 )}
                 onClick={() => {
-                  if (card.printings.length > 1) {
-                    setSelectedIndex(index);
-                    setExpandedCardId(isExpanded ? null : card.cardId);
-                    setExpandedIndex(0);
-                  } else {
-                    handleAdd(card.defaultPrinting);
-                  }
+                  setSelectedIndex(index);
+                  setExpandedCardId(isExpanded ? null : card.cardId);
+                  setExpandedIndex(0);
                 }}
                 onMouseEnter={() => {
                   if (!expandedCardId) {
@@ -277,6 +316,11 @@ function PaletteInner({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium">{card.cardName}</span>
+                    {sessionAddedForCard > 0 && (
+                      <span className="shrink-0 text-xs font-medium text-green-600 dark:text-green-400">
+                        +{sessionAddedForCard}
+                      </span>
+                    )}
                     {card.ownedCount > 0 && (
                       <span className="text-muted-foreground shrink-0 text-xs">
                         ×{card.ownedCount} owned
@@ -285,14 +329,12 @@ function PaletteInner({
                   </div>
                   <div className="text-muted-foreground text-xs">{uniqueSets.join(" · ")}</div>
                 </div>
-                {card.printings.length > 1 && (
-                  <ChevronRight
-                    className={cn(
-                      "text-muted-foreground size-4 shrink-0 transition-transform",
-                      isExpanded && "rotate-90",
-                    )}
-                  />
-                )}
+                <ChevronRight
+                  className={cn(
+                    "text-muted-foreground size-4 shrink-0 transition-transform",
+                    isExpanded && "rotate-90",
+                  )}
+                />
               </button>
 
               {/* Expanded printing list */}
@@ -301,38 +343,62 @@ function PaletteInner({
                   {card.printings.map((printing, printingIndex) => {
                     const isPrintingSelected = printingIndex === expandedIndex;
                     const ownedForPrinting = ownedCountByPrinting?.[printing.id] ?? 0;
+                    const sessionAdded = addedItems.get(printing.id)?.quantity ?? 0;
                     return (
-                      <button
+                      <div
                         key={printing.id}
-                        type="button"
                         data-selected={isPrintingSelected}
                         className={cn(
-                          "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors",
+                          "flex w-full items-center rounded text-xs transition-colors",
                           isPrintingSelected && "bg-accent",
                         )}
-                        onClick={() => handleAdd(printing)}
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >
-                        <span className="text-muted-foreground w-16 shrink-0 font-mono text-[11px]">
-                          {formatCardId(printing)}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate">
-                          {formatPrintingLabel(printing, card.printings)}
-                        </span>
-                        <img
-                          src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-                          alt={printing.rarity}
-                          title={printing.rarity}
-                          width={28}
-                          height={28}
-                          className="size-3.5 shrink-0"
-                        />
-                        {ownedForPrinting > 0 && (
-                          <span className="text-muted-foreground shrink-0">
-                            ×{ownedForPrinting}
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1.5 text-left"
+                          onClick={() => handleAdd(printing)}
+                        >
+                          <span className="text-muted-foreground w-16 shrink-0 font-mono text-[11px]">
+                            {formatCardId(printing)}
                           </span>
+                          <span className="min-w-0 flex-1 truncate">
+                            {formatPrintingLabel(printing, card.printings)}
+                          </span>
+                          <img
+                            src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+                            alt={printing.rarity}
+                            title={printing.rarity}
+                            width={28}
+                            height={28}
+                            className="size-3.5 shrink-0"
+                          />
+                          {sessionAdded > 0 && (
+                            <span className="shrink-0 text-[11px] font-medium text-green-600 dark:text-green-400">
+                              +{sessionAdded}
+                            </span>
+                          )}
+                          {ownedForPrinting > 0 && (
+                            <span className="text-muted-foreground shrink-0">
+                              ×{ownedForPrinting}
+                            </span>
+                          )}
+                        </button>
+                        {sessionAdded > 0 && (
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={() => handleUndo(printing)}
+                            className="text-muted-foreground hover:text-foreground hover:bg-muted mr-1 flex size-5 items-center justify-center rounded transition-colors"
+                            aria-label={`Undo add ${printing.card.name}`}
+                          >
+                            <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">
+                              <path d="M3 7a1 1 0 0 0 0 2h10a1 1 0 1 0 0-2H3z" />
+                            </svg>
+                          </button>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -354,10 +420,14 @@ function PaletteInner({
               <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">↵</kbd>{" "}
               {expandedCardId ? "add" : "select"}
             </span>
-            {results.some((r) => r.printings.length > 1) && (
+            {expandedCardId && canUndoSelected && (
               <span>
-                <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">→</kbd>{" "}
-                printings
+                <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">⇧↵</kbd> undo
+              </span>
+            )}
+            {expandedCardId && (
+              <span>
+                <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">←</kbd> back
               </span>
             )}
             <span>
