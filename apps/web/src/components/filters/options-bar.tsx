@@ -131,7 +131,7 @@ function ViewModeToggle({
         onClick={() => onViewChange("printings")}
         title={compact ? undefined : "Every printing"}
       >
-        <SquareStack className={compact ? undefined : "size-4"} />
+        <Copy className={compact ? undefined : "size-4"} />
         {compact && "Printings"}
       </Button>
       {showCopies && (
@@ -142,7 +142,7 @@ function ViewModeToggle({
           onClick={() => onViewChange("copies")}
           title={compact ? undefined : "Every individual copy"}
         >
-          <Copy className={compact ? undefined : "size-4"} />
+          <SquareStack className={compact ? undefined : "size-4"} />
           {compact && "Copies"}
         </Button>
       )}
