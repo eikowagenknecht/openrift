@@ -414,14 +414,6 @@ function PaletteInner({
                           <span className="min-w-0 flex-1 truncate">
                             {formatPrintingLabel(printing, card.printings)}
                           </span>
-                          <img
-                            src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-                            alt={printing.rarity}
-                            title={printing.rarity}
-                            width={28}
-                            height={28}
-                            className="size-3.5 shrink-0"
-                          />
                         </button>
                         {sessionAdded > 0 && (
                           <span className="shrink-0 text-[11px] text-green-600 dark:text-green-400">
@@ -442,10 +434,18 @@ function PaletteInner({
                           </button>
                         )}
                         {ownedForPrinting > 0 && (
-                          <span className="text-muted-foreground mr-2 shrink-0 text-[11px]">
+                          <span className="text-muted-foreground shrink-0 text-[11px]">
                             ×{ownedForPrinting}
                           </span>
                         )}
+                        <img
+                          src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+                          alt={printing.rarity}
+                          title={printing.rarity}
+                          width={28}
+                          height={28}
+                          className="mr-2 size-3.5 shrink-0"
+                        />
                       </div>
                     );
                   })}
