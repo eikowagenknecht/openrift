@@ -55,7 +55,7 @@ export function QuickAddPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-[20%] max-w-md -translate-y-0 gap-0 overflow-visible p-0 sm:max-w-md"
+        className="max-w-md gap-0 overflow-visible p-0 sm:max-w-md"
       >
         <DialogTitle className="sr-only">Quick add to {collectionName}</DialogTitle>
         <PaletteInner
