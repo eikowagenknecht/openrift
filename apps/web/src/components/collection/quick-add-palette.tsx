@@ -444,7 +444,7 @@ function PaletteInner({
                           title={printing.rarity}
                           width={28}
                           height={28}
-                          className="mr-2 size-3.5 shrink-0"
+                          className="mr-2 ml-1 size-3.5 shrink-0"
                         />
                       </div>
                     );
