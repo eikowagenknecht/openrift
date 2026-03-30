@@ -1,5 +1,6 @@
 import type { Domain, Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
+import { Sparkle } from "lucide-react";
 import { memo, useRef, useState } from "react";
 
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
@@ -244,6 +245,9 @@ export const CardThumbnail = memo(function CardThumbnail({
                 <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
               ))}
             {sibling.finish === ("foil" satisfies Finish) && gridFoil && <FoilOverlay active dim />}
+            {sibling.finish === ("foil" satisfies Finish) && (
+              <Sparkle className="absolute top-1.5 right-1.5 z-20 size-4 fill-amber-400 text-amber-400 drop-shadow" />
+            )}
           </div>
         );
       })}
