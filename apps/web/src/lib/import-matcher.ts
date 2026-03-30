@@ -135,16 +135,27 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
     const finishMatches = codeMatches.filter((printing) => printing.finish === entry.finish);
 
     if (finishMatches.length === 1) {
-      // Exact match
+      // Exact match — include all code matches as candidates for manual override
       return {
         entry,
         status: "exact",
         resolvedPrinting: finishMatches[0],
-        candidates: [],
+        candidates: codeMatches,
       };
     }
 
     if (finishMatches.length > 1) {
+      // Prefer the non-promo, non-signed base printing when CSV doesn't distinguish
+      const base = finishMatches.filter((printing) => !printing.promoType && !printing.isSigned);
+      if (base.length === 1) {
+        return {
+          entry,
+          status: "exact",
+          resolvedPrinting: base[0],
+          candidates: codeMatches,
+        };
+      }
+
       // Multiple printings with same code + finish (e.g., signed vs unsigned)
       return {
         entry,

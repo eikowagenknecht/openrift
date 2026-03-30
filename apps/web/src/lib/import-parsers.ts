@@ -42,6 +42,8 @@ interface ParseResult {
   entries: ImportEntry[];
   errors: string[];
   source: "piltover-archive" | "riftcore";
+  /** Number of data rows in the source CSV (before deduplication). */
+  rowCount: number;
 }
 
 /**
@@ -51,7 +53,7 @@ interface ParseResult {
 export function parseImportData(text: string): ParseResult {
   const trimmed = text.trim();
   if (trimmed.length === 0) {
-    return { entries: [], errors: ["No data provided."], source: "piltover-archive" };
+    return { entries: [], errors: ["No data provided."], source: "piltover-archive", rowCount: 0 };
   }
 
   if (trimmed.startsWith("RIFTCORE COLLECTION EXPORT")) {
@@ -69,6 +71,7 @@ export function parseImportData(text: string): ParseResult {
       "Couldn't recognize this format. We currently support Piltover Archive and RiftCore CSV exports.",
     ],
     source: "piltover-archive",
+    rowCount: 0,
   };
 }
 
@@ -92,7 +95,12 @@ function parsePiltoverArchive(text: string): ParseResult {
   const errors: string[] = [];
 
   if (records.length === 0) {
-    return { entries: [], errors: ["No data rows found."], source: "piltover-archive" };
+    return {
+      entries: [],
+      errors: ["No data rows found."],
+      source: "piltover-archive",
+      rowCount: 0,
+    };
   }
 
   // Validate required columns exist
@@ -104,11 +112,12 @@ function parsePiltoverArchive(text: string): ParseResult {
     }
   }
   if (errors.length > 0) {
-    return { entries: [], errors, source: "piltover-archive" };
+    return { entries: [], errors, source: "piltover-archive", rowCount: 0 };
   }
 
   // Parse rows and aggregate by variant key
   const aggregated = new Map<string, ImportEntry>();
+  let rowCount = 0;
 
   for (const record of records) {
     const variantNumber = record["Variant Number"] ?? "";
@@ -120,15 +129,21 @@ function parsePiltoverArchive(text: string): ParseResult {
       continue;
     }
 
+    rowCount++;
+
     const parsed = parsePiltoverVariantNumber(variantNumber);
     if (!parsed) {
       errors.push(`Could not parse variant number: "${variantNumber}"`);
       continue;
     }
 
-    // Finish: check both the -Foil suffix and the Variant Label
+    // Finish: check the -Foil suffix, Variant Label, and rarity (rare/epic/showcase are always foil)
+    const rarity = record["Rarity"]?.trim().toLowerCase() ?? "";
+    const alwaysFoilRarity = rarity === "rare" || rarity === "epic" || rarity === "showcase";
     const finish: Finish =
-      parsed.hasFoilSuffix || variantLabel.toLowerCase().includes("foil") ? "foil" : "normal";
+      parsed.hasFoilSuffix || variantLabel.toLowerCase().includes("foil") || alwaysFoilRarity
+        ? "foil"
+        : "normal";
 
     const rawFields = buildRawFields({
       "Source Code": variantNumber,
@@ -162,7 +177,7 @@ function parsePiltoverArchive(text: string): ParseResult {
     }
   }
 
-  return { entries: [...aggregated.values()], errors, source: "piltover-archive" };
+  return { entries: [...aggregated.values()], errors, source: "piltover-archive", rowCount };
 }
 
 interface PiltoverVariantParts {
@@ -242,6 +257,7 @@ function parseRiftCore(text: string): ParseResult {
       entries: [],
       errors: ['Could not find header row with "Card ID" column.'],
       source: "riftcore",
+      rowCount: 0,
     };
   }
 
@@ -261,6 +277,7 @@ function parseRiftCore(text: string): ParseResult {
       entries: [],
       errors: ['Missing required columns: "Card ID" and/or "Card Name".'],
       source: "riftcore",
+      rowCount: 0,
     };
   }
 
@@ -284,6 +301,9 @@ function parseRiftCore(text: string): ParseResult {
       continue;
     }
 
+    const rarity = (rarityCol === -1 ? "" : (row[rarityCol]?.trim() ?? "")).toLowerCase();
+    const alwaysFoil = rarity === "rare" || rarity === "epic" || rarity === "showcase";
+
     const baseRawFields: Record<string, string | undefined> = {
       "Source Code": cardId,
       Set: setCol === -1 ? undefined : row[setCol],
@@ -294,15 +314,19 @@ function parseRiftCore(text: string): ParseResult {
     };
 
     if (standardQty > 0) {
+      const finish: Finish = alwaysFoil ? "foil" : "normal";
       entries.push({
         setPrefix: parsed.setPrefix,
         collectorNumber: parsed.collectorNumber,
-        finish: "normal",
+        finish,
         artVariant: parsed.artVariant,
         quantity: standardQty,
         cardName,
         sourceCode: parsed.shortCode,
-        rawFields: buildRawFields({ ...baseRawFields, Finish: "Normal" }),
+        rawFields: buildRawFields({
+          ...baseRawFields,
+          Finish: finish === "foil" ? "Foil" : "Normal",
+        }),
       });
     }
 
@@ -320,7 +344,7 @@ function parseRiftCore(text: string): ParseResult {
     }
   }
 
-  return { entries, errors, source: "riftcore" };
+  return { entries, errors, source: "riftcore", rowCount: allRows.length - headerIndex - 1 };
 }
 
 interface RiftCoreCardParts {
