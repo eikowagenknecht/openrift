@@ -656,19 +656,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 {totalCopies} card{totalCopies === 1 ? "" : "s"}
                 {stacks.length !== totalCopies && ` (${stacks.length} unique)`}
               </span>
-              {valueCents !== null && valueCents !== undefined && (
-                <>
-                  <span className="text-border">&middot;</span>
-                  <span className="shrink-0">
-                    {formatValue(valueCents / 100)}
-                    {unpricedCount ? (
-                      <span className="text-muted-foreground/60 ml-1">
-                        ({unpricedCount} unpriced)
-                      </span>
-                    ) : null}
-                  </span>
-                </>
-              )}
               {mode === "select" && selected.size > 0 && (
                 <Badge variant="secondary" className="gap-1">
                   <Check className="size-3" />
@@ -676,6 +663,16 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 </Badge>
               )}
               <div className="flex-1" />
+              {valueCents !== null && valueCents !== undefined && (
+                <span className="shrink-0">
+                  {formatValue(valueCents / 100)}
+                  {unpricedCount ? (
+                    <span className="text-muted-foreground/60 ml-1">
+                      ({unpricedCount} unpriced)
+                    </span>
+                  ) : null}
+                </span>
+              )}
               {/* Mobile-only action buttons */}
               <div className="flex items-center gap-1 sm:hidden">
                 {addTarget && (
