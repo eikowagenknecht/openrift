@@ -63,17 +63,24 @@ export function tokenizeCardText(text: string): CardTextToken[] {
 interface CardTextProps {
   text: string;
   onKeywordClick?: (keyword: string) => void;
+  interactive?: boolean;
 }
 
-export function CardText({ text, onKeywordClick }: CardTextProps) {
+export function CardText({ text, onKeywordClick, interactive = true }: CardTextProps) {
   const styles = useKeywordStyles();
-  return renderTokens(tokenizeCardText(text), styles, onKeywordClick);
+  return renderTokens(
+    tokenizeCardText(text),
+    styles,
+    interactive ? onKeywordClick : undefined,
+    interactive,
+  );
 }
 
 function renderTokens(
   tokens: CardTextToken[],
   styles: KeywordStylesResponse["items"],
   onKeywordClick?: (keyword: string) => void,
+  interactive = true,
 ): React.ReactNode[] {
   return tokens.map((token, i) => {
     switch (token.type) {
@@ -89,15 +96,19 @@ function renderTokens(
       }
       case "keyword": {
         const kw = getKeywordStyle(token.name, styles);
+        const Tag = interactive ? "button" : "span";
         return (
-          <button
+          <Tag
             key={`${i}-kw`}
-            type="button"
+            {...(interactive ? { type: "button" as const } : {})}
             className={cn(
-              "relative inline-flex cursor-pointer items-center pr-2.5 pl-2 align-baseline",
+              "relative inline-flex items-center pr-2.5 pl-2 align-baseline",
+              interactive && "cursor-pointer",
               onKeywordClick && "hover:brightness-125",
             )}
-            onClick={() => onKeywordClick?.(token.name.replace(/\s+\d+$/, ""))}
+            onClick={
+              interactive ? () => onKeywordClick?.(token.name.replace(/\s+\d+$/, "")) : undefined
+            }
           >
             <span
               className="absolute inset-0"
@@ -114,22 +125,22 @@ function renderTokens(
                 kw.dark ? "text-black" : "text-white",
               )}
             >
-              {renderTokens(token.children, styles, onKeywordClick)}
+              {renderTokens(token.children, styles, onKeywordClick, interactive)}
             </span>
-          </button>
+          </Tag>
         );
       }
       case "paren": {
         return (
           <span key={`${i}-paren`} className="italic">
-            ({renderTokens(token.children, styles, onKeywordClick)})
+            ({renderTokens(token.children, styles, onKeywordClick, interactive)})
           </span>
         );
       }
       case "italic": {
         return (
           <span key={`${i}-italic`} className="italic">
-            {renderTokens(token.children, styles, onKeywordClick)}
+            {renderTokens(token.children, styles, onKeywordClick, interactive)}
           </span>
         );
       }

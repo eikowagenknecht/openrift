@@ -7,7 +7,7 @@ export function HelpArticlePage({ article }: { article: HelpArticle }) {
   const ArticleContent = lazy(article.component);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-3">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-3 py-3">
       <Link
         to="/help"
         className="text-muted-foreground hover:text-foreground mb-4 inline-block text-sm"

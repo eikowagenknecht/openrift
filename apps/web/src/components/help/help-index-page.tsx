@@ -6,7 +6,7 @@ import { helpArticleList } from "./articles";
 
 export function HelpIndexPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-3">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-3 py-3">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Help Center</h1>
         <p className="text-muted-foreground mt-1 text-sm">
