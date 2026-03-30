@@ -146,6 +146,13 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   // ── Selection state (select mode) ───────────────────────────────────
   const { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection } =
     useCardSelection();
+  // In "cards" view, sum copy counts across all printings of the same card
+  const copyCountByCardId = new Map<string, number>();
+  for (const stack of stacks) {
+    const cardId = stack.printing.card.id;
+    copyCountByCardId.set(cardId, (copyCountByCardId.get(cardId) ?? 0) + stack.copyIds.length);
+  }
+
   // "copies" view expands individual copies; "cards"/"printings" stay stacked
   const stacked = view !== "copies";
   const [moveOpen, setMoveOpen] = useState(false);
@@ -436,7 +443,11 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       }
     };
 
-    const ownedCount = stacked ? stack.copyIds.length : 1;
+    const ownedCount = stacked
+      ? ((dataView === "cards"
+          ? copyCountByCardId.get(item.printing.card.id)
+          : stack.copyIds.length) ?? 0)
+      : 1;
 
     // Resolve which copy IDs this card represents for drag-and-drop
     const dragCopyIds =
@@ -470,7 +481,14 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             priority={ctx.priority}
             isSelected={ctx.isSelected}
             isFlashing={ctx.isFlashing}
-            aboveCard={<OwnedCountStrip count={ownedCount} printingId={item.printing.id} />}
+            aboveCard={
+              <OwnedCountStrip
+                count={ownedCount}
+                printingId={item.printing.id}
+                cardName={item.printing.card.name}
+                shortCode={item.printing.shortCode}
+              />
+            }
           />
         </div>
       </DraggableCard>
