@@ -389,6 +389,18 @@ export interface AssignableCardResponse {
   }[];
 }
 
+export interface AdminUserResponse {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  isAdmin: boolean;
+  cardCount: number;
+  deckCount: number;
+  collectionCount: number;
+  createdAt: string;
+}
+
 export interface UnifiedMappingsResponse {
   groups: UnifiedMappingGroupResponse[];
   unmatchedProducts: {

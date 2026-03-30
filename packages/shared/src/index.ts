@@ -6,6 +6,7 @@ export type {
   CollectionEventResponse,
   AdminPrintingImageResponse,
   AdminSetResponse,
+  AdminUserResponse,
   ApiErrorResponse,
   ArtVariant,
   AssignableCardResponse,

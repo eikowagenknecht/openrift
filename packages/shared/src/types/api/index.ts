@@ -72,6 +72,7 @@ export type {
 export type {
   AdminPrintingImageResponse,
   AdminSetResponse,
+  AdminUserResponse,
   BrokenImageEntry,
   BrokenImagesResponse,
   AssignableCardResponse,
