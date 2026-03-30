@@ -40,7 +40,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     expect(col.availableForDeckbuilding).toBe(true);
     expect(col.isInbox).toBe(false);
 
-    const fetched = await repo.getByIdForUser(col.id, userId);
+    const fetched = await repo.getByIdForUser(col.id, userId, "tcgplayer");
     expect(fetched).toBeDefined();
     expect(fetched!.id).toBe(col.id);
     expect(fetched!.name).toBe("Test Binder");
@@ -61,7 +61,11 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     });
     createdCollectionIds.push(col.id);
 
-    const result = await repo.getByIdForUser(col.id, "a0000000-9999-4000-a000-000000000001");
+    const result = await repo.getByIdForUser(
+      col.id,
+      "a0000000-9999-4000-a000-000000000001",
+      "tcgplayer",
+    );
     expect(result).toBeUndefined();
   });
 
@@ -91,7 +95,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     });
     createdCollectionIds.push(binder.id);
 
-    const list = await repo.listForUser(userId);
+    const list = await repo.listForUser(userId, "tcgplayer");
     expect(list.length).toBeGreaterThanOrEqual(2);
 
     // Inbox should come first
@@ -101,7 +105,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   });
 
   it("returns empty array for a user with no collections", async () => {
-    const result = await repo.listForUser("a0000000-9999-4000-a000-000000000001");
+    const result = await repo.listForUser("a0000000-9999-4000-a000-000000000001", "tcgplayer");
     expect(result).toEqual([]);
   });
 
@@ -243,7 +247,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
 
     await repo.deleteByIdForUser(col.id, userId);
 
-    const fetched = await repo.getByIdForUser(col.id, userId);
+    const fetched = await repo.getByIdForUser(col.id, userId, "tcgplayer");
     expect(fetched).toBeUndefined();
   });
 
