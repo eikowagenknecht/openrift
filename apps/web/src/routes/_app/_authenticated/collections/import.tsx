@@ -79,10 +79,12 @@ function ImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
+  const [rowCount, setRowCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleParse = (text: string) => {
-    const { entries, errors } = parseImportData(text);
+    const { entries, errors, rowCount: parsedRowCount } = parseImportData(text);
+    setRowCount(parsedRowCount);
     setParseErrors(errors);
 
     if (entries.length === 0) {
@@ -212,7 +214,7 @@ function ImportPage() {
         const batch = copies.slice(offset, offset + batchSize);
         await addCopies.mutateAsync({ copies: batch });
       }
-      toast.success(`Imported ${totalCards} card${totalCards === 1 ? "" : "s"}.`);
+      toast.success(`Imported ${totalCards} ${totalCards === 1 ? "copy" : "copies"}.`);
       navigate({
         to: "/collections/$collectionId",
         params: { collectionId: targetCollectionId },
@@ -239,6 +241,7 @@ function ImportPage() {
   return (
     <PreviewStep
       matchedEntries={matchedEntries}
+      rowCount={rowCount}
       skippedIndices={skippedIndices}
       expandedIndices={expandedIndices}
       collections={collections ?? []}
@@ -285,7 +288,17 @@ function InputStep({
       <div>
         <h2 className="text-lg font-semibold">Import Collection</h2>
         <p className="text-muted-foreground text-sm">
-          Paste or upload a CSV export from Piltover Archive or RiftCore.
+          Paste or upload a CSV export from Piltover Archive or RiftCore. Want another source
+          supported?{" "}
+          <a
+            href="https://github.com/eikowagenknecht/openrift/issues"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline"
+          >
+            Open a GitHub issue
+          </a>
+          .
         </p>
       </div>
 
@@ -344,6 +357,7 @@ interface CollectionOption {
 
 function PreviewStep({
   matchedEntries,
+  rowCount,
   skippedIndices,
   expandedIndices,
   collections,
@@ -364,6 +378,7 @@ function PreviewStep({
   onBack,
 }: {
   matchedEntries: MatchedEntry[];
+  rowCount: number;
   skippedIndices: Set<number>;
   expandedIndices: Set<number>;
   collections: CollectionOption[];
@@ -394,7 +409,8 @@ function PreviewStep({
         <div>
           <h2 className="text-lg font-semibold">Import Preview</h2>
           <p className="text-muted-foreground text-sm">
-            {matchedEntries.length} line{matchedEntries.length === 1 ? "" : "s"} parsed
+            {rowCount} row{rowCount === 1 ? "" : "s"} parsed, {matchedEntries.length} unique
+            printing{matchedEntries.length === 1 ? "" : "s"}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={onBack}>
@@ -428,6 +444,21 @@ function PreviewStep({
           )}
           {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
         </div>
+
+        {needsAttentionCount > 0 && (
+          <p className="text-muted-foreground text-sm">
+            Having trouble importing?{" "}
+            <a
+              href="https://github.com/eikowagenknecht/openrift/issues"
+              target="_blank"
+              rel="noreferrer"
+              className="text-foreground underline"
+            >
+              Open a GitHub issue
+            </a>{" "}
+            and we&apos;ll take a look.
+          </p>
+        )}
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1.5">
@@ -473,7 +504,7 @@ function PreviewStep({
               </>
             ) : (
               <>
-                Import {totalCards} card{totalCards === 1 ? "" : "s"}
+                Import {totalCards} {totalCards === 1 ? "copy" : "copies"}
               </>
             )}
           </Button>
@@ -534,40 +565,34 @@ function ImportEntryRow({
           {entry.entry.quantity}&times;
         </span>
 
-        <span className="min-w-0 flex-1 truncate font-medium">{entry.entry.cardName}</span>
+        <span className="text-muted-foreground shrink-0 text-xs">{entry.entry.sourceCode}</span>
+
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {entry.entry.cardName}
+          {formatEntrySpecialties(entry) && (
+            <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+              {formatEntrySpecialties(entry)}
+            </span>
+          )}
+        </span>
 
         <div className="flex shrink-0 items-center gap-2">
-          {entry.status === "exact" && entry.resolvedPrinting && (
-            <PrintingLabel printing={entry.resolvedPrinting} />
+          {entry.status === "fuzzy" && (
+            <span className="text-muted-foreground text-xs">
+              Did you mean <em>{entry.suggestedName}</em>?
+            </span>
           )}
 
-          {entry.status === "ambiguous" && (
+          {entry.status === "unresolved" && (
+            <span className="text-muted-foreground text-xs">No match found</span>
+          )}
+
+          {entry.candidates.length > 0 && (
             <VariantPicker
               candidates={entry.candidates}
               resolved={entry.resolvedPrinting}
               onSelect={(printing) => onResolve(index, printing)}
             />
-          )}
-
-          {entry.status === "fuzzy" && (
-            <>
-              <span className="text-muted-foreground text-xs">
-                Did you mean <em>{entry.suggestedName}</em>?
-              </span>
-              {entry.resolvedPrinting ? (
-                <PrintingLabel printing={entry.resolvedPrinting} />
-              ) : (
-                <VariantPicker
-                  candidates={entry.candidates}
-                  resolved={null}
-                  onSelect={(printing) => onResolve(index, printing)}
-                />
-              )}
-            </>
-          )}
-
-          {entry.status === "unresolved" && (
-            <span className="text-muted-foreground text-xs">No match found</span>
           )}
 
           {isSkipped ? (
@@ -601,12 +626,26 @@ function ImportEntryRow({
   );
 }
 
-function PrintingLabel({ printing }: { printing: Printing }) {
-  return (
-    <span className="text-muted-foreground text-xs">
-      {formatCardId(printing)} &middot; {formatPrintingLabel(printing)}
-    </span>
-  );
+function formatEntrySpecialties(entry: MatchedEntry): string | null {
+  const parts: string[] = [];
+  if (entry.entry.finish === "foil") {
+    parts.push("Foil");
+  }
+  if (entry.entry.artVariant === "altart") {
+    parts.push("Alt Art");
+  }
+  if (entry.entry.artVariant === "overnumbered") {
+    parts.push("Overnumbered");
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+function formatImportPrintingLabel(printing: Printing): string {
+  const label = formatPrintingLabel(printing);
+  if (label === "Standard") {
+    return formatCardId(printing);
+  }
+  return `${formatCardId(printing)} · ${label}`;
 }
 
 function VariantPicker({
@@ -629,12 +668,14 @@ function VariantPicker({
       }}
     >
       <SelectTrigger size="sm" className="h-7 w-auto text-xs">
-        <SelectValue placeholder="Pick variant..." />
+        <SelectValue placeholder="Pick variant...">
+          {resolved ? formatImportPrintingLabel(resolved) : undefined}
+        </SelectValue>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="w-auto">
         {candidates.map((printing) => (
-          <SelectItem key={printing.id} value={printing.id}>
-            {formatCardId(printing)} &middot; {formatPrintingLabel(printing, candidates)}
+          <SelectItem key={printing.id} value={printing.id} className="py-1.5">
+            {formatImportPrintingLabel(printing)}
           </SelectItem>
         ))}
       </SelectContent>
