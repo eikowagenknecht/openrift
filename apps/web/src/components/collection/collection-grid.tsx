@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
   CheckSquare,
@@ -749,6 +749,13 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           Browse the card catalog and add cards to{" "}
           {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
         </p>
+        <Link
+          to="/help/$slug"
+          params={{ slug: "cards-printings-copies" }}
+          className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+        >
+          Learn about cards, printings &amp; copies
+        </Link>
         {addTarget && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
