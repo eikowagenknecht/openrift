@@ -181,16 +181,16 @@ function Toolbar({
       <div className="bg-border hidden h-5 w-px sm:block" />
 
       {/* Collection filter */}
-      <Select value={collectionFilter} onValueChange={(v) => onCollectionChange(v ?? "all")}>
+      <Select
+        value={collectionFilter}
+        onValueChange={(v) => onCollectionChange(v ?? "all")}
+        items={{
+          all: "All collections",
+          ...Object.fromEntries(collections?.map((c) => [c.id, c.name]) ?? []),
+        }}
+      >
         <SelectTrigger size="sm" className="h-7 w-auto text-xs" aria-label="Collection">
-          <SelectValue>
-            {(value: string) => {
-              if (value === "all") {
-                return "All collections";
-              }
-              return collections?.find((c) => c.id === value)?.name ?? value;
-            }}
-          </SelectValue>
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All collections</SelectItem>

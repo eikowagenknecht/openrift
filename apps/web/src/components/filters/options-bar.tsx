@@ -63,16 +63,18 @@ function SortControls({
 }) {
   return (
     <div className={cn("flex items-center", compact ? "gap-2" : "gap-3")}>
-      <Select value={sortBy} onValueChange={(v) => onSortByChange(v as SortOption)}>
+      <Select
+        value={sortBy}
+        onValueChange={(v) => onSortByChange(v as SortOption)}
+        items={Object.fromEntries(sortOptions.map((o) => [o.value, o.label]))}
+      >
         <SelectTrigger
           size={compact ? "sm" : undefined}
           className={compact ? "flex-1 text-xs" : "w-[160px]"}
           aria-label="Sort by"
         >
           <span className="text-muted-foreground">Sort:&nbsp;</span>
-          <SelectValue placeholder="Sort by">
-            {(value: string) => sortOptions.find((o) => o.value === value)?.label ?? value}
-          </SelectValue>
+          <SelectValue placeholder="Sort by" />
         </SelectTrigger>
         <SelectContent>
           {sortOptions.map((option) => (

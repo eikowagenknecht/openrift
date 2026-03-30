@@ -548,6 +548,14 @@ export function CandidateSpreadsheet({
                           setEditingField(null);
                         }
                       }}
+                      items={{
+                        "": "— clear —",
+                        ...Object.fromEntries(
+                          field.labeledOptions
+                            ? field.labeledOptions.map((opt) => [opt.value, opt.label])
+                            : (field.options?.map((opt) => [opt, opt]) ?? []),
+                        ),
+                      }}
                     >
                       <SelectTrigger
                         size="sm"

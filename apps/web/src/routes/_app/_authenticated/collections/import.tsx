@@ -361,6 +361,10 @@ function ExportSection() {
           <Select
             value={exportCollectionId}
             onValueChange={(value) => setExportCollectionId(value ?? "__all__")}
+            items={{
+              __all__: "All Cards",
+              ...Object.fromEntries(collections?.map((col) => [col.id, col.name]) ?? []),
+            }}
           >
             <SelectTrigger className="w-[240px]" id="export-collection">
               <SelectValue />
@@ -596,7 +600,14 @@ function PreviewStep({
             <label className="text-sm font-medium" htmlFor="target-collection">
               Target collection
             </label>
-            <Select value={collectionId} onValueChange={(value) => onCollectionChange(value ?? "")}>
+            <Select
+              value={collectionId}
+              onValueChange={(value) => onCollectionChange(value ?? "")}
+              items={{
+                ...Object.fromEntries(collections.map((col) => [col.id, col.name])),
+                __new__: "+ Create new collection",
+              }}
+            >
               <SelectTrigger className="w-[240px]" id="target-collection">
                 <SelectValue placeholder="Select collection..." />
               </SelectTrigger>
@@ -794,11 +805,12 @@ function VariantPicker({
           onSelect(printing);
         }
       }}
+      items={Object.fromEntries(
+        candidates.map((printing) => [printing.id, formatImportPrintingLabel(printing)]),
+      )}
     >
       <SelectTrigger size="sm" className="h-7 w-auto text-xs">
-        <SelectValue placeholder="Pick variant...">
-          {resolved ? formatImportPrintingLabel(resolved) : undefined}
-        </SelectValue>
+        <SelectValue placeholder="Pick variant..." />
       </SelectTrigger>
       <SelectContent className="w-auto">
         {candidates.map((printing) => (

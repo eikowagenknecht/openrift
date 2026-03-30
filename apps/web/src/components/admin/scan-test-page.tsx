@@ -568,6 +568,7 @@ function ParamSelect({
             onChange(v);
           }
         }}
+        items={Object.fromEntries(options.map((opt) => [opt.value, opt.label]))}
       >
         <SelectTrigger className="w-full">
           <SelectValue />
