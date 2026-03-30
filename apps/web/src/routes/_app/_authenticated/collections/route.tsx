@@ -8,14 +8,15 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { ChevronDownIcon } from "lucide-react";
 import { createContext, use, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type { CardDragData } from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
-import { Separator } from "@/components/ui/separator";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -131,6 +132,22 @@ function CollectionLayout() {
   );
 }
 
+function CollectionTitleButton({ title }: { title: string }) {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="-ml-2 gap-1 text-sm font-medium"
+      onClick={toggleSidebar}
+    >
+      {title}
+      <ChevronDownIcon className="text-muted-foreground size-4" />
+    </Button>
+  );
+}
+
 function CollectionContent({ title }: { title: string }) {
   const [addModeSlot, setAddModeSlot] = useState<HTMLDivElement | null>(null);
 
@@ -139,9 +156,7 @@ function CollectionContent({ title }: { title: string }) {
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         {/* Header only for mobile */}
         <header className="flex h-12 items-center gap-2 px-4 md:hidden">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="mx-1 h-4 self-center!" />
-          <h1 className="text-sm font-medium">{title}</h1>
+          <CollectionTitleButton title={title} />
           <div ref={setAddModeSlot} className="flex flex-1 items-center gap-2" />
         </header>
         {/* Main content */}

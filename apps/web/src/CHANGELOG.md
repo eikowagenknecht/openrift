@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- feat: On mobile, the collection sidebar now opens from a tappable title instead of a separate sidebar icon, reducing visual clutter near the menu button
 - feat: Drag and drop cards from the grid onto a collection in the sidebar to move them — works with multi-select too
 - feat: Each collection now shows its total market value based on your preferred trading platform, with an indicator for cards that don't have price data yet
 - feat: The app now shows a "Beta" badge next to the logo so it's clear this is an early release

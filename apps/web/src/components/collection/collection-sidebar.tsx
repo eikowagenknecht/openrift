@@ -8,11 +8,13 @@ import {
   LayersIcon,
   PlusIcon,
   StoreIcon,
+  XIcon,
 } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   NestedSidebar,
@@ -23,6 +25,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
@@ -30,12 +33,34 @@ import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import type { CardDragData } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
 
+function MobileSidebarHeader() {
+  const { setOpenMobile } = useSidebar();
+
+  return (
+    <div className="flex items-center justify-between p-4 md:hidden">
+      <h2 className="text-base font-medium">Collections</h2>
+      <Button variant="ghost" size="icon-sm" onClick={() => setOpenMobile(false)}>
+        <XIcon />
+        <span className="sr-only">Close</span>
+      </Button>
+    </div>
+  );
+}
+
 export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
   const [browsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
+  const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
+
+  // Close the mobile sidebar when the user navigates to a different page
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [currentPath, collectionId, isMobile, setOpenMobile]);
   const createCollection = useCreateCollection();
   const sourcesEnabled = useFeatureEnabled("acquisition-sources");
   const [isCreating, setIsCreating] = useState(false);
@@ -65,6 +90,7 @@ export function CollectionSidebar() {
 
   return (
     <NestedSidebar>
+      <MobileSidebarHeader />
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
