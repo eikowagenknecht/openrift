@@ -428,7 +428,7 @@ function PaletteInner({
                           </span>
                         )}
                         {ownedForPrinting > 0 && (
-                          <span className="text-muted-foreground mr-2 ml-1 shrink-0 text-[11px]">
+                          <span className="text-muted-foreground mr-2 ml-1 w-6 shrink-0 text-right text-[11px]">
                             ×{ownedForPrinting}
                           </span>
                         )}
