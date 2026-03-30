@@ -25,6 +25,7 @@ export type { Card, Printing, PrintingImage, PromoType } from "./catalog.js";
 export type {
   CardFilters,
   FilterRange,
+  GroupByField,
   RangeKey,
   SearchField,
   SortDirection,

@@ -137,7 +137,7 @@ export function ScrollIndicator({
                   IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
                 )}
               >
-                {pt.setInfo.name}
+                {pt.group.name}
               </div>
               <div className="bg-muted-foreground/60 size-1.5 shrink-0 rounded-full" />
             </div>

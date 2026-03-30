@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- feat: Cards can now be grouped by set, type, supertype, domain, rarity, art variant, or shown ungrouped — choose from the new Sort & Group popover
 - feat: Clicking a collection name in the "In your collections" popover now opens that collection filtered to the card you're viewing
 - fix: The owned count badge in cards view now shows the total across all printings of a card, not just the displayed variant
 - feat: You can now export any collection (or all cards) as a CSV file from the Import / Export page

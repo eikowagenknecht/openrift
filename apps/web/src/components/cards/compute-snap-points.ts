@@ -67,7 +67,7 @@ export function computeSnapPoints({
     }
     points.push({
       rowIndex: i,
-      setInfo: row.set,
+      group: row.group,
       screenY,
       cardCount: row.cardCount,
       firstCardId,

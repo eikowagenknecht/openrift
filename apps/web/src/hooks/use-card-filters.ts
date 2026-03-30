@@ -3,6 +3,7 @@ import type {
   CardType,
   Domain,
   Finish,
+  GroupByField,
   RangeKey,
   Rarity,
   SortDirection,
@@ -36,6 +37,7 @@ const filterParsers = {
   sort: parseAsString.withDefault("id"),
   sortDir: parseAsString.withDefault("asc"),
   view: parseAsString.withDefault("cards"),
+  groupBy: parseAsString.withDefault("set"),
 };
 
 type ArrayKey =
@@ -89,6 +91,7 @@ export function useFilterValues() {
   const sortBy = filterState.sort as SortOption;
   const sortDir = filterState.sortDir as SortDirection;
   const view = filterState.view as "cards" | "printings" | "copies";
+  const groupBy = filterState.groupBy as GroupByField;
 
   const hasActiveFilters =
     filterState.search !== "" ||
@@ -116,6 +119,7 @@ export function useFilterValues() {
     sortBy,
     sortDir,
     view,
+    groupBy,
     hasActiveFilters,
     filterState,
     searchScope,
@@ -229,6 +233,10 @@ export function useFilterActions() {
     void setFilterState({ view: v === "cards" ? null : v });
   };
 
+  const setGroupBy = (groupBy: GroupByField) => {
+    void setFilterState({ groupBy: groupBy === "set" ? null : groupBy });
+  };
+
   return {
     setSearch,
     toggleArrayFilter,
@@ -240,6 +248,7 @@ export function useFilterActions() {
     setSortBy,
     setSortDir,
     setView,
+    setGroupBy,
     clearAllFilters,
     toggleSearchField,
   };

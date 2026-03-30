@@ -1,16 +1,17 @@
-import type { Printing } from "@openrift/shared";
+import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
-import type { SetInfo } from "@/components/cards/card-grid-types";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface BrowserCardViewerProps {
   items: CardViewerItem[];
   totalItems: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
-  setOrder?: SetInfo[];
+  setOrder?: GroupInfo[];
+  groupBy?: GroupByField;
   deferredSortedCards: Printing[];
   printingsByCardId: Map<string, Printing[]>;
   view: "cards" | "printings";

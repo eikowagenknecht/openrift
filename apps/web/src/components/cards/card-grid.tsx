@@ -1,4 +1,11 @@
-import type { Printing } from "@openrift/shared";
+import type { GroupByField, Printing } from "@openrift/shared";
+import {
+  ART_VARIANT_ORDER,
+  CARD_TYPE_ORDER,
+  DOMAIN_ORDER,
+  RARITY_ORDER,
+  SUPER_TYPE_ORDER,
+} from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { SearchX, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
@@ -25,7 +32,7 @@ import {
   META_LINE_HEIGHT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
-import type { SetInfo, VRow } from "./card-grid-types";
+import type { GroupInfo, VRow } from "./card-grid-types";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useGridKeyboardNav } from "./use-grid-keyboard-nav";
 import { useStickyHeader } from "./use-sticky-header";
@@ -33,17 +40,119 @@ import { useStickyHeader } from "./use-sticky-header";
 export type { SetInfo } from "./card-grid-types";
 
 interface CardGroup {
-  set: SetInfo;
+  group: GroupInfo;
   items: CardViewerItem[];
 }
 
-function groupItemsBySet(items: CardViewerItem[], setOrder: SetInfo[]): CardGroup[] {
-  const bySet = Map.groupBy(items, (item) => item.printing.setId);
+const ART_VARIANT_LABELS: Record<string, string> = {
+  normal: "Normal",
+  altart: "Alt Art",
+  overnumbered: "Overnumbered",
+};
 
-  return setOrder.flatMap((setInfo) => {
-    const setItems = bySet.get(setInfo.id);
-    return setItems ? [{ set: setInfo, items: setItems }] : [];
+function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGroup[] {
+  const bySet = Map.groupBy(items, (item) => item.printing.setId);
+  return setOrder.flatMap((info) => {
+    const setItems = bySet.get(info.id);
+    return setItems ? [{ group: info, items: setItems }] : [];
   });
+}
+
+interface OrderEntry {
+  id: string;
+  name: string;
+}
+
+function groupItemsByField(
+  items: CardViewerItem[],
+  groupBy: Exclude<GroupByField, "none" | "set">,
+): CardGroup[] {
+  const config: Record<
+    typeof groupBy,
+    {
+      order: readonly string[];
+      getKeys: (item: CardViewerItem) => string[];
+      label?: (key: string) => string;
+    }
+  > = {
+    type: {
+      order: CARD_TYPE_ORDER,
+      getKeys: (item) => [item.printing.card.type],
+    },
+    superType: {
+      order: SUPER_TYPE_ORDER,
+      getKeys: (item) => {
+        const supers = item.printing.card.superTypes;
+        return supers.length > 0 ? supers : ["(None)"];
+      },
+    },
+    domain: {
+      order: DOMAIN_ORDER,
+      getKeys: (item) => {
+        const doms = item.printing.card.domains;
+        return doms.length > 0 ? doms : ["Colorless"];
+      },
+    },
+    rarity: {
+      order: RARITY_ORDER,
+      getKeys: (item) => [item.printing.rarity],
+    },
+    artVariant: {
+      order: ART_VARIANT_ORDER,
+      getKeys: (item) => [item.printing.artVariant],
+      label: (key) => ART_VARIANT_LABELS[key] ?? key,
+    },
+  };
+
+  const { order, getKeys, label } = config[groupBy];
+
+  // Build ordered entries including a catch-all for values not in the order array
+  const allKeys = new Set<string>();
+  const buckets = new Map<string, CardViewerItem[]>();
+  for (const item of items) {
+    for (const key of getKeys(item)) {
+      allKeys.add(key);
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.push(item);
+      } else {
+        buckets.set(key, [item]);
+      }
+    }
+  }
+
+  const orderedEntries: OrderEntry[] = [];
+  for (const key of order) {
+    if (allKeys.has(key)) {
+      orderedEntries.push({ id: key, name: label ? label(key) : key });
+      allKeys.delete(key);
+    }
+  }
+  // Append any remaining keys not in the predefined order
+  for (const key of allKeys) {
+    orderedEntries.push({ id: key, name: label ? label(key) : key });
+  }
+
+  return orderedEntries.flatMap((entry) => {
+    const bucket = buckets.get(entry.id);
+    return bucket ? [{ group: { id: entry.id, slug: "", name: entry.name }, items: bucket }] : [];
+  });
+}
+
+function buildGroups(
+  items: CardViewerItem[],
+  groupBy: GroupByField,
+  setOrder?: GroupInfo[],
+): CardGroup[] {
+  if (groupBy === "none") {
+    return [{ group: { id: "_all", slug: "", name: "" }, items }];
+  }
+  if (groupBy === "set") {
+    return setOrder
+      ? groupItemsBySet(items, setOrder)
+      : [{ group: { id: "_all", slug: "", name: "" }, items }];
+  }
+  return groupItemsByField(items, groupBy);
 }
 
 function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
@@ -52,7 +161,7 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
   let cardsBefore = 0;
   for (const group of groups) {
     if (showHeaders) {
-      rows.push({ kind: "header", set: group.set, cardCount: group.items.length });
+      rows.push({ kind: "header", group: group.group, cardCount: group.items.length });
     }
     for (let i = 0; i < group.items.length; i += columns) {
       const items = group.items.slice(i, i + columns);
@@ -86,7 +195,7 @@ function computeRowStarts(
   return starts;
 }
 
-function SetHeaderLabel({
+function GroupHeaderLabel({
   slug,
   name,
   onClick,
@@ -103,7 +212,7 @@ function SetHeaderLabel({
       className={cn("flex cursor-pointer flex-row gap-3 text-sm", className)}
       onClick={onClick}
     >
-      <span className="text-muted-foreground font-medium">{slug}</span>
+      {slug && <span className="text-muted-foreground font-medium">{slug}</span>}
       <span className="font-semibold">{name}</span>
     </button>
   );
@@ -117,15 +226,15 @@ const HeaderRow = memo(function HeaderRow({
   onScrollToGroup,
 }: {
   row: VRow & { kind: "header" };
-  onScrollToGroup: (setId: string) => void;
+  onScrollToGroup: (groupId: string) => void;
 }) {
   return (
     <div className="flex items-center gap-3 pt-4 pb-2">
       <div className="bg-border h-px flex-1" />
-      <SetHeaderLabel
-        slug={row.set.slug}
-        name={row.set.name}
-        onClick={() => onScrollToGroup(row.set.id)}
+      <GroupHeaderLabel
+        slug={row.group.slug}
+        name={row.group.name}
+        onClick={() => onScrollToGroup(row.group.id)}
       />
       <div className="bg-border h-px flex-1" />
     </div>
@@ -227,7 +336,8 @@ interface CardGridProps {
   items: CardViewerItem[];
   totalItems: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
-  setOrder?: SetInfo[];
+  setOrder?: GroupInfo[];
+  groupBy?: GroupByField;
   selectedItemId?: string;
   keyboardNavItemId?: string;
   onItemClick?: (printing: Printing) => void;
@@ -241,6 +351,7 @@ export function CardGrid({
   totalItems,
   renderCard,
   setOrder,
+  groupBy = "set",
   selectedItemId,
   keyboardNavItemId,
   onItemClick,
@@ -269,25 +380,26 @@ export function CardGrid({
 
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
-  // ── Group items by set, then flatten into virtual rows ───────────
-  const groups = setOrder
-    ? groupItemsBySet(items, setOrder)
-    : [{ set: { id: "_all", slug: "", name: "" }, items }];
+  // ── Group items, then flatten into virtual rows ──────────────────
+  const groups = buildGroups(items, groupBy, setOrder);
   const multipleGroups = groups.length > 1;
   const virtualRowsCacheRef = useRef<{
     items: CardViewerItem[];
-    setOrder: SetInfo[] | undefined;
+    setOrder: GroupInfo[] | undefined;
+    groupBy: GroupByField;
     columns: number;
     rows: VRow[];
-  }>({ items: [], setOrder: undefined, columns: 0, rows: [] });
+  }>({ items: [], setOrder: undefined, groupBy: "set", columns: 0, rows: [] });
   if (
     virtualRowsCacheRef.current.items !== items ||
     virtualRowsCacheRef.current.setOrder !== setOrder ||
+    virtualRowsCacheRef.current.groupBy !== groupBy ||
     virtualRowsCacheRef.current.columns !== columns
   ) {
     virtualRowsCacheRef.current = {
       items,
       setOrder,
+      groupBy,
       columns,
       rows: buildVirtualRows(groups, columns),
     };
@@ -424,9 +536,9 @@ export function CardGrid({
   }, [columns, selectedItemId]);
 
   // ── Helpers ────────────────────────────────────────────────────────
-  const scrollToGroup = (setId: string) => {
+  const scrollToGroup = (groupId: string) => {
     const rowIndex = virtualRowsRef.current.findIndex(
-      (r) => r.kind === "header" && r.set.id === setId,
+      (r) => r.kind === "header" && r.group.id === groupId,
     );
     if (rowIndex !== -1) {
       virtualizerRef.current.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
@@ -491,10 +603,10 @@ export function CardGrid({
       <div className="sticky z-10 h-0" style={{ top: APP_HEADER_HEIGHT }}>
         {multipleGroups && activeHeaderRow && (
           <div className="flex justify-center pt-2">
-            <SetHeaderLabel
-              slug={activeHeaderRow.set.slug}
-              name={activeHeaderRow.set.name}
-              onClick={() => scrollToGroup(activeHeaderRow.set.id)}
+            <GroupHeaderLabel
+              slug={activeHeaderRow.group.slug}
+              name={activeHeaderRow.group.name}
+              onClick={() => scrollToGroup(activeHeaderRow.group.id)}
               className="bg-background/60 ring-border/70 rounded-full px-3 py-1 shadow-sm ring-1 backdrop-blur"
             />
           </div>

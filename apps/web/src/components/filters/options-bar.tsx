@@ -1,7 +1,8 @@
-import type { AvailableFilters, SortOption } from "@openrift/shared";
+import type { AvailableFilters, GroupByField, SortOption } from "@openrift/shared";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
+  ArrowUpDown,
   Copy,
   Minus,
   Plus,
@@ -23,13 +24,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -44,60 +39,180 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "price", label: "Price" },
 ];
 
+const groupByOptions: { value: GroupByField; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "set", label: "Set" },
+  { value: "type", label: "Type" },
+  { value: "superType", label: "Supertype" },
+  { value: "domain", label: "Domain" },
+  { value: "rarity", label: "Rarity" },
+  { value: "artVariant", label: "Art Variant" },
+];
+
 /* ------------------------------------------------------------------ */
 /*  Shared sub-components (desktop / mobile via `compact` prop)       */
 /* ------------------------------------------------------------------ */
 
-function SortControls({
+function RadioOption({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "rounded-md px-2.5 py-1 text-left text-sm transition-colors",
+        selected
+          ? "bg-accent text-accent-foreground font-medium"
+          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SortGroupSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-muted-foreground px-2.5 text-xs font-medium tracking-wide uppercase">
+        {title}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function SortGroupControls({
   compact,
   sortBy,
   sortDir,
+  groupBy,
   onSortByChange,
   onSortDirChange,
+  onGroupByChange,
 }: {
   compact?: boolean;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
+  groupBy: GroupByField;
   onSortByChange: (v: SortOption) => void;
   onSortDirChange: (v: "asc" | "desc") => void;
+  onGroupByChange: (v: GroupByField) => void;
 }) {
+  const sortLabel = sortOptions.find((o) => o.value === sortBy)?.label ?? sortBy;
+  const groupLabel = groupByOptions.find((o) => o.value === groupBy)?.label ?? groupBy;
+  const dirIcon =
+    sortDir === "asc" ? (
+      <ArrowDownNarrowWide className="size-3.5" />
+    ) : (
+      <ArrowUpNarrowWide className="size-3.5" />
+    );
+
+  if (compact) {
+    // Mobile: inline sections without popover
+    return (
+      <div className="flex flex-col gap-3">
+        <SortGroupSection title="Group by">
+          <div className="flex flex-wrap gap-1">
+            {groupByOptions.map((option) => (
+              <RadioOption
+                key={option.value}
+                selected={groupBy === option.value}
+                onClick={() => onGroupByChange(option.value)}
+              >
+                {option.label}
+              </RadioOption>
+            ))}
+          </div>
+        </SortGroupSection>
+        <SortGroupSection title="Sort by">
+          <div className="flex flex-wrap gap-1">
+            {sortOptions.map((option) => (
+              <RadioOption
+                key={option.value}
+                selected={sortBy === option.value}
+                onClick={() => onSortByChange(option.value)}
+              >
+                {option.label}
+              </RadioOption>
+            ))}
+          </div>
+        </SortGroupSection>
+        <SortGroupSection title="Direction">
+          <div className="flex gap-1">
+            <RadioOption selected={sortDir === "asc"} onClick={() => onSortDirChange("asc")}>
+              Ascending
+            </RadioOption>
+            <RadioOption selected={sortDir === "desc"} onClick={() => onSortDirChange("desc")}>
+              Descending
+            </RadioOption>
+          </div>
+        </SortGroupSection>
+      </div>
+    );
+  }
+
+  // Desktop: popover trigger
   return (
-    <div className={cn("flex items-center", compact ? "gap-2" : "gap-3")}>
-      <Select
-        value={sortBy}
-        onValueChange={(v) => onSortByChange(v as SortOption)}
-        items={Object.fromEntries(sortOptions.map((o) => [o.value, o.label]))}
-      >
-        <SelectTrigger
-          size={compact ? "sm" : undefined}
-          className={compact ? "flex-1 text-xs" : "w-[160px]"}
-          aria-label="Sort by"
-        >
-          <span className="text-muted-foreground">Sort:&nbsp;</span>
-          <SelectValue placeholder="Sort by" />
-        </SelectTrigger>
-        <SelectContent>
-          {sortOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button
-        variant="outline"
-        size={compact ? "sm" : "icon"}
-        className={compact ? "size-7 p-0" : undefined}
-        onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")}
-        title={sortDir === "asc" ? "Ascending" : "Descending"}
-      >
-        {sortDir === "asc" ? (
-          <ArrowDownNarrowWide className={compact ? undefined : "size-4"} />
-        ) : (
-          <ArrowUpNarrowWide className={compact ? undefined : "size-4"} />
+    <Popover>
+      <PopoverTrigger
+        className={cn(
+          "border-input bg-background ring-ring/10 hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-colors",
         )}
-      </Button>
-    </div>
+      >
+        <ArrowUpDown className="text-muted-foreground size-4" />
+        <span>
+          {sortLabel} {dirIcon}
+        </span>
+        {groupBy !== "none" && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">by {groupLabel}</span>
+          </>
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 gap-3 p-2">
+        <SortGroupSection title="Group by">
+          {groupByOptions.map((option) => (
+            <RadioOption
+              key={option.value}
+              selected={groupBy === option.value}
+              onClick={() => onGroupByChange(option.value)}
+            >
+              {option.label}
+            </RadioOption>
+          ))}
+        </SortGroupSection>
+        <div className="bg-border -mx-2 h-px" />
+        <SortGroupSection title="Sort by">
+          {sortOptions.map((option) => (
+            <RadioOption
+              key={option.value}
+              selected={sortBy === option.value}
+              onClick={() => onSortByChange(option.value)}
+            >
+              {option.label}
+            </RadioOption>
+          ))}
+        </SortGroupSection>
+        <div className="bg-border -mx-2 h-px" />
+        <SortGroupSection title="Direction">
+          <RadioOption selected={sortDir === "asc"} onClick={() => onSortDirChange("asc")}>
+            Ascending
+          </RadioOption>
+          <RadioOption selected={sortDir === "desc"} onClick={() => onSortDirChange("desc")}>
+            Descending
+          </RadioOption>
+        </SortGroupSection>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -232,8 +347,8 @@ function ColumnControls({
 /* ------------------------------------------------------------------ */
 
 function useOptionsBarState() {
-  const { sortBy, sortDir, hasActiveFilters, view } = useFilterValues();
-  const { setSortBy, setSortDir, setView } = useFilterActions();
+  const { sortBy, sortDir, hasActiveFilters, view, groupBy } = useFilterValues();
+  const { setSortBy, setSortDir, setView, setGroupBy } = useFilterActions();
 
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
@@ -259,6 +374,8 @@ function useOptionsBarState() {
     hasActiveFilters,
     view,
     setView,
+    groupBy,
+    setGroupBy,
     columnProps,
   };
 }
@@ -274,16 +391,27 @@ export function DesktopOptionsBar({
   className?: string;
   showCopies?: boolean;
 }) {
-  const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps } =
-    useOptionsBarState();
+  const {
+    sortBy,
+    sortDir,
+    setSortBy,
+    setSortDir,
+    view,
+    setView,
+    groupBy,
+    setGroupBy,
+    columnProps,
+  } = useOptionsBarState();
 
   return (
     <div className={cn("items-center gap-3", className)}>
-      <SortControls
+      <SortGroupControls
         sortBy={sortBy}
         sortDir={sortDir}
+        groupBy={groupBy}
         onSortByChange={setSortBy}
         onSortDirChange={setSortDir}
+        onGroupByChange={setGroupBy}
       />
       <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
       <ColumnControls {...columnProps} />
@@ -343,18 +471,28 @@ export function MobileOptionsDrawer({
 /* ------------------------------------------------------------------ */
 
 export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = {}) {
-  const { sortBy, sortDir, setSortBy, setSortDir, view, setView, columnProps } =
-    useOptionsBarState();
+  const {
+    sortBy,
+    sortDir,
+    setSortBy,
+    setSortDir,
+    view,
+    setView,
+    groupBy,
+    setGroupBy,
+    columnProps,
+  } = useOptionsBarState();
 
   return (
     <div className="space-y-2.5">
-      <p className="text-sm font-medium">Options</p>
-      <SortControls
+      <SortGroupControls
         compact
         sortBy={sortBy}
         sortDir={sortDir}
+        groupBy={groupBy}
         onSortByChange={setSortBy}
         onSortDirChange={setSortDir}
+        onGroupByChange={setGroupBy}
       />
       <div className="flex items-center gap-2">
         <ViewModeToggle

@@ -53,6 +53,7 @@ export type {
   SiteSettingsResponse,
   FilterRange,
   Finish,
+  GroupByField,
   IgnoredProductResponse,
   KeywordStyleEntry,
   KeywordStylesResponse,

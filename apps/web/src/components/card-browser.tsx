@@ -44,7 +44,7 @@ export function CardBrowser() {
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
-  const { filters, sortBy, sortDir, view: rawView, hasActiveFilters } = useFilterValues();
+  const { filters, sortBy, sortDir, view: rawView, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
 
@@ -199,6 +199,7 @@ export function CardBrowser() {
       totalItems={allPrintings.length}
       renderCard={renderCard}
       setOrder={sets}
+      groupBy={groupBy}
       deferredSortedCards={deferredSortedCards}
       printingsByCardId={printingsByCardId}
       view={view}

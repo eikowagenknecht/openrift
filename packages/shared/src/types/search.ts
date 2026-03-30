@@ -22,6 +22,15 @@ export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
   id: "id",
 };
 
+export type GroupByField =
+  | "none"
+  | "set"
+  | "type"
+  | "superType"
+  | "domain"
+  | "rarity"
+  | "artVariant";
+
 export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
 
 export type SortDirection = "asc" | "desc";

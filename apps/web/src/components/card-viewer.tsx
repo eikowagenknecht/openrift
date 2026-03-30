@@ -1,16 +1,17 @@
-import type { Printing } from "@openrift/shared";
+import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
-import type { SetInfo } from "@/components/cards/card-grid-types";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { cn } from "@/lib/utils";
 
 interface CardViewerProps {
   items: CardViewerItem[];
   totalItems: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
-  setOrder?: SetInfo[];
+  setOrder?: GroupInfo[];
+  groupBy?: GroupByField;
   selectedItemId?: string;
   keyboardNavItemId?: string;
   onItemClick?: (printing: Printing) => void;
@@ -39,6 +40,7 @@ export function CardViewer({
   totalItems,
   renderCard,
   setOrder,
+  groupBy,
   selectedItemId,
   keyboardNavItemId,
   onItemClick,
@@ -68,6 +70,7 @@ export function CardViewer({
             totalItems={totalItems}
             renderCard={renderCard}
             setOrder={setOrder}
+            groupBy={groupBy}
             selectedItemId={selectedItemId}
             keyboardNavItemId={keyboardNavItemId}
             onItemClick={onItemClick}
