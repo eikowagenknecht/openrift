@@ -5,8 +5,6 @@ import type { CollectionsTable, CopiesTable, Database } from "../db/index.js";
 
 interface CollectionWithCount extends Selectable<CollectionsTable> {
   copyCount: number;
-  totalValueCents: number;
-  unpricedCopyCount: number;
 }
 
 /**
@@ -16,8 +14,8 @@ interface CollectionWithCount extends Selectable<CollectionsTable> {
  */
 export function collectionsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All collections for a user with copy counts and value, inbox first, then by sort order and name. */
-    listForUser(userId: string, marketplace: string): Promise<CollectionWithCount[]> {
+    /** @returns All collections for a user with copy counts, inbox first, then by sort order and name. */
+    listForUser(userId: string): Promise<CollectionWithCount[]> {
       return db
         .selectFrom("collections")
         .selectAll("collections")
@@ -25,36 +23,6 @@ export function collectionsRepo(db: Kysely<Database>) {
           sql<number>`(select count(*)::int from copies where copies.collection_id = collections.id)`.as(
             "copyCount",
           ),
-        )
-        .select(
-          sql<number>`(
-            select coalesce(sum(snap.market_cents), 0)::int
-            from copies c
-            inner join marketplace_products mp
-              on mp.printing_id = c.printing_id and mp.marketplace = ${marketplace}
-            inner join lateral (
-              select ms.market_cents
-              from marketplace_snapshots ms
-              where ms.product_id = mp.id
-              order by ms.recorded_at desc
-              limit 1
-            ) snap on true
-            where c.collection_id = collections.id
-          )`.as("totalValueCents"),
-        )
-        .select(
-          sql<number>`(
-            select count(*)::int
-            from copies c
-            where c.collection_id = collections.id
-              and not exists (
-                select 1
-                from marketplace_products mp
-                inner join marketplace_snapshots ms on ms.product_id = mp.id
-                where mp.printing_id = c.printing_id
-                  and mp.marketplace = ${marketplace}
-              )
-          )`.as("unpricedCopyCount"),
         )
         .where("userId", "=", userId)
         .orderBy("isInbox", "desc")
@@ -63,50 +31,11 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns A single collection by ID scoped to a user with value data, or `undefined`. */
-    getByIdForUser(
-      id: string,
-      userId: string,
-      marketplace: string,
-    ): Promise<CollectionWithCount | undefined> {
+    /** @returns A single collection by ID scoped to a user, or `undefined`. */
+    getByIdForUser(id: string, userId: string): Promise<Selectable<CollectionsTable> | undefined> {
       return db
         .selectFrom("collections")
-        .selectAll("collections")
-        .select(
-          sql<number>`(select count(*)::int from copies where copies.collection_id = collections.id)`.as(
-            "copyCount",
-          ),
-        )
-        .select(
-          sql<number>`(
-            select coalesce(sum(snap.market_cents), 0)::int
-            from copies c
-            inner join marketplace_products mp
-              on mp.printing_id = c.printing_id and mp.marketplace = ${marketplace}
-            inner join lateral (
-              select ms.market_cents
-              from marketplace_snapshots ms
-              where ms.product_id = mp.id
-              order by ms.recorded_at desc
-              limit 1
-            ) snap on true
-            where c.collection_id = collections.id
-          )`.as("totalValueCents"),
-        )
-        .select(
-          sql<number>`(
-            select count(*)::int
-            from copies c
-            where c.collection_id = collections.id
-              and not exists (
-                select 1
-                from marketplace_products mp
-                inner join marketplace_snapshots ms on ms.product_id = mp.id
-                where mp.printing_id = c.printing_id
-                  and mp.marketplace = ${marketplace}
-              )
-          )`.as("unpricedCopyCount"),
-        )
+        .selectAll()
         .where("id", "=", id)
         .where("userId", "=", userId)
         .executeTakeFirst();

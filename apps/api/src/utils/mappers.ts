@@ -23,15 +23,13 @@ import type {
   WishListItemsTable,
   WishListsTable,
 } from "../db/index.js";
+import type { CollectionValue } from "../repositories/marketplace.js";
 
 // ── Simple entity mappers ──────────────────────────────────────────────────
 
 export function toCollection(
-  row: Selectable<CollectionsTable> & {
-    copyCount?: number;
-    totalValueCents?: number | null;
-    unpricedCopyCount?: number | null;
-  },
+  row: Selectable<CollectionsTable> & { copyCount?: number },
+  value?: CollectionValue,
 ): CollectionResponse {
   return {
     id: row.id,
@@ -42,8 +40,8 @@ export function toCollection(
     sortOrder: row.sortOrder,
     shareToken: row.shareToken,
     copyCount: row.copyCount ?? 0,
-    totalValueCents: row.totalValueCents ?? null,
-    unpricedCopyCount: row.unpricedCopyCount ?? null,
+    totalValueCents: value?.totalValueCents ?? null,
+    unpricedCopyCount: value?.unpricedCopyCount ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

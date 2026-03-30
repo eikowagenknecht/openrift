@@ -28,6 +28,10 @@ const mockUserPreferencesRepo = {
   getByUserId: vi.fn(() => Promise.resolve(undefined)),
 };
 
+const mockMarketplaceRepo = {
+  collectionValues: vi.fn(() => Promise.resolve(new Map())),
+};
+
 const mockEnsureInbox = vi.fn(() => Promise.resolve("inbox-id"));
 const mockDeleteCollection = vi.fn(() => Promise.resolve());
 
@@ -44,6 +48,7 @@ const app = new Hono()
     c.set("repos", {
       collections: mockCollectionsRepo,
       copies: mockCopiesRepo,
+      marketplace: mockMarketplaceRepo,
       userPreferences: mockUserPreferencesRepo,
     } as never);
     c.set("services", {

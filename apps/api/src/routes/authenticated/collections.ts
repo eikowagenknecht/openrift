@@ -115,16 +115,22 @@ collectionsApp.use(requireAuth);
 export const collectionsRoute = collectionsApp
   // ── LIST ────────────────────────────────────────────────────────────────────
   .openapi(listCollections, async (c) => {
-    const { collections, userPreferences } = c.get("repos");
+    const { collections, marketplace, userPreferences } = c.get("repos");
     const { ensureInbox } = c.get("services");
     const userId = getUserId(c);
     await ensureInbox(c.get("repos"), userId);
     const prefs = await userPreferences.getByUserId(userId);
-    const marketplace =
+    const favMarketplace =
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
-    const rows = await collections.listForUser(userId, marketplace);
+    const [rows, values] = await Promise.all([
+      collections.listForUser(userId),
+      marketplace.collectionValues(userId, favMarketplace),
+    ]);
     return c.json({
-      items: rows.map((row) => toCollection(row)),
+      items: rows.map((row) => {
+        const value = values.get(row.id);
+        return toCollection(row, value);
+      }),
     } satisfies CollectionListResponse);
   })
 
@@ -146,17 +152,18 @@ export const collectionsRoute = collectionsApp
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   .openapi(getCollection, async (c) => {
-    const { collections, userPreferences } = c.get("repos");
+    const { collections, marketplace, userPreferences } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
-    const prefs = await userPreferences.getByUserId(userId);
-    const marketplace =
-      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
-    const row = await collections.getByIdForUser(id, userId, marketplace);
+    const row = await collections.getByIdForUser(id, userId);
     if (!row) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
-    return c.json(toCollection(row));
+    const prefs = await userPreferences.getByUserId(userId);
+    const favMarketplace =
+      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
+    const values = await marketplace.collectionValues(userId, favMarketplace);
+    return c.json(toCollection(row, values.get(row.id)));
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
@@ -182,7 +189,7 @@ export const collectionsRoute = collectionsApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const collection = await repos.collections.getByIdForUser(id, userId, "tcgplayer");
+    const collection = await repos.collections.getByIdForUser(id, userId);
 
     if (!collection) {
       throw new AppError(404, "NOT_FOUND", "Not found");
