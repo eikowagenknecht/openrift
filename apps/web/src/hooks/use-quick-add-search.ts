@@ -59,6 +59,9 @@ export function searchCards(
       } else if (normalizedName.includes(normalizedQuery)) {
         // Substring match
         rank = 3;
+      } else if (printings.some((p) => p.shortCode.toLowerCase().startsWith(queryLower))) {
+        // Short code prefix match (e.g. "OGN-042")
+        rank = 4;
       } else {
         continue;
       }
