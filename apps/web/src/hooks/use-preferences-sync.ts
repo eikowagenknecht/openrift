@@ -19,33 +19,15 @@ function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null }
   const { overrides } = useDisplayStore.getState();
   const { preference } = useThemeStore.getState();
 
-  const result: Record<string, unknown> = {};
-
-  // Top-level display overrides
-  if (overrides.showImages !== null) {
-    result.showImages = overrides.showImages;
-  }
-  if (overrides.fancyFan !== null) {
-    result.fancyFan = overrides.fancyFan;
-  }
-  if (overrides.foilEffect !== null) {
-    result.foilEffect = overrides.foilEffect;
-  }
-  if (overrides.cardTilt !== null) {
-    result.cardTilt = overrides.cardTilt;
-  }
-
-  // Marketplace order
-  if (overrides.marketplaceOrder !== null) {
-    result.marketplaceOrder = overrides.marketplaceOrder;
-  }
-
-  // Theme
-  if (preference !== null) {
-    result.theme = preference;
-  }
-
-  return result as UserPreferencesResponse;
+  // Send all overrides — null tells the API to remove the key (reset to default).
+  return {
+    showImages: overrides.showImages,
+    fancyFan: overrides.fancyFan,
+    foilEffect: overrides.foilEffect,
+    cardTilt: overrides.cardTilt,
+    marketplaceOrder: overrides.marketplaceOrder,
+    theme: preference,
+  } as UserPreferencesResponse;
 }
 
 /**
