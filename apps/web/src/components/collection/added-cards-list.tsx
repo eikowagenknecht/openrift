@@ -14,7 +14,7 @@ interface AddedCardsListProps {
 export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
   const items = useAddModeStore((s) => s.addedItems);
   const entries = [...items.values()].toReversed();
-  const totalCount = entries.reduce((sum, entry) => sum + entry.quantity, 0);
+  const totalCount = entries.reduce((sum, entry) => sum + entry.quantity + entry.pendingCount, 0);
 
   return (
     <div className="bg-background rounded-lg px-3">
@@ -58,9 +58,9 @@ export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
                   {formatPrintingLabel(entry.printing)}
                 </p>
               </div>
-              {entry.quantity > 1 && (
+              {entry.quantity + entry.pendingCount > 1 && (
                 <span className="text-muted-foreground shrink-0 text-sm font-medium">
-                  ×{entry.quantity}
+                  ×{entry.quantity + entry.pendingCount}
                 </span>
               )}
             </button>
