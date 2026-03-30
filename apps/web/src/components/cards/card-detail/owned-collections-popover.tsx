@@ -1,3 +1,4 @@
+import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { Package } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -7,6 +8,10 @@ import { cn } from "@/lib/utils";
 
 interface OwnedCollectionsPopoverProps {
   printingId: string;
+  /** Override the displayed count (e.g. from stacked copies). Falls back to the global owned count. */
+  count?: number;
+  /** Horizontal alignment of the popover relative to the trigger. */
+  align?: PopoverPrimitive.Positioner.Props["align"];
 }
 
 /**
@@ -14,11 +19,15 @@ interface OwnedCollectionsPopoverProps {
  * Only renders when the user is authenticated and owns at least one copy of the printing.
  * @returns The popover, or null if the user is not authenticated or owns no copies.
  */
-export function OwnedCollectionsPopover({ printingId }: OwnedCollectionsPopoverProps) {
+export function OwnedCollectionsPopover({
+  printingId,
+  count,
+  align = "end",
+}: OwnedCollectionsPopoverProps) {
   const { data: session } = useSession();
   const isAuthenticated = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isAuthenticated);
-  const totalOwned = ownedCountByPrinting?.[printingId] ?? 0;
+  const totalOwned = count ?? ownedCountByPrinting?.[printingId] ?? 0;
   const { data: breakdown } = useOwnedCollections(printingId, isAuthenticated && totalOwned > 0);
 
   if (!isAuthenticated || totalOwned === 0) {
@@ -37,7 +46,7 @@ export function OwnedCollectionsPopover({ printingId }: OwnedCollectionsPopoverP
         <Package className="size-3" />
         <span>&times;{totalOwned}</span>
       </PopoverTrigger>
-      <PopoverContent side="bottom" align="start" className="w-56 p-0">
+      <PopoverContent side="bottom" align={align} className="w-56 p-0">
         <div className="px-3 pt-2.5 pb-1">
           <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
             In your collections

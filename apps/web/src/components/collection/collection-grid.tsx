@@ -431,7 +431,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           priority={ctx.priority}
           isSelected={ctx.isSelected}
           isFlashing={ctx.isFlashing}
-          aboveCard={<OwnedCountStrip count={ownedCount} />}
+          aboveCard={<OwnedCountStrip count={ownedCount} printingId={item.printing.id} />}
         />
       </div>
     );

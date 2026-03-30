@@ -102,7 +102,7 @@ export function copiesRepo(db: Kysely<Database>) {
         ])
         .where("cp.userId", "=", userId)
         .where("cp.printingId", "=", printingId)
-        .groupBy(["cp.collectionId", "col.name"])
+        .groupBy(["cp.collectionId", "col.name", "col.sortOrder"])
         .orderBy("col.sortOrder")
         .execute();
     },
