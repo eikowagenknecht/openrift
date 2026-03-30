@@ -363,7 +363,7 @@ function PaletteInner({
                     )}
                     {card.ownedCount > 0 && (
                       <span className="text-muted-foreground shrink-0 text-xs">
-                        ×{card.ownedCount} owned
+                        {card.ownedCount} total
                       </span>
                     )}
                   </div>
@@ -421,7 +421,7 @@ function PaletteInner({
                           )}
                           {ownedForPrinting > 0 && (
                             <span className="text-muted-foreground shrink-0 text-[11px]">
-                              ×{ownedForPrinting}
+                              {ownedForPrinting} total
                             </span>
                           )}
                         </button>
