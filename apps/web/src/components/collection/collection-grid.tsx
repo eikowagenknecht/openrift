@@ -1,6 +1,15 @@
 import type { Printing } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, CheckSquare, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  Check,
+  CheckSquare,
+  LibraryBig,
+  Minus,
+  Package,
+  PackagePlus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { use, useEffect, useDeferredValue, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -33,6 +42,7 @@ import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
@@ -518,59 +528,52 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           </div>
         )}
         {mode !== "add" && (
-          <div className="hidden items-center gap-2 sm:flex">
+          <div className="hidden items-center gap-3 sm:flex">
             {addTarget && (
-              <>
+              <ButtonGroup aria-label="Collection actions">
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant="outline"
+                  size="icon"
                   onClick={() => setQuickAddOpen(true)}
-                  className="text-xs"
-                  title="Quick add"
+                  title={`Quick add (${navigator.platform.startsWith("Mac") ? "⌘K" : "Ctrl+K"})`}
                 >
-                  <Search className="size-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Quick add</span>
-                  <kbd className="bg-muted text-muted-foreground ml-1.5 hidden rounded px-1 py-0.5 font-mono text-[10px] sm:inline">
-                    {navigator.platform.startsWith("Mac") ? "⌘K" : "Ctrl+K"}
-                  </kbd>
+                  <PackagePlus className="size-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={startBrowsing}
-                  className="text-xs"
-                  title="Browse & add"
-                >
-                  <Plus className="size-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Browse & add</span>
+                <Button variant="outline" size="icon" onClick={startBrowsing} title="Browse & add">
+                  <LibraryBig className="size-4" />
                 </Button>
-              </>
+              </ButtonGroup>
             )}
             {mode === "select" ? (
-              <>
+              <ButtonGroup aria-label="Selection actions">
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant="outline"
+                  size="icon"
                   onClick={() => toggleSelectAll(allCopyIds)}
-                  className="text-xs"
+                  title={selected.size === totalCopies ? "Deselect all" : "Select all"}
                 >
-                  {selected.size === totalCopies ? "Deselect all" : "Select all"}
+                  <Check className="size-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={exitSelectMode} className="text-xs">
-                  Done
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={exitSelectMode}
+                  title="Done selecting"
+                >
+                  <X className="size-4" />
                 </Button>
-              </>
+              </ButtonGroup>
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={enterSelectMode}
-                className="text-xs"
-                title="Select cards"
-              >
-                <CheckSquare className="size-3 sm:mr-1" />
-                <span className="hidden sm:inline">Select</span>
-              </Button>
+              <ButtonGroup aria-label="Selection actions">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={enterSelectMode}
+                  title="Select cards"
+                >
+                  <CheckSquare className="size-4" />
+                </Button>
+              </ButtonGroup>
             )}
           </div>
         )}
@@ -623,7 +626,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
               className="text-xs"
               title="Browse & add"
             >
-              <Plus className="size-3" />
+              <LibraryBig className="size-3" />
             </Button>
           )}
           {mode === "select" ? (
@@ -691,11 +694,11 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         {addTarget && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
-              <Search className="mr-1 size-3.5" />
+              <PackagePlus className="mr-1 size-3.5" />
               Quick add
             </Button>
             <Button size="sm" onClick={startBrowsing}>
-              <Plus className="mr-1 size-3.5" />
+              <LibraryBig className="mr-1 size-3.5" />
               Browse & add
             </Button>
           </div>
