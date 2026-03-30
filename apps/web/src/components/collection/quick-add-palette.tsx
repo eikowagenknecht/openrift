@@ -334,7 +334,7 @@ function PaletteInner({
         {results.map((card, index) => {
           const isSelected = index === selectedIndex && !expandedCardId;
           const isExpanded = expandedCardId === card.cardId;
-          const uniqueSets = [...new Set(card.printings.map((p) => p.setSlug.toUpperCase()))];
+          const shortCodes = card.printings.map((p) => p.shortCode);
           const sessionAddedForCard = card.printings.reduce(
             (sum, printing) => sum + (addedItems.get(printing.id)?.quantity ?? 0),
             0,
@@ -375,7 +375,7 @@ function PaletteInner({
                       </span>
                     )}
                   </div>
-                  <div className="text-muted-foreground text-xs">{uniqueSets.join(" · ")}</div>
+                  <div className="text-muted-foreground text-xs">{shortCodes.join(" · ")}</div>
                 </div>
                 <ChevronRight
                   className={cn(
