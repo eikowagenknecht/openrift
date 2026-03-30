@@ -1,5 +1,6 @@
 import type { CardType, Rarity } from "@openrift/shared";
 import { Sparkle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,8 @@ interface CardMetaLabelProps {
   rarity: Rarity;
   isFoil?: boolean;
   className?: string;
+  /** Optional price element rendered right-aligned on the name line. */
+  price?: ReactNode;
 }
 
 /**
@@ -27,6 +30,7 @@ export function CardMetaLabel({
   rarity,
   isFoil,
   className,
+  price,
 }: CardMetaLabelProps) {
   const typeLabel = superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type;
 
@@ -62,7 +66,10 @@ export function CardMetaLabel({
         </span>
       </div>
       {/* min-h-4: same WebKit workaround as above */}
-      <p className="min-h-4 truncate text-xs font-medium">{name}</p>
+      <div className="flex min-h-4 items-center gap-1 text-xs font-medium">
+        <span className="min-w-0 flex-1 truncate">{name}</span>
+        {price}
+      </div>
     </div>
   );
 }

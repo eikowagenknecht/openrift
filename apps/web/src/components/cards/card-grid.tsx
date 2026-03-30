@@ -23,8 +23,6 @@ import {
   META_LABEL_PY,
   META_LINE_GAP,
   META_LINE_HEIGHT,
-  PRICE_LINE_HEIGHT,
-  PRICE_MT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
 import type { SetInfo, VRow } from "./card-grid-types";
@@ -67,13 +65,7 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
 
 /** All fields are always visible — height is constant. */
 const LABEL_HEIGHT =
-  LABEL_WRAPPER_MT +
-  META_LABEL_PY +
-  META_LINE_HEIGHT +
-  META_LINE_GAP +
-  META_LINE_HEIGHT +
-  PRICE_MT +
-  PRICE_LINE_HEIGHT;
+  LABEL_WRAPPER_MT + META_LABEL_PY + META_LINE_HEIGHT + META_LINE_GAP + META_LINE_HEIGHT;
 
 /**
  * Builds a prefix-sum array of Y-offsets so `rowStarts[i]` is the pixel

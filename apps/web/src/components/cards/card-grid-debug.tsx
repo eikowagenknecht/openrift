@@ -9,8 +9,6 @@ import {
   META_LABEL_PY,
   META_LINE_GAP,
   META_LINE_HEIGHT,
-  PRICE_LINE_HEIGHT,
-  PRICE_MT,
 } from "./card-grid-constants";
 
 type VRow = { kind: "header" } | { kind: "cards" };
@@ -135,7 +133,6 @@ export function CardGridDebug({
           : cardEl?.children[0];
         const lblDiv = cardEl?.lastElementChild;
         const metaEl = lblDiv ? lblDiv.children[0] : undefined;
-        const priceEl = lblDiv ? lblDiv.children[1] : undefined;
 
         // Row-level measurements — use raw getBoundingClientRect for fractional
         // precision (firstCard.size is the virtualizer's rounded integer).
@@ -209,27 +206,11 @@ export function CardGridDebug({
             });
           }
 
-          // Price subtree
-          if (priceEl) {
-            const measPriceMt = Number.parseFloat(getComputedStyle(priceEl as Element).marginTop);
-            const measPriceH = (priceEl as Element).getBoundingClientRect().height;
-            labelChildren.push({
-              label: "price",
-              exp: PRICE_MT + PRICE_LINE_HEIGHT,
-              meas: measPriceMt + measPriceH,
-              note: "mt+h",
-              children: [
-                { label: "mt", exp: PRICE_MT, meas: measPriceMt },
-                { label: "h", exp: PRICE_LINE_HEIGHT, meas: measPriceH },
-              ],
-            });
-          }
-
           rowChildren.push({
             label: "label",
             exp: labelHeight - LABEL_WRAPPER_MT,
             meas: measLblH,
-            note: "meta+price",
+            note: "meta",
             children: labelChildren,
           });
         }

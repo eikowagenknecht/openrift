@@ -302,6 +302,21 @@ export const CardThumbnail = memo(function CardThumbnail({
     </div>
   );
 
+  const priceNode =
+    favoritePrice === undefined ? undefined : view === "cards" &&
+      priceRange &&
+      priceRange.min !== priceRange.max ? (
+      <span className="flex shrink-0 items-center gap-0.5">
+        <span className={priceColorClass(priceRange.min)}>{compactFmt(priceRange.min)}</span>
+        <span className="text-muted-foreground/60">&ndash;</span>
+        <span className={priceColorClass(priceRange.max)}>{compactFmt(priceRange.max)}</span>
+      </span>
+    ) : (
+      <span className={cn("shrink-0", priceColorClass(favoritePrice))}>
+        {compactFmt(favoritePrice)}
+      </span>
+    );
+
   const labelSection = (
     // ⚠ mt-2.5 is mirrored as LABEL_WRAPPER_MT in card-grid.tsx — update both together
     <div className="relative z-10 mt-2.5">
@@ -312,21 +327,8 @@ export const CardThumbnail = memo(function CardThumbnail({
         superTypes={card.superTypes}
         rarity={printing.rarity}
         isFoil={isFoilCard}
+        price={priceNode}
       />
-      {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
-      {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when favoritePrice is undefined */}
-      <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
-        {favoritePrice !== undefined &&
-          (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
-            <>
-              <span className={priceColorClass(priceRange.min)}>{compactFmt(priceRange.min)}</span>
-              <span className="text-muted-foreground/60">&ndash;</span>
-              <span className={priceColorClass(priceRange.max)}>{compactFmt(priceRange.max)}</span>
-            </>
-          ) : (
-            <span className={priceColorClass(favoritePrice)}>{compactFmt(favoritePrice)}</span>
-          ))}
-      </p>
     </div>
   );
 
