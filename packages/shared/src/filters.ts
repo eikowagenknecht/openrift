@@ -18,6 +18,7 @@ import {
   ART_VARIANT_ORDER,
   DOMAIN_ORDER,
   FINISH_ORDER,
+  NONE,
   RARITY_ORDER,
   SEARCH_PREFIX_MAP,
 } from "./types/index.js";
@@ -102,15 +103,21 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
 
 /**
  * Tests whether a nullable numeric value falls within a FilterRange. An empty
- * range (both bounds null) passes everything; a null value fails any non-empty range.
+ * range (both bounds null) passes everything; a null value fails any non-empty
+ * range unless `min` is `NONE` (-1), which opts null-stat cards in. When `max`
+ * is `NONE`, no real numeric value can pass (only null values match when `min`
+ * is also `NONE`).
  *
  * @returns `true` if the value satisfies the range constraints (or the range is empty).
  *
  * @example
  * ```ts
- * matchesRange(3, { min: 1, max: 5 }) // => true
- * matchesRange(null, { min: 1, max: null }) // => false
- * matchesRange(7, { min: null, max: null }) // => true (empty range)
+ * matchesRange(3, { min: 1, max: 5 })        // => true
+ * matchesRange(null, { min: 1, max: null })   // => false
+ * matchesRange(7, { min: null, max: null })   // => true  (empty range)
+ * matchesRange(null, { min: -1, max: 5 })     // => true  (NONE includes nulls)
+ * matchesRange(null, { min: -1, max: -1 })    // => true  (only nulls)
+ * matchesRange(3, { min: -1, max: -1 })       // => false (only nulls)
  * ```
  */
 function matchesRange(value: number | null, range: FilterRange): boolean {
@@ -118,9 +125,12 @@ function matchesRange(value: number | null, range: FilterRange): boolean {
     return true;
   }
   if (value === null) {
+    return range.min === NONE;
+  }
+  if (range.max === NONE) {
     return false;
   }
-  if (range.min !== null && value < range.min) {
+  if (range.min !== null && range.min !== NONE && value < range.min) {
     return false;
   }
   if (range.max !== null && value > range.max) {
@@ -258,6 +268,9 @@ export interface AvailableFilters {
   finishes: Finish[];
   hasSigned: boolean;
   hasPromo: boolean;
+  hasNullEnergy: boolean;
+  hasNullMight: boolean;
+  hasNullPower: boolean;
   promoTypes: PromoType[];
   energy: { min: number; max: number };
   might: { min: number; max: number };
@@ -314,6 +327,9 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
     finishes,
     hasSigned: printings.some((p) => p.isSigned),
     hasPromo: printings.some((p) => p.promoType !== null),
+    hasNullEnergy: printings.some((p) => p.card.energy === null),
+    hasNullMight: printings.some((p) => p.card.might === null),
+    hasNullPower: printings.some((p) => p.card.power === null),
     promoTypes: [
       ...new Map(
         printings

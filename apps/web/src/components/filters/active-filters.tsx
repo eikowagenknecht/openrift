@@ -1,4 +1,5 @@
 import type { AvailableFilters, RangeKey } from "@openrift/shared";
+import { NONE } from "@openrift/shared";
 import { X } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
@@ -192,14 +193,21 @@ function RangeBadge({
   const resolvedMin = min ?? availableMin;
   const resolvedMax = max ?? availableMax;
   const fmt = formatValue ?? String;
+  const fmtNone = (value: number) => (value === NONE ? "None" : fmt(value));
   const valueLabel =
-    resolvedMin === resolvedMax
-      ? fmt(resolvedMin)
-      : min !== null && max !== null
-        ? `${fmt(resolvedMin)}–${fmt(resolvedMax)}`
-        : min === null
-          ? `≤${fmt(resolvedMax)}`
-          : `≥${fmt(resolvedMin)}`;
+    resolvedMin === NONE && resolvedMax === NONE
+      ? "None"
+      : resolvedMin === NONE
+        ? max === null
+          ? `≥None`
+          : `None–${fmt(resolvedMax)}`
+        : resolvedMin === resolvedMax
+          ? fmt(resolvedMin)
+          : min !== null && max !== null
+            ? `${fmtNone(resolvedMin)}–${fmtNone(resolvedMax)}`
+            : min === null
+              ? `≤${fmtNone(resolvedMax)}`
+              : `≥${fmtNone(resolvedMin)}`;
 
   return (
     <div className="flex items-center gap-1">

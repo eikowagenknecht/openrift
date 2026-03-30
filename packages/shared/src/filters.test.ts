@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters";
 import type { Card, CardFilters, Printing } from "./types";
+import { NONE } from "./types";
 
 // ---------------------------------------------------------------------------
 // Helpers — build minimal Printing objects for testing
@@ -816,6 +817,56 @@ describe("filterCards", () => {
     expect(result).toHaveLength(0);
   });
 
+  // -- NONE sentinel: include / isolate null-stat cards --
+
+  it("includes null-energy cards when min is NONE", () => {
+    const cards = [
+      makePrinting({ card: { id: "1", name: "Spell", energy: null, might: null, power: null } }),
+      makePrinting({ card: { id: "2", name: "Unit", energy: 3 } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ energy: { min: NONE, max: 5 } }));
+    expect(result).toHaveLength(2);
+  });
+
+  it("isolates null-energy cards when both min and max are NONE", () => {
+    const cards = [
+      makePrinting({ card: { id: "1", name: "Spell", energy: null, might: null, power: null } }),
+      makePrinting({ card: { id: "2", name: "Unit", energy: 3 } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ energy: { min: NONE, max: NONE } }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Spell");
+  });
+
+  it("excludes null-energy cards when min is a real number", () => {
+    const cards = [
+      makePrinting({ card: { id: "1", name: "Spell", energy: null, might: null, power: null } }),
+      makePrinting({ card: { id: "2", name: "Unit", energy: 0 } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ energy: { min: 0, max: 10 } }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Unit");
+  });
+
+  it("includes null-might cards when min is NONE", () => {
+    const cards = [
+      makePrinting({ card: { id: "1", name: "Spell", might: null } }),
+      makePrinting({ card: { id: "2", name: "Unit", might: 4 } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ might: { min: NONE, max: 5 } }));
+    expect(result).toHaveLength(2);
+  });
+
+  it("isolates null-power cards when both min and max are NONE", () => {
+    const cards = [
+      makePrinting({ card: { id: "1", name: "Spell", power: null } }),
+      makePrinting({ card: { id: "2", name: "Unit", power: 6 } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ power: { min: NONE, max: NONE } }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Spell");
+  });
+
   // -- Edge case: search with no search string returns all --
 
   it("returns all printings when search is empty string", () => {
@@ -1200,6 +1251,18 @@ describe("getAvailableFilters", () => {
     expect(result.energy).toEqual({ min: 0, max: 0 });
     expect(result.might).toEqual({ min: 0, max: 0 });
     expect(result.power).toEqual({ min: 0, max: 0 });
+    expect(result.hasNullEnergy).toBe(true);
+    expect(result.hasNullMight).toBe(true);
+    expect(result.hasNullPower).toBe(true);
+  });
+
+  it("computes hasNull flags as false when all cards have stats", () => {
+    const result = getAvailableFilters([
+      makePrinting({ card: { id: "1", energy: 3, might: 2, power: 4 } }),
+    ]);
+    expect(result.hasNullEnergy).toBe(false);
+    expect(result.hasNullMight).toBe(false);
+    expect(result.hasNullPower).toBe(false);
   });
 
   it("handles null artVariant by treating it as normal", () => {

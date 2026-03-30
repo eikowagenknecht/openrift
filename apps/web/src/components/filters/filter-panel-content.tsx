@@ -1,4 +1,5 @@
 import type { AvailableFilters, RangeKey } from "@openrift/shared";
+import { NONE } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 import { CardIcon } from "@/components/card-icon";
@@ -125,6 +126,12 @@ export function FilterBadgeSections({
   );
 }
 
+const HAS_NULL_KEY: Partial<Record<RangeKey, keyof AvailableFilters>> = {
+  energy: "hasNullEnergy",
+  might: "hasNullMight",
+  power: "hasNullPower",
+};
+
 export function FilterRangeSections({
   availableFilters,
 }: Omit<FilterPanelContentProps, "setDisplayLabel">) {
@@ -135,7 +142,10 @@ export function FilterRangeSections({
     <>
       {RANGE_SECTIONS.map(({ key, label, ...rest }) => {
         const available = availableFilters[key];
-        const show = key === "price" ? available.max > 0 : available.min !== available.max;
+        const hasNullKey = HAS_NULL_KEY[key];
+        const hasNone = hasNullKey ? (availableFilters[hasNullKey] as boolean) : false;
+        const show =
+          key === "price" ? available.max > 0 : hasNone || available.min !== available.max;
         if (!show) {
           return null;
         }
@@ -147,6 +157,7 @@ export function FilterRangeSections({
             availableMax={available.max}
             selectedMin={ranges[key].min}
             selectedMax={ranges[key].max}
+            hasNone={hasNone}
             onChange={(min, max) => setRange(key, min, max)}
             {...rest}
           />
@@ -162,6 +173,7 @@ function RangeFilterSection({
   availableMax,
   selectedMin,
   selectedMax,
+  hasNone = false,
   onChange,
   step = 1,
   formatValue,
@@ -171,13 +183,17 @@ function RangeFilterSection({
   availableMax: number;
   selectedMin: number | null;
   selectedMax: number | null;
+  hasNone?: boolean;
   onChange: (min: number | null, max: number | null) => void;
   step?: number;
   formatValue?: (value: number) => string;
 }) {
-  const resolvedMin = selectedMin ?? availableMin;
+  const sliderMin = hasNone ? NONE : availableMin;
+  const defaultMin = hasNone ? NONE : availableMin;
+  const resolvedMin = selectedMin ?? defaultMin;
   const resolvedMax = selectedMax ?? availableMax;
   const fmt = formatValue ?? String;
+  const fmtNone = (value: number) => (value === NONE ? "None" : fmt(value));
 
   return (
     <div className="flex items-center gap-2">
@@ -187,11 +203,11 @@ function RangeFilterSection({
       <div className="flex flex-1 items-center gap-1">
         {/* Min value */}
         <span className="text-2xs text-muted-foreground shrink-0 text-right tabular-nums">
-          {fmt(resolvedMin)}
+          {fmtNone(resolvedMin)}
         </span>
         {/* Slider */}
         <Slider
-          min={availableMin}
+          min={sliderMin}
           max={availableMax}
           step={step}
           value={[resolvedMin, resolvedMax]}
@@ -199,16 +215,21 @@ function RangeFilterSection({
           onValueChange={(values) => {
             const arr = Array.isArray(values) ? values : [values];
             const [newMin, newMax] = arr;
-            onChange(
-              newMin === availableMin ? null : (newMin ?? null),
-              newMax === availableMax ? null : (newMax ?? null),
-            );
+            const atLeftEdge = newMin === sliderMin;
+            const atRightEdge = newMax === availableMax;
+            if (atLeftEdge && atRightEdge) {
+              onChange(null, null);
+            } else {
+              const minVal = atLeftEdge ? (hasNone ? NONE : null) : (newMin ?? null);
+              const maxVal = atRightEdge ? null : (newMax ?? null);
+              onChange(minVal, maxVal);
+            }
           }}
           className="flex-1"
         />
         {/* Max value */}
         <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">
-          {fmt(resolvedMax)}
+          {fmtNone(resolvedMax)}
         </span>
       </div>
     </div>

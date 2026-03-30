@@ -35,6 +35,12 @@ export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
 
 export type SortDirection = "asc" | "desc";
 
+/**
+ * Sentinel value for "None" in a FilterRange. When used as `min`, null-stat
+ * cards are included. When used as `max`, only null-stat cards can match.
+ */
+export const NONE = -1;
+
 export interface FilterRange {
   min: number | null;
   max: number | null;
