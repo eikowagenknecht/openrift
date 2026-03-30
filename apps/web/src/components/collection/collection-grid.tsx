@@ -62,6 +62,7 @@ import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 import { DisposeDialog } from "./dispose-dialog";
+import { DraggableCard } from "./draggable-card";
 import { MoveDialog } from "./move-dialog";
 import { QuickAddPalette } from "./quick-add-palette";
 
@@ -370,6 +371,28 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
   const allCopyIds = stacks.flatMap((stack) => stack.copyIds);
 
+  // ── Drag preview printings (up to 3 unique printings from selection) ─
+  const dragPreviewPrintings: Printing[] = [];
+  if (mode === "select" && selected.size > 0) {
+    const seen = new Set<string>();
+    for (const item of items) {
+      if (dragPreviewPrintings.length >= 3) {
+        break;
+      }
+      const stack = stackByItemId.get(item.id);
+      if (!stack) {
+        continue;
+      }
+      const hasSelectedCopy = stacked
+        ? stack.copyIds.some((id) => selected.has(id))
+        : selected.has(item.id);
+      if (hasSelectedCopy && !seen.has(item.printing.id)) {
+        seen.add(item.printing.id);
+        dragPreviewPrintings.push(item.printing);
+      }
+    }
+  }
+
   // ── Render card ─────────────────────────────────────────────────────
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     if (isAddMode) {
@@ -415,26 +438,42 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
     const ownedCount = stacked ? stack.copyIds.length : 1;
 
+    // Resolve which copy IDs this card represents for drag-and-drop
+    const dragCopyIds =
+      mode === "select" && isItemSelected && selected.size > 0
+        ? [...selected]
+        : stacked
+          ? stack.copyIds
+          : [item.id];
+
     return (
-      <div className="relative">
-        {mode === "select" && (
-          <SelectionCheckbox isSelected={isItemSelected} onToggle={handleToggle} />
-        )}
-        {isItemSelected && (
-          <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
-        )}
-        <CardThumbnail
-          printing={item.printing}
-          onClick={(printing) => handleClick(printing)}
-          showImages={showImages}
-          view="printings"
-          cardWidth={ctx.cardWidth}
-          priority={ctx.priority}
-          isSelected={ctx.isSelected}
-          isFlashing={ctx.isFlashing}
-          aboveCard={<OwnedCountStrip count={ownedCount} printingId={item.printing.id} />}
-        />
-      </div>
+      <DraggableCard
+        id={item.id}
+        copyIds={dragCopyIds}
+        printing={item.printing}
+        previewPrintings={dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [item.printing]}
+        sourceCollectionId={collectionId}
+      >
+        <div className="relative">
+          {mode === "select" && (
+            <SelectionCheckbox isSelected={isItemSelected} onToggle={handleToggle} />
+          )}
+          {isItemSelected && (
+            <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
+          )}
+          <CardThumbnail
+            printing={item.printing}
+            onClick={(printing) => handleClick(printing)}
+            showImages={showImages}
+            view="printings"
+            cardWidth={ctx.cardWidth}
+            priority={ctx.priority}
+            isSelected={ctx.isSelected}
+            isFlashing={ctx.isFlashing}
+            aboveCard={<OwnedCountStrip count={ownedCount} printingId={item.printing.id} />}
+          />
+        </div>
+      </DraggableCard>
     );
   };
 
