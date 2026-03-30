@@ -569,7 +569,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                   variant="outline"
                   size="icon"
                   onClick={enterSelectMode}
-                  title="Select cards"
+                  title={`Select ${view}`}
                 >
                   <CheckSquare className="size-4" />
                 </Button>
@@ -619,24 +619,45 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           )}
           <div className="flex-1" />
           {addTarget && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={startBrowsing}
-              className="text-xs"
-              title="Browse & add"
-            >
-              <LibraryBig className="size-3" />
-            </Button>
+            <ButtonGroup aria-label="Collection actions">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setQuickAddOpen(true)}
+                title="Quick add"
+              >
+                <PackagePlus className="size-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={startBrowsing} title="Browse & add">
+                <LibraryBig className="size-4" />
+              </Button>
+            </ButtonGroup>
           )}
           {mode === "select" ? (
-            <Button variant="ghost" size="sm" onClick={exitSelectMode} className="text-xs">
-              Done
-            </Button>
+            <ButtonGroup aria-label="Selection actions">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => toggleSelectAll(allCopyIds)}
+                title={selected.size === totalCopies ? "Deselect all" : "Select all"}
+              >
+                <Check className="size-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={exitSelectMode} title="Done selecting">
+                <X className="size-4" />
+              </Button>
+            </ButtonGroup>
           ) : (
-            <Button variant="ghost" size="sm" onClick={enterSelectMode} className="text-xs">
-              <CheckSquare className="size-3" />
-            </Button>
+            <ButtonGroup aria-label="Selection actions">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={enterSelectMode}
+                title={`Select ${view}`}
+              >
+                <CheckSquare className="size-4" />
+              </Button>
+            </ButtonGroup>
           )}
         </div>
       )}
