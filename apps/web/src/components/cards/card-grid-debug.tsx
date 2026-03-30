@@ -124,9 +124,16 @@ export function CardGridDebug({
       if (firstCard) {
         const rowEl = document.querySelector(`[data-index="${firstCard.index}"]`);
         const gridEl = rowEl?.firstElementChild;
-        const btn = gridEl?.querySelector("button");
-        const imgDiv = btn?.children[0];
-        const lblDiv = btn ? btn.children[btn.childElementCount - 1] : undefined;
+        // In normal mode the card root is a <button class="p-1.5">.
+        // In add mode it's a <div class="p-1.5"> with AddStrip + image <button> + label.
+        const cardEl = gridEl?.firstElementChild as HTMLElement | null;
+        const isAddMode = cardEl !== null && cardEl.tagName !== "BUTTON";
+        // Image section: in add mode find the direct-child <button> (image wrapper),
+        // in normal mode take the first child of the card root.
+        const imgDiv = isAddMode
+          ? [...cardEl.children].find((c) => c.tagName === "BUTTON")?.firstElementChild
+          : cardEl?.children[0];
+        const lblDiv = cardEl?.lastElementChild;
         const metaEl = lblDiv ? lblDiv.children[0] : undefined;
         const priceEl = lblDiv ? lblDiv.children[1] : undefined;
 
@@ -135,9 +142,9 @@ export function CardGridDebug({
         const virtSize = firstCard.size;
         const measRow = rowEl?.getBoundingClientRect().height ?? virtSize;
         const measImg = imgDiv?.getBoundingClientRect().height ?? 0;
-        const btnCS = btn ? getComputedStyle(btn) : undefined;
-        const measPadT = btnCS ? Number.parseFloat(btnCS.paddingTop) : 0;
-        const measPadB = btnCS ? Number.parseFloat(btnCS.paddingBottom) : 0;
+        const cardCS = cardEl ? getComputedStyle(cardEl) : undefined;
+        const measPadT = cardCS ? Number.parseFloat(cardCS.paddingTop) : 0;
+        const measPadB = cardCS ? Number.parseFloat(cardCS.paddingBottom) : 0;
 
         const rowChildren: Node[] = [
           { label: "padT", exp: BUTTON_PAD, meas: measPadT },
