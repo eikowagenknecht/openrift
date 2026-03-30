@@ -45,7 +45,6 @@ const groupByOptions: { value: GroupByField; label: string }[] = [
   { value: "superType", label: "Supertype" },
   { value: "domain", label: "Domain" },
   { value: "rarity", label: "Rarity" },
-  { value: "artVariant", label: "Art Variant" },
 ];
 
 /* ------------------------------------------------------------------ */
