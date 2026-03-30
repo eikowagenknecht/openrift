@@ -168,7 +168,7 @@ export function useCardData({
   const displayCards =
     view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
 
-  const printingsByCardId = groupPrintingsByCardId(allPrintings, setOrderMap);
+  const printingsByCardId = groupPrintingsByCardId(filteredCards, setOrderMap);
 
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, favoriteMarketplace) : null;
