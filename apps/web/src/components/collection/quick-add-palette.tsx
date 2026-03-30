@@ -387,7 +387,7 @@ function PaletteInner({
 
               {/* Expanded printing list */}
               {isExpanded && (
-                <div className="bg-accent/50 border-accent py-1 pr-3 pl-6">
+                <div className="bg-accent/50 border-accent py-1 pr-3 pl-3">
                   {card.printings.map((printing, printingIndex) => {
                     const isPrintingSelected = printingIndex === expandedIndex;
                     const ownedForPrinting = ownedCountByPrinting?.[printing.id] ?? 0;
