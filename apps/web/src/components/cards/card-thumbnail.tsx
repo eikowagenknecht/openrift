@@ -306,6 +306,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         type={card.type}
         superTypes={card.superTypes}
         rarity={printing.rarity}
+        isFoil={isFoilCard}
       />
       {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
       {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when favoritePrice is undefined */}

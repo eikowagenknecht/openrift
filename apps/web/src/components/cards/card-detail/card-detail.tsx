@@ -1,7 +1,7 @@
 import type { Finish, Printing } from "@openrift/shared";
 import { COLORLESS_DOMAIN, getOrientation } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, Sparkle, X } from "lucide-react";
 import { useRef } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -172,6 +172,15 @@ export function CardDetail({
             height={28}
             className="size-5"
           />
+          {isFoil && (
+            <span
+              title="Foil"
+              className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold"
+            >
+              <Sparkle className="size-3.5 fill-amber-400 text-amber-400" />
+              Foil
+            </span>
+          )}
         </div>
 
         {/* Text */}

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-30
+
+- feat: Foil cards now show a sparkle icon next to the rarity badge in the card grid and detail view, so you can tell them apart even with the foil effect turned off
+
 ## 2026-03-29
 
 - feat: Import your collection from Piltover Archive or RiftCore — upload or paste a CSV export, preview matched cards, resolve any ambiguous printings, and import into any collection
