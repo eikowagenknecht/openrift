@@ -357,16 +357,14 @@ function PaletteInner({
                 }}
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-medium">{card.cardName}</span>
-                    {card.ownedCount > 0 && (
-                      <span className="text-muted-foreground shrink-0 text-xs">
-                        ×{card.ownedCount}
-                      </span>
-                    )}
-                  </div>
+                  <div className="truncate font-medium">{card.cardName}</div>
                   <div className="text-muted-foreground text-xs">{shortCodes.join(" · ")}</div>
                 </div>
+                {card.ownedCount > 0 && (
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    ×{card.ownedCount}
+                  </span>
+                )}
                 <ChevronRight
                   className={cn(
                     "text-muted-foreground size-4 shrink-0 transition-transform",
