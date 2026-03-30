@@ -383,7 +383,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         />
         <button
           type="button"
-          className="focus-visible:ring-ring w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring block w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
           onClick={() => onClick(printing)}
         >
           {imageSection}

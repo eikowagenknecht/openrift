@@ -146,6 +146,7 @@ const CardRowContent = memo(function CardRowContent({
   row,
   columns,
   labelHeight,
+  addStripHeight,
   selectedItemId,
   flashCardId,
   cardWidth,
@@ -155,6 +156,7 @@ const CardRowContent = memo(function CardRowContent({
   row: VRow & { kind: "cards" };
   columns: number;
   labelHeight: number;
+  addStripHeight: number;
   selectedItemId?: string;
   flashCardId: string | null;
   cardWidth: number;
@@ -201,6 +203,7 @@ const CardRowContent = memo(function CardRowContent({
         {row.items.map((item) => (
           // ⚠ p-1.5 mirrors BUTTON_PAD in card-grid-constants — update both together
           <div key={item.id} className="rounded-lg p-1.5">
+            {addStripHeight > 0 && <div style={{ height: addStripHeight }} />}
             <div className="bg-muted/40 rounded-lg" style={{ aspectRatio: `1 / ${CARD_ASPECT}` }} />
             {labelHeight > 0 && <div style={{ height: labelHeight }} />}
           </div>
@@ -500,6 +503,7 @@ export function CardGrid({
                   row={row}
                   columns={columns}
                   labelHeight={labelHeight}
+                  addStripHeight={addStripHeight}
                   selectedItemId={selectedItemId}
                   flashCardId={flashCardId}
                   cardWidth={thumbWidth}
