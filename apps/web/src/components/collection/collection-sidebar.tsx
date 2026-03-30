@@ -3,7 +3,7 @@ import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   HistoryIcon,
-  ImportIcon,
+  ArrowLeftRightIcon,
   InboxIcon,
   LayersIcon,
   PlusIcon,
@@ -190,8 +190,8 @@ export function CollectionSidebar() {
                 render={<Link to="/collections/import" />}
                 size="sm"
               >
-                <ImportIcon />
-                <span>Import</span>
+                <ArrowLeftRightIcon />
+                <span>Import / Export</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

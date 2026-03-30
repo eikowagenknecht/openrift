@@ -1,4 +1,6 @@
 import type { Printing } from "@openrift/shared";
+import { sortCards } from "@openrift/shared";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -6,6 +8,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CircleHelpIcon,
+  DownloadIcon,
   FileUpIcon,
   Loader2Icon,
   UploadIcon,
@@ -32,7 +35,8 @@ import {
   useCollections,
   useCreateCollection,
 } from "@/hooks/use-collections";
-import { useAddCopies } from "@/hooks/use-copies";
+import { copiesQueryOptions, useAddCopies } from "@/hooks/use-copies";
+import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
@@ -55,13 +59,13 @@ export const Route = createFileRoute("/_app/_authenticated/collections/import")(
       context.queryClient.ensureQueryData(collectionsQueryOptions),
     ]);
   },
-  component: ImportPage,
+  component: ImportExportPage,
 });
 
 type ImportStep = "input" | "preview";
 
-function ImportPage() {
-  useCollectionTitle("Import Collection");
+function ImportExportPage() {
+  useCollectionTitle("Import / Export");
 
   const { allPrintings } = useCards();
   const { data: collections } = useCollections();
@@ -227,14 +231,17 @@ function ImportPage() {
 
   if (step === "input") {
     return (
-      <InputStep
-        rawText={rawText}
-        onTextChange={setRawText}
-        onParse={handleParse}
-        onFileUpload={handleFileUpload}
-        fileRef={fileRef}
-        parseErrors={parseErrors}
-      />
+      <div className="space-y-10">
+        <ExportSection />
+        <InputStep
+          rawText={rawText}
+          onTextChange={setRawText}
+          onParse={handleParse}
+          onFileUpload={handleFileUpload}
+          fileRef={fileRef}
+          parseErrors={parseErrors}
+        />
+      </div>
     );
   }
 
@@ -261,6 +268,130 @@ function ImportPage() {
       onImport={handleImport}
       onBack={() => setStep("input")}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+function ExportSection() {
+  const { data: collections } = useCollections();
+  const { allPrintings } = useCards();
+  const [exportCollectionId, setExportCollectionId] = useState<string>("__all__");
+
+  const queryCollectionId = exportCollectionId === "__all__" ? undefined : exportCollectionId;
+  const { data: copies, isLoading } = useQuery(copiesQueryOptions(queryCollectionId));
+
+  const handleExport = () => {
+    if (!copies) {
+      return;
+    }
+
+    const printingById = new Map<string, Printing>();
+    for (const printing of allPrintings) {
+      printingById.set(printing.id, printing);
+    }
+
+    // Build stacks grouped by printingId
+    const stackMap = new Map<
+      string,
+      { printingId: string; printing: Printing; copyIds: string[] }
+    >();
+    for (const copy of copies) {
+      const printing = printingById.get(copy.printingId);
+      if (!printing) {
+        continue;
+      }
+      const existing = stackMap.get(copy.printingId);
+      if (existing) {
+        existing.copyIds.push(copy.id);
+      } else {
+        stackMap.set(copy.printingId, {
+          printingId: copy.printingId,
+          printing,
+          copyIds: [copy.id],
+        });
+      }
+    }
+
+    // Sort by card ID
+    const stacks = [...stackMap.values()];
+    const sortedPrintings = sortCards(
+      stacks.map((stack) => stack.printing),
+      "id",
+    );
+    const byPrintingId = new Map(stacks.map((stack) => [stack.printingId, stack]));
+    const sortedStacks = sortedPrintings
+      .map((printing) => byPrintingId.get(printing.id))
+      .filter(
+        (stack): stack is { printingId: string; printing: Printing; copyIds: string[] } =>
+          stack !== undefined,
+      );
+
+    const csv = generateExportCSV(sortedStacks);
+
+    const collectionName =
+      exportCollectionId === "__all__"
+        ? "all-cards"
+        : (collections?.find((col) => col.id === exportCollectionId)?.name ?? "collection")
+            .toLowerCase()
+            .replaceAll(/[^a-z0-9]+/g, "-")
+            .replaceAll(/^-|-$/g, "");
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(csv, `openrift-${collectionName}-${date}.csv`);
+    toast.success("Collection exported.");
+  };
+
+  const copyCount = copies?.length ?? 0;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Export Collection</h2>
+        <p className="text-muted-foreground text-sm">Download your collection as a CSV file.</p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium" htmlFor="export-collection">
+            Collection
+          </label>
+          <Select
+            value={exportCollectionId}
+            onValueChange={(value) => setExportCollectionId(value ?? "__all__")}
+          >
+            <SelectTrigger className="w-[240px]" id="export-collection">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Cards</SelectItem>
+              <SelectSeparator />
+              {collections?.map((col) => (
+                <SelectItem key={col.id} value={col.id}>
+                  {col.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button onClick={handleExport} disabled={isLoading || copyCount === 0}>
+          {isLoading ? (
+            <>
+              <Loader2Icon className="mr-2 size-4 animate-spin" />
+              Loading...
+            </>
+          ) : (
+            <>
+              <DownloadIcon className="mr-2 size-4" />
+              Export {copyCount} {copyCount === 1 ? "copy" : "copies"}
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
   );
 }
 

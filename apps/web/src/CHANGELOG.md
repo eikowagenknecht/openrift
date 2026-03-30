@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- feat: You can now export any collection (or all cards) as a CSV file from the Import / Export page
 - feat: On mobile, the collection sidebar now opens from a tappable title instead of a separate sidebar icon, reducing visual clutter near the menu button
 - feat: Drag and drop cards from the grid onto a collection in the sidebar to move them — works with multi-select too
 - feat: Each collection now shows its total market value based on your preferred trading platform, with an indicator for cards that don't have price data yet
