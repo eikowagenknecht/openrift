@@ -394,25 +394,29 @@ export const CardThumbnail = memo(function CardThumbnail({
     );
   }
 
-  /* ── Normal mode: the whole card is a single <button> ── */
+  /* ── Normal mode: only the image area is clickable ── */
   return (
-    <button
-      type="button"
+    <div
       className={cn(
         // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-        "group focus-visible:ring-ring relative w-full cursor-pointer rounded-lg p-1.5 text-left transition-all hover:z-10 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+        "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
         otherPrintings.length > 0 && "hover:[--fan:1]",
       )}
       onMouseEnter={fanMouseEnter}
       onMouseLeave={fanMouseLeave}
       style={isSelected ? getDomainGradientStyle(card.domains, "38") : undefined}
-      onClick={() => onClick(printing)}
     >
       {flashOverlay}
       {aboveCard}
-      {imageSection}
+      <button
+        type="button"
+        className="focus-visible:ring-ring block w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
+        onClick={() => onClick(printing)}
+      >
+        {imageSection}
+      </button>
       {labelSection}
-    </button>
+    </div>
   );
 });
 

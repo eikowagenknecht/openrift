@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- fix: Clicking the card name or price below the image no longer selects the card — only clicking the image does
 - feat: Quick add palette (⌘K) now lets you undo cards added by mistake — each printing row shows a minus button, or press Shift+Enter to undo the selected printing
 - feat: Quick add palette now always expands to show printings before adding, making the flow consistent for all cards
 - feat: Clicking a card in the Activity page opens it in the card browser with full details
