@@ -35,7 +35,7 @@ export function useCollectionTitle(title: string) {
   }, [setTitle, title]);
 }
 
-/** Portal slot for add-mode controls in the mobile header. */
+/** Portal slot for mobile header actions (add-mode controls and collection action buttons). */
 export const AddModeSlotContext = createContext<HTMLDivElement | null>(null);
 
 export const Route = createFileRoute("/_app/_authenticated/collections")({

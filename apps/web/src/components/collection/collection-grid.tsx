@@ -677,60 +677,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                   ) : null}
                 </span>
               )}
-              {/* Mobile-only action buttons */}
-              <div className="flex items-center gap-1 sm:hidden">
-                {addTarget && (
-                  <ButtonGroup aria-label="Collection actions">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setQuickAddOpen(true)}
-                      title="Quick add"
-                    >
-                      <PackagePlus className="size-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={startBrowsing}
-                      title="Browse & add"
-                    >
-                      <LibraryBig className="size-4" />
-                    </Button>
-                  </ButtonGroup>
-                )}
-                {mode === "select" ? (
-                  <ButtonGroup aria-label="Selection actions">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => toggleSelectAll(allCopyIds)}
-                      title={selected.size === totalCopies ? "Deselect all" : "Select all"}
-                    >
-                      <Check className="size-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={exitSelectMode}
-                      title="Done selecting"
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </ButtonGroup>
-                ) : (
-                  <ButtonGroup aria-label="Selection actions">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={enterSelectMode}
-                      title={`Select ${view}`}
-                    >
-                      <CheckSquare className="size-4" />
-                    </Button>
-                  </ButtonGroup>
-                )}
-              </div>
             </div>
           );
         })()}
@@ -928,6 +874,65 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             <Button size="sm" onClick={handleCloseBrowsing}>
               Done
             </Button>
+          </>,
+          addModeSlot,
+        )}
+
+      {/* Mobile header: action buttons (portaled into layout header slot) */}
+      {!isAddMode &&
+        isMobile &&
+        addModeSlot &&
+        createPortal(
+          <>
+            <div className="flex-1" />
+            <div className="flex items-center gap-1 sm:hidden">
+              {addTarget && (
+                <ButtonGroup aria-label="Collection actions">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setQuickAddOpen(true)}
+                    title="Quick add"
+                  >
+                    <PackagePlus className="size-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={startBrowsing} title="Browse & add">
+                    <LibraryBig className="size-4" />
+                  </Button>
+                </ButtonGroup>
+              )}
+              {mode === "select" ? (
+                <ButtonGroup aria-label="Selection actions">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toggleSelectAll(allCopyIds)}
+                    title={selected.size === totalCopies ? "Deselect all" : "Select all"}
+                  >
+                    <Check className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={exitSelectMode}
+                    title="Done selecting"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </ButtonGroup>
+              ) : (
+                <ButtonGroup aria-label="Selection actions">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={enterSelectMode}
+                    title={`Select ${view}`}
+                  >
+                    <CheckSquare className="size-4" />
+                  </Button>
+                </ButtonGroup>
+              )}
+            </div>
           </>,
           addModeSlot,
         )}
