@@ -50,10 +50,38 @@ const ART_VARIANT_LABELS: Record<string, string> = {
   overnumbered: "Overnumbered",
 };
 
-function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGroup[] {
-  const bySet = Map.groupBy(items, (item) => item.printing.setId);
+function groupItemsBySet(
+  items: CardViewerItem[],
+  setOrder: GroupInfo[],
+  printingsByCardId?: Map<string, Printing[]>,
+): CardGroup[] {
+  if (!printingsByCardId) {
+    const bySet = Map.groupBy(items, (item) => item.printing.setId);
+    return setOrder.flatMap((info) => {
+      const setItems = bySet.get(info.id);
+      return setItems ? [{ group: info, items: setItems }] : [];
+    });
+  }
+
+  // When printingsByCardId is available (cards view), place each item in all
+  // sets it has printings in, not just the canonical printing's set.
+  const buckets = new Map<string, CardViewerItem[]>();
+  for (const item of items) {
+    const allPrintings = printingsByCardId.get(item.printing.card.id);
+    const setIds = allPrintings
+      ? [...new Set(allPrintings.map((printing) => printing.setId))]
+      : [item.printing.setId];
+    for (const setId of setIds) {
+      const bucket = buckets.get(setId);
+      if (bucket) {
+        bucket.push(item);
+      } else {
+        buckets.set(setId, [item]);
+      }
+    }
+  }
   return setOrder.flatMap((info) => {
-    const setItems = bySet.get(info.id);
+    const setItems = buckets.get(info.id);
     return setItems ? [{ group: info, items: setItems }] : [];
   });
 }
@@ -66,7 +94,23 @@ interface OrderEntry {
 function groupItemsByField(
   items: CardViewerItem[],
   groupBy: Exclude<GroupByField, "none" | "set">,
+  printingsByCardId?: Map<string, Printing[]>,
 ): CardGroup[] {
+  // For printing-level fields, collect unique values across all printings of a card.
+  function allPrintingValues(
+    item: CardViewerItem,
+    getter: (printing: Printing) => string[],
+  ): string[] {
+    if (!printingsByCardId) {
+      return getter(item.printing);
+    }
+    const allPrintings = printingsByCardId.get(item.printing.card.id);
+    if (!allPrintings) {
+      return getter(item.printing);
+    }
+    return [...new Set(allPrintings.flatMap((printing) => getter(printing)))];
+  }
+
   const config: Record<
     typeof groupBy,
     {
@@ -95,11 +139,11 @@ function groupItemsByField(
     },
     rarity: {
       order: RARITY_ORDER,
-      getKeys: (item) => [item.printing.rarity],
+      getKeys: (item) => allPrintingValues(item, (printing) => [printing.rarity]),
     },
     artVariant: {
       order: ART_VARIANT_ORDER,
-      getKeys: (item) => [item.printing.artVariant],
+      getKeys: (item) => allPrintingValues(item, (printing) => [printing.artVariant]),
       label: (key) => ART_VARIANT_LABELS[key] ?? key,
     },
   };
@@ -143,16 +187,17 @@ function buildGroups(
   items: CardViewerItem[],
   groupBy: GroupByField,
   setOrder?: GroupInfo[],
+  printingsByCardId?: Map<string, Printing[]>,
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
   }
   if (groupBy === "set") {
     return setOrder
-      ? groupItemsBySet(items, setOrder)
+      ? groupItemsBySet(items, setOrder, printingsByCardId)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];
   }
-  return groupItemsByField(items, groupBy);
+  return groupItemsByField(items, groupBy, printingsByCardId);
 }
 
 function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
@@ -338,6 +383,8 @@ interface CardGridProps {
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
   groupBy?: GroupByField;
+  /** All printings per card — enables correct grouping by printing-level fields in cards view. */
+  printingsByCardId?: Map<string, Printing[]>;
   selectedItemId?: string;
   keyboardNavItemId?: string;
   onItemClick?: (printing: Printing) => void;
@@ -352,6 +399,7 @@ export function CardGrid({
   renderCard,
   setOrder,
   groupBy = "set",
+  printingsByCardId,
   selectedItemId,
   keyboardNavItemId,
   onItemClick,
@@ -381,25 +429,35 @@ export function CardGrid({
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
   // ── Group items, then flatten into virtual rows ──────────────────
-  const groups = buildGroups(items, groupBy, setOrder);
+  const groups = buildGroups(items, groupBy, setOrder, printingsByCardId);
   const multipleGroups = groups.length > 1;
   const virtualRowsCacheRef = useRef<{
     items: CardViewerItem[];
     setOrder: GroupInfo[] | undefined;
     groupBy: GroupByField;
+    printingsByCardId: Map<string, Printing[]> | undefined;
     columns: number;
     rows: VRow[];
-  }>({ items: [], setOrder: undefined, groupBy: "set", columns: 0, rows: [] });
+  }>({
+    items: [],
+    setOrder: undefined,
+    groupBy: "set",
+    printingsByCardId: undefined,
+    columns: 0,
+    rows: [],
+  });
   if (
     virtualRowsCacheRef.current.items !== items ||
     virtualRowsCacheRef.current.setOrder !== setOrder ||
     virtualRowsCacheRef.current.groupBy !== groupBy ||
+    virtualRowsCacheRef.current.printingsByCardId !== printingsByCardId ||
     virtualRowsCacheRef.current.columns !== columns
   ) {
     virtualRowsCacheRef.current = {
       items,
       setOrder,
       groupBy,
+      printingsByCardId,
       columns,
       rows: buildVirtualRows(groups, columns),
     };
