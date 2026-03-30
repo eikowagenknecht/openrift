@@ -2,7 +2,6 @@ import type { AvailableFilters, GroupByField, SortOption } from "@openrift/share
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
-  ArrowUpDown,
   Copy,
   Minus,
   Plus,
@@ -108,12 +107,6 @@ function SortGroupControls({
 }) {
   const sortLabel = sortOptions.find((o) => o.value === sortBy)?.label ?? sortBy;
   const groupLabel = groupByOptions.find((o) => o.value === groupBy)?.label ?? groupBy;
-  const dirIcon =
-    sortDir === "asc" ? (
-      <ArrowDownNarrowWide className="size-3.5" />
-    ) : (
-      <ArrowUpNarrowWide className="size-3.5" />
-    );
 
   if (compact) {
     // Mobile: inline sections without popover
@@ -167,10 +160,12 @@ function SortGroupControls({
           "border-input bg-background ring-ring/10 hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-colors",
         )}
       >
-        <ArrowUpDown className="text-muted-foreground size-4" />
-        <span>
-          {sortLabel} {dirIcon}
-        </span>
+        {sortDir === "asc" ? (
+          <ArrowDownNarrowWide className="text-muted-foreground size-4" />
+        ) : (
+          <ArrowUpNarrowWide className="text-muted-foreground size-4" />
+        )}
+        <span>{sortLabel}</span>
         {groupBy !== "none" && (
           <>
             <span className="text-muted-foreground">·</span>
