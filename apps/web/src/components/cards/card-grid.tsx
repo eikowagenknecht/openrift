@@ -1,11 +1,5 @@
 import type { GroupByField, Printing } from "@openrift/shared";
-import {
-  ART_VARIANT_ORDER,
-  CARD_TYPE_ORDER,
-  DOMAIN_ORDER,
-  RARITY_ORDER,
-  SUPER_TYPE_ORDER,
-} from "@openrift/shared";
+import { CARD_TYPE_ORDER, DOMAIN_ORDER, RARITY_ORDER, SUPER_TYPE_ORDER } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { SearchX, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
@@ -44,11 +38,19 @@ interface CardGroup {
   items: CardViewerItem[];
 }
 
-const ART_VARIANT_LABELS: Record<string, string> = {
-  normal: "Normal",
-  altart: "Alt Art",
-  overnumbered: "Overnumbered",
-};
+/**
+ * Pick the best matching printing for a group from all printings of a card.
+ * Falls back to the item's canonical printing if no match is found.
+ * @returns A new CardViewerItem with the matching printing, or the original.
+ */
+function itemWithMatchingPrinting(
+  item: CardViewerItem,
+  printings: Printing[],
+  predicate: (printing: Printing) => boolean,
+): CardViewerItem {
+  const match = printings.find((printing) => predicate(printing));
+  return match && match.id !== item.printing.id ? { id: item.id, printing: match } : item;
+}
 
 function groupItemsBySet(
   items: CardViewerItem[],
@@ -64,19 +66,18 @@ function groupItemsBySet(
   }
 
   // When printingsByCardId is available (cards view), place each item in all
-  // sets it has printings in, not just the canonical printing's set.
+  // sets it has printings in, showing a matching printing per group.
   const buckets = new Map<string, CardViewerItem[]>();
   for (const item of items) {
-    const allPrintings = printingsByCardId.get(item.printing.card.id);
-    const setIds = allPrintings
-      ? [...new Set(allPrintings.map((printing) => printing.setId))]
-      : [item.printing.setId];
+    const allPrintings = printingsByCardId.get(item.printing.card.id) ?? [item.printing];
+    const setIds = [...new Set(allPrintings.map((printing) => printing.setId))];
     for (const setId of setIds) {
+      const mapped = itemWithMatchingPrinting(item, allPrintings, (p) => p.setId === setId);
       const bucket = buckets.get(setId);
       if (bucket) {
-        bucket.push(item);
+        bucket.push(mapped);
       } else {
-        buckets.set(setId, [item]);
+        buckets.set(setId, [mapped]);
       }
     }
   }
@@ -96,71 +97,71 @@ function groupItemsByField(
   groupBy: Exclude<GroupByField, "none" | "set">,
   printingsByCardId?: Map<string, Printing[]>,
 ): CardGroup[] {
-  // For printing-level fields, collect unique values across all printings of a card.
-  function allPrintingValues(
-    item: CardViewerItem,
-    getter: (printing: Printing) => string[],
-  ): string[] {
-    if (!printingsByCardId) {
-      return getter(item.printing);
-    }
-    const allPrintings = printingsByCardId.get(item.printing.card.id);
-    if (!allPrintings) {
-      return getter(item.printing);
-    }
-    return [...new Set(allPrintings.flatMap((printing) => getter(printing)))];
+  // For printing-level fields, returns { keys, itemForKey } using all printings.
+  // For card-level fields, returns { keys, itemForKey } using the item directly.
+  interface FieldConfig {
+    order: readonly string[];
+    getKeysAndItems: (item: CardViewerItem) => { key: string; mapped: CardViewerItem }[];
+    label?: (key: string) => string;
   }
 
-  const config: Record<
-    typeof groupBy,
-    {
-      order: readonly string[];
-      getKeys: (item: CardViewerItem) => string[];
-      label?: (key: string) => string;
-    }
-  > = {
+  const config: Record<typeof groupBy, FieldConfig> = {
     type: {
       order: CARD_TYPE_ORDER,
-      getKeys: (item) => [item.printing.card.type],
+      getKeysAndItems: (item) => [{ key: item.printing.card.type, mapped: item }],
     },
     superType: {
       order: SUPER_TYPE_ORDER,
-      getKeys: (item) => {
+      getKeysAndItems: (item) => {
         const supers = item.printing.card.superTypes;
-        return supers.length > 0 ? supers : ["(None)"];
+        const keys = supers.length > 0 ? supers : ["(None)"];
+        return keys.map((key) => ({ key, mapped: item }));
       },
     },
     domain: {
       order: DOMAIN_ORDER,
-      getKeys: (item) => {
+      getKeysAndItems: (item) => {
         const doms = item.printing.card.domains;
-        return doms.length > 0 ? doms : ["Colorless"];
+        const keys = doms.length > 0 ? doms : ["Colorless"];
+        return keys.map((key) => ({ key, mapped: item }));
       },
     },
     rarity: {
       order: RARITY_ORDER,
-      getKeys: (item) => allPrintingValues(item, (printing) => [printing.rarity]),
-    },
-    artVariant: {
-      order: ART_VARIANT_ORDER,
-      getKeys: (item) => allPrintingValues(item, (printing) => [printing.artVariant]),
-      label: (key) => ART_VARIANT_LABELS[key] ?? key,
+      getKeysAndItems: (item) => {
+        const allPrintings = printingsByCardId?.get(item.printing.card.id);
+        if (!allPrintings) {
+          return [{ key: item.printing.rarity, mapped: item }];
+        }
+        const seen = new Set<string>();
+        const result: { key: string; mapped: CardViewerItem }[] = [];
+        for (const rarity of allPrintings.map((p) => p.rarity)) {
+          if (!seen.has(rarity)) {
+            seen.add(rarity);
+            result.push({
+              key: rarity,
+              mapped: itemWithMatchingPrinting(item, allPrintings, (p) => p.rarity === rarity),
+            });
+          }
+        }
+        return result;
+      },
     },
   };
 
-  const { order, getKeys, label } = config[groupBy];
+  const { order, getKeysAndItems, label } = config[groupBy];
 
   // Build ordered entries including a catch-all for values not in the order array
   const allKeys = new Set<string>();
   const buckets = new Map<string, CardViewerItem[]>();
   for (const item of items) {
-    for (const key of getKeys(item)) {
+    for (const { key, mapped } of getKeysAndItems(item)) {
       allKeys.add(key);
       const bucket = buckets.get(key);
       if (bucket) {
-        bucket.push(item);
+        bucket.push(mapped);
       } else {
-        buckets.set(key, [item]);
+        buckets.set(key, [mapped]);
       }
     }
   }
