@@ -83,13 +83,6 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       expect(res.status).toBe(200);
     });
 
-    it("PATCH with visibleFields exercises partial-object merge", async () => {
-      const res = await app.fetch(
-        req("PATCH", "/preferences", { visibleFields: { price: false } }),
-      );
-      expect(res.status).toBe(200);
-    });
-
     it("PATCH with empty body exercises no-op upsert", async () => {
       const res = await app.fetch(req("PATCH", "/preferences", {}));
       expect(res.status).toBe(200);

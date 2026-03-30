@@ -1,8 +1,6 @@
 import type { VirtualItem, Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
 
-import type { VisibleFields } from "@/lib/card-fields";
-
 import {
   BUTTON_PAD,
   CARD_ASPECT,
@@ -24,7 +22,6 @@ interface CardGridDebugProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   columns: number;
   labelHeight: number;
-  visibleFields: VisibleFields | undefined;
   estimateRowHeight: (index: number) => number;
 }
 
@@ -91,7 +88,6 @@ export function CardGridDebug({
   containerRef,
   columns,
   labelHeight,
-  visibleFields,
   estimateRowHeight,
 }: CardGridDebugProps) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -117,18 +113,6 @@ export function CardGridDebug({
       const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
       const expRow = estimateRowHeight(items[0]?.index ?? 0);
 
-      const fields = visibleFields ?? {
-        number: true,
-        title: true,
-        type: true,
-        rarity: true,
-        price: true,
-      };
-      const hasMetaFields = fields.number || fields.title || fields.type || fields.rarity;
-      const hasLabel = hasMetaFields || fields.price;
-      const hasLine1 = fields.number || fields.title;
-      const hasLine2 = fields.type || fields.rarity;
-
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const interLoaded = document.fonts.check('12px "Inter Variable"');
       const lines = [
@@ -142,9 +126,9 @@ export function CardGridDebug({
         const gridEl = rowEl?.firstElementChild;
         const btn = gridEl?.querySelector("button");
         const imgDiv = btn?.children[0];
-        const lblDiv = hasLabel && btn ? btn.children[btn.childElementCount - 1] : undefined;
-        const metaEl = hasMetaFields && lblDiv ? lblDiv.children[0] : undefined;
-        const priceEl = fields.price && lblDiv ? lblDiv.children[hasMetaFields ? 1 : 0] : undefined;
+        const lblDiv = btn ? btn.children[btn.childElementCount - 1] : undefined;
+        const metaEl = lblDiv ? lblDiv.children[0] : undefined;
+        const priceEl = lblDiv ? lblDiv.children[1] : undefined;
 
         // Row-level measurements — use raw getBoundingClientRect for fractional
         // precision (firstCard.size is the virtualizer's rounded integer).
@@ -161,74 +145,53 @@ export function CardGridDebug({
         ];
 
         // Label area — margin is outside the element, so it's a row-level sibling
-        if (hasLabel && lblDiv) {
+        if (lblDiv) {
           const measLblMt = Number.parseFloat(getComputedStyle(lblDiv as Element).marginTop);
           const measLblH = (lblDiv as Element).getBoundingClientRect().height;
           rowChildren.push({ label: "lblMt", exp: LABEL_WRAPPER_MT, meas: measLblMt });
           const labelChildren: Node[] = [];
 
           // Meta subtree
-          if (hasMetaFields && metaEl) {
+          if (metaEl) {
             const measMeta = (metaEl as Element).getBoundingClientRect().height;
             const metaCS = getComputedStyle(metaEl as Element);
             const measPy =
               Number.parseFloat(metaCS.paddingTop) + Number.parseFloat(metaCS.paddingBottom);
 
-            let expMeta = META_LABEL_PY;
-            if (hasLine1) {
-              expMeta += META_LINE_HEIGHT;
-            }
-            if (hasLine1 && hasLine2) {
-              expMeta += META_LINE_GAP;
-            }
-            if (hasLine2) {
-              expMeta += META_LINE_HEIGHT;
-            }
+            const expMeta = META_LABEL_PY + META_LINE_HEIGHT + META_LINE_GAP + META_LINE_HEIGHT;
 
             const metaChildren: Node[] = [{ label: "py", exp: META_LABEL_PY, meas: measPy }];
 
-            let childIdx = 0;
-            let l1Rect: DOMRect | undefined;
-            if (hasLine1) {
-              const l1 = (metaEl as Element).children[childIdx] as HTMLElement | undefined;
-              l1Rect = l1?.getBoundingClientRect();
-              const l1CS = l1 ? getComputedStyle(l1) : undefined;
-              const l1Info = l1CS
-                ? `lh=${l1CS.lineHeight} fs=${l1CS.fontSize} font=${l1CS.fontFamily.split(",")[0]}`
-                : "";
-              // Show multiple height measurements to diagnose clipping
-              const l1Box = l1
-                ? `rect=${l1Rect?.height} offset=${l1.offsetHeight} scroll=${l1.scrollHeight} overflow=${l1CS?.overflow}`
-                : "";
-              metaChildren.push({
-                label: "L1",
-                exp: META_LINE_HEIGHT,
-                meas: l1Rect?.height ?? 0,
-                note: `text-xs ${l1Info}\n          ${l1Box}`,
-              });
-              childIdx++;
-            }
-            if (hasLine1 && hasLine2) {
-              const l2 = (metaEl as Element).children[childIdx];
-              const l2Rect = l2?.getBoundingClientRect();
-              // Measure actual pixel distance between L1 bottom and L2 top —
-              // works regardless of whether spacing comes from margin, gap, etc.
-              const measGap = l1Rect && l2Rect ? l2Rect.top - l1Rect.bottom : 0;
-              metaChildren.push({
-                label: "gap",
-                exp: META_LINE_GAP,
-                meas: measGap,
-              });
-            }
-            if (hasLine2) {
-              const l2 = (metaEl as Element).children[childIdx];
-              metaChildren.push({
-                label: "L2",
-                exp: META_LINE_HEIGHT,
-                meas: l2?.getBoundingClientRect().height ?? 0,
-                note: "text-xs",
-              });
-            }
+            const l1 = (metaEl as Element).children[0] as HTMLElement | undefined;
+            const l1Rect = l1?.getBoundingClientRect();
+            const l1CS = l1 ? getComputedStyle(l1) : undefined;
+            const l1Info = l1CS
+              ? `lh=${l1CS.lineHeight} fs=${l1CS.fontSize} font=${l1CS.fontFamily.split(",")[0]}`
+              : "";
+            const l1Box = l1
+              ? `rect=${l1Rect?.height} offset=${l1.offsetHeight} scroll=${l1.scrollHeight} overflow=${l1CS?.overflow}`
+              : "";
+            metaChildren.push({
+              label: "L1",
+              exp: META_LINE_HEIGHT,
+              meas: l1Rect?.height ?? 0,
+              note: `text-xs ${l1Info}\n          ${l1Box}`,
+            });
+
+            const l2 = (metaEl as Element).children[1];
+            const l2Rect = l2?.getBoundingClientRect();
+            const measGap = l1Rect && l2Rect ? l2Rect.top - l1Rect.bottom : 0;
+            metaChildren.push({
+              label: "gap",
+              exp: META_LINE_GAP,
+              meas: measGap,
+            });
+            metaChildren.push({
+              label: "L2",
+              exp: META_LINE_HEIGHT,
+              meas: l2?.getBoundingClientRect().height ?? 0,
+              note: "text-xs",
+            });
 
             labelChildren.push({
               label: "meta",
@@ -240,7 +203,7 @@ export function CardGridDebug({
           }
 
           // Price subtree
-          if (fields.price && priceEl) {
+          if (priceEl) {
             const measPriceMt = Number.parseFloat(getComputedStyle(priceEl as Element).marginTop);
             const measPriceH = (priceEl as Element).getBoundingClientRect().height;
             labelChildren.push({

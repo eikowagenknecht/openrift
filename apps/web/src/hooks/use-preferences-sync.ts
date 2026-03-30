@@ -35,12 +35,6 @@ function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null }
     result.cardTilt = overrides.cardTilt;
   }
 
-  // Visible fields — only include non-null sub-fields
-  const vfEntries = Object.entries(overrides.visibleFields).filter(([, v]) => v !== null);
-  if (vfEntries.length > 0) {
-    result.visibleFields = Object.fromEntries(vfEntries);
-  }
-
   // Marketplace order
   if (overrides.marketplaceOrder !== null) {
     result.marketplaceOrder = overrides.marketplaceOrder;

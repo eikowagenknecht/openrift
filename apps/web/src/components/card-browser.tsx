@@ -47,7 +47,6 @@ interface CardBrowserProps {
 export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrowserProps = {}) {
   const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
-  const visibleFields = useDisplayStore((s) => s.visibleFields);
   const { allPrintings, sets } = useCards();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
@@ -216,7 +215,6 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
         siblings={view === "cards" ? siblings : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
         view={view}
-        visibleFields={visibleFields}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
         ownedCount={

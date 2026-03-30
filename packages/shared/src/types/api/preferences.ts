@@ -13,13 +13,6 @@ export interface UserPreferencesResponse {
   fancyFan?: boolean;
   foilEffect?: FoilEffect;
   cardTilt?: boolean;
-  visibleFields?: {
-    number?: boolean;
-    title?: boolean;
-    type?: boolean;
-    rarity?: boolean;
-    price?: boolean;
-  };
   theme?: Theme;
   marketplaceOrder?: Marketplace[];
 }
@@ -30,13 +23,6 @@ export interface ResolvedPreferences {
   fancyFan: boolean;
   foilEffect: FoilEffect;
   cardTilt: boolean;
-  visibleFields: {
-    number: boolean;
-    title: boolean;
-    type: boolean;
-    rarity: boolean;
-    price: boolean;
-  };
   theme: Theme;
   marketplaceOrder: Marketplace[];
 }
@@ -47,7 +33,6 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   fancyFan: true,
   foilEffect: "animated",
   cardTilt: true,
-  visibleFields: { number: true, title: true, type: true, rarity: true, price: true },
   theme: "auto",
   marketplaceOrder: [...ALL_MARKETPLACES],
 };

@@ -405,18 +405,7 @@ function UnifiedExpandedDetail({
                   hasAnyUnmapped && "ring-destructive/40 bg-destructive/5 ring-2",
                 )}
               >
-                <CardThumbnail
-                  printing={toPrinting(group, p)}
-                  onClick={NOOP}
-                  showImages
-                  visibleFields={{
-                    number: true,
-                    title: true,
-                    type: true,
-                    rarity: true,
-                    price: false,
-                  }}
-                />
+                <CardThumbnail printing={toPrinting(group, p)} onClick={NOOP} showImages />
                 <div className="space-y-1.5 px-2.5 pb-2">
                   <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
                     <span>

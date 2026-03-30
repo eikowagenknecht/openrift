@@ -176,16 +176,6 @@ export const updatePreferencesSchema = z.object({
   fancyFan: z.boolean().nullable().optional(),
   foilEffect: foilEffectEnum.nullable().optional(),
   cardTilt: z.boolean().nullable().optional(),
-  visibleFields: z
-    .object({
-      number: z.boolean().nullable().optional(),
-      title: z.boolean().nullable().optional(),
-      type: z.boolean().nullable().optional(),
-      rarity: z.boolean().nullable().optional(),
-      price: z.boolean().nullable().optional(),
-    })
-    .nullable()
-    .optional(),
   theme: themeEnum.nullable().optional(),
   marketplaceOrder: z
     .array(marketplaceEnum)

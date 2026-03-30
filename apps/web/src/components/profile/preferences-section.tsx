@@ -10,14 +10,6 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
-const CARD_FIELD_ITEMS = [
-  { key: "number" as const, label: "ID", example: "OGN-027" },
-  { key: "title" as const, label: "Title", example: "Flamecaster" },
-  { key: "type" as const, label: "Type", example: "Champion" },
-  { key: "rarity" as const, label: "Rarity", example: "Rare" },
-  { key: "price" as const, label: "Price", example: "$2.50" },
-];
-
 const MARKETPLACE_LABELS: Record<Marketplace, string> = {
   tcgplayer: "TCGplayer",
   cardmarket: "Cardmarket",
@@ -39,13 +31,10 @@ export function PreferencesSection() {
   const setFoilEffect = useDisplayStore((s) => s.setFoilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
   const setCardTilt = useDisplayStore((s) => s.setCardTilt);
-  const visibleFields = useDisplayStore((s) => s.visibleFields);
-  const setVisibleFields = useDisplayStore((s) => s.setVisibleFields);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const setMarketplaceOrder = useDisplayStore((s) => s.setMarketplaceOrder);
   const overrides = useDisplayStore((s) => s.overrides);
   const resetPreference = useDisplayStore((s) => s.resetPreference);
-  const resetVisibleField = useDisplayStore((s) => s.resetVisibleField);
   const themePreference = useThemeStore((s) => s.preference);
   const setTheme = useThemeStore((s) => s.setTheme);
 
@@ -146,39 +135,6 @@ export function PreferencesSection() {
             {overrides.cardTilt !== null && (
               <ResetButton onClick={() => resetPreference("cardTilt")} label="Reset card tilt" />
             )}
-          </div>
-        </div>
-
-        <div className="space-y-2 border-t pt-4">
-          <Label>Card fields</Label>
-          <p className="text-muted-foreground text-sm">Choose which fields to show on cards.</p>
-
-          <div className="space-y-3 pt-1">
-            {CARD_FIELD_ITEMS.map((item) => (
-              <div key={item.key} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor={`pref-field-${item.key}`} className="font-normal">
-                    {item.label}
-                  </Label>
-                  <span className="text-muted-foreground text-xs">e.g. {item.example}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Switch
-                    id={`pref-field-${item.key}`}
-                    checked={visibleFields[item.key]}
-                    onCheckedChange={(checked: boolean) =>
-                      setVisibleFields({ ...visibleFields, [item.key]: checked })
-                    }
-                  />
-                  {overrides.visibleFields[item.key] !== null && (
-                    <ResetButton
-                      onClick={() => resetVisibleField(item.key)}
-                      label={`Reset ${item.label}`}
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 

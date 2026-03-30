@@ -105,18 +105,6 @@ describe("PATCH /api/v1/preferences", () => {
     expect(json.theme).toBe("dark");
   });
 
-  it("updates visibleFields partial object", async () => {
-    mockRepo.upsert.mockResolvedValue({ visibleFields: { price: false } });
-    const res = await app.request("/api/v1/preferences", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visibleFields: { price: false } }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.visibleFields.price).toBe(false);
-  });
-
   it("updates fancyFan preference", async () => {
     mockRepo.upsert.mockResolvedValue({ fancyFan: false });
     const res = await app.request("/api/v1/preferences", {

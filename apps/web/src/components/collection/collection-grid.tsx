@@ -67,7 +67,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   const showImages = useDisplayStore((state) => state.showImages);
-  const visibleFields = useDisplayStore((state) => state.visibleFields);
 
   const { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection } =
     useCardSelection();
@@ -220,7 +219,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           printing={item.printing}
           onClick={handleToggle}
           showImages={showImages}
-          visibleFields={visibleFields}
           view="printings"
           cardWidth={ctx.cardWidth}
           priority={ctx.priority}

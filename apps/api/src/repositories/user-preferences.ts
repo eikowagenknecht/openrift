@@ -44,24 +44,6 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         }
         if (value === null) {
           draft.delete(key);
-        } else if (key === "visibleFields" && typeof value === "object") {
-          const currentVf =
-            typeof draft.get("visibleFields") === "object" && draft.get("visibleFields") !== null
-              ? (draft.get("visibleFields") as Record<string, unknown>)
-              : {};
-          const vfMap = new Map(Object.entries(currentVf));
-          for (const [vfKey, vfVal] of Object.entries(value as Record<string, unknown>)) {
-            if (vfVal === null) {
-              vfMap.delete(vfKey);
-            } else if (vfVal !== undefined) {
-              vfMap.set(vfKey, vfVal);
-            }
-          }
-          if (vfMap.size > 0) {
-            draft.set("visibleFields", Object.fromEntries(vfMap));
-          } else {
-            draft.delete("visibleFields");
-          }
         } else {
           draft.set(key, value);
         }

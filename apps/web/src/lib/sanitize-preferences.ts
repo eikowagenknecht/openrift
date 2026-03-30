@@ -1,7 +1,6 @@
 import type { FoilEffect, Marketplace, Theme } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 
-import type { VisibleFields } from "@/lib/card-fields";
 import type { DisplayOverrides } from "@/stores/display-store";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
@@ -77,7 +76,6 @@ function nullOverrides(): DisplayOverrides {
     fancyFan: null,
     foilEffect: null,
     cardTilt: null,
-    visibleFields: { number: null, title: null, type: null, rarity: null, price: null },
     marketplaceOrder: null,
   };
 }
@@ -107,18 +105,6 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
         ? null
         : legacyRich;
 
-  const rawVf =
-    typeof record.visibleFields === "object" && record.visibleFields !== null
-      ? (record.visibleFields as Record<string, unknown>)
-      : {};
-  const visibleFields: { [K in keyof VisibleFields]: boolean | null } = {
-    number: typeof rawVf.number === "boolean" ? rawVf.number : null,
-    title: typeof rawVf.title === "boolean" ? rawVf.title : null,
-    type: typeof rawVf.type === "boolean" ? rawVf.type : null,
-    rarity: typeof rawVf.rarity === "boolean" ? rawVf.rarity : null,
-    price: typeof rawVf.price === "boolean" ? rawVf.price : null,
-  };
-
   const safeOrder = Array.isArray(record.marketplaceOrder)
     ? record.marketplaceOrder.filter(
         (marketplace): marketplace is Marketplace =>
@@ -131,7 +117,6 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     fancyFan,
     foilEffect,
     cardTilt,
-    visibleFields,
     marketplaceOrder: safeOrder && safeOrder.length > 0 ? safeOrder : null,
   };
 }

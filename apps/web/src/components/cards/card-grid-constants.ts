@@ -13,7 +13,7 @@ export const META_LABEL_PY = 4; // py-0.5 on CardMetaLabel root — 0.125rem × 
 export const META_LINE_HEIGHT = 16; // text-xs line-height (see note about sm:text-sm below)
 export const META_LINE_GAP = 2; // space-y-0.5 between CardMetaLabel lines
 export const PRICE_MT = 2; // mt-0.5 on price <p>
-export const PRICE_LINE_HEIGHT = 16; // min-h-4 on price <p> (always rendered when visibleFields.price is on)
+export const PRICE_LINE_HEIGHT = 16; // min-h-4 on price <p>
 
 export const HEADER_PT = 16; // pt-4 on header row
 export const HEADER_PB = 8; // pb-2 on header row

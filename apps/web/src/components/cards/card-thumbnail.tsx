@@ -7,8 +7,6 @@ import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image"
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { resolvePrice } from "@/hooks/use-card-data";
 import { useCardTilt } from "@/hooks/use-card-tilt";
-import type { VisibleFields } from "@/lib/card-fields";
-import { DEFAULT_VISIBLE_FIELDS } from "@/lib/card-fields";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import {
@@ -140,7 +138,6 @@ interface CardThumbnailProps {
   siblings?: Printing[];
   priceRange?: { min: number; max: number };
   view?: "cards" | "printings";
-  visibleFields?: VisibleFields;
   cardWidth?: number;
   priority?: boolean;
   ownedCount?: number;
@@ -162,7 +159,6 @@ export const CardThumbnail = memo(function CardThumbnail({
   siblings,
   priceRange,
   view,
-  visibleFields = DEFAULT_VISIBLE_FIELDS,
   cardWidth,
   priority,
   ownedCount,
@@ -301,14 +297,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     </div>
   );
 
-  const showLabels =
-    visibleFields.number ||
-    visibleFields.title ||
-    visibleFields.type ||
-    visibleFields.rarity ||
-    visibleFields.price;
-
-  const labelSection = showLabels && (
+  const labelSection = (
     // ⚠ mt-2.5 is mirrored as LABEL_WRAPPER_MT in card-grid.tsx — update both together
     <div className="relative z-10 mt-2.5">
       <CardMetaLabel
@@ -317,28 +306,21 @@ export const CardThumbnail = memo(function CardThumbnail({
         type={card.type}
         superTypes={card.superTypes}
         rarity={printing.rarity}
-        visibleFields={visibleFields}
       />
       {/* // ⚠ mt-0.5 / text-xs / min-h-4 are mirrored as PRICE_MT / PRICE_LINE_HEIGHT in card-grid.tsx — update both together */}
       {/* // custom: always render the price <p> (with min-h-4) so rows have uniform height even when favoritePrice is undefined */}
-      {visibleFields.price && (
-        <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
-          {favoritePrice !== undefined &&
-            (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
-              <>
-                <span className={priceColorClass(priceRange.min)}>
-                  {compactFmt(priceRange.min)}
-                </span>
-                <span className="text-muted-foreground/60">&ndash;</span>
-                <span className={priceColorClass(priceRange.max)}>
-                  {compactFmt(priceRange.max)}
-                </span>
-              </>
-            ) : (
-              <span className={priceColorClass(favoritePrice)}>{compactFmt(favoritePrice)}</span>
-            ))}
-        </p>
-      )}
+      <p className="mt-0.5 flex min-h-4 flex-wrap items-center gap-1 px-1.5 text-xs font-medium">
+        {favoritePrice !== undefined &&
+          (view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
+            <>
+              <span className={priceColorClass(priceRange.min)}>{compactFmt(priceRange.min)}</span>
+              <span className="text-muted-foreground/60">&ndash;</span>
+              <span className={priceColorClass(priceRange.max)}>{compactFmt(priceRange.max)}</span>
+            </>
+          ) : (
+            <span className={priceColorClass(favoritePrice)}>{compactFmt(favoritePrice)}</span>
+          ))}
+      </p>
     </div>
   );
 

@@ -322,15 +322,6 @@ export const userPreferencesResponseSchema = z
     fancyFan: z.boolean().optional(),
     foilEffect: z.enum(["none", "static", "animated"]).optional(),
     cardTilt: z.boolean().optional(),
-    visibleFields: z
-      .object({
-        number: z.boolean().optional(),
-        title: z.boolean().optional(),
-        type: z.boolean().optional(),
-        rarity: z.boolean().optional(),
-        price: z.boolean().optional(),
-      })
-      .optional(),
     theme: z.enum(["light", "dark", "auto"]).optional(),
     marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])).optional(),
   })

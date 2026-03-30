@@ -7,7 +7,6 @@ import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "re
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
-import type { VisibleFields } from "@/lib/card-fields";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -66,42 +65,15 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
   return rows;
 }
 
-function estimateLabelHeight(visibleFields: VisibleFields | undefined): number {
-  const fields = visibleFields ?? {
-    number: true,
-    title: true,
-    type: true,
-    rarity: true,
-    price: true,
-  };
-  const hasMetaFields = fields.number || fields.title || fields.type || fields.rarity;
-  if (!hasMetaFields && !fields.price) {
-    return 0;
-  }
-
-  let height = LABEL_WRAPPER_MT;
-
-  if (hasMetaFields) {
-    height += META_LABEL_PY;
-    const hasLine1 = fields.number || fields.title;
-    const hasLine2 = fields.type || fields.rarity;
-    if (hasLine1) {
-      height += META_LINE_HEIGHT;
-    }
-    if (hasLine1 && hasLine2) {
-      height += META_LINE_GAP;
-    }
-    if (hasLine2) {
-      height += META_LINE_HEIGHT;
-    }
-  }
-
-  if (fields.price) {
-    height += PRICE_MT + PRICE_LINE_HEIGHT;
-  }
-
-  return height;
-}
+/** All fields are always visible — height is constant. */
+const LABEL_HEIGHT =
+  LABEL_WRAPPER_MT +
+  META_LABEL_PY +
+  META_LINE_HEIGHT +
+  META_LINE_GAP +
+  META_LINE_HEIGHT +
+  PRICE_MT +
+  PRICE_LINE_HEIGHT;
 
 /**
  * Builds a prefix-sum array of Y-offsets so `rowStarts[i]` is the pixel
@@ -280,8 +252,6 @@ export function CardGrid({
   siblingPrintings,
   addStripHeight = 0,
 }: CardGridProps) {
-  // ── Display preferences (what to show on each card) ──────────────
-  const visibleFields = useDisplayStore((s) => s.visibleFields);
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
   const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
@@ -329,8 +299,7 @@ export function CardGrid({
   }
   const virtualRows = virtualRowsCacheRef.current.rows;
 
-  // ── Label height estimation ────────────────────────────────────────
-  const labelHeight = estimateLabelHeight(visibleFields);
+  const labelHeight = LABEL_HEIGHT;
 
   const estimateRowHeight = (index: number): number => {
     const row = virtualRows[index];
@@ -480,7 +449,6 @@ export function CardGrid({
         containerRef={containerRef}
         columns={columns}
         labelHeight={labelHeight}
-        visibleFields={visibleFields}
         estimateRowHeight={estimateRowHeight}
       />
 
