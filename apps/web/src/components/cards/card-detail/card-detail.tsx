@@ -94,10 +94,9 @@ export function CardDetail({
     gyro,
   });
 
-  const showFoil = isFoil && foilEffect !== "none";
-  // Animated foil: static at rest, tilt-reactive on hover; shimmers when tilt unavailable.
-  const showShimmer =
-    foilEffect === "animated" && (!cardTilt || (IS_COARSE_POINTER && tiltMode === "none"));
+  const showFoil = isFoil && foilEffect;
+  // Detail pane always uses animated foil — shimmers when tilt unavailable.
+  const showShimmer = showFoil && (!cardTilt || (IS_COARSE_POINTER && tiltMode === "none"));
 
   return (
     <div

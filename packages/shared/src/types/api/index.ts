@@ -1,11 +1,6 @@
 export type { ApiErrorResponse } from "./error.js";
 
-export type {
-  FoilEffect,
-  ResolvedPreferences,
-  Theme,
-  UserPreferencesResponse,
-} from "./preferences.js";
+export type { ResolvedPreferences, Theme, UserPreferencesResponse } from "./preferences.js";
 export { PREFERENCE_DEFAULTS } from "./preferences.js";
 
 export type { KeywordStyleEntry, KeywordStylesResponse } from "./keyword-style.js";

@@ -1,4 +1,4 @@
-import type { FoilEffect, Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -10,7 +10,7 @@ import { sanitizeOverrides } from "@/lib/sanitize-preferences";
 export interface DisplayOverrides {
   showImages: boolean | null;
   fancyFan: boolean | null;
-  foilEffect: FoilEffect | null;
+  foilEffect: boolean | null;
   cardTilt: boolean | null;
   marketplaceOrder: Marketplace[] | null;
 }
@@ -41,7 +41,7 @@ interface DisplayState {
   // Resolved values — always concrete, read by components
   showImages: boolean;
   fancyFan: boolean;
-  foilEffect: FoilEffect;
+  foilEffect: boolean;
   cardTilt: boolean;
   marketplaceOrder: Marketplace[];
 
@@ -51,7 +51,7 @@ interface DisplayState {
   // Setters (explicitly set a preference)
   setShowImages: (value: boolean) => void;
   setFancyFan: (value: boolean) => void;
-  setFoilEffect: (value: FoilEffect) => void;
+  setFoilEffect: (value: boolean) => void;
   setCardTilt: (value: boolean) => void;
   setMarketplaceOrder: (value: Marketplace[]) => void;
 
