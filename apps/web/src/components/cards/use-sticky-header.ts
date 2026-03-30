@@ -62,6 +62,7 @@ export function useStickyHeader({
       // The active header is the last one whose top has reached/crossed the
       // sticky threshold.
       let active: (VRow & { kind: "header" }) | null = null;
+      let activeStart = 0;
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         if (row.kind !== "header") {
@@ -70,7 +71,16 @@ export function useStickyHeader({
         const start = measuredStarts.get(i) ?? starts[i];
         if (start <= threshold + 1) {
           active = row;
+          activeStart = start;
         }
+      }
+
+      // Hide the overlay when the real header is at/near the sticky position
+      // (e.g. right after scrollToGroup jumps to a header).
+      // scrollToIndex lands the header exactly at the threshold (gap=0).
+      // The +1 in the activation check means we need to clear gap < 2.
+      if (active && threshold - activeStart < 2) {
+        active = null;
       }
 
       // Compare by set code to avoid re-renders from new object references.
@@ -84,7 +94,7 @@ export function useStickyHeader({
     update();
     globalThis.addEventListener("scroll", update, { passive: true });
     return () => globalThis.removeEventListener("scroll", update);
-  }, [multipleGroups]);
+  }, [multipleGroups, scrollMargin]);
 
   return activeHeaderRow;
 }
