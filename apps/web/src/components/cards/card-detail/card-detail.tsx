@@ -116,7 +116,11 @@ export function CardDetail({
             onTagClick={onTagClick}
             truncate
           />
-          <OwnedCollectionsPopover printingId={printing.id} />
+          <OwnedCollectionsPopover
+            printingId={printing.id}
+            cardName={card.name}
+            shortCode={printing.shortCode}
+          />
         </div>
       </div>
 
@@ -124,7 +128,11 @@ export function CardDetail({
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
         <CardDetailHeading printing={printing} setNumber={setNumber} onTagClick={onTagClick} />
         <div className="flex shrink-0 items-center gap-1">
-          <OwnedCollectionsPopover printingId={printing.id} />
+          <OwnedCollectionsPopover
+            printingId={printing.id}
+            cardName={card.name}
+            shortCode={printing.shortCode}
+          />
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
             <X className="size-4" />
           </Button>
