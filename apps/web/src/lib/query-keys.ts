@@ -33,6 +33,7 @@ export const queryKeys = {
   },
   ownedCount: {
     all: ["ownedCount"] as const,
+    byCollection: (printingId: string) => ["ownedCount", "byCollection", printingId] as const,
   },
   priceHistory: {
     byPrinting: (printingId: string, range: TimeRange) =>

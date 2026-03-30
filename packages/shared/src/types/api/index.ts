@@ -17,6 +17,8 @@ export type { CollectionEventListResponse, CollectionEventResponse } from "./col
 export type {
   CollectionListResponse,
   CollectionResponse,
+  CopyCollectionBreakdownEntry,
+  CopyCollectionBreakdownResponse,
   CopyCountResponse,
   CopyListResponse,
   CopyResponse,

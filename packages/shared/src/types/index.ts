@@ -94,6 +94,8 @@ export type {
   CollectionEventResponse,
   CollectionListResponse,
   CollectionResponse,
+  CopyCollectionBreakdownEntry,
+  CopyCollectionBreakdownResponse,
   CopyCountResponse,
   CopyListResponse,
   CopyResponse,

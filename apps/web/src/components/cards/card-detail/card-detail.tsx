@@ -17,6 +17,7 @@ import { useDisplayStore } from "@/stores/display-store";
 import { CardDetailHeading } from "./card-detail-heading";
 import { CardFooter } from "./card-footer";
 import { CardImage } from "./card-image";
+import { OwnedCollectionsPopover } from "./owned-collections-popover";
 import { PrintedTextWarning } from "./printed-text-warning";
 import { PrintingPicker } from "./printing-picker";
 import { StatChip } from "./stat-chip";
@@ -115,15 +116,19 @@ export function CardDetail({
             onTagClick={onTagClick}
             truncate
           />
+          <OwnedCollectionsPopover printingId={printing.id} />
         </div>
       </div>
 
       {/* Desktop header */}
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
         <CardDetailHeading printing={printing} setNumber={setNumber} onTagClick={onTagClick} />
-        <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={onClose}>
-          <X className="size-4" />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <OwnedCollectionsPopover printingId={printing.id} />
+          <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">

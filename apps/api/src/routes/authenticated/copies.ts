@@ -1,6 +1,11 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { CopyCountResponse, CopyListResponse } from "@openrift/shared";
+import type {
+  CopyCollectionBreakdownResponse,
+  CopyCountResponse,
+  CopyListResponse,
+} from "@openrift/shared";
 import {
+  copyCollectionBreakdownResponseSchema,
   copyCountResponseSchema,
   copyListResponseSchema,
   copyResponseSchema,
@@ -8,6 +13,7 @@ import {
 import {
   addCopiesSchema,
   copiesQuerySchema,
+  copyCollectionBreakdownQuerySchema,
   disposeCopiesSchema,
   idParamSchema,
   moveCopiesSchema,
@@ -75,6 +81,19 @@ const countCopies = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: copyCountResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const countCopiesByCollection = createRoute({
+  method: "get",
+  path: "/count-by-collection",
+  tags: ["Copies"],
+  request: { query: copyCollectionBreakdownQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: copyCollectionBreakdownResponseSchema } },
       description: "Success",
     },
   },
@@ -163,6 +182,16 @@ export const copiesRoute = copiesApp
       rows.map((row) => [row.printingId, row.count]),
     );
     return c.json({ items: counts } satisfies CopyCountResponse);
+  })
+
+  // ── GET /copies/count-by-collection ─────────────────────────────────────────
+  // Returns per-collection copy counts for a single printing
+
+  .openapi(countCopiesByCollection, async (c) => {
+    const { copies } = c.get("repos");
+    const { printingId } = c.req.valid("query");
+    const rows = await copies.countByCollectionForPrinting(getUserId(c), printingId);
+    return c.json({ items: rows } satisfies CopyCollectionBreakdownResponse);
   })
 
   // ── GET /copies/:id ─────────────────────────────────────────────────────────

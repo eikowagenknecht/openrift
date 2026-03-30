@@ -24,6 +24,16 @@ export interface CopyCountResponse {
   items: Record<string, number>;
 }
 
+export interface CopyCollectionBreakdownEntry {
+  collectionId: string;
+  collectionName: string;
+  count: number;
+}
+
+export interface CopyCollectionBreakdownResponse {
+  items: CopyCollectionBreakdownEntry[];
+}
+
 export interface CopyResponse {
   id: string;
   printingId: string;

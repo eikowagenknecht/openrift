@@ -16,3 +16,19 @@ export function useOwnedCount(enabled: boolean) {
     staleTime: 1 * 60 * 1000, // 1 minute
   });
 }
+
+export function useOwnedCollections(printingId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.ownedCount.byCollection(printingId),
+    queryFn: async () => {
+      const res = await client.api.v1.copies["count-by-collection"].$get({
+        query: { printingId },
+      });
+      assertOk(res);
+      return await res.json();
+    },
+    select: (data) => data.items,
+    enabled,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+}

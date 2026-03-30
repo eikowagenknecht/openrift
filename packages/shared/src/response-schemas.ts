@@ -210,6 +210,16 @@ export const copyCountResponseSchema = z
   .object({ items: z.record(z.string(), z.number()) })
   .openapi("CopyCountResponse");
 
+const copyCollectionBreakdownEntrySchema = z.object({
+  collectionId: z.string(),
+  collectionName: z.string(),
+  count: z.number(),
+});
+
+export const copyCollectionBreakdownResponseSchema = z
+  .object({ items: z.array(copyCollectionBreakdownEntrySchema) })
+  .openapi("CopyCollectionBreakdownResponse");
+
 // ── Acquisition Sources ──────────────────────────────────────────────────────
 
 export const acquisitionSourceResponseSchema = z

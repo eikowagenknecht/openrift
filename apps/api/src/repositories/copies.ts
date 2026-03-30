@@ -87,6 +87,26 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Per-collection copy count for a single printing owned by a user. */
+    countByCollectionForPrinting(
+      userId: string,
+      printingId: string,
+    ): Promise<{ collectionId: string; collectionName: string; count: number }[]> {
+      return db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .select((eb) => [
+          "cp.collectionId" as const,
+          "col.name as collectionName",
+          eb.cast<number>(eb.fn.count("cp.id"), "integer").as("count"),
+        ])
+        .where("cp.userId", "=", userId)
+        .where("cp.printingId", "=", printingId)
+        .groupBy(["cp.collectionId", "col.name"])
+        .orderBy("col.sortOrder")
+        .execute();
+    },
+
     /** @returns Owned count per printing for a user. */
     countByPrintingForUser(userId: string): Promise<{ printingId: string; count: number }[]> {
       return db
