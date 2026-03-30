@@ -600,12 +600,9 @@ function ImportEntryRow({
               Undo
             </Button>
           ) : (
-            (entry.status === "unresolved" ||
-              (entry.status !== "exact" && !entry.resolvedPrinting)) && (
-              <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
-                Skip
-              </Button>
-            )
+            <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
+              Skip
+            </Button>
           )}
         </div>
       </div>
