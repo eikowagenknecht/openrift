@@ -650,6 +650,11 @@ function PreviewStep({
               </>
             )}
           </Button>
+          {needsAttentionCount > 0 && !isImporting && (
+            <span className="text-muted-foreground text-sm">
+              (skips {needsAttentionCount} unmatched)
+            </span>
+          )}
         </div>
       </div>
     </div>
