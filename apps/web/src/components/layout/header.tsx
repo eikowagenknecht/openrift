@@ -1,6 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useMatch, useRouter } from "@tanstack/react-router";
-import { EllipsisVertical, LogOut, Menu, Moon, Shield, Sparkles, Sun, User } from "lucide-react";
+import {
+  CircleHelp,
+  EllipsisVertical,
+  LogOut,
+  Menu,
+  Moon,
+  Shield,
+  Sparkles,
+  Sun,
+  User,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -147,6 +157,10 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
           {darkMode ? "Light mode" : "Dark mode"}
         </DropdownMenuItem>
       )}
+      <DropdownMenuItem render={<Link to="/help" />}>
+        <CircleHelp className="size-4" />
+        Help
+      </DropdownMenuItem>
       <DropdownMenuItem render={<Link to="/changelog" />}>
         <Sparkles className="size-4" />
         What&apos;s new
@@ -240,6 +254,7 @@ function MobileNav({
         <nav className="flex flex-col gap-2 px-2">
           <MobileNavLink to="/cards">Cards</MobileNavLink>
           {showCollection && <MobileNavLink to="/collections">Collection</MobileNavLink>}
+          <MobileNavLink to="/help">Help</MobileNavLink>
           <MobileNavLink to="/changelog">What&apos;s new</MobileNavLink>
           <MobileNavLink to="/roadmap">Roadmap</MobileNavLink>
         </nav>
@@ -257,7 +272,7 @@ export function Header() {
 
   return (
     <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg">
-      {/* ⚠ h-14 is mirrored as APP_HEADER_HEIGHT in card-grid.tsx — update both together */}
+      {/* \u26a0 h-14 is mirrored as APP_HEADER_HEIGHT in card-grid.tsx \u2014 update both together */}
       <div
         className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-3 md:grid-cols-[1fr_auto]`}
       >
