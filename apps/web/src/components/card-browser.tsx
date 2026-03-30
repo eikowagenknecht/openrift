@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
-import { useDeferredValue, useState } from "react";
+import { parseAsString, useQueryState } from "nuqs";
+import { useEffect, useDeferredValue, useRef, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -75,6 +76,22 @@ export function CardBrowser() {
   }));
 
   const findBy = view === "cards" ? "card" : ("printing" as const);
+
+  // Deep-link: open a specific printing when navigating from e.g. activity page
+  const [linkedPrintingId, setLinkedPrintingId] = useQueryState("printingId", parseAsString);
+  const deepLinkHandled = useRef(false);
+
+  useEffect(() => {
+    if (!linkedPrintingId || deepLinkHandled.current) {
+      return;
+    }
+    const printing = allPrintings.find((p) => p.id === linkedPrintingId);
+    if (printing) {
+      deepLinkHandled.current = true;
+      useSelectionStore.getState().selectCard(printing, items, "printing");
+      void setLinkedPrintingId(null);
+    }
+  }, [linkedPrintingId, allPrintings, items, setLinkedPrintingId]);
 
   const handleGridCardClick = (printing: Printing) => {
     useSelectionStore.getState().selectCard(printing, items, findBy);

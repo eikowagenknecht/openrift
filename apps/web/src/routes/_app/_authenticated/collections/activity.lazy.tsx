@@ -246,7 +246,11 @@ function EventCard({
   const showCollection = isMove || isUnfilteredAddRemove;
 
   return (
-    <div className="flex items-center gap-3 py-2">
+    <Link
+      to="/cards"
+      search={{ printingId: event.printingId }}
+      className="hover:bg-accent/50 flex items-center gap-3 py-2 transition-colors"
+    >
       <div
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full border",
@@ -319,7 +323,7 @@ function EventCard({
           </p>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 
