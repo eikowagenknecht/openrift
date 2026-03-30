@@ -391,12 +391,44 @@ export function CardGrid({
     return () => clearTimeout(timer);
   }, [selectedItemId]);
 
-  // Re-scroll the selected card into view when columns change.
+  // Track the first visible card so we can anchor scroll when columns change.
+  const topVisibleCardRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!selectedItemId) {
+    const onScroll = () => {
+      const rows = virtualRowsRef.current;
+      const vItems = virtualizerRef.current.getVirtualItems();
+      const viewportTop = globalThis.scrollY + APP_HEADER_HEIGHT;
+      for (const vItem of vItems) {
+        const row = rows[vItem.index];
+        if (row?.kind === "cards" && vItem.start + vItem.size > viewportTop) {
+          topVisibleCardRef.current = row.items[0]?.id ?? null;
+          return;
+        }
+      }
+    };
+    globalThis.addEventListener("scroll", onScroll, { passive: true });
+    return () => globalThis.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Invalidate the virtualizer's measurement cache when columns change so
+  // scrollToIndex uses fresh estimates instead of stale heights from the
+  // previous column layout.
+  const prevColumnsRef = useRef(columns);
+  useEffect(() => {
+    if (prevColumnsRef.current !== columns) {
+      prevColumnsRef.current = columns;
+      virtualizerRef.current.measure();
+    }
+  }, [columns]);
+
+  // Re-scroll when columns change: anchor to selected card or first visible card.
+  useEffect(() => {
+    const anchor = selectedItemId ?? topVisibleCardRef.current;
+    if (!anchor) {
       return;
     }
-    scrollToCard(selectedItemId);
+    scrollToCard(anchor);
   }, [columns, selectedItemId]);
 
   // ── Helpers ────────────────────────────────────────────────────────
