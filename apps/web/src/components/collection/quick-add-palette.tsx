@@ -361,7 +361,7 @@ function PaletteInner({
                     <span className="truncate font-medium">{card.cardName}</span>
                     {card.ownedCount > 0 && (
                       <span className="text-muted-foreground shrink-0 text-xs">
-                        ×{card.ownedCount} owned
+                        ×{card.ownedCount}
                       </span>
                     )}
                   </div>
