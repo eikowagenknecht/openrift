@@ -50,7 +50,6 @@
       "dependencies": {
         "@base-ui/react": "1.3.0",
         "@dnd-kit/core": "6.3.1",
-        "@dnd-kit/utilities": "3.2.2",
         "@fontsource-variable/inter": "5.2.8",
         "@hookform/resolvers": "5.2.2",
         "@openrift/shared": "workspace:*",
