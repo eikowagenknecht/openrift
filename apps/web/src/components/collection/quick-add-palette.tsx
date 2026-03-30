@@ -371,7 +371,7 @@ function PaletteInner({
                     )}
                     {card.ownedCount > 0 && (
                       <span className="text-muted-foreground shrink-0 text-xs">
-                        {card.ownedCount} total
+                        ×{card.ownedCount} owned
                       </span>
                     )}
                   </div>
@@ -422,29 +422,29 @@ function PaletteInner({
                             height={28}
                             className="size-3.5 shrink-0"
                           />
-                          {sessionAdded > 0 && (
-                            <span className="shrink-0 text-[11px] font-medium text-green-600 dark:text-green-400">
-                              +{sessionAdded}
-                            </span>
-                          )}
-                          {ownedForPrinting > 0 && (
-                            <span className="text-muted-foreground shrink-0 text-[11px]">
-                              {ownedForPrinting} total
-                            </span>
-                          )}
                         </button>
+                        {sessionAdded > 0 && (
+                          <span className="shrink-0 text-[11px] text-green-600 dark:text-green-400">
+                            ({sessionAdded} added)
+                          </span>
+                        )}
                         {sessionAdded > 0 && (
                           <button
                             type="button"
                             tabIndex={-1}
                             onClick={() => handleUndo(printing)}
-                            className="text-muted-foreground hover:text-foreground hover:bg-muted mr-1 flex size-5 items-center justify-center rounded transition-colors"
+                            className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 items-center justify-center rounded transition-colors"
                             aria-label={`Undo add ${printing.card.name}`}
                           >
                             <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">
                               <path d="M3 7a1 1 0 0 0 0 2h10a1 1 0 1 0 0-2H3z" />
                             </svg>
                           </button>
+                        )}
+                        {ownedForPrinting > 0 && (
+                          <span className="text-muted-foreground mr-2 shrink-0 text-[11px]">
+                            ×{ownedForPrinting}
+                          </span>
                         )}
                       </div>
                     );
