@@ -414,7 +414,7 @@ function PaletteInner({
                           </span>
                         </button>
                         {sessionAdded > 0 && (
-                          <span className="flex shrink-0 items-center gap-1 rounded-full border border-green-600/30 bg-green-500/10 py-0.5 pr-1 pl-1.5 text-[11px] text-green-600 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400">
+                          <span className="flex shrink-0 items-center gap-1 rounded-full border border-green-600/30 bg-green-500/10 py-0.5 pr-1 pl-1.5 text-[11px] text-green-600 tabular-nums dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400">
                             {sessionAdded} new
                             <button
                               type="button"
