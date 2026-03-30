@@ -651,7 +651,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           const valueCents = currentCollection?.totalValueCents;
           const unpricedCount = currentCollection?.unpricedCopyCount;
           return (
-            <div className="text-muted-foreground mb-2 flex items-center gap-1.5 text-sm">
+            <div className="bg-muted/50 text-muted-foreground mt-1 mb-3 flex items-center gap-1.5 rounded-md px-3 py-2 text-sm">
               <span className="shrink-0">
                 {totalCopies} card{totalCopies === 1 ? "" : "s"}
                 {stacks.length !== totalCopies && ` (${stacks.length} unique)`}
