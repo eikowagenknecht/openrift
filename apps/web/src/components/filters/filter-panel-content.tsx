@@ -10,16 +10,46 @@ import { formatDomainFilterLabel } from "@/lib/domain";
 import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 
+/** Number of discrete positions on the slider track in logarithmic mode. */
+const LOG_STEPS = 1000;
+
+/**
+ * Map a real value to a slider position (0–LOG_STEPS) on a log scale.
+ * @returns Slider position
+ */
+function valueToSliderPos(value: number, rangeMin: number, rangeMax: number): number {
+  if (rangeMax <= rangeMin) {
+    return 0;
+  }
+  const logMin = Math.log1p(rangeMin);
+  const logMax = Math.log1p(rangeMax);
+  return Math.round(((Math.log1p(value) - logMin) / (logMax - logMin)) * LOG_STEPS);
+}
+
+/**
+ * Map a slider position (0–LOG_STEPS) back to a real value on a log scale.
+ * @returns Real value
+ */
+function sliderPosToValue(position: number, rangeMin: number, rangeMax: number): number {
+  if (rangeMax <= rangeMin) {
+    return rangeMin;
+  }
+  const logMin = Math.log1p(rangeMin);
+  const logMax = Math.log1p(rangeMax);
+  return Math.round(Math.expm1(logMin + (position / LOG_STEPS) * (logMax - logMin)));
+}
+
 const RANGE_SECTIONS: {
   key: RangeKey;
   label: string;
   step?: number;
+  logarithmic?: boolean;
   formatValue?: (v: number) => string;
 }[] = [
   { key: "energy", label: "Energy" },
   { key: "might", label: "Might" },
   { key: "power", label: "Power" },
-  { key: "price", label: "TCG Price", step: 1, formatValue: (v) => `$${v}` },
+  { key: "price", label: "TCG Price", logarithmic: true, formatValue: (v) => `$${v}` },
 ];
 
 interface FilterPanelContentProps {
@@ -159,7 +189,9 @@ export function FilterRangeSections({
             selectedMax={ranges[key].max}
             hasNone={hasNone}
             onChange={(min, max) => setRange(key, min, max)}
-            {...rest}
+            step={rest.step}
+            logarithmic={rest.logarithmic}
+            formatValue={rest.formatValue}
           />
         );
       })}
@@ -176,6 +208,7 @@ function RangeFilterSection({
   hasNone = false,
   onChange,
   step = 1,
+  logarithmic = false,
   formatValue,
 }: {
   label: string;
@@ -186,6 +219,7 @@ function RangeFilterSection({
   hasNone?: boolean;
   onChange: (min: number | null, max: number | null) => void;
   step?: number;
+  logarithmic?: boolean;
   formatValue?: (value: number) => string;
 }) {
   const sliderMin = hasNone ? NONE : availableMin;
@@ -194,6 +228,18 @@ function RangeFilterSection({
   const resolvedMax = selectedMax ?? availableMax;
   const fmt = formatValue ?? String;
   const fmtNone = (value: number) => (value === NONE ? "None" : fmt(value));
+
+  // In logarithmic mode the slider operates on a linear 0–LOG_STEPS scale and
+  // we convert between slider positions and real values with log/exp.
+  const sMin = logarithmic ? 0 : sliderMin;
+  const sMax = logarithmic ? LOG_STEPS : availableMax;
+  const sStep = logarithmic ? 1 : step;
+  const toSlider = logarithmic
+    ? (value: number) => valueToSliderPos(value, availableMin, availableMax)
+    : (value: number) => value;
+  const fromSlider = logarithmic
+    ? (pos: number) => sliderPosToValue(pos, availableMin, availableMax)
+    : (value: number) => value;
 
   return (
     <div className="flex items-center gap-2">
@@ -207,21 +253,23 @@ function RangeFilterSection({
         </span>
         {/* Slider */}
         <Slider
-          min={sliderMin}
-          max={availableMax}
-          step={step}
-          value={[resolvedMin, resolvedMax]}
+          min={sMin}
+          max={sMax}
+          step={sStep}
+          value={[toSlider(resolvedMin), toSlider(resolvedMax)]}
           aria-label={`${label} range`}
           onValueChange={(values) => {
             const arr = Array.isArray(values) ? values : [values];
             const [newMin, newMax] = arr;
-            const atLeftEdge = newMin === sliderMin;
-            const atRightEdge = newMax === availableMax;
+            const atLeftEdge = newMin === sMin;
+            const atRightEdge = newMax === sMax;
             if (atLeftEdge && atRightEdge) {
               onChange(null, null);
             } else {
-              const minVal = atLeftEdge ? (hasNone ? NONE : null) : (newMin ?? null);
-              const maxVal = atRightEdge ? null : (newMax ?? null);
+              const realMin = fromSlider(newMin ?? sMin);
+              const realMax = fromSlider(newMax ?? sMax);
+              const minVal = atLeftEdge ? (hasNone ? NONE : null) : realMin;
+              const maxVal = atRightEdge ? null : realMax;
               onChange(minVal, maxVal);
             }
           }}
