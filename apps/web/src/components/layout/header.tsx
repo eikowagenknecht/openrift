@@ -82,7 +82,10 @@ function DesktopNav({ showCollection }: { showCollection: boolean }) {
         <NavigationMenuItem>
           <NavigationMenuLink
             render={<Link to="/cards" />}
-            className={navigationMenuTriggerStyle()}
+            className={cn(
+              navigationMenuTriggerStyle(),
+              "data-[status=active]:bg-muted data-[status=active]:font-semibold",
+            )}
           >
             Cards
           </NavigationMenuLink>
@@ -91,7 +94,10 @@ function DesktopNav({ showCollection }: { showCollection: boolean }) {
           <NavigationMenuItem>
             <NavigationMenuLink
               render={<Link to="/collections" />}
-              className={navigationMenuTriggerStyle()}
+              className={cn(
+                navigationMenuTriggerStyle(),
+                "data-[status=active]:bg-muted data-[status=active]:font-semibold",
+              )}
             >
               Collections
             </NavigationMenuLink>
@@ -217,7 +223,7 @@ function MobileNavLink({ to, children }: { to: string; children: ReactNode }) {
     <SheetClose
       nativeButton={false}
       render={<Link to={to} />}
-      className="hover:bg-muted rounded-md px-2 py-1"
+      className="hover:bg-muted data-[status=active]:bg-muted rounded-md px-2 py-1 data-[status=active]:font-semibold"
     >
       {children}
     </SheetClose>
