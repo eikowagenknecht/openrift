@@ -1,3 +1,4 @@
+import { useDndContext } from "@dnd-kit/core";
 import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
@@ -26,6 +27,9 @@ import {
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
+import type { CardDragData } from "./dnd-types";
+import { DroppableCollection } from "./droppable-collection";
+
 export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
@@ -36,6 +40,10 @@ export function CollectionSidebar() {
   const sourcesEnabled = useFeatureEnabled("acquisition-sources");
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
+
+  const { active } = useDndContext();
+  const dragSourceCollectionId = (active?.data.current as CardDragData | undefined)
+    ?.sourceCollectionId;
 
   const totalCopies = collections?.reduce((sum, col) => sum + col.copyCount, 0) ?? 0;
 
@@ -81,30 +89,36 @@ export function CollectionSidebar() {
           <SidebarGroupLabel>Collections</SidebarGroupLabel>
           <SidebarMenu className="gap-1">
             {collections?.map((col) => (
-              <SidebarMenuItem key={col.id}>
-                <SidebarMenuButton
-                  isActive={collectionId === col.id}
-                  render={
-                    <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
-                  }
-                  size="sm"
-                >
-                  {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
-                  <span className="flex-1 truncate">{col.name}</span>
-                  {browsing && collectionId === col.id ? (
-                    <span className="ml-auto size-2.5 animate-pulse rounded-full bg-red-500" />
-                  ) : (
-                    col.copyCount > 0 && (
-                      <Badge
-                        variant={col.isInbox ? "default" : "ghost"}
-                        className="ml-auto text-[10px]"
-                      >
-                        {col.copyCount}
-                      </Badge>
-                    )
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <DroppableCollection
+                key={col.id}
+                collectionId={col.id}
+                disabled={col.id === dragSourceCollectionId}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={collectionId === col.id}
+                    render={
+                      <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
+                    }
+                    size="sm"
+                  >
+                    {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
+                    <span className="flex-1 truncate">{col.name}</span>
+                    {browsing && collectionId === col.id ? (
+                      <span className="ml-auto size-2.5 animate-pulse rounded-full bg-red-500" />
+                    ) : (
+                      col.copyCount > 0 && (
+                        <Badge
+                          variant={col.isInbox ? "default" : "ghost"}
+                          className="ml-auto text-[10px]"
+                        >
+                          {col.copyCount}
+                        </Badge>
+                      )
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </DroppableCollection>
             ))}
             <SidebarMenuItem>
               {isCreating ? (
