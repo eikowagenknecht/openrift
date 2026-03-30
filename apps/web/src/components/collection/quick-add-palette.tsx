@@ -414,20 +414,18 @@ function PaletteInner({
                           </span>
                         </button>
                         {sessionAdded > 0 && (
-                          <span className="shrink-0 text-[11px] text-green-600 dark:text-green-400">
+                          <span className="flex shrink-0 items-center gap-1 rounded-full border border-green-600/30 bg-green-500/10 py-0.5 pr-1 pl-1.5 text-[11px] text-green-600 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400">
                             {sessionAdded} new
+                            <button
+                              type="button"
+                              tabIndex={-1}
+                              onClick={() => handleUndo(printing)}
+                              className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
+                              aria-label={`Undo add ${printing.card.name}`}
+                            >
+                              <X className="size-3" />
+                            </button>
                           </span>
-                        )}
-                        {sessionAdded > 0 && (
-                          <button
-                            type="button"
-                            tabIndex={-1}
-                            onClick={() => handleUndo(printing)}
-                            className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
-                            aria-label={`Undo add ${printing.card.name}`}
-                          >
-                            <X className="size-3" />
-                          </button>
                         )}
                         {ownedForPrinting > 0 && (
                           <span className="text-muted-foreground mr-2 shrink-0 text-[11px]">
