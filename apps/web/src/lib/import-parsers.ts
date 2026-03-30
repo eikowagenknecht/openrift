@@ -18,6 +18,24 @@ export interface ImportEntry {
   cardName: string;
   /** The raw short code from the source (e.g. "OGN-079a"), used as fallback for matching. */
   sourceCode: string;
+  /** Pass-through of interesting fields from the source CSV, for display in the detail panel. */
+  rawFields: Record<string, string>;
+}
+
+/**
+ * Builds a rawFields record, filtering out empty/undefined values and trimming.
+ * Insertion order is preserved for display.
+ * @returns A record of non-empty field values.
+ */
+function buildRawFields(fields: Record<string, string | undefined>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    const trimmed = value?.trim();
+    if (trimmed) {
+      result[key] = trimmed;
+    }
+  }
+  return result;
 }
 
 interface ParseResult {
@@ -112,6 +130,17 @@ function parsePiltoverArchive(text: string): ParseResult {
     const finish: Finish =
       parsed.hasFoilSuffix || variantLabel.toLowerCase().includes("foil") ? "foil" : "normal";
 
+    const rawFields = buildRawFields({
+      "Source Code": variantNumber,
+      Set: record["Set"],
+      Rarity: record["Rarity"],
+      Finish: finish === "foil" ? "Foil" : "Normal",
+      "Variant Type": record["Variant Type"],
+      "Variant Label": variantLabel,
+      Language: record["Language"],
+      Condition: record["Condition"],
+    });
+
     const entry: ImportEntry = {
       setPrefix: parsed.setPrefix,
       collectorNumber: parsed.collectorNumber,
@@ -120,6 +149,7 @@ function parsePiltoverArchive(text: string): ParseResult {
       quantity,
       cardName,
       sourceCode: parsed.shortCode,
+      rawFields,
     };
 
     // Aggregate duplicates (same variant, different conditions)
@@ -220,6 +250,11 @@ function parseRiftCore(text: string): ParseResult {
   const cardNameCol = headers.indexOf("Card Name");
   const standardQtyCol = headers.indexOf("Standard Qty");
   const foilQtyCol = headers.indexOf("Foil Qty");
+  const setCol = headers.indexOf("Set");
+  const cardNumberCol = headers.indexOf("Card Number");
+  const typeCol = headers.indexOf("Type");
+  const rarityCol = headers.indexOf("Rarity");
+  const domainCol = headers.indexOf("Domain");
 
   if (cardIdCol === -1 || cardNameCol === -1) {
     return {
@@ -249,6 +284,15 @@ function parseRiftCore(text: string): ParseResult {
       continue;
     }
 
+    const baseRawFields: Record<string, string | undefined> = {
+      "Source Code": cardId,
+      Set: setCol === -1 ? undefined : row[setCol],
+      "Card Number": cardNumberCol === -1 ? undefined : row[cardNumberCol],
+      Type: typeCol === -1 ? undefined : row[typeCol],
+      Rarity: rarityCol === -1 ? undefined : row[rarityCol],
+      Domain: domainCol === -1 ? undefined : row[domainCol],
+    };
+
     if (standardQty > 0) {
       entries.push({
         setPrefix: parsed.setPrefix,
@@ -258,6 +302,7 @@ function parseRiftCore(text: string): ParseResult {
         quantity: standardQty,
         cardName,
         sourceCode: parsed.shortCode,
+        rawFields: buildRawFields({ ...baseRawFields, Finish: "Normal" }),
       });
     }
 
@@ -270,6 +315,7 @@ function parseRiftCore(text: string): ParseResult {
         quantity: foilQty,
         cardName,
         sourceCode: parsed.shortCode,
+        rawFields: buildRawFields({ ...baseRawFields, Finish: "Foil" }),
       });
     }
   }

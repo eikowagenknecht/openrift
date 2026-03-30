@@ -3,6 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   CircleHelpIcon,
   FileUpIcon,
   Loader2Icon,
@@ -39,6 +41,13 @@ import { cn } from "@/lib/utils";
 
 import { useCollectionTitle } from "./route";
 
+const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
+  exact: 0,
+  ambiguous: 1,
+  fuzzy: 2,
+  unresolved: 3,
+};
+
 export const Route = createFileRoute("/_app/_authenticated/collections/import")({
   loader: async ({ context }) => {
     await Promise.all([
@@ -69,6 +78,7 @@ function ImportPage() {
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
+  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleParse = (text: string) => {
@@ -80,8 +90,21 @@ function ImportPage() {
     }
 
     const matched = matchEntries(entries, allPrintings);
-    setMatchedEntries(matched);
+    const sorted = matched.toSorted(
+      (entryA, entryB) => STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status],
+    );
+    setMatchedEntries(sorted);
     setSkippedIndices(new Set());
+
+    // Auto-expand non-exact entries so the user sees details that need attention
+    const nonExact = new Set<number>();
+    for (let index = 0; index < sorted.length; index++) {
+      if (sorted[index].status !== "exact") {
+        nonExact.add(index);
+      }
+    }
+    setExpandedIndices(nonExact);
+
     setStep("preview");
   };
 
@@ -117,6 +140,18 @@ function ImportPage() {
     setSkippedIndices((prev) => {
       const next = new Set(prev);
       next.delete(index);
+      return next;
+    });
+  };
+
+  const handleToggleExpand = (index: number) => {
+    setExpandedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
       return next;
     });
   };
@@ -205,6 +240,7 @@ function ImportPage() {
     <PreviewStep
       matchedEntries={matchedEntries}
       skippedIndices={skippedIndices}
+      expandedIndices={expandedIndices}
       collections={collections ?? []}
       collectionId={collectionId}
       newCollectionName={newCollectionName}
@@ -216,6 +252,7 @@ function ImportPage() {
       onResolve={handleResolve}
       onSkip={handleSkip}
       onUnskip={handleUnskip}
+      onToggleExpand={handleToggleExpand}
       onCollectionChange={setCollectionId}
       onNewCollectionNameChange={setNewCollectionName}
       onImport={handleImport}
@@ -308,6 +345,7 @@ interface CollectionOption {
 function PreviewStep({
   matchedEntries,
   skippedIndices,
+  expandedIndices,
   collections,
   collectionId,
   newCollectionName,
@@ -319,6 +357,7 @@ function PreviewStep({
   onResolve,
   onSkip,
   onUnskip,
+  onToggleExpand,
   onCollectionChange,
   onNewCollectionNameChange,
   onImport,
@@ -326,6 +365,7 @@ function PreviewStep({
 }: {
   matchedEntries: MatchedEntry[];
   skippedIndices: Set<number>;
+  expandedIndices: Set<number>;
   collections: CollectionOption[];
   collectionId: string;
   newCollectionName: string;
@@ -337,6 +377,7 @@ function PreviewStep({
   onResolve: (index: number, printing: Printing) => void;
   onSkip: (index: number) => void;
   onUnskip: (index: number) => void;
+  onToggleExpand: (index: number) => void;
   onCollectionChange: (id: string) => void;
   onNewCollectionNameChange: (name: string) => void;
   onImport: () => void;
@@ -369,9 +410,11 @@ function PreviewStep({
             entry={entry}
             index={index}
             isSkipped={skippedIndices.has(index)}
+            isExpanded={expandedIndices.has(index)}
             onResolve={onResolve}
             onSkip={onSkip}
             onUnskip={onUnskip}
+            onToggleExpand={onToggleExpand}
           />
         ))}
       </div>
@@ -455,76 +498,105 @@ function ImportEntryRow({
   entry,
   index,
   isSkipped,
+  isExpanded,
   onResolve,
   onSkip,
   onUnskip,
+  onToggleExpand,
 }: {
   entry: MatchedEntry;
   index: number;
   isSkipped: boolean;
+  isExpanded: boolean;
   onResolve: (index: number, printing: Printing) => void;
   onSkip: (index: number) => void;
   onUnskip: (index: number) => void;
+  onToggleExpand: (index: number) => void;
 }) {
   const { icon: StatusIcon, className: statusColor } = STATUS_CONFIG[entry.status];
+  const ChevronIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
+  const rawFieldEntries = Object.entries(entry.entry.rawFields);
 
   return (
-    <div className={cn("flex items-center gap-3 px-4 py-2.5 text-sm", isSkipped && "opacity-40")}>
-      <StatusIcon className={cn("size-4 shrink-0", statusColor)} />
+    <div className={cn(isSkipped && "opacity-40")}>
+      <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground shrink-0"
+          onClick={() => onToggleExpand(index)}
+        >
+          <ChevronIcon className="size-4" />
+        </button>
 
-      <span className="text-muted-foreground w-10 shrink-0 text-right tabular-nums">
-        {entry.entry.quantity}&times;
-      </span>
+        <StatusIcon className={cn("size-4 shrink-0", statusColor)} />
 
-      <span className="min-w-0 flex-1 truncate font-medium">{entry.entry.cardName}</span>
+        <span className="text-muted-foreground w-10 shrink-0 text-right tabular-nums">
+          {entry.entry.quantity}&times;
+        </span>
 
-      <div className="flex shrink-0 items-center gap-2">
-        {entry.status === "exact" && entry.resolvedPrinting && (
-          <PrintingLabel printing={entry.resolvedPrinting} />
-        )}
+        <span className="min-w-0 flex-1 truncate font-medium">{entry.entry.cardName}</span>
 
-        {entry.status === "ambiguous" && (
-          <VariantPicker
-            candidates={entry.candidates}
-            resolved={entry.resolvedPrinting}
-            onSelect={(printing) => onResolve(index, printing)}
-          />
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {entry.status === "exact" && entry.resolvedPrinting && (
+            <PrintingLabel printing={entry.resolvedPrinting} />
+          )}
 
-        {entry.status === "fuzzy" && (
-          <>
-            <span className="text-muted-foreground text-xs">
-              Did you mean <em>{entry.suggestedName}</em>?
-            </span>
-            {entry.resolvedPrinting ? (
-              <PrintingLabel printing={entry.resolvedPrinting} />
-            ) : (
-              <VariantPicker
-                candidates={entry.candidates}
-                resolved={null}
-                onSelect={(printing) => onResolve(index, printing)}
-              />
-            )}
-          </>
-        )}
+          {entry.status === "ambiguous" && (
+            <VariantPicker
+              candidates={entry.candidates}
+              resolved={entry.resolvedPrinting}
+              onSelect={(printing) => onResolve(index, printing)}
+            />
+          )}
 
-        {entry.status === "unresolved" && (
-          <span className="text-muted-foreground text-xs">No match found</span>
-        )}
+          {entry.status === "fuzzy" && (
+            <>
+              <span className="text-muted-foreground text-xs">
+                Did you mean <em>{entry.suggestedName}</em>?
+              </span>
+              {entry.resolvedPrinting ? (
+                <PrintingLabel printing={entry.resolvedPrinting} />
+              ) : (
+                <VariantPicker
+                  candidates={entry.candidates}
+                  resolved={null}
+                  onSelect={(printing) => onResolve(index, printing)}
+                />
+              )}
+            </>
+          )}
 
-        {isSkipped ? (
-          <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
-            Undo
-          </Button>
-        ) : (
-          (entry.status === "unresolved" ||
-            (entry.status !== "exact" && !entry.resolvedPrinting)) && (
-            <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
-              Skip
+          {entry.status === "unresolved" && (
+            <span className="text-muted-foreground text-xs">No match found</span>
+          )}
+
+          {isSkipped ? (
+            <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
+              Undo
             </Button>
-          )
-        )}
+          ) : (
+            (entry.status === "unresolved" ||
+              (entry.status !== "exact" && !entry.resolvedPrinting)) && (
+              <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
+                Skip
+              </Button>
+            )
+          )}
+        </div>
       </div>
+
+      {isExpanded && rawFieldEntries.length > 0 && (
+        <div className="bg-muted/30 border-border border-t px-4 py-2">
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+            {rawFieldEntries.map(([key, value]) => (
+              <div key={key}>
+                <span className="text-muted-foreground">{key}: </span>
+                <span>{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
