@@ -75,6 +75,7 @@ const CATALOG_RESPONSE: CatalogResponse = {
       cardId: "00000000-0000-0000-0000-000000000002",
     }),
   ],
+  totalCopies: 150,
 };
 
 function createWrapper() {

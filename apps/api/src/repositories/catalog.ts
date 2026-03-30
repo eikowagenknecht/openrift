@@ -134,6 +134,15 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute() as Promise<CatalogPrintingImageRow[]>;
     },
 
+    /** @returns The total number of copies across all users. */
+    async totalCopies(): Promise<number> {
+      const result = await db
+        .selectFrom("copies")
+        .select(sql<string>`COUNT(*)`.as("count"))
+        .executeTakeFirstOrThrow();
+      return Number(result.count);
+    },
+
     /** @returns The printing's `id`, or `undefined` if not found. */
     printingById(id: string): Promise<Pick<Selectable<PrintingsTable>, "id"> | undefined> {
       return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
