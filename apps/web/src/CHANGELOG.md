@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- feat: Each collection now shows its total market value based on your preferred trading platform, with an indicator for cards that don't have price data yet
 - feat: The app now shows a "Beta" badge next to the logo so it's clear this is an early release
 - feat: Import preview now shows all parsed CSV fields (set, rarity, finish, condition, etc.) in an expandable detail row so you can sanity-check each entry before importing
 - fix: Clicking the card name or price below the image no longer selects the card — only clicking the image does

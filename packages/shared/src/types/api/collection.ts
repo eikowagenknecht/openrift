@@ -7,6 +7,8 @@ export interface CollectionResponse {
   sortOrder: number;
   shareToken: string | null;
   copyCount: number;
+  totalValueCents: number | null;
+  unpricedCopyCount: number | null;
   createdAt: string;
   updatedAt: string;
 }

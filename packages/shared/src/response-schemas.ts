@@ -166,6 +166,8 @@ export const collectionResponseSchema = z
     sortOrder: z.number(),
     shareToken: z.string().nullable(),
     copyCount: z.number(),
+    totalValueCents: z.number().nullable(),
+    unpricedCopyCount: z.number().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })

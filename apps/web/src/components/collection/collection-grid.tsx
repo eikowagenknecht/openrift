@@ -54,6 +54,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-client";
+import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { AddModeSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -604,63 +605,95 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           <FilterRangeSections availableFilters={availableFilters} />
         </div>
       </div>
-      {/* Mobile toolbar row for browse/select non-filter actions */}
-      {mode !== "add" && (
-        <div className="text-muted-foreground mb-2 flex items-center gap-1 text-sm sm:hidden">
-          <span className="shrink-0">
-            {totalCopies} card{totalCopies === 1 ? "" : "s"}
-            {stacks.length !== totalCopies && ` (${stacks.length} unique)`}
-          </span>
-          {mode === "select" && selected.size > 0 && (
-            <Badge variant="secondary" className="gap-1">
-              <Check className="size-3" />
-              {selected.size}
-            </Badge>
-          )}
-          <div className="flex-1" />
-          {addTarget && (
-            <ButtonGroup aria-label="Collection actions">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setQuickAddOpen(true)}
-                title="Quick add"
-              >
-                <PackagePlus className="size-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={startBrowsing} title="Browse & add">
-                <LibraryBig className="size-4" />
-              </Button>
-            </ButtonGroup>
-          )}
-          {mode === "select" ? (
-            <ButtonGroup aria-label="Selection actions">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => toggleSelectAll(allCopyIds)}
-                title={selected.size === totalCopies ? "Deselect all" : "Select all"}
-              >
-                <Check className="size-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={exitSelectMode} title="Done selecting">
-                <X className="size-4" />
-              </Button>
-            </ButtonGroup>
-          ) : (
-            <ButtonGroup aria-label="Selection actions">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={enterSelectMode}
-                title={`Select ${view}`}
-              >
-                <CheckSquare className="size-4" />
-              </Button>
-            </ButtonGroup>
-          )}
-        </div>
-      )}
+      {/* Info strip with card count, collection value, and mobile actions */}
+      {mode !== "add" &&
+        (() => {
+          const formatValue = formatterForMarketplace(favoriteMarketplace);
+          const valueCents = currentCollection?.totalValueCents;
+          const unpricedCount = currentCollection?.unpricedCopyCount;
+          return (
+            <div className="text-muted-foreground mb-2 flex items-center gap-1.5 text-sm">
+              <span className="shrink-0">
+                {totalCopies} card{totalCopies === 1 ? "" : "s"}
+                {stacks.length !== totalCopies && ` (${stacks.length} unique)`}
+              </span>
+              {valueCents !== null && valueCents !== undefined && (
+                <>
+                  <span className="text-border">&middot;</span>
+                  <span className="shrink-0">
+                    {formatValue(valueCents / 100)}
+                    {unpricedCount ? (
+                      <span className="text-muted-foreground/60 ml-1">
+                        ({unpricedCount} unpriced)
+                      </span>
+                    ) : null}
+                  </span>
+                </>
+              )}
+              {mode === "select" && selected.size > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <Check className="size-3" />
+                  {selected.size}
+                </Badge>
+              )}
+              <div className="flex-1" />
+              {/* Mobile-only action buttons */}
+              <div className="flex items-center gap-1 sm:hidden">
+                {addTarget && (
+                  <ButtonGroup aria-label="Collection actions">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setQuickAddOpen(true)}
+                      title="Quick add"
+                    >
+                      <PackagePlus className="size-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={startBrowsing}
+                      title="Browse & add"
+                    >
+                      <LibraryBig className="size-4" />
+                    </Button>
+                  </ButtonGroup>
+                )}
+                {mode === "select" ? (
+                  <ButtonGroup aria-label="Selection actions">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => toggleSelectAll(allCopyIds)}
+                      title={selected.size === totalCopies ? "Deselect all" : "Select all"}
+                    >
+                      <Check className="size-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={exitSelectMode}
+                      title="Done selecting"
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </ButtonGroup>
+                ) : (
+                  <ButtonGroup aria-label="Selection actions">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={enterSelectMode}
+                      title={`Select ${view}`}
+                    >
+                      <CheckSquare className="size-4" />
+                    </Button>
+                  </ButtonGroup>
+                )}
+              </div>
+            </div>
+          );
+        })()}
     </>
   );
 

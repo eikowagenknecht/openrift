@@ -27,7 +27,11 @@ import type {
 // ── Simple entity mappers ──────────────────────────────────────────────────
 
 export function toCollection(
-  row: Selectable<CollectionsTable> & { copyCount?: number },
+  row: Selectable<CollectionsTable> & {
+    copyCount?: number;
+    totalValueCents?: number | null;
+    unpricedCopyCount?: number | null;
+  },
 ): CollectionResponse {
   return {
     id: row.id,
@@ -38,6 +42,8 @@ export function toCollection(
     sortOrder: row.sortOrder,
     shareToken: row.shareToken,
     copyCount: row.copyCount ?? 0,
+    totalValueCents: row.totalValueCents ?? null,
+    unpricedCopyCount: row.unpricedCopyCount ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
