@@ -4,7 +4,7 @@ import type {
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
 } from "@openrift/shared";
-import { buildPrintingId, mostCommonValue } from "@openrift/shared/utils";
+import { formatPrintingLabel, mostCommonValue } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
@@ -451,7 +451,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     setId: setSlugMap.get(setId) ?? setId,
     setName: setNameMap.get(setId) ?? null,
     setSlug: setSlugMap.get(setId) ?? setId,
-    expectedPrintingId: buildPrintingId(
+    expectedPrintingId: formatPrintingLabel(
       p.shortCode,
       p.promoTypeId ? (promoSlugMap.get(p.promoTypeId) ?? null) : null,
       p.finish,
@@ -489,7 +489,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     filteredGroups.push({
       mostCommonShortCode: mcShortCode,
       shortCodes: groupCandidates.map((s) => s.id),
-      expectedPrintingId: buildPrintingId(mcShortCode, promoTypeSlug, finish),
+      expectedPrintingId: formatPrintingLabel(mcShortCode, promoTypeSlug, finish),
     });
   }
 

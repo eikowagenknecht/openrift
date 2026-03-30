@@ -241,19 +241,6 @@ export function useAcceptPrintingField() {
   });
 }
 
-export function useRenamePrinting() {
-  return useMutationWithInvalidation({
-    mutationFn: async ({ printingId, newId }: { printingId: string; newId: string }) => {
-      const res = await client.api.v1.admin["candidates"].printing[":printingId"].rename.$post({
-        param: { printingId },
-        json: { newId },
-      });
-      assertOk(res);
-    },
-    invalidates: [queryKeys.admin.candidates.all],
-  });
-}
-
 export function useAcceptNewCard() {
   return useMutationWithInvalidation({
     // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- admin sends dynamic card field data, validated by API

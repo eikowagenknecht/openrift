@@ -70,21 +70,5 @@ export function promoTypesRepo(db: Kysely<Database>) {
         where promo_types.id = d.id
       `.execute(db);
     },
-
-    /** Bulk-update printing slugs by replacing a suffix substring.
-     * @returns Resolves when the update is complete. */
-    async renamePrintingSlugs(
-      promoTypeId: string,
-      oldSuffix: string,
-      newSuffix: string,
-    ): Promise<void> {
-      await db
-        .updateTable("printings")
-        .set({
-          slug: sql<string>`replace(slug, ${oldSuffix}, ${newSuffix})`,
-        })
-        .where("promoTypeId", "=", promoTypeId)
-        .execute();
-    },
   };
 }

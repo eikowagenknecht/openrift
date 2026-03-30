@@ -7,12 +7,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
-import {
-  acceptPrinting,
-  deletePrinting,
-  renamePrinting,
-  updatePrintingPromoType,
-} from "./printing-admin.js";
+import { acceptPrinting, deletePrinting, updatePrintingPromoType } from "./printing-admin.js";
 
 // ── Mock image-rehost to avoid pulling in fs/sharp ──────────────────────
 vi.mock("./image-rehost.js", () => ({
@@ -37,12 +32,12 @@ describe("updatePrintingPromoType", () => {
   it("throws NOT_FOUND when printing does not exist", async () => {
     const repos = {
       candidateMutations: {
-        getPrintingFieldsBySlug: vi.fn(async () => null),
+        getPrintingById: vi.fn(async () => null),
       },
       promoTypes: {},
     };
 
-    await expect(updatePrintingPromoType(repos as any, "missing-slug", null)).rejects.toThrow(
+    await expect(updatePrintingPromoType(repos as any, "p-missing", null)).rejects.toThrow(
       "Printing not found",
     );
   });
@@ -50,7 +45,7 @@ describe("updatePrintingPromoType", () => {
   it("throws BAD_REQUEST when promoTypeId is invalid", async () => {
     const repos = {
       candidateMutations: {
-        getPrintingFieldsBySlug: vi.fn(async () => ({
+        getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
           shortCode: "OGN-001",
           finish: "normal",
@@ -61,16 +56,16 @@ describe("updatePrintingPromoType", () => {
       },
     };
 
-    await expect(
-      updatePrintingPromoType(repos as any, "OGN-001:normal:", "bad-promo"),
-    ).rejects.toThrow("Invalid promoTypeId");
+    await expect(updatePrintingPromoType(repos as any, "p-uuid", "bad-promo")).rejects.toThrow(
+      "Invalid promoTypeId",
+    );
   });
 
-  it("updates printing with new promo type slug", async () => {
+  it("updates printing with new promo type", async () => {
     const updatePrintingById = vi.fn(async () => {});
     const repos = {
       candidateMutations: {
-        getPrintingFieldsBySlug: vi.fn(async () => ({
+        getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
           shortCode: "OGN-001",
           finish: "normal",
@@ -82,11 +77,10 @@ describe("updatePrintingPromoType", () => {
       },
     };
 
-    await updatePrintingPromoType(repos as any, "OGN-001:normal:", "promo-a-id");
+    await updatePrintingPromoType(repos as any, "p-uuid", "promo-a-id");
 
     expect(updatePrintingById).toHaveBeenCalledWith("p-uuid", {
       promoTypeId: "promo-a-id",
-      slug: "OGN-001:normal:promo-a",
     });
   });
 
@@ -94,7 +88,7 @@ describe("updatePrintingPromoType", () => {
     const updatePrintingById = vi.fn(async () => {});
     const repos = {
       candidateMutations: {
-        getPrintingFieldsBySlug: vi.fn(async () => ({
+        getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
           shortCode: "OGN-001",
           finish: "normal",
@@ -104,25 +98,11 @@ describe("updatePrintingPromoType", () => {
       promoTypes: {},
     };
 
-    await updatePrintingPromoType(repos as any, "OGN-001:normal:promo-a", null);
+    await updatePrintingPromoType(repos as any, "p-uuid", null);
 
     expect(updatePrintingById).toHaveBeenCalledWith("p-uuid", {
       promoTypeId: null,
-      slug: "OGN-001:normal:",
     });
-  });
-});
-
-// ── renamePrinting ──────────────────────────────────────────────────────
-
-describe("renamePrinting", () => {
-  it("delegates to candidateMutations.renamePrintingSlug", async () => {
-    const renamePrintingSlug = vi.fn(async () => {});
-    const repos = { candidateMutations: { renamePrintingSlug } };
-
-    await renamePrinting(repos as any, "old-slug", "new-slug");
-
-    expect(renamePrintingSlug).toHaveBeenCalledWith("old-slug", "new-slug");
   });
 });
 
@@ -136,12 +116,12 @@ describe("deletePrinting", () => {
   it("throws NOT_FOUND when printing does not exist", async () => {
     const repos = {
       candidateMutations: {
-        getPrintingFieldsBySlug: vi.fn(async () => null),
+        getPrintingById: vi.fn(async () => null),
       },
     };
     const transact = mockTransact(repos);
 
-    await expect(deletePrinting(transact, {} as Io, repos as any, "missing-slug")).rejects.toThrow(
+    await expect(deletePrinting(transact, {} as Io, repos as any, "p-missing")).rejects.toThrow(
       "Printing not found",
     );
   });
@@ -149,44 +129,44 @@ describe("deletePrinting", () => {
   it("unlinks candidates, deletes images, link overrides, and printing", async () => {
     const unlinkCandidatePrintingsByPrintingId = vi.fn(async () => {});
     const deletePrintingImagesByPrintingId = vi.fn(async () => []);
-    const deletePrintingLinkOverridesBySlug = vi.fn(async () => {});
-    const deletePrintingBySlug = vi.fn(async () => {});
+    const deletePrintingLinkOverridesById = vi.fn(async () => {});
+    const deletePrintingById = vi.fn(async () => {});
 
     const repos = {
       candidateMutations: {
-        getPrintingFieldsBySlug: vi.fn(async () => ({ id: "p-uuid" })),
+        getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
         unlinkCandidatePrintingsByPrintingId,
         deletePrintingImagesByPrintingId,
-        deletePrintingLinkOverridesBySlug,
-        deletePrintingBySlug,
+        deletePrintingLinkOverridesById,
+        deletePrintingById,
       },
     };
     const transact = mockTransact(repos);
 
-    await deletePrinting(transact, {} as Io, repos as any, "OGN-001:normal:");
+    await deletePrinting(transact, {} as Io, repos as any, "p-uuid");
 
     expect(unlinkCandidatePrintingsByPrintingId).toHaveBeenCalledWith("p-uuid");
     expect(deletePrintingImagesByPrintingId).toHaveBeenCalledWith("p-uuid");
-    expect(deletePrintingLinkOverridesBySlug).toHaveBeenCalledWith("OGN-001:normal:");
-    expect(deletePrintingBySlug).toHaveBeenCalledWith("OGN-001:normal:");
+    expect(deletePrintingLinkOverridesById).toHaveBeenCalledWith("p-uuid");
+    expect(deletePrintingById).toHaveBeenCalledWith("p-uuid");
   });
 
   it("cleans up rehosted files on disk after transaction", async () => {
     const repos = {
       candidateMutations: {
-        getPrintingFieldsBySlug: vi.fn(async () => ({ id: "p-uuid" })),
+        getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
         unlinkCandidatePrintingsByPrintingId: vi.fn(async () => {}),
         deletePrintingImagesByPrintingId: vi.fn(async () => [
           { rehostedUrl: "/card-images/set1/img-1" },
           { rehostedUrl: null },
         ]),
-        deletePrintingLinkOverridesBySlug: vi.fn(async () => {}),
-        deletePrintingBySlug: vi.fn(async () => {}),
+        deletePrintingLinkOverridesById: vi.fn(async () => {}),
+        deletePrintingById: vi.fn(async () => {}),
       },
     };
     const transact = mockTransact(repos);
 
-    await deletePrinting(transact, {} as Io, repos as any, "OGN-001:normal:");
+    await deletePrinting(transact, {} as Io, repos as any, "p-uuid");
 
     expect(deleteRehostFiles).toHaveBeenCalledTimes(1);
     expect(deleteRehostFiles).toHaveBeenCalledWith({}, "/card-images/set1/img-1");
@@ -281,11 +261,11 @@ describe("acceptPrinting", () => {
     ).rejects.toThrow("Invalid promoTypeId");
   });
 
-  it("throws CONFLICT when printing slug belongs to a different card", async () => {
+  it("throws CONFLICT when printing identity belongs to a different card", async () => {
     const repos = {
       candidateMutations: {
         getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
-        getPrintingCardIdBySlug: vi.fn(async () => ({ cardId: "other-card-uuid" })),
+        getPrintingCardIdByComposite: vi.fn(async () => ({ cardId: "other-card-uuid" })),
       },
       printingImages: {},
       promoTypes: {},
@@ -311,7 +291,7 @@ describe("acceptPrinting", () => {
     const repos = {
       candidateMutations: {
         getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
-        getPrintingCardIdBySlug: vi.fn(async () => null),
+        getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         upsertPrinting,
         linkAndCheckCandidatePrintings,
@@ -352,7 +332,7 @@ describe("acceptPrinting", () => {
       ["cp-1"],
     );
 
-    expect(result).toBe("OGN-001:normal:");
+    expect(result).toBe("p-uuid");
     expect(upsertPrinting).toHaveBeenCalledTimes(1);
     expect(insertImage).toHaveBeenCalledWith("p-uuid", "https://example.com/img.png", "gallery");
     expect(linkAndCheckCandidatePrintings).toHaveBeenCalledWith(["cp-1"], "p-uuid");
@@ -362,7 +342,7 @@ describe("acceptPrinting", () => {
     const repos = {
       candidateMutations: {
         getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
-        getPrintingCardIdBySlug: vi.fn(async () => null),
+        getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
       },
@@ -401,7 +381,7 @@ describe("acceptPrinting", () => {
     const repos = {
       candidateMutations: {
         getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
-        getPrintingCardIdBySlug: vi.fn(async () => null),
+        getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         upsertPrinting,
         linkAndCheckCandidatePrintings,
@@ -443,7 +423,7 @@ describe("acceptPrinting", () => {
       ["cp-1"],
     );
 
-    expect(result).toBe("OGN-001:normal:showcase");
+    expect(result).toBe("p-uuid");
     expect(repos.promoTypes.getById).toHaveBeenCalledWith("promo-uuid");
   });
 
@@ -455,7 +435,7 @@ describe("acceptPrinting", () => {
     const repos = {
       candidateMutations: {
         getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
-        getPrintingCardIdBySlug: vi.fn(async () => null),
+        getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => null),
         upsertPrinting,
         linkAndCheckCandidatePrintings,

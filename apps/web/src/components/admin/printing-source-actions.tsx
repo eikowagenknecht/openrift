@@ -9,7 +9,7 @@ import {
 
 interface PrintingTarget {
   id: string;
-  slug: string;
+  label: string;
 }
 
 interface PrintingSourceActionsProps {
@@ -48,8 +48,8 @@ export function PrintingSourceActions({
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             {targets.map((p) => (
-              <DropdownMenuItem key={`assign-${p.slug}`} onClick={() => onAssign(p.id)}>
-                {p.slug}
+              <DropdownMenuItem key={`assign-${p.id}`} onClick={() => onAssign(p.id)}>
+                {p.label}
               </DropdownMenuItem>
             ))}
           </DropdownMenuSubContent>
@@ -63,8 +63,8 @@ export function PrintingSourceActions({
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             {targets.map((p) => (
-              <DropdownMenuItem key={`copy-${p.slug}`} onClick={() => onCopy(p.id)}>
-                {p.slug}
+              <DropdownMenuItem key={`copy-${p.id}`} onClick={() => onCopy(p.id)}>
+                {p.label}
               </DropdownMenuItem>
             ))}
           </DropdownMenuSubContent>

@@ -29,9 +29,14 @@ export function ingestRepo(db: Db) {
       return db.selectFrom("cardNameAliases").select(["normName", "cardId"]).execute();
     },
 
-    /** @returns All printings (id + slug) for slug-based resolution. */
-    allPrintingSlugs(): Promise<{ id: string; slug: string }[]> {
-      return db.selectFrom("printings").select(["id", "slug"]).execute();
+    /** @returns All printings (id + shortCode + finish + promoTypeId) for composite-key resolution. */
+    allPrintingKeys(): Promise<
+      { id: string; shortCode: string; finish: string; promoTypeId: string | null }[]
+    > {
+      return db
+        .selectFrom("printings")
+        .select(["id", "shortCode", "finish", "promoTypeId"])
+        .execute();
     },
 
     /** @returns All candidate printings for the given candidate card IDs. */
@@ -56,11 +61,11 @@ export function ingestRepo(db: Db) {
 
     /** @returns All printing link overrides (manual links that survive re-uploads). */
     allPrintingLinkOverrides(): Promise<
-      { externalId: string; finish: string; printingSlug: string }[]
+      { externalId: string; finish: string; printingId: string }[]
     > {
       return db
         .selectFrom("printingLinkOverrides")
-        .select(["externalId", "finish", "printingSlug"])
+        .select(["externalId", "finish", "printingId"])
         .execute();
     },
 

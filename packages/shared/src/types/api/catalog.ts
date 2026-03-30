@@ -13,7 +13,6 @@ export type CatalogCardResponse = Card;
 /** Wire type returned by `GET /catalog` — references card by ID instead of embedding. */
 export interface CatalogPrintingResponse {
   id: string;
-  slug: string;
   shortCode: string;
   setId: string;
   collectorNumber: number;

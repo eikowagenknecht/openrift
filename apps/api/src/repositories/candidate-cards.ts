@@ -569,7 +569,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .selectFrom("printings")
         .select([
           "id",
-          "slug",
           "cardId",
           "setId",
           "shortCode",

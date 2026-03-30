@@ -79,13 +79,10 @@ export interface CardsTable {
 /**
  * Physical printing of a game card.
  *
- * The `slug` is a composite key: "{short_code}:{rarity (lowercase)}:{finish}:{promo_type_slug|}".
  * @see printingFieldRules in `schemas.ts` for Zod validation of CHECK constraints
  */
 export interface PrintingsTable {
   id: Generated<string>;
-  /** CHECK: <> '' */
-  slug: string;
   cardId: string;
   setId: string;
   /** CHECK: <> '' */
@@ -489,8 +486,8 @@ export interface PrintingLinkOverridesTable {
   /** CHECK: <> '' */
   externalId: string;
   finish: string;
-  /** CHECK: <> '' */
-  printingSlug: string;
+  /** FK: printings(id) ON DELETE CASCADE */
+  printingId: string;
   createdAt: CreatedAt;
 }
 

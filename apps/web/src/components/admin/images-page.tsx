@@ -473,7 +473,7 @@ function BrokenImagesSection() {
                       params={{ cardSlug: entry.cardSlug }}
                       className="hover:underline"
                     >
-                      <span className="text-muted-foreground/60">{entry.printingSlug}</span>{" "}
+                      <span className="text-muted-foreground/60">{entry.printingShortCode}</span>{" "}
                       {entry.cardName}
                     </Link>
                     <span className="text-muted-foreground truncate text-xs">
@@ -567,7 +567,7 @@ function LowResImagesSection() {
                       params={{ cardSlug: entry.cardSlug }}
                       className="hover:underline"
                     >
-                      <span className="text-muted-foreground/60">{entry.printingSlug}</span>{" "}
+                      <span className="text-muted-foreground/60">{entry.printingShortCode}</span>{" "}
                       {entry.cardName}
                     </Link>
                     <span className="text-muted-foreground text-xs">

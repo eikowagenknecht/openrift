@@ -11,7 +11,6 @@ import { appendSetTotal, fixTypography } from "../../../services/fix-typography.
 import {
   acceptPrinting,
   deletePrinting,
-  renamePrinting,
   updatePrintingPromoType,
 } from "../../../services/printing-admin.js";
 import type { Variables } from "../../../types.js";
@@ -219,19 +218,6 @@ const acceptPrintingField = createRoute({
   },
   responses: {
     204: { description: "Printing field accepted" },
-  },
-});
-
-const renamePrintingRoute = createRoute({
-  method: "post",
-  path: "/printing/{printingId}/rename",
-  tags: ["Admin - Candidates"],
-  request: {
-    params: z.object({ printingId: z.string() }),
-    body: { content: { "application/json": { schema: renameSchema } } },
-  },
-  responses: {
-    204: { description: "Printing renamed" },
   },
 });
 
@@ -620,14 +606,9 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     await mut.linkCandidatePrintings(candidatePrintingIds, printingId);
 
     // Persist or remove link overrides so links survive delete + re-upload
-    if (printingId) {
-      const p = await mut.getPrintingSlugById(printingId);
-      if (p) {
-        await mut.upsertPrintingLinkOverrides(candidatePrintingIds, p.slug);
-      }
-    } else {
-      await mut.removePrintingLinkOverrides(candidatePrintingIds);
-    }
+    await (printingId
+      ? mut.upsertPrintingLinkOverrides(candidatePrintingIds, printingId)
+      : mut.removePrintingLinkOverrides(candidatePrintingIds));
 
     return c.body(null, 204);
   })
@@ -728,7 +709,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /printing/:printingId/accept-field ──────────────────────────────
   .openapi(acceptPrintingField, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const printingSlug = c.req.valid("param").printingId;
+    const printingId = c.req.valid("param").printingId;
     const { field, value, source } = c.req.valid("json");
 
     if (!field) {
@@ -776,12 +757,12 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       }
     }
 
-    // When promoTypeId changes, rebuild the printing slug
+    // When promoTypeId changes, update via dedicated function
     if (field === "promoTypeId") {
       const { candidateMutations, promoTypes } = c.get("repos");
       await updatePrintingPromoType(
         { candidateMutations, promoTypes },
-        printingSlug,
+        printingId,
         (normalizedValue as string) || null,
       );
       return c.body(null, 204);
@@ -803,7 +784,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     // Append set total to publicCode when accepting from a provider
     if (source === "provider" && field === "publicCode" && typeof normalizedValue === "string") {
-      const setTotal = await mut.getSetPrintedTotalForPrinting(printingSlug);
+      const setTotal = await mut.getSetPrintedTotalForPrinting(printingId);
       normalizedValue = appendSetTotal(normalizedValue, setTotal?.printedTotal);
     }
 
@@ -817,26 +798,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       normalizedValue = setRow.id;
     }
 
-    await mut.updatePrintingBySlug(printingSlug, field, normalizedValue);
-
-    return c.body(null, 204);
-  })
-
-  // ── POST /printing/:printingId/rename ────────────────────────────────────
-  .openapi(renamePrintingRoute, async (c) => {
-    const { candidateMutations } = c.get("repos");
-    const printingSlug = c.req.valid("param").printingId;
-    const { newId } = c.req.valid("json");
-
-    if (!newId?.trim()) {
-      throw new AppError(400, "BAD_REQUEST", "newId is required");
-    }
-
-    if (newId === printingSlug) {
-      return c.body(null, 204);
-    }
-
-    await renamePrinting({ candidateMutations }, printingSlug, newId.trim());
+    await mut.updatePrintingFieldById(printingId, field, normalizedValue);
 
     return c.body(null, 204);
   })
@@ -845,9 +807,9 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // Delete a printing and clean up all related data
   .openapi(deletePrintingRoute, async (c) => {
     const { candidateMutations } = c.get("repos");
-    const printingSlug = c.req.valid("param").printingId;
+    const printingId = c.req.valid("param").printingId;
 
-    await deletePrinting(c.get("transact"), c.get("io"), { candidateMutations }, printingSlug);
+    await deletePrinting(c.get("transact"), c.get("io"), { candidateMutations }, printingId);
 
     return c.body(null, 204);
   })

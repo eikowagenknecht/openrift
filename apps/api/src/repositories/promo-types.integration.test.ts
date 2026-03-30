@@ -92,12 +92,6 @@ describe.skipIf(!ctx)("promoTypesRepo (integration)", () => {
     // Should not throw
   });
 
-  it("renamePrintingSlugs updates printing slugs (no-op when no printings use the promo type)", async () => {
-    const id = createdIds[0];
-    // This should not throw even when no printings use this promo type
-    await repo.renamePrintingSlugs(id, "old-suffix", "new-suffix");
-  });
-
   it("deleteById removes a promo type", async () => {
     const row = await repo.create({ slug: "test-delete-36", label: "Delete Me" });
     await repo.deleteById(row.id);

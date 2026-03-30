@@ -241,7 +241,7 @@ export interface BrokenImageEntry {
   originalUrl: string | null;
   cardSlug: string;
   cardName: string;
-  printingSlug: string;
+  printingShortCode: string;
   setSlug: string;
 }
 
@@ -256,7 +256,7 @@ export interface LowResImageEntry {
   originalUrl: string | null;
   cardSlug: string;
   cardName: string;
-  printingSlug: string;
+  printingShortCode: string;
   setSlug: string;
   width: number;
   height: number;

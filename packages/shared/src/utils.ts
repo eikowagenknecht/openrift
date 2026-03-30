@@ -11,10 +11,10 @@ export function unique<T>(values: T[]): T[] {
 }
 
 /**
- * Build composite printing ID.
- * @returns Deterministic ID string: "{short_code}:{finish}:{promo_type_slug|}"
+ * Format a human-readable printing label from its component fields.
+ * @returns Display label: "{short_code}:{finish}:{promo_type_slug|}"
  */
-export function buildPrintingId(
+export function formatPrintingLabel(
   shortCode: string,
   promoTypeSlug: string | null,
   finish: string,

@@ -31,7 +31,6 @@ function stubCatalogPrintingResponse(
 ): CatalogPrintingResponse {
   return {
     id: "00000000-0000-0000-0000-000000000011",
-    slug: "RB1-001:common:normal:",
     shortCode: "RB1-001",
     setId: "00000000-0000-0000-0000-000000000099",
     collectorNumber: 1,
@@ -70,7 +69,6 @@ const CATALOG_RESPONSE: CatalogResponse = {
     }),
     stubCatalogPrintingResponse({
       id: "00000000-0000-0000-0000-000000000012",
-      slug: "RB1-002:common:normal",
       shortCode: "RB1-002",
       cardId: "00000000-0000-0000-0000-000000000002",
     }),

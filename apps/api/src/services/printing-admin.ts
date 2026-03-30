@@ -1,6 +1,5 @@
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
-import { buildPrintingId } from "@openrift/shared/utils";
 
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
@@ -18,7 +17,7 @@ type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
 // ── updatePrintingPromoType ──────────────────────────────────────────────────
 
 /**
- * Update a printing's promoTypeId and rebuild its slug.
+ * Update a printing's promoTypeId.
  * @returns Resolves when the printing has been updated.
  */
 export async function updatePrintingPromoType(
@@ -26,46 +25,25 @@ export async function updatePrintingPromoType(
     candidateMutations: CandidateMutationsRepo;
     promoTypes: PromoTypesRepo;
   },
-  printingSlug: string,
+  printingId: string,
   newPromoTypeId: string | null,
 ): Promise<void> {
-  const printing = await repos.candidateMutations.getPrintingFieldsBySlug(printingSlug);
+  const printing = await repos.candidateMutations.getPrintingById(printingId);
 
   if (!printing) {
     throw new AppError(404, "NOT_FOUND", "Printing not found");
   }
 
-  let promoTypeSlug: string | null = null;
   if (newPromoTypeId) {
     const pt = await repos.promoTypes.getById(newPromoTypeId);
     if (!pt) {
       throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
     }
-    promoTypeSlug = pt.slug;
   }
-
-  const newSlug = buildPrintingId(printing.shortCode, promoTypeSlug, printing.finish);
 
   await repos.candidateMutations.updatePrintingById(printing.id, {
     promoTypeId: newPromoTypeId,
-    slug: newSlug,
   });
-}
-
-// ── renamePrinting ───────────────────────────────────────────────────────────
-
-/**
- * Rename a printing's slug.
- * @returns Resolves when the slug has been renamed.
- */
-export async function renamePrinting(
-  repos: {
-    candidateMutations: CandidateMutationsRepo;
-  },
-  printingSlug: string,
-  newSlug: string,
-): Promise<void> {
-  await repos.candidateMutations.renamePrintingSlug(printingSlug, newSlug);
 }
 
 // ── deletePrinting ──────────────────────────────────────────────────────────
@@ -85,12 +63,12 @@ export async function deletePrinting(
   transact: Transact,
   io: Io,
   repos: { candidateMutations: CandidateMutationsRepo },
-  printingSlug: string,
+  printingId: string,
 ): Promise<void> {
   const mut = repos.candidateMutations;
 
   // Validate outside the transaction
-  const printing = await mut.getPrintingFieldsBySlug(printingSlug);
+  const printing = await mut.getPrintingById(printingId);
 
   if (!printing) {
     throw new AppError(404, "NOT_FOUND", "Printing not found");
@@ -106,10 +84,10 @@ export async function deletePrinting(
     const images = await trxMut.deletePrintingImagesByPrintingId(printing.id);
 
     // Delete link overrides
-    await trxMut.deletePrintingLinkOverridesBySlug(printingSlug);
+    await trxMut.deletePrintingLinkOverridesById(printing.id);
 
     // Delete the printing itself (will throw if FK-constrained by copies, etc.)
-    await trxMut.deletePrintingBySlug(printingSlug);
+    await trxMut.deletePrintingById(printing.id);
 
     return images;
   });
@@ -144,7 +122,7 @@ interface AcceptPrintingFields {
 
 /**
  * Create a new printing from admin-selected fields and link all sources in the group.
- * @returns The generated or provided printing ID (slug).
+ * @returns The new printing UUID.
  */
 export async function acceptPrinting(
   transact: Transact,
@@ -171,32 +149,32 @@ export async function acceptPrinting(
     throw new AppError(404, "NOT_FOUND", "Card not found");
   }
 
-  let promoTypeSlug: string | null = null;
   if (printingFields.promoTypeId) {
     const pt = await repos.promoTypes.getById(printingFields.promoTypeId);
     if (!pt) {
       throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
     }
-    promoTypeSlug = pt.slug;
   }
 
-  const printingId = buildPrintingId(
-    printingFields.shortCode,
-    promoTypeSlug,
-    printingFields.finish ?? ("normal" satisfies Finish),
-  );
+  const finish = (printingFields.finish ?? "normal") as Finish;
 
-  // Guard: reject if this slug already belongs to a different card
-  const existing = await mut.getPrintingCardIdBySlug(printingId);
+  // Guard: reject if this identity already belongs to a different card
+  const existing = await mut.getPrintingCardIdByComposite(
+    printingFields.shortCode,
+    finish,
+    printingFields.promoTypeId ?? null,
+  );
   if (existing && existing.cardId !== card.id) {
     throw new AppError(
       409,
       "CONFLICT",
-      `Printing slug "${printingId}" already belongs to a different card`,
+      `Printing "${printingFields.shortCode}:${finish}" already belongs to a different card`,
     );
   }
 
   const firstPs = await mut.getProviderNameForCandidatePrinting(candidatePrintingIds[0]);
+
+  let insertedId = "";
 
   await transact(async (trxRepos) => {
     if (printingFields.setId) {
@@ -227,8 +205,7 @@ export async function acceptPrinting(
       );
     }
 
-    const insertedId = await trxRepos.candidateMutations.upsertPrinting({
-      slug: printingId,
+    insertedId = await trxRepos.candidateMutations.upsertPrinting({
       cardId: card.id,
       setId: setUuid,
       shortCode: printingFields.shortCode,
@@ -237,7 +214,7 @@ export async function acceptPrinting(
       artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
       isSigned: printingFields.isSigned ?? false,
       promoTypeId: printingFields.promoTypeId ?? null,
-      finish: (printingFields.finish ?? "normal") as Finish,
+      finish,
       artist: printingFields.artist,
       publicCode: appendSetTotal(printingFields.publicCode, setPrintedTotal),
       printedRulesText: fixTypography(printingFields.printedRulesText ?? null),
@@ -262,5 +239,5 @@ export async function acceptPrinting(
     );
   });
 
-  return printingId;
+  return insertedId;
 }

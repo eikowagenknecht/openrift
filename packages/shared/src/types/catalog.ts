@@ -31,7 +31,6 @@ export interface PrintingImage {
 
 export interface Printing {
   id: string;
-  slug: string;
   shortCode: string;
   setId: string;
   setSlug: string;

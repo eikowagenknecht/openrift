@@ -15,7 +15,6 @@ function makePrinting(
   const cardSlug = cardOverrides?.slug ?? "SET1-001";
   return {
     id: "00000000-0000-0000-0000-000000000001",
-    slug: "SET1-001:common:normal:",
     shortCode: "SET1-001",
     setId: "00000000-0000-0000-0000-0000000000a1",
     setSlug: "Set Alpha",

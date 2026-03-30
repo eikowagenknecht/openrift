@@ -127,7 +127,6 @@ const catalogCardResponseSchema = z.object({
 
 const catalogPrintingResponseSchema = z.object({
   id: z.string(),
-  slug: z.string(),
   shortCode: z.string(),
   setId: z.string(),
   collectorNumber: z.number(),

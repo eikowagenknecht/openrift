@@ -20,7 +20,7 @@ function createMockIngestRepo(overrides: Record<string, unknown> = {}) {
     allCandidateCardsForProvider: vi.fn().mockResolvedValue([]),
     allCardNorms: vi.fn().mockResolvedValue([]),
     allCardNameAliases: vi.fn().mockResolvedValue([]),
-    allPrintingSlugs: vi.fn().mockResolvedValue([]),
+    allPrintingKeys: vi.fn().mockResolvedValue([]),
     candidatePrintingsByCandidateCardIds: vi.fn().mockResolvedValue([]),
     ignoredCandidateCards: vi.fn().mockResolvedValue([]),
     ignoredCandidatePrintings: vi.fn().mockResolvedValue([]),
@@ -334,12 +334,14 @@ describe("ingestCandidates", () => {
     expect((repos.ingest as any).insertCandidatePrinting).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves printingId when card and printing match by slug", async () => {
+  it("resolves printingId when card and printing match by composite key", async () => {
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingSlugs: vi
+      allPrintingKeys: vi
         .fn()
-        .mockResolvedValue([{ slug: "OGN-001:normal:", id: "printing-uuid" }]),
+        .mockResolvedValue([
+          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+        ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -357,9 +359,11 @@ describe("ingestCandidates", () => {
       allCardNameAliases: vi
         .fn()
         .mockResolvedValue([{ normName: "fireball", cardId: "card-uuid" }]),
-      allPrintingSlugs: vi
+      allPrintingKeys: vi
         .fn()
-        .mockResolvedValue([{ slug: "OGN-001:normal:", id: "printing-uuid" }]),
+        .mockResolvedValue([
+          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+        ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -627,9 +631,11 @@ describe("ingestCandidates", () => {
         },
       ]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingSlugs: vi
+      allPrintingKeys: vi
         .fn()
-        .mockResolvedValue([{ slug: "OGN-001:normal:", id: "printing-uuid" }]),
+        .mockResolvedValue([
+          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+        ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({ printings: [makePrinting()] });
@@ -645,11 +651,8 @@ describe("ingestCandidates", () => {
       allPrintingLinkOverrides: vi
         .fn()
         .mockResolvedValue([
-          { externalId: "ext-print-1", finish: "normal", printingSlug: "OVERRIDE:normal:" },
+          { externalId: "ext-print-1", finish: "normal", printingId: "override-printing-uuid" },
         ]),
-      allPrintingSlugs: vi
-        .fn()
-        .mockResolvedValue([{ slug: "OVERRIDE:normal:", id: "override-printing-uuid" }]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
     });
     const transact = mockTransact(repos);
@@ -708,9 +711,11 @@ describe("ingestCandidates", () => {
         },
       ]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingSlugs: vi
+      allPrintingKeys: vi
         .fn()
-        .mockResolvedValue([{ slug: "OGN-001:normal:", id: "printing-uuid" }]),
+        .mockResolvedValue([
+          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+        ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -768,9 +773,11 @@ describe("ingestCandidates", () => {
         },
       ]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingSlugs: vi
+      allPrintingKeys: vi
         .fn()
-        .mockResolvedValue([{ slug: "OGN-001:normal:", id: "printing-uuid" }]),
+        .mockResolvedValue([
+          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+        ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -1011,14 +1018,19 @@ describe("ingestCandidates", () => {
     expect(insertCall.extraData).toBeNull();
   });
 
-  // ── Printing with promo + card match builds correct slug ───────────────
+  // ── Printing with promo + card match builds correct key ────────────────
 
-  it("builds promo printing slug with is_promo", async () => {
+  it("builds promo printing key with is_promo", async () => {
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingSlugs: vi
-        .fn()
-        .mockResolvedValue([{ slug: "OGN-001:normal:promo", id: "promo-printing-uuid" }]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          promoTypeId: "promo-type-id",
+          id: "promo-printing-uuid",
+        },
+      ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -1030,7 +1042,7 @@ describe("ingestCandidates", () => {
     expect(insertCall.printingId).toBe("promo-printing-uuid");
   });
 
-  it("does not build slug when rarity or finish is missing", async () => {
+  it("does not build key when rarity or finish is missing", async () => {
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
     });
@@ -1179,14 +1191,15 @@ describe("ingestCandidates", () => {
   it("link override takes priority over auto-resolved printingId", async () => {
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingSlugs: vi.fn().mockResolvedValue([
-        { slug: "OGN-001:normal:", id: "auto-uuid" },
-        { slug: "CUSTOM:normal:", id: "override-uuid" },
-      ]),
+      allPrintingKeys: vi
+        .fn()
+        .mockResolvedValue([
+          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "auto-uuid" },
+        ]),
       allPrintingLinkOverrides: vi
         .fn()
         .mockResolvedValue([
-          { externalId: "ext-print-1", finish: "normal", printingSlug: "CUSTOM:normal:" },
+          { externalId: "ext-print-1", finish: "normal", printingId: "override-uuid" },
         ]),
     });
     const transact = mockTransact(repos);
