@@ -157,7 +157,7 @@ function SortGroupControls({
     <Popover>
       <PopoverTrigger
         className={cn(
-          "border-input bg-background ring-ring/10 hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-colors",
+          "border-input bg-background ring-ring/10 hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",
         )}
       >
         {sortDir === "asc" ? (
@@ -169,7 +169,7 @@ function SortGroupControls({
         {groupBy !== "none" && (
           <>
             <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">by {groupLabel}</span>
+            <span className="text-muted-foreground">{groupLabel}</span>
           </>
         )}
       </PopoverTrigger>
