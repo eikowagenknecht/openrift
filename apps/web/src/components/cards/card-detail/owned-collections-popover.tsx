@@ -1,13 +1,19 @@
 import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
+import { Link } from "@tanstack/react-router";
 import { Package } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useFilterValues } from "@/hooks/use-card-filters";
 import { useOwnedCollections, useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 interface OwnedCollectionsPopoverProps {
   printingId: string;
+  /** Card name used to filter by name in cards view. */
+  cardName: string;
+  /** Printing short code used to filter by id in printings view. */
+  shortCode: string;
   /** Override the displayed count (e.g. from stacked copies). Falls back to the global owned count. */
   count?: number;
   /** Horizontal alignment of the popover relative to the trigger. */
@@ -16,11 +22,14 @@ interface OwnedCollectionsPopoverProps {
 
 /**
  * Clickable owned-count badge that opens a popover showing per-collection breakdown.
+ * Each collection entry links to that collection filtered on the current card or printing.
  * Only renders when the user is authenticated and owns at least one copy of the printing.
  * @returns The popover, or null if the user is not authenticated or owns no copies.
  */
 export function OwnedCollectionsPopover({
   printingId,
+  cardName,
+  shortCode,
   count,
   align = "end",
 }: OwnedCollectionsPopoverProps) {
@@ -29,6 +38,8 @@ export function OwnedCollectionsPopover({
   const { data: ownedCountByPrinting } = useOwnedCount(isAuthenticated);
   const totalOwned = count ?? ownedCountByPrinting?.[printingId] ?? 0;
   const { data: breakdown } = useOwnedCollections(printingId, isAuthenticated && totalOwned > 0);
+  const { view } = useFilterValues();
+  const isPrintingsView = view === "printings" || view === "copies";
 
   if (!isAuthenticated || totalOwned === 0) {
     return null;
@@ -54,14 +65,25 @@ export function OwnedCollectionsPopover({
         </div>
         <ul className="px-1 pb-1">
           {breakdown?.map((entry) => (
-            <li
-              key={entry.collectionId}
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm"
-            >
-              <span className="truncate">{entry.collectionName}</span>
-              <span className="text-muted-foreground ml-2 shrink-0 tabular-nums">
-                &times;{entry.count}
-              </span>
+            <li key={entry.collectionId}>
+              <Link
+                to="/collections/$collectionId"
+                params={{ collectionId: entry.collectionId }}
+                search={
+                  isPrintingsView
+                    ? { search: `id:${shortCode}`, view: "printings" }
+                    : { search: cardName }
+                }
+                className={cn(
+                  "flex items-center justify-between rounded-md px-2 py-1.5 text-sm",
+                  "hover:bg-accent transition-colors",
+                )}
+              >
+                <span className="truncate">{entry.collectionName}</span>
+                <span className="text-muted-foreground ml-2 shrink-0 tabular-nums">
+                  &times;{entry.count}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
