@@ -415,7 +415,7 @@ function PaletteInner({
                         </button>
                         {sessionAdded > 0 && (
                           <span className="shrink-0 text-[11px] text-green-600 dark:text-green-400">
-                            ({sessionAdded} added)
+                            {sessionAdded} new
                           </span>
                         )}
                         {sessionAdded > 0 && (
