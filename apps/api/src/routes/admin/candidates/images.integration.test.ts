@@ -40,7 +40,6 @@ const ctx = createTestContext(USER_ID, { io: mockIo });
 
 // Seed data IDs (populated during setup)
 let printingId = "";
-const printingSlug = "CSI-001:normal:";
 let psId = ""; // printing source with image + linked
 let psNoImageId = ""; // printing source without image
 let psUnlinkedId = ""; // printing source not linked to a printing
@@ -88,7 +87,6 @@ if (ctx) {
   const [printing] = await db
     .insertInto("printings")
     .values({
-      slug: printingSlug,
       cardId: card.id,
       setId: set.id,
       shortCode: "CSI-001",

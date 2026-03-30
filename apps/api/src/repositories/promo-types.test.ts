@@ -69,11 +69,4 @@ describe("promoTypesRepo", () => {
     const db = createMockDb([]);
     await expect(promoTypesRepo(db).reorder([])).resolves.toBeUndefined();
   });
-
-  it("renamePrintingSlugs updates printing slugs", async () => {
-    const db = createMockDb([]);
-    await expect(
-      promoTypesRepo(db).renamePrintingSlugs("pt-1", "-old", "-new"),
-    ).resolves.toBeUndefined();
-  });
 });

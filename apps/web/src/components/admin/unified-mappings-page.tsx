@@ -100,7 +100,6 @@ function toMarketplaceGroup(
 function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Printing {
   return {
     id: p.printingId,
-    slug: p.printingId,
     shortCode: p.shortCode,
     setId: group.setName,
     setSlug: group.setName,

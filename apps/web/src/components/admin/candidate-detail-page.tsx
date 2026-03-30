@@ -5,7 +5,7 @@ import type {
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
-import { buildPrintingId } from "@openrift/shared";
+import { formatPrintingLabel } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -77,7 +77,6 @@ import {
   useReassignCandidatePrinting,
   useRehostPrintingImage,
   useRenameCard,
-  useRenamePrinting,
   useSetCandidatePrintingImage,
   useUnmatchedCardDetail,
   useUnrehostPrintingImage,
@@ -148,7 +147,6 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   const ignoreCardSource = useIgnoreCandidateCard();
   const ignorePrintingSource = useIgnoreCandidatePrinting();
   const linkPrintingSources = useLinkCandidatePrintings();
-  const renamePrinting = useRenamePrinting();
   const deletePrintingMutation = useDeletePrinting();
 
   // --- Promo types for dropdown + slug lookup ---
@@ -199,12 +197,12 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
   // After accepting a printing, expand it and scroll into view once data refetches
   const existingData = existingQuery.data;
   useEffect(() => {
-    const slug = pendingScrollTarget.current;
-    if (!slug || !existingData) {
+    const targetId = pendingScrollTarget.current;
+    if (!targetId || !existingData) {
       return;
     }
     const printings = existingData.printings as Record<string, unknown>[];
-    const printing = printings.find((p) => (p.slug as string) === slug);
+    const printing = printings.find((p) => (p.id as string) === targetId);
     if (!printing) {
       return;
     }
@@ -840,7 +838,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           </div>
           {printings.map((printing) => {
             const printingId = printing.id as string;
-            const printingSlug = printing.slug as string;
+            const printingLabel = printing.expectedPrintingId as string;
             const isExpanded = !collapsedPrintings.has(printingId);
             const allSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
             const activeImage = printingImages.find(
@@ -850,8 +848,6 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
               ...printing,
               imageUrl: activeImage?.originalUrl ?? null,
             };
-            const expectedId = printing.expectedPrintingId as string;
-            const isStale = printingSlug !== expectedId;
 
             const allChecked = allSources.every((ps) => ps.checkedAt);
 
@@ -872,9 +868,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                     ) : (
                       <ChevronRightIcon className="size-4" />
                     )}
-                    <span className={isStale ? "text-orange-600 line-through" : ""}>
-                      {printingSlug}
-                    </span>
+                    <span>{printingLabel}</span>
                     <span className="text-muted-foreground font-normal">
                       &mdash; {allSources.length} source
                       {allSources.length === 1 ? "" : "s"}
@@ -886,24 +880,6 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                       </Badge>
                     )}
                   </span>
-                  {isStale && (
-                    <>
-                      <span className="text-muted-foreground">&rarr; {expectedId}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs"
-                        disabled={renamePrinting.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          renamePrinting.mutate({ printingId: printingSlug, newId: expectedId });
-                        }}
-                      >
-                        <RefreshCwIcon className="mr-1 size-3" />
-                        Regenerate
-                      </Button>
-                    </>
-                  )}
                   {allSources.some((ps) => !ps.checkedAt) && (
                     <Button
                       variant="outline"
@@ -928,10 +904,10 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                       e.stopPropagation();
                       if (
                         globalThis.confirm(
-                          `Delete printing "${printingSlug}"? This cannot be undone.`,
+                          `Delete printing "${printingLabel}"? This cannot be undone.`,
                         )
                       ) {
-                        deletePrintingMutation.mutate(printingSlug);
+                        deletePrintingMutation.mutate(printingId);
                       }
                     }}
                   >
@@ -943,7 +919,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                   <div className="flex gap-3 border-t p-3">
                     <PrintingImageSwitcher
                       printingId={printingId}
-                      printingSlug={printingSlug}
+                      printingLabel={printingLabel}
                       images={printingImages.filter((pi) => pi.printingId === printingId)}
                       providerSettings={providerSettings}
                       sourceImages={[
@@ -983,7 +959,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                         providerSettings={providerSettings}
                         onCellClick={(field, value) => {
                           acceptPrintingField.mutate({
-                            printingId: printingSlug,
+                            printingId,
                             field,
                             value,
                             source: "provider",
@@ -993,7 +969,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                           if (value === undefined) {
                             return;
                           }
-                          acceptPrintingField.mutate({ printingId: printingSlug, field, value });
+                          acceptPrintingField.mutate({ printingId, field, value });
                         }}
                         onCheck={(id) => checkPrintingSource.mutate(id)}
                         onUncheck={(id) => uncheckPrintingSource.mutate(id)}
@@ -1001,7 +977,10 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                           <PrintingSourceActions
                             targets={printings
                               .filter((p) => (p.id as string) !== printingId)
-                              .map((p) => ({ id: p.id as string, slug: p.slug as string }))}
+                              .map((p) => ({
+                                id: p.id as string,
+                                label: p.expectedPrintingId as string,
+                              }))}
                             onAssign={(pid) =>
                               linkPrintingSources.mutate({
                                 candidatePrintingIds: [row.id],
@@ -1042,7 +1021,7 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           {ambiguousGroups.length > 0 &&
             (() => {
               const matchable = ambiguousGroups.filter((g) =>
-                printings.some((p) => p.slug === g.expectedPrintingId),
+                printings.some((p) => p.expectedPrintingId === g.expectedPrintingId),
               );
               if (matchable.length < 2) {
                 return null;
@@ -1056,7 +1035,9 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
                     onClick={() => {
                       for (const g of matchable) {
                         const pid = (
-                          printings.find((p) => p.slug === g.expectedPrintingId) as { id: string }
+                          printings.find((p) => p.expectedPrintingId === g.expectedPrintingId) as {
+                            id: string;
+                          }
                         ).id;
                         linkPrintingSources.mutate({
                           printingId: pid,
@@ -1294,12 +1275,12 @@ function NewPrintingGroupCard({
     return v !== undefined && v !== null && v !== "";
   });
 
-  // Generate ID in the same format as the DB: "shortCode:finish:promoSlug"
+  // Generate display label: "shortCode:finish:promoSlug"
   const promoSlug = activePrinting.promoTypeId
     ? (promoTypes.find((pt) => pt.id === activePrinting.promoTypeId)?.slug ?? null)
     : null;
-  const printingId = hasRequired
-    ? buildPrintingId(
+  const printingLabel = hasRequired
+    ? formatPrintingLabel(
         activePrinting.shortCode as string,
         promoSlug,
         activePrinting.finish as string,
@@ -1308,9 +1289,9 @@ function NewPrintingGroupCard({
 
   const guessedId = group.expectedPrintingId;
 
-  // custom: find existing printing whose slug matches the guessed ID so we can offer a quick "assign all" action
-  const matchingExisting = existingPrintings.find((p) => p.slug === guessedId) as
-    | { id: string; slug: string }
+  // custom: find existing printing whose expectedPrintingId matches the guessed ID so we can offer a quick "assign all" action
+  const matchingExisting = existingPrintings.find((p) => p.expectedPrintingId === guessedId) as
+    | { id: string }
     | undefined;
 
   return (
@@ -1332,7 +1313,7 @@ function NewPrintingGroupCard({
             <ChevronRightIcon className="size-4" />
           )}
           <span>
-            New: <span className="text-muted-foreground">{printingId || guessedId}</span> &mdash;{" "}
+            New: <span className="text-muted-foreground">{printingLabel || guessedId}</span> &mdash;{" "}
             {group.candidates.length} source
             {group.candidates.length === 1 ? "" : "s"}
           </span>
@@ -1426,7 +1407,7 @@ function NewPrintingGroupCard({
                   <PrintingSourceActions
                     targets={existingPrintings.map((p) => ({
                       id: p.id as string,
-                      slug: p.slug as string,
+                      label: p.expectedPrintingId as string,
                     }))}
                     onAssign={(pid) => onLink(pid, [row.id])}
                     onCopy={(pid) => onCopy(row.id, pid)}
@@ -1632,13 +1613,13 @@ function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
 
 function PrintingImageSwitcher({
   printingId,
-  printingSlug,
+  printingLabel,
   images,
   sourceImages,
   providerSettings,
 }: {
   printingId: string;
-  printingSlug: string;
+  printingLabel: string;
   images: AdminPrintingImageResponse[];
   sourceImages: SourceImage[];
   providerSettings: ProviderSettingResponse[];
@@ -1752,7 +1733,7 @@ function PrintingImageSwitcher({
       {/* Preview */}
       <ImagePreview
         url={effectiveUrl}
-        alt={printingSlug}
+        alt={printingLabel}
         resolution={resolution}
         setResolution={setResolution}
         imgError={imgError}

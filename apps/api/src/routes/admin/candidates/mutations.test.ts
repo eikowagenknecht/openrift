@@ -7,7 +7,6 @@ import { appendSetTotal, fixTypography } from "../../../services/fix-typography.
 import {
   acceptPrinting,
   deletePrinting,
-  renamePrinting,
   updatePrintingPromoType,
 } from "../../../services/printing-admin.js";
 import { mutationsRoute } from "./mutations";
@@ -19,7 +18,6 @@ import { mutationsRoute } from "./mutations";
 vi.mock("../../../services/printing-admin.js", () => ({
   acceptPrinting: vi.fn(),
   deletePrinting: vi.fn(),
-  renamePrinting: vi.fn(),
   updatePrintingPromoType: vi.fn(),
 }));
 
@@ -34,7 +32,6 @@ vi.mock("../../../services/fix-typography.js", () => ({
 
 const mockAcceptPrinting = vi.mocked(acceptPrinting);
 const mockDeletePrinting = vi.mocked(deletePrinting);
-const mockRenamePrinting = vi.mocked(renamePrinting);
 const mockUpdatePrintingPromoType = vi.mocked(updatePrintingPromoType);
 const mockAcceptGalleryForNewCard = vi.mocked(acceptGalleryForNewCard);
 const mockFixTypography = vi.mocked(fixTypography);
@@ -61,13 +58,12 @@ const mockMut = {
   getPrintingDifferentiatorsById: vi.fn(),
   copyCandidatePrinting: vi.fn(),
   linkCandidatePrintings: vi.fn(),
-  getPrintingSlugById: vi.fn(),
   upsertPrintingLinkOverrides: vi.fn(),
   removePrintingLinkOverrides: vi.fn(),
   renameCardSlug: vi.fn(),
   updateCardBySlug: vi.fn(),
   getCardTexts: vi.fn(),
-  updatePrintingBySlug: vi.fn(),
+  updatePrintingFieldById: vi.fn(),
   getSetPrintedTotalForPrinting: vi.fn(),
   getCardIdBySlug: vi.fn(),
   acceptNewCardFromSources: vi.fn(),
@@ -482,7 +478,6 @@ describe("POST /api/v1/candidate-printings/link", () => {
 
   it("returns 204 and upserts link overrides when linking", async () => {
     mockMut.linkCandidatePrintings.mockResolvedValue(undefined);
-    mockMut.getPrintingSlugById.mockResolvedValue({ slug: "OGS-001" });
     mockMut.upsertPrintingLinkOverrides.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/candidate-printings/link", {
@@ -495,7 +490,7 @@ describe("POST /api/v1/candidate-printings/link", () => {
     });
     expect(res.status).toBe(204);
     expect(mockMut.linkCandidatePrintings).toHaveBeenCalledWith(["cp-1", "cp-2"], "p-1");
-    expect(mockMut.upsertPrintingLinkOverrides).toHaveBeenCalledWith(["cp-1", "cp-2"], "OGS-001");
+    expect(mockMut.upsertPrintingLinkOverrides).toHaveBeenCalledWith(["cp-1", "cp-2"], "p-1");
   });
 
   it("removes link overrides when unlinking (printingId is null)", async () => {
@@ -512,22 +507,6 @@ describe("POST /api/v1/candidate-printings/link", () => {
     });
     expect(res.status).toBe(204);
     expect(mockMut.removePrintingLinkOverrides).toHaveBeenCalledWith(["cp-1"]);
-  });
-
-  it("skips link override upsert when printing slug not found", async () => {
-    mockMut.linkCandidatePrintings.mockResolvedValue(undefined);
-    mockMut.getPrintingSlugById.mockResolvedValue(null);
-
-    const res = await app.request("/api/v1/candidate-printings/link", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        candidatePrintingIds: ["cp-1"],
-        printingId: "p-1",
-      }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockMut.upsertPrintingLinkOverrides).not.toHaveBeenCalled();
   });
 
   it("returns 400 when candidatePrintingIds is empty", async () => {
@@ -772,7 +751,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
   });
 
   it("returns 204 and updates printing field", async () => {
-    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+    mockMut.updatePrintingFieldById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
       method: "POST",
@@ -780,7 +759,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
       body: JSON.stringify({ field: "artist", value: "Alice" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.updatePrintingBySlug).toHaveBeenCalledWith("OGS-001", "artist", "Alice");
+    expect(mockMut.updatePrintingFieldById).toHaveBeenCalledWith("OGS-001", "artist", "Alice");
   });
 
   it("returns 400 when field is not provided", async () => {
@@ -817,7 +796,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
       "OGS-001",
       "promo-type-1",
     );
-    expect(mockMut.updatePrintingBySlug).not.toHaveBeenCalled();
+    expect(mockMut.updatePrintingFieldById).not.toHaveBeenCalled();
   });
 
   it("passes null to updatePrintingPromoType when value is empty string", async () => {
@@ -834,7 +813,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
 
   it("applies fixTypography for printedRulesText from provider", async () => {
     mockFixTypography.mockReturnValue("Fixed text");
-    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+    mockMut.updatePrintingFieldById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
       method: "POST",
@@ -847,7 +826,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     });
     expect(res.status).toBe(204);
     expect(mockFixTypography).toHaveBeenCalledWith("Raw text");
-    expect(mockMut.updatePrintingBySlug).toHaveBeenCalledWith(
+    expect(mockMut.updatePrintingFieldById).toHaveBeenCalledWith(
       "OGS-001",
       "printedRulesText",
       "Fixed text",
@@ -856,7 +835,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
 
   it("applies fixTypography with special options for flavorText from provider", async () => {
     mockFixTypography.mockReturnValue("Fixed flavor");
-    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+    mockMut.updatePrintingFieldById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
       method: "POST",
@@ -877,7 +856,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
   it("calls appendSetTotal for publicCode from provider", async () => {
     mockAppendSetTotal.mockReturnValue("OGS-001/100");
     mockMut.getSetPrintedTotalForPrinting.mockResolvedValue({ printedTotal: 100 });
-    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+    mockMut.updatePrintingFieldById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
       method: "POST",
@@ -894,7 +873,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
 
   it("resolves setId slug to UUID", async () => {
     mockSets.getBySlug.mockResolvedValue({ id: "set-uuid-1" });
-    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+    mockMut.updatePrintingFieldById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
       method: "POST",
@@ -903,7 +882,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     });
     expect(res.status).toBe(204);
     expect(mockSets.getBySlug).toHaveBeenCalledWith("origin-set");
-    expect(mockMut.updatePrintingBySlug).toHaveBeenCalledWith("OGS-001", "setId", "set-uuid-1");
+    expect(mockMut.updatePrintingFieldById).toHaveBeenCalledWith("OGS-001", "setId", "set-uuid-1");
   });
 
   it("returns 404 when set slug not found", async () => {
@@ -920,7 +899,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
   });
 
   it("normalizes rarity case", async () => {
-    mockMut.updatePrintingBySlug.mockResolvedValue(undefined);
+    mockMut.updatePrintingFieldById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
       method: "POST",
@@ -940,49 +919,6 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     const json = await res.json();
     expect(json.code).toBe("VALIDATION_ERROR");
     expect(json.error).toContain("Invalid value for collectorNumber");
-  });
-});
-
-describe("POST /api/v1/printing/:printingId/rename", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 204 on successful rename", async () => {
-    mockRenamePrinting.mockResolvedValue(undefined);
-
-    const res = await app.request("/api/v1/printing/OGS-001/rename", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newId: "OGS-002" }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockRenamePrinting).toHaveBeenCalledWith(
-      expect.objectContaining({ candidateMutations: mockMut }),
-      "OGS-001",
-      "OGS-002",
-    );
-  });
-
-  it("returns 204 without renaming when newId matches current slug", async () => {
-    const res = await app.request("/api/v1/printing/OGS-001/rename", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newId: "OGS-001" }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockRenamePrinting).not.toHaveBeenCalled();
-  });
-
-  it("returns 400 when newId is empty", async () => {
-    const res = await app.request("/api/v1/printing/OGS-001/rename", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newId: "  " }),
-    });
-    expect(res.status).toBe(400);
-    const json = await res.json();
-    expect(json.error).toContain("newId is required");
   });
 });
 

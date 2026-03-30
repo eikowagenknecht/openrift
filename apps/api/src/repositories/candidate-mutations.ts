@@ -280,40 +280,46 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     // ── Candidate printing linking ───────────────────────────────────────────────
 
-    /** @returns A printing's slug by UUID. */
-    getPrintingSlugById(id: string): Promise<{ slug: string } | undefined> {
-      return db.selectFrom("printings").select("slug").where("id", "=", id).executeTakeFirst();
-    },
-
-    /** @returns A printing's id, slug, shortCode, and finish by slug. */
-    getPrintingFieldsBySlug(
-      slug: string,
-    ): Promise<{ id: string; slug: string; shortCode: string; finish: string } | undefined> {
+    /** @returns A printing's shortCode and finish by UUID. */
+    getPrintingById(
+      id: string,
+    ): Promise<{ id: string; shortCode: string; finish: string } | undefined> {
       return db
         .selectFrom("printings")
-        .select(["id", "slug", "shortCode", "finish"])
-        .where("slug", "=", slug)
+        .select(["id", "shortCode", "finish"])
+        .where("id", "=", id)
         .executeTakeFirst();
     },
 
-    /** @returns A printing's cardId by slug. */
-    getPrintingCardIdBySlug(slug: string): Promise<{ cardId: string } | undefined> {
+    /** @returns A printing's cardId by UUID. */
+    getPrintingCardIdById(id: string): Promise<{ cardId: string } | undefined> {
+      return db.selectFrom("printings").select("cardId").where("id", "=", id).executeTakeFirst();
+    },
+
+    /** @returns A printing's cardId by composite key (shortCode, finish, promoTypeId). */
+    getPrintingCardIdByComposite(
+      shortCode: string,
+      finish: Finish,
+      promoTypeId: string | null,
+    ): Promise<{ cardId: string } | undefined> {
       return db
         .selectFrom("printings")
         .select("cardId")
-        .where("slug", "=", slug)
+        .where("shortCode", "=", shortCode)
+        .where("finish", "=", finish)
+        .where("promoTypeId", promoTypeId ? "=" : "is", promoTypeId)
         .executeTakeFirst();
     },
 
     /** @returns The printed_total of the set a printing belongs to. */
     getSetPrintedTotalForPrinting(
-      printingSlug: string,
+      printingId: string,
     ): Promise<{ printedTotal: number | null } | undefined> {
       return db
         .selectFrom("printings")
         .innerJoin("sets", "sets.id", "printings.setId")
         .select("sets.printedTotal")
-        .where("printings.slug", "=", printingSlug)
+        .where("printings.id", "=", printingId)
         .executeTakeFirst();
     },
 
@@ -349,7 +355,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     /** Upsert printing link overrides for the given candidate printing IDs. */
     async upsertPrintingLinkOverrides(
       candidatePrintingIds: string[],
-      printingSlug: string,
+      printingId: string,
     ): Promise<void> {
       const rows = await db
         .selectFrom("candidatePrintings")
@@ -362,9 +368,9 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           .values({
             externalId: row.externalId,
             finish: row.finish ?? "",
-            printingSlug,
+            printingId,
           })
-          .onConflict((oc) => oc.columns(["externalId", "finish"]).doUpdateSet({ printingSlug }))
+          .onConflict((oc) => oc.columns(["externalId", "finish"]).doUpdateSet({ printingId }))
           .execute();
       }
     },
@@ -437,11 +443,11 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     // ── Printing mutations ────────────────────────────────────────────────────
 
     /**
-     * Delete a printing by slug.
+     * Delete a printing by UUID.
      * @returns The deleted row's ID, or undefined if not found.
      */
-    deletePrintingBySlug(slug: string): Promise<{ id: string } | undefined> {
-      return db.deleteFrom("printings").where("slug", "=", slug).returning("id").executeTakeFirst();
+    deletePrintingById(id: string): Promise<{ id: string } | undefined> {
+      return db.deleteFrom("printings").where("id", "=", id).returning("id").executeTakeFirst();
     },
 
     /** Unlink all candidate_printings referencing a printing UUID (set printing_id to null). */
@@ -467,26 +473,17 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Delete printing_link_overrides that reference a printing slug. */
-    async deletePrintingLinkOverridesBySlug(slug: string): Promise<void> {
-      await db.deleteFrom("printingLinkOverrides").where("printingSlug", "=", slug).execute();
+    /** Delete printing_link_overrides that reference a printing ID. */
+    async deletePrintingLinkOverridesById(printingId: string): Promise<void> {
+      await db.deleteFrom("printingLinkOverrides").where("printingId", "=", printingId).execute();
     },
 
-    /** Update a single field on a printing by slug. */
-    async updatePrintingBySlug(slug: string, field: string, value: unknown): Promise<void> {
+    /** Update a single field on a printing by UUID. */
+    async updatePrintingFieldById(id: string, field: string, value: unknown): Promise<void> {
       await db
         .updateTable("printings")
         .set({ [field]: value })
-        .where("slug", "=", slug)
-        .execute();
-    },
-
-    /** Rename a printing's slug. */
-    async renamePrintingSlug(oldSlug: string, newSlug: string): Promise<void> {
-      await db
-        .updateTable("printings")
-        .set({ slug: newSlug })
-        .where("slug", "=", oldSlug)
+        .where("id", "=", id)
         .execute();
     },
 
@@ -511,10 +508,10 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     /**
      * Insert or update a printing.
+     * Uses composite unique constraint on (cardId, shortCode, finish, promoTypeId).
      * @returns The new or existing printing UUID.
      */
     async upsertPrinting(values: {
-      slug: string;
       cardId: string;
       setId: string;
       shortCode: string;
@@ -534,7 +531,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .insertInto("printings")
         .values(values)
         .onConflict((oc) =>
-          oc.column("slug").doUpdateSet((eb) => ({
+          oc.columns(["cardId", "shortCode", "finish", "promoTypeId"]).doUpdateSet((eb) => ({
             artist: eb.ref("excluded.artist"),
             publicCode: eb.ref("excluded.publicCode"),
             printedRulesText: eb.ref("excluded.printedRulesText"),

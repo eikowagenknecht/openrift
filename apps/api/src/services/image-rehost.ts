@@ -528,7 +528,7 @@ export async function findBrokenImages(
         originalUrl: img.originalUrl,
         cardSlug: img.cardSlug,
         cardName: img.cardName,
-        printingSlug: img.printingSlug,
+        printingShortCode: img.printingShortCode,
         setSlug: img.setSlug,
       });
     }
@@ -566,7 +566,7 @@ export async function findLowResImages(
           originalUrl: img.originalUrl,
           cardSlug: img.cardSlug,
           cardName: img.cardName,
-          printingSlug: img.printingSlug,
+          printingShortCode: img.printingShortCode,
           setSlug: img.setSlug,
           width: metadata.width,
           height: metadata.height ?? 0,

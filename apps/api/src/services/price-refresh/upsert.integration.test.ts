@@ -36,9 +36,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
   // Seed slugs (human-readable) — UUIDs are auto-generated
   const setSlug = "UPS";
   const cardSlug = "UPS-001";
-  const printingSlug = "UPS-001:normal";
-  const printingSlug2 = "UPS-001:foil";
-
   // UUIDs populated by beforeAll after INSERT ... RETURNING
   let setId: string;
   let cardId: string;
@@ -86,7 +83,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       .insertInto("printings")
       .values([
         {
-          slug: printingSlug,
           cardId,
           setId,
           shortCode: "UPS-001",
@@ -103,7 +99,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           flavorText: null,
         },
         {
-          slug: printingSlug2,
           cardId,
           setId,
           shortCode: "UPS-001",

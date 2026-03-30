@@ -77,7 +77,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
         .select([
           "printings.id",
-          "printings.slug",
           "printings.cardId",
           "printings.setId",
           "printings.shortCode",
@@ -102,7 +101,6 @@ export function catalogRepo(db: Kysely<Database>) {
 
       return rows.map((row) => ({
         id: row.id,
-        slug: row.slug,
         cardId: row.cardId,
         setId: row.setId,
         shortCode: row.shortCode,

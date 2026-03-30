@@ -315,7 +315,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       await testDb
         .insertInto("printings")
         .values({
-          slug: "CAT-PRINT-001:normal:",
           cardId: tempCard.id,
           setId: tempSetId,
           shortCode: "CAT-PRINT-001",
@@ -341,7 +340,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(delJson.error).toContain("printing");
 
       // Clean up
-      await testDb.deleteFrom("printings").where("slug", "=", "CAT-PRINT-001:normal:").execute();
+      await testDb.deleteFrom("printings").where("shortCode", "=", "CAT-PRINT-001").execute();
       await testDb.deleteFrom("cards").where("slug", "=", "CAT-PRINT-001").execute();
       await app.fetch(req("DELETE", `/admin/sets/${tempSetId}`));
     });

@@ -93,7 +93,6 @@ async function seedMarketplaceData(marketplace: string) {
   const [printing] = await db
     .insertInto("printings")
     .values({
-      slug: `OPS-${marketplace}-${suffix}:normal:`,
       cardId: card.id,
       setId: set.id,
       shortCode: `OPS-${marketplace}-${suffix}`,

@@ -1,4 +1,4 @@
-import { buildPrintingId, emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
+import { emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
 import { z } from "zod";
 
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
@@ -208,11 +208,11 @@ export async function ingestCandidates(
       aliasByNorm.set(a.normName, a.cardId);
     }
 
-    // 1d. All printings (for slug → id resolution)
-    const allPrintings = await repo.allPrintingSlugs();
-    const printingBySlug = new Map<string, string>();
+    // 1d. All printings (for composite key → id resolution)
+    const allPrintings = await repo.allPrintingKeys();
+    const printingByKey = new Map<string, string>();
     for (const p of allPrintings) {
-      printingBySlug.set(p.slug, p.id);
+      printingByKey.set(`${p.shortCode}:${p.finish}:${p.promoTypeId ?? ""}`, p.id);
     }
 
     // 1e. All existing candidate_printings for candidate_cards owned by this provider.
@@ -248,10 +248,10 @@ export async function ingestCandidates(
 
     // 1g. Printing link overrides (manual links that survive re-uploads)
     const overrideRows = await repo.allPrintingLinkOverrides();
-    // Key: "entityId:finish" → printing slug
+    // Key: "entityId:finish" → printing UUID
     const linkOverrides = new Map<string, string>();
     for (const r of overrideRows) {
-      linkOverrides.set(`${r.externalId}:${r.finish}`, r.printingSlug);
+      linkOverrides.set(`${r.externalId}:${r.finish}`, r.printingId);
     }
 
     // 1h. Default promo type ID (for is_promo=true in upload data)
@@ -401,18 +401,15 @@ export async function ingestCandidates(
           continue;
         }
 
-        const printingSlug =
+        const printingKey =
           effectiveCardId && p.rarity && p.finish
-            ? buildPrintingId(p.short_code, p.is_promo ? "promo" : null, p.finish)
+            ? `${p.short_code}:${p.finish}:${p.is_promo ? (defaultPromoTypeId ?? "") : ""}`
             : null;
 
         // Check for a manual link override (survives delete + re-upload)
-        const overrideSlug = linkOverrides.get(`${p.external_id}:${p.finish ?? ""}`);
-        const resolvedPrintingId = overrideSlug
-          ? (printingBySlug.get(overrideSlug) ?? null)
-          : printingSlug
-            ? (printingBySlug.get(printingSlug) ?? null)
-            : null;
+        const overrideId = linkOverrides.get(`${p.external_id}:${p.finish ?? ""}`);
+        const resolvedPrintingId =
+          overrideId ?? (printingKey ? (printingByKey.get(printingKey) ?? null) : null);
 
         // Look up existing candidate_printing by external_id (provider's stable key)
         const existingCP = cpByExternalId.get(p.external_id);

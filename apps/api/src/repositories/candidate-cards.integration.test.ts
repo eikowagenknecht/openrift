@@ -651,7 +651,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     const result = await repo.printingsForDetail(SEED_CARD_ANNIE_ID);
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result[0]).toHaveProperty("id");
-    expect(result[0]).toHaveProperty("slug");
     expect(result[0]).toHaveProperty("cardId");
     expect(result[0]).toHaveProperty("setId");
     expect(result[0]).toHaveProperty("shortCode");

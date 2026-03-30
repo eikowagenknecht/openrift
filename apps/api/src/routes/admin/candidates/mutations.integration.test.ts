@@ -72,7 +72,6 @@ if (ctx) {
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      slug: "CSM-001:normal:",
       cardId: cardId,
       setId: setId,
       shortCode: "CSM-001",
@@ -97,11 +96,10 @@ if (ctx) {
   const [printing2Row] = await db
     .insertInto("printings")
     .values({
-      slug: "CSM-001:foil:",
       cardId: cardId,
       setId: setId,
-      shortCode: "CSM-001",
-      collectorNumber: 1,
+      shortCode: "CSM-002",
+      collectorNumber: 2,
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
@@ -782,7 +780,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /printing/:printingId/accept-field", () => {
     it("updates artist on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "artist",
           value: "Artist B",
         }),
@@ -793,14 +791,14 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const row = await db
         .selectFrom("printings")
         .select("artist")
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
       expect(row.artist).toBe("Artist B");
     });
 
     it("updates rarity on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "rarity",
           value: "Rare",
         }),
@@ -810,7 +808,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const row = await db
         .selectFrom("printings")
         .select("rarity")
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
       expect(row.rarity).toBe("Rare");
 
@@ -818,13 +816,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("printings")
         .set({ rarity: "Common" })
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .execute();
     });
 
     it("returns 400 for validation error on rarity", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "rarity",
           value: "InvalidRarity",
         }),
@@ -834,7 +832,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates finish on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "finish",
           value: "foil",
         }),
@@ -844,7 +842,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const row = await db
         .selectFrom("printings")
         .select("finish")
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
       expect(row.finish).toBe("foil");
 
@@ -852,13 +850,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("printings")
         .set({ finish: "normal" })
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .execute();
     });
 
     it("returns 400 for validation error on finish", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "finish",
           value: "invalid-finish",
         }),
@@ -868,7 +866,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates comment on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "comment",
           value: "Test comment",
         }),
@@ -878,7 +876,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const row = await db
         .selectFrom("printings")
         .select("comment")
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
       expect(row.comment).toBe("Test comment");
 
@@ -886,62 +884,16 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("printings")
         .set({ comment: null })
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .execute();
     });
 
     it("returns 400 for invalid field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "nonexistent",
           value: "foo",
         }),
-      );
-      expect(res.status).toBe(400);
-    });
-  });
-
-  // ── Rename printing ─────────────────────────────────────────────────────
-
-  describe("POST /printing/:printingId/rename", () => {
-    it("renames a printing slug", async () => {
-      const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/rename`, {
-          newId: "CSM-001:normal:v2",
-        }),
-      );
-      expect(res.status).toBe(204);
-
-      // Verify
-      const row = await db
-        .selectFrom("printings")
-        .select("slug")
-        .where("id", "=", printingId)
-        .executeTakeFirstOrThrow();
-      expect(row.slug).toBe("CSM-001:normal:v2");
-    });
-
-    it("rename back for subsequent tests", async () => {
-      const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:v2/rename`, {
-          newId: "CSM-001:normal:",
-        }),
-      );
-      expect(res.status).toBe(204);
-    });
-
-    it("same name is a no-op", async () => {
-      const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/rename`, {
-          newId: "CSM-001:normal:",
-        }),
-      );
-      expect(res.status).toBe(204);
-    });
-
-    it("returns 400 for empty newId", async () => {
-      const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/rename`, { newId: "" }),
       );
       expect(res.status).toBe(400);
     });
@@ -1094,13 +1046,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.printingId).toBe("CSM-AP-001:normal:");
+      expect(json.printingId).toBeTypeOf("string");
 
       // Verify the printing was created
       const printing = await db
         .selectFrom("printings")
-        .select(["slug", "rarity", "artist"])
-        .where("slug", "=", "CSM-AP-001:normal:")
+        .select(["id", "rarity", "artist"])
+        .where("id", "=", json.printingId)
         .executeTakeFirst();
       expect(printing).toBeDefined();
       // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
@@ -1160,7 +1112,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.printingId).toBe("CSM-AP-FOIL:foil:");
+      expect(json.printingId).toBeTypeOf("string");
     });
 
     it("accepts a printing with promo and signed flags", async () => {
@@ -1209,14 +1161,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      // promo type slug results in a "promo" suffix in the slug
-      expect(json.printingId).toBe("CSM-AP-PROMO:foil:promo");
+      expect(json.printingId).toBeTypeOf("string");
 
       // Verify isSigned/promoTypeId on the printing
       const p = await db
         .selectFrom("printings")
         .select(["isSigned", "promoTypeId"])
-        .where("slug", "=", json.printingId)
+        .where("id", "=", json.printingId)
         .executeTakeFirstOrThrow();
       expect(p.isSigned).toBe(true);
       expect(p.promoTypeId).toBe(promoTypeId);
@@ -1558,7 +1509,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /printing/:printingId/accept-field (extended)", () => {
     it("applies typography to printedRulesText from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "printedRulesText",
           value: 'Deal "damage" to target',
           source: "provider",
@@ -1570,7 +1521,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const row = await db
         .selectFrom("printings")
         .select("printedRulesText")
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
       expect(row.printedRulesText).toBeDefined();
 
@@ -1578,13 +1529,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("printings")
         .set({ printedRulesText: "Flash" })
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .execute();
     });
 
     it("applies typography to printedEffectText from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "printedEffectText",
           value: "Effect text here",
           source: "provider",
@@ -1596,13 +1547,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("printings")
         .set({ printedEffectText: null })
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .execute();
     });
 
     it("applies typography to flavorText from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "flavorText",
           value: 'Some "flavor" (with parens)',
           source: "provider",
@@ -1614,13 +1565,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("printings")
         .set({ flavorText: null })
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .execute();
     });
 
     it("appends set total to publicCode from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "publicCode",
           value: "CSM-001",
           source: "provider",
@@ -1632,7 +1583,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const row = await db
         .selectFrom("printings")
         .select("publicCode")
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
       expect(row.publicCode).toBeDefined();
 
@@ -1640,13 +1591,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .updateTable("printings")
         .set({ publicCode: "CSM" })
-        .where("slug", "=", "CSM-001:normal:")
+        .where("id", "=", printingId)
         .execute();
     });
 
     it("resolves setId from slug to UUID when accepting setId field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "setId",
           value: "CSM-TEST",
         }),
@@ -1656,7 +1607,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 when setting setId to non-existent slug", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "setId",
           value: "NONEXISTENT-SET",
         }),
@@ -1664,36 +1615,33 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(404);
     });
 
-    it("updates promoTypeId and rebuilds slug", async () => {
+    it("updates promoTypeId", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "promoTypeId",
           value: promoTypeId,
         }),
       );
       expect(res.status).toBe(204);
 
-      // The slug should have been rebuilt to include the promo type
       const row = await db
         .selectFrom("printings")
-        .select(["slug", "promoTypeId"])
+        .select("promoTypeId")
         .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
       expect(row.promoTypeId).toBe(promoTypeId);
-      // slug now includes promo suffix
-      expect(row.slug).toContain("promo");
 
-      // Restore: set promoTypeId back to null and rebuild slug
+      // Restore: set promoTypeId back to null
       await db
         .updateTable("printings")
-        .set({ promoTypeId: null, slug: "CSM-001:normal:" })
+        .set({ promoTypeId: null })
         .where("id", "=", printingId)
         .execute();
     });
 
     it("returns 400 for missing field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/CSM-001:normal:/accept-field`, {
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "",
           value: "foo",
         }),
@@ -1710,7 +1658,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const [disposablePrinting] = await db
         .insertInto("printings")
         .values({
-          slug: "CSM-DELETE-TEST:normal:",
           cardId: cardId,
           setId: setId,
           shortCode: "CSM-DELETE-TEST",
@@ -1769,14 +1716,14 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         })
         .execute();
 
-      const res = await app.fetch(req("DELETE", `${P}/printing/CSM-DELETE-TEST:normal:`));
+      const res = await app.fetch(req("DELETE", `${P}/printing/${disposablePrinting.id}`));
       expect(res.status).toBe(204);
 
       // Verify printing is gone
       const row = await db
         .selectFrom("printings")
         .select("id")
-        .where("slug", "=", "CSM-DELETE-TEST:normal:")
+        .where("id", "=", disposablePrinting.id)
         .executeTakeFirst();
       expect(row).toBeUndefined();
     });

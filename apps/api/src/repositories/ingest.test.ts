@@ -19,9 +19,11 @@ describe("ingestRepo", () => {
     expect(await ingestRepo(db).allCardNameAliases()).toHaveLength(1);
   });
 
-  it("allPrintingSlugs returns id/slug pairs", async () => {
-    const db = createMockDb([{ id: "p-1", slug: "OGS-001-N" }]);
-    expect(await ingestRepo(db).allPrintingSlugs()).toHaveLength(1);
+  it("allPrintingKeys returns id/shortCode/finish/promoTypeId", async () => {
+    const db = createMockDb([
+      { id: "p-1", shortCode: "OGS-001", finish: "normal", promoTypeId: null },
+    ]);
+    expect(await ingestRepo(db).allPrintingKeys()).toHaveLength(1);
   });
 
   it("candidatePrintingsByCandidateCardIds returns printings", async () => {
@@ -35,7 +37,7 @@ describe("ingestRepo", () => {
   });
 
   it("allPrintingLinkOverrides returns overrides", async () => {
-    const db = createMockDb([{ externalId: "ext-1", finish: "normal", printingSlug: "OGS-001-N" }]);
+    const db = createMockDb([{ externalId: "ext-1", finish: "normal", printingId: "p-1" }]);
     expect(await ingestRepo(db).allPrintingLinkOverrides()).toHaveLength(1);
   });
 

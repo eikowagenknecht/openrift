@@ -17,7 +17,6 @@ const mockRepo = {
   reorder: vi.fn(),
   deleteById: vi.fn(),
   isInUse: vi.fn(),
-  renamePrintingSlugs: vi.fn(),
 };
 
 // ---------------------------------------------------------------------------
@@ -227,38 +226,6 @@ describe("PATCH /api/v1/promo-types/:id", () => {
     });
     expect(res.status).toBe(204);
     expect(mockRepo.update).toHaveBeenCalledWith(dbPromoType.id, { label: "Updated Label" });
-    expect(mockRepo.renamePrintingSlugs).not.toHaveBeenCalled();
-  });
-
-  it("returns 204 and renames printing slugs when slug changes", async () => {
-    mockRepo.getById.mockResolvedValue(dbPromoType);
-    mockRepo.getBySlug.mockResolvedValue(undefined);
-    mockRepo.update.mockResolvedValue(undefined);
-    mockRepo.renamePrintingSlugs.mockResolvedValue(undefined);
-    const res = await app.request(`/api/v1/promo-types/${dbPromoType.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug: "new-slug" }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockRepo.update).toHaveBeenCalledWith(dbPromoType.id, { slug: "new-slug" });
-    expect(mockRepo.renamePrintingSlugs).toHaveBeenCalledWith(
-      dbPromoType.id,
-      ":nexus-night",
-      ":new-slug",
-    );
-  });
-
-  it("does not rename printing slugs when slug is unchanged", async () => {
-    mockRepo.getById.mockResolvedValue(dbPromoType);
-    mockRepo.update.mockResolvedValue(undefined);
-    const res = await app.request(`/api/v1/promo-types/${dbPromoType.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug: "nexus-night" }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockRepo.renamePrintingSlugs).not.toHaveBeenCalled();
   });
 
   it("returns 404 when promo type not found", async () => {

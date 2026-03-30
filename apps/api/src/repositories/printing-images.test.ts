@@ -183,13 +183,8 @@ describe("printingImagesRepo", () => {
   });
 
   it("getPrintingWithSetById returns printing with set", async () => {
-    const db = createMockDb([{ id: "p-1", slug: "OGS-001-N", setSlug: "OGS" }]);
-    expect(await printingImagesRepo(db).getPrintingWithSetById("p-1")).toBeDefined();
-  });
-
-  it("getPrintingWithSetBySlug returns printing with set", async () => {
     const db = createMockDb([{ id: "p-1", setSlug: "OGS" }]);
-    expect(await printingImagesRepo(db).getPrintingWithSetBySlug("OGS-001-N")).toBeDefined();
+    expect(await printingImagesRepo(db).getPrintingWithSetById("p-1")).toBeDefined();
   });
 
   // ── rehostStatusBySet (lines 233-247 — needs real DB for callback coverage) ──

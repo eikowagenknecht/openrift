@@ -92,7 +92,7 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     if (found) {
       expect(found).toHaveProperty("cardSlug");
       expect(found).toHaveProperty("cardName");
-      expect(found).toHaveProperty("printingSlug");
+      expect(found).toHaveProperty("printingShortCode");
       expect(found).toHaveProperty("setSlug");
     }
   });
@@ -106,17 +106,5 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   it("countRehosted returns total count of rehosted images", async () => {
     const count = await repo.countRehosted();
     expect(count).toBeGreaterThanOrEqual(1);
-  });
-
-  it("getPrintingWithSetBySlug returns printing with set info", async () => {
-    // Use the seed printing's known slug
-    const result = await repo.getPrintingWithSetBySlug("OGS-001:epic:normal:");
-    expect(result).toBeDefined();
-    expect(result!.setSlug).toBe("OGS");
-  });
-
-  it("getPrintingWithSetBySlug returns undefined for nonexistent slug", async () => {
-    const result = await repo.getPrintingWithSetBySlug("nonexistent-slug");
-    expect(result).toBeUndefined();
   });
 });

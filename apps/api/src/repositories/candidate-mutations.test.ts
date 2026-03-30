@@ -143,25 +143,27 @@ describe("candidateMutationsRepo", () => {
 
   // ── Linking ───────────────────────────────────────────────────────────────
 
-  it("getPrintingSlugById returns slug", async () => {
-    const db = createMockDb([{ slug: "OGS-001-N" }]);
-    expect(await candidateMutationsRepo(db).getPrintingSlugById("p-1")).toEqual({
-      slug: "OGS-001-N",
+  it("getPrintingById returns printing fields", async () => {
+    const db = createMockDb([{ id: "p-1", shortCode: "OGS-001", finish: "normal" }]);
+    expect(await candidateMutationsRepo(db).getPrintingById("p-1")).toEqual({
+      id: "p-1",
+      shortCode: "OGS-001",
+      finish: "normal",
     });
   });
 
-  it("getPrintingFieldsBySlug returns fields", async () => {
-    const db = createMockDb([
-      { id: "p-1", slug: "OGS-001-N", shortCode: "OGS-001", finish: "normal" },
-    ]);
-    expect(await candidateMutationsRepo(db).getPrintingFieldsBySlug("OGS-001-N")).toBeDefined();
-  });
-
-  it("getPrintingCardIdBySlug returns cardId", async () => {
+  it("getPrintingCardIdById returns cardId", async () => {
     const db = createMockDb([{ cardId: "c-1" }]);
-    expect(await candidateMutationsRepo(db).getPrintingCardIdBySlug("OGS-001-N")).toEqual({
+    expect(await candidateMutationsRepo(db).getPrintingCardIdById("p-1")).toEqual({
       cardId: "c-1",
     });
+  });
+
+  it("getPrintingCardIdByComposite returns cardId", async () => {
+    const db = createMockDb([{ cardId: "c-1" }]);
+    expect(
+      await candidateMutationsRepo(db).getPrintingCardIdByComposite("OGS-001", "normal", null),
+    ).toEqual({ cardId: "c-1" });
   });
 
   it("getSetPrintedTotalForPrinting returns total", async () => {
@@ -195,14 +197,14 @@ describe("candidateMutationsRepo", () => {
   it("upsertPrintingLinkOverrides upserts overrides", async () => {
     const db = createMockDb([{ externalId: "ext-1", finish: "normal" }]);
     await expect(
-      candidateMutationsRepo(db).upsertPrintingLinkOverrides(["cp-1"], "OGS-001-N"),
+      candidateMutationsRepo(db).upsertPrintingLinkOverrides(["cp-1"], "p-1"),
     ).resolves.toBeUndefined();
   });
 
   it("upsertPrintingLinkOverrides handles null finish", async () => {
     const db = createMockDb([{ externalId: "ext-1", finish: null }]);
     await expect(
-      candidateMutationsRepo(db).upsertPrintingLinkOverrides(["cp-1"], "OGS-001-N"),
+      candidateMutationsRepo(db).upsertPrintingLinkOverrides(["cp-1"], "p-1"),
     ).resolves.toBeUndefined();
   });
 
@@ -266,9 +268,9 @@ describe("candidateMutationsRepo", () => {
 
   // ── Printing mutations ────────────────────────────────────────────────────
 
-  it("deletePrintingBySlug returns deleted id", async () => {
+  it("deletePrintingById returns deleted id", async () => {
     const db = createMockDb([{ id: "p-1" }]);
-    expect(await candidateMutationsRepo(db).deletePrintingBySlug("OGS-001-N")).toEqual({
+    expect(await candidateMutationsRepo(db).deletePrintingById("p-1")).toEqual({
       id: "p-1",
     });
   });
@@ -287,24 +289,17 @@ describe("candidateMutationsRepo", () => {
     );
   });
 
-  it("deletePrintingLinkOverridesBySlug deletes overrides", async () => {
+  it("deletePrintingLinkOverridesById deletes overrides", async () => {
     const db = createMockDb([]);
     await expect(
-      candidateMutationsRepo(db).deletePrintingLinkOverridesBySlug("OGS-001-N"),
+      candidateMutationsRepo(db).deletePrintingLinkOverridesById("p-1"),
     ).resolves.toBeUndefined();
   });
 
-  it("updatePrintingBySlug updates a field", async () => {
+  it("updatePrintingFieldById updates a field", async () => {
     const db = createMockDb([]);
     await expect(
-      candidateMutationsRepo(db).updatePrintingBySlug("OGS-001-N", "artist", "New"),
-    ).resolves.toBeUndefined();
-  });
-
-  it("renamePrintingSlug renames", async () => {
-    const db = createMockDb([]);
-    await expect(
-      candidateMutationsRepo(db).renamePrintingSlug("old", "new"),
+      candidateMutationsRepo(db).updatePrintingFieldById("p-1", "artist", "New"),
     ).resolves.toBeUndefined();
   });
 
@@ -325,7 +320,6 @@ describe("candidateMutationsRepo", () => {
   it("upsertPrinting returns the printing id", async () => {
     const db = createMockDb([{ id: "p-1" }]);
     const result = await candidateMutationsRepo(db).upsertPrinting({
-      slug: "OGS-001-N",
       cardId: "c-1",
       setId: "s-1",
       shortCode: "OGS-001",

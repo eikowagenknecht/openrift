@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 import type { ArtVariant, Finish, Rarity } from "./types/index";
 import {
   boundsOf,
-  buildPrintingId,
+  formatPrintingLabel,
   centsToDollars,
   comparePrintings,
   emptyToNull,
@@ -38,21 +38,21 @@ describe("unique", () => {
   });
 });
 
-describe("buildPrintingId", () => {
+describe("formatPrintingLabel", () => {
   it("builds a basic non-promo slug", () => {
-    expect(buildPrintingId("OGN-001", null, "normal")).toBe("OGN-001:normal:");
+    expect(formatPrintingLabel("OGN-001", null, "normal")).toBe("OGN-001:normal:");
   });
 
   it("includes promo type slug when provided", () => {
-    expect(buildPrintingId("OGN-001", "promo", "foil")).toBe("OGN-001:foil:promo");
+    expect(formatPrintingLabel("OGN-001", "promo", "foil")).toBe("OGN-001:foil:promo");
   });
 
   it("includes specific promo type slug", () => {
-    expect(buildPrintingId("OGN-001", "nexus-night", "foil")).toBe("OGN-001:foil:nexus-night");
+    expect(formatPrintingLabel("OGN-001", "nexus-night", "foil")).toBe("OGN-001:foil:nexus-night");
   });
 
   it("preserves finish value", () => {
-    expect(buildPrintingId("OGN-105", null, "normal")).toBe("OGN-105:normal:");
+    expect(formatPrintingLabel("OGN-105", null, "normal")).toBe("OGN-105:normal:");
   });
 });
 

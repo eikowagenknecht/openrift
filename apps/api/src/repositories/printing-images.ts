@@ -324,7 +324,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
           "pi.originalUrl",
           "c.slug as cardSlug",
           "c.name as cardName",
-          "p.slug as printingSlug",
+          "p.shortCode as printingShortCode",
           "s.slug as setSlug",
         ])
         .where("pi.rehostedUrl", "is not", null)
@@ -337,7 +337,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
           originalUrl: string | null;
           cardSlug: string;
           cardName: string;
-          printingSlug: string;
+          printingShortCode: string;
           setSlug: string;
         }[]
       >;
@@ -386,23 +386,13 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing's ID, slug, and set slug by printing ID. */
+    /** @returns A printing's ID and set slug by printing ID. */
     getPrintingWithSetById(id: string) {
       return db
         .selectFrom("printings")
         .innerJoin("sets", "sets.id", "printings.setId")
-        .select(["printings.id", "printings.slug", "sets.slug as setSlug"])
-        .where("printings.id", "=", id)
-        .executeTakeFirst();
-    },
-
-    /** @returns A printing's ID and set slug by printing slug. */
-    getPrintingWithSetBySlug(slug: string) {
-      return db
-        .selectFrom("printings")
-        .innerJoin("sets", "sets.id", "printings.setId")
         .select(["printings.id", "sets.slug as setSlug"])
-        .where("printings.slug", "=", slug)
+        .where("printings.id", "=", id)
         .executeTakeFirst();
     },
   };

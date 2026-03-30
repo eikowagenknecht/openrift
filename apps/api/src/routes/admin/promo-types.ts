@@ -212,16 +212,7 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
       }
     }
 
-    const slugChanging = body.slug !== undefined && body.slug !== existing.slug;
-
     await repo.update(id, body);
-
-    // Cascade slug rename to printing rows (file paths are UUID-based, no rename needed)
-    if (slugChanging) {
-      const oldSuffix = `:${existing.slug}`;
-      const newSuffix = `:${body.slug as string}`;
-      await repo.renamePrintingSlugs(id, oldSuffix, newSuffix);
-    }
 
     return c.body(null, 204);
   })

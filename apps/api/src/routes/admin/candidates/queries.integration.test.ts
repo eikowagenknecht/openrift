@@ -118,7 +118,6 @@ if (ctx) {
   const [printing1] = await db
     .insertInto("printings")
     .values({
-      slug: "CSQ-001:normal:",
       cardId: card1Id,
       setId: setId,
       shortCode: "CSQ-001",
@@ -143,7 +142,6 @@ if (ctx) {
   const [printing2] = await db
     .insertInto("printings")
     .values({
-      slug: "CSQ-003:normal:",
       cardId: card3Id,
       setId: setId,
       shortCode: "CSQ-003",
