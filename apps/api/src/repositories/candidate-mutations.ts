@@ -83,6 +83,8 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           AND ${n("ps.printedRulesText")}  IS NOT DISTINCT FROM ${n("p.printedRulesText")}
           AND ${n("ps.printedEffectText")} IS NOT DISTINCT FROM ${n("p.printedEffectText")}
           AND ${n("ps.flavorText")}         IS NOT DISTINCT FROM ${n("p.flavorText")}
+          AND COALESCE(ps.language, 'EN') IS NOT DISTINCT FROM p.language
+          AND ${n("ps.printedName")} IS NOT DISTINCT FROM ${n("p.printedName")}
       `.execute(db) as Promise<{ numAffectedRows: bigint }>;
     },
 
@@ -280,13 +282,13 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     // ── Candidate printing linking ───────────────────────────────────────────────
 
-    /** @returns A printing's shortCode and finish by UUID. */
+    /** @returns A printing's shortCode, finish, and language by UUID. */
     getPrintingById(
       id: string,
-    ): Promise<{ id: string; shortCode: string; finish: string } | undefined> {
+    ): Promise<{ id: string; shortCode: string; finish: string; language: string } | undefined> {
       return db
         .selectFrom("printings")
-        .select(["id", "shortCode", "finish"])
+        .select(["id", "shortCode", "finish", "language"])
         .where("id", "=", id)
         .executeTakeFirst();
     },
@@ -526,18 +528,23 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       printedRulesText: string | null;
       printedEffectText: string | null;
       flavorText: string | null;
+      language: string;
+      printedName: string | null;
     }): Promise<string> {
       const result = await db
         .insertInto("printings")
         .values(values)
         .onConflict((oc) =>
-          oc.columns(["cardId", "shortCode", "finish", "promoTypeId"]).doUpdateSet((eb) => ({
-            artist: eb.ref("excluded.artist"),
-            publicCode: eb.ref("excluded.publicCode"),
-            printedRulesText: eb.ref("excluded.printedRulesText"),
-            printedEffectText: eb.ref("excluded.printedEffectText"),
-            flavorText: eb.ref("excluded.flavorText"),
-          })),
+          oc
+            .columns(["cardId", "shortCode", "finish", "promoTypeId", "language"])
+            .doUpdateSet((eb) => ({
+              artist: eb.ref("excluded.artist"),
+              publicCode: eb.ref("excluded.publicCode"),
+              printedRulesText: eb.ref("excluded.printedRulesText"),
+              printedEffectText: eb.ref("excluded.printedEffectText"),
+              flavorText: eb.ref("excluded.flavorText"),
+              printedName: eb.ref("excluded.printedName"),
+            })),
         )
         .returning("id")
         .executeTakeFirstOrThrow();

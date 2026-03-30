@@ -7,6 +7,7 @@ import {
   FlagIcon,
   GlobeIcon,
   ImageIcon,
+  LanguagesIcon,
   LayoutDashboardIcon,
   LayersIcon,
   MapIcon,
@@ -33,6 +34,7 @@ const catalogPages = [
   { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
   { to: "/admin/ignored-sources" as const, icon: BanIcon, title: "Ignored Sources" },
   { to: "/admin/promo-types" as const, icon: TagIcon, title: "Promo Types" },
+  { to: "/admin/languages" as const, icon: LanguagesIcon, title: "Languages" },
 ];
 
 const marketplacePages = [

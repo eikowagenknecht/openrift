@@ -64,6 +64,8 @@ function formatCandidatePrinting(
     | "printedEffectText"
     | "imageUrl"
     | "flavorText"
+    | "language"
+    | "printedName"
     | "externalId"
     | "extraData"
     | "checkedAt"

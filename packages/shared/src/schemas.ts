@@ -185,4 +185,9 @@ export const updatePreferencesSchema = z.object({
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate marketplaces" })
     .nullable()
     .optional(),
+  languages: z
+    .array(z.string().min(1).max(5))
+    .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate languages" })
+    .nullable()
+    .optional(),
 });

@@ -12,6 +12,7 @@ import type { SetInfo } from "@/components/cards/card-grid";
 interface UseCardDataParams {
   allPrintings: Printing[];
   sets: SetInfo[];
+  languageFilter?: string[];
   filters: CardFilters;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
@@ -150,6 +151,7 @@ function buildOwnedCounts(
 export function useCardData({
   allPrintings,
   sets,
+  languageFilter,
   filters,
   sortBy,
   sortDir,
@@ -162,8 +164,14 @@ export function useCardData({
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
   const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
 
-  const availableFilters = getAvailableFilters(allPrintings);
-  const filteredCards = filterCards(allPrintings, filters);
+  // Apply language filter before other filters
+  const langFiltered =
+    languageFilter && languageFilter.length > 0
+      ? allPrintings.filter((printing) => languageFilter.includes(printing.language))
+      : allPrintings;
+
+  const availableFilters = getAvailableFilters(langFiltered);
+  const filteredCards = filterCards(langFiltered, filters);
 
   const displayCards =
     view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
@@ -186,11 +194,11 @@ export function useCardData({
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   const ownedCounts = ownedCountByPrinting
-    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)
+    ? buildOwnedCounts(langFiltered, displayCards, ownedCountByPrinting, view)
     : undefined;
 
   const totalUniqueCards =
-    view === "cards" ? new Set(allPrintings.map((c) => c.card.id)).size : allPrintings.length;
+    view === "cards" ? new Set(langFiltered.map((c) => c.card.id)).size : langFiltered.length;
 
   return {
     availableFilters,

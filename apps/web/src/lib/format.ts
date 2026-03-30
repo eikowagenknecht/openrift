@@ -12,6 +12,18 @@ export const FINISH_LABELS: Record<string, string> = {
   foil: "Foil",
 } satisfies Record<Finish, string>;
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  EN: "English",
+  JA: "Japanese",
+  KO: "Korean",
+  ZH: "Chinese",
+  DE: "German",
+  FR: "French",
+  ES: "Spanish",
+  IT: "Italian",
+  PT: "Portuguese",
+};
+
 /**
  * Human-readable label for a printing's distinguishing attributes.
  * Omits "Normal" defaults and attributes shared by all siblings.
@@ -34,6 +46,9 @@ export function formatPrintingLabel(printing: Printing, siblings?: Printing[]): 
   }
   if (printing.promoType && !allSame((c) => c.promoType?.slug)) {
     parts.push(printing.promoType.label);
+  }
+  if (printing.language !== "EN" && !allSame((c) => c.language)) {
+    parts.push(LANGUAGE_LABELS[printing.language] ?? printing.language);
   }
   return parts.length > 0 ? parts.join(" · ") : "Standard";
 }

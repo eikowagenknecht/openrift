@@ -148,8 +148,15 @@ const catalogPrintingResponseSchema = z.object({
   printedRulesText: z.string().nullable(),
   printedEffectText: z.string().nullable(),
   flavorText: z.string().nullable(),
+  printedName: z.string().nullable(),
+  language: z.string(),
   marketPrice: z.number().optional(),
   cardId: z.string(),
+});
+
+const catalogLanguageResponseSchema = z.object({
+  code: z.string(),
+  name: z.string(),
 });
 
 export const catalogResponseSchema = z
@@ -158,6 +165,7 @@ export const catalogResponseSchema = z
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
     totalCopies: z.number(),
+    languages: z.array(catalogLanguageResponseSchema),
   })
   .openapi("CatalogResponse");
 

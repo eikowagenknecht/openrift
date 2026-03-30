@@ -118,6 +118,8 @@ interface AcceptPrintingFields {
   printedEffectText?: string | null;
   flavorText?: string | null;
   imageUrl?: string | null;
+  language?: string;
+  printedName?: string | null;
 }
 
 /**
@@ -223,6 +225,8 @@ export async function acceptPrinting(
         italicParens: false,
         keywordGlyphs: false,
       }),
+      language: printingFields.language ?? "EN",
+      printedName: printingFields.printedName ?? null,
     });
 
     if (printingFields.imageUrl) {

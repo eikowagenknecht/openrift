@@ -13,6 +13,7 @@ export interface DisplayOverrides {
   foilEffect: boolean | null;
   cardTilt: boolean | null;
   marketplaceOrder: Marketplace[] | null;
+  languages: string[] | null;
 }
 
 const NULL_OVERRIDES: DisplayOverrides = {
@@ -21,6 +22,7 @@ const NULL_OVERRIDES: DisplayOverrides = {
   foilEffect: null,
   cardTilt: null,
   marketplaceOrder: null,
+  languages: null,
 };
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
@@ -32,6 +34,7 @@ function resolveAll(overrides: DisplayOverrides) {
     foilEffect: overrides.foilEffect ?? PREFERENCE_DEFAULTS.foilEffect,
     cardTilt: overrides.cardTilt ?? PREFERENCE_DEFAULTS.cardTilt,
     marketplaceOrder: overrides.marketplaceOrder ?? [...PREFERENCE_DEFAULTS.marketplaceOrder],
+    languages: overrides.languages ?? [...PREFERENCE_DEFAULTS.languages],
   };
 }
 
@@ -44,6 +47,7 @@ interface DisplayState {
   foilEffect: boolean;
   cardTilt: boolean;
   marketplaceOrder: Marketplace[];
+  languages: string[];
 
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
@@ -54,10 +58,11 @@ interface DisplayState {
   setFoilEffect: (value: boolean) => void;
   setCardTilt: (value: boolean) => void;
   setMarketplaceOrder: (value: Marketplace[]) => void;
+  setLanguages: (value: string[]) => void;
 
   // Reset a top-level preference to its default
   resetPreference: (
-    key: "showImages" | "fancyFan" | "foilEffect" | "cardTilt" | "marketplaceOrder",
+    key: "showImages" | "fancyFan" | "foilEffect" | "cardTilt" | "marketplaceOrder" | "languages",
   ) => void;
 
   // Hydrate overrides from server data (used by sync hook)
@@ -107,6 +112,11 @@ export const useDisplayStore = create<DisplayState>()(
         set((state) => ({
           marketplaceOrder: value,
           overrides: { ...state.overrides, marketplaceOrder: value },
+        })),
+      setLanguages: (value) =>
+        set((state) => ({
+          languages: value,
+          overrides: { ...state.overrides, languages: value },
         })),
 
       resetPreference: (key) =>

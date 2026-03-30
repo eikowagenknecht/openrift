@@ -115,6 +115,8 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     printedRulesText: null,
     printedEffectText: null,
     flavorText: null,
+    printedName: null,
+    language: "EN",
     card: {
       id: group.cardId,
       slug: group.cardId,

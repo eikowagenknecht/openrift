@@ -123,6 +123,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   } = useCardData({
     allPrintings,
     sets,
+    languageFilter: useDisplayStore((s) => s.languages),
     filters,
     sortBy,
     sortDir,

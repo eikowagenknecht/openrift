@@ -5,6 +5,7 @@
 - feat: Cards that are banned in a format now show a red "Banned" badge in the grid and a banner with the reason in the detail panel
 - fix: Filtering by set no longer shows card variants from other sets in the sibling fan, price ranges, and detail pane
 - feat: The active page is now highlighted in the navigation menu so you can see where you are at a glance
+- feat: Cards can now have different language printings (English, French, Chinese) — your preferences control which languages appear in the card browser, defaulting to English only
 - feat: Energy, might, and power range filters now have a "None" option so you can find cards without a stat (e.g. spells with no energy cost)
 - feat: Cards can now be grouped by set, type, supertype, domain, rarity, art variant, or shown ungrouped — choose from the new Sort & Group popover
 - feat: Clicking a collection name in the "In your collections" popover now opens that collection filtered to the card you're viewing

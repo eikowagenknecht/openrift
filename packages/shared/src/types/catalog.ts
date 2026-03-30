@@ -53,6 +53,8 @@ export interface Printing {
   printedRulesText: string | null;
   printedEffectText: string | null;
   flavorText: string | null;
+  printedName: string | null;
+  language: string;
   marketPrice?: number;
   marketPrices?: Partial<Record<Marketplace, number>>;
   card: Card;

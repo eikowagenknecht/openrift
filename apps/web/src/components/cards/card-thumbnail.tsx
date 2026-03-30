@@ -178,6 +178,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const sessionAddedCount = useAddModeStore((s) => s.addedItems.get(printing.id)?.quantity ?? 0);
   const card = {
     ...printing.card,
+    name: printing.printedName ?? printing.card.name,
     rulesText: printing.printedRulesText,
     effectText: printing.printedEffectText,
     flavorText: printing.flavorText,

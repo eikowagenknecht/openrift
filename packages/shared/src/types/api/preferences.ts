@@ -14,6 +14,7 @@ export interface UserPreferencesResponse {
   cardTilt?: boolean;
   theme?: Theme;
   marketplaceOrder?: Marketplace[];
+  languages?: string[];
 }
 
 /** Fully resolved preferences — no optional fields. */
@@ -24,6 +25,7 @@ export interface ResolvedPreferences {
   cardTilt: boolean;
   theme: Theme;
   marketplaceOrder: Marketplace[];
+  languages: string[];
 }
 
 /** Default values for every preference. Used to resolve missing/null fields. */
@@ -34,4 +36,5 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   cardTilt: true,
   theme: "auto",
   marketplaceOrder: [...ALL_MARKETPLACES],
+  languages: ["EN"],
 };

@@ -31,6 +31,8 @@ function makePrinting(
     printedRulesText: null,
     printedEffectText: null,
     flavorText: null,
+    printedName: null,
+    language: "EN",
     card: {
       id: cardId,
       slug: cardSlug,

@@ -43,6 +43,7 @@ interface ComparablePrinting {
   finish: Finish | string;
   isSigned: boolean;
   promoTypeSlug?: string | null;
+  language?: string;
 }
 
 /**
@@ -70,7 +71,8 @@ export function comparePrintings(a: ComparablePrinting, b: ComparablePrinting): 
     FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish) ||
     Number(a.isSigned) - Number(b.isSigned) ||
     Number(promoA !== "") - Number(promoB !== "") ||
-    promoA.localeCompare(promoB)
+    promoA.localeCompare(promoB) ||
+    (a.language ?? "EN").localeCompare(b.language ?? "EN")
   );
 }
 

@@ -5,10 +5,16 @@ import type { SetInfo } from "@/components/cards/card-grid";
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
 
+export interface CatalogLanguage {
+  code: string;
+  name: string;
+}
+
 interface UseCardsResult {
   allPrintings: Printing[];
   sets: SetInfo[];
   totalCopies: number;
+  languages: CatalogLanguage[];
 }
 
 async function fetchCatalog(): Promise<CatalogResponse> {
@@ -27,7 +33,12 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
       allPrintings.push({ ...p, setSlug, card });
     }
   }
-  return { allPrintings, sets: catalog.sets, totalCopies: catalog.totalCopies };
+  return {
+    allPrintings,
+    sets: catalog.sets,
+    totalCopies: catalog.totalCopies,
+    languages: catalog.languages,
+  };
 }
 
 export const catalogQueryOptions = queryOptions({

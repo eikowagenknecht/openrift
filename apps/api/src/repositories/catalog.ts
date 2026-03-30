@@ -33,6 +33,8 @@ type CatalogPrintingRow = Omit<
   Selectable<PrintingsTable>,
   "comment" | "createdAt" | "updatedAt" | "promoTypeId"
 > & {
+  printedName: string | null;
+  language: string;
   promoType: { id: string; slug: string; label: string } | null;
 };
 
@@ -47,6 +49,11 @@ type CatalogPrintingRow = Omit<
  */
 export function catalogRepo(db: Kysely<Database>) {
   return {
+    /** @returns All languages ordered by their display position. */
+    languages() {
+      return db.selectFrom("languages").select(["code", "name"]).orderBy("sortOrder").execute();
+    },
+
     /** @returns All sets ordered by their display position. */
     sets(): Promise<CatalogSetRow[]> {
       return db.selectFrom("sets").select(["id", "slug", "name"]).orderBy("sortOrder").execute();
@@ -106,6 +113,8 @@ export function catalogRepo(db: Kysely<Database>) {
           "printings.printedRulesText",
           "printings.printedEffectText",
           "printings.flavorText",
+          "printings.printedName",
+          "printings.language",
           "promoTypes.id as promoTypeId",
           "promoTypes.slug as promoTypeSlug",
           "promoTypes.label as promoTypeLabel",
@@ -130,6 +139,8 @@ export function catalogRepo(db: Kysely<Database>) {
         printedRulesText: row.printedRulesText,
         printedEffectText: row.printedEffectText,
         flavorText: row.flavorText,
+        printedName: row.printedName,
+        language: row.language,
         promoType: row.promoTypeId
           ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
           : null,

@@ -11,6 +11,7 @@ import { adminFeatureFlagsRoute } from "./feature-flags.js";
 import { ignoredCandidatesRoute } from "./ignored-candidates.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
 import { imagesRoute } from "./images.js";
+import { adminLanguagesRoute } from "./languages.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { operationsRoute } from "./operations.js";
 import { adminPromoTypesRoute } from "./promo-types.js";
@@ -93,6 +94,7 @@ export const adminRoute = app
   .route("/admin", imagesRoute)
   .route("/admin", marketplaceGroupsRoute)
   .route("/admin", unifiedMappingsRoute)
+  .route("/admin", adminLanguagesRoute)
   .route("/admin", adminPromoTypesRoute)
   .route("/admin", adminProviderSettingsRoute)
   .route("/admin", adminSiteSettingsRoute)
