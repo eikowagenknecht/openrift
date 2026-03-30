@@ -1,6 +1,7 @@
 import type { Domain, Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { Sparkle } from "lucide-react";
+import type { ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
@@ -146,6 +147,10 @@ interface CardThumbnailProps {
   onQuickAdd?: (printing: Printing) => void;
   onUndoAdd?: (printing: Printing) => void;
   onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
+  /** Content rendered above the card image (e.g. OwnedCountStrip). */
+  aboveCard?: ReactNode;
+  /** Dims the card image (used in add mode for unowned cards). */
+  dimmed?: boolean;
 }
 
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
@@ -167,6 +172,8 @@ export const CardThumbnail = memo(function CardThumbnail({
   onQuickAdd,
   onUndoAdd,
   onOpenVariants,
+  aboveCard,
+  dimmed,
 }: CardThumbnailProps) {
   const sessionAddedCount = useAddModeStore((s) => s.addedItems.get(printing.id)?.quantity ?? 0);
   const card = {
@@ -199,13 +206,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const imageSection = (
-    <div className="relative">
-      {/* Owned count overlay — hidden when add strip is active */}
-      {!onQuickAdd && ownedCount !== undefined && ownedCount > 0 && (
-        <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold shadow">
-          ×{ownedCount}
-        </span>
-      )}
+    <div className={cn("relative", dimmed && "opacity-50")}>
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
         const siblingImageUrl = sibling.images[0]?.url ?? null;
@@ -408,6 +409,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       onClick={() => onClick(printing)}
     >
       {flashOverlay}
+      {aboveCard}
       {imageSection}
       {labelSection}
     </button>

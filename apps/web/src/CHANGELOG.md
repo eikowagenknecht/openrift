@@ -2,7 +2,11 @@
 
 ## 2026-03-30
 
+- feat: Collections now have full search and filters — find cards by name, type, rarity, and more without entering add mode
+- feat: Selection checkboxes are hidden by default and appear when you click "Select" or Ctrl+click a card, keeping the default view clean
+- feat: Unowned cards are dimmed in add mode so you can instantly see what you already have
 - feat: Foil cards now show a sparkle icon next to the rarity badge in the card grid and detail view, so you can tell them apart even with the foil effect turned off
+- fix: Owned count is now shown consistently above every card instead of as a small badge in the corner
 
 ## 2026-03-29
 
