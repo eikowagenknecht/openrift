@@ -648,8 +648,12 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {mode !== "add" &&
         (() => {
           const formatValue = formatterForMarketplace(favoriteMarketplace);
-          const valueCents = currentCollection?.totalValueCents;
-          const unpricedCount = currentCollection?.unpricedCopyCount;
+          const valueCents = currentCollection
+            ? currentCollection.totalValueCents
+            : collections.reduce((sum, col) => sum + (col.totalValueCents ?? 0), 0);
+          const unpricedCount = currentCollection
+            ? currentCollection.unpricedCopyCount
+            : collections.reduce((sum, col) => sum + (col.unpricedCopyCount ?? 0), 0);
           return (
             <div className="bg-muted/50 text-muted-foreground mt-3 mb-3 flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm">
               <span className="shrink-0">
