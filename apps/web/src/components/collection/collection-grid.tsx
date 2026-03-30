@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, CheckSquare, Layers, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
+import { Check, CheckSquare, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { use, useEffect, useDeferredValue, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -77,6 +77,9 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
+  // "copies" is a collection-only UI concept — at the data level it behaves like "printings"
+  const dataView = view === "copies" ? "printings" : view;
+
   // ── Collection data (browse/select modes) ───────────────────────────
   const {
     availableFilters: collectionAvailableFilters,
@@ -92,7 +95,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     filters,
     sortBy,
     sortDir,
-    view,
+    view: dataView,
     sets,
     favoriteMarketplace,
   });
@@ -111,7 +114,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     filters,
     sortBy,
     sortDir,
-    view,
+    view: dataView,
     ownedCountByPrinting,
     favoriteMarketplace,
   });
@@ -131,7 +134,8 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   // ── Selection state (select mode) ───────────────────────────────────
   const { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection } =
     useCardSelection();
-  const [stacked, setStacked] = useState(true);
+  // "copies" view expands individual copies; "cards"/"printings" stay stacked
+  const stacked = view !== "copies";
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -294,7 +298,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     : undefined;
 
   // ── Grid click handlers ─────────────────────────────────────────────
-  const findBy = view === "cards" ? "card" : ("printing" as const);
+  const findBy = dataView === "cards" ? "card" : ("printing" as const);
 
   const handleGridCardClick = (printing: Printing) => {
     useAddModeStore.getState().closeAddedList();
@@ -433,7 +437,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         ? (siblings.find((sibling) => sibling.id === overrideId) ?? item.printing)
         : item.printing;
 
-    const hasMultipleVariants = view === "cards" && (siblings?.length ?? 0) > 1;
+    const hasMultipleVariants = dataView === "cards" && (siblings?.length ?? 0) > 1;
     const totalOwned = hasMultipleVariants
       ? siblings?.reduce((sum, printing) => sum + (ownedCountByPrinting?.[printing.id] ?? 0), 0)
       : undefined;
@@ -448,9 +452,9 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         showImages={showImages}
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
-        siblings={view === "cards" ? siblings : undefined}
+        siblings={dataView === "cards" ? siblings : undefined}
         priceRange={catalogPriceRangeByCardId?.get(cardId)}
-        view={view}
+        view={dataView}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
         ownedCount={ownedCount}
@@ -504,7 +508,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {/* Search bar */}
       <div className="mb-3 flex items-start gap-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
-        <DesktopOptionsBar className="hidden sm:flex" />
+        <DesktopOptionsBar className="hidden sm:flex" showCopies={mode !== "add"} />
         {mode === "add" && (
           <div className="hidden items-center gap-3 md:flex">
             {addedPillDesktop}
@@ -542,16 +546,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                 </Button>
               </>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setStacked((prev) => !prev)}
-              className="text-xs"
-              title={stacked ? "Show individual copies" : "Stack duplicates"}
-            >
-              <Layers className="size-3 sm:mr-1" />
-              <span className="hidden sm:inline">{stacked ? "Expand" : "Stack"}</span>
-            </Button>
             {mode === "select" ? (
               <>
                 <Button
@@ -583,12 +577,12 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         <MobileOptionsDrawer
           doneLabel={
             hasActiveFilters
-              ? `Show ${sortedCards.length} ${view === "cards" ? "cards" : "printings"}`
+              ? `Show ${sortedCards.length} ${dataView === "cards" ? "cards" : "printings"}`
               : undefined
           }
           className="sm:hidden"
         >
-          <MobileOptionsContent />
+          <MobileOptionsContent showCopies={mode !== "add"} />
           <MobileFilterContent
             availableFilters={availableFilters}
             setDisplayLabel={setDisplayLabel}
@@ -632,14 +626,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
               <Plus className="size-3" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setStacked((prev) => !prev)}
-            className="text-xs"
-          >
-            <Layers className="size-3" />
-          </Button>
           {mode === "select" ? (
             <Button variant="ghost" size="sm" onClick={exitSelectMode} className="text-xs">
               Done
@@ -738,7 +724,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         setOrder={sets}
         deferredSortedCards={deferredSortedCards}
         printingsByCardId={printingsByCardId}
-        view={view}
+        view={dataView}
         onItemClick={handleGridCardClick}
         stale={isGridStale}
         toolbar={toolbar}

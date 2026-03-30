@@ -44,9 +44,12 @@ export function CardBrowser() {
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
-  const { filters, sortBy, sortDir, view, hasActiveFilters } = useFilterValues();
+  const { filters, sortBy, sortDir, view: rawView, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+
+  // "copies" is a collection-only view — clamp to "printings" in the catalog browser
+  const view = rawView === "copies" ? "printings" : rawView;
 
   const {
     availableFilters,
