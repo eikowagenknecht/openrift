@@ -37,4 +37,5 @@ export interface CatalogResponse {
   sets: CatalogSetResponse[];
   cards: Record<string, CatalogCardResponse>;
   printings: CatalogPrintingResponse[];
+  totalCopies: number;
 }

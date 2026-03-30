@@ -16,6 +16,7 @@ export function LandingPage() {
 
   const uniqueCards = data ? new Set(data.allPrintings.map((p) => p.card.id)).size : 0;
   const printings = data?.allPrintings.length ?? 0;
+  const copies = data?.totalCopies ?? 0;
 
   function handleLogoTap() {
     setHinting(true);
@@ -65,7 +66,9 @@ export function LandingPage() {
             <span className="text-foreground font-semibold">{uniqueCards.toLocaleString()}</span>{" "}
             cards &middot;{" "}
             <span className="text-foreground font-semibold">{printings.toLocaleString()}</span>{" "}
-            printings
+            printings &middot;{" "}
+            <span className="text-foreground font-semibold">{copies.toLocaleString()}</span> copies
+            tracked
           </p>
         )}
       </div>

@@ -151,6 +151,7 @@ export const catalogResponseSchema = z
     sets: z.array(catalogSetResponseSchema),
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
+    totalCopies: z.number(),
   })
   .openapi("CatalogResponse");
 
