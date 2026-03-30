@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { catalogQueryOptions } from "@/hooks/use-cards";
 import { sessionQueryOptions } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/")({
@@ -8,5 +9,8 @@ export const Route = createFileRoute("/")({
     if (session?.user) {
       throw redirect({ to: "/cards" });
     }
+  },
+  loader: ({ context }) => {
+    context.queryClient.ensureQueryData(catalogQueryOptions);
   },
 });
