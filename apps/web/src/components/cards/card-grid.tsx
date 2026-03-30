@@ -373,7 +373,7 @@ export function CardGrid({
         row.kind === "cards" &&
         row.items.some((item) => item.id === cardId || item.printing.id === cardId)
       ) {
-        virtualizerRef.current.scrollToIndex(i, { align: "auto" });
+        virtualizerRef.current.scrollToIndex(i, { align: "start" });
         return;
       }
     }

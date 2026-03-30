@@ -10,6 +10,7 @@
 - fix: Owned count is now shown consistently above every card instead of as a small badge in the corner
 - fix: Rapidly clicking the add button no longer loses count — all clicks are now tracked immediately and show up in the "added this session" panel
 - fix: Set header pill no longer briefly shows when jumping to a section
+- fix: Clicking a card in the grid now scrolls its row to the top of the screen so the detail pane lines up with the selected card
 
 ## 2026-03-29
 
