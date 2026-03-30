@@ -423,10 +423,10 @@ function PaletteInner({
                             type="button"
                             tabIndex={-1}
                             onClick={() => handleUndo(printing)}
-                            className="shrink-0 text-[11px] text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
+                            className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
                             aria-label={`Undo add ${printing.card.name}`}
                           >
-                            undo
+                            <X className="size-3" />
                           </button>
                         )}
                         {ownedForPrinting > 0 && (
