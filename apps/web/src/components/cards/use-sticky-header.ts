@@ -84,10 +84,11 @@ export function useStickyHeader({
       }
 
       // Compare by set code to avoid re-renders from new object references.
+      const resolved = active;
       setActiveHeaderRow((prev) => {
         const prevCode = prev?.set.id ?? null;
-        const nextCode = active?.set.id ?? null;
-        return prevCode === nextCode ? prev : active;
+        const nextCode = resolved?.set.id ?? null;
+        return prevCode === nextCode ? prev : resolved;
       });
     };
 
