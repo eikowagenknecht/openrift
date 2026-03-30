@@ -423,12 +423,10 @@ function PaletteInner({
                             type="button"
                             tabIndex={-1}
                             onClick={() => handleUndo(printing)}
-                            className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 items-center justify-center rounded transition-colors"
+                            className="shrink-0 text-[11px] text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
                             aria-label={`Undo add ${printing.card.name}`}
                           >
-                            <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">
-                              <path d="M3 7a1 1 0 0 0 0 2h10a1 1 0 1 0 0-2H3z" />
-                            </svg>
+                            undo
                           </button>
                         )}
                         {ownedForPrinting > 0 && (
