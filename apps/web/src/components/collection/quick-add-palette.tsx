@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { getOrientation } from "@openrift/shared";
 import { ChevronRight, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { LANDSCAPE_ROTATION_STYLE, getCardImageUrl, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
@@ -53,7 +55,7 @@ export function QuickAddPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-[20%] max-w-md -translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-md"
+        className="top-[20%] max-w-md -translate-y-0 gap-0 overflow-visible p-0 sm:max-w-md"
       >
         <DialogTitle className="sr-only">Quick add to {collectionName}</DialogTitle>
         <PaletteInner
@@ -91,6 +93,15 @@ function PaletteInner({
   const addedItems = useAddModeStore((s) => s.addedItems);
 
   const results = searchCards(query, printingsByCardId, ownedCountByPrinting);
+
+  // Derive the printing to preview (only when a printing list is expanded)
+  const previewPrinting = expandedCardId
+    ? (results.find((r) => r.cardId === expandedCardId)?.printings[expandedIndex] ?? null)
+    : null;
+  const previewImageUrl = previewPrinting?.images[0]?.url ?? null;
+  const previewRotated = previewPrinting
+    ? needsCssRotation(getOrientation(previewPrinting.card.type))
+    : false;
 
   // Clamp selection when results change
   useEffect(() => {
@@ -235,7 +246,36 @@ function PaletteInner({
   };
 
   return (
-    <>
+    <div className="relative">
+      {/* Card image preview — floats left of the dialog on desktop */}
+      {previewPrinting && previewImageUrl && (
+        <div className="absolute top-0 right-full mr-3 hidden w-48 lg:block">
+          <div
+            className="bg-muted aspect-card relative overflow-hidden"
+            style={{ borderRadius: "5% / 3.6%" }}
+          >
+            {previewRotated ? (
+              <div
+                className="absolute top-1/2 left-1/2 overflow-hidden"
+                style={LANDSCAPE_ROTATION_STYLE}
+              >
+                <img
+                  src={getCardImageUrl(previewImageUrl, "thumbnail")}
+                  alt={previewPrinting.card.name}
+                  className="size-full object-cover"
+                />
+              </div>
+            ) : (
+              <img
+                src={getCardImageUrl(previewImageUrl, "thumbnail")}
+                alt={previewPrinting.card.name}
+                className="absolute inset-0 w-full object-cover"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Search input */}
       <div className="relative">
         <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
@@ -380,7 +420,7 @@ function PaletteInner({
                             </span>
                           )}
                           {ownedForPrinting > 0 && (
-                            <span className="text-muted-foreground shrink-0">
+                            <span className="text-muted-foreground shrink-0 text-[11px]">
                               ×{ownedForPrinting}
                             </span>
                           )}
@@ -436,6 +476,6 @@ function PaletteInner({
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }
