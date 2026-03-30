@@ -9,6 +9,7 @@
 - feat: Foil cards now show a sparkle icon next to the rarity badge in the card grid and detail view, so you can tell them apart even with the foil effect turned off
 - fix: Owned count is now shown consistently above every card instead of as a small badge in the corner
 - fix: Rapidly clicking the add button no longer loses count — all clicks are now tracked immediately and show up in the "added this session" panel
+- fix: Set header pill no longer briefly shows when jumping to a section
 
 ## 2026-03-29
 
