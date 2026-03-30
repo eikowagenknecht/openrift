@@ -335,11 +335,6 @@ function PaletteInner({
           const isSelected = index === selectedIndex && !expandedCardId;
           const isExpanded = expandedCardId === card.cardId;
           const shortCodes = card.printings.map((p) => p.shortCode);
-          const sessionAddedForCard = card.printings.reduce(
-            (sum, printing) => sum + (addedItems.get(printing.id)?.quantity ?? 0),
-            0,
-          );
-
           return (
             <div key={card.cardId}>
               {/* Card row — always expands to show printings */}
@@ -364,11 +359,6 @@ function PaletteInner({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium">{card.cardName}</span>
-                    {sessionAddedForCard > 0 && (
-                      <span className="shrink-0 text-xs font-medium text-green-600 dark:text-green-400">
-                        +{sessionAddedForCard}
-                      </span>
-                    )}
                     {card.ownedCount > 0 && (
                       <span className="text-muted-foreground shrink-0 text-xs">
                         ×{card.ownedCount} owned
