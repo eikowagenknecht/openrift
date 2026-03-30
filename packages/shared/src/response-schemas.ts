@@ -320,7 +320,7 @@ export const userPreferencesResponseSchema = z
   .object({
     showImages: z.boolean().optional(),
     fancyFan: z.boolean().optional(),
-    foilEffect: z.enum(["none", "static", "animated"]).optional(),
+    foilEffect: z.boolean().optional(),
     cardTilt: z.boolean().optional(),
     theme: z.enum(["light", "dark", "auto"]).optional(),
     marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])).optional(),

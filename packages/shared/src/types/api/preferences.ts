@@ -1,7 +1,6 @@
 import { ALL_MARKETPLACES } from "../pricing.js";
 import type { Marketplace } from "../pricing.js";
 
-export type FoilEffect = "none" | "static" | "animated";
 export type Theme = "light" | "dark" | "auto";
 
 /**
@@ -11,7 +10,7 @@ export type Theme = "light" | "dark" | "auto";
 export interface UserPreferencesResponse {
   showImages?: boolean;
   fancyFan?: boolean;
-  foilEffect?: FoilEffect;
+  foilEffect?: boolean;
   cardTilt?: boolean;
   theme?: Theme;
   marketplaceOrder?: Marketplace[];
@@ -21,7 +20,7 @@ export interface UserPreferencesResponse {
 export interface ResolvedPreferences {
   showImages: boolean;
   fancyFan: boolean;
-  foilEffect: FoilEffect;
+  foilEffect: boolean;
   cardTilt: boolean;
   theme: Theme;
   marketplaceOrder: Marketplace[];
@@ -31,7 +30,7 @@ export interface ResolvedPreferences {
 export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   showImages: true,
   fancyFan: true,
-  foilEffect: "animated",
+  foilEffect: true,
   cardTilt: true,
   theme: "auto",
   marketplaceOrder: [...ALL_MARKETPLACES],

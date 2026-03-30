@@ -83,7 +83,6 @@ export type {
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
-  FoilEffect,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,

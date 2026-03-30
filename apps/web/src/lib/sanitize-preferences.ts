@@ -1,10 +1,9 @@
-import type { FoilEffect, Marketplace, Theme } from "@openrift/shared";
+import type { Marketplace, Theme } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 
 import type { DisplayOverrides } from "@/stores/display-store";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
-const VALID_FOIL_EFFECTS = new Set<string>(["none", "static", "animated"]);
 const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);
 
 interface SanitizedOverrides {
@@ -92,12 +91,15 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
       : legacyRich === undefined
         ? null
         : legacyRich;
-  const foilEffect: FoilEffect | null =
-    typeof record.foilEffect === "string" && VALID_FOIL_EFFECTS.has(record.foilEffect)
-      ? (record.foilEffect as FoilEffect)
-      : legacyRich === false
-        ? "none"
-        : null;
+  // Migrate old tristate ("none"/"static"/"animated") → boolean
+  const foilEffect: boolean | null =
+    typeof record.foilEffect === "boolean"
+      ? record.foilEffect
+      : typeof record.foilEffect === "string"
+        ? record.foilEffect !== "none"
+        : legacyRich === false
+          ? false
+          : null;
   const cardTilt =
     typeof record.cardTilt === "boolean"
       ? record.cardTilt

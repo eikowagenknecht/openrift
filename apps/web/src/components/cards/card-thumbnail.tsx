@@ -185,7 +185,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fancyFan = useDisplayStore((s) => s.fancyFan);
   const foilEffect = useDisplayStore((s) => s.foilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
-  const gridFoil = foilEffect !== "none";
+  const gridFoil = foilEffect;
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
   const favoritePrice = resolvePrice(printing, favoriteMarketplace);

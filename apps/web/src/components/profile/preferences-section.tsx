@@ -1,4 +1,4 @@
-import type { FoilEffect, Marketplace, Theme } from "@openrift/shared";
+import type { Marketplace, Theme } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 import { ArrowDown, ArrowUp, RotateCcw } from "lucide-react";
 
@@ -112,9 +112,13 @@ export function PreferencesSection() {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <Label>Foil effect</Label>
+          <Label htmlFor="pref-foil">Foil effect</Label>
           <div className="flex items-center gap-1.5">
-            <FoilEffectPicker value={foilEffect} onChange={setFoilEffect} />
+            <Switch
+              id="pref-foil"
+              checked={foilEffect}
+              onCheckedChange={(checked: boolean) => setFoilEffect(checked)}
+            />
             {overrides.foilEffect !== null && (
               <ResetButton
                 onClick={() => resetPreference("foilEffect")}
@@ -229,40 +233,6 @@ function ResetButton({ onClick, label }: { onClick: () => void; label: string })
     >
       <RotateCcw className="size-3.5" />
     </button>
-  );
-}
-
-const FOIL_OPTIONS: { value: FoilEffect; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "static", label: "Static" },
-  { value: "animated", label: "Animated" },
-];
-
-function FoilEffectPicker({
-  value,
-  onChange,
-}: {
-  value: FoilEffect;
-  onChange: (value: FoilEffect) => void;
-}) {
-  return (
-    <div className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5">
-      {FOIL_OPTIONS.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          className={cn(
-            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",
-            value === option.value
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }
 
