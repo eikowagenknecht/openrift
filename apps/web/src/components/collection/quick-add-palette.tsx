@@ -408,6 +408,14 @@ function PaletteInner({
                           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1.5 text-left"
                           onClick={() => handleAdd(printing)}
                         >
+                          <img
+                            src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+                            alt={printing.rarity}
+                            title={printing.rarity}
+                            width={28}
+                            height={28}
+                            className="size-3.5 shrink-0"
+                          />
                           <span className="text-muted-foreground w-16 shrink-0 font-mono text-[11px]">
                             {formatCardId(printing)}
                           </span>
@@ -434,18 +442,10 @@ function PaletteInner({
                           </button>
                         )}
                         {ownedForPrinting > 0 && (
-                          <span className="text-muted-foreground shrink-0 text-[11px]">
+                          <span className="text-muted-foreground mr-2 shrink-0 text-[11px]">
                             ×{ownedForPrinting}
                           </span>
                         )}
-                        <img
-                          src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-                          alt={printing.rarity}
-                          title={printing.rarity}
-                          width={28}
-                          height={28}
-                          className="mr-2 ml-1 size-3.5 shrink-0"
-                        />
                       </div>
                     );
                   })}
