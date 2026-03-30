@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- feat: The active page is now highlighted in the navigation menu so you can see where you are at a glance
 - feat: Energy, might, and power range filters now have a "None" option so you can find cards without a stat (e.g. spells with no energy cost)
 - feat: Cards can now be grouped by set, type, supertype, domain, rarity, art variant, or shown ungrouped — choose from the new Sort & Group popover
 - feat: Clicking a collection name in the "In your collections" popover now opens that collection filtered to the card you're viewing
