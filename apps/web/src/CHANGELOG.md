@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- feat: Import preview now shows all parsed CSV fields (set, rarity, finish, condition, etc.) in an expandable detail row so you can sanity-check each entry before importing
 - fix: Clicking the card name or price below the image no longer selects the card — only clicking the image does
 - feat: Quick add palette (⌘K) now lets you undo cards added by mistake — each printing row shows a minus button, or press Shift+Enter to undo the selected printing
 - feat: Quick add palette now always expands to show printings before adding, making the flow consistent for all cards
