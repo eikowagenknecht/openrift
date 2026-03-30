@@ -2,6 +2,8 @@
 
 ## 2026-03-30
 
+- feat: Clicking a collection name in the "In your collections" popover now opens that collection filtered to the card you're viewing
+- fix: The owned count badge in cards view now shows the total across all printings of a card, not just the displayed variant
 - feat: You can now export any collection (or all cards) as a CSV file from the Import / Export page
 - feat: On mobile, the collection sidebar now opens from a tappable title instead of a separate sidebar icon, reducing visual clutter near the menu button
 - feat: Drag and drop cards from the grid onto a collection in the sidebar to move them — works with multi-select too
