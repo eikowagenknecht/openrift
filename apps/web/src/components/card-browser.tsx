@@ -292,7 +292,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
         </MobileOptionsDrawer>
       </div>
       {/* Filter panel */}
-      <div className="wide:hidden hidden space-y-3 sm:block">
+      <div className="@wide:hidden hidden space-y-3 sm:block">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           <FilterBadgeSections
             availableFilters={availableFilters}
@@ -307,7 +307,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
   );
 
   const leftPane = (
-    <Pane className="wide:block px-3">
+    <Pane className="@wide:block px-3">
       <h2 className="pb-4 text-lg font-semibold">Filters</h2>
       <div className="space-y-4 pb-4">
         <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
@@ -322,7 +322,7 @@ export function CardBrowser({ collectionId: collectionIdProp, onDone }: CardBrow
 
     if (showAddedList && addedItems.size > 0) {
       return (
-        <Pane className="md:block">
+        <Pane className="@md:block">
           <AddedCardsList
             onCardClick={handleGridCardClick}
             onClose={() => useAddModeStore.getState().closeAddedList()}

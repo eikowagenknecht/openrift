@@ -52,7 +52,7 @@ export function CardViewer({
   children,
 }: CardViewerProps) {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="@container flex flex-1 flex-col">
       {toolbar}
       <div className="mt-4 flex flex-1 items-stretch gap-6">
         {leftPane}
