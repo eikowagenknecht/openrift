@@ -13,6 +13,7 @@ import {
   MapIcon,
   SettingsIcon,
   TagIcon,
+  UsersIcon,
 } from "lucide-react";
 
 import {
@@ -45,6 +46,7 @@ const marketplacePages = [
 ];
 
 const systemPages = [
+  { to: "/admin/users" as const, icon: UsersIcon, title: "Users" },
   { to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" },
   { to: "/admin/site-settings" as const, icon: GlobeIcon, title: "Site Settings" },
   { to: "/admin/scan" as const, icon: CameraIcon, title: "Scan Test" },

@@ -41,6 +41,7 @@ export type {
   AcquisitionSourceResponse,
   AdminPrintingImageResponse,
   AdminSetResponse,
+  AdminUserResponse,
   ApiErrorResponse,
   AssignableCardResponse,
   BrokenImageEntry,

@@ -29,6 +29,7 @@ import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
+import { usersRepo } from "./repositories/users.js";
 import { wishListsRepo } from "./repositories/wish-lists.js";
 import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
@@ -63,6 +64,7 @@ export interface Repos {
   acquisitionSources: ReturnType<typeof acquisitionSourcesRepo>;
   tradeLists: ReturnType<typeof tradeListsRepo>;
   userPreferences: ReturnType<typeof userPreferencesRepo>;
+  users: ReturnType<typeof usersRepo>;
   wishLists: ReturnType<typeof wishListsRepo>;
   ingest: ReturnType<typeof ingestRepo>;
   marketplaceMapping: ReturnType<typeof marketplaceMappingRepo>;
@@ -108,6 +110,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     acquisitionSources: acquisitionSourcesRepo(db),
     tradeLists: tradeListsRepo(db),
     userPreferences: userPreferencesRepo(db),
+    users: usersRepo(db),
     wishLists: wishListsRepo(db),
     ingest: ingestRepo(db),
     marketplaceMapping: marketplaceMappingRepo(db),

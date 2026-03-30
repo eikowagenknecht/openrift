@@ -51,12 +51,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   // ── Update composite unique constraint to include language ────────────────
   await sql`
     ALTER TABLE printings
-    DROP CONSTRAINT IF EXISTS printings_card_id_short_code_finish_promo_type_id_key
+    DROP CONSTRAINT uq_printings_identity
   `.execute(db);
 
   await sql`
     ALTER TABLE printings
-    ADD CONSTRAINT printings_card_id_short_code_finish_promo_type_id_language_key
+    ADD CONSTRAINT uq_printings_identity
     UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id, language)
   `.execute(db);
 
@@ -88,11 +88,11 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 
   await sql`
     ALTER TABLE printings
-    DROP CONSTRAINT IF EXISTS printings_card_id_short_code_finish_promo_type_id_language_key
+    DROP CONSTRAINT uq_printings_identity
   `.execute(db);
   await sql`
     ALTER TABLE printings
-    ADD CONSTRAINT printings_card_id_short_code_finish_promo_type_id_key
+    ADD CONSTRAINT uq_printings_identity
     UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id)
   `.execute(db);
 
