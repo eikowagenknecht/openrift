@@ -285,7 +285,22 @@ describe("GET /api/v1/collections/:id/copies", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns nextCursor when hasMore copies", async () => {
+  it("returns nextCursor when hasMore copies with explicit limit", async () => {
+    mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
+    const items = Array.from({ length: 11 }, (_, idx) => ({
+      ...dbCopy,
+      id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
+      createdAt: new Date(now.getTime() - idx * 1000),
+    }));
+    mockCopiesRepo.listForCollection.mockResolvedValue(items);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies?limit=10`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.items).toHaveLength(10);
+    expect(json.nextCursor).toBeTruthy();
+  });
+
+  it("returns all items with no nextCursor when limit is not provided", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
     const items = Array.from({ length: 201 }, (_, idx) => ({
       ...dbCopy,
@@ -296,8 +311,8 @@ describe("GET /api/v1/collections/:id/copies", () => {
     const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.items).toHaveLength(200);
-    expect(json.nextCursor).toBeTruthy();
+    expect(json.items).toHaveLength(201);
+    expect(json.nextCursor).toBeNull();
   });
 
   it("passes cursor and limit query params", async () => {
@@ -313,11 +328,15 @@ describe("GET /api/v1/collections/:id/copies", () => {
     );
   });
 
-  it("defaults limit to 200 when not provided", async () => {
+  it("fetches all copies when limit is not provided", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
     mockCopiesRepo.listForCollection.mockResolvedValue([]);
     await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
-    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(dbCollection.id, 200, undefined);
+    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(
+      dbCollection.id,
+      undefined,
+      undefined,
+    );
   });
 
   it("returns null nextCursor when items exactly equal limit", async () => {

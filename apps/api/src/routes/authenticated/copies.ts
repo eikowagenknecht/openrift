@@ -120,12 +120,11 @@ export const copiesRoute = copiesApp
 
   .openapi(listCopies, async (c) => {
     const { copies } = c.get("repos");
-    const { cursor, limit: rawLimit } = c.req.valid("query");
-    const limit = rawLimit ?? 200;
+    const { cursor, limit } = c.req.valid("query");
 
     const rows = await copies.listForUser(getUserId(c), limit, cursor);
-    const hasMore = rows.length > limit;
-    const items = rows.slice(0, limit);
+    const hasMore = limit !== undefined && rows.length > limit;
+    const items = limit === undefined ? rows : rows.slice(0, limit);
 
     return c.json({
       items: items.map((row) => toCopy(row)),

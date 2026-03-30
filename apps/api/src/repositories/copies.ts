@@ -52,15 +52,17 @@ const COPY_SELECT = [
  */
 export function copiesRepo(db: Kysely<Database>) {
   return {
-    /** @returns Cursor-paginated copies for a user, ordered by card name then collector number. Fetches `limit + 1` rows to detect `hasMore`. */
-    listForUser(userId: string, limit: number, cursor?: string): Promise<CopyRow[]> {
+    /** @returns Copies for a user, ordered by card name then collector number. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
+    listForUser(userId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
       let query = selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.userId", "=", userId)
         .orderBy("c.name")
         .orderBy("p.collectorNumber")
-        .orderBy("cp.id")
-        .limit(limit + 1);
+        .orderBy("cp.id");
+      if (limit !== undefined) {
+        query = query.limit(limit + 1);
+      }
       if (cursor) {
         query = query.where("cp.createdAt", "<", new Date(cursor));
       }
@@ -133,15 +135,17 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Cursor-paginated copies in a specific collection, ordered by card name then collector number. Fetches `limit + 1` rows to detect `hasMore`. */
-    listForCollection(collectionId: string, limit: number, cursor?: string): Promise<CopyRow[]> {
+    /** @returns Copies in a specific collection, ordered by card name then collector number. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
+    listForCollection(collectionId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
       let query = selectCopyWithCard(db)
         .select([...COPY_SELECT])
         .where("cp.collectionId", "=", collectionId)
         .orderBy("c.name")
         .orderBy("p.collectorNumber")
-        .orderBy("cp.id")
-        .limit(limit + 1);
+        .orderBy("cp.id");
+      if (limit !== undefined) {
+        query = query.limit(limit + 1);
+      }
       if (cursor) {
         query = query.where("cp.createdAt", "<", new Date(cursor));
       }

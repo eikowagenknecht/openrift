@@ -103,7 +103,20 @@ describe("GET /api/v1/copies", () => {
     expect(json.nextCursor).toBeNull();
   });
 
-  it("returns nextCursor when hasMore", async () => {
+  it("returns nextCursor when hasMore with explicit limit", async () => {
+    const items = Array.from({ length: 11 }, (_, i) => ({
+      ...dbCopy,
+      id: `a0000000-0001-4000-a000-${String(i).padStart(12, "0")}`,
+      createdAt: new Date(now.getTime() - i * 1000),
+    }));
+    mockRepo.listForUser.mockResolvedValue(items);
+    const res = await app.request("/api/v1/copies?limit=10");
+    const json = await res.json();
+    expect(json.items).toHaveLength(10);
+    expect(json.nextCursor).toBeTruthy();
+  });
+
+  it("returns all items with no nextCursor when limit is not provided", async () => {
     const items = Array.from({ length: 201 }, (_, i) => ({
       ...dbCopy,
       id: `a0000000-0001-4000-a000-${String(i).padStart(12, "0")}`,
@@ -112,8 +125,8 @@ describe("GET /api/v1/copies", () => {
     mockRepo.listForUser.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies");
     const json = await res.json();
-    expect(json.items).toHaveLength(200);
-    expect(json.nextCursor).toBeTruthy();
+    expect(json.items).toHaveLength(201);
+    expect(json.nextCursor).toBeNull();
   });
 
   it("passes cursor and limit to repo", async () => {
@@ -309,14 +322,14 @@ describe("POST /api/v1/copies/dispose — service arguments", () => {
   });
 });
 
-describe("GET /api/v1/copies — default limit", () => {
+describe("GET /api/v1/copies — no default limit", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
   });
 
-  it("defaults limit to 200 when not provided", async () => {
+  it("fetches all copies when limit is not provided", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/copies");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 200, undefined);
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, undefined, undefined);
   });
 });
