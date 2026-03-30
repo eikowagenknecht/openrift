@@ -1,6 +1,5 @@
 import { Link, useMatches } from "@tanstack/react-router";
 import {
-  ArrowLeftIcon,
   BanIcon,
   CameraIcon,
   GalleryVerticalIcon,
@@ -117,12 +116,6 @@ export function AdminSidebar() {
             >
               <SettingsIcon />
               <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton render={<Link to="/cards" />}>
-              <ArrowLeftIcon />
-              <span>Back to site</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
