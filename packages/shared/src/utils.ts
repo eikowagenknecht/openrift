@@ -141,6 +141,17 @@ export function getOrientation(type: CardType): "portrait" | "landscape" {
 }
 
 /**
+ * Extract the card ID prefix from a short code by stripping any trailing
+ * lowercase letters or asterisks after the last digit.
+ * E.g. "OGN-027a" → "OGN-027", "OGN-027*" → "OGN-027", "OGN-027" → "OGN-027".
+ *
+ * @returns The short code with its variant/promo suffix removed.
+ */
+export function extractCardIdFromShortCode(shortCode: string): string {
+  return shortCode.replace(/(?<=\d)[a-z*]+$/, "");
+}
+
+/**
  * Return the most frequent string in the array. Ties broken by first occurrence.
  * @returns The most common value, or `""` if the array is empty.
  */
