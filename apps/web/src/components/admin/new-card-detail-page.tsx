@@ -1,8 +1,4 @@
-import type {
-  CandidateCardResponse,
-  CandidatePrintingGroupResponse,
-  CandidatePrintingResponse,
-} from "@openrift/shared";
+import type { CandidateCardResponse, UnmatchedCardDetailResponse } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightIcon,
@@ -44,21 +40,12 @@ import {
   useUnmatchedCardDetail,
 } from "@/hooks/use-admin-cards";
 
-interface UnmatchedData {
-  displayName: string;
-  sources: CandidateCardResponse[];
-  candidatePrintings: CandidatePrintingResponse[];
-  candidatePrintingGroups: CandidatePrintingGroupResponse[];
-  defaultCardId: string;
-  setTotals: Record<string, number>;
-}
-
 export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const navigate = useNavigate();
 
   // --- Data fetching ---
   const { data: unmatchedData, isLoading } = useUnmatchedCardDetail(identifier) as {
-    data: UnmatchedData | undefined;
+    data: UnmatchedCardDetailResponse | undefined;
     isLoading: boolean;
   };
 

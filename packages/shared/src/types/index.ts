@@ -39,7 +39,10 @@ export { ALL_MARKETPLACES, EUR_MARKETPLACES, TIME_RANGE_DAYS } from "./pricing.j
 export type {
   AcquisitionSourceListResponse,
   AcquisitionSourceResponse,
+  AdminCardDetailResponse,
+  AdminCardResponse,
   AdminPrintingImageResponse,
+  AdminPrintingResponse,
   AdminSetResponse,
   AdminUserResponse,
   ApiErrorResponse,
@@ -87,6 +90,7 @@ export type {
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
+  UnmatchedCardDetailResponse,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,

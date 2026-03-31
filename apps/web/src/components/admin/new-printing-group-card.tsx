@@ -1,4 +1,4 @@
-import type { ProviderSettingResponse } from "@openrift/shared";
+import type { AdminPrintingResponse, ProviderSettingResponse } from "@openrift/shared";
 import { formatPrintingLabel } from "@openrift/shared";
 import {
   ArrowRightIcon,
@@ -49,7 +49,7 @@ export function NewPrintingGroupCard({
   printingFields,
 }: {
   group: PrintingGroup & { groupKey: string };
-  existingPrintings: Record<string, unknown>[];
+  existingPrintings: AdminPrintingResponse[];
   promoTypes: { id: string; slug: string }[];
   providerLabels: Record<string, string>;
   providerNames: Record<string, string>;
@@ -107,9 +107,7 @@ export function NewPrintingGroupCard({
   const guessedId = group.expectedPrintingId;
 
   // custom: find existing printing whose expectedPrintingId matches the guessed ID so we can offer a quick "assign all" action
-  const matchingExisting = existingPrintings.find((p) => p.expectedPrintingId === guessedId) as
-    | { id: string }
-    | undefined;
+  const matchingExisting = existingPrintings.find((p) => p.expectedPrintingId === guessedId);
 
   return (
     <div
@@ -225,8 +223,8 @@ export function NewPrintingGroupCard({
                 columnActions={(row) => (
                   <PrintingSourceActions
                     targets={existingPrintings.map((p) => ({
-                      id: p.id as string,
-                      label: p.expectedPrintingId as string,
+                      id: p.id,
+                      label: p.expectedPrintingId,
                     }))}
                     onAssign={(pid) => onLink(pid, [row.id])}
                     onCopy={(pid) => onCopy(row.id, pid)}

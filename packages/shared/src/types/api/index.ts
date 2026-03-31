@@ -70,7 +70,10 @@ export type {
 } from "./pricing.js";
 
 export type {
+  AdminCardDetailResponse,
+  AdminCardResponse,
   AdminPrintingImageResponse,
+  AdminPrintingResponse,
   AdminSetResponse,
   AdminUserResponse,
   BrokenImageEntry,
@@ -108,4 +111,5 @@ export type {
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
+  UnmatchedCardDetailResponse,
 } from "./admin.js";

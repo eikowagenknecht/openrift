@@ -112,6 +112,71 @@ export interface CandidateCardUploadResponse {
   updatedPrintings: CandidateCardUploadUpdatedCard[];
 }
 
+// ── Admin card detail response types ────────────────────────────────────────
+
+export interface AdminCardResponse {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  superTypes: string[];
+  domains: string[];
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+  mightBonus: number | null;
+  keywords: string[];
+  rulesText: string | null;
+  effectText: string | null;
+  tags: string[];
+  comment: string | null;
+}
+
+export interface AdminPrintingResponse {
+  id: string;
+  cardId: string;
+  setId: string;
+  setName: string | null;
+  setSlug: string;
+  shortCode: string;
+  collectorNumber: number;
+  rarity: string;
+  artVariant: string;
+  isSigned: boolean;
+  promoTypeId: string | null;
+  finish: string;
+  artist: string;
+  publicCode: string;
+  printedRulesText: string | null;
+  printedEffectText: string | null;
+  flavorText: string | null;
+  printedName: string | null;
+  language: string;
+  comment: string | null;
+  expectedPrintingId: string;
+}
+
+export interface AdminCardDetailResponse {
+  card: AdminCardResponse | null;
+  displayName: string;
+  sources: CandidateCardResponse[];
+  printings: AdminPrintingResponse[];
+  candidatePrintings: CandidatePrintingResponse[];
+  candidatePrintingGroups: CandidatePrintingGroupResponse[];
+  expectedCardId: string;
+  printingImages: AdminPrintingImageResponse[];
+  setTotals: Record<string, number>;
+}
+
+export interface UnmatchedCardDetailResponse {
+  displayName: string;
+  sources: CandidateCardResponse[];
+  candidatePrintings: CandidatePrintingResponse[];
+  candidatePrintingGroups: CandidatePrintingGroupResponse[];
+  defaultCardId: string;
+  setTotals: Record<string, number>;
+}
+
 // ── Admin list response types ───────────────────────────────────────────────
 
 export interface AdminSetResponse {

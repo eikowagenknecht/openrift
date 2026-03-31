@@ -1,7 +1,6 @@
 import type {
-  AdminPrintingImageResponse,
+  AdminCardDetailResponse,
   CandidateCardResponse,
-  CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
 } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
@@ -55,17 +54,6 @@ import {
 } from "@/hooks/use-admin-cards";
 import { cn } from "@/lib/utils";
 
-interface DetailData {
-  card: Record<string, unknown>;
-  sources: CandidateCardResponse[];
-  printings: Record<string, unknown>[];
-  candidatePrintings: CandidatePrintingResponse[];
-  candidatePrintingGroups: CandidatePrintingGroupResponse[];
-  expectedCardId: string;
-  printingImages: AdminPrintingImageResponse[];
-  setTotals: Record<string, number>;
-}
-
 export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
   const navigate = useNavigate();
   const cardId = identifier;
@@ -76,7 +64,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
     isLoading,
     isError,
   } = useAdminCardDetail(identifier) as {
-    data: DetailData | undefined;
+    data: AdminCardDetailResponse | undefined;
     isLoading: boolean;
     isError: boolean;
   };
@@ -130,12 +118,11 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
     if (!targetId || !existingData) {
       return;
     }
-    const printings = existingData.printings as Record<string, unknown>[];
-    const printing = printings.find((p) => (p.id as string) === targetId);
+    const printing = existingData.printings.find((p) => p.id === targetId);
     if (!printing) {
       return;
     }
-    const id = printing.id as string;
+    const id = printing.id;
     pendingScrollTarget.current = null;
     setCollapsedPrintings((prev) => {
       const next = new Set(prev);
@@ -178,17 +165,24 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
   const setTotals = existingData.setTotals ?? {};
   const expectedCardId = existingData.expectedCardId;
   const isCardIdStale = cardId !== expectedCardId;
-  const canonicalName = existingData.card.name as string;
+  const card = existingData.card;
+  if (!card) {
+    return (
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Card not found</h2>
+        <p className="text-muted-foreground text-sm">
+          No card data for &ldquo;{identifier}&rdquo;.
+        </p>
+      </div>
+    );
+  }
+  const canonicalName = card.name;
 
   const { labels: sourceLabels, names: sourceNames } = buildSourceLabels(sources, canonicalName);
 
   // Collect printed rules/effect texts from accepted printings for mismatch warnings
-  const printedRulesTexts = new Set(
-    printings.map((p) => p.printedRulesText as string | null).filter(Boolean),
-  );
-  const printedEffectTexts = new Set(
-    printings.map((p) => p.printedEffectText as string | null).filter(Boolean),
-  );
+  const printedRulesTexts = new Set(printings.map((p) => p.printedRulesText).filter(Boolean));
+  const printedEffectTexts = new Set(printings.map((p) => p.printedEffectText).filter(Boolean));
 
   // Build printing groups for ambiguous/unmatched sources
   const ambiguousGroups = buildPrintingGroups(
@@ -224,10 +218,9 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
       }
 
       for (const printing of printings) {
-        const printingId = printing.id as string;
-        const relatedSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
+        const relatedSources = candidatePrintings.filter((ps) => ps.printingId === printing.id);
         if (relatedSources.some((ps) => !ps.checkedAt)) {
-          promises.push(checkAllCandidatePrintings.mutateAsync({ printingId }));
+          promises.push(checkAllCandidatePrintings.mutateAsync({ printingId: printing.id }));
         }
       }
 
@@ -273,7 +266,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
 
   // Compute collapse/expand keys once for the toggle button
   const allPrintingKeys = [
-    ...printings.map((p) => p.id as string),
+    ...printings.map((p) => p.id),
     ...ambiguousGroups.map((g) => g.groupKey),
   ];
   const allExpanded =
@@ -393,8 +386,8 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
           )}
           requiredKeys={["shortCode", "name", "type", "domains"]}
           activeRow={{
-            ...existingData.card,
-            shortCode: existingData.card.slug,
+            ...card,
+            shortCode: card.slug,
           }}
           candidateRows={sources}
           providerSettings={providerSettings}
@@ -525,8 +518,8 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
           </Button>
         </div>
         {printings.map((printing) => {
-          const printingId = printing.id as string;
-          const printingLabel = printing.expectedPrintingId as string;
+          const printingId = printing.id;
+          const printingLabel = printing.expectedPrintingId;
           const isExpanded = !collapsedPrintings.has(printingId);
           const allSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
           const activeImage = printingImages.find(
@@ -652,10 +645,10 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                       columnActions={(row) => (
                         <PrintingSourceActions
                           targets={printings
-                            .filter((p) => (p.id as string) !== printingId)
+                            .filter((p) => p.id !== printingId)
                             .map((p) => ({
-                              id: p.id as string,
-                              label: p.expectedPrintingId as string,
+                              id: p.id,
+                              label: p.expectedPrintingId,
                             }))}
                           onAssign={(pid) =>
                             linkPrintingSources.mutate({
@@ -709,11 +702,13 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                   disabled={linkPrintingSources.isPending}
                   onClick={() => {
                     for (const g of matchable) {
-                      const pid = (
-                        printings.find((p) => p.expectedPrintingId === g.expectedPrintingId) as {
-                          id: string;
-                        }
-                      ).id;
+                      const match = printings.find(
+                        (p) => p.expectedPrintingId === g.expectedPrintingId,
+                      );
+                      if (!match) {
+                        continue;
+                      }
+                      const pid = match.id;
                       linkPrintingSources.mutate({
                         printingId: pid,
                         candidatePrintingIds: g.candidates.map((s) => s.id),
