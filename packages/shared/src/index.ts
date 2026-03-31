@@ -146,3 +146,6 @@ export {
 } from "./utils.js";
 
 export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";
+
+export type { DeckCard, DeckState, DeckViolation, DeckRule } from "./deck-rules.js";
+export { STANDARD_RULES, validateDeck } from "./deck-rules.js";

@@ -2,6 +2,11 @@
 
 ## 2026-03-31
 
+- feat: Build decks with a guided flow — choose a Legend, Champion, Battlefields, and Runes, then fill your main deck and sideboard with full card browser integration
+- feat: Deck list shows each deck's domain colors, card count, and Standard validity at a glance
+- feat: Live stats panel shows domain distribution, energy curve, power curve, and card type breakdown with stacked main/sideboard bars
+- feat: Drag and drop cards between zones — drag one copy by default, hold Shift to move all
+- feat: Drag cards from the browser grid directly into deck zones
 - fix: Cards view no longer shows the same card multiple times across different set or rarity groups
 - fix: Help articles no longer show garbled characters for apostrophes and dashes
 

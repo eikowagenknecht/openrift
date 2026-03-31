@@ -76,7 +76,13 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
   );
 }
 
-function DesktopNav({ showCollection }: { showCollection: boolean }) {
+function DesktopNav({
+  showCollection,
+  showDecks,
+}: {
+  showCollection: boolean;
+  showDecks: boolean;
+}) {
   return (
     <NavigationMenu>
       <NavigationMenuList>
@@ -101,6 +107,16 @@ function DesktopNav({ showCollection }: { showCollection: boolean }) {
               )}
             >
               Collections
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+        )}
+        {showDecks && (
+          <NavigationMenuItem>
+            <NavigationMenuLink
+              render={<Link to="/decks" />}
+              className={navigationMenuTriggerStyle()}
+            >
+              Decks
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
@@ -239,10 +255,12 @@ function MobileNav({
   open,
   onOpenChange,
   showCollection,
+  showDecks,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   showCollection: boolean;
+  showDecks: boolean;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -265,6 +283,7 @@ function MobileNav({
         <nav className="flex flex-col gap-2 px-2">
           <MobileNavLink to="/cards">Cards</MobileNavLink>
           {showCollection && <MobileNavLink to="/collections">Collection</MobileNavLink>}
+          {showDecks && <MobileNavLink to="/decks">Decks</MobileNavLink>}
           <MobileNavLink to="/help">Help</MobileNavLink>
           <MobileNavLink to="/changelog">What&apos;s new</MobileNavLink>
           <MobileNavLink to="/roadmap">Roadmap</MobileNavLink>
@@ -279,8 +298,10 @@ export function Header() {
   const { data: session, isPending } = useSession();
   const gravatarUrl = useGravatarUrl(session?.user?.email);
   const collectionEnabled = useFeatureEnabled("collection");
+  const decksEnabled = useFeatureEnabled("decks");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showCollection = Boolean(session?.user) && collectionEnabled;
+  const showDecks = Boolean(session?.user) && decksEnabled;
 
   return (
     <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg">
@@ -294,7 +315,7 @@ export function Header() {
         {/* Left: logo + expanded menu on desktop */}
         <div className="hidden gap-4 md:flex">
           <LogoLink />
-          <DesktopNav showCollection={showCollection} />
+          <DesktopNav showCollection={showCollection} showDecks={showDecks} />
         </div>
 
         {/* Center: Logo on mobile */}
@@ -317,6 +338,7 @@ export function Header() {
         open={mobileMenuOpen}
         onOpenChange={setMobileMenuOpen}
         showCollection={showCollection}
+        showDecks={showDecks}
       />
     </header>
   );

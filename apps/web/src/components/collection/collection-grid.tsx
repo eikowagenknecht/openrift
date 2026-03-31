@@ -21,6 +21,7 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { AddedCardsList } from "@/components/collection/added-cards-list";
+import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
@@ -526,12 +527,20 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         view={dataView}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
-        ownedCount={ownedCount}
-        totalOwnedCount={totalOwned}
-        onQuickAdd={handleQuickAdd}
-        onUndoAdd={handleUndoAdd}
-        onOpenVariants={handleOpenVariants}
         dimmed={ownedCount === 0}
+        topSlot={
+          handleQuickAdd && (
+            <CollectionAddStrip
+              printing={displayPrinting}
+              ownedCount={ownedCount}
+              totalOwnedCount={totalOwned}
+              hasVariants={dataView === "cards" && (siblings?.length ?? 0) > 1}
+              onQuickAdd={handleQuickAdd}
+              onUndoAdd={handleUndoAdd}
+              onOpenVariants={handleOpenVariants}
+            />
+          )
+        }
       />
     );
   };

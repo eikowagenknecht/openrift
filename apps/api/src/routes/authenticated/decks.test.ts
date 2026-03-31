@@ -20,6 +20,7 @@ const mockRepo = {
   cardRequirements: vi.fn(() => Promise.resolve([] as object[])),
   availableCopiesByCard: vi.fn(() => Promise.resolve([] as object[])),
   replaceCards: vi.fn(() => Promise.resolve()),
+  cloneDeck: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
 // ---------------------------------------------------------------------------
@@ -250,8 +251,26 @@ describe("PUT /api/v1/decks/:id/cards", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 400 when standard deck has less than 40 main cards", async () => {
+  it("saves incomplete standard deck without validation error", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "standard" });
+    mockRepo.cardsWithDetails.mockResolvedValue([
+      {
+        id: "dc-1",
+        deckId: DECK_ID,
+        cardId: "OGS-001",
+        zone: "main",
+        quantity: 10,
+        cardName: "Test Unit",
+        cardType: "Unit",
+        superTypes: [],
+        domains: ["Fury"],
+        tags: [],
+        keywords: [],
+        energy: 1,
+        might: null,
+        power: 2,
+      },
+    ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -259,42 +278,34 @@ describe("PUT /api/v1/decks/:id/cards", () => {
         cards: [{ cardId: "OGS-001", zone: "main", quantity: 10 }],
       }),
     });
-    expect(res.status).toBe(400);
-    const json = await res.json();
-    expect(json.error).toContain("at least 40");
+    expect(res.status).toBe(200);
   });
 
-  it("returns 400 when standard deck has more than 8 sideboard cards", async () => {
-    mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "standard" });
-    const mainCards = Array.from({ length: 10 }, (_, i) => ({
-      cardId: `card-${i}`,
-      zone: "main",
-      quantity: 4,
-    }));
+  it("allows freeform deck without validation", async () => {
+    mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
+    mockRepo.cardsWithDetails.mockResolvedValue([
+      {
+        id: "dc-1",
+        deckId: DECK_ID,
+        cardId: "OGS-001",
+        zone: "main",
+        quantity: 4,
+        cardName: "Test Unit",
+        cardType: "Unit",
+        superTypes: [],
+        domains: ["Fury"],
+        tags: [],
+        keywords: [],
+        energy: 1,
+        might: null,
+        power: 2,
+      },
+    ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cards: [...mainCards, { cardId: "side-1", zone: "sideboard", quantity: 9 }],
-      }),
-    });
-    expect(res.status).toBe(400);
-    const json = await res.json();
-    expect(json.error).toContain("at most 8");
-  });
-
-  it("allows standard deck with valid counts", async () => {
-    mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "standard" });
-    const mainCards = Array.from({ length: 10 }, (_, i) => ({
-      cardId: `card-${i}`,
-      zone: "main",
-      quantity: 4,
-    }));
-    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cards: [...mainCards, { cardId: "side-1", zone: "sideboard", quantity: 8 }],
+        cards: [{ cardId: "OGS-001", zone: "main", quantity: 4 }],
       }),
     });
     expect(res.status).toBe(200);

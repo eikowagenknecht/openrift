@@ -56,7 +56,6 @@ export function CardBrowser() {
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
-    ownedCounts,
     totalUniqueCards,
     setDisplayLabel,
   } = useCardData({
@@ -136,7 +135,6 @@ export function CardBrowser() {
         view={view}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
-        ownedCount={ownedCounts?.get(displayPrinting.id)}
       />
     );
   };

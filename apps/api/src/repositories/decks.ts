@@ -1,4 +1,4 @@
-import type { CardType, DeckFormat, DeckZone } from "@openrift/shared/types";
+import type { CardType, DeckFormat, DeckZone, SuperType } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -12,6 +12,9 @@ type DeckCardRow = Pick<
   Pick<Selectable<CardsTable>, "domains" | "energy" | "might" | "power"> & {
     cardName: string;
     cardType: CardType;
+    superTypes: SuperType[];
+    tags: string[];
+    keywords: string[];
   };
 
 /**
@@ -113,7 +116,10 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.quantity",
           "c.name as cardName",
           "c.type as cardType",
+          "c.superTypes",
           "c.domains",
+          "c.tags",
+          "c.keywords",
           "c.energy",
           "c.might",
           "c.power",
@@ -177,6 +183,50 @@ export function decksRepo(db: Kysely<Database>) {
           .set({ updatedAt: sql`now()` })
           .where("id", "=", deckId)
           .execute();
+      });
+    },
+
+    /** @returns The new deck row, or `undefined` if the source deck was not found. */
+    async cloneDeck(id: string, userId: string): Promise<Selectable<DecksTable> | undefined> {
+      const source = await db
+        .selectFrom("decks")
+        .selectAll()
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .executeTakeFirst();
+
+      if (!source) {
+        return undefined;
+      }
+
+      return db.transaction().execute(async (trx) => {
+        const newDeck = await trx
+          .insertInto("decks")
+          .values({
+            userId,
+            name: `${source.name} (Copy)`,
+            description: source.description,
+            format: source.format,
+            isWanted: source.isWanted,
+            isPublic: false,
+          })
+          .returningAll()
+          .executeTakeFirstOrThrow();
+
+        const sourceCards = await trx
+          .selectFrom("deckCards")
+          .select(["cardId", "zone", "quantity"])
+          .where("deckId", "=", id)
+          .execute();
+
+        if (sourceCards.length > 0) {
+          await trx
+            .insertInto("deckCards")
+            .values(sourceCards.map((card) => ({ deckId: newDeck.id, ...card })))
+            .execute();
+        }
+
+        return newDeck;
       });
     },
 

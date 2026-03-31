@@ -1,4 +1,4 @@
-import type { CardType, DeckZone, Domain } from "../enums.js";
+import type { CardType, DeckZone, Domain, SuperType } from "../enums.js";
 
 export interface DeckListResponse {
   items: DeckResponse[];
@@ -28,7 +28,10 @@ export interface DeckCardResponse {
   quantity: number;
   cardName: string;
   cardType: CardType;
+  superTypes: SuperType[];
   domains: Domain[];
+  tags: string[];
+  keywords: string[];
   energy: number | null;
   might: number | null;
   power: number | null;

@@ -209,7 +209,10 @@ export function toDeckCard(row: {
   quantity: number;
   cardName: string;
   cardType: string;
+  superTypes: string[];
   domains: string[];
+  tags: string[];
+  keywords: string[];
   energy: number | null;
   might: number | null;
   power: number | null;
@@ -222,7 +225,10 @@ export function toDeckCard(row: {
     quantity: row.quantity,
     cardName: row.cardName,
     cardType: row.cardType as DeckCardResponse["cardType"],
+    superTypes: row.superTypes as DeckCardResponse["superTypes"],
     domains: row.domains as DeckCardResponse["domains"],
+    tags: row.tags,
+    keywords: row.keywords,
     energy: row.energy,
     might: row.might,
     power: row.power,

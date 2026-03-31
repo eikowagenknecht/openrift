@@ -12,7 +12,15 @@ const artVariantSchema = z.enum(["normal", "altart", "overnumbered"]);
 const finishSchema = z.enum(["normal", "foil"]);
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
 const deckFormatSchema = z.enum(["standard", "freeform"]);
-const deckZoneSchema = z.enum(["main", "sideboard"]);
+const deckZoneSchema = z.enum([
+  "main",
+  "sideboard",
+  "legend",
+  "champion",
+  "runes",
+  "battlefield",
+  "overflow",
+]);
 const cardFaceSchema = z.enum(["front", "back"]);
 
 // ── Health ───────────────────────────────────────────────────────────────────
@@ -311,7 +319,10 @@ const deckCardResponseSchema = z
     quantity: z.number(),
     cardName: z.string(),
     cardType: cardTypeSchema,
+    superTypes: z.array(superTypeSchema),
     domains: z.array(domainSchema),
+    tags: z.array(z.string()),
+    keywords: z.array(z.string()),
     energy: z.number().nullable(),
     might: z.number().nullable(),
     power: z.number().nullable(),

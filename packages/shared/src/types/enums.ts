@@ -70,5 +70,12 @@ export type ActivityAction = "added" | "removed" | "moved";
 export type DeckFormat = "standard" | "freeform";
 
 // If you add a value here, also update the CHECK constraint in a new migration
-// (see 009-collection-tracking.ts — chk_deck_cards_zone).
-export type DeckZone = "main" | "sideboard";
+// (see 056-deck-zones.ts — chk_deck_cards_zone).
+export type DeckZone =
+  | "main"
+  | "sideboard"
+  | "legend"
+  | "champion"
+  | "runes"
+  | "battlefield"
+  | "overflow";
