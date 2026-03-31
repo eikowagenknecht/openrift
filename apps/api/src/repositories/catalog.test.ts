@@ -80,16 +80,4 @@ describe("catalogRepo", () => {
     const db = createMockDb([{ id: "p-1" }]);
     expect(await catalogRepo(db).printingById("p-1")).toEqual({ id: "p-1" });
   });
-
-  it("fixTypography dry run returns count", async () => {
-    const db = createMockDb([{ count: "5" }]);
-    const result = await catalogRepo(db).fixTypography(true);
-    expect(result).toBe(5);
-  });
-
-  it("fixTypography live run returns updated count", async () => {
-    const db = createMockDb([{ numUpdatedRows: 3n }]);
-    const result = await catalogRepo(db).fixTypography(false);
-    expect(result).toBe(3);
-  });
 });

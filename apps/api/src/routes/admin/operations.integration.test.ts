@@ -416,24 +416,4 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(json).toHaveProperty("upserted");
     });
   });
-
-  // ── POST /admin/fix-typography ────────────────────────────────────────
-
-  describe("POST /admin/fix-typography", () => {
-    it("returns affected count in dry-run mode", async () => {
-      const res = await app.fetch(req("POST", "/admin/fix-typography", { dryRun: true }));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(typeof json.affectedCount).toBe("number");
-    });
-
-    it("returns affected count in actual mode", async () => {
-      const res = await app.fetch(req("POST", "/admin/fix-typography", { dryRun: false }));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(typeof json.affectedCount).toBe("number");
-    });
-  });
 });

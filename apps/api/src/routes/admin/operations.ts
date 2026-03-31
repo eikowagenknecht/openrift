@@ -20,8 +20,6 @@ const clearPricesSchema = z.object({
   marketplace: clearPriceMarketplaceSchema,
 });
 
-const fixTypographySchema = z.object({ dryRun: z.boolean().default(true) });
-
 const upsertCountsSchema = z.object({
   total: z.number(),
   new: z.number(),
@@ -105,23 +103,6 @@ const refreshCardtrader = createRoute({
   },
 });
 
-const fixTypography = createRoute({
-  method: "post",
-  path: "/fix-typography",
-  tags: ["Admin - Operations"],
-  request: {
-    body: { content: { "application/json": { schema: fixTypographySchema } } },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": { schema: z.object({ affectedCount: z.number() }) },
-      },
-      description: "Typography fix result",
-    },
-  },
-});
-
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
@@ -160,18 +141,4 @@ export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       config.cardtraderApiToken,
     );
     return c.json(result);
-  })
-
-  // ── Fix typography ──────────────────────────────────────────────────────────
-
-  .openapi(fixTypography, async (c) => {
-    const { catalog } = c.get("repos");
-    const { dryRun } = c.req.valid("json");
-
-    const affectedCount = await catalog.fixTypography(dryRun);
-    if (!dryRun) {
-      log.info(`fix-typography: updated ${String(affectedCount)} rows`);
-    }
-
-    return c.json({ affectedCount });
   });

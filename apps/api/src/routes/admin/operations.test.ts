@@ -31,10 +31,6 @@ const mockMktAdmin = {
   clearPriceData: vi.fn(),
 };
 
-const mockCatalog = {
-  fixTypography: vi.fn(),
-};
-
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -50,7 +46,6 @@ const app = new Hono()
     c.set("config", mockConfig as never);
     c.set("repos", {
       marketplaceAdmin: mockMktAdmin,
-      catalog: mockCatalog,
     } as never);
     await next();
   })
@@ -186,48 +181,5 @@ describe("POST /api/v1/refresh-cardtrader-prices", () => {
       expect.anything(),
       "test-token-123",
     );
-  });
-});
-
-describe("POST /api/v1/fix-typography", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 200 with affected count for dry run", async () => {
-    mockCatalog.fixTypography.mockResolvedValue(42);
-    const res = await app.request("/api/v1/fix-typography", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dryRun: true }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({ affectedCount: 42 });
-    expect(mockCatalog.fixTypography).toHaveBeenCalledWith(true);
-  });
-
-  it("returns 200 with affected count for actual run", async () => {
-    mockCatalog.fixTypography.mockResolvedValue(10);
-    const res = await app.request("/api/v1/fix-typography", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dryRun: false }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({ affectedCount: 10 });
-    expect(mockCatalog.fixTypography).toHaveBeenCalledWith(false);
-  });
-
-  it("defaults dryRun to true", async () => {
-    mockCatalog.fixTypography.mockResolvedValue(5);
-    const res = await app.request("/api/v1/fix-typography", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    expect(res.status).toBe(200);
-    expect(mockCatalog.fixTypography).toHaveBeenCalledWith(true);
   });
 });

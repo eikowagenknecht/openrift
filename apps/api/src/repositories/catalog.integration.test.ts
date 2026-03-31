@@ -80,16 +80,4 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     const result = await repo.printingById("00000000-0000-0000-0000-000000000000");
     expect(result).toBeUndefined();
   });
-
-  it("fixTypography dry run counts affected rows", async () => {
-    const count = await repo.fixTypography(true);
-    expect(typeof count).toBe("number");
-    expect(count).toBeGreaterThanOrEqual(0);
-  });
-
-  it("fixTypography actual run returns updated count", async () => {
-    const count = await repo.fixTypography(false);
-    expect(typeof count).toBe("number");
-    expect(count).toBeGreaterThanOrEqual(0);
-  });
 });
