@@ -467,6 +467,17 @@ export function CardGrid({
         row.kind === "cards" &&
         row.items.some((item) => item.id === cardId || item.printing.id === cardId)
       ) {
+        const vItems = virtualizerRef.current.getVirtualItems();
+        const vItem = vItems.find((vi) => vi.index === i);
+        if (vItem) {
+          const viewportTop = globalThis.scrollY + APP_HEADER_HEIGHT;
+          const viewportBottom = globalThis.scrollY + globalThis.innerHeight;
+          const rowTop = vItem.start;
+          const rowBottom = vItem.start + vItem.size;
+          if (rowTop >= viewportTop && rowBottom <= viewportBottom) {
+            return;
+          }
+        }
         virtualizerRef.current.scrollToIndex(i, { align: "start" });
         return;
       }
