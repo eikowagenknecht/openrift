@@ -51,7 +51,6 @@ export function BrowserCardViewer({
     <CardViewer
       {...rest}
       items={items}
-      printingsByCardId={view === "cards" ? printingsByCardId : undefined}
       selectedItemId={gridSelectedId}
       keyboardNavItemId={selectedCard?.id}
       onItemClick={onItemClick}

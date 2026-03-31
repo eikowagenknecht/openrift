@@ -2,6 +2,7 @@
 
 ## 2026-03-31
 
+- fix: Cards view no longer shows the same card multiple times across different set or rarity groups
 - fix: Help articles no longer show garbled characters for apostrophes and dashes
 
 ## 2026-03-30
