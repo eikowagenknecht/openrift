@@ -71,7 +71,7 @@ describe("buildCandidateCardList", () => {
       ]),
       listPrintingsForSourceList: vi
         .fn()
-        .mockResolvedValue([{ cardId: "card-1", shortCode: "OGN-001" }]),
+        .mockResolvedValue([{ cardId: "card-1", shortCode: "OGN-001", language: "EN" }]),
       listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
@@ -324,8 +324,8 @@ describe("buildCandidateCardList", () => {
         .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
       listCandidateCardsForSourceList: vi.fn().mockResolvedValue([]),
       listPrintingsForSourceList: vi.fn().mockResolvedValue([
-        { cardId: "card-1", shortCode: "OGN-001" },
-        { cardId: "card-1", shortCode: "OGN-002" },
+        { cardId: "card-1", shortCode: "OGN-001", language: "EN" },
+        { cardId: "card-1", shortCode: "OGN-002", language: "EN" },
       ]),
       listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([]),
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),

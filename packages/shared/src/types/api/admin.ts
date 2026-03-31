@@ -52,6 +52,7 @@ export interface CandidatePrintingGroupResponse {
   mostCommonShortCode: string;
   shortCodes: string[];
   expectedPrintingId: string;
+  language: string | null;
 }
 
 export interface AdminPrintingImageResponse {

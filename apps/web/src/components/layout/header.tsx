@@ -3,6 +3,7 @@ import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
   CircleHelp,
   EllipsisVertical,
+  Heart,
   LogOut,
   Menu,
   Moon,
@@ -171,6 +172,10 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
         <Sparkles className="size-4" />
         What&apos;s new
       </DropdownMenuItem>
+      <DropdownMenuItem render={<Link to="/support" />}>
+        <Heart className="size-4" />
+        Support us
+      </DropdownMenuItem>
       {isLoggedIn && <DropdownMenuSeparator />}
       {isLoggedIn && (
         <DropdownMenuItem onClick={handleSignOut}>
@@ -263,6 +268,7 @@ function MobileNav({
           <MobileNavLink to="/help">Help</MobileNavLink>
           <MobileNavLink to="/changelog">What&apos;s new</MobileNavLink>
           <MobileNavLink to="/roadmap">Roadmap</MobileNavLink>
+          <MobileNavLink to="/support">Support Us</MobileNavLink>
         </nav>
       </SheetContent>
     </Sheet>
@@ -294,8 +300,15 @@ export function Header() {
         {/* Center: Logo on mobile */}
         <LogoLink className="md:hidden" />
 
-        {/* Right: User menu */}
-        <div className="justify-self-end">
+        {/* Right: Support + User menu */}
+        <div className="flex items-center gap-1 justify-self-end">
+          <Link
+            to="/support"
+            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+            aria-label="Support us"
+          >
+            <Heart className="size-4" />
+          </Link>
           <UserMenu session={session} isPending={isPending} gravatarUrl={gravatarUrl} />
         </div>
       </div>

@@ -54,6 +54,26 @@ describe("formatPrintingLabel", () => {
   it("preserves finish value", () => {
     expect(formatPrintingLabel("OGN-105", null, "normal")).toBe("OGN-105:normal:");
   });
+
+  it("omits language suffix for EN (default)", () => {
+    expect(formatPrintingLabel("OGN-001", null, "normal", "EN")).toBe("OGN-001:normal:");
+  });
+
+  it("omits language suffix when language is null", () => {
+    expect(formatPrintingLabel("OGN-001", null, "normal", null)).toBe("OGN-001:normal:");
+  });
+
+  it("omits language suffix when language is undefined", () => {
+    expect(formatPrintingLabel("OGN-001", null, "normal", undefined)).toBe("OGN-001:normal:");
+  });
+
+  it("appends language suffix for non-EN languages", () => {
+    expect(formatPrintingLabel("OGN-001", null, "normal", "FR")).toBe("OGN-001:normal::FR");
+  });
+
+  it("appends language suffix with promo type", () => {
+    expect(formatPrintingLabel("OGN-001", "promo", "foil", "ZH")).toBe("OGN-001:foil:promo:ZH");
+  });
 });
 
 describe("boundsOf", () => {

@@ -101,6 +101,7 @@ export function NewPrintingGroupCard({
         activePrinting.shortCode as string,
         promoSlug,
         activePrinting.finish as string,
+        (activePrinting.language as string | undefined) ?? null,
       )
     : "";
 

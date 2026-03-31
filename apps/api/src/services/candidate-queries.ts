@@ -120,6 +120,7 @@ function deriveExpectedCardId(
     isSigned: boolean;
     promoTypeId: string | null;
     finish: string;
+    language: string;
   }[],
   setReleasedAtMap: Map<string, string | null>,
   candidatePrintingGroups: CandidatePrintingGroupResponse[],
@@ -135,7 +136,13 @@ function deriveExpectedCardId(
         p.finish === "normal",
     );
 
-    const candidates = normalPrintings.length > 0 ? normalPrintings : printings;
+    let candidates = normalPrintings.length > 0 ? normalPrintings : printings;
+
+    // Prefer EN printings for slug derivation; fall back to all if no EN exists
+    const enCandidates = candidates.filter((p) => p.language === "EN");
+    if (enCandidates.length > 0) {
+      candidates = enCandidates;
+    }
 
     // Sort by release date ascending (nulls last), then short code ascending
     const sorted = candidates.toSorted((a, b) => {
@@ -186,6 +193,7 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
   ]);
 
   // Accepted printings live on cards — e.g. { cardUUID → ["OGN-001a", "OGN-001b"] }
+  // Non-EN printings get a " [FR]" suffix so the list page can distinguish languages
   const shortCodesByCardId = new Map<string, string[]>();
   for (const p of printings) {
     let arr = shortCodesByCardId.get(p.cardId);
@@ -193,7 +201,8 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
       arr = [];
       shortCodesByCardId.set(p.cardId, arr);
     }
-    arr.push(p.shortCode);
+    const label = p.language === "EN" ? p.shortCode : `${p.shortCode} [${p.language}]`;
+    arr.push(label);
   }
 
   // Candidate cards from different imports share a normName —
@@ -228,7 +237,11 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
     for (const cc of group) {
       for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
         if (!cp.checkedAt && !cp.printingId) {
-          ids.push(cp.shortCode);
+          const label =
+            !cp.language || cp.language === "EN"
+              ? cp.shortCode
+              : `${cp.shortCode} [${cp.language}]`;
+          ids.push(label);
         }
       }
     }
@@ -457,6 +470,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
       p.shortCode,
       p.promoTypeId ? (promoSlugMap.get(p.promoTypeId) ?? null) : null,
       p.finish,
+      p.language,
     ),
   }));
 
@@ -469,7 +483,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   const unlinkedCP = candidatePrintings.filter((cp) => !cp.printingId);
   const cpGroupMap = new Map<string, typeof unlinkedCP>();
   for (const cp of unlinkedCP) {
-    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}`;
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}|${cp.language ?? ""}`;
     let arr = cpGroupMap.get(key);
     if (!arr) {
       arr = [];
@@ -487,11 +501,13 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     const mcShortCode = mostCommonValue(groupCandidates.map((s) => s.shortCode));
     const finish = resolveFinish(first.finish, first.rarity);
     const promoTypeSlug = first.promoTypeId ? (promoSlugMap.get(first.promoTypeId) ?? null) : null;
+    const language = mostCommonValue(groupCandidates.map((s) => s.language ?? "")) || null;
 
     filteredGroups.push({
       mostCommonShortCode: mcShortCode,
       shortCodes: groupCandidates.map((s) => s.id),
-      expectedPrintingId: formatPrintingLabel(mcShortCode, promoTypeSlug, finish),
+      expectedPrintingId: formatPrintingLabel(mcShortCode, promoTypeSlug, finish, language),
+      language,
     });
   }
 
