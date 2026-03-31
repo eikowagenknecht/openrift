@@ -12,7 +12,6 @@ interface CardViewerProps {
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
   groupBy?: GroupByField;
-  printingsByCardId?: Map<string, Printing[]>;
   selectedItemId?: string;
   keyboardNavItemId?: string;
   onItemClick?: (printing: Printing) => void;
@@ -42,7 +41,6 @@ export function CardViewer({
   renderCard,
   setOrder,
   groupBy,
-  printingsByCardId,
   selectedItemId,
   keyboardNavItemId,
   onItemClick,
@@ -73,7 +71,6 @@ export function CardViewer({
             renderCard={renderCard}
             setOrder={setOrder}
             groupBy={groupBy}
-            printingsByCardId={printingsByCardId}
             selectedItemId={selectedItemId}
             keyboardNavItemId={keyboardNavItemId}
             onItemClick={onItemClick}
