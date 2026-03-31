@@ -277,7 +277,7 @@ if (ctx) {
 // Tests
 // ---------------------------------------------------------------------------
 
-const P = "/admin/candidates";
+const P = "/admin/cards";
 
 describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf

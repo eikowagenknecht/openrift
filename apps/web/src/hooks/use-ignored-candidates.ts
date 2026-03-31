@@ -25,7 +25,7 @@ export function useIgnoreCandidateCard() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.candidates.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
     },
   });
 }
@@ -39,7 +39,7 @@ export function useUnignoreCandidateCard() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.candidates.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
     },
   });
 }
@@ -57,7 +57,7 @@ export function useIgnoreCandidatePrinting() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.candidates.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
     },
   });
 }
@@ -73,7 +73,7 @@ export function useUnignoreCandidatePrinting() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.candidates.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
     },
   });
 }

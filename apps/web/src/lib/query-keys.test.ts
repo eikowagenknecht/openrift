@@ -83,51 +83,38 @@ describe("queryKeys.admin", () => {
 // Admin card sources
 // ---------------------------------------------------------------------------
 
-describe("queryKeys.admin.candidates", () => {
+describe("queryKeys.admin.cards", () => {
   it("all", () => {
-    expect(queryKeys.admin.candidates.all).toEqual(["admin", "candidates"]);
+    expect(queryKeys.admin.cards.all).toEqual(["admin", "cards"]);
   });
 
   it("list", () => {
-    expect(queryKeys.admin.candidates.list).toEqual(["admin", "candidates", "list"]);
+    expect(queryKeys.admin.cards.list).toEqual(["admin", "cards", "list"]);
   });
 
   it("detail", () => {
-    expect(queryKeys.admin.candidates.detail("id")).toEqual([
-      "admin",
-      "candidates",
-      "detail",
-      "id",
-    ]);
+    expect(queryKeys.admin.cards.detail("id")).toEqual(["admin", "cards", "detail", "id"]);
   });
 
   it("unmatched", () => {
-    expect(queryKeys.admin.candidates.unmatched("name")).toEqual([
+    expect(queryKeys.admin.cards.unmatched("name")).toEqual([
       "admin",
-      "candidates",
+      "cards",
       "unmatched",
       "name",
     ]);
   });
 
   it("allCards", () => {
-    expect(queryKeys.admin.candidates.allCards).toEqual(["admin", "candidates", "all-cards"]);
+    expect(queryKeys.admin.cards.allCards).toEqual(["admin", "cards", "all-cards"]);
   });
 
   it("providerNames", () => {
-    expect(queryKeys.admin.candidates.providerNames).toEqual([
-      "admin",
-      "candidates",
-      "provider-names",
-    ]);
+    expect(queryKeys.admin.cards.providerNames).toEqual(["admin", "cards", "provider-names"]);
   });
 
   it("providerStats", () => {
-    expect(queryKeys.admin.candidates.providerStats).toEqual([
-      "admin",
-      "candidates",
-      "provider-stats",
-    ]);
+    expect(queryKeys.admin.cards.providerStats).toEqual(["admin", "cards", "provider-stats"]);
   });
 });
 

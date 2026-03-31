@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
 import type { Transact } from "../deps.js";
-import type { IngestCard } from "../routes/admin/candidates/schemas.js";
+import type { IngestCard } from "../routes/admin/cards/schemas.js";
 
 interface ItemDetail {
   name: string;

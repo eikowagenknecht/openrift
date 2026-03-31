@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { unmatchedCardDetailQueryOptions } from "@/hooks/use-candidates";
+import { unmatchedCardDetailQueryOptions } from "@/hooks/use-admin-cards";
 import { adminDistinctArtistsQueryOptions } from "@/hooks/use-distinct-artists";
 import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
 import { adminPromoTypesQueryOptions } from "@/hooks/use-promo-types";
