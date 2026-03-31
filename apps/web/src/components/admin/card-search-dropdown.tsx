@@ -29,41 +29,107 @@ export function CardSearchDropdown({
 }) {
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const visible = showResults && search.length >= 2;
+
+  function scrollActiveIntoView(index: number) {
+    const list = listRef.current;
+    if (!list) {
+      return;
+    }
+    const item = list.children[index] as HTMLElement | undefined;
+    if (item) {
+      item.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent) {
+    if (!visible || results.length === 0) {
+      return;
+    }
+
+    switch (event.key) {
+      case "ArrowDown": {
+        event.preventDefault();
+        const next = activeIndex < results.length - 1 ? activeIndex + 1 : 0;
+        setActiveIndex(next);
+        scrollActiveIntoView(next);
+        break;
+      }
+      case "ArrowUp": {
+        event.preventDefault();
+        const prev = activeIndex > 0 ? activeIndex - 1 : results.length - 1;
+        setActiveIndex(prev);
+        scrollActiveIntoView(prev);
+        break;
+      }
+      case "Enter": {
+        event.preventDefault();
+        if (activeIndex >= 0 && activeIndex < results.length) {
+          const item = results[activeIndex];
+          onSelect(item.id);
+          setSearch(item.label);
+          setShowResults(false);
+          setActiveIndex(-1);
+        }
+        break;
+      }
+      case "Escape": {
+        event.preventDefault();
+        setShowResults(false);
+        setActiveIndex(-1);
+        break;
+      }
+    }
+  }
 
   return (
     <div className={cn("relative", className)} ref={containerRef}>
       <Input
         placeholder={placeholder}
         value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          onSearch(e.target.value);
+        onChange={(event) => {
+          setSearch(event.target.value);
+          onSearch(event.target.value);
           setShowResults(true);
+          setActiveIndex(-1);
         }}
         onFocus={() => setShowResults(true)}
-        onBlur={(e) => {
-          if (!containerRef.current?.contains(e.relatedTarget)) {
+        onBlur={(event) => {
+          if (!containerRef.current?.contains(event.relatedTarget)) {
             setShowResults(false);
+            setActiveIndex(-1);
           }
         }}
+        onKeyDown={handleKeyDown}
         disabled={disabled}
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional
         autoFocus={autoFocus}
       />
-      {showResults && search.length >= 2 && results.length > 0 && (
-        <div className="bg-popover absolute top-full z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md">
-          {results.map((item) => (
+      {visible && results.length > 0 && (
+        <div
+          ref={listRef}
+          className="bg-popover absolute top-full z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
+        >
+          {results.map((item, index) => (
             <button
               key={item.id}
               type="button"
-              className="hover:bg-muted flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm disabled:opacity-50"
-              onMouseDown={(e) => e.preventDefault()}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm disabled:opacity-50",
+                index === activeIndex ? "bg-muted" : "hover:bg-muted",
+              )}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActiveIndex(index)}
               disabled={disabled}
               onClick={() => {
                 onSelect(item.id);
                 setSearch(item.label);
                 setShowResults(false);
+                setActiveIndex(-1);
               }}
             >
               <span className="truncate font-medium">{item.label}</span>
@@ -79,7 +145,7 @@ export function CardSearchDropdown({
           ))}
         </div>
       )}
-      {showResults && search.length >= 2 && results.length === 0 && (
+      {visible && results.length === 0 && (
         <div className="bg-popover absolute top-full z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md">
           <p className="text-muted-foreground text-xs">No matching cards</p>
         </div>

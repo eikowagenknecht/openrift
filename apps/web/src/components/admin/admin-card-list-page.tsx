@@ -1,7 +1,13 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
-import { formatShortCodes } from "@openrift/shared/utils";
+import { formatShortCodesArray } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef, ColumnFiltersState, FilterFn, SortingState } from "@tanstack/react-table";
+import type {
+  Column,
+  ColumnDef,
+  ColumnFiltersState,
+  FilterFn,
+  SortingState,
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -9,6 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -20,7 +27,7 @@ import {
   SearchIcon,
   XIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
@@ -46,12 +53,24 @@ import {
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Status filter
+// Types
 // ---------------------------------------------------------------------------
 
 type StatusFilter = "unchecked" | "unmatched" | "matched";
 
-const statusFilterFn: FilterFn<CandidateCardSummaryResponse> = (row, _columnId, filterValue) => {
+type Row = CandidateCardSummaryResponse;
+
+interface TableMeta {
+  linkCard: ReturnType<typeof useLinkCard>;
+  acceptGallery: ReturnType<typeof useAcceptGallery>;
+  allCards: { slug: string; name: string; type: string }[];
+}
+
+// ---------------------------------------------------------------------------
+// Status filter
+// ---------------------------------------------------------------------------
+
+const statusFilterFn: FilterFn<Row> = (row, _columnId, filterValue) => {
   const value = filterValue as StatusFilter | undefined;
   if (!value) {
     return true;
@@ -85,6 +104,16 @@ function AssignButton({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleSearch(query: string) {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      setSearch(query);
+    }, 150);
+  }
 
   const results: CardSearchResult[] =
     search.length >= 2
@@ -112,7 +141,7 @@ function AssignButton({
     <>
       <CardSearchDropdown
         results={results}
-        onSearch={setSearch}
+        onSearch={handleSearch}
         onSelect={(cardId) => {
           linkCard.mutate({ name: normalizedName, cardId });
           setOpen(false);
@@ -142,17 +171,7 @@ function AssignButton({
 // Sort header helper
 // ---------------------------------------------------------------------------
 
-function SortableHeader({
-  column,
-  label,
-}: {
-  column: {
-    getCanSort: () => boolean;
-    getIsSorted: () => false | "asc" | "desc";
-    getToggleSortingHandler: () => ((event: unknown) => void) | undefined;
-  };
-  label: string;
-}) {
+function SortableHeader({ column, label }: { column: Column<Row>; label: string }) {
   const canSort = column.getCanSort();
   const sorted = column.getIsSorted();
   if (!canSort) {
@@ -179,6 +198,154 @@ function SortableHeader({
 }
 
 // ---------------------------------------------------------------------------
+// Card name cell
+// ---------------------------------------------------------------------------
+
+function CardNameCell({ row, meta }: { row: Row; meta: TableMeta }) {
+  const { linkCard, acceptGallery, allCards } = meta;
+  const suggestedCardId =
+    !row.cardSlug && row.stagingShortCodes.length > 0
+      ? row.stagingShortCodes[0].replace(/(?<=\d)[a-z*]+$/, "")
+      : null;
+
+  return (
+    <>
+      <Link
+        to={row.cardSlug ? "/admin/cards/$cardSlug" : "/admin/cards/new/$name"}
+        params={row.cardSlug ? { cardSlug: row.cardSlug } : { name: row.normalizedName }}
+        className="font-medium hover:underline"
+      >
+        {(row.cardSlug || suggestedCardId) && (
+          <span className={row.cardSlug ? "text-muted-foreground" : "text-muted-foreground/40"}>
+            {row.cardSlug ?? suggestedCardId}
+          </span>
+        )}{" "}
+        {row.name}
+      </Link>
+      {!row.cardSlug && row.suggestedCardSlug && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-2 h-5 text-xs"
+          disabled={linkCard.isPending}
+          onClick={() => {
+            const slug = row.suggestedCardSlug;
+            if (slug) {
+              linkCard.mutate({ name: row.normalizedName, cardId: slug });
+            }
+          }}
+        >
+          <LinkIcon className="size-3" />
+          {row.suggestedCardSlug}
+        </Button>
+      )}
+      {!row.cardSlug && row.hasGallery && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-2 h-5 text-xs"
+          disabled={acceptGallery.isPending}
+          onClick={() => acceptGallery.mutate(row.normalizedName)}
+        >
+          {acceptGallery.isPending ? (
+            <LoaderIcon className="size-3 animate-spin" />
+          ) : (
+            <ImagePlusIcon className="size-3" />
+          )}
+          Accept gallery
+        </Button>
+      )}
+      {!row.cardSlug && allCards && (
+        <AssignButton normalizedName={row.normalizedName} allCards={allCards} linkCard={linkCard} />
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Printings cell
+// ---------------------------------------------------------------------------
+
+function PrintingsCell({ row }: { row: Row }) {
+  const shortCodes = formatShortCodesArray(row.shortCodes);
+  const stagingCodes = formatShortCodesArray(row.stagingShortCodes);
+
+  return (
+    <span>
+      {shortCodes.map((code, index) => (
+        <span key={code} className="text-muted-foreground">
+          {code}
+          {(index < shortCodes.length - 1 || stagingCodes.length > 0) && ", "}
+        </span>
+      ))}
+      {stagingCodes.map((code, index) => (
+        <span key={`s-${code}`} className="text-muted-foreground/50 italic">
+          {code}
+          {index < stagingCodes.length - 1 && ", "}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Column definitions (stable — dependencies passed via table meta)
+// ---------------------------------------------------------------------------
+
+const columns: ColumnDef<Row>[] = [
+  {
+    id: "status",
+    header: "Status",
+    enableSorting: false,
+    filterFn: statusFilterFn,
+    cell: ({ row }) => {
+      const r = row.original;
+      const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
+      return (
+        <div className="flex items-center gap-1">
+          {r.cardSlug ? (
+            <Badge variant="outline">Active</Badge>
+          ) : (
+            <Badge variant="secondary">New</Badge>
+          )}
+          {r.hasGallery && <Badge className="text-xs">gallery</Badge>}
+          {total > 0 && <Badge variant="destructive">Review</Badge>}
+        </div>
+      );
+    },
+  },
+  {
+    id: "name",
+    accessorFn: (r) => r.name,
+    header: ({ column }) => <SortableHeader column={column} label="Card" />,
+    enableGlobalFilter: true,
+    cell: ({ row, table }) => (
+      <CardNameCell row={row.original} meta={table.options.meta as TableMeta} />
+    ),
+  },
+  {
+    id: "printings",
+    header: "Printings",
+    enableSorting: false,
+    enableGlobalFilter: false,
+    cell: ({ row }) => <PrintingsCell row={row.original} />,
+  },
+  {
+    id: "candidates",
+    accessorKey: "candidateCount",
+    header: ({ column }) => <SortableHeader column={column} label="Candidates" />,
+    enableGlobalFilter: false,
+    cell: ({ row }) => <Badge variant="secondary">{row.original.candidateCount}</Badge>,
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Row height for virtualizer
+// ---------------------------------------------------------------------------
+
+const ROW_HEIGHT = 41;
+
+// ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
 
@@ -193,11 +360,17 @@ export function AdminCardListPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
-  const counts = {
-    unchecked: data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0).length,
-    unmatched: data.filter((r) => !r.cardSlug).length,
-    matched: data.filter((r) => r.cardSlug).length,
-  };
+  const counts = { unchecked: 0, unmatched: 0, matched: 0 };
+  for (const r of data) {
+    if (r.uncheckedCardCount + r.uncheckedPrintingCount > 0) {
+      counts.unchecked++;
+    }
+    if (r.cardSlug) {
+      counts.matched++;
+    } else {
+      counts.unmatched++;
+    }
+  }
 
   const activeStatus = (columnFilters.find((f) => f.id === "status")?.value ??
     null) as StatusFilter | null;
@@ -212,142 +385,7 @@ export function AdminCardListPage() {
     });
   }
 
-  const columns: ColumnDef<CandidateCardSummaryResponse>[] = [
-    {
-      id: "status",
-      header: "Status",
-      enableSorting: false,
-      filterFn: statusFilterFn,
-      cell: ({ row }) => {
-        const r = row.original;
-        const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
-        return (
-          <div className="flex items-center gap-1">
-            {r.cardSlug ? (
-              <Badge variant="outline">Active</Badge>
-            ) : (
-              <Badge variant="secondary">New</Badge>
-            )}
-            {r.hasGallery && <Badge className="text-xs">gallery</Badge>}
-            {total > 0 && <Badge variant="destructive">Review</Badge>}
-          </div>
-        );
-      },
-    },
-    {
-      id: "name",
-      accessorFn: (r) => r.name,
-      header: ({ column }) => <SortableHeader column={column} label="Card" />,
-      enableGlobalFilter: true,
-      cell: ({ row }) => {
-        const r = row.original;
-        const suggestedCardId =
-          !r.cardSlug && r.stagingShortCodes.length > 0
-            ? r.stagingShortCodes[0].replace(/(?<=\d)[a-z*]+$/, "")
-            : null;
-        return (
-          <>
-            <Link
-              to={r.cardSlug ? "/admin/cards/$cardSlug" : "/admin/cards/new/$name"}
-              params={r.cardSlug ? { cardSlug: r.cardSlug } : { name: r.normalizedName }}
-              className="font-medium hover:underline"
-            >
-              {(r.cardSlug || suggestedCardId) && (
-                <span className={r.cardSlug ? "text-muted-foreground" : "text-muted-foreground/40"}>
-                  {r.cardSlug ?? suggestedCardId}
-                </span>
-              )}{" "}
-              {r.name}
-            </Link>
-            {!r.cardSlug && r.suggestedCardSlug && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-2 h-5 text-xs"
-                disabled={linkCard.isPending}
-                onClick={() => {
-                  const slug = r.suggestedCardSlug;
-                  if (slug) {
-                    linkCard.mutate({ name: r.normalizedName, cardId: slug });
-                  }
-                }}
-              >
-                <LinkIcon className="size-3" />
-                {r.suggestedCardSlug}
-              </Button>
-            )}
-            {!r.cardSlug && r.hasGallery && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-2 h-5 text-xs"
-                disabled={acceptGallery.isPending}
-                onClick={() => acceptGallery.mutate(r.normalizedName)}
-              >
-                {acceptGallery.isPending ? (
-                  <LoaderIcon className="size-3 animate-spin" />
-                ) : (
-                  <ImagePlusIcon className="size-3" />
-                )}
-                Accept gallery
-              </Button>
-            )}
-            {!r.cardSlug && allCards && (
-              <AssignButton
-                normalizedName={r.normalizedName}
-                allCards={allCards}
-                linkCard={linkCard}
-              />
-            )}
-          </>
-        );
-      },
-    },
-    {
-      id: "printings",
-      header: "Printings",
-      enableSorting: false,
-      enableGlobalFilter: false,
-      cell: ({ row }) => {
-        const r = row.original;
-        return (
-          <span>
-            {r.shortCodes.length > 0 && (
-              <>
-                {formatShortCodes(r.shortCodes)
-                  .split(", ")
-                  .map((id, i, arr) => (
-                    <span key={id} className="text-muted-foreground">
-                      {id}
-                      {(i < arr.length - 1 || r.stagingShortCodes.length > 0) && ", "}
-                    </span>
-                  ))}
-              </>
-            )}
-            {r.stagingShortCodes.length > 0 && (
-              <>
-                {formatShortCodes(r.stagingShortCodes)
-                  .split(", ")
-                  .map((id, i, arr) => (
-                    <span key={`s-${id}`} className="text-muted-foreground/50 italic">
-                      {id}
-                      {i < arr.length - 1 && ", "}
-                    </span>
-                  ))}
-              </>
-            )}
-          </span>
-        );
-      },
-    },
-    {
-      id: "candidates",
-      accessorKey: "candidateCount",
-      header: ({ column }) => <SortableHeader column={column} label="Candidates" />,
-      enableGlobalFilter: false,
-      cell: ({ row }) => <Badge variant="secondary">{row.original.candidateCount}</Badge>,
-    },
-  ];
+  const meta: TableMeta = { linkCard, acceptGallery, allCards };
 
   const table = useReactTable({
     data,
@@ -361,9 +399,18 @@ export function AdminCardListPage() {
     getFilteredRowModel: getFilteredRowModel(),
     getRowId: (r) => r.cardSlug ?? r.name,
     globalFilterFn: "includesString",
+    meta,
   });
 
   const rows = table.getRowModel().rows;
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 20,
+  });
 
   return (
     <div className="space-y-4">
@@ -417,12 +464,16 @@ export function AdminCardListPage() {
         </div>
       </div>
 
+      <p className="text-muted-foreground text-xs">
+        Showing {rows.length} of {data.length} candidates
+      </p>
+
       {rows.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">No candidates found.</p>
       ) : (
-        <div className="[&>[data-slot=table-container]]:overflow-visible">
+        <div ref={scrollRef} className="max-h-[calc(100vh-220px)] overflow-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -440,18 +491,32 @@ export function AdminCardListPage() {
               ))}
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(cell.column.id === "printings" && "whitespace-normal")}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+              {virtualizer.getVirtualItems().length > 0 && (
+                <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
+              )}
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const row = rows[virtualRow.index];
+                return (
+                  <TableRow key={row.id} data-index={virtualRow.index}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(cell.column.id === "printings" && "whitespace-normal")}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })}
+              {virtualizer.getVirtualItems().length > 0 && (
+                <tr
+                  style={{
+                    height:
+                      virtualizer.getTotalSize() - (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
+                  }}
+                />
+              )}
             </TableBody>
           </Table>
         </div>
