@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict w0wxcvMhoLvWnSbbdfU26TpAUIKHJHNm0jXiRdlqZHwXX1NnSU1OqwO5be4jULj
+\restrict usgWZVZffniqw6RkSCXoe49BsUugV4olBsCxHEhSJhEaPT0d103gsivKJRW3bzl
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -18,6 +18,20 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: public; Type: SCHEMA; Schema: -; Owner: -
+--
+
+-- *not* creating schema, since initdb creates it
+
+
+--
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON SCHEMA public IS '';
+
 
 --
 -- Name: candidate_cards_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
@@ -217,6 +231,8 @@ CREATE TABLE public.candidate_printings (
     printing_id uuid,
     external_id text CONSTRAINT printing_sources_source_entity_id_not_null NOT NULL,
     promo_type_id uuid,
+    language text,
+    printed_name text,
     CONSTRAINT chk_candidate_printings_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
@@ -225,7 +241,9 @@ CREATE TABLE public.candidate_printings (
     CONSTRAINT chk_candidate_printings_no_empty_finish CHECK ((finish <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_image_url CHECK ((image_url <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_language CHECK ((language <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
+    CONSTRAINT chk_candidate_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_rarity CHECK ((rarity <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_set_id CHECK ((set_id <> ''::text)),
@@ -480,6 +498,21 @@ CREATE TABLE public.kysely_migration_lock (
 
 
 --
+-- Name: languages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.languages (
+    code text NOT NULL,
+    name text NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT languages_code_not_empty CHECK ((code <> ''::text)),
+    CONSTRAINT languages_name_not_empty CHECK ((name <> ''::text))
+);
+
+
+--
 -- Name: marketplace_groups; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -650,6 +683,8 @@ CREATE TABLE public.printings (
     set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
     comment text,
     promo_type_id uuid,
+    language text DEFAULT 'EN'::text NOT NULL,
+    printed_name text,
     CONSTRAINT chk_printings_art_variant CHECK ((art_variant = ANY (ARRAY['normal'::text, 'altart'::text, 'overnumbered'::text]))),
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_collector_number_positive CHECK ((collector_number > 0)),
@@ -657,6 +692,7 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
     CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
     CONSTRAINT chk_printings_rarity CHECK ((rarity = ANY (ARRAY['Common'::text, 'Uncommon'::text, 'Rare'::text, 'Epic'::text, 'Showcase'::text]))),
@@ -1025,6 +1061,14 @@ ALTER TABLE ONLY public.kysely_migration
 
 
 --
+-- Name: languages languages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.languages
+    ADD CONSTRAINT languages_pkey PRIMARY KEY (code);
+
+
+--
 -- Name: marketplace_groups marketplace_groups_marketplace_group_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1118,6 +1162,14 @@ ALTER TABLE ONLY public.printing_images
 
 ALTER TABLE ONLY public.printing_link_overrides
     ADD CONSTRAINT printing_link_overrides_pkey PRIMARY KEY (external_id, finish);
+
+
+--
+-- Name: printings printings_card_id_short_code_finish_promo_type_id_language_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT printings_card_id_short_code_finish_promo_type_id_language_key UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id, language);
 
 
 --
@@ -1751,6 +1803,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.feature_flags FOR EACH
 
 
 --
+-- Name: languages trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.languages FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: marketplace_groups trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2126,6 +2185,14 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: printings printings_language_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT printings_language_fk FOREIGN KEY (language) REFERENCES public.languages(code);
+
+
+--
 -- Name: printings printings_promo_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2201,5 +2268,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict w0wxcvMhoLvWnSbbdfU26TpAUIKHJHNm0jXiRdlqZHwXX1NnSU1OqwO5be4jULj
+\unrestrict usgWZVZffniqw6RkSCXoe49BsUugV4olBsCxHEhSJhEaPT0d103gsivKJRW3bzl
 
