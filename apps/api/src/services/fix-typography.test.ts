@@ -55,6 +55,16 @@ describe("fixTypography", () => {
     expect(fixTypography("well-known")).toBe("well-known");
   });
 
+  // ── Leading whitespace ────────────────────────────────────────────────────
+
+  it("strips a single leading space after a line break", () => {
+    expect(fixTypography("line one\n line two")).toBe("line one\nline two");
+  });
+
+  it("does not strip multiple leading spaces", () => {
+    expect(fixTypography("line one\n  line two")).toBe("line one\n  line two");
+  });
+
   // ── Italic parens ────────────────────────────────────────────────────────
 
   it("wraps parenthesized text with underscores", () => {
@@ -79,9 +89,9 @@ describe("fixTypography", () => {
     expect(fixTypography("[Equip] :rb_rune_mind:")).toBe("[Equip :rb_rune_mind:]");
   });
 
-  it("moves multiple glyphs inside keyword brackets", () => {
-    expect(fixTypography("[Add] :rb_energy_1::rb_rune_rainbow:")).toBe(
-      "[Add :rb_energy_1::rb_rune_rainbow:]",
+  it("moves multiple glyphs inside cost-keyword brackets", () => {
+    expect(fixTypography("[Equip] :rb_energy_1::rb_rune_body:")).toBe(
+      "[Equip :rb_energy_1::rb_rune_body:]",
     );
   });
 
@@ -97,11 +107,27 @@ describe("fixTypography", () => {
     );
   });
 
+  it("does not move glyphs for non-cost keywords like Add", () => {
+    expect(fixTypography("[Add] :rb_energy_1:.")).toBe("[Add] :rb_energy_1:.");
+  });
+
+  it("does not move glyphs across newlines", () => {
+    expect(fixTypography("[Deflect]\n :rb_energy_2: :rb_rune_fury:")).toBe(
+      "[Deflect]\n:rb_energy_2: :rb_rune_fury:",
+    );
+  });
+
+  it("unfixes wrongly-merged non-cost keywords", () => {
+    expect(fixTypography("[Add :rb_energy_1::rb_rune_rainbow:]")).toBe(
+      "[Add] :rb_energy_1::rb_rune_rainbow:",
+    );
+  });
+
   it("does not move glyphs into non-word brackets like [>]", () => {
     expect(fixTypography("[Reaction][>] :rb_exhaust::")).toBe("[Reaction][>] :rb_exhaust::");
   });
 
-  it("leaves already-correct keyword brackets unchanged", () => {
+  it("leaves already-correct cost-keyword brackets unchanged", () => {
     expect(fixTypography("[Equip :rb_rune_mind:]")).toBe("[Equip :rb_rune_mind:]");
   });
 

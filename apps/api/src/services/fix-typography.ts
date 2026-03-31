@@ -8,10 +8,12 @@ interface FixTypographyOptions {
  * - Straight apostrophe (') → right single curly quote (\u2019)
  * - Triple dots (...) → horizontal ellipsis (\u2026)
  * - Paired straight double quotes ("…") → curly double quotes (\u201C…\u201D)
+ * - Single leading space after line break removed
  * - Hyphen-minus before digit (-1) → minus sign (\u2212) before digit
  * - Parenthesized text (...) wrapped with underscores for italic rendering: _(...)_
  *   (enabled by default, disable with `{ italicParens: false }` for flavor text)
- * - Keyword glyphs: `[Keyword] :rb_*:` → `[Keyword :rb_*:]`
+ * - Cost-keyword glyphs: `[Equip] :rb_*:` → `[Equip :rb_*:]` (only Equip and Repeat)
+ *   Also unfixes wrongly-merged non-cost keywords: `[Add :rb_*:]` → `[Add] :rb_*:`
  *   (enabled by default, disable with `{ keywordGlyphs: false }` for non-rules text)
  *
  * @returns The text with typography fixes applied, or null if the input is null.
@@ -27,12 +29,19 @@ export function fixTypography(text: string | null, options?: FixTypographyOption
     .replaceAll("'", "\u2019") // straight apostrophe → curly
     .replaceAll("...", "\u2026") // triple dots → ellipsis
     .replaceAll(/"([^"]*)"/g, "\u201C$1\u201D") // straight double quotes → curly
-    .replaceAll(/-(\d)/g, "\u2212$1"); // hyphen before digit → minus sign
+    .replaceAll(/-(\d)/g, "\u2212$1") // hyphen before digit → minus sign
+    .replaceAll(/\n (?! )/g, "\n"); // strip single leading space after line break
   if (keywordGlyphs) {
-    // Move trailing :rb_*: glyphs inside keyword brackets: [Equip] :rb_x: → [Equip :rb_x:]
+    // Move trailing :rb_*: glyphs inside cost-keyword brackets: [Equip] :rb_x: → [Equip :rb_x:]
+    // Only Equip and Repeat take glyph costs as parameters; other keywords (Add, Deflect, etc.) don't.
     result = result.replaceAll(
-      /\[([A-Z][a-z]+)\]\s*(:rb_\w+:(?:\s*:rb_\w+:)*)/g,
+      /\[(Equip|Repeat)\][ \t]*(:rb_\w+:(?:[ \t]*:rb_\w+:)*)/g,
       (_, keyword, glyphs) => `[${keyword} ${glyphs}]`,
+    );
+    // Unfix wrongly-merged non-cost keywords: [Add :rb_x:] → [Add] :rb_x:
+    result = result.replaceAll(
+      /\[(?!(Equip|Repeat)\b)([A-Z][a-z]+)\s+(:rb_\w+:(?:\s*:rb_\w+:)*)\]/g,
+      (_, _skip, keyword, glyphs) => `[${keyword}] ${glyphs}`,
     );
   }
   if (italicParens) {
