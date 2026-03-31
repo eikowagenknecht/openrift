@@ -1,3 +1,4 @@
+import type { DeckFormat } from "@openrift/shared";
 import { BanIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -5,36 +6,57 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCardBans, useCreateCardBan, useRemoveCardBan } from "@/hooks/use-card-bans";
+
+const FORMAT_LABELS: Record<DeckFormat, string> = {
+  standard: "Standard",
+  freeform: "Freeform",
+};
 
 interface CardBanManagerProps {
   cardId: string;
+  showForm?: boolean;
+  onShowFormChange?: (show: boolean) => void;
 }
 
 /**
  * Inline admin panel for managing card bans (add/remove).
- * @returns The ban management section.
+ * Hidden when there are no bans and the form is closed.
+ * @returns The ban management section, or null if nothing to show.
  */
-export function CardBanManager({ cardId }: CardBanManagerProps) {
+export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanManagerProps) {
   const { data: bans, isLoading } = useCardBans(cardId);
   const createBan = useCreateCardBan();
   const removeBan = useRemoveCardBan();
 
-  const [showForm, setShowForm] = useState(false);
-  const [formatId, setFormatId] = useState("standard");
+  const [formatId, setFormatId] = useState<DeckFormat>("standard");
   const [bannedAt, setBannedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
+
+  const hasBans = !isLoading && bans && bans.length > 0;
 
   function handleCreate() {
     createBan.mutate(
       { cardId, formatId, bannedAt, reason: reason.trim() || null },
       {
         onSuccess: () => {
-          setShowForm(false);
+          onShowFormChange?.(false);
           setReason("");
         },
       },
     );
+  }
+
+  // Hide entirely when there are no bans and the form is closed
+  if (!hasBans && !showForm && !isLoading) {
+    return null;
   }
 
   return (
@@ -46,7 +68,7 @@ export function CardBanManager({ cardId }: CardBanManagerProps) {
 
       {isLoading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
-      ) : bans && bans.length > 0 ? (
+      ) : hasBans ? (
         <div className="space-y-1.5">
           {bans.map((ban) => (
             <div
@@ -54,7 +76,7 @@ export function CardBanManager({ cardId }: CardBanManagerProps) {
               className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
             >
               <Badge variant="destructive" className="text-xs">
-                {ban.formatId}
+                {FORMAT_LABELS[ban.formatId as DeckFormat] ?? ban.formatId}
               </Badge>
               <span className="text-muted-foreground text-xs">since {ban.bannedAt}</span>
               {ban.reason && (
@@ -72,19 +94,23 @@ export function CardBanManager({ cardId }: CardBanManagerProps) {
             </div>
           ))}
         </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">No active bans.</p>
-      )}
+      ) : null}
 
       {showForm ? (
         <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
           <div className="space-y-1">
             <Label className="text-xs">Format</Label>
-            <Input
-              value={formatId}
-              onChange={(e) => setFormatId(e.target.value)}
-              className="h-7 w-32 text-xs"
-            />
+            <Select value={formatId} onValueChange={(value) => setFormatId(value as DeckFormat)}>
+              <SelectTrigger size="sm" className="w-32 text-xs">
+                <SelectValue>
+                  {(value: string) => FORMAT_LABELS[value as DeckFormat] ?? value}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="freeform">Freeform</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Banned at</Label>
@@ -116,22 +142,22 @@ export function CardBanManager({ cardId }: CardBanManagerProps) {
             variant="ghost"
             size="sm"
             className="h-7 text-xs"
-            onClick={() => setShowForm(false)}
+            onClick={() => onShowFormChange?.(false)}
           >
             Cancel
           </Button>
         </div>
-      ) : (
+      ) : hasBans ? (
         <Button
           variant="outline"
           size="sm"
           className="h-6 text-xs"
-          onClick={() => setShowForm(true)}
+          onClick={() => onShowFormChange?.(true)}
         >
           <PlusIcon className="mr-1 size-3" />
           Add ban
         </Button>
-      )}
+      ) : null}
     </section>
   );
 }
