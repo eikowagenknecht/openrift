@@ -142,9 +142,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /** @returns All printings with fields needed for the card source list. */
     listPrintingsForSourceList(): Promise<
-      Pick<Selectable<PrintingsTable>, "cardId" | "shortCode">[]
+      Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "language">[]
     > {
-      return db.selectFrom("printings").select(["cardId", "shortCode"]).execute();
+      return db.selectFrom("printings").select(["cardId", "shortCode", "language"]).execute();
     },
 
     /** @returns Cards where at least one printing has no active front-face image. */
@@ -174,13 +174,19 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     listCandidatePrintingsForSourceList(): Promise<
       Pick<
         Selectable<CandidatePrintingsTable>,
-        "candidateCardId" | "shortCode" | "checkedAt" | "printingId"
+        "candidateCardId" | "shortCode" | "checkedAt" | "printingId" | "language"
       >[]
     > {
       return db
         .selectFrom("candidatePrintings as ps")
         .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
-        .select(["ps.candidateCardId", "ps.shortCode", "ps.checkedAt", "ps.printingId"])
+        .select([
+          "ps.candidateCardId",
+          "ps.shortCode",
+          "ps.checkedAt",
+          "ps.printingId",
+          "ps.language",
+        ])
         .where(notIgnoredPrinting("ps", "cs"))
         .where(notHiddenSource("cs"))
         .execute();

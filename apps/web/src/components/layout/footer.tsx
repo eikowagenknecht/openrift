@@ -15,6 +15,10 @@ export function Footer() {
           Privacy Policy
         </Link>
         <span aria-hidden="true"> · </span>
+        <Link to="/support" className="hover:text-muted-foreground">
+          Support Us
+        </Link>
+        <span aria-hidden="true"> · </span>
         <a
           href="https://github.com/eikowagenknecht/openrift/commits/main/"
           target="_blank"

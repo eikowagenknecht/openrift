@@ -12,14 +12,20 @@ export function unique<T>(values: T[]): T[] {
 
 /**
  * Format a human-readable printing label from its component fields.
- * @returns Display label: "{short_code}:{finish}:{promo_type_slug|}"
+ * Non-EN languages get a trailing `:LANG` suffix; EN (the default) is omitted.
+ * @returns Display label: "{short_code}:{finish}:{promo_type_slug|}[:LANG]"
  */
 export function formatPrintingLabel(
   shortCode: string,
   promoTypeSlug: string | null,
   finish: string,
+  language?: string | null,
 ): string {
-  return `${shortCode}:${finish}:${promoTypeSlug ?? ""}`;
+  const base = `${shortCode}:${finish}:${promoTypeSlug ?? ""}`;
+  if (language && language !== "EN") {
+    return `${base}:${language}`;
+  }
+  return base;
 }
 
 /**
