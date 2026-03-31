@@ -210,6 +210,19 @@ export const CardThumbnail = memo(function CardThumbnail({
   const [fanReady, setFanReady] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
+  // custom: large diagonal "BANNED" overlay for deckbuilder
+  const banOverlay = showBanOverlay && printing.card.bans.length > 0 && (
+    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden rounded-[inherit]">
+      <div className="absolute inset-0 bg-black/40" />
+      <span
+        className="relative text-[clamp(0.75rem,5cqi,1.5rem)] font-black tracking-widest text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none"
+        style={{ transform: "rotate(-45deg)" }}
+      >
+        BANNED
+      </span>
+    </div>
+  );
+
   const imageSection = (
     <div className={cn("relative", dimmed && "opacity-50")}>
       {otherPrintings.map((sibling, i) => {
@@ -277,6 +290,7 @@ export const CardThumbnail = memo(function CardThumbnail({
                 card={card}
                 showFoil={isFoilCard && gridFoil}
               />
+              {banOverlay}
             </div>
           </div>
         ) : (
@@ -301,24 +315,10 @@ export const CardThumbnail = memo(function CardThumbnail({
               card={card}
               showFoil={isFoilCard && gridFoil}
             />
+            {banOverlay}
           </div>
         )}
       </div>
-      {/* custom: large diagonal "BANNED" overlay for deckbuilder */}
-      {showBanOverlay && printing.card.bans.length > 0 && (
-        <div
-          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"
-          style={{ borderRadius: CARD_BORDER_RADIUS }}
-        >
-          <div className="absolute inset-0 bg-black/40" />
-          <span
-            className="relative text-[clamp(0.75rem,5cqi,1.5rem)] font-black tracking-widest text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none"
-            style={{ transform: "rotate(-45deg)" }}
-          >
-            BANNED
-          </span>
-        </div>
-      )}
     </div>
   );
 
