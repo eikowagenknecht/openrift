@@ -1,5 +1,4 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError } from "../../errors.js";
@@ -7,8 +6,12 @@ import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
+const userIdParamSchema = z.object({
+  id: z.string().min(1),
+});
+
 const userKeyParamSchema = z.object({
-  id: z.uuid(),
+  id: z.string().min(1),
   key: z.string().min(1),
 });
 
@@ -48,7 +51,7 @@ const listUserOverrides = createRoute({
   method: "get",
   path: "/users/{id}/feature-flags",
   tags: ["Admin - Feature Flags"],
-  request: { params: idParamSchema },
+  request: { params: userIdParamSchema },
   responses: {
     200: {
       content: {

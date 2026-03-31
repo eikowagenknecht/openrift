@@ -1,4 +1,3 @@
-import type { DeckFormat } from "@openrift/shared";
 import { BanIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -14,11 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCardBans, useCreateCardBan, useRemoveCardBan } from "@/hooks/use-card-bans";
-
-const FORMAT_LABELS: Record<DeckFormat, string> = {
-  standard: "Standard",
-  freeform: "Freeform",
-};
+import { useFormats } from "@/hooks/use-formats";
 
 interface CardBanManagerProps {
   cardId: string;
@@ -33,18 +28,25 @@ interface CardBanManagerProps {
  */
 export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanManagerProps) {
   const { data: bans, isLoading } = useCardBans(cardId);
+  const { data: formats } = useFormats();
   const createBan = useCreateCardBan();
   const removeBan = useRemoveCardBan();
 
-  const [formatId, setFormatId] = useState<DeckFormat>("standard");
+  const [formatId, setFormatId] = useState("");
   const [bannedAt, setBannedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
+
+  // Default to first format once loaded
+  const effectiveFormatId = formatId || formats?.[0]?.id || "";
 
   const hasBans = !isLoading && bans && bans.length > 0;
 
   function handleCreate() {
+    if (!effectiveFormatId) {
+      return;
+    }
     createBan.mutate(
-      { cardId, formatId, bannedAt, reason: reason.trim() || null },
+      { cardId, formatId: effectiveFormatId, bannedAt, reason: reason.trim() || null },
       {
         onSuccess: () => {
           onShowFormChange?.(false);
@@ -58,6 +60,8 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
   if (!hasBans && !showForm && !isLoading) {
     return null;
   }
+
+  const formatNameById = new Map(formats?.map((f) => [f.id, f.name]));
 
   return (
     <section className="space-y-2">
@@ -76,7 +80,7 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
               className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
             >
               <Badge variant="destructive" className="text-xs">
-                {FORMAT_LABELS[ban.formatId as DeckFormat] ?? ban.formatId}
+                {ban.formatName}
               </Badge>
               <span className="text-muted-foreground text-xs">since {ban.bannedAt}</span>
               {ban.reason && (
@@ -100,15 +104,19 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
         <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
           <div className="space-y-1">
             <Label className="text-xs">Format</Label>
-            <Select value={formatId} onValueChange={(value) => setFormatId(value as DeckFormat)}>
+            <Select
+              value={effectiveFormatId}
+              onValueChange={(value) => value && setFormatId(value)}
+            >
               <SelectTrigger size="sm" className="w-32 text-xs">
-                <SelectValue>
-                  {(value: string) => FORMAT_LABELS[value as DeckFormat] ?? value}
-                </SelectValue>
+                <SelectValue>{(value: string) => formatNameById.get(value) ?? value}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="freeform">Freeform</SelectItem>
+                {formats?.map((format) => (
+                  <SelectItem key={format.id} value={format.id}>
+                    {format.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -134,7 +142,7 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
             size="sm"
             className="h-7 text-xs"
             onClick={handleCreate}
-            disabled={createBan.isPending}
+            disabled={createBan.isPending || !effectiveFormatId}
           >
             Ban
           </Button>

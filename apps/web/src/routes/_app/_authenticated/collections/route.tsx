@@ -153,16 +153,14 @@ function CollectionContent({ title }: { title: string }) {
 
   return (
     <AddModeSlotContext value={addModeSlot}>
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip p-3">
         {/* Header only for mobile */}
         <header className="flex h-12 items-center gap-2 px-4 md:hidden">
           <CollectionTitleButton title={title} />
           <div ref={setAddModeSlot} className="flex flex-1 items-center gap-2" />
         </header>
         {/* Main content */}
-        <div className="flex-1 p-3">
-          <Outlet />
-        </div>
+        <Outlet />
         <Footer />
       </div>
     </AddModeSlotContext>
