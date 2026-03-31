@@ -27,7 +27,7 @@ export interface PowerCount {
   sideboard: number;
 }
 
-export interface DeckStats {
+interface DeckStats {
   domainDistribution: DomainCount[];
   energyCurve: EnergyCostCount[];
   powerCurve: PowerCount[];

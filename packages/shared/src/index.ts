@@ -148,4 +148,22 @@ export {
 export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";
 
 export type { DeckCard, DeckState, DeckViolation, DeckRule } from "./deck-rules.js";
-export { STANDARD_RULES, validateDeck } from "./deck-rules.js";
+export {
+  STANDARD_RULES,
+  validateDeck,
+  legendExactlyOne,
+  championExactlyOne,
+  championSharesTagWithLegend,
+  runesExactlyTwelve,
+  runesAllTypeRune,
+  runesMatchLegendDomains,
+  mainDeckMinimum,
+  mainDeckCopyLimit,
+  mainDeckDomainMatch,
+  championCopyLimitAcrossZones,
+  sideboardMaximum,
+  sideboardCopyLimit,
+  battlefieldExactlyThree,
+  battlefieldAllTypeBattlefield,
+  battlefieldNoDuplicates,
+} from "./deck-rules.js";

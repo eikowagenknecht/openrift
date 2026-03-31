@@ -51,30 +51,6 @@ export function useCreateDeck() {
   });
 }
 
-export function useUpdateDeck() {
-  return useMutationWithInvalidation<
-    unknown,
-    {
-      deckId: string;
-      name?: string;
-      description?: string | null;
-      format?: DeckFormat;
-      isWanted?: boolean;
-      isPublic?: boolean;
-    }
-  >({
-    mutationFn: async ({ deckId, ...body }) => {
-      const res = await client.api.v1.decks[":id"].$patch({
-        param: { id: deckId },
-        json: body,
-      });
-      assertOk(res);
-      return await res.json();
-    },
-    invalidates: [queryKeys.decks.all],
-  });
-}
-
 export function useDeleteDeck() {
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: async (deckId) => {

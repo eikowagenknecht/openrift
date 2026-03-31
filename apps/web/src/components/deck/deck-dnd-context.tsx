@@ -22,7 +22,7 @@ export interface DeckCardDragData {
   quantity: number;
 }
 
-export interface BrowserCardDragData {
+interface BrowserCardDragData {
   type: "browser-card";
   card: DeckBuilderCard;
 }
