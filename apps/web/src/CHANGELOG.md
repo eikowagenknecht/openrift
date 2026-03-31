@@ -2,6 +2,7 @@
 
 ## 2026-03-31
 
+- feat: Banned cards in the deck builder now show a large diagonal "BANNED" overlay across the card image
 - feat: Build decks with a guided flow — choose a Legend, Champion, Battlefields, and Runes, then fill your main deck and sideboard with full card browser integration
 - feat: Deck list shows each deck's domain colors, card count, and Standard validity at a glance
 - feat: Live stats panel shows domain distribution, energy curve, power curve, and card type breakdown with stacked main/sideboard bars

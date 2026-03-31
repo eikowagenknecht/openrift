@@ -154,6 +154,8 @@ interface CardThumbnailProps {
   dragData?: Record<string, unknown>; // custom: passed to @dnd-kit useDraggable
   /** Unique drag ID (required when dragData is set). */
   dragId?: string; // custom: @dnd-kit draggable ID
+  /** Shows a large diagonal "BANNED" overlay on the card image. */
+  showBanOverlay?: boolean; // custom: deckbuilder banned card overlay
 }
 
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
@@ -176,6 +178,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   highlighted,
   dragData,
   dragId,
+  showBanOverlay,
 }: CardThumbnailProps) {
   const card = {
     ...printing.card,
@@ -301,6 +304,21 @@ export const CardThumbnail = memo(function CardThumbnail({
           </div>
         )}
       </div>
+      {/* custom: large diagonal "BANNED" overlay for deckbuilder */}
+      {showBanOverlay && printing.card.bans.length > 0 && (
+        <div
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"
+          style={{ borderRadius: CARD_BORDER_RADIUS }}
+        >
+          <div className="absolute inset-0 bg-black/40" />
+          <span
+            className="relative text-[clamp(0.75rem,5cqi,1.5rem)] font-black tracking-widest text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none"
+            style={{ transform: "rotate(-45deg)" }}
+          >
+            BANNED
+          </span>
+        </div>
+      )}
     </div>
   );
 
