@@ -73,6 +73,8 @@ function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
     isSigned: null,
     isPromo: null,
     promoTypes: [],
+    isBanned: null,
+    hasErrata: null,
     ...overrides,
   };
 }

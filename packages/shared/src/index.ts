@@ -18,6 +18,7 @@ export type {
   LowResImageEntry,
   LowResImagesResponse,
   Card,
+  CardBan,
   CardFilters,
   CardFace,
   CardmarketSnapshot,

@@ -256,7 +256,15 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&
       matchesRange(card.power, filters.power) &&
-      matchesRange(printing.marketPrice ?? null, filters.price)
+      matchesRange(printing.marketPrice ?? null, filters.price) &&
+      matchesFlag(filters.isBanned, card.bans.length > 0) &&
+      matchesFlag(
+        filters.hasErrata,
+        card.rulesText !== null &&
+          printing.printedRulesText !== null &&
+          printing.printedRulesText !== undefined &&
+          printing.printedRulesText !== card.rulesText,
+      )
     );
   });
 }
@@ -271,6 +279,8 @@ export interface AvailableFilters {
   finishes: Finish[];
   hasSigned: boolean;
   hasPromo: boolean;
+  hasBanned: boolean;
+  hasErrata: boolean;
   hasNullEnergy: boolean;
   hasNullMight: boolean;
   hasNullPower: boolean;
@@ -330,6 +340,14 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
     finishes,
     hasSigned: printings.some((p) => p.isSigned),
     hasPromo: printings.some((p) => p.promoType !== null),
+    hasBanned: printings.some((p) => p.card.bans.length > 0),
+    hasErrata: printings.some(
+      (p) =>
+        p.card.rulesText !== null &&
+        p.printedRulesText !== null &&
+        p.printedRulesText !== undefined &&
+        p.printedRulesText !== p.card.rulesText,
+    ),
     hasNullEnergy: printings.some((p) => p.card.energy === null),
     hasNullMight: printings.some((p) => p.card.might === null),
     hasNullPower: printings.some((p) => p.card.power === null),

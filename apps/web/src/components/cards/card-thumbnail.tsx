@@ -212,10 +212,10 @@ export const CardThumbnail = memo(function CardThumbnail({
 
   // custom: large diagonal "BANNED" overlay for deckbuilder
   const banOverlay = showBanOverlay && printing.card.bans.length > 0 && (
-    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden rounded-[inherit]">
-      <div className="absolute inset-0 bg-black/40" />
+    <div className="@container pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden rounded-[inherit]">
+      <div className="absolute inset-0 bg-black/70" />
       <span
-        className="relative text-[clamp(0.75rem,5cqi,1.5rem)] font-black tracking-widest text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none"
+        className="relative text-[15cqi] font-black tracking-widest text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none"
         style={{ transform: "rotate(-45deg)" }}
       >
         BANNED
@@ -347,7 +347,13 @@ export const CardThumbnail = memo(function CardThumbnail({
         superTypes={card.superTypes}
         rarity={printing.rarity}
         isFoil={isFoilCard}
-        isBanned={printing.card.bans.length > 0}
+        bans={showBanOverlay ? undefined : printing.card.bans}
+        hasRulesDeviation={
+          printing.card.rulesText !== null &&
+          printing.printedRulesText !== null &&
+          printing.printedRulesText !== undefined &&
+          printing.printedRulesText !== printing.card.rulesText
+        }
         price={priceNode}
       />
     </div>

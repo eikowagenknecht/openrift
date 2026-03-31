@@ -1,7 +1,8 @@
-import type { CardType, Rarity } from "@openrift/shared";
-import { Sparkle } from "lucide-react";
+import type { CardBan, CardType, Rarity } from "@openrift/shared";
+import { Sparkle, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +13,10 @@ interface CardMetaLabelProps {
   superTypes: string[];
   rarity: Rarity;
   isFoil?: boolean;
-  isBanned?: boolean;
+  /** Ban records to show as a warning icon with tooltip. */
+  bans?: CardBan[];
+  /** True when printed rules text differs from the card's current rules text. */
+  hasRulesDeviation?: boolean;
   className?: string;
   /** Optional price element rendered right-aligned on the name line. */
   price?: ReactNode;
@@ -30,7 +34,8 @@ export function CardMetaLabel({
   superTypes,
   rarity,
   isFoil,
-  isBanned,
+  bans,
+  hasRulesDeviation,
   className,
   price,
 }: CardMetaLabelProps) {
@@ -65,10 +70,24 @@ export function CardMetaLabel({
               <Sparkle className="size-3.5 fill-amber-400 text-amber-400" />
             </span>
           )}
-          {isBanned && (
-            <span className="rounded bg-red-600 px-1 text-[10px] leading-tight font-semibold text-white">
-              Banned
-            </span>
+          {bans && bans.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger className="cursor-default">
+                <TriangleAlert className="size-3.5 text-red-500" />
+              </TooltipTrigger>
+              <TooltipContent>
+                Banned in {bans.map((b) => b.formatName).join(", ")}
+                {bans[0].reason && <div className="mt-0.5 opacity-80">{bans[0].reason}</div>}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {hasRulesDeviation && (
+            <Tooltip>
+              <TooltipTrigger className="cursor-default">
+                <TriangleAlert className="size-3.5 text-yellow-500" />
+              </TooltipTrigger>
+              <TooltipContent>Printed text differs from current rules</TooltipContent>
+            </Tooltip>
           )}
         </span>
       </div>
