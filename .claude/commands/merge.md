@@ -17,7 +17,7 @@ Must be on the `main` branch. If on a worktree branch, abort and tell the user t
 3. **Gather context.** Run these in parallel:
    - `git log main..<branch> --oneline` to list all commits being merged.
    - `git diff main...<branch> --stat` to get the overall diff summary.
-   - `git diff main...<branch>` to read the full diff.
+     Use the commit messages and stat summary to draft the squash message — do **not** read the full diff. (When called inline from `/done`, you already reviewed the changes during the commit step. When called standalone, the stat + commit log is sufficient.)
 
 4. **Draft a squash commit message.** Analyze the diff and commit history to write a single Conventional Commit message. If the work spans multiple types, use the most significant one (`feat:` > `fix:` > `refactor:` > `chore:`). The message should summarize the overall change, not list individual commits.
 
@@ -35,14 +35,18 @@ Must be on the `main` branch. If on a worktree branch, abort and tell the user t
 
    Do not proceed until the user confirms.
 
-6. **Execute the merge:**
+6. **Rebase the branch on local main** before merging. This ensures the squash applies cleanly:
+   - `git rebase main <branch>` — always rebase on **local `main`**, never on `origin/main`. Do not `git fetch` or `git pull`.
+   - If the rebase has conflicts, abort (`git rebase --abort`), tell the user, and stop.
+
+7. **Execute the merge:**
    - `git merge --squash <branch>`
    - `git commit` with the approved message. Never use `--no-verify`.
    - `git status` to confirm the result.
 
-7. **Clean up the worktree.** After the merge succeeds:
+8. **Clean up the worktree.** After the merge succeeds:
    - `git worktree remove <worktree-path>` to remove the worktree directory. The path comes from step 1's `git worktree list` output.
    - `git branch -D <branch>` to delete the merged branch.
    - If either command fails, warn the user but do not abort — the merge itself already succeeded.
 
-8. **Report the result.** Show the final commit hash and a one-line summary. Confirm the worktree and branch were cleaned up (or note if cleanup failed).
+9. **Report the result.** Show the final commit hash and a one-line summary. Confirm the worktree and branch were cleaned up (or note if cleanup failed).

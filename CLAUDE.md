@@ -92,9 +92,11 @@ If you are about to use Edit, Write, or Bash to modify a file and you are NOT in
 
 **Worktree setup:** run `ln -s /home/eiko/repos/openrift/.env .env && ln -s /home/eiko/repos/openrift/card-images card-images && LEFTHOOK=0 bun install --frozen-lockfile; bun --cwd apps/web tsr generate` before doing anything else.
 
-**Worktree rules:** Database is shared (see Migrations). Use `docker exec` for DB access, not `docker compose`. Use a different port if you need a dev server (`PORT=5174 bun dev:web`). Never `git stash` or discard changes in the main repo.
+**Worktree rules:** Database is shared (see Migrations). Use `docker exec` for DB access, not `docker compose`. Use a different port if you need a dev server (`PORT=5174 bun dev:web`). Never `git stash` or discard changes in the main repo. **Do not run integration tests from worktrees** — the database connection is not available there. Run unit tests and linting only; integration tests run from main after merging.
 
-**When done:** run `/done` to commit remaining work, add changelog entries, and run `bun run check`. Do not push or create PRs. The user will run `/merge` from main to squash-merge your branch.
+**When done:** run `/done` to commit remaining work, add changelog entries, and run checks (build, lint, unit tests — no integration tests). Do not push or create PRs. The user will run `/merge` from main to squash-merge your branch.
+
+**Rebasing:** Always rebase on **local `main`** (`git rebase main`). Never fetch or rebase on `origin/main` — the local main branch is the source of truth.
 
 ## Changelog
 
