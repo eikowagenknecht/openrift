@@ -28,8 +28,16 @@ interface ActiveFiltersProps {
 
 export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFiltersProps) {
   const { filterState, ranges, hasActiveFilters } = useFilterValues();
-  const { toggleArrayFilter, setRange, clearSigned, clearPromo, clearAllFilters, setSearch } =
-    useFilterActions();
+  const {
+    toggleArrayFilter,
+    setRange,
+    clearSigned,
+    clearPromo,
+    clearBanned,
+    clearErrata,
+    clearAllFilters,
+    setSearch,
+  } = useFilterActions();
   if (!hasActiveFilters) {
     return null;
   }
@@ -154,6 +162,28 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
             <Badge variant="secondary" className="gap-1">
               {filterState.promo === "false" ? "Not Promo" : "Promo"}
               <button type="button" onClick={clearPromo} className="hover:text-foreground ml-0.5">
+                <X className="size-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
+        {filterState.banned !== null && (
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground text-xs">Flag:</span>
+            <Badge variant="secondary" className="gap-1">
+              {filterState.banned === "false" ? "Not Banned" : "Banned"}
+              <button type="button" onClick={clearBanned} className="hover:text-foreground ml-0.5">
+                <X className="size-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
+        {filterState.errata !== null && (
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground text-xs">Flag:</span>
+            <Badge variant="secondary" className="gap-1">
+              {filterState.errata === "false" ? "No Errata" : "Errata"}
+              <button type="button" onClick={clearErrata} className="hover:text-foreground ml-0.5">
                 <X className="size-3" />
               </button>
             </Badge>

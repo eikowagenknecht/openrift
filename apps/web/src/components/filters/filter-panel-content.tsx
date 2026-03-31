@@ -71,7 +71,8 @@ export function FilterBadgeSections({
   setDisplayLabel,
 }: FilterPanelContentProps) {
   const { filterState } = useFilterValues();
-  const { toggleArrayFilter, toggleSigned, togglePromo } = useFilterActions();
+  const { toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
+    useFilterActions();
   return (
     <>
       <FilterSection
@@ -130,7 +131,10 @@ export function FilterBadgeSections({
           displayLabel={(v) => FINISH_LABELS[v] ?? v}
         />
       )}
-      {(availableFilters.hasSigned || availableFilters.hasPromo) && (
+      {(availableFilters.hasSigned ||
+        availableFilters.hasPromo ||
+        availableFilters.hasBanned ||
+        availableFilters.hasErrata) && (
         <FilterSection label="Special">
           {availableFilters.hasSigned && (
             <Badge
@@ -148,6 +152,24 @@ export function FilterBadgeSections({
               onClick={togglePromo}
             >
               {filterState.promo === "false" ? "Not Promo" : "Promo"}
+            </Badge>
+          )}
+          {availableFilters.hasBanned && (
+            <Badge
+              variant={filterState.banned === null ? "outline" : "default"}
+              className="cursor-pointer"
+              onClick={toggleBanned}
+            >
+              {filterState.banned === "false" ? "Not Banned" : "Banned"}
+            </Badge>
+          )}
+          {availableFilters.hasErrata && (
+            <Badge
+              variant={filterState.errata === null ? "outline" : "default"}
+              className="cursor-pointer"
+              onClick={toggleErrata}
+            >
+              {filterState.errata === "false" ? "No Errata" : "Errata"}
             </Badge>
           )}
         </FilterSection>

@@ -34,6 +34,8 @@ const filterParsers = {
   priceMax: parseAsFloat,
   signed: parseAsString,
   promo: parseAsString,
+  banned: parseAsString,
+  errata: parseAsString,
   sort: parseAsString.withDefault("id"),
   sortDir: parseAsString.withDefault("asc"),
   view: parseAsString.withDefault("cards"),
@@ -75,6 +77,8 @@ export function useFilterValues() {
     isSigned: filterState.signed === "true" ? true : filterState.signed === "false" ? false : null,
     isPromo: filterState.promo === "true" ? true : filterState.promo === "false" ? false : null,
     promoTypes: [],
+    isBanned: filterState.banned === "true" ? true : filterState.banned === "false" ? false : null,
+    hasErrata: filterState.errata === "true" ? true : filterState.errata === "false" ? false : null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },
     might: { min: filterState.mightMin, max: filterState.mightMax },
     power: { min: filterState.powerMin, max: filterState.powerMax },
@@ -111,7 +115,9 @@ export function useFilterValues() {
     filterState.priceMin !== null ||
     filterState.priceMax !== null ||
     filterState.signed !== null ||
-    filterState.promo !== null;
+    filterState.promo !== null ||
+    filterState.banned !== null ||
+    filterState.errata !== null;
 
   return {
     filters,
@@ -189,6 +195,8 @@ export function useFilterActions() {
       priceMax: null,
       signed: null,
       promo: null,
+      banned: null,
+      errata: null,
       sort: null,
       sortDir: null,
     });
@@ -220,6 +228,18 @@ export function useFilterActions() {
   };
   const clearSigned = () => void setFilterState({ signed: null });
   const clearPromo = () => void setFilterState({ promo: null });
+  const toggleBanned = () => {
+    const next =
+      filterState.banned === null ? "true" : filterState.banned === "true" ? "false" : null;
+    void setFilterState({ banned: next });
+  };
+  const toggleErrata = () => {
+    const next =
+      filterState.errata === null ? "true" : filterState.errata === "true" ? "false" : null;
+    void setFilterState({ errata: next });
+  };
+  const clearBanned = () => void setFilterState({ banned: null });
+  const clearErrata = () => void setFilterState({ errata: null });
 
   const setSortBy = (sort: SortOption) => {
     void setFilterState({ sort: sort === "id" ? null : sort });
@@ -243,8 +263,12 @@ export function useFilterActions() {
     setRange,
     toggleSigned,
     togglePromo,
+    toggleBanned,
+    toggleErrata,
     clearSigned,
     clearPromo,
+    clearBanned,
+    clearErrata,
     setSortBy,
     setSortDir,
     setView,

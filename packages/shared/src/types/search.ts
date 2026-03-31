@@ -58,4 +58,6 @@ export interface CardFilters {
   isSigned: boolean | null;
   isPromo: boolean | null;
   promoTypes: string[];
+  isBanned: boolean | null;
+  hasErrata: boolean | null;
 }

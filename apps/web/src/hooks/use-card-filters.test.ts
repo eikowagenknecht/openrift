@@ -43,6 +43,8 @@ function defaultFilterState() {
     priceMax: null,
     signed: null,
     promo: null,
+    banned: null,
+    errata: null,
     sort: "id",
     sortDir: "asc",
     view: "cards",
@@ -156,6 +158,8 @@ describe("useCardFilters", () => {
       priceMax: null,
       signed: null,
       promo: null,
+      banned: null,
+      errata: null,
       sort: null,
       sortDir: null,
     });
