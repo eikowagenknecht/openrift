@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -32,8 +32,10 @@ export function CardSearchDropdown({
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
 
   const visible = showResults && search.length >= 2;
+  const activeOptionId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
 
   function scrollActiveIntoView(index: number) {
     const list = listRef.current;
@@ -89,6 +91,11 @@ export function CardSearchDropdown({
   return (
     <div className={cn("relative", className)} ref={containerRef}>
       <Input
+        role="combobox"
+        aria-expanded={visible && results.length > 0}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+        aria-autocomplete="list"
         placeholder={placeholder}
         value={search}
         onChange={(event) => {
@@ -112,11 +119,16 @@ export function CardSearchDropdown({
       {visible && results.length > 0 && (
         <div
           ref={listRef}
+          id={listboxId}
+          role="listbox"
           className="bg-popover absolute top-full z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
         >
           {results.map((item, index) => (
             <button
               key={item.id}
+              id={`${listboxId}-option-${index}`}
+              role="option"
+              aria-selected={index === activeIndex}
               type="button"
               className={cn(
                 "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm disabled:opacity-50",
@@ -146,7 +158,11 @@ export function CardSearchDropdown({
         </div>
       )}
       {visible && results.length === 0 && (
-        <div className="bg-popover absolute top-full z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md">
+        <div
+          id={listboxId}
+          role="listbox"
+          className="bg-popover absolute top-full z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
+        >
           <p className="text-muted-foreground text-xs">No matching cards</p>
         </div>
       )}

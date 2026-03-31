@@ -134,6 +134,7 @@ export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from ".
 export type { SortCardsOptions } from "./filters.js";
 
 export {
+  extractCardIdFromShortCode,
   formatPrintingLabel,
   centsToDollars,
   comparePrintings,
