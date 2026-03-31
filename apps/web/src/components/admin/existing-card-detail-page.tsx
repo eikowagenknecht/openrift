@@ -500,7 +500,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
       </section>
 
       {/* ── Bans ─────────────────────────────────────────────────────────────── */}
-      <CardBanManager cardId={cardId} />
+      <CardBanManager cardId={card.id} />
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">
