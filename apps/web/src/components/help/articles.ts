@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowRightLeft, Layers, Library } from "lucide-react";
+import { ArrowRightLeft, Layers, Library, Swords } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface HelpArticle {
@@ -42,6 +42,17 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Bring cards in from other tools via CSV, review how matching works, and export your collection.",
       icon: ArrowRightLeft,
       component: () => import("./articles/import-export"),
+    },
+  ],
+  [
+    "deck-building",
+    {
+      slug: "deck-building",
+      title: "Building Decks",
+      description:
+        "Create decks, pick a legend, fill your zones, and validate against Standard format rules.",
+      icon: Swords,
+      component: () => import("./articles/deck-building"),
     },
   ],
 ]);
