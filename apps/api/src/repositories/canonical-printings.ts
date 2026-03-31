@@ -38,7 +38,8 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         return [];
       }
 
-      return await db
+      // Try strict canonical filters first
+      const canonical = await db
         .selectFrom("printings as p")
         .innerJoin("sets as s", "s.id", "p.setId")
         .select(["p.cardId", "p.shortCode"])
@@ -53,6 +54,33 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         .orderBy("s.releasedAt", "asc")
         .orderBy("p.shortCode", "asc")
         .execute();
+
+      const resolved = new Map(canonical.map((row) => [row.cardId, row.shortCode]));
+
+      // Fall back for cards with no strict-canonical printing (e.g. foil-only cards)
+      const missing = cardIds.filter((id) => !resolved.has(id));
+      if (missing.length > 0) {
+        const fallback = await db
+          .selectFrom("printings as p")
+          .innerJoin("sets as s", "s.id", "p.setId")
+          .select(["p.cardId", "p.shortCode"])
+          .where("p.cardId", "in", missing)
+          .where("p.isSigned", "=", false)
+          .where("p.promoTypeId", "is", null)
+          .where("p.language", "=", "EN")
+          .distinctOn("p.cardId")
+          .orderBy("p.cardId")
+          .orderBy("p.artVariant", "asc")
+          .orderBy("s.releasedAt", "asc")
+          .orderBy("p.shortCode", "asc")
+          .execute();
+
+        for (const row of fallback) {
+          resolved.set(row.cardId, row.shortCode);
+        }
+      }
+
+      return [...resolved.entries()].map(([cardId, shortCode]) => ({ cardId, shortCode }));
     },
 
     /**
