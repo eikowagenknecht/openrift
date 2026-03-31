@@ -59,6 +59,7 @@ import * as m053 from "./053-drop-printing-slug.js";
 import * as m054 from "./054-card-bans.js";
 import * as m055 from "./055-languages.js";
 import * as m056 from "./056-deck-zones.js";
+import * as m057 from "./057-user-feature-flags.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -117,4 +118,5 @@ export const migrations: Record<string, Migration> = {
   "054-card-bans": m054,
   "055-languages": m055,
   "056-deck-zones": m056,
+  "057-user-feature-flags": m057,
 };

@@ -12,6 +12,7 @@ export type {
   DeckCardsTable,
   DecksTable,
   FeatureFlagsTable,
+  UserFeatureFlagsTable,
   SiteSettingsTable,
   IgnoredCandidateCardsTable,
   IgnoredCandidatePrintingsTable,

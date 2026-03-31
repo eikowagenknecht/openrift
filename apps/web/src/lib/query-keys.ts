@@ -58,6 +58,7 @@ export const queryKeys = {
     },
     marketplaceGroups: ["admin", "marketplace-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
+    featureFlagOverrides: ["admin", "feature-flag-overrides"] as const,
     siteSettings: ["admin", "site-settings"] as const,
     cronStatus: ["admin", "cron-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,

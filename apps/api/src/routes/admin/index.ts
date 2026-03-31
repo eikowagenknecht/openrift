@@ -18,6 +18,7 @@ import { adminProviderSettingsRoute } from "./provider-settings.js";
 import { adminSiteSettingsRoute } from "./site-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
+import { adminUserFeatureFlagsRoute } from "./user-feature-flags.js";
 import { adminUsersRoute } from "./users.js";
 
 // ── Route definitions ────────────────────────────────────────────────────────
@@ -100,4 +101,5 @@ export const adminRoute = app
   .route("/admin", adminSiteSettingsRoute)
   .route("/admin", stagingCardOverridesRoute)
   .route("/admin", adminCardsRoute)
-  .route("/admin", adminUsersRoute);
+  .route("/admin", adminUsersRoute)
+  .route("/admin", adminUserFeatureFlagsRoute);

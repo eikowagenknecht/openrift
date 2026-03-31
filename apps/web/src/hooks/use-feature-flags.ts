@@ -60,3 +60,45 @@ export function useDeleteFeatureFlag() {
     invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
   });
 }
+
+// ---------------------------------------------------------------------------
+// Admin hooks for per-user feature flag overrides
+// ---------------------------------------------------------------------------
+
+export const adminFeatureFlagOverridesQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.featureFlagOverrides,
+  queryFn: async () => {
+    const res = await client.api.v1.admin["feature-flags"].overrides.$get();
+    assertOk(res);
+    return await res.json();
+  },
+});
+
+export function useFeatureFlagOverrides() {
+  return useSuspenseQuery(adminFeatureFlagOverridesQueryOptions);
+}
+
+export function useUpsertFeatureFlagOverride() {
+  return useMutationWithInvalidation({
+    mutationFn: async (vars: { userId: string; flagKey: string; enabled: boolean }) => {
+      const res = await client.api.v1.admin.users[":id"]["feature-flags"][":key"].$put({
+        param: { id: vars.userId, key: vars.flagKey },
+        json: { enabled: vars.enabled },
+      });
+      assertOk(res);
+    },
+    invalidates: [queryKeys.admin.featureFlagOverrides, queryKeys.featureFlags.all],
+  });
+}
+
+export function useDeleteFeatureFlagOverride() {
+  return useMutationWithInvalidation({
+    mutationFn: async (vars: { userId: string; flagKey: string }) => {
+      const res = await client.api.v1.admin.users[":id"]["feature-flags"][":key"].$delete({
+        param: { id: vars.userId, key: vars.flagKey },
+      });
+      assertOk(res);
+    },
+    invalidates: [queryKeys.admin.featureFlagOverrides, queryKeys.featureFlags.all],
+  });
+}

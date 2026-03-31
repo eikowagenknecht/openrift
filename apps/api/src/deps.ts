@@ -28,6 +28,7 @@ import { providerSettingsRepo } from "./repositories/provider-settings.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
+import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { usersRepo } from "./repositories/users.js";
 import { wishListsRepo } from "./repositories/wish-lists.js";
@@ -50,6 +51,7 @@ export interface Repos {
   copies: ReturnType<typeof copiesRepo>;
   decks: ReturnType<typeof decksRepo>;
   featureFlags: ReturnType<typeof featureFlagsRepo>;
+  userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
   keywordStyles: ReturnType<typeof keywordStylesRepo>;
   languages: ReturnType<typeof languagesRepo>;
@@ -96,6 +98,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     copies: copiesRepo(db),
     decks: decksRepo(db),
     featureFlags: featureFlagsRepo(db),
+    userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),
     keywordStyles: keywordStylesRepo(db),
     languages: languagesRepo(db),

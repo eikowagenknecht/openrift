@@ -577,6 +577,14 @@ export interface FeatureFlagsTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── User feature flag overrides (migration 057) ────────────────────────────
+
+export interface UserFeatureFlagsTable {
+  userId: string;
+  flagKey: string;
+  enabled: boolean;
+}
+
 // ─── Site settings (migration 048) ────────────────────────────────────────────
 
 export interface SiteSettingsTable {
@@ -684,6 +692,9 @@ export interface Database {
 
   // Feature flags (migration 014)
   featureFlags: FeatureFlagsTable;
+
+  // User feature flag overrides (migration 057)
+  userFeatureFlags: UserFeatureFlagsTable;
 
   // Keyword styles (migration 043)
   keywordStyles: KeywordStylesTable;

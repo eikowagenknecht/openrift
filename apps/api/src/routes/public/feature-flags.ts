@@ -20,9 +20,19 @@ const getFeatureFlags = createRoute({
 export const featureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
   getFeatureFlags,
   async (c) => {
+    const user = c.get("user");
+
+    if (user) {
+      // Authenticated: merge global defaults with per-user overrides.
+      const { userFeatureFlags } = c.get("repos");
+      const flags = await userFeatureFlags.listMerged(user.id);
+      c.header("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
+      return c.json({ items: flags } satisfies FeatureFlagsResponse);
+    }
+
+    // Anonymous: global defaults only.
     const { featureFlags } = c.get("repos");
     const rows = await featureFlags.listKeyEnabled();
-
     const flags: Record<string, boolean> = {};
     for (const row of rows) {
       flags[row.key] = row.enabled;
