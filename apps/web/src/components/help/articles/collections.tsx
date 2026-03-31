@@ -11,6 +11,8 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { Kbd } from "@/components/ui/kbd";
+
 export default function CollectionsArticle() {
   return (
     <div className="space-y-8">
@@ -243,11 +245,7 @@ function FeatureCard({
       <div className="mb-1 flex items-center gap-2">
         <span className="text-primary">{icon}</span>
         <span className="text-sm font-medium">{title}</span>
-        {shortcut && (
-          <kbd className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
-            {shortcut}
-          </kbd>
-        )}
+        {shortcut && <Kbd className="px-1.5">{shortcut}</Kbd>}
       </div>
       <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
     </div>

@@ -37,6 +37,7 @@ import { PrintingSourceActions } from "@/components/admin/printing-source-action
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useAcceptCardField,
@@ -323,9 +324,9 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               <CheckCheckIcon className="size-3.5" />
             )}
             {isCheckingAll ? "Checking…" : "Check all & next"}
-            <kbd className="bg-background/20 pointer-events-none ml-1 rounded px-1 py-0.5 font-mono text-[10px] leading-none opacity-60">
+            <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
               Ctrl ↵
-            </kbd>
+            </Kbd>
           </Button>
         </div>
         <p className="text-muted-foreground flex items-center gap-2 text-sm">

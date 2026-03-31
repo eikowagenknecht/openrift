@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Table,
   TableBody,
@@ -385,9 +386,9 @@ function UnifiedExpandedDetail({
               <WandSparklesIcon className="size-3" />
               Accept {totalSuggestions} suggestion{totalSuggestions === 1 ? "" : "s"}
               {showHotkeyHint && (
-                <kbd className="ml-1 rounded border border-current/25 px-1 py-0.5 font-mono text-[10px] leading-none opacity-60">
+                <Kbd className="ml-1 border border-current/25 bg-transparent leading-none text-inherit opacity-60">
                   Enter
-                </kbd>
+                </Kbd>
               )}
             </button>
           )}

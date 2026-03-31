@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Kbd } from "@/components/ui/kbd";
 import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
@@ -446,24 +447,23 @@ function PaletteInner({
           <div className="border-border border-t" />
           <div className="text-muted-foreground flex items-center gap-3 px-3 py-2 text-xs">
             <span>
-              <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">↑↓</kbd> navigate
+              <Kbd>↑↓</Kbd> navigate
             </span>
             <span>
-              <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">↵</kbd>{" "}
-              {expandedCardId ? "add" : "select"}
+              <Kbd>↵</Kbd> {expandedCardId ? "add" : "select"}
             </span>
             {expandedCardId && canUndoSelected && (
               <span>
-                <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">⇧↵</kbd> undo
+                <Kbd>⇧↵</Kbd> undo
               </span>
             )}
             {expandedCardId && (
               <span>
-                <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">←</kbd> back
+                <Kbd>←</Kbd> back
               </span>
             )}
             <span>
-              <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">esc</kbd> close
+              <Kbd>esc</Kbd> close
             </span>
           </div>
         </>
