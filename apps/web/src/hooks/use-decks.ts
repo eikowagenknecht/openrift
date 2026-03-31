@@ -78,6 +78,20 @@ export function useSaveDeckCards() {
   });
 }
 
+export function useUpdateDeck() {
+  return useMutationWithInvalidation<unknown, { deckId: string; name: string }>({
+    mutationFn: async ({ deckId, name }) => {
+      const res = await client.api.v1.decks[":id"].$patch({
+        param: { id: deckId },
+        json: { name },
+      });
+      assertOk(res);
+      return await res.json();
+    },
+    invalidates: [queryKeys.decks.all],
+  });
+}
+
 export function useCloneDeck() {
   return useMutationWithInvalidation({
     mutationFn: async (deckId: string) => {

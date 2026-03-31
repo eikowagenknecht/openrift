@@ -1,15 +1,16 @@
 import type { DeckZone } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { Badge } from "@/components/ui/badge";
-import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
+import { Input } from "@/components/ui/input";
+import { useDeckDetail, useSaveDeckCards, useUpdateDeck } from "@/hooks/use-decks";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { toDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
@@ -20,6 +21,32 @@ interface DeckEditorPageProps {
 
 function DeckEditorHeader({ deckId }: { deckId: string }) {
   const { data } = useDeckDetail(deckId);
+  const updateDeck = useUpdateDeck();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(data.deck.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const commitRename = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== data.deck.name) {
+      updateDeck.mutate({ deckId, name: trimmed });
+    } else {
+      setDraft(data.deck.name);
+    }
+    setIsEditing(false);
+  };
+
+  const startEditing = () => {
+    setDraft(data.deck.name);
+    setIsEditing(true);
+  };
+
+  // Focus input when entering edit mode
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
 
   return (
     <div>
@@ -28,7 +55,35 @@ function DeckEditorHeader({ deckId }: { deckId: string }) {
           <ArrowLeft className="size-5" />
         </Link>
 
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{data.deck.name}</h1>
+        {isEditing ? (
+          <Input
+            ref={inputRef}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                commitRename();
+              } else if (event.key === "Escape") {
+                setDraft(data.deck.name);
+                setIsEditing(false);
+              }
+            }}
+            className="min-w-0 flex-1 text-lg font-semibold"
+            maxLength={200}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={startEditing}
+            className="hover:bg-muted group flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left"
+          >
+            <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{data.deck.name}</h1>
+            <Pencil className="text-muted-foreground size-3.5 shrink-0 opacity-0 group-hover:opacity-100" />
+          </button>
+        )}
 
         <Badge variant="outline" className="capitalize">
           {data.deck.format}
