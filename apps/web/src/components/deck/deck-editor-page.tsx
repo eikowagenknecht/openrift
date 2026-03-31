@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
+import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ interface DeckEditorPageProps {
   deckId: string;
 }
 
-function DeckEditorHeader({ deckId }: { deckId: string }) {
+function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolean }) {
   const { data } = useDeckDetail(deckId);
   const updateDeck = useUpdateDeck();
   const [isEditing, setIsEditing] = useState(false);
@@ -84,6 +85,8 @@ function DeckEditorHeader({ deckId }: { deckId: string }) {
             <Pencil className="text-muted-foreground size-3.5 shrink-0 opacity-0 group-hover:opacity-100" />
           </button>
         )}
+
+        <DeckExportDialog deckId={deckId} isDirty={isDirty} />
 
         <Badge variant="outline" className="capitalize">
           {data.deck.format}
@@ -280,7 +283,7 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
 
   return (
     <>
-      <DeckEditorHeader deckId={deckId} />
+      <DeckEditorHeader deckId={deckId} isDirty={isDirty} />
       <DeckValidationBanner />
       <DeckDndContext>
         <div className={cn(CONTAINER_WIDTH, "flex items-start gap-4 px-3 py-3")}>

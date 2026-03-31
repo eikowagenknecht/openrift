@@ -131,6 +131,23 @@ export const updateDeckCardsSchema = z.object({
   ),
 });
 
+// ---------------------------------------------------------------------------
+// Deck import/export schemas
+// ---------------------------------------------------------------------------
+
+export const deckExportQuerySchema = z.object({
+  format: z.enum(["piltover"]).default("piltover"),
+});
+
+export const deckImportPreviewSchema = z.object({
+  code: z.string().min(1).max(5000),
+  format: z.enum(["piltover"]).default("piltover"),
+});
+
+// ---------------------------------------------------------------------------
+// Wish list schemas
+// ---------------------------------------------------------------------------
+
 export const createWishListSchema = z.object({
   name: z.string().min(1).max(200),
   rules: z.unknown().optional(),

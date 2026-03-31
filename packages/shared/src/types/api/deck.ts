@@ -49,3 +49,24 @@ export interface DeckAvailabilityItemResponse {
   owned: number;
   shortfall: number;
 }
+
+export interface DeckExportResponse {
+  code: string;
+  warnings: string[];
+}
+
+export interface DeckImportCardPreview {
+  cardId: string;
+  shortCode: string;
+  zone: DeckZone;
+  quantity: number;
+  cardName: string;
+  cardType: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+}
+
+export interface DeckImportPreviewResponse {
+  cards: DeckImportCardPreview[];
+  warnings: string[];
+}

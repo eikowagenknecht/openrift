@@ -48,6 +48,9 @@ export type {
   DeckAvailabilityResponse,
   DeckCardResponse,
   DeckDetailResponse,
+  DeckExportResponse,
+  DeckImportCardPreview,
+  DeckImportPreviewResponse,
   DeckFormat,
   DeckListResponse,
   DeckResponse,
@@ -147,6 +150,9 @@ export {
 } from "./utils.js";
 
 export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";
+
+export type { SourceSlot } from "./zone-inference.js";
+export { inferZone } from "./zone-inference.js";
 
 export type { DeckCard, DeckState, DeckViolation, DeckRule } from "./deck-rules.js";
 export {

@@ -1,4 +1,9 @@
-import type { DeckFormat, DeckZone } from "@openrift/shared";
+import type {
+  DeckExportResponse,
+  DeckFormat,
+  DeckImportPreviewResponse,
+  DeckZone,
+} from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -100,5 +105,32 @@ export function useCloneDeck() {
       return await res.json();
     },
     invalidates: [queryKeys.decks.all],
+  });
+}
+
+export function useExportDeck() {
+  return useMutationWithInvalidation<DeckExportResponse, string>({
+    mutationFn: async (deckId) => {
+      const res = await client.api.v1.decks[":id"].export.$get({
+        param: { id: deckId },
+        query: {},
+      });
+      assertOk(res);
+      return await res.json();
+    },
+    invalidates: [],
+  });
+}
+
+export function useImportPreview() {
+  return useMutationWithInvalidation<DeckImportPreviewResponse, { code: string }>({
+    mutationFn: async ({ code }) => {
+      const res = await client.api.v1.decks["import-preview"].$post({
+        json: { code },
+      });
+      assertOk(res);
+      return await res.json();
+    },
+    invalidates: [],
   });
 }

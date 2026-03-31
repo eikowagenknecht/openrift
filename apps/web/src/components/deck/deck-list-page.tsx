@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, CircleAlert, Copy, MoreHorizontal, Plus, Swords, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { ImportDeckButton } from "@/components/deck/import-deck-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -281,10 +282,13 @@ export function DeckListPage() {
     <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING}`}>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Decks</h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          New Deck
-        </Button>
+        <div className="flex items-center gap-2">
+          <ImportDeckButton />
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            New Deck
+          </Button>
+        </div>
       </div>
 
       {decks.length === 0 ? (

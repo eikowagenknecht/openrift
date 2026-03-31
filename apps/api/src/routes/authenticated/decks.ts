@@ -3,17 +3,24 @@ import type {
   DeckAvailabilityItemResponse,
   DeckAvailabilityResponse,
   DeckDetailResponse,
+  DeckExportResponse,
+  DeckImportPreviewResponse,
   DeckListResponse,
 } from "@openrift/shared";
+import { inferZone } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
   deckDetailResponseSchema,
+  deckExportResponseSchema,
+  deckImportPreviewResponseSchema,
   deckListResponseSchema,
   deckResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
   createDeckSchema,
+  deckExportQuerySchema,
+  deckImportPreviewSchema,
   decksQuerySchema,
   idParamSchema,
   updateDeckCardsSchema,
@@ -25,6 +32,8 @@ import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
+import { piltoverCodec } from "../../services/deck-codecs/index.js";
+import type { DeckCodecCard } from "../../services/deck-codecs/index.js";
 import type { Variables } from "../../types.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../../utils/mappers.js";
 
@@ -141,6 +150,34 @@ const getDeckAvailability = createRoute({
     200: {
       content: { "application/json": { schema: deckAvailabilityResponseSchema } },
       description: "Success",
+    },
+  },
+});
+
+const exportDeck = createRoute({
+  method: "get",
+  path: "/{id}/export",
+  tags: ["Decks"],
+  request: { params: idParamSchema, query: deckExportQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckExportResponseSchema } },
+      description: "Deck code",
+    },
+  },
+});
+
+const importPreview = createRoute({
+  method: "post",
+  path: "/import-preview",
+  tags: ["Decks"],
+  request: {
+    body: { content: { "application/json": { schema: deckImportPreviewSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckImportPreviewResponseSchema } },
+      description: "Import preview",
     },
   },
 });
@@ -288,4 +325,93 @@ export const decksRoute = decksApp
     );
 
     return c.json({ items: availability } satisfies DeckAvailabilityResponse);
+  })
+
+  // ── GET /decks/:id/export ────────────────────────────────────────────────
+  // Encode a deck as a shareable deck code
+  .openapi(exportDeck, async (c) => {
+    const { decks, canonicalPrintings } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const [deck, cardRows] = await Promise.all([
+      decks.getByIdForUser(id, userId),
+      decks.cardsWithDetails(id, userId),
+    ]);
+    if (!deck) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
+
+    const cardIds = [...new Set(cardRows.map((row) => row.cardId))];
+    const shortCodes = await canonicalPrintings.canonicalShortCodesByCardIds(cardIds);
+    const shortCodeMap = new Map(shortCodes.map((sc) => [sc.cardId, sc.shortCode]));
+
+    const warnings: string[] = [];
+    const codecCards: DeckCodecCard[] = [];
+    for (const row of cardRows) {
+      const shortCode = shortCodeMap.get(row.cardId);
+      if (!shortCode) {
+        warnings.push(`Skipped "${row.cardName}": no canonical printing found`);
+        continue;
+      }
+      codecCards.push({
+        cardId: row.cardId,
+        shortCode,
+        zone: row.zone,
+        quantity: row.quantity,
+        cardType: row.cardType,
+        superTypes: row.superTypes,
+        domains: row.domains,
+      });
+    }
+
+    const result = piltoverCodec.encode(codecCards);
+    return c.json({
+      code: result.code,
+      warnings: [...warnings, ...result.warnings],
+    } satisfies DeckExportResponse);
+  })
+
+  // ── POST /decks/import-preview ───────────────────────────────────────────
+  // Decode a deck code and return resolved cards with inferred zones
+  .openapi(importPreview, async (c) => {
+    const { canonicalPrintings } = c.get("repos");
+    const body = c.req.valid("json");
+
+    let decoded;
+    try {
+      decoded = piltoverCodec.decode(body.code);
+    } catch {
+      throw new AppError(400, "INVALID_DECK_CODE", "Invalid or unsupported deck code");
+    }
+
+    const shortCodes = decoded.cards.map((card) => card.cardCode);
+    const resolved = await canonicalPrintings.cardIdsByShortCodes(shortCodes);
+    const resolvedMap = new Map(resolved.map((row) => [row.shortCode, row]));
+
+    const warnings = [...decoded.warnings];
+    const cards: DeckImportPreviewResponse["cards"] = [];
+
+    for (const entry of decoded.cards) {
+      const card = resolvedMap.get(entry.cardCode);
+      if (!card) {
+        warnings.push(`Unknown card: ${entry.cardCode} (skipped)`);
+        continue;
+      }
+
+      const zone = inferZone(card.cardType, card.superTypes, entry.sourceSlot);
+
+      cards.push({
+        cardId: card.cardId,
+        shortCode: entry.cardCode,
+        zone,
+        quantity: entry.count,
+        cardName: card.cardName,
+        cardType: card.cardType,
+        superTypes: card.superTypes,
+        domains: card.domains,
+      });
+    }
+
+    return c.json({ cards, warnings } satisfies DeckImportPreviewResponse);
   });

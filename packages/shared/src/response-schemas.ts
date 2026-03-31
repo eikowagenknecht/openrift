@@ -353,6 +353,31 @@ export const deckCardsResponseSchema = z
   .object({ cards: z.array(deckCardResponseSchema) })
   .openapi("DeckCardsResponse");
 
+export const deckExportResponseSchema = z
+  .object({
+    code: z.string(),
+    warnings: z.array(z.string()),
+  })
+  .openapi("DeckExportResponse");
+
+const deckImportCardPreviewSchema = z.object({
+  cardId: z.string(),
+  shortCode: z.string(),
+  zone: deckZoneSchema,
+  quantity: z.number(),
+  cardName: z.string(),
+  cardType: cardTypeSchema,
+  superTypes: z.array(superTypeSchema),
+  domains: z.array(domainSchema),
+});
+
+export const deckImportPreviewResponseSchema = z
+  .object({
+    cards: z.array(deckImportCardPreviewSchema),
+    warnings: z.array(z.string()),
+  })
+  .openapi("DeckImportPreviewResponse");
+
 // ── Preferences ──────────────────────────────────────────────────────────────
 
 export const userPreferencesResponseSchema = z

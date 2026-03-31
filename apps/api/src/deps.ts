@@ -5,6 +5,7 @@ import { acquisitionSourcesRepo } from "./repositories/acquisition-sources.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { candidateCardsRepo } from "./repositories/candidate-cards.js";
 import { candidateMutationsRepo } from "./repositories/candidate-mutations.js";
+import { canonicalPrintingsRepo } from "./repositories/canonical-printings.js";
 import { cardBansRepo } from "./repositories/card-bans.js";
 import { catalogRepo } from "./repositories/catalog.js";
 import { collectionEventsRepo } from "./repositories/collection-events.js";
@@ -44,6 +45,7 @@ export interface Repos {
   collectionEvents: ReturnType<typeof collectionEventsRepo>;
   admins: ReturnType<typeof adminsRepo>;
   cardBans: ReturnType<typeof cardBansRepo>;
+  canonicalPrintings: ReturnType<typeof canonicalPrintingsRepo>;
   candidateMutations: ReturnType<typeof candidateMutationsRepo>;
   candidateCards: ReturnType<typeof candidateCardsRepo>;
   catalog: ReturnType<typeof catalogRepo>;
@@ -91,6 +93,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     collectionEvents: collectionEventsRepo(db),
     admins: adminsRepo(db),
     cardBans: cardBansRepo(db),
+    canonicalPrintings: canonicalPrintingsRepo(db),
     candidateMutations: candidateMutationsRepo(db),
     candidateCards: candidateCardsRepo(db),
     catalog: catalogRepo(db),

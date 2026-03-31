@@ -30,6 +30,9 @@ export type {
   DeckAvailabilityResponse,
   DeckCardResponse,
   DeckDetailResponse,
+  DeckExportResponse,
+  DeckImportCardPreview,
+  DeckImportPreviewResponse,
   DeckListResponse,
   DeckResponse,
 } from "./deck.js";
