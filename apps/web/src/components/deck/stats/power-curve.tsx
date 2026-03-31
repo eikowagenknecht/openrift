@@ -15,7 +15,7 @@ const chartConfig: ChartConfig = {
 
 export function PowerCurve({ data }: PowerCurveProps) {
   if (data.length === 0) {
-    return <p className="text-muted-foreground text-xs">No power data yet</p>;
+    return null;
   }
 
   return (

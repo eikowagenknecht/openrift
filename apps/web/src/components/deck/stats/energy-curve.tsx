@@ -21,7 +21,7 @@ function buildChartConfig(domains: Domain[]): ChartConfig {
 
 export function EnergyCurve({ data, domains }: EnergyCurveProps) {
   if (data.length === 0) {
-    return <p className="text-muted-foreground text-xs">No energy data yet</p>;
+    return null;
   }
 
   const chartConfig = buildChartConfig(domains);

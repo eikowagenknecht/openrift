@@ -16,7 +16,7 @@ const chartConfig: ChartConfig = {
 
 export function DomainDistribution({ data }: DomainDistributionProps) {
   if (data.length === 0) {
-    return <p className="text-muted-foreground text-xs">No domain data yet</p>;
+    return null;
   }
 
   return (

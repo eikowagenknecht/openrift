@@ -24,9 +24,14 @@ const RANGE_BADGE_SECTIONS: {
 interface ActiveFiltersProps {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
+  hiddenSections?: ReadonlySet<string>;
 }
 
-export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFiltersProps) {
+export function ActiveFilters({
+  availableFilters,
+  setDisplayLabel,
+  hiddenSections,
+}: ActiveFiltersProps) {
   const { filterState, ranges, hasActiveFilters } = useFilterValues();
   const {
     toggleArrayFilter,
@@ -82,7 +87,7 @@ export function ActiveFilters({ availableFilters, setDisplayLabel }: ActiveFilte
       label: string;
       values: string[];
       displayLabel?: (v: string) => string;
-    } => g.values.length > 0,
+    } => g.values.length > 0 && !hiddenSections?.has(g.key),
   );
 
   return (

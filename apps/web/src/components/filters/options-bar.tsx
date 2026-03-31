@@ -509,15 +509,21 @@ export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = 
 export function MobileFilterContent({
   availableFilters,
   setDisplayLabel,
+  hiddenSections,
 }: {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
+  hiddenSections?: ReadonlySet<string>;
 }) {
   return (
     <div className="border-t pt-4">
       <p className="mb-2.5 text-sm font-medium">Filters</p>
       <div className="flex flex-col gap-4">
-        <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        <FilterPanelContent
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          hiddenSections={hiddenSections}
+        />
       </div>
     </div>
   );

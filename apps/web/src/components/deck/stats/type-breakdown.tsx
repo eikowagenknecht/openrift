@@ -15,7 +15,7 @@ const chartConfig: ChartConfig = {
 
 export function TypeBreakdown({ data }: TypeBreakdownProps) {
   if (data.length === 0) {
-    return <p className="text-muted-foreground text-xs">No type data yet</p>;
+    return null;
   }
 
   return (

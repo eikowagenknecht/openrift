@@ -35,6 +35,7 @@ export interface DeckDropData {
 type AnyDragData = DeckCardDragData | BrowserCardDragData;
 
 const DRAG_ACTIVATION = { distance: 8 };
+const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
 
 // Modifier that centers the overlay under the pointer (same as collection DnD).
 const snapCenterToCursor: Modifier = ({
@@ -105,11 +106,23 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     const activeData = event.active.data.current as AnyDragData | undefined;
     const overData = event.over?.data.current as DeckDropData | undefined;
 
-    if (!activeData || overData?.type !== "deck-zone") {
+    if (!activeData) {
       return;
     }
 
     const store = useDeckBuilderStore.getState();
+
+    // Dropped outside a valid zone — remove from source zone
+    if (overData?.type !== "deck-zone") {
+      if (activeData.type === "deck-card") {
+        if (moveAll || activeData.quantity === 1) {
+          store.setQuantity(activeData.cardId, activeData.fromZone, 0);
+        } else {
+          store.removeCard(activeData.cardId, activeData.fromZone);
+        }
+      }
+      return;
+    }
 
     if (activeData.type === "browser-card") {
       store.addCard(activeData.card, overData.zone);
@@ -117,7 +130,7 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     }
 
     if (activeData.type === "deck-card") {
-      if (activeData.fromZone === overData.zone) {
+      if (activeData.fromZone === overData.zone || !DRAG_ZONES.has(overData.zone)) {
         return;
       }
       if (moveAll || activeData.quantity === 1) {

@@ -87,8 +87,6 @@ export function useDeckStats(): DeckStats {
     }
   }
   const allEnergyValues = [...energyByDomain.keys()];
-  const energyMin = allEnergyValues.length > 0 ? Math.min(...allEnergyValues) : 0;
-  const energyMax = allEnergyValues.length > 0 ? Math.max(...allEnergyValues) : 0;
   const energyDomainSet = new Set<Domain>();
   for (const domainMap of energyByDomain.values()) {
     for (const domain of domainMap.keys()) {
@@ -97,13 +95,17 @@ export function useDeckStats(): DeckStats {
   }
   const energyCurveDomains = DOMAIN_ORDER.filter((domain) => energyDomainSet.has(domain));
   const energyCurve: EnergyCostCount[] = [];
-  for (let value = energyMin; value <= energyMax; value++) {
-    const domainMap = energyByDomain.get(value);
-    const entry: EnergyCostCount = { energy: String(value) };
-    for (const domain of energyCurveDomains) {
-      entry[domain] = domainMap?.get(domain) ?? 0;
+  if (allEnergyValues.length > 0) {
+    const energyMin = Math.min(...allEnergyValues);
+    const energyMax = Math.max(...allEnergyValues);
+    for (let value = energyMin; value <= energyMax; value++) {
+      const domainMap = energyByDomain.get(value);
+      const entry: EnergyCostCount = { energy: String(value) };
+      for (const domain of energyCurveDomains) {
+        entry[domain] = domainMap?.get(domain) ?? 0;
+      }
+      energyCurve.push(entry);
     }
-    energyCurve.push(entry);
   }
 
   // Power curve — group by exact power, sorted numerically
@@ -120,15 +122,17 @@ export function useDeckStats(): DeckStats {
     }
   }
   const allPowerValues = [...new Set([...powerMain.keys(), ...powerSide.keys()])];
-  const powerMin = allPowerValues.length > 0 ? Math.min(...allPowerValues) : 0;
-  const powerMax = allPowerValues.length > 0 ? Math.max(...allPowerValues) : 0;
   const powerCurve: PowerCount[] = [];
-  for (let value = powerMin; value <= powerMax; value++) {
-    powerCurve.push({
-      power: String(value),
-      main: powerMain.get(value) ?? 0,
-      sideboard: powerSide.get(value) ?? 0,
-    });
+  if (allPowerValues.length > 0) {
+    const powerMin = Math.min(...allPowerValues);
+    const powerMax = Math.max(...allPowerValues);
+    for (let value = powerMin; value <= powerMax; value++) {
+      powerCurve.push({
+        power: String(value),
+        main: powerMain.get(value) ?? 0,
+        sideboard: powerSide.get(value) ?? 0,
+      });
+    }
   }
 
   // Type breakdown — exclude types with dedicated zones

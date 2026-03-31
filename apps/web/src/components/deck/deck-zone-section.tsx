@@ -42,6 +42,8 @@ const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
 // Zones that only allow a single card — show remove button instead of +/-
 const SINGLE_CARD_ZONES = new Set<DeckZone>(["legend", "champion"]);
 const UNIQUE_ONLY_ZONES = new Set<DeckZone>(["battlefield"]);
+// Zones where cards can be dragged between freely
+const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
 
 interface DeckZoneSectionProps {
   zone: DeckZone;
@@ -159,7 +161,7 @@ export function DeckZoneSection({
                 hasViolation={cardViolations.has(card.cardId)}
                 violationMessage={cardViolations.get(card.cardId)}
                 controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
-                draggable
+                draggable={DRAG_ZONES.has(zone)}
                 onIncrement={
                   copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3
                     ? undefined

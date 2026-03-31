@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { CardType, DeckZone, Printing, SuperType } from "@openrift/shared";
 import { useDeferredValue } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
@@ -31,6 +31,22 @@ import { catalogCardToDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
+// Card types that live in dedicated zones and should never appear in main/sideboard/overflow
+const DEDICATED_ZONE_TYPES = new Set<CardType>(["Legend", "Rune", "Battlefield"]);
+
+// Per-zone forced filter overrides and which filter sections to hide from the UI
+const ZONE_FILTER_CONFIG: Partial<
+  Record<
+    DeckZone,
+    { types?: CardType[]; superTypes?: SuperType[]; hiddenSections: ReadonlySet<string> }
+  >
+> = {
+  legend: { types: ["Legend"], hiddenSections: new Set(["types", "superTypes"]) },
+  champion: { superTypes: ["Champion"], hiddenSections: new Set(["types", "superTypes"]) },
+  runes: { types: ["Rune"], hiddenSections: new Set(["types", "superTypes"]) },
+  battlefield: { types: ["Battlefield"], hiddenSections: new Set(["types", "superTypes"]) },
+};
+
 /**
  * Full card browser for the deck editor — reuses the same filter UI, search bar,
  * and card grid as the catalog browser. Clicking + on a card adds it to the active zone.
@@ -42,7 +58,7 @@ export function DeckCardBrowser() {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  const { filters, sortBy, sortDir, hasActiveFilters } = useFilterValues();
+  const { filters: urlFilters, sortBy, sortDir, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const addCard = useDeckBuilderStore((state) => state.addCard);
@@ -53,6 +69,16 @@ export function DeckCardBrowser() {
     activeZone === "legend" || activeZone === "champion" || activeZone === "battlefield"
       ? "Choose"
       : undefined;
+  const zoneConfig = ZONE_FILTER_CONFIG[activeZone];
+  const hiddenSections = zoneConfig?.hiddenSections;
+
+  // Merge zone-forced filters into URL filters
+  const filters = {
+    ...urlFilters,
+    ...(zoneConfig?.types ? { types: zoneConfig.types } : {}),
+    ...(zoneConfig?.superTypes ? { superTypes: zoneConfig.superTypes } : {}),
+  };
+
   const deckCards = useDeckBuilderStore((state) => state.cards);
 
   // Build a map of cardId → total quantity across all zones
@@ -83,19 +109,28 @@ export function DeckCardBrowser() {
     favoriteMarketplace: marketplaceOrder[0] ?? "tcgplayer",
   });
 
-  // Strict domain filtering for main/sideboard: all card domains must be
-  // within the legend's domains (+ Colorless). The URL domain filter is OR-based
-  // and can't express this, so we filter client-side.
+  // Client-side filtering for zones where the URL filter can't express the constraint:
+  // 1. main/sideboard: all card domains must be within legend's domains (+ Colorless)
+  // 2. main/sideboard/overflow: exclude types that belong in dedicated zones
   const legend = deckCards.find((card) => card.zone === "legend");
-  const strictDomainFilter = activeZone === "main" || activeZone === "sideboard";
+  const isOpenZone =
+    activeZone === "main" || activeZone === "sideboard" || activeZone === "overflow";
   const allowedDomains = legend ? new Set([...legend.domains, "Colorless"]) : null;
+  const strictDomainFilter =
+    isOpenZone && (activeZone === "main" || activeZone === "sideboard") && allowedDomains;
 
-  const filteredCards =
-    strictDomainFilter && allowedDomains
-      ? sortedCards.filter((printing) =>
-          printing.card.domains.every((domain) => allowedDomains.has(domain)),
-        )
-      : sortedCards;
+  const filteredCards = sortedCards.filter((printing) => {
+    if (
+      strictDomainFilter &&
+      !printing.card.domains.every((domain) => allowedDomains.has(domain))
+    ) {
+      return false;
+    }
+    if (isOpenZone && DEDICATED_ZONE_TYPES.has(printing.card.type)) {
+      return false;
+    }
+    return true;
+  });
 
   const deferredSortedCards = useDeferredValue(filteredCards);
   const isGridStale = deferredSortedCards !== filteredCards;
@@ -236,6 +271,7 @@ export function DeckCardBrowser() {
           <MobileFilterContent
             availableFilters={availableFilters}
             setDisplayLabel={setDisplayLabel}
+            hiddenSections={hiddenSections}
           />
         </MobileOptionsDrawer>
       </div>
@@ -244,6 +280,7 @@ export function DeckCardBrowser() {
           <FilterBadgeSections
             availableFilters={availableFilters}
             setDisplayLabel={setDisplayLabel}
+            hiddenSections={hiddenSections}
           />
         </div>
         <div className="grid grid-cols-4 gap-x-6 gap-y-3">
@@ -257,7 +294,11 @@ export function DeckCardBrowser() {
     <Pane className="@wide:block px-3">
       <h2 className="pb-4 text-lg font-semibold">Filters</h2>
       <div className="space-y-4 pb-4">
-        <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        <FilterPanelContent
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          hiddenSections={hiddenSections}
+        />
       </div>
     </Pane>
   );
@@ -285,7 +326,11 @@ export function DeckCardBrowser() {
       toolbar={toolbar}
       leftPane={leftPane}
       aboveGrid={
-        <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        <ActiveFilters
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          hiddenSections={hiddenSections}
+        />
       }
       rightPane={rightPane}
       addStripHeight={ADD_STRIP_HEIGHT}

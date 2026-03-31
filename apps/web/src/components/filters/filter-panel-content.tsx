@@ -55,12 +55,21 @@ const RANGE_SECTIONS: {
 interface FilterPanelContentProps {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
+  hiddenSections?: ReadonlySet<string>;
 }
 
-export function FilterPanelContent({ availableFilters, setDisplayLabel }: FilterPanelContentProps) {
+export function FilterPanelContent({
+  availableFilters,
+  setDisplayLabel,
+  hiddenSections,
+}: FilterPanelContentProps) {
   return (
     <>
-      <FilterBadgeSections availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+      <FilterBadgeSections
+        availableFilters={availableFilters}
+        setDisplayLabel={setDisplayLabel}
+        hiddenSections={hiddenSections}
+      />
       <FilterRangeSections availableFilters={availableFilters} />
     </>
   );
@@ -69,6 +78,7 @@ export function FilterPanelContent({ availableFilters, setDisplayLabel }: Filter
 export function FilterBadgeSections({
   availableFilters,
   setDisplayLabel,
+  hiddenSections,
 }: FilterPanelContentProps) {
   const { filterState } = useFilterValues();
   const { toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
@@ -82,22 +92,26 @@ export function FilterBadgeSections({
         onToggle={(v) => toggleArrayFilter("sets", v)}
         displayLabel={setDisplayLabel}
       />
-      <FilterSection
-        label="Domain"
-        options={availableFilters.domains}
-        selected={filterState.domains}
-        onToggle={(v) => toggleArrayFilter("domains", v)}
-        iconPath={(v) => getFilterIconPath("domains", v)}
-        displayLabel={formatDomainFilterLabel}
-      />
-      <FilterSection
-        label="Type"
-        options={availableFilters.types}
-        selected={filterState.types}
-        onToggle={(v) => toggleArrayFilter("types", v)}
-        iconPath={(v) => getFilterIconPath("types", v)}
-      />
-      {availableFilters.superTypes.length > 0 && (
+      {!hiddenSections?.has("domains") && (
+        <FilterSection
+          label="Domain"
+          options={availableFilters.domains}
+          selected={filterState.domains}
+          onToggle={(v) => toggleArrayFilter("domains", v)}
+          iconPath={(v) => getFilterIconPath("domains", v)}
+          displayLabel={formatDomainFilterLabel}
+        />
+      )}
+      {!hiddenSections?.has("types") && (
+        <FilterSection
+          label="Type"
+          options={availableFilters.types}
+          selected={filterState.types}
+          onToggle={(v) => toggleArrayFilter("types", v)}
+          iconPath={(v) => getFilterIconPath("types", v)}
+        />
+      )}
+      {availableFilters.superTypes.length > 0 && !hiddenSections?.has("superTypes") && (
         <FilterSection
           label="Super Type"
           options={availableFilters.superTypes}
