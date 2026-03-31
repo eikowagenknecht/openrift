@@ -207,6 +207,7 @@ export function DeckCardBrowser() {
         dimmed={ownedCount === 0 && deckQty === 0}
         dragData={{ type: "browser-card", card: catalogCardToDeckBuilderCard(item.printing.card) }}
         dragId={`browser-card-${item.printing.id}`}
+        showBanOverlay
         topSlot={
           <DeckAddStrip
             printing={item.printing}
