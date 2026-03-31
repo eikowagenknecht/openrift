@@ -36,14 +36,16 @@ export const catalogRoute = catalogApp
   .openapi(getCatalog, async (c) => {
     const { catalog, marketplace } = c.get("repos");
 
-    const [sets, cardRows, printingRows, imageRows, priceRows, totalCopies] = await Promise.all([
-      catalog.sets(),
-      catalog.cards(),
-      catalog.printings(),
-      catalog.printingImages(),
-      marketplace.latestPrices(),
-      catalog.totalCopies(),
-    ]);
+    const [sets, cardRows, printingRows, imageRows, priceRows, banRows, totalCopies] =
+      await Promise.all([
+        catalog.sets(),
+        catalog.cards(),
+        catalog.printings(),
+        catalog.printingImages(),
+        marketplace.latestPrices(),
+        catalog.cardBans(),
+        catalog.totalCopies(),
+      ]);
 
     // Build per-printing, per-marketplace price map
     const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
@@ -56,8 +58,21 @@ export const catalogRoute = catalogApp
       entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
     }
 
+    // Group active bans by card
+    const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
+
     const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
-      cardRows.map((r) => [r.id, r]),
+      cardRows.map((r) => [
+        r.id,
+        {
+          ...r,
+          bans: (bansByCard.get(r.id) ?? []).map((b) => ({
+            formatId: b.formatId,
+            bannedAt: b.bannedAt,
+            reason: b.reason,
+          })),
+        },
+      ]),
     );
 
     // Build images lookup (null URLs already filtered at the DB level)

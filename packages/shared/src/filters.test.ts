@@ -46,6 +46,7 @@ function makePrinting(
       mightBonus: 0,
       rulesText: "A test card",
       effectText: "Deal 2 damage",
+      bans: [],
       ...cardOverrides,
     },
     ...printingOverrides,

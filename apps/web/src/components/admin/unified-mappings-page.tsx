@@ -130,6 +130,7 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
       mightBonus: null,
       rulesText: "",
       effectText: "",
+      bans: [],
     },
   };
 }

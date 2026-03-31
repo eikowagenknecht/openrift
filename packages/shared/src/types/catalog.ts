@@ -7,6 +7,12 @@ export interface PromoType {
   label: string;
 }
 
+export interface CardBan {
+  formatId: string;
+  bannedAt: string;
+  reason: string | null;
+}
+
 export interface Card {
   id: string;
   slug: string;
@@ -22,6 +28,7 @@ export interface Card {
   mightBonus: number | null;
   rulesText: string | null;
   effectText: string | null;
+  bans: CardBan[];
 }
 
 export interface PrintingImage {

@@ -12,6 +12,7 @@ interface CardMetaLabelProps {
   superTypes: string[];
   rarity: Rarity;
   isFoil?: boolean;
+  isBanned?: boolean;
   className?: string;
   /** Optional price element rendered right-aligned on the name line. */
   price?: ReactNode;
@@ -29,6 +30,7 @@ export function CardMetaLabel({
   superTypes,
   rarity,
   isFoil,
+  isBanned,
   className,
   price,
 }: CardMetaLabelProps) {
@@ -61,6 +63,11 @@ export function CardMetaLabel({
           {isFoil && (
             <span title="Foil">
               <Sparkle className="size-3.5 fill-amber-400 text-amber-400" />
+            </span>
+          )}
+          {isBanned && (
+            <span className="rounded bg-red-600 px-1 text-[10px] leading-tight font-semibold text-white">
+              Banned
             </span>
           )}
         </span>

@@ -38,6 +38,7 @@ import {
   CandidateSpreadsheet,
   buildCandidatePrintingFields,
 } from "@/components/admin/candidate-spreadsheet";
+import { CardBanManager } from "@/components/admin/card-ban-manager";
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
@@ -805,6 +806,9 @@ export function CandidateDetailPage({ mode, identifier }: CandidateDetailPagePro
           }
         />
       </section>
+
+      {/* ── Bans (existing mode only) ─────────────────────────────────────── */}
+      {isExisting && <CardBanManager cardId={cardId} />}
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       {isExisting ? (

@@ -327,6 +327,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         superTypes={card.superTypes}
         rarity={printing.rarity}
         isFoil={isFoilCard}
+        isBanned={printing.card.bans.length > 0}
         price={priceNode}
       />
     </div>

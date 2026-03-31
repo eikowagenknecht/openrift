@@ -46,6 +46,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
       mightBonus: 0,
       rulesText: "",
       effectText: "",
+      bans: [],
     },
     ...overrides,
   } satisfies Printing;

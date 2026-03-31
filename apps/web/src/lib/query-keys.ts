@@ -74,5 +74,8 @@ export const queryKeys = {
     promoTypes: ["admin", "promo-types"] as const,
     distinctArtists: ["admin", "distinct-artists"] as const,
     providerSettings: ["admin", "provider-settings"] as const,
+    cardBans: Object.assign((cardId: string) => ["admin", "card-bans", cardId] as const, {
+      prefix: ["admin", "card-bans"] as const,
+    }),
   },
 } as const;

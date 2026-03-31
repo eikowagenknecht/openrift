@@ -5,6 +5,7 @@ export type {
   CandidateCardsTable,
   CandidatePrintingsTable,
   CardNameAliasesTable,
+  CardBansTable,
   CardsTable,
   CollectionsTable,
   CopiesTable,

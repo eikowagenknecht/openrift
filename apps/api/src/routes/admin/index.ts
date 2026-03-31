@@ -5,6 +5,7 @@ import { cronJobs } from "../../cron-jobs.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 import { candidatesRoute } from "./candidates/index.js";
+import { cardBansRoute } from "./card-bans.js";
 import { catalogRoute } from "./catalog.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
 import { ignoredCandidatesRoute } from "./ignored-candidates.js";
@@ -96,4 +97,5 @@ export const adminRoute = app
   .route("/admin", adminProviderSettingsRoute)
   .route("/admin", adminSiteSettingsRoute)
   .route("/admin", stagingCardOverridesRoute)
+  .route("/admin", cardBansRoute)
   .route("/admin", candidatesRoute);

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict F2V0lRr2VjhqHlWn0EUHvfqkXug7Dn357RLIYnLIAq4JJ4mBzaAXb8uit9cGZEi
+\restrict w0wxcvMhoLvWnSbbdfU26TpAUIKHJHNm0jXiRdlqZHwXX1NnSU1OqwO5be4jULj
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -236,6 +236,22 @@ CREATE TABLE public.candidate_printings (
 
 
 --
+-- Name: card_bans; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_bans (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    card_id uuid NOT NULL,
+    format_id text NOT NULL,
+    banned_at date NOT NULL,
+    unbanned_at date,
+    reason text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_card_bans_reason_not_empty CHECK ((reason <> ''::text))
+);
+
+
+--
 -- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -368,7 +384,6 @@ CREATE TABLE public.decks (
     share_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_decks_format CHECK ((format = ANY (ARRAY['standard'::text, 'freeform'::text]))),
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text))
 );
 
@@ -383,6 +398,19 @@ CREATE TABLE public.feature_flags (
     description text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: formats; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.formats (
+    id text NOT NULL,
+    name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_formats_id_not_empty CHECK ((id <> ''::text)),
+    CONSTRAINT chk_formats_name_not_empty CHECK ((name <> ''::text))
 );
 
 
@@ -593,10 +621,9 @@ CREATE TABLE public.printing_images (
 CREATE TABLE public.printing_link_overrides (
     external_id text CONSTRAINT printing_link_overrides_source_entity_id_not_null NOT NULL,
     finish text NOT NULL,
-    printing_slug text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_plo_no_empty_external_id CHECK ((external_id <> ''::text)),
-    CONSTRAINT chk_plo_no_empty_printing_slug CHECK ((printing_slug <> ''::text))
+    printing_id uuid NOT NULL,
+    CONSTRAINT chk_plo_no_empty_external_id CHECK ((external_id <> ''::text))
 );
 
 
@@ -618,7 +645,6 @@ CREATE TABLE public.printings (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     flavor_text text,
-    slug text NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT printings_new_id_not_null NOT NULL,
     card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
     set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
@@ -634,8 +660,7 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
     CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
     CONSTRAINT chk_printings_rarity CHECK ((rarity = ANY (ARRAY['Common'::text, 'Uncommon'::text, 'Rare'::text, 'Epic'::text, 'Showcase'::text]))),
-    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text)),
-    CONSTRAINT chk_printings_slug_not_empty CHECK ((slug <> ''::text))
+    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
 );
 
 
@@ -856,6 +881,14 @@ ALTER TABLE ONLY public.candidate_printings
 
 
 --
+-- Name: card_bans card_bans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_bans
+    ADD CONSTRAINT card_bans_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: card_name_aliases card_name_aliases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -941,6 +974,14 @@ ALTER TABLE ONLY public.decks
 
 ALTER TABLE ONLY public.feature_flags
     ADD CONSTRAINT feature_flags_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: formats formats_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.formats
+    ADD CONSTRAINT formats_pkey PRIMARY KEY (id);
 
 
 --
@@ -1088,14 +1129,6 @@ ALTER TABLE ONLY public.printings
 
 
 --
--- Name: printings printings_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT printings_slug_key UNIQUE (slug);
-
-
---
 -- Name: promo_types promo_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1205,6 +1238,14 @@ ALTER TABLE ONLY public.copies
 
 ALTER TABLE ONLY public.decks
     ADD CONSTRAINT uq_decks_id_user UNIQUE (id, user_id);
+
+
+--
+-- Name: printings uq_printings_identity; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT uq_printings_identity UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id);
 
 
 --
@@ -1563,6 +1604,13 @@ CREATE INDEX idx_wish_lists_user_id ON public.wish_lists USING btree (user_id);
 
 
 --
+-- Name: uq_card_bans_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_card_bans_active ON public.card_bans USING btree (card_id, format_id) WHERE (unbanned_at IS NULL);
+
+
+--
 -- Name: uq_collections_user_inbox; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1846,6 +1894,22 @@ ALTER TABLE ONLY public.candidate_printings
 
 
 --
+-- Name: card_bans card_bans_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_bans
+    ADD CONSTRAINT card_bans_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
+
+
+--
+-- Name: card_bans card_bans_format_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_bans
+    ADD CONSTRAINT card_bans_format_id_fkey FOREIGN KEY (format_id) REFERENCES public.formats(id);
+
+
+--
 -- Name: card_name_aliases card_name_aliases_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1910,6 +1974,14 @@ ALTER TABLE ONLY public.deck_cards
 
 
 --
+-- Name: decks decks_format_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT decks_format_fkey FOREIGN KEY (format) REFERENCES public.formats(id);
+
+
+--
 -- Name: decks decks_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1955,6 +2027,14 @@ ALTER TABLE ONLY public.copies
 
 ALTER TABLE ONLY public.copies
     ADD CONSTRAINT fk_copies_collection_user FOREIGN KEY (collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: printing_link_overrides fk_plo_printing_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_link_overrides
+    ADD CONSTRAINT fk_plo_printing_id FOREIGN KEY (printing_id) REFERENCES public.printings(id) ON DELETE CASCADE;
 
 
 --
@@ -2121,5 +2201,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict F2V0lRr2VjhqHlWn0EUHvfqkXug7Dn357RLIYnLIAq4JJ4mBzaAXb8uit9cGZEi
+\unrestrict w0wxcvMhoLvWnSbbdfU26TpAUIKHJHNm0jXiRdlqZHwXX1NnSU1OqwO5be4jULj
 

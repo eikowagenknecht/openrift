@@ -2,6 +2,7 @@
 
 ## 2026-03-30
 
+- feat: Cards that are banned in a format now show a red "Banned" badge in the grid and a banner with the reason in the detail panel
 - fix: Filtering by set no longer shows card variants from other sets in the sibling fan, price ranges, and detail pane
 - feat: The active page is now highlighted in the navigation menu so you can see where you are at a glance
 - feat: Energy, might, and power range filters now have a "None" option so you can find cards without a stat (e.g. spells with no energy cost)
