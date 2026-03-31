@@ -127,7 +127,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       })
       .onConflict((oc) =>
         oc
-          .columns(["cardId", "shortCode", "finish", "promoTypeId"])
+          .columns(["cardId", "shortCode", "finish", "promoTypeId", "language"])
           .doUpdateSet({ artist: "Test Artist" }),
       )
       .returning("id")
