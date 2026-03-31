@@ -4,20 +4,6 @@ import { createMockDb } from "../test/mock-db.js";
 import { candidateMutationsRepo } from "./candidate-mutations.js";
 
 describe("candidateMutationsRepo", () => {
-  // ── Auto-check ─────────────────────────────────────────────────────────────
-
-  it("autoCheckCandidateCards executes bulk update", async () => {
-    const db = createMockDb({ numAffectedRows: 3n });
-    const result = await candidateMutationsRepo(db).autoCheckCandidateCards(new Date());
-    expect(result.numAffectedRows).toBe(3n);
-  });
-
-  it("autoCheckCandidatePrintings executes bulk update", async () => {
-    const db = createMockDb({ numAffectedRows: 5n });
-    const result = await candidateMutationsRepo(db).autoCheckCandidatePrintings(new Date());
-    expect(result.numAffectedRows).toBe(5n);
-  });
-
   // ── Candidate card checks ─────────────────────────────────────────────────
 
   it("checkCandidateCard updates checked_at", async () => {

@@ -31,25 +31,6 @@ import {
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
-const autoCheck = createRoute({
-  method: "post",
-  path: "/auto-check",
-  tags: ["Admin - Cards"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            candidateCardsChecked: z.number(),
-            candidatePrintingsChecked: z.number(),
-          }),
-        },
-      },
-      description: "Auto-check result",
-    },
-  },
-});
-
 const checkCandidateCard = createRoute({
   method: "post",
   path: "/{candidateCardId}/check",
@@ -403,27 +384,7 @@ const deleteByProvider = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-/**
- * Bulk-mark candidates as checked when every acceptable field matches the active
- * card or printing.  Must be registered before /{candidateCardId}/check so the
- * wildcard doesn't swallow "auto-check".
- */
 export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
-  .openapi(autoCheck, async (c) => {
-    const { candidateMutations: mut } = c.get("repos");
-    const now = new Date();
-
-    const [cardResult, printingResult] = await Promise.all([
-      mut.autoCheckCandidateCards(now),
-      mut.autoCheckCandidatePrintings(now),
-    ]);
-
-    return c.json({
-      candidateCardsChecked: Number(cardResult.numAffectedRows),
-      candidatePrintingsChecked: Number(printingResult.numAffectedRows),
-    });
-  })
-
   // ── POST /:candidateCardId/check ──────────────────────────────────────────────
   .openapi(checkCandidateCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");

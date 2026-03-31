@@ -8,9 +8,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { CheckCheckIcon, SearchIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
 import { CardNameCell } from "@/components/admin/card-name-cell";
@@ -31,7 +30,6 @@ import {
   useAcceptGallery,
   useAdminCardList,
   useAllCards,
-  useAutoCheckCandidates,
   useLinkCard,
 } from "@/hooks/use-admin-cards";
 import { cn } from "@/lib/utils";
@@ -131,7 +129,6 @@ const OVERSCAN = 20;
 
 export function AdminCardListPage() {
   const { data } = useAdminCardList();
-  const autoCheck = useAutoCheckCandidates();
   const linkCard = useLinkCard();
   const acceptGallery = useAcceptGallery();
   const { data: allCards } = useAllCards();
@@ -194,27 +191,6 @@ export function AdminCardListPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={autoCheck.isPending}
-          onClick={() =>
-            autoCheck.mutate(undefined, {
-              onSuccess: (result) => {
-                const total = result.candidateCardsChecked + result.candidatePrintingsChecked;
-                toast(
-                  total > 0
-                    ? `Auto-checked ${result.candidateCardsChecked} candidate card + ${result.candidatePrintingsChecked} candidate printing sources`
-                    : "No matching unchecked candidates found",
-                );
-              },
-            })
-          }
-        >
-          <CheckCheckIcon />
-          {autoCheck.isPending ? "Checking..." : "Auto-check matching"}
-        </Button>
-
         {(
           [
             ["unchecked", "Review", counts.unchecked],

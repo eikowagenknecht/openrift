@@ -283,28 +283,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // ── Auto-check ──────────────────────────────────────────────────────────
-
-  describe("POST /auto-check", () => {
-    it("bulk-marks matching sources as checked", async () => {
-      const res = await app.fetch(req("POST", `${P}/auto-check`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.candidateCardsChecked).toBeGreaterThanOrEqual(1);
-      expect(json.candidatePrintingsChecked).toBeGreaterThanOrEqual(1);
-    });
-
-    it("second call marks 0 (already checked)", async () => {
-      const res = await app.fetch(req("POST", `${P}/auto-check`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.candidateCardsChecked).toBe(0);
-      expect(json.candidatePrintingsChecked).toBe(0);
-    });
-  });
-
   // ── Single card-source check ────────────────────────────────────────────
 
   describe("POST /:cardSourceId/check", () => {
