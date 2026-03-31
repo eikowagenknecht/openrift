@@ -17,57 +17,75 @@ interface ResolvedCard {
   domains: Domain[];
 }
 
+/** The five WHERE clauses that define a strict canonical printing. */
+const CANONICAL_FILTERS = {
+  artVariant: "normal" as const,
+  isSigned: false,
+  promoTypeId: null,
+  finish: "normal" as const,
+  language: "EN",
+};
+
 /**
  * Bidirectional resolver between card UUIDs and canonical short codes.
  *
  * A "canonical" printing is the earliest-released, normal-variant, non-signed,
- * non-promo, normal-finish, EN-language printing of a card.
+ * non-promo, normal-finish, EN-language printing of a card. When no strict
+ * canonical printing exists (e.g. foil-only cards), a relaxed fallback is used.
  *
  * @returns An object with resolver methods bound to the given `db`.
  */
 export function canonicalPrintingsRepo(db: Kysely<Database>) {
+  function canonical() {
+    return db
+      .selectFrom("printings as p")
+      .where("p.artVariant", "=", CANONICAL_FILTERS.artVariant)
+      .where("p.isSigned", "=", CANONICAL_FILTERS.isSigned)
+      .where("p.promoTypeId", "is", CANONICAL_FILTERS.promoTypeId)
+      .where("p.finish", "=", CANONICAL_FILTERS.finish)
+      .where("p.language", "=", CANONICAL_FILTERS.language);
+  }
+
+  function relaxed() {
+    return db
+      .selectFrom("printings as p")
+      .where("p.isSigned", "=", false)
+      .where("p.promoTypeId", "is", null)
+      .where("p.language", "=", "EN");
+  }
+
   return {
     /**
      * Maps card UUIDs to their canonical short codes.
      *
-     * @returns One entry per card that has a canonical printing. Cards with no
-     *   matching printing are omitted from the result.
+     * @returns One entry per card that has a resolvable printing. Cards with no
+     *   matching printing at all are omitted from the result.
      */
     async canonicalShortCodesByCardIds(cardIds: string[]): Promise<CanonicalShortCode[]> {
       if (cardIds.length === 0) {
         return [];
       }
 
-      // Try strict canonical filters first
-      const canonical = await db
-        .selectFrom("printings as p")
+      // Strict canonical pass
+      const strict = await canonical()
         .innerJoin("sets as s", "s.id", "p.setId")
         .select(["p.cardId", "p.shortCode"])
         .where("p.cardId", "in", cardIds)
-        .where("p.artVariant", "=", "normal")
-        .where("p.isSigned", "=", false)
-        .where("p.promoTypeId", "is", null)
-        .where("p.finish", "=", "normal")
-        .where("p.language", "=", "EN")
         .distinctOn("p.cardId")
         .orderBy("p.cardId")
         .orderBy("s.releasedAt", "asc")
         .orderBy("p.shortCode", "asc")
         .execute();
 
-      const resolved = new Map(canonical.map((row) => [row.cardId, row.shortCode]));
+      const resolved = new Map(strict.map((row) => [row.cardId, row.shortCode]));
 
-      // Fall back for cards with no strict-canonical printing (e.g. foil-only cards)
+      // Relaxed fallback for foil-only / altart-only cards
       const missing = cardIds.filter((id) => !resolved.has(id));
       if (missing.length > 0) {
-        const fallback = await db
-          .selectFrom("printings as p")
+        const fallback = await relaxed()
           .innerJoin("sets as s", "s.id", "p.setId")
           .select(["p.cardId", "p.shortCode"])
           .where("p.cardId", "in", missing)
-          .where("p.isSigned", "=", false)
-          .where("p.promoTypeId", "is", null)
-          .where("p.language", "=", "EN")
           .distinctOn("p.cardId")
           .orderBy("p.cardId")
           .orderBy("p.artVariant", "asc")
@@ -96,47 +114,35 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         return [];
       }
 
-      // Try canonical printings first (normal, not signed, no promo, EN)
-      const canonical = await db
-        .selectFrom("printings as p")
+      const cardColumns = [
+        "p.shortCode",
+        "p.cardId",
+        "c.name as cardName",
+        "c.type as cardType",
+        "c.superTypes",
+        "c.domains",
+      ] as const;
+
+      // Strict canonical pass
+      const strict = await canonical()
         .innerJoin("cards as c", "c.id", "p.cardId")
-        .select([
-          "p.shortCode",
-          "p.cardId",
-          "c.name as cardName",
-          "c.type as cardType",
-          "c.superTypes",
-          "c.domains",
-        ])
+        .select(cardColumns)
         .where("p.shortCode", "in", shortCodes)
-        .where("p.artVariant", "=", "normal")
-        .where("p.isSigned", "=", false)
-        .where("p.promoTypeId", "is", null)
-        .where("p.finish", "=", "normal")
-        .where("p.language", "=", "EN")
         .distinctOn("p.shortCode")
         .orderBy("p.shortCode")
         .execute();
 
       const resolved = new Map<string, ResolvedCard>();
-      for (const row of canonical) {
+      for (const row of strict) {
         resolved.set(row.shortCode, row);
       }
 
-      // Fall back for any short codes that didn't match a canonical printing
+      // Relaxed fallback
       const missing = shortCodes.filter((sc) => !resolved.has(sc));
       if (missing.length > 0) {
-        const fallback = await db
-          .selectFrom("printings as p")
+        const fallback = await relaxed()
           .innerJoin("cards as c", "c.id", "p.cardId")
-          .select([
-            "p.shortCode",
-            "p.cardId",
-            "c.name as cardName",
-            "c.type as cardType",
-            "c.superTypes",
-            "c.domains",
-          ])
+          .select(cardColumns)
           .where("p.shortCode", "in", missing)
           .distinctOn("p.shortCode")
           .orderBy("p.shortCode")
