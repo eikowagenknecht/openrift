@@ -108,6 +108,12 @@ const printingImageSchema = z.object({
   url: z.string(),
 });
 
+const cardBanSchema = z.object({
+  formatId: z.string(),
+  bannedAt: z.string(),
+  reason: z.string().nullable(),
+});
+
 const catalogCardResponseSchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -123,6 +129,7 @@ const catalogCardResponseSchema = z.object({
   mightBonus: z.number().nullable(),
   rulesText: z.string().nullable(),
   effectText: z.string().nullable(),
+  bans: z.array(cardBanSchema),
 });
 
 const catalogPrintingResponseSchema = z.object({

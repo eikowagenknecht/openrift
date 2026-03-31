@@ -2,6 +2,7 @@ import type { Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type {
+  CardBansTable,
   CardsTable,
   Database,
   PrintingImagesTable,
@@ -12,6 +13,12 @@ import { imageUrl } from "./query-helpers.js";
 
 /** Card columns returned by the catalog (excludes normName and timestamps). */
 type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt">;
+
+/** Active ban row returned by the catalog. */
+type CatalogCardBanRow = Pick<
+  Selectable<CardBansTable>,
+  "cardId" | "formatId" | "bannedAt" | "reason"
+>;
 
 /** Set columns returned by the catalog (id, slug, name only). */
 type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name">;
@@ -67,6 +74,15 @@ export function catalogRepo(db: Kysely<Database>) {
           "comment",
         ])
         .orderBy("name")
+        .execute();
+    },
+
+    /** @returns All active card bans (not yet unbanned). */
+    cardBans(): Promise<CatalogCardBanRow[]> {
+      return db
+        .selectFrom("cardBans")
+        .select(["cardId", "formatId", "bannedAt", "reason"])
+        .where("unbannedAt", "is", null)
         .execute();
     },
 
@@ -139,6 +155,11 @@ export function catalogRepo(db: Kysely<Database>) {
         .select(sql<string>`COUNT(*)`.as("count"))
         .executeTakeFirstOrThrow();
       return Number(result.count);
+    },
+
+    /** @returns The card's `id`, or `undefined` if not found. */
+    cardById(id: string): Promise<Pick<Selectable<CardsTable>, "id"> | undefined> {
+      return db.selectFrom("cards").select("id").where("id", "=", id).executeTakeFirst();
     },
 
     /** @returns The printing's `id`, or `undefined` if not found. */

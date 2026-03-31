@@ -24,6 +24,7 @@ const stubCard: Card = {
   mightBonus: 0,
   rulesText: "",
   effectText: "",
+  bans: [],
 };
 
 function stubCatalogPrintingResponse(

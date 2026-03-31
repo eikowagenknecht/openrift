@@ -583,6 +583,29 @@ export interface UserPreferencesTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── Formats (migration 054) ────────────────────────────────────────────────
+
+export interface FormatsTable {
+  /** CHECK: <> '' */
+  id: string;
+  /** CHECK: <> '' */
+  name: string;
+  createdAt: CreatedAt;
+}
+
+// ─── Card Bans (migration 054) ──────────────────────────────────────────────
+
+export interface CardBansTable {
+  id: Generated<string>;
+  cardId: string;
+  formatId: string;
+  bannedAt: string;
+  unbannedAt: string | null;
+  /** CHECK: <> '' */
+  reason: string | null;
+  createdAt: CreatedAt;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -652,4 +675,10 @@ export interface Database {
 
   // User preferences (migration 047)
   userPreferences: UserPreferencesTable;
+
+  // Formats (migration 054)
+  formats: FormatsTable;
+
+  // Card bans (migration 054)
+  cardBans: CardBansTable;
 }

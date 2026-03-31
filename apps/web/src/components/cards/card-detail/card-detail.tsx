@@ -140,6 +140,18 @@ export function CardDetail({
       </div>
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
+        {/* Ban banner */}
+        {card.bans.length > 0 && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+            <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+              Banned in {card.bans.map((b) => b.formatId).join(", ")}
+            </p>
+            {card.bans[0].reason && (
+              <p className="text-muted-foreground mt-0.5 text-sm">{card.bans[0].reason}</p>
+            )}
+          </div>
+        )}
+
         {/* Card image */}
         <div ref={imageSwipeRef}>
           <div ref={tilt.containerRef} style={tilt.style}>

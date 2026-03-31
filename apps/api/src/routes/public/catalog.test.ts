@@ -12,6 +12,7 @@ const mockCatalogRepo = {
   cards: vi.fn(() => Promise.resolve([])),
   printings: vi.fn(() => Promise.resolve([])),
   printingImages: vi.fn(() => Promise.resolve([])),
+  cardBans: vi.fn(() => Promise.resolve([])),
   totalCopies: vi.fn(() => Promise.resolve(0)),
 };
 
@@ -97,6 +98,7 @@ function seedDefaults(overrides?: {
   mockCatalogRepo.cards.mockResolvedValue(overrides?.cards ?? [dbCard]);
   mockCatalogRepo.printings.mockResolvedValue(overrides?.printings ?? [dbPrintingRow]);
   mockCatalogRepo.printingImages.mockResolvedValue(overrides?.printingImages ?? [dbImage]);
+  mockCatalogRepo.cardBans.mockResolvedValue([]);
   mockCatalogRepo.totalCopies.mockResolvedValue(overrides?.totalCopies ?? 42);
   mockMarketplaceRepo.latestPrices.mockResolvedValue(overrides?.prices ?? [dbPrice]);
 }
@@ -111,6 +113,7 @@ describe("GET /api/v1/catalog", () => {
     mockCatalogRepo.cards.mockReset();
     mockCatalogRepo.printings.mockReset();
     mockCatalogRepo.printingImages.mockReset();
+    mockCatalogRepo.cardBans.mockReset();
     mockCatalogRepo.totalCopies.mockReset();
     mockMarketplaceRepo.latestPrices.mockReset();
     seedDefaults();

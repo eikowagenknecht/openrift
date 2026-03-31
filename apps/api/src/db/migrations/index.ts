@@ -56,6 +56,7 @@ import * as m050 from "./050-preferences-jsonb.js";
 import * as m051 from "./051-fix-corrupted-preferences.js";
 import * as m052 from "./052-flatten-activities.js";
 import * as m053 from "./053-drop-printing-slug.js";
+import * as m054 from "./054-card-bans.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -111,4 +112,5 @@ export const migrations: Record<string, Migration> = {
   "051-fix-corrupted-preferences": m051,
   "052-flatten-activities": m052,
   "053-drop-printing-slug": m053,
+  "054-card-bans": m054,
 };
