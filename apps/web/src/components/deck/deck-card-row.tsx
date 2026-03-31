@@ -180,13 +180,22 @@ export function DeckCardRow({
         className={cn(draggable && "cursor-grab active:cursor-grabbing")}
         {...dragProps}
       >
-        <button
-          type="button"
+        {/* oxlint-disable jsx-a11y/prefer-tag-over-role -- children contain <button> elements; a native button would create invalid nested buttons */}
+        <div
+          role="button"
+          tabIndex={0}
           className={cn(baseClass, "hover:bg-muted/50 w-full cursor-pointer")}
           onClick={onClick}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onClick();
+            }
+          }}
         >
           {content}
-        </button>
+        </div>
+        {/* oxlint-enable jsx-a11y/prefer-tag-over-role */}
       </div>
     );
   }
