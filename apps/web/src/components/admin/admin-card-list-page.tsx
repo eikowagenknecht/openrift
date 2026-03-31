@@ -38,11 +38,11 @@ import {
 } from "@/components/ui/table";
 import {
   useAcceptGallery,
+  useAdminCardList,
   useAllCards,
   useAutoCheckCandidates,
-  useCandidateList,
   useLinkCard,
-} from "@/hooks/use-candidates";
+} from "@/hooks/use-admin-cards";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -182,8 +182,8 @@ function SortableHeader({
 // Page component
 // ---------------------------------------------------------------------------
 
-export function CandidatesListPage() {
-  const { data } = useCandidateList();
+export function AdminCardListPage() {
+  const { data } = useAdminCardList();
   const autoCheck = useAutoCheckCandidates();
   const linkCard = useLinkCard();
   const acceptGallery = useAcceptGallery();

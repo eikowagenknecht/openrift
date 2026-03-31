@@ -14,7 +14,7 @@ import type { Variables } from "../../../types.js";
 const allCards = createRoute({
   method: "get",
   path: "/all-cards",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   responses: {
     200: {
       content: {
@@ -37,7 +37,7 @@ const allCards = createRoute({
 const providerNames = createRoute({
   method: "get",
   path: "/provider-names",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   responses: {
     200: {
       content: {
@@ -51,7 +51,7 @@ const providerNames = createRoute({
 const distinctArtists = createRoute({
   method: "get",
   path: "/distinct-artists",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   responses: {
     200: {
       content: {
@@ -65,7 +65,7 @@ const distinctArtists = createRoute({
 const providerStats = createRoute({
   method: "get",
   path: "/provider-stats",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   responses: {
     200: {
       content: {
@@ -101,7 +101,7 @@ const candidateCardSummarySchema = z.object({
 const listCandidates = createRoute({
   method: "get",
   path: "/",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   responses: {
     200: {
       content: {
@@ -115,7 +115,7 @@ const listCandidates = createRoute({
 const exportCandidates = createRoute({
   method: "get",
   path: "/export",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   responses: {
     200: {
       content: {
@@ -129,7 +129,7 @@ const exportCandidates = createRoute({
 const getCandidateCard = createRoute({
   method: "get",
   path: "/{cardId}",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ cardId: z.string() }),
   },
@@ -146,7 +146,7 @@ const getCandidateCard = createRoute({
 const getUnmatchedDetail = createRoute({
   method: "get",
   path: "/new/{name}",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ name: z.string() }),
   },

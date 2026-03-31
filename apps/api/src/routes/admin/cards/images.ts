@@ -27,7 +27,7 @@ import {
 const setImage = createRoute({
   method: "post",
   path: "/candidate-printings/{id}/set-image",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ id: z.string() }),
     body: { content: { "application/json": { schema: setImageSchema } } },
@@ -40,7 +40,7 @@ const setImage = createRoute({
 const deleteImage = createRoute({
   method: "delete",
   path: "/printing-images/{imageId}",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ imageId: z.string() }),
   },
@@ -52,7 +52,7 @@ const deleteImage = createRoute({
 const activateImage = createRoute({
   method: "post",
   path: "/printing-images/{imageId}/activate",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ imageId: z.string() }),
     body: { content: { "application/json": { schema: activateImageSchema } } },
@@ -65,7 +65,7 @@ const activateImage = createRoute({
 const unrehostImage = createRoute({
   method: "post",
   path: "/printing-images/{imageId}/unrehost",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ imageId: z.string() }),
   },
@@ -77,7 +77,7 @@ const unrehostImage = createRoute({
 const rehostImage = createRoute({
   method: "post",
   path: "/printing-images/{imageId}/rehost",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ imageId: z.string() }),
   },
@@ -94,7 +94,7 @@ const rehostImage = createRoute({
 const addImageUrl = createRoute({
   method: "post",
   path: "/printing/{printingId}/add-image-url",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ printingId: z.string() }),
     body: { content: { "application/json": { schema: addImageUrlSchema } } },
@@ -107,7 +107,7 @@ const addImageUrl = createRoute({
 const uploadImage = createRoute({
   method: "post",
   path: "/printing/{printingId}/upload-image",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ printingId: z.string() }),
     body: { content: { "multipart/form-data": { schema: uploadImageFormSchema } } },

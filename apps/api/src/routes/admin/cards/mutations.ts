@@ -34,7 +34,7 @@ import {
 const autoCheck = createRoute({
   method: "post",
   path: "/auto-check",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   responses: {
     200: {
       content: {
@@ -53,7 +53,7 @@ const autoCheck = createRoute({
 const checkCandidateCard = createRoute({
   method: "post",
   path: "/{candidateCardId}/check",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ candidateCardId: z.string() }),
   },
@@ -65,7 +65,7 @@ const checkCandidateCard = createRoute({
 const uncheckCandidateCard = createRoute({
   method: "post",
   path: "/{candidateCardId}/uncheck",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ candidateCardId: z.string() }),
   },
@@ -77,7 +77,7 @@ const uncheckCandidateCard = createRoute({
 const checkAllCandidatePrintings = createRoute({
   method: "post",
   path: "/candidate-printings/check-all",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     body: { content: { "application/json": { schema: checkAllCandidatePrintingsSchema } } },
   },
@@ -94,7 +94,7 @@ const checkAllCandidatePrintings = createRoute({
 const checkCandidatePrinting = createRoute({
   method: "post",
   path: "/candidate-printings/{id}/check",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ id: z.string() }),
   },
@@ -106,7 +106,7 @@ const checkCandidatePrinting = createRoute({
 const uncheckCandidatePrinting = createRoute({
   method: "post",
   path: "/candidate-printings/{id}/uncheck",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ id: z.string() }),
   },
@@ -118,7 +118,7 @@ const uncheckCandidatePrinting = createRoute({
 const checkAllForCard = createRoute({
   method: "post",
   path: "/{cardId}/check-all",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ cardId: z.string() }),
   },
@@ -135,7 +135,7 @@ const checkAllForCard = createRoute({
 const patchCandidatePrintingRoute = createRoute({
   method: "patch",
   path: "/candidate-printings/{id}",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ id: z.string() }),
     body: { content: { "application/json": { schema: patchCandidatePrintingSchema } } },
@@ -148,7 +148,7 @@ const patchCandidatePrintingRoute = createRoute({
 const deleteCandidatePrinting = createRoute({
   method: "delete",
   path: "/candidate-printings/{id}",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ id: z.string() }),
   },
@@ -160,7 +160,7 @@ const deleteCandidatePrinting = createRoute({
 const copyCandidatePrintingRoute = createRoute({
   method: "post",
   path: "/candidate-printings/{id}/copy",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ id: z.string() }),
     body: { content: { "application/json": { schema: copyCandidatePrintingSchema } } },
@@ -173,7 +173,7 @@ const copyCandidatePrintingRoute = createRoute({
 const linkCandidatePrintingsRoute = createRoute({
   method: "post",
   path: "/candidate-printings/link",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     body: { content: { "application/json": { schema: linkCandidatePrintingsSchema } } },
   },
@@ -185,7 +185,7 @@ const linkCandidatePrintingsRoute = createRoute({
 const renameCard = createRoute({
   method: "post",
   path: "/{cardId}/rename",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ cardId: z.string() }),
     body: { content: { "application/json": { schema: renameSchema } } },
@@ -198,7 +198,7 @@ const renameCard = createRoute({
 const acceptField = createRoute({
   method: "post",
   path: "/{cardId}/accept-field",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ cardId: z.string() }),
     body: { content: { "application/json": { schema: acceptFieldSchema } } },
@@ -211,7 +211,7 @@ const acceptField = createRoute({
 const acceptPrintingField = createRoute({
   method: "post",
   path: "/printing/{printingId}/accept-field",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ printingId: z.string() }),
     body: { content: { "application/json": { schema: acceptFieldSchema } } },
@@ -224,7 +224,7 @@ const acceptPrintingField = createRoute({
 const deletePrintingRoute = createRoute({
   method: "delete",
   path: "/printing/{printingId}",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ printingId: z.string() }),
   },
@@ -236,7 +236,7 @@ const deletePrintingRoute = createRoute({
 const acceptNewCard = createRoute({
   method: "post",
   path: "/new/{name}/accept",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ name: z.string() }),
     body: { content: { "application/json": { schema: acceptNewCardSchema } } },
@@ -249,7 +249,7 @@ const acceptNewCard = createRoute({
 const acceptGallery = createRoute({
   method: "post",
   path: "/new/{name}/accept-gallery",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ name: z.string() }),
   },
@@ -272,7 +272,7 @@ const acceptGallery = createRoute({
 const linkUnmatched = createRoute({
   method: "post",
   path: "/new/{name}/link",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ name: z.string() }),
     body: { content: { "application/json": { schema: linkUnmatchedSchema } } },
@@ -285,7 +285,7 @@ const linkUnmatched = createRoute({
 const acceptPrintingRoute = createRoute({
   method: "post",
   path: "/{cardId}/accept-printing",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ cardId: z.string() }),
     body: { content: { "application/json": { schema: acceptPrintingSchema } } },
@@ -303,7 +303,7 @@ const acceptPrintingRoute = createRoute({
 const uploadCandidates = createRoute({
   method: "post",
   path: "/upload",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     body: { content: { "application/json": { schema: uploadCandidatesSchema } } },
   },
@@ -363,7 +363,7 @@ const uploadCandidates = createRoute({
 const checkByProvider = createRoute({
   method: "post",
   path: "/by-provider/{provider}/check",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ provider: z.string() }),
   },
@@ -385,7 +385,7 @@ const checkByProvider = createRoute({
 const deleteByProvider = createRoute({
   method: "delete",
   path: "/by-provider/{provider}",
-  tags: ["Admin - Candidates"],
+  tags: ["Admin - Cards"],
   request: {
     params: z.object({ provider: z.string() }),
   },

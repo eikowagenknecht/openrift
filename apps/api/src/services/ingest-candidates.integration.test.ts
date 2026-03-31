@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";
-import type { IngestCard, IngestPrinting } from "../routes/admin/candidates/schemas.js";
+import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
 import { createTestContext } from "../test/integration-context.js";
 import { ingestCandidates } from "./ingest-candidates.js";
 

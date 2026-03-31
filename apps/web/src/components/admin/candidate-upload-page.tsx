@@ -34,7 +34,7 @@ import {
   useProviderNames,
   useProviderStats,
   useUploadCandidates,
-} from "@/hooks/use-candidates";
+} from "@/hooks/use-admin-cards";
 import {
   useReorderProviderSettings,
   useProviderSettings,
@@ -396,7 +396,7 @@ function ExportCardsCard() {
     setExporting(true);
     setError(null);
     try {
-      const res = await client.api.v1.admin["candidates"].export.$get();
+      const res = await client.api.v1.admin["cards"].export.$get();
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(

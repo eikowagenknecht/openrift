@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useProviderNames } from "@/hooks/use-candidates";
+import { useProviderNames } from "@/hooks/use-admin-cards";
 import type { RegenerateAccumulator } from "@/hooks/use-rehost";
 import {
   useBrokenImages,

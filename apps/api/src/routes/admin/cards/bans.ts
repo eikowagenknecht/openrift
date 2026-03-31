@@ -2,8 +2,8 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { AppError } from "../../../errors.js";
+import type { Variables } from "../../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -30,8 +30,8 @@ const banResponseSchema = z.object({
 
 const listBans = createRoute({
   method: "get",
-  path: "/cards/{id}/bans",
-  tags: ["Admin - Card Bans"],
+  path: "/{id}/bans",
+  tags: ["Admin - Cards"],
   request: { params: idParamSchema },
   responses: {
     200: {
@@ -45,8 +45,8 @@ const listBans = createRoute({
 
 const createBan = createRoute({
   method: "post",
-  path: "/cards/{id}/bans",
-  tags: ["Admin - Card Bans"],
+  path: "/{id}/bans",
+  tags: ["Admin - Cards"],
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: createBanSchema } } },
@@ -61,8 +61,8 @@ const createBan = createRoute({
 
 const removeBan = createRoute({
   method: "delete",
-  path: "/cards/{id}/bans",
-  tags: ["Admin - Card Bans"],
+  path: "/{id}/bans",
+  tags: ["Admin - Cards"],
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: removeBanSchema } } },
@@ -76,7 +76,7 @@ const removeBan = createRoute({
 
 export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
 
-  // ── GET /admin/cards/:id/bans ───────────────────────────────────────────
+  // ── GET /admin/cards/:id/bans ── ───────────────────────────────────────────
 
   .openapi(listBans, async (c) => {
     const { cardBans } = c.get("repos");

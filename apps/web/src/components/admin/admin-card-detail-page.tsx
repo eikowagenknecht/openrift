@@ -60,29 +60,29 @@ import {
   useAcceptPrintingGroup,
   useActivatePrintingImage,
   useAddImageFromUrl,
+  useAdminCardDetail,
   useAllCards,
-  useCandidateDetail,
   useCheckAllCandidateCards,
   useCheckAllCandidatePrintings,
   useCheckCandidateCard,
   useCheckCandidatePrinting,
-  useUncheckCandidateCard,
-  useUncheckCandidatePrinting,
   useCopyCandidatePrinting,
-  useDeletePrintingImage,
   useDeleteCandidatePrinting,
   useDeletePrinting,
+  useDeletePrintingImage,
   useLinkCard,
-  useNextUncheckedCard,
   useLinkCandidatePrintings,
+  useNextUncheckedCard,
   useReassignCandidatePrinting,
   useRehostPrintingImage,
   useRenameCard,
   useSetCandidatePrintingImage,
+  useUncheckCandidateCard,
+  useUncheckCandidatePrinting,
   useUnmatchedCardDetail,
   useUnrehostPrintingImage,
   useUploadPrintingImage,
-} from "@/hooks/use-candidates";
+} from "@/hooks/use-admin-cards";
 import { useDistinctArtists } from "@/hooks/use-distinct-artists";
 import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
 import { useLanguages } from "@/hooks/use-languages";
@@ -110,16 +110,16 @@ interface UnmatchedData {
   setTotals: Record<string, number>;
 }
 
-interface CandidateDetailPageProps {
+interface AdminCardDetailPageProps {
   mode: "existing" | "new";
   identifier: string;
 }
 
-export function CandidateDetailPage({ mode, identifier }: CandidateDetailPageProps) {
+export function AdminCardDetailPage({ mode, identifier }: AdminCardDetailPageProps) {
   const navigate = useNavigate();
 
   // --- Data fetching (both called, only one enabled via empty-string trick) ---
-  const existingQuery = useCandidateDetail(mode === "existing" ? identifier : "") as {
+  const existingQuery = useAdminCardDetail(mode === "existing" ? identifier : "") as {
     data: DetailData | undefined;
     isLoading: boolean;
     isError: boolean;

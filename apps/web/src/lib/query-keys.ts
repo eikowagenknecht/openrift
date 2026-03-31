@@ -42,14 +42,14 @@ export const queryKeys = {
   admin: {
     me: ["admin", "me"] as const,
     sets: ["admin", "sets"] as const,
-    candidates: {
-      all: ["admin", "candidates"] as const,
-      list: ["admin", "candidates", "list"] as const,
-      detail: (cardId: string) => ["admin", "candidates", "detail", cardId] as const,
-      unmatched: (name: string) => ["admin", "candidates", "unmatched", name] as const,
-      allCards: ["admin", "candidates", "all-cards"] as const,
-      providerNames: ["admin", "candidates", "provider-names"] as const,
-      providerStats: ["admin", "candidates", "provider-stats"] as const,
+    cards: {
+      all: ["admin", "cards"] as const,
+      list: ["admin", "cards", "list"] as const,
+      detail: (cardId: string) => ["admin", "cards", "detail", cardId] as const,
+      unmatched: (name: string) => ["admin", "cards", "unmatched", name] as const,
+      allCards: ["admin", "cards", "all-cards"] as const,
+      providerNames: ["admin", "cards", "provider-names"] as const,
+      providerStats: ["admin", "cards", "provider-stats"] as const,
     },
     marketplaceGroups: ["admin", "marketplace-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
