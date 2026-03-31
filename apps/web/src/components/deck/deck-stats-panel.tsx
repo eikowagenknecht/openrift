@@ -26,7 +26,7 @@ export function DeckStatsPanel() {
       {open && (
         <div className="space-y-3 border-t px-3 py-3">
           <DomainDistribution data={stats.domainDistribution} />
-          <EnergyCurve data={stats.energyCurve} />
+          <EnergyCurve data={stats.energyCurve} domains={stats.energyCurveDomains} />
           <PowerCurve data={stats.powerCurve} />
           <TypeBreakdown data={stats.typeBreakdown} />
         </div>

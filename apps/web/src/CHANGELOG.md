@@ -2,6 +2,7 @@
 
 ## 2026-03-31
 
+- feat: Energy curve in the deck builder now shows domain colors stacked on top of each other so you can see the color distribution at each cost
 - feat: Import and export decks using Piltover Archive deck codes — paste a code to import, or copy a code from the deck editor to share
 - feat: Deck names can be renamed by clicking the name in the deck editor
 - feat: Banned cards in the deck builder now show a large diagonal "BANNED" overlay across the card image

@@ -9,11 +9,7 @@ export interface DomainCount {
   sideboard: number;
 }
 
-export interface EnergyCostCount {
-  energy: string;
-  main: number;
-  sideboard: number;
-}
+export type EnergyCostCount = { energy: string } & Partial<Record<Domain, number>>;
 
 export interface TypeCount {
   type: CardType;
@@ -30,6 +26,7 @@ export interface PowerCount {
 interface DeckStats {
   domainDistribution: DomainCount[];
   energyCurve: EnergyCostCount[];
+  energyCurveDomains: Domain[];
   powerCurve: PowerCount[];
   typeBreakdown: TypeCount[];
   totalCards: number;
@@ -73,29 +70,40 @@ export function useDeckStats(): DeckStats {
     sideboard: domainSide.get(domain) ?? 0,
   }));
 
-  // Energy curve — group by exact energy cost, sorted numerically
-  const energyMain = new Map<number, number>();
-  const energySide = new Map<number, number>();
-  for (const card of mainCards) {
-    if (card.energy !== null) {
-      energyMain.set(card.energy, (energyMain.get(card.energy) ?? 0) + card.quantity);
+  // Energy curve — group by energy cost and domain, stacked by domain color
+  const allCards = [...mainCards, ...sideboardCards];
+  const energyByDomain = new Map<number, Map<Domain, number>>();
+  for (const card of allCards) {
+    if (card.energy === null) {
+      continue;
+    }
+    let domainMap = energyByDomain.get(card.energy);
+    if (!domainMap) {
+      domainMap = new Map();
+      energyByDomain.set(card.energy, domainMap);
+    }
+    for (const domain of card.domains) {
+      domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
     }
   }
-  for (const card of sideboardCards) {
-    if (card.energy !== null) {
-      energySide.set(card.energy, (energySide.get(card.energy) ?? 0) + card.quantity);
-    }
-  }
-  const allEnergyValues = [...new Set([...energyMain.keys(), ...energySide.keys()])];
+  const allEnergyValues = [...energyByDomain.keys()];
   const energyMin = allEnergyValues.length > 0 ? Math.min(...allEnergyValues) : 0;
   const energyMax = allEnergyValues.length > 0 ? Math.max(...allEnergyValues) : 0;
+  const energyDomainSet = new Set<Domain>();
+  for (const domainMap of energyByDomain.values()) {
+    for (const domain of domainMap.keys()) {
+      energyDomainSet.add(domain);
+    }
+  }
+  const energyCurveDomains = DOMAIN_ORDER.filter((domain) => energyDomainSet.has(domain));
   const energyCurve: EnergyCostCount[] = [];
   for (let value = energyMin; value <= energyMax; value++) {
-    energyCurve.push({
-      energy: String(value),
-      main: energyMain.get(value) ?? 0,
-      sideboard: energySide.get(value) ?? 0,
-    });
+    const domainMap = energyByDomain.get(value);
+    const entry: EnergyCostCount = { energy: String(value) };
+    for (const domain of energyCurveDomains) {
+      entry[domain] = domainMap?.get(domain) ?? 0;
+    }
+    energyCurve.push(entry);
   }
 
   // Power curve — group by exact power, sorted numerically
@@ -150,5 +158,12 @@ export function useDeckStats(): DeckStats {
     mainCards.reduce((sum, card) => sum + card.quantity, 0) +
     sideboardCards.reduce((sum, card) => sum + card.quantity, 0);
 
-  return { domainDistribution, energyCurve, powerCurve, typeBreakdown, totalCards };
+  return {
+    domainDistribution,
+    energyCurve,
+    energyCurveDomains,
+    powerCurve,
+    typeBreakdown,
+    totalCards,
+  };
 }
