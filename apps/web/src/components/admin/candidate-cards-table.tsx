@@ -26,19 +26,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useAcceptGallery,
-  useAdminCardList,
-  useAllCards,
-  useLinkCard,
-} from "@/hooks/use-admin-cards";
+import { useAcceptGallery, useAllCards, useLinkCard } from "@/hooks/use-admin-cards";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type StatusFilter = "unchecked" | "unmatched" | "matched";
+type StatusFilter = "unchecked";
 
 type Row = CandidateCardSummaryResponse;
 
@@ -52,17 +47,7 @@ const statusFilterFn: FilterFn<Row> = (row, _columnId, filterValue) => {
     return true;
   }
   const r = row.original;
-  switch (value) {
-    case "unchecked": {
-      return r.uncheckedCardCount + r.uncheckedPrintingCount > 0;
-    }
-    case "unmatched": {
-      return !r.cardSlug;
-    }
-    case "matched": {
-      return Boolean(r.cardSlug);
-    }
-  }
+  return r.uncheckedCardCount + r.uncheckedPrintingCount > 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -81,11 +66,6 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
         const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
         return (
           <div className="flex items-center gap-1">
-            {r.cardSlug ? (
-              <Badge variant="outline">Active</Badge>
-            ) : (
-              <Badge variant="secondary">New</Badge>
-            )}
             {r.hasGallery && <Badge className="text-xs">gallery</Badge>}
             {total > 0 && <Badge variant="destructive">Review</Badge>}
           </div>
@@ -127,8 +107,7 @@ const OVERSCAN = 20;
 // Component
 // ---------------------------------------------------------------------------
 
-export function CandidateCardsTable() {
-  const { data } = useAdminCardList();
+export function CandidateCardsTable({ data }: { data: Row[] }) {
   const linkCard = useLinkCard();
   const acceptGallery = useAcceptGallery();
   const { data: allCards } = useAllCards();
@@ -137,17 +116,9 @@ export function CandidateCardsTable() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
-  const counts = { unchecked: 0, unmatched: 0, matched: 0 };
-  for (const r of data) {
-    if (r.uncheckedCardCount + r.uncheckedPrintingCount > 0) {
-      counts.unchecked++;
-    }
-    if (r.cardSlug) {
-      counts.matched++;
-    } else {
-      counts.unmatched++;
-    }
-  }
+  const uncheckedCount = data.filter(
+    (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
+  ).length;
 
   const activeStatus = (columnFilters.find((f) => f.id === "status")?.value ??
     null) as StatusFilter | null;
@@ -174,7 +145,7 @@ export function CandidateCardsTable() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getRowId: (r) => r.cardSlug ?? r.name,
+    getRowId: (r) => r.name,
     globalFilterFn: "includesString",
   });
 
@@ -191,22 +162,13 @@ export function CandidateCardsTable() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        {(
-          [
-            ["unchecked", "Review", counts.unchecked],
-            ["unmatched", "New", counts.unmatched],
-            ["matched", "Active", counts.matched],
-          ] as const
-        ).map(([f, label, count]) => (
-          <Button
-            key={f}
-            variant={activeStatus === f ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(f)}
-          >
-            {label} ({count})
-          </Button>
-        ))}
+        <Button
+          variant={activeStatus === "unchecked" ? "default" : "outline"}
+          size="sm"
+          onClick={() => toggleStatus("unchecked")}
+        >
+          Review ({uncheckedCount})
+        </Button>
 
         <div className="relative ml-auto">
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
