@@ -69,6 +69,7 @@ export const catalogRoute = catalogApp
           ...r,
           bans: (bansByCard.get(r.id) ?? []).map((b) => ({
             formatId: b.formatId,
+            formatName: b.formatName,
             bannedAt: b.bannedAt,
             reason: b.reason,
           })),

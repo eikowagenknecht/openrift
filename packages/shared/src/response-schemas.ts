@@ -118,6 +118,7 @@ const printingImageSchema = z.object({
 
 const cardBanSchema = z.object({
   formatId: z.string(),
+  formatName: z.string(),
   bannedAt: z.string(),
   reason: z.string().nullable(),
 });

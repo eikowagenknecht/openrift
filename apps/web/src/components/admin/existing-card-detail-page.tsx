@@ -13,6 +13,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyCheckIcon,
+  EllipsisVerticalIcon,
   LoaderIcon,
   RefreshCwIcon,
   Trash2Icon,
@@ -36,7 +37,12 @@ import { PrintingImageSwitcher } from "@/components/admin/printing-image-switche
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -98,6 +104,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
 
   // --- State ---
   const [collapsedPrintings, setCollapsedPrintings] = useState<Set<string>>(new Set());
+  const [showBanForm, setShowBanForm] = useState(false);
   const pendingScrollTarget = useRef<string | null>(null);
 
   // --- Check all & next card ---
@@ -328,6 +335,17 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               Ctrl ↵
             </Kbd>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-7" />}>
+              <EllipsisVerticalIcon className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowBanForm(true)}>
+                <BanIcon className="mr-2 size-3.5" />
+                Add ban
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <p className="text-muted-foreground flex items-center gap-2 text-sm">
           <span className={isCardIdStale ? "text-orange-600 line-through" : ""}>{cardId}</span>
@@ -501,7 +519,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
       </section>
 
       {/* ── Bans ─────────────────────────────────────────────────────────────── */}
-      <CardBanManager cardId={card.id} />
+      <CardBanManager cardId={card.id} showForm={showBanForm} onShowFormChange={setShowBanForm} />
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">

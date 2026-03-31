@@ -9,6 +9,7 @@ export interface PromoType {
 
 export interface CardBan {
   formatId: string;
+  formatName: string;
   bannedAt: string;
   reason: string | null;
 }

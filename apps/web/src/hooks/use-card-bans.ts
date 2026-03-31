@@ -8,6 +8,7 @@ interface BanResponse {
   id: string;
   cardId: string;
   formatId: string;
+  formatName: string;
   bannedAt: string;
   reason: string | null;
   createdAt: string;

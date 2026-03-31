@@ -18,7 +18,7 @@ type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "u
 type CatalogCardBanRow = Pick<
   Selectable<CardBansTable>,
   "cardId" | "formatId" | "bannedAt" | "reason"
->;
+> & { formatName: string };
 
 /** Set columns returned by the catalog (id, slug, name only). */
 type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name">;
@@ -84,11 +84,18 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All active card bans (not yet unbanned). */
+    /** @returns All active card bans (not yet unbanned), with format display name. */
     cardBans(): Promise<CatalogCardBanRow[]> {
       return db
         .selectFrom("cardBans")
-        .select(["cardId", "formatId", "bannedAt", "reason"])
+        .innerJoin("formats", "formats.id", "cardBans.formatId")
+        .select([
+          "cardBans.cardId",
+          "cardBans.formatId",
+          "cardBans.bannedAt",
+          "cardBans.reason",
+          "formats.name as formatName",
+        ])
         .where("unbannedAt", "is", null)
         .execute();
     },

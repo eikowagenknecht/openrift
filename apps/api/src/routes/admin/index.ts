@@ -7,6 +7,7 @@ import type { Variables } from "../../types.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
+import { adminFormatsRoute } from "./formats.js";
 import { ignoredCandidatesRoute } from "./ignored-candidates.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
 import { imagesRoute } from "./images.js";
@@ -87,6 +88,7 @@ export const adminRoute = app
   )
 
   // ── Mount sub-routes ──────────────────────────────────────────────────────
+  .route("/admin", adminFormatsRoute)
   .route("/admin", adminFeatureFlagsRoute)
   .route("/admin", ignoredProductsRoute)
   .route("/admin", ignoredCandidatesRoute)
