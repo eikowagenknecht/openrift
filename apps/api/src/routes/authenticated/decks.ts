@@ -3,9 +3,7 @@ import type {
   DeckAvailabilityItemResponse,
   DeckAvailabilityResponse,
   DeckDetailResponse,
-  DeckFormat,
   DeckListResponse,
-  DeckZone,
 } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
@@ -29,46 +27,6 @@ import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { Variables } from "../../types.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../../utils/mappers.js";
-
-const formatRules: Record<DeckFormat, { minMain?: number; maxSideboard?: number }> = {
-  standard: { minMain: 40, maxSideboard: 8 },
-  freeform: {},
-};
-
-function validateFormatRules(
-  format: DeckFormat,
-  cards: { zone: DeckZone; quantity: number }[],
-): void {
-  const rules = formatRules[format];
-  if (!rules.minMain && !rules.maxSideboard) {
-    return;
-  }
-
-  let mainCount = 0;
-  let sideboardCount = 0;
-  for (const entry of cards) {
-    if (entry.zone === "main") {
-      mainCount += entry.quantity;
-    } else if (entry.zone === "sideboard") {
-      sideboardCount += entry.quantity;
-    }
-  }
-
-  if (rules.minMain && mainCount < rules.minMain) {
-    throw new AppError(
-      400,
-      "BAD_REQUEST",
-      `${format[0].toUpperCase()}${format.slice(1)} format requires at least ${rules.minMain} main deck cards`,
-    );
-  }
-  if (rules.maxSideboard && sideboardCount > rules.maxSideboard) {
-    throw new AppError(
-      400,
-      "BAD_REQUEST",
-      `${format[0].toUpperCase()}${format.slice(1)} format allows at most ${rules.maxSideboard} sideboard cards`,
-    );
-  }
-}
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -157,6 +115,19 @@ const replaceDeckCards = createRoute({
     200: {
       content: { "application/json": { schema: deckCardsResponseSchema } },
       description: "Success",
+    },
+  },
+});
+
+const cloneDeck = createRoute({
+  method: "post",
+  path: "/{id}/clone",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    201: {
+      content: { "application/json": { schema: deckResponseSchema } },
+      description: "Created",
     },
   },
 });
@@ -262,12 +233,26 @@ export const decksRoute = decksApp
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
-    validateFormatRules(deck.format, body.cards);
-
+    // Save the cards first, then validate the full deck with card details
     await decks.replaceCards(id, body.cards);
 
     const cardRows = await decks.cardsWithDetails(id, userId);
+
     return c.json({ cards: cardRows.map((r) => toDeckCard(r)) });
+  })
+
+  // ── POST /decks/:id/clone ─────────────────────────────────────────────────
+  .openapi(cloneDeck, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const newDeck = await decks.cloneDeck(id, userId);
+    if (!newDeck) {
+      throw new AppError(404, "NOT_FOUND", "Not found");
+    }
+
+    return c.json(toDeck(newDeck), 201);
   })
 
   // ── GET /decks/:id/availability ───────────────────────────────────────────

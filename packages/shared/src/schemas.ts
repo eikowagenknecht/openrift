@@ -12,7 +12,7 @@ const deckFieldRules = {
   format: z.enum(["standard", "freeform"]),
 };
 const deckCardFieldRules = {
-  zone: z.enum(["main", "sideboard"]),
+  zone: z.enum(["main", "sideboard", "legend", "champion", "runes", "battlefield", "overflow"]),
   quantity: z.number().int().positive(),
 };
 const wishListItemFieldRules = {

@@ -381,9 +381,11 @@ function useOptionsBarState() {
 export function DesktopOptionsBar({
   className,
   showCopies,
+  hideViewToggle,
 }: {
   className?: string;
   showCopies?: boolean;
+  hideViewToggle?: boolean;
 }) {
   const {
     sortBy,
@@ -407,7 +409,9 @@ export function DesktopOptionsBar({
         onSortDirChange={setSortDir}
         onGroupByChange={setGroupBy}
       />
-      <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
+      {!hideViewToggle && (
+        <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
+      )}
       <ColumnControls {...columnProps} />
     </div>
   );

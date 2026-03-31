@@ -39,6 +39,11 @@ export const queryKeys = {
     byPrinting: (printingId: string, range: TimeRange) =>
       ["priceHistory", printingId, range] as const,
   },
+  decks: {
+    all: ["decks"] as const,
+    detail: (id: string) => ["decks", id] as const,
+    availability: (id: string) => ["decks", id, "availability"] as const,
+  },
   admin: {
     me: ["admin", "me"] as const,
     sets: ["admin", "sets"] as const,

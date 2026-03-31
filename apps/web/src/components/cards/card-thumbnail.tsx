@@ -1,3 +1,4 @@
+import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { Sparkle } from "lucide-react";
@@ -19,7 +20,6 @@ import {
 } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
-import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 
 const CARD_BORDER_RADIUS = "5% / 3.6%";
@@ -142,15 +142,18 @@ interface CardThumbnailProps {
   view?: "cards" | "printings";
   cardWidth?: number;
   priority?: boolean;
-  ownedCount?: number;
-  totalOwnedCount?: number;
-  onQuickAdd?: (printing: Printing) => void;
-  onUndoAdd?: (printing: Printing) => void;
-  onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
   /** Content rendered above the card image (e.g. OwnedCountStrip). */
   aboveCard?: ReactNode;
   /** Dims the card image (used in add mode for unowned cards). */
   dimmed?: boolean;
+  /** Custom top slot (add strip) rendered above the card image. */
+  topSlot?: ReactNode;
+  /** Applies domain gradient background (used for "in deck" highlight). */
+  highlighted?: boolean; // custom: deckbuilder highlights cards already in the deck
+  /** When provided, makes the card draggable with this data (used by deckbuilder). */
+  dragData?: Record<string, unknown>; // custom: passed to @dnd-kit useDraggable
+  /** Unique drag ID (required when dragData is set). */
+  dragId?: string; // custom: @dnd-kit draggable ID
 }
 
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
@@ -167,15 +170,13 @@ export const CardThumbnail = memo(function CardThumbnail({
   view,
   cardWidth,
   priority,
-  ownedCount,
-  totalOwnedCount,
-  onQuickAdd,
-  onUndoAdd,
-  onOpenVariants,
   aboveCard,
   dimmed,
+  topSlot,
+  highlighted,
+  dragData,
+  dragId,
 }: CardThumbnailProps) {
-  const sessionAddedCount = useAddModeStore((s) => s.addedItems.get(printing.id)?.quantity ?? 0);
   const card = {
     ...printing.card,
     name: printing.printedName ?? printing.card.name,
@@ -361,31 +362,36 @@ export const CardThumbnail = memo(function CardThumbnail({
         }
       : undefined;
 
-  /* ── Add mode: outer <div> is inert, only the image area is a <button> ── */
-  if (onQuickAdd) {
+  // custom: optional drag support for deckbuilder browser cards
+  const {
+    setNodeRef: dragRef,
+    listeners: dragListeners,
+    attributes: dragAttributes,
+    isDragging,
+  } = useDraggable({
+    id: dragId ?? `card-${printing.id}`,
+    data: dragData,
+    disabled: !dragData,
+  });
+
+  /* ── Top-slot mode: outer <div> is inert, only the image area is a <button> ── */
+  if (topSlot) {
     return (
       <div
+        ref={dragData ? dragRef : undefined}
         className={cn(
           // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
           "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
           otherPrintings.length > 0 && "hover:[--fan:1]",
+          isDragging && "opacity-40",
         )}
-        style={isSelected ? getDomainGradientStyle(card.domains, "38") : undefined}
+        style={isSelected || highlighted ? getDomainGradientStyle(card.domains, "38") : undefined}
         onMouseEnter={fanMouseEnter}
         onMouseLeave={fanMouseLeave}
+        {...(dragData ? { ...dragListeners, ...dragAttributes } : {})}
       >
         {flashOverlay}
-        {/* Add-mode control strip: [-] count [+] above the card image */}
-        <AddStrip
-          printing={printing}
-          ownedCount={ownedCount ?? 0}
-          totalOwnedCount={totalOwnedCount}
-          sessionAddedCount={sessionAddedCount ?? 0}
-          hasVariants={view === "cards" && (siblings?.length ?? 0) > 1}
-          onQuickAdd={onQuickAdd}
-          onUndoAdd={onUndoAdd}
-          onOpenVariants={onOpenVariants}
-        />
+        {topSlot}
         <button
           type="button"
           className="focus-visible:ring-ring block w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
@@ -408,7 +414,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       )}
       onMouseEnter={fanMouseEnter}
       onMouseLeave={fanMouseLeave}
-      style={isSelected ? getDomainGradientStyle(card.domains, "38") : undefined}
+      style={isSelected || highlighted ? getDomainGradientStyle(card.domains, "38") : undefined}
     >
       {flashOverlay}
       {aboveCard}
@@ -423,95 +429,3 @@ export const CardThumbnail = memo(function CardThumbnail({
     </div>
   );
 });
-
-/**
- * Compact [-] count [+] strip rendered above the card image in add mode.
- * @returns The add-mode control strip.
- */
-function AddStrip({
-  printing,
-  ownedCount,
-  totalOwnedCount,
-  sessionAddedCount,
-  hasVariants,
-  onQuickAdd,
-  onUndoAdd,
-  onOpenVariants,
-}: {
-  printing: Printing;
-  ownedCount: number;
-  totalOwnedCount?: number;
-  sessionAddedCount: number;
-  hasVariants: boolean;
-  onQuickAdd: (printing: Printing) => void;
-  onUndoAdd?: (printing: Printing) => void;
-  onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
-}) {
-  return (
-    // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
-    <div className="relative z-10 mb-1 flex h-5 items-center justify-between">
-      <button
-        type="button"
-        tabIndex={-1}
-        onClick={(e) => {
-          e.stopPropagation();
-          onUndoAdd?.(printing);
-        }}
-        disabled={!sessionAddedCount}
-        className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 items-center justify-center rounded transition-colors disabled:pointer-events-none disabled:opacity-30"
-      >
-        <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
-          <path d="M3 7a1 1 0 0 0 0 2h10a1 1 0 1 0 0-2H3z" />
-        </svg>
-      </button>
-
-      {hasVariants && onOpenVariants ? (
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenVariants(printing, e.currentTarget);
-          }}
-          className={cn(
-            "hover:text-foreground hover:bg-muted/50 rounded-sm px-1 text-xs font-medium transition-colors",
-            ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
-          )}
-        >
-          ×{ownedCount}
-          {totalOwnedCount !== undefined && totalOwnedCount !== ownedCount && (
-            <span
-              className={ownedCount > 0 ? "text-muted-foreground/60" : "text-muted-foreground/30"}
-            >
-              {" "}
-              ({totalOwnedCount})
-            </span>
-          )}
-        </button>
-      ) : (
-        <span
-          className={cn(
-            "text-xs font-medium",
-            ownedCount > 0 ? "text-muted-foreground" : "text-muted-foreground/40",
-          )}
-        >
-          ×{ownedCount}
-        </span>
-      )}
-
-      <button
-        type="button"
-        tabIndex={-1}
-        onClick={(e) => {
-          e.stopPropagation();
-          onQuickAdd(printing);
-        }}
-        className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 items-center justify-center rounded transition-colors"
-      >
-        <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
-          <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
-        </svg>
-      </button>
-    </div>
-  );
-}
