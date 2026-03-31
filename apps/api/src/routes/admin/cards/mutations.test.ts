@@ -42,8 +42,6 @@ const mockAppendSetTotal = vi.mocked(appendSetTotal);
 // ---------------------------------------------------------------------------
 
 const mockMut = {
-  autoCheckCandidateCards: vi.fn(),
-  autoCheckCandidatePrintings: vi.fn(),
   checkCandidateCard: vi.fn(),
   uncheckCandidateCard: vi.fn(),
   checkAllCandidatePrintings: vi.fn(),
@@ -130,25 +128,6 @@ const app = new Hono()
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-
-describe("POST /api/v1/auto-check", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 200 with checked counts", async () => {
-    mockMut.autoCheckCandidateCards.mockResolvedValue({ numAffectedRows: 5n });
-    mockMut.autoCheckCandidatePrintings.mockResolvedValue({ numAffectedRows: 10n });
-
-    const res = await app.request("/api/v1/auto-check", { method: "POST" });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({
-      candidateCardsChecked: 5,
-      candidatePrintingsChecked: 10,
-    });
-  });
-});
 
 describe("POST /api/v1/:candidateCardId/check", () => {
   beforeEach(() => {

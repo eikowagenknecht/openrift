@@ -91,17 +91,6 @@ export function useUnmatchedCardDetail(name: string) {
   });
 }
 
-export function useAutoCheckCandidates() {
-  return useMutationWithInvalidation({
-    mutationFn: async () => {
-      const res = await client.api.v1.admin["cards"]["auto-check"].$post();
-      assertOk(res);
-      return await res.json();
-    },
-    invalidates: [queryKeys.admin.cards.all],
-  });
-}
-
 export function useCheckCandidateCard() {
   return useMutationWithInvalidation({
     mutationFn: async (candidateCardId: string) => {

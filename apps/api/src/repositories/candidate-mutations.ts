@@ -8,7 +8,6 @@ import type {
   SuperType,
 } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable, UpdateResult } from "kysely";
-import { sql } from "kysely";
 
 import type {
   CandidateCardsTable,
@@ -16,7 +15,6 @@ import type {
   Database,
   CandidatePrintingsTable,
 } from "../db/index.js";
-import { resolveCardId } from "./query-helpers.js";
 
 /**
  * Mutation queries for candidate cards, candidate printings, cards, and printings
@@ -26,68 +24,6 @@ import { resolveCardId } from "./query-helpers.js";
  */
 export function candidateMutationsRepo(db: Kysely<Database>) {
   return {
-    // ── Auto-check ────────────────────────────────────────────────────────────
-
-    /**
-     * Bulk auto-check candidate cards whose fields match their resolved card.
-     * @returns Number of affected rows.
-     */
-    autoCheckCandidateCards(now: Date): Promise<{ numAffectedRows: bigint }> {
-      const rcid = resolveCardId("cs");
-      const n = (ref: string) => sql`COALESCE(NULLIF(${sql.ref(ref)}, ''), NULL)`;
-
-      return sql`
-        UPDATE candidate_cards cs
-        SET checked_at = ${now}
-        FROM cards c
-        WHERE c.id = (${rcid})
-          AND cs.checked_at IS NULL
-          AND cs.name        IS NOT DISTINCT FROM c.name
-          AND cs.type        IS NOT DISTINCT FROM c.type
-          AND cs.super_types IS NOT DISTINCT FROM c.super_types
-          AND cs.domains     IS NOT DISTINCT FROM c.domains
-          AND cs.might       IS NOT DISTINCT FROM c.might
-          AND cs.energy      IS NOT DISTINCT FROM c.energy
-          AND cs.power       IS NOT DISTINCT FROM c.power
-          AND cs.might_bonus IS NOT DISTINCT FROM c.might_bonus
-          AND ${n("cs.rulesText")}  IS NOT DISTINCT FROM ${n("c.rulesText")}
-          AND ${n("cs.effectText")} IS NOT DISTINCT FROM ${n("c.effectText")}
-          AND cs.tags        IS NOT DISTINCT FROM c.tags
-      `.execute(db) as Promise<{ numAffectedRows: bigint }>;
-    },
-
-    /**
-     * Bulk auto-check candidate printings whose fields match their linked printing.
-     * @returns Number of affected rows.
-     */
-    autoCheckCandidatePrintings(now: Date): Promise<{ numAffectedRows: bigint }> {
-      const n = (ref: string) => sql`COALESCE(NULLIF(${sql.ref(ref)}, ''), NULL)`;
-
-      return sql`
-        UPDATE candidate_printings ps
-        SET checked_at = ${now}
-        FROM printings p
-        LEFT JOIN sets s ON s.id = p.set_id
-        WHERE ps.printing_id = p.id
-          AND ps.checked_at IS NULL
-          AND ps.short_code          IS NOT DISTINCT FROM p.short_code
-          AND ps.set_id            IS NOT DISTINCT FROM s.slug
-          AND ps.collector_number  IS NOT DISTINCT FROM p.collector_number
-          AND LOWER(ps.rarity)     IS NOT DISTINCT FROM LOWER(p.rarity)
-          AND ${n("ps.artVariant")}  IS NOT DISTINCT FROM ${n("p.artVariant")}
-          AND ps.is_signed         IS NOT DISTINCT FROM p.is_signed
-          AND ps.promo_type_id     IS NOT DISTINCT FROM p.promo_type_id
-          AND ps.finish            IS NOT DISTINCT FROM p.finish
-          AND COALESCE(ps.artist, '') IS NOT DISTINCT FROM p.artist
-          AND ps.public_code       IS NOT DISTINCT FROM p.public_code
-          AND ${n("ps.printedRulesText")}  IS NOT DISTINCT FROM ${n("p.printedRulesText")}
-          AND ${n("ps.printedEffectText")} IS NOT DISTINCT FROM ${n("p.printedEffectText")}
-          AND ${n("ps.flavorText")}         IS NOT DISTINCT FROM ${n("p.flavorText")}
-          AND COALESCE(ps.language, 'EN') IS NOT DISTINCT FROM p.language
-          AND ${n("ps.printedName")} IS NOT DISTINCT FROM ${n("p.printedName")}
-      `.execute(db) as Promise<{ numAffectedRows: bigint }>;
-    },
-
     // ── Candidate card checks ────────────────────────────────────────────────────
 
     /**
