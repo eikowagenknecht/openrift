@@ -1,3 +1,4 @@
+import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import {
@@ -11,6 +12,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { PrintingsCell } from "@/components/admin/printings-cell";
 import { SortableHeader } from "@/components/admin/sortable-header";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -22,45 +24,48 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAllCards } from "@/hooks/use-admin-cards";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface AcceptedCard {
-  slug: string;
-  name: string;
-  type: string;
-}
+type Row = CandidateCardSummaryResponse;
 
 // ---------------------------------------------------------------------------
 // Column definitions
 // ---------------------------------------------------------------------------
 
-const columns: ColumnDef<AcceptedCard>[] = [
+const columns: ColumnDef<Row>[] = [
   {
     id: "name",
     accessorFn: (r) => r.name,
-    header: ({ column }) => <SortableHeader column={column} label="Name" />,
+    header: ({ column }) => <SortableHeader column={column} label="Card" />,
     enableGlobalFilter: true,
-    cell: ({ row }) => (
-      <Link
-        to="/admin/cards/$cardSlug"
-        params={{ cardSlug: row.original.slug }}
-        className="font-medium hover:underline"
-      >
-        <span className="text-muted-foreground">{row.original.slug}</span> {row.original.name}
-      </Link>
-    ),
+    cell: ({ row }) => {
+      const r = row.original;
+      const slug = r.cardSlug ?? r.normalizedName;
+      const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
+      return (
+        <span className="flex items-center gap-2">
+          <Link
+            to="/admin/cards/$cardSlug"
+            params={{ cardSlug: slug }}
+            className="font-medium hover:underline"
+          >
+            <span className="text-muted-foreground">{slug}</span> {r.name}
+          </Link>
+          {total > 0 && <Badge variant="destructive">Review</Badge>}
+        </span>
+      );
+    },
   },
   {
-    id: "type",
-    accessorFn: (r) => r.type,
-    header: ({ column }) => <SortableHeader column={column} label="Type" />,
+    id: "printings",
+    header: "Printings",
+    enableSorting: false,
     enableGlobalFilter: false,
-    cell: ({ row }) => <Badge variant="outline">{row.original.type}</Badge>,
+    cell: ({ row }) => <PrintingsCell row={row.original} />,
   },
 ];
 
@@ -75,9 +80,7 @@ const OVERSCAN = 20;
 // Component
 // ---------------------------------------------------------------------------
 
-export function AcceptedCardsTable() {
-  const { data } = useAllCards();
-
+export function AcceptedCardsTable({ data }: { data: Row[] }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
@@ -90,7 +93,7 @@ export function AcceptedCardsTable() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getRowId: (r) => r.slug,
+    getRowId: (r) => r.cardSlug ?? r.normalizedName,
     globalFilterFn: "includesString",
   });
 
@@ -131,7 +134,7 @@ export function AcceptedCardsTable() {
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className={cn(header.id === "type" && "w-32")}>
+                    <TableHead key={header.id}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
@@ -147,7 +150,10 @@ export function AcceptedCardsTable() {
                 return (
                   <TableRow key={row.id} data-index={virtualRow.index}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell
+                        key={cell.id}
+                        className={cn(cell.column.id === "printings" && "whitespace-normal")}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
