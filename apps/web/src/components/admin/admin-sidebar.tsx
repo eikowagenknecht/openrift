@@ -12,6 +12,7 @@ import {
   LayersIcon,
   MapIcon,
   SettingsIcon,
+  SpellCheckIcon,
   TagIcon,
   UsersIcon,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const catalogPages = [
   { to: "/admin/ignored-sources" as const, icon: BanIcon, title: "Ignored Sources" },
   { to: "/admin/promo-types" as const, icon: TagIcon, title: "Promo Types" },
   { to: "/admin/languages" as const, icon: LanguagesIcon, title: "Languages" },
+  { to: "/admin/typography-review" as const, icon: SpellCheckIcon, title: "Typography" },
 ];
 
 const marketplacePages = [

@@ -378,6 +378,11 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       await db.updateTable("cards").set(updates).where("slug", "=", slug).execute();
     },
 
+    /** Update arbitrary fields on a card by UUID. */
+    async updateCardById(id: string, updates: Record<string, unknown>): Promise<void> {
+      await db.updateTable("cards").set(updates).where("id", "=", id).execute();
+    },
+
     // ── Printing mutations ────────────────────────────────────────────────────
 
     /**

@@ -18,6 +18,7 @@ import { adminPromoTypesRoute } from "./promo-types.js";
 import { adminProviderSettingsRoute } from "./provider-settings.js";
 import { adminSiteSettingsRoute } from "./site-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
+import { typographyReviewRoute } from "./typography-review.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 import { adminUserFeatureFlagsRoute } from "./user-feature-flags.js";
 import { adminUsersRoute } from "./users.js";
@@ -102,6 +103,7 @@ export const adminRoute = app
   .route("/admin", adminProviderSettingsRoute)
   .route("/admin", adminSiteSettingsRoute)
   .route("/admin", stagingCardOverridesRoute)
+  .route("/admin", typographyReviewRoute)
   .route("/admin", adminCardsRoute)
   .route("/admin", adminUsersRoute)
   .route("/admin", adminUserFeatureFlagsRoute);
