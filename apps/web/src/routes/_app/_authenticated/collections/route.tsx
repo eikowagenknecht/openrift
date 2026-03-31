@@ -160,7 +160,7 @@ function CollectionContent({ title }: { title: string }) {
           <div ref={setAddModeSlot} className="flex flex-1 items-center gap-2" />
         </header>
         {/* Main content */}
-        <div className="flex-1 p-4 sm:p-6">
+        <div className="flex-1 p-3">
           <Outlet />
         </div>
         <Footer />
