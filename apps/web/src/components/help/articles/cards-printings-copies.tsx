@@ -201,7 +201,7 @@ export default function CardsPrintingsCopiesArticle() {
             ["Finish", "Normal", "Foil", "Foil"],
             ["Art Variant", "Normal", "Alt Art", "Alt Art"],
             ["Is Signed", "No", "No", "No"],
-            ["Artist", "Greg Ghielmetti & Leah Chen", "Fairfoul", "\u534E\u9510"],
+            ["Artist", "Greg Ghielmetti & Leah Chen", "Fairfoul", "华锐"],
             ["Promo Type", null, null, "Promo"],
             ["Printed Rules Text", null, null, null],
             ["Printed Effect Text", null, null, null],
@@ -224,9 +224,9 @@ export default function CardsPrintingsCopiesArticle() {
           rows={[
             [
               "Printing",
-              "OGN-007 \u00B7 Common \u00B7 Normal",
-              "OGN-007 \u00B7 Common \u00B7 Normal",
-              "OGN-007a \u00B7 Showcase \u00B7 Foil",
+              "OGN-007 · Common · Normal",
+              "OGN-007 · Common · Normal",
+              "OGN-007a · Showcase · Foil",
             ],
             ["Collection", "Main", "Main", "Main"],
             [
@@ -292,7 +292,7 @@ function ExampleTable({ rows }: { rows: React.ReactNode[][] }) {
                   key={cellIndex}
                   className={`px-3 py-2 ${cellIndex === 0 ? "bg-muted/50 font-medium whitespace-nowrap" : "text-muted-foreground min-w-32"}`}
                 >
-                  {cell === null ? "\u2014" : cell}
+                  {cell === null ? "—" : cell}
                 </td>
               ))}
             </tr>

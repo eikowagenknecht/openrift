@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-31
+
+- fix: Help articles no longer show garbled characters for apostrophes and dashes
+
 ## 2026-03-30
 
 - feat: Cards that are banned in a format now show a red "Banned" badge in the grid and a banner with the reason in the detail panel

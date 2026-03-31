@@ -68,7 +68,7 @@ export default function ImportExportArticle() {
           <StatusRow
             icon={<CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />}
             label="Exact"
-            description="Perfect match \u2014 code, finish, and art variant all resolved. Ready to import."
+            description="Perfect match — code, finish, and art variant all resolved. Ready to import."
           />
           <StatusRow
             icon={<AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400" />}
@@ -78,12 +78,12 @@ export default function ImportExportArticle() {
           <StatusRow
             icon={<CircleHelpIcon className="size-4 text-amber-600 dark:text-amber-400" />}
             label="Fuzzy"
-            description="Code wasn\u2019t found, but a similar card name was. Confirm the suggestion or pick a variant."
+            description="Code wasn't found, but a similar card name was. Confirm the suggestion or pick a variant."
           />
           <StatusRow
             icon={<XCircleIcon className="size-4 text-red-600 dark:text-red-400" />}
             label="Unresolved"
-            description="No match found. Skip this entry \u2014 it won\u2019t be imported."
+            description="No match found. Skip this entry — it won't be imported."
           />
         </div>
 

@@ -93,7 +93,7 @@ export default function CollectionsArticle() {
           <FeatureCard
             icon={<MousePointerClick className="size-4" />}
             title="Browse & add"
-            description="Browse the full catalog with all filters available. Click the plus button on any card to add it. A pulsing red dot shows you\u2019re in add mode."
+            description="Browse the full catalog with all filters available. Click the plus button on any card to add it. A pulsing red dot shows you're in add mode."
           />
         </div>
 
@@ -148,7 +148,7 @@ export default function CollectionsArticle() {
           />
           <ViewModeRow
             mode="Copies"
-            description="Every individual copy on the grid \u2014 no stacking. Useful for managing specific copies."
+            description="Every individual copy on the grid — no stacking. Useful for managing specific copies."
           />
         </div>
       </section>
