@@ -28,12 +28,6 @@ interface RoadmapItem {
 const roadmapItems: RoadmapItem[] = [
   // Upcoming
   {
-    title: "Deck Building",
-    description: "Build, save, and share decks with validation and price breakdown.",
-    icon: <LayersIcon className="size-4" />,
-    done: false,
-  },
-  {
     title: "Rules & Errata",
     description:
       "Searchable comprehensive rules reference with card errata alongside official text.",
@@ -58,14 +52,23 @@ const roadmapItems: RoadmapItem[] = [
     icon: <UsersIcon className="size-4" />,
     done: false,
   },
+  // Done
   {
-    title: "Collections",
-    description: "Track and manage owned cards across multiple collections.",
-    icon: <LibraryIcon className="size-4" />,
-    done: false,
+    title: "Deck Building",
+    description:
+      "Build, validate, and share decks with stats, deck codes, and collection availability.",
+    icon: <LayersIcon className="size-4" />,
+    done: true,
     date: "Mar 2026",
   },
-  // Done
+  {
+    title: "Collections",
+    description:
+      "Multiple collections with CSV import, activity timeline, market values, and sharing.",
+    icon: <LibraryIcon className="size-4" />,
+    done: true,
+    date: "Mar 2026",
+  },
   {
     title: "Price History",
     description: "Charts showing how card prices change over time.",
