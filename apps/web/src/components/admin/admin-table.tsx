@@ -465,14 +465,10 @@ export function AdminTable<TData, TDraft = TData>({
                           error={editError}
                         />
                       ) : (
-                        <div className="flex justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1">
                           {actions?.(original, index)}
                           {edit && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => startEditing(original)}
-                            >
+                            <Button variant="ghost" onClick={() => startEditing(original)}>
                               Edit
                             </Button>
                           )}
@@ -516,10 +512,10 @@ function SaveCancelButtons({
   return (
     <>
       <div className="flex justify-end gap-1">
-        <Button variant="outline" size="sm" onClick={onSave} disabled={isPending}>
+        <Button variant="outline" onClick={onSave} disabled={isPending}>
           Save
         </Button>
-        <Button variant="ghost" size="sm" onClick={onCancel}>
+        <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
       </div>

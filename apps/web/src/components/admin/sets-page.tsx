@@ -49,7 +49,7 @@ export function SetsPage() {
           value={d.id}
           onChange={(e) => set((prev) => ({ ...prev, id: e.target.value }))}
           placeholder="ID"
-          className="h-8 w-24 font-mono"
+          className="font-mono"
         />
       ),
     },
@@ -60,7 +60,6 @@ export function SetsPage() {
         <Input
           value={d.name}
           onChange={(e) => set((prev) => ({ ...prev, name: e.target.value }))}
-          className="h-8"
         />
       ),
       addCell: (d, set) => (
@@ -68,7 +67,6 @@ export function SetsPage() {
           value={d.name}
           onChange={(e) => set((prev) => ({ ...prev, name: e.target.value }))}
           placeholder="Name"
-          className="h-8"
         />
       ),
     },
@@ -82,7 +80,7 @@ export function SetsPage() {
           inputMode="numeric"
           value={d.printedTotal}
           onChange={(e) => set((prev) => ({ ...prev, printedTotal: e.target.value }))}
-          className="ml-auto h-8 w-24 text-right"
+          className="ml-auto text-right"
         />
       ),
       addCell: (d, set) => (
@@ -91,19 +89,20 @@ export function SetsPage() {
           value={d.printedTotal}
           onChange={(e) => set((prev) => ({ ...prev, printedTotal: e.target.value }))}
           placeholder="0"
-          className="ml-auto h-8 w-24 text-right"
+          className="ml-auto text-right"
         />
       ),
     },
     {
       header: "Release Date",
       width: "w-36",
-      cell: (s) => <span className="text-muted-foreground">{s.releasedAt ?? "—"}</span>,
+      cell: (s) => <span className="text-muted-foreground font-mono">{s.releasedAt ?? "—"}</span>,
       editCell: (d, set) => (
         <DatePicker
           value={d.releasedAt || null}
           onChange={(iso) => set((prev) => ({ ...prev, releasedAt: iso }))}
           onClear={() => set((prev) => ({ ...prev, releasedAt: "" }))}
+          className="font-mono"
         />
       ),
       addCell: (d, set) => (
@@ -111,6 +110,7 @@ export function SetsPage() {
           value={d.releasedAt || null}
           onChange={(iso) => set((prev) => ({ ...prev, releasedAt: iso }))}
           onClear={() => set((prev) => ({ ...prev, releasedAt: "" }))}
+          className="font-mono"
         />
       ),
     },
