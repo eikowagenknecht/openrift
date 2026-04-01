@@ -238,103 +238,144 @@ export default function WhyOpenRiftArticle() {
               <ComparisonRow
                 feature="Card database"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Every card from every released set, updated when new sets drop."
+                detail={{
+                  general: "Every card from every released set, updated when new sets drop.",
+                }}
               />
               <ComparisonRow
                 feature="All printings / variants"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Each printing tracked separately — standard, foil, promos, alternate art, etc."
+                detail={{
+                  general:
+                    "Each printing tracked separately — standard, foil, promos, alternate art, etc.",
+                }}
               />
               <ComparisonRow
                 feature="Multiple price sources"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="TCGPlayer, Cardmarket, and CardTrader prices side by side. Most sites only show one marketplace."
+                detail={{
+                  general:
+                    "TCGPlayer, Cardmarket, and CardTrader prices side by side. Most sites only show one marketplace.",
+                }}
               />
               <ComparisonRow
                 feature="Price history charts"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Daily price snapshots with charts. History goes back to when we started tracking (February 2026)."
+                detail={{
+                  general:
+                    "Daily price snapshots with charts. History goes back to when we started tracking (February 2026).",
+                }}
               />
               <ComparisonRow
                 feature="Multi-language printings"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="English, French, and Chinese card text where available. More languages as they're released."
+                detail={{
+                  general:
+                    "English, French, and Chinese card text where available. More languages as they're released.",
+                }}
               />
               <ComparisonRow
                 feature="Errata tracking"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="We show the printed card text but don't track official errata or rules corrections yet. On the roadmap."
+                detail={{
+                  general:
+                    "We show the printed card text but don't track official errata or rules corrections yet. On the roadmap.",
+                }}
               />
 
               <ComparisonSection title="Collection" />
               <ComparisonRow
                 feature="Collection tracking"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Track which cards you own, how many copies, and in which condition."
+                detail={{
+                  general: "Track which cards you own, how many copies, and in which condition.",
+                }}
               />
               <ComparisonRow
                 feature="Multiple collections"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Create named collections like 'Trade binder', 'Main deck staples', etc. Move cards between them."
+                detail={{
+                  general:
+                    "Create named collections like 'Trade binder', 'Main deck staples', etc. Move cards between them.",
+                }}
               />
               <ComparisonRow
                 feature="Collection sharing"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Not yet — sharing collections via link is planned."
+                detail={{ general: "Not yet — sharing collections via link is planned." }}
               />
               <ComparisonRow
                 feature="Collection value"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="See the total market value of your collection across all three marketplaces."
+                detail={{
+                  general:
+                    "See the total market value of your collection across all three marketplaces.",
+                }}
               />
               <ComparisonRow
                 feature="Portfolio value over time"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="We show current value but don't chart how your collection's value changes over time yet."
+                detail={{
+                  general:
+                    "We show current value but don't chart how your collection's value changes over time yet.",
+                }}
               />
               <ComparisonRow
                 feature="Activity history"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="A timeline of every add, remove, and move across your collections."
+                detail={{
+                  general: "A timeline of every add, remove, and move across your collections.",
+                }}
               />
               <ComparisonRow
                 feature="CSV import / export"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Import from spreadsheets or other tools. Export your full collection to CSV any time."
+                detail={{
+                  general:
+                    "Import from spreadsheets or other tools. Export your full collection to CSV any time.",
+                }}
               />
               <ComparisonRow
                 feature="Wish list"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="A dedicated want list for cards you're looking for. Planned."
+                detail={{ general: "A dedicated want list for cards you're looking for. Planned." }}
               />
 
               <ComparisonSection title="Deck Building" />
               <ComparisonRow
                 feature="Deck builder"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Visual deck editor with drag & drop, card search, and real-time updates."
+                detail={{
+                  general:
+                    "Visual deck editor with drag & drop, card search, and real-time updates.",
+                }}
               />
               <ComparisonRow
                 feature="Format validation"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Checks deck size, card limits, and ban lists for each format."
+                detail={{
+                  general: "Checks deck size, card limits, and ban lists for each format.",
+                }}
               />
               <ComparisonRow
                 feature="Deck statistics"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Energy curve, domain distribution, cost breakdown, and more."
+                detail={{ general: "Energy curve, domain distribution, cost breakdown, and more." }}
               />
               <ComparisonRow
                 feature="Deck code sharing"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Export and import decks as compact text codes."
+                detail={{ general: "Export and import decks as compact text codes." }}
               />
 
               <ComparisonSection title="User Experience" />
               <ComparisonRow
                 feature="Fast performance"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Virtualized scrolling, minimal bundle size, and snappy filters. No loading spinners where they aren't needed."
+                detail={{
+                  general:
+                    "Virtualized scrolling, minimal bundle size, and snappy filters. No loading spinners where they aren't needed.",
+                }}
               />
               <ComparisonRow
                 feature="Dark mode"
@@ -343,111 +384,163 @@ export default function WhyOpenRiftArticle() {
               <ComparisonRow
                 feature="Mobile-friendly"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Fully responsive — works on phones, tablets, and desktops."
+                detail={{ general: "Fully responsive — works on phones, tablets, and desktops." }}
               />
               <ComparisonRow
                 feature="Native mobile app"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No native iOS or Android app. The website is mobile-friendly, but there's no app store presence."
+                detail={{
+                  general:
+                    "No native iOS or Android app. The website is mobile-friendly, but there's no app store presence.",
+                }}
               />
               <ComparisonRow
                 feature="Keyboard shortcuts"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Cmd+K / Ctrl+K command palette for quick navigation and search."
+                detail={{
+                  general: "Cmd+K / Ctrl+K command palette for quick navigation and search.",
+                }}
               />
               <ComparisonRow
                 feature="Accessibility"
                 values={["partial", "unknown", "unknown", "unknown", "unknown"]}
-                detail="We use semantic HTML and ARIA attributes via shadcn/ui, but haven't done a dedicated accessibility audit yet."
+                detail={{
+                  general:
+                    "We use semantic HTML and ARIA attributes via shadcn/ui, but haven't done a dedicated accessibility audit yet.",
+                }}
               />
               <ComparisonRow
                 feature="Card scanning"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No camera-based card recognition. You add cards by searching."
+                detail={{
+                  general: "No camera-based card recognition. You add cards by searching.",
+                }}
               />
               <ComparisonRow
                 feature="No account required to browse"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Browse the full card database, prices, and deck codes without signing up. Accounts are only needed for collections and decks."
+                detail={{
+                  general:
+                    "Browse the full card database, prices, and deck codes without signing up. Accounts are only needed for collections and decks.",
+                }}
               />
 
               <ComparisonSection title="Openness & Transparency" />
               <ComparisonRow
                 feature="Open source"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Full source code on GitHub under AGPL-3.0. Inspect, fork, or contribute."
+                detail={{
+                  general:
+                    "Full source code on GitHub under AGPL-3.0. Inspect, fork, or contribute.",
+                }}
               />
               <ComparisonRow
                 feature="Self-hostable"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Run the entire stack yourself — frontend, API, and database. Fully documented."
+                detail={{
+                  general:
+                    "Run the entire stack yourself — frontend, API, and database. Fully documented.",
+                }}
               />
               <ComparisonRow
                 feature="Public API"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No documented public API yet. The internal API exists but isn't versioned or stable for third-party use."
+                detail={{
+                  general:
+                    "No documented public API yet. The internal API exists but isn't versioned or stable for third-party use.",
+                }}
               />
               <ComparisonRow
                 feature="Ad-free"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No banner ads, no sponsored content, no affiliate-gated features."
+                detail={{
+                  general: "No banner ads, no sponsored content, no affiliate-gated features.",
+                }}
               />
               <ComparisonRow
                 feature="No tracking"
                 values={["partial", "unknown", "unknown", "unknown", "unknown"]}
-                detail="We use Umami for privacy-focused, cookie-free analytics. No third-party trackers, no data sold."
+                detail={{
+                  general:
+                    "We use Umami for privacy-focused, cookie-free analytics. No third-party trackers, no data sold.",
+                }}
               />
               <ComparisonRow
                 feature="Free data export"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Export your collections and decks any time. Your data is never held hostage."
+                detail={{
+                  general:
+                    "Export your collections and decks any time. Your data is never held hostage.",
+                }}
               />
               <ComparisonRow
                 feature="Transparent pricing"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="OpenRift is free. If that ever changes, we'll be upfront about it."
+                detail={{
+                  general: "OpenRift is free. If that ever changes, we'll be upfront about it.",
+                }}
               />
               <ComparisonRow
                 feature="Public roadmap"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Our roadmap is public on the site. You can see what we're working on and what's next."
+                detail={{
+                  general:
+                    "Our roadmap is public on the site. You can see what we're working on and what's next.",
+                }}
               />
               <ComparisonRow
                 feature="Community contributions welcome"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Open to issues, feature requests, and pull requests on GitHub."
+                detail={{
+                  general: "Open to issues, feature requests, and pull requests on GitHub.",
+                }}
               />
 
               <ComparisonSection title="Community & Freshness" />
               <ComparisonRow
                 feature="Shared decklists"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No public decklist hub yet. Deck code sharing works, but there's no browsable community list."
+                detail={{
+                  general:
+                    "No public decklist hub yet. Deck code sharing works, but there's no browsable community list.",
+                }}
               />
               <ComparisonRow
                 feature="Meta / tournament data"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No tournament results or meta analysis. Planned for later."
+                detail={{ general: "No tournament results or meta analysis. Planned for later." }}
               />
               <ComparisonRow
                 feature="AI-powered tools"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No AI deck suggestions or natural language search. Not currently planned."
+                detail={{
+                  general:
+                    "No AI deck suggestions or natural language search. Not currently planned.",
+                }}
               />
               <ComparisonRow
                 feature="User community"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail="No forums, no Discord, no social features. We're a tool, not a social network."
+                detail={{
+                  general:
+                    "No forums, no Discord, no social features. We're a tool, not a social network.",
+                }}
               />
               <ComparisonRow
                 feature="New set support speed"
                 values={["unknown", "unknown", "unknown", "unknown", "unknown"]}
-                detail="We add new sets as they release, but we're too new to have a track record here."
+                detail={{
+                  general:
+                    "We add new sets as they release, but we're too new to have a track record here.",
+                }}
               />
               <ComparisonRow
                 feature="Ban list update speed"
                 values={["unknown", "unknown", "unknown", "unknown", "unknown"]}
-                detail="Same — we update ban lists, but can't promise a specific turnaround time yet."
+                detail={{
+                  general:
+                    "Same — we update ban lists, but can't promise a specific turnaround time yet.",
+                }}
               />
             </tbody>
           </table>
@@ -562,6 +655,25 @@ function GapCard({
 
 type CellValue = "yes" | "no" | "partial" | "unknown";
 
+const SITE_NAMES = ["OpenRift", "Piltover Archive", "Riftmana", "Riftbound.gg", "Riftcore"];
+
+interface RowDetail {
+  general?: string;
+  openrift?: string;
+  piltoverArchive?: string;
+  riftmana?: string;
+  riftboundGg?: string;
+  riftcore?: string;
+}
+
+const SITE_KEYS: (keyof Omit<RowDetail, "general">)[] = [
+  "openrift",
+  "piltoverArchive",
+  "riftmana",
+  "riftboundGg",
+  "riftcore",
+];
+
 function ComparisonRow({
   feature,
   values,
@@ -569,10 +681,18 @@ function ComparisonRow({
 }: {
   feature: string;
   values: CellValue[];
-  detail?: string;
+  detail?: string | RowDetail;
 }) {
   const [open, setOpen] = useState(false);
   const clickable = Boolean(detail);
+  const detailObj: RowDetail | undefined =
+    typeof detail === "string" ? { general: detail } : detail;
+  const siteNotes = detailObj
+    ? SITE_KEYS.map((key, index) => ({
+        name: SITE_NAMES[index],
+        note: detailObj[key],
+      })).filter((entry) => entry.note)
+    : [];
 
   return (
     <>
@@ -599,10 +719,26 @@ function ComparisonRow({
           </td>
         ))}
       </tr>
-      {open && detail && (
+      {open && detailObj && (
         <tr>
           <td colSpan={6} className="bg-muted/20 px-3 py-2">
-            <p className="text-muted-foreground text-xs leading-relaxed">{detail}</p>
+            {detailObj.general && (
+              <p className="text-muted-foreground text-xs leading-relaxed">{detailObj.general}</p>
+            )}
+            {siteNotes.length > 0 && (
+              <ul
+                className={cn(
+                  "text-muted-foreground space-y-0.5 text-xs leading-relaxed",
+                  detailObj.general && "mt-1.5",
+                )}
+              >
+                {siteNotes.map((entry) => (
+                  <li key={entry.name}>
+                    <span className="text-foreground font-medium">{entry.name}:</span> {entry.note}
+                  </li>
+                ))}
+              </ul>
+            )}
           </td>
         </tr>
       )}
