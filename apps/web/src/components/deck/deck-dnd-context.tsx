@@ -1,12 +1,14 @@
-import type { DragEndEvent, DragStartEvent, Modifier } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
   pointerWithin,
+  useDndContext,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -36,27 +38,45 @@ type AnyDragData = DeckCardDragData | BrowserCardDragData;
 
 const DRAG_ACTIVATION = { distance: 8 };
 const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
-const AUTO_SCROLL_DISABLED = { enabled: false } as const;
+const MODIFIERS = [snapCenterToCursor];
 const EDGE_SIZE = 40;
 const SCROLL_SPEED = 15;
 
 /**
- * Build a modifier that centers the overlay under the pointer using a fixed
- * grab offset captured at drag start. Using a fixed offset avoids drift caused
- * by dnd-kit updating `activeNodeRect` during container scroll.
- * @returns A dnd-kit Modifier function.
+ * Forces dnd-kit to re-measure all droppable rects on any scroll event during
+ * drag. This is needed because the sidebar uses `position: sticky`, and
+ * dnd-kit's `Rect` class assumes all elements move with scroll (applying scroll
+ * deltas to the initial getBoundingClientRect). Sticky elements don't move, so
+ * the rects drift. Re-measuring creates fresh Rect objects with correct values.
+ * @returns Nothing (invisible helper component).
  */
-function makeSnapCenterToCursor(grabOffset: { x: number; y: number }): Modifier {
-  return ({ draggingNodeRect, transform }) => {
-    if (draggingNodeRect) {
-      return {
-        ...transform,
-        x: transform.x + grabOffset.x - draggingNodeRect.width / 2,
-        y: transform.y + grabOffset.y - draggingNodeRect.height / 2,
-      };
+function DndScrollWatcher() {
+  const { active, measureDroppableContainers } = useDndContext();
+
+  useEffect(() => {
+    if (!active) {
+      return;
     }
-    return transform;
-  };
+
+    let rafId = 0;
+    const handleScroll = () => {
+      if (!rafId) {
+        rafId = requestAnimationFrame(() => {
+          measureDroppableContainers([]);
+          rafId = 0;
+        });
+      }
+    };
+
+    // Capture phase catches scroll on any element (sidebar, page, etc.)
+    globalThis.addEventListener("scroll", handleScroll, true);
+    return () => {
+      globalThis.removeEventListener("scroll", handleScroll, true);
+      cancelAnimationFrame(rafId);
+    };
+  }, [active, measureDroppableContainers]);
+
+  return null;
 }
 
 export function DeckDndContext({ children }: { children: ReactNode }) {
@@ -68,7 +88,7 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     fromBrowser: boolean;
   } | null>(null);
   const [shiftHeld, setShiftHeld] = useState(false);
-  const modifiersRef = useRef<Modifier[]>([]);
+  const activeNodeRef = useRef<HTMLElement | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
   const scrollRafRef = useRef<number>(0);
 
@@ -95,8 +115,21 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     };
   }, [dragInfo]);
 
-  // Custom auto-scroll: scroll whichever scrollable container the pointer hovers
-  // over, not just ancestors of the dragged element (which is dnd-kit's default).
+  // Force grabbing cursor during drag — the DragOverlay has pointer-events: none
+  // so the cursor would otherwise reflect whatever element is underneath.
+  useEffect(() => {
+    if (!dragInfo) {
+      return;
+    }
+    document.body.style.cursor = "grabbing";
+    return () => {
+      document.body.style.cursor = "";
+    };
+  }, [dragInfo]);
+
+  // Custom auto-scroll for containers that aren't ancestors of the dragged node.
+  // dnd-kit's built-in auto-scroll handles ancestor containers; this covers the
+  // case where a card dragged from the browser hovers over the sidebar.
   useEffect(() => {
     if (!dragInfo) {
       return;
@@ -109,10 +142,13 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     const scrollLoop = () => {
       const { x, y } = pointerRef.current;
 
-      // Walk the elements under the pointer to find scrollable containers
       const elements = document.elementsFromPoint(x, y);
       for (const element of elements) {
         if (!(element instanceof HTMLElement)) {
+          continue;
+        }
+        // Skip containers that are ancestors of the active node — dnd-kit handles those.
+        if (activeNodeRef.current && element.contains(activeNodeRef.current)) {
           continue;
         }
         const { overflowY } = getComputedStyle(element);
@@ -142,16 +178,6 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
         }
       }
 
-      // Also handle window-level scrolling near viewport edges
-      const docEl = document.documentElement;
-      if (y < EDGE_SIZE && docEl.scrollTop > 0) {
-        const intensity = 1 - y / EDGE_SIZE;
-        globalThis.scrollBy(0, -SCROLL_SPEED * intensity);
-      } else if (y > globalThis.innerHeight - EDGE_SIZE) {
-        const intensity = 1 - (globalThis.innerHeight - y) / EDGE_SIZE;
-        globalThis.scrollBy(0, SCROLL_SPEED * intensity);
-      }
-
       scrollRafRef.current = requestAnimationFrame(scrollLoop);
     };
 
@@ -165,18 +191,7 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
   }, [dragInfo]);
 
   const handleDragStart = (event: DragStartEvent) => {
-    // Capture the grab offset once so the modifier stays stable during scroll.
-    // Use `initial` — `translated` is null at drag start.
-    const nodeRect = event.active.rect.current.initial;
-    modifiersRef.current =
-      event.activatorEvent instanceof PointerEvent && nodeRect
-        ? [
-            makeSnapCenterToCursor({
-              x: event.activatorEvent.clientX - nodeRect.left,
-              y: event.activatorEvent.clientY - nodeRect.top,
-            }),
-          ]
-        : [];
+    activeNodeRef.current = (event.activatorEvent.target as HTMLElement) ?? null;
 
     const data = event.active.data.current as AnyDragData | undefined;
     if (data?.type === "deck-card") {
@@ -201,6 +216,7 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     const moveAll = shiftHeld;
     setDragInfo(null);
     setShiftHeld(false);
+    activeNodeRef.current = null;
 
     const activeData = event.active.data.current as AnyDragData | undefined;
     const overData = event.over?.data.current as DeckDropData | undefined;
@@ -261,12 +277,12 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     <DndContext
       sensors={sensors}
       collisionDetection={pointerWithin}
-      autoScroll={AUTO_SCROLL_DISABLED}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      <DndScrollWatcher />
       {children}
-      <DragOverlay dropAnimation={null} modifiers={modifiersRef.current}>
+      <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
         {dragInfo && (
           <div className="bg-popover text-popover-foreground rounded-md border px-3 py-1.5 text-sm font-medium shadow-lg">
             {dragInfo.cardName}
