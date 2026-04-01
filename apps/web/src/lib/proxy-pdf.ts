@@ -1,4 +1,5 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
+import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -264,58 +265,27 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
     throw new Error("CardPlaceholderImage did not render");
   }
 
-  // Make visible so getComputedStyle resolves correctly
+  // Make visible so getComputedStyle and html2canvas work correctly
   container.style.opacity = "1";
 
   const cardWidth = cardElement.offsetWidth;
   const cardHeight = cardElement.offsetHeight;
 
-  // Bake all computed styles (including resolved cqw → px) as inline styles
-  // so the SVG foreignObject doesn't need CSS class resolution or container queries
+  // Bake all computed styles (including resolved cqw → px) as inline styles.
+  // html2canvas re-parses CSS from stylesheets and can't resolve cqw units,
+  // but inline styles take priority and are already in px.
   inlineComputedStyles(cardElement);
 
-  // Serialize to XML-safe HTML
-  const serializer = new XMLSerializer();
-  const html = serializer.serializeToString(cardElement);
-
-  // Build SVG — no external stylesheet needed since all styles are inlined
-  const svgString = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${cardWidth}" height="${cardHeight}">`,
-    `<foreignObject width="100%" height="100%">`,
-    `<div xmlns="http://www.w3.org/1999/xhtml">`,
-    html,
-    `</div>`,
-    `</foreignObject>`,
-    `</svg>`,
-  ].join("");
-
-  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-  const svgUrl = URL.createObjectURL(svgBlob);
-
-  // Draw SVG to canvas
-  // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const img = new Image();
-    img.addEventListener("load", () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = cardWidth * 2; // 2x for sharper print
-      canvas.height = cardHeight * 2;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Failed to get canvas 2d context"));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(svgUrl);
-      resolve(canvas.toDataURL("image/png"));
-    });
-    img.addEventListener("error", (event) => {
-      URL.revokeObjectURL(svgUrl);
-      reject(event);
-    });
-    img.src = svgUrl;
+  // Rasterize with html2canvas — it handles images, backgrounds, borders etc.
+  const canvas = await html2canvas(cardElement, {
+    width: cardWidth,
+    height: cardHeight,
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
   });
 
+  const dataUrl = canvas.toDataURL("image/png");
   root.unmount();
   container.remove();
   return { dataUrl, rotated: false };

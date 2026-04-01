@@ -33,6 +33,7 @@
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
     "hono": "4.12.9",
+    "html2canvas": "1.4.1",
     "input-otp": "1.4.2",
     "jspdf": "4.2.1",
     "lucide-react": "1.7.0",
