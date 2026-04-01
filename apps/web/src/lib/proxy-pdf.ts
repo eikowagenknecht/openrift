@@ -124,23 +124,85 @@ async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
  * Cached after first call since stylesheets don't change during generation.
  * @returns CSS text to inline in an SVG foreignObject.
  */
-let cachedStyles: string | null = null;
-function collectStyles(): string {
-  if (cachedStyles) {
-    return cachedStyles;
+// CSS properties that need inlining to preserve cqw/percentage-computed values in SVG foreignObject
+const INLINE_PROPS = [
+  "position",
+  "top",
+  "left",
+  "right",
+  "bottom",
+  "width",
+  "height",
+  "min-width",
+  "min-height",
+  "max-width",
+  "max-height",
+  "font-size",
+  "font-weight",
+  "font-family",
+  "font-style",
+  "line-height",
+  "letter-spacing",
+  "text-transform",
+  "color",
+  "background",
+  "background-color",
+  "background-image",
+  "padding",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
+  "margin",
+  "margin-top",
+  "margin-right",
+  "margin-bottom",
+  "margin-left",
+  "gap",
+  "row-gap",
+  "column-gap",
+  "display",
+  "flex-direction",
+  "flex-wrap",
+  "flex",
+  "flex-grow",
+  "flex-shrink",
+  "align-items",
+  "justify-content",
+  "border",
+  "border-radius",
+  "border-color",
+  "border-width",
+  "overflow",
+  "opacity",
+  "transform",
+  "clip-path",
+  "aspect-ratio",
+  "box-shadow",
+  "ring",
+  "text-align",
+  "white-space",
+  "vertical-align",
+] as const;
+
+/**
+ * Recursively inlines computed styles on every element so that the serialized HTML
+ * doesn't depend on CSS classes or container query units resolving in SVG foreignObject.
+ */
+function inlineComputedStyles(element: Element): void {
+  if (!(element instanceof HTMLElement)) {
+    return;
   }
-  const parts: string[] = [];
-  for (const sheet of document.styleSheets) {
-    try {
-      for (const rule of sheet.cssRules) {
-        parts.push(rule.cssText);
-      }
-    } catch {
-      // Cross-origin stylesheets can't be read — skip them
+  const computed = getComputedStyle(element);
+  for (const prop of INLINE_PROPS) {
+    const value = computed.getPropertyValue(prop);
+    if (value) {
+      element.style.setProperty(prop, value);
     }
   }
-  cachedStyles = parts.join("\n");
-  return cachedStyles;
+  for (const child of element.children) {
+    inlineComputedStyles(child);
+  }
 }
 
 /**
@@ -191,30 +253,41 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
     });
   });
 
-  // Make visible momentarily so getComputedStyle works for the screenshot
+  // Make visible so we can inspect and measure
   container.style.opacity = "1";
 
-  // Get the rendered card element's HTML
+  // Get the rendered card element
   const cardElement = container.firstElementChild as HTMLElement;
+  if (!cardElement) {
+    root.unmount();
+    container.remove();
+    throw new Error("CardPlaceholderImage did not render");
+  }
+
+  // Make visible so getComputedStyle resolves correctly
+  container.style.opacity = "1";
+
   const cardWidth = cardElement.offsetWidth;
   const cardHeight = cardElement.offsetHeight;
+
+  // Bake all computed styles (including resolved cqw → px) as inline styles
+  // so the SVG foreignObject doesn't need CSS class resolution or container queries
+  inlineComputedStyles(cardElement);
 
   // Serialize to XML-safe HTML
   const serializer = new XMLSerializer();
   const html = serializer.serializeToString(cardElement);
-  const styles = collectStyles();
 
-  // Build SVG with foreignObject containing the rendered HTML + all page styles
-  const svgString = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${cardWidth}" height="${cardHeight}">
-      <foreignObject width="100%" height="100%">
-        <div xmlns="http://www.w3.org/1999/xhtml">
-          <style>${styles}</style>
-          ${html}
-        </div>
-      </foreignObject>
-    </svg>
-  `;
+  // Build SVG — no external stylesheet needed since all styles are inlined
+  const svgString = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${cardWidth}" height="${cardHeight}">`,
+    `<foreignObject width="100%" height="100%">`,
+    `<div xmlns="http://www.w3.org/1999/xhtml">`,
+    html,
+    `</div>`,
+    `</foreignObject>`,
+    `</svg>`,
+  ].join("");
 
   const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const svgUrl = URL.createObjectURL(svgBlob);
