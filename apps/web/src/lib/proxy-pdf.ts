@@ -206,9 +206,9 @@ function drawWatermark(doc: jsPDF, slotX: number, slotY: number, rotated: boolea
   const pillHeight = fontSize * 0.35 + paddingY * 2;
 
   if (rotated) {
-    // Card image was rotated -90° so visual top is at the right edge of the slot.
-    // Draw a vertical pill along the right edge with text rotated 90°.
-    const vertPillX = slotX + CARD_WIDTH_MM - edgeOffset - pillHeight;
+    // Card image was rotated -90° so visual top is at the LEFT edge of the slot.
+    // Draw a vertical pill along the left edge with text rotated -90°.
+    const vertPillX = slotX + edgeOffset;
     const vertPillY = slotY + (CARD_HEIGHT_MM - pillWidth) / 2;
 
     doc.setFillColor(0, 0, 0);
@@ -218,7 +218,7 @@ function drawWatermark(doc: jsPDF, slotX: number, slotY: number, rotated: boolea
     doc.text(label, vertPillX + pillHeight / 2, vertPillY + pillWidth / 2, {
       align: "center",
       baseline: "middle",
-      angle: 90,
+      angle: -90,
     });
   } else {
     const pillX = slotX + (CARD_WIDTH_MM - pillWidth) / 2;
