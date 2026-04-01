@@ -7,7 +7,6 @@ import {
   useCreatePromoType,
   useDeletePromoType,
   usePromoTypes,
-  useReorderPromoTypes,
   useUpdatePromoType,
 } from "@/hooks/use-promo-types";
 
@@ -24,18 +23,7 @@ export function PromoTypesPage() {
   const createMutation = useCreatePromoType();
   const updateMutation = useUpdatePromoType();
   const deleteMutation = useDeletePromoType();
-  const reorderMutation = useReorderPromoTypes();
-  const { promoTypes } = data;
-
-  function movePromoType(index: number, direction: -1 | 1) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= promoTypes.length) {
-      return;
-    }
-    const reordered = promoTypes.map((pt) => pt.id);
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    reorderMutation.mutate(reordered);
-  }
+  const promoTypes = data.promoTypes.toSorted((a, b) => a.label.localeCompare(b.label));
 
   const columns: AdminColumnDef<PromoTypeResponse, PromoTypeDraft>[] = [
     {
@@ -115,10 +103,6 @@ export function PromoTypesPage() {
             id: d.id,
             label: d.label.trim() || undefined,
           }),
-      }}
-      reorder={{
-        onMove: movePromoType,
-        isPending: reorderMutation.isPending,
       }}
       delete={{
         onDelete: (pt) => deleteMutation.mutateAsync(pt.id),

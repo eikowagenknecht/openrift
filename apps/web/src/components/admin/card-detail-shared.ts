@@ -37,10 +37,12 @@ export function useCardDetailData() {
   const { data: artistSuggestions } = useDistinctArtists();
 
   const printingSourceFields: FieldDef[] = buildCandidatePrintingFields(
-    promoTypes.map((pt: { id: string; label: string }) => ({
-      value: pt.id,
-      label: pt.label,
-    })),
+    promoTypes
+      .map((pt: { id: string; label: string }) => ({
+        value: pt.id,
+        label: pt.label,
+      }))
+      .toSorted((a, b) => a.label.localeCompare(b.label)),
     artistSuggestions,
     languagesList.map((lang: { code: string; name: string }) => ({
       value: lang.code,
