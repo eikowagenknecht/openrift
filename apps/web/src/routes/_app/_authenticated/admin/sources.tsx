@@ -6,6 +6,7 @@ import { providerStatsQueryOptions } from "@/hooks/use-admin-cards";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/sources")({
+  staticData: { title: "Sources" },
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(providerStatsQueryOptions),

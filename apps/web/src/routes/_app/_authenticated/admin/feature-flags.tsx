@@ -9,6 +9,7 @@ import {
 } from "@/hooks/use-feature-flags";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/feature-flags")({
+  staticData: { title: "Feature Flags" },
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(adminFeatureFlagsQueryOptions),

@@ -5,6 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { unifiedMappingsQueryOptions } from "@/hooks/use-unified-mappings";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/marketplace-mappings")({
+  staticData: { title: "Marketplace Mappings" },
   loader: ({ context }) => context.queryClient.ensureQueryData(unifiedMappingsQueryOptions()),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

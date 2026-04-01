@@ -5,6 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { marketplaceGroupsQueryOptions } from "@/hooks/use-marketplace-groups";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/marketplace-overview")({
+  staticData: { title: "Marketplace Overview" },
   loader: ({ context }) => context.queryClient.ensureQueryData(marketplaceGroupsQueryOptions),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
