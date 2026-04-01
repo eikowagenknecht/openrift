@@ -25,7 +25,7 @@ export function PrintingPicker({
   return (
     <div className="space-y-2">
       <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-        Versions
+        Printings
       </h3>
       <div className="space-y-1">
         {printings.map((p) => {
