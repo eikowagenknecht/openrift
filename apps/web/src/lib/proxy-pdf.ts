@@ -11,7 +11,7 @@ import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 export type ProxyPageSize = "a4" | "letter";
 export type ProxyRenderMode = "image" | "text";
 
-export interface ProxyOptions {
+interface ProxyOptions {
   pageSize: ProxyPageSize;
   renderMode: ProxyRenderMode;
   cutLines: boolean;
