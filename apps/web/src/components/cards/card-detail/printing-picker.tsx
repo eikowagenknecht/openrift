@@ -1,5 +1,6 @@
 import type { Marketplace, Printing } from "@openrift/shared";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { resolvePrice } from "@/hooks/use-card-data";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import {
@@ -47,14 +48,18 @@ export function PrintingPicker({
                 </span>
                 {label}
                 {hasMixedRarities && (
-                  <img
-                    src={`/images/rarities/${p.rarity.toLowerCase()}-28x28.webp`}
-                    alt={p.rarity}
-                    title={p.rarity}
-                    width={28}
-                    height={28}
-                    className="ml-1 inline size-3.5 align-text-bottom"
-                  />
+                  <Tooltip>
+                    <TooltipTrigger className="ml-1 inline align-text-bottom">
+                      <img
+                        src={`/images/rarities/${p.rarity.toLowerCase()}-28x28.webp`}
+                        alt={p.rarity}
+                        width={28}
+                        height={28}
+                        className="size-3.5"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>{p.rarity}</TooltipContent>
+                  </Tooltip>
                 )}
               </span>
               <PrintingPrices printing={p} />

@@ -1,6 +1,7 @@
 import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { affiliateUrl, cardtraderAffiliateUrl } from "@/lib/affiliate";
 import { formatPrice, formatPriceEur, priceColorClass } from "@/lib/format";
@@ -139,16 +140,23 @@ function PriceTrend({
   const isUp = rounded > 0;
 
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-0.5 text-xs font-medium",
-        isUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
-      )}
-      title={`${isUp ? "+" : ""}${rounded}% over ${RANGE_LABELS[range]}`}
-    >
-      {isUp ? <TrendingUpIcon className="size-3" /> : <TrendingDownIcon className="size-3" />}
-      {Math.abs(rounded)}%
-    </span>
+    <Tooltip>
+      <TooltipTrigger>
+        <span
+          className={cn(
+            "inline-flex items-center gap-0.5 text-xs font-medium",
+            isUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+          )}
+        >
+          {isUp ? <TrendingUpIcon className="size-3" /> : <TrendingDownIcon className="size-3" />}
+          {Math.abs(rounded)}%
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        {isUp ? "+" : ""}
+        {rounded}% over {RANGE_LABELS[range]}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -171,20 +179,24 @@ function PriceChip({
   const linkProps = url ? { href: url, target: "_blank" as const, rel: "noreferrer" } : {};
 
   return (
-    <Wrapper
-      {...linkProps}
-      title={label}
-      className={cn(
-        `bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold ${priceColorClass(value)}`,
-        url && "transition-opacity hover:opacity-70",
-      )}
-    >
-      {icon ? (
-        <img src={icon} alt={label} className={cn("h-3", iconClassName)} />
-      ) : (
-        <span className="text-muted-foreground text-xs font-normal">{label}</span>
-      )}
-      {formatValue(value)}
-    </Wrapper>
+    <Tooltip>
+      <TooltipTrigger>
+        <Wrapper
+          {...linkProps}
+          className={cn(
+            `bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold ${priceColorClass(value)}`,
+            url && "transition-opacity hover:opacity-70",
+          )}
+        >
+          {icon ? (
+            <img src={icon} alt={label} className={cn("h-3", iconClassName)} />
+          ) : (
+            <span className="text-muted-foreground text-xs font-normal">{label}</span>
+          )}
+          {formatValue(value)}
+        </Wrapper>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }

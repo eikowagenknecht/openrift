@@ -6,6 +6,7 @@ import { useRef } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
@@ -178,32 +179,41 @@ export function CardDetail({
           )}
           {!card.domains.includes(COLORLESS_DOMAIN) &&
             card.domains.map((d) => (
+              <Tooltip key={d}>
+                <TooltipTrigger>
+                  <img
+                    src={`/images/domains/${d.toLowerCase()}.webp`}
+                    alt={d}
+                    width={64}
+                    height={64}
+                    className="size-5"
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{d}</TooltipContent>
+              </Tooltip>
+            ))}
+          <Tooltip>
+            <TooltipTrigger>
               <img
-                key={d}
-                src={`/images/domains/${d.toLowerCase()}.webp`}
-                alt={d}
-                title={d}
-                width={64}
-                height={64}
+                src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+                alt={printing.rarity}
+                width={28}
+                height={28}
                 className="size-5"
               />
-            ))}
-          <img
-            src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-            alt={printing.rarity}
-            title={printing.rarity}
-            width={28}
-            height={28}
-            className="size-5"
-          />
+            </TooltipTrigger>
+            <TooltipContent>{printing.rarity}</TooltipContent>
+          </Tooltip>
           {isFoil && (
-            <span
-              title="Foil"
-              className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold"
-            >
-              <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
-              Foil
-            </span>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
+                  <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
+                  Foil
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Foil finish</TooltipContent>
+            </Tooltip>
           )}
         </div>
 

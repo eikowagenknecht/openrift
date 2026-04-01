@@ -25,11 +25,8 @@ import { CollectionAddStrip } from "@/components/collection/collection-add-strip
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  FilterBadgeSections,
-  FilterPanelContent,
-  FilterRangeSections,
-} from "@/components/filters/filter-panel-content";
+import { CollapsibleFilterPanel } from "@/components/filters/collapsible-filter-panel";
+import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 import {
   DesktopOptionsBar,
   MobileFilterContent,
@@ -44,6 +41,7 @@ import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
@@ -599,48 +597,65 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           <div className="hidden items-center gap-3 sm:flex">
             {addTarget && (
               <ButtonGroup aria-label="Collection actions">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setQuickAddOpen(true)}
-                  title={`Quick add (${navigator.platform.startsWith("Mac") ? "⌘K" : "Ctrl+K"})`}
-                >
-                  <PackagePlusIcon className="size-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={startBrowsing} title="Browse & add">
-                  <LibraryBigIcon className="size-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button variant="outline" size="icon" onClick={() => setQuickAddOpen(true)} />
+                    }
+                  >
+                    <PackagePlusIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Quick add ({navigator.platform.startsWith("Mac") ? "⌘K" : "Ctrl+K"})
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<Button variant="outline" size="icon" onClick={startBrowsing} />}
+                  >
+                    <LibraryBigIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Browse & add</TooltipContent>
+                </Tooltip>
               </ButtonGroup>
             )}
             {mode === "select" ? (
               <ButtonGroup aria-label="Selection actions">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => toggleSelectAll(allCopyIds)}
-                  title={selected.size === totalCopies ? "Deselect all" : "Select all"}
-                >
-                  <CheckIcon className="size-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={exitSelectMode}
-                  title="Done selecting"
-                >
-                  <XIcon className="size-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => toggleSelectAll(allCopyIds)}
+                      />
+                    }
+                  >
+                    <CheckIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {selected.size === totalCopies ? "Deselect all" : "Select all"}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<Button variant="outline" size="icon" onClick={exitSelectMode} />}
+                  >
+                    <XIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Done selecting</TooltipContent>
+                </Tooltip>
               </ButtonGroup>
             ) : (
               <ButtonGroup aria-label="Selection actions">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={enterSelectMode}
-                  title={`Select ${view}`}
-                >
-                  <CheckSquareIcon className="size-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<Button variant="outline" size="icon" onClick={enterSelectMode} />}
+                  >
+                    <CheckSquareIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Select {view}</TooltipContent>
+                </Tooltip>
               </ButtonGroup>
             )}
           </div>
@@ -660,18 +675,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           />
         </MobileOptionsDrawer>
       </div>
-      {/* Inline filter panel (visible when left pane is hidden) */}
-      <div className="@wide:hidden hidden space-y-3 sm:block">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-          <FilterBadgeSections
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-          />
-        </div>
-        <div className="grid grid-cols-4 gap-x-6 gap-y-3">
-          <FilterRangeSections availableFilters={availableFilters} />
-        </div>
-      </div>
+      <CollapsibleFilterPanel
+        availableFilters={availableFilters}
+        setDisplayLabel={setDisplayLabel}
+      />
       {/* Info strip with card count, collection value, and mobile actions */}
       {mode !== "add" &&
         (() => {
@@ -925,48 +932,63 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
             <div className="flex items-center gap-1 sm:hidden">
               {addTarget && (
                 <ButtonGroup aria-label="Collection actions">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setQuickAddOpen(true)}
-                    title="Quick add"
-                  >
-                    <PackagePlusIcon className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={startBrowsing} title="Browse & add">
-                    <LibraryBigIcon className="size-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button variant="ghost" size="icon" onClick={() => setQuickAddOpen(true)} />
+                      }
+                    >
+                      <PackagePlusIcon className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Quick add</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<Button variant="ghost" size="icon" onClick={startBrowsing} />}
+                    >
+                      <LibraryBigIcon className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Browse & add</TooltipContent>
+                  </Tooltip>
                 </ButtonGroup>
               )}
               {mode === "select" ? (
                 <ButtonGroup aria-label="Selection actions">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => toggleSelectAll(allCopyIds)}
-                    title={selected.size === totalCopies ? "Deselect all" : "Select all"}
-                  >
-                    <CheckIcon className="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={exitSelectMode}
-                    title="Done selecting"
-                  >
-                    <XIcon className="size-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleSelectAll(allCopyIds)}
+                        />
+                      }
+                    >
+                      <CheckIcon className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {selected.size === totalCopies ? "Deselect all" : "Select all"}
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<Button variant="ghost" size="icon" onClick={exitSelectMode} />}
+                    >
+                      <XIcon className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Done selecting</TooltipContent>
+                  </Tooltip>
                 </ButtonGroup>
               ) : (
                 <ButtonGroup aria-label="Selection actions">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={enterSelectMode}
-                    title={`Select ${view}`}
-                  >
-                    <CheckSquareIcon className="size-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<Button variant="ghost" size="icon" onClick={enterSelectMode} />}
+                    >
+                      <CheckSquareIcon className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Select {view}</TooltipContent>
+                  </Tooltip>
                 </ButtonGroup>
               )}
             </div>

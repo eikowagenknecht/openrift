@@ -3,6 +3,7 @@ import { siDiscord, siGoogle } from "simple-icons";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth-client";
 
 const SOCIAL_PROVIDERS = [
@@ -79,17 +80,23 @@ export function ConnectedAccountsSection() {
                     <span className="text-sm font-medium">{provider.name}</span>
                   </div>
                   {isLinked ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isOnlyAccount || actionLoading === provider.id}
-                      onClick={() => handleUnlink(provider.id)}
-                      title={
-                        isOnlyAccount ? "You must have at least one linked account" : undefined
-                      }
-                    >
-                      {actionLoading === provider.id ? "Unlinking..." : "Unlink"}
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isOnlyAccount || actionLoading === provider.id}
+                            onClick={() => handleUnlink(provider.id)}
+                          />
+                        }
+                      >
+                        {actionLoading === provider.id ? "Unlinking..." : "Unlink"}
+                      </TooltipTrigger>
+                      {isOnlyAccount && (
+                        <TooltipContent>You must have at least one linked account</TooltipContent>
+                      )}
+                    </Tooltip>
                   ) : (
                     <Button
                       variant="outline"

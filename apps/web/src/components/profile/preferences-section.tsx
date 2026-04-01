@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CatalogLanguage } from "@/hooks/use-cards";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -277,15 +278,21 @@ export function PreferencesSection({
 
 function ResetButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-muted-foreground hover:text-foreground transition-colors"
-      aria-label={label}
-      title="Reset to default"
-    >
-      <RotateCcwIcon className="size-3.5" />
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={onClick}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={label}
+          />
+        }
+      >
+        <RotateCcwIcon className="size-3.5" />
+      </TooltipTrigger>
+      <TooltipContent>Reset to default</TooltipContent>
+    </Tooltip>
   );
 }
 

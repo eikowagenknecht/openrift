@@ -24,6 +24,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -123,18 +124,26 @@ function SortGroupControls({
   const groupLabel = groupByOptions.find((o) => o.value === groupBy)?.label ?? groupBy;
 
   const dirToggle = (dir: "asc" | "desc", onToggle: (v: "asc" | "desc") => void) => (
-    <button
-      type="button"
-      className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5 transition-colors"
-      onClick={() => onToggle(dir === "asc" ? "desc" : "asc")}
-      title={dir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
-    >
-      {dir === "asc" ? (
-        <ArrowDownNarrowWideIcon className="size-3.5" />
-      ) : (
-        <ArrowUpNarrowWideIcon className="size-3.5" />
-      )}
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5 transition-colors"
+            onClick={() => onToggle(dir === "asc" ? "desc" : "asc")}
+          />
+        }
+      >
+        {dir === "asc" ? (
+          <ArrowDownNarrowWideIcon className="size-3.5" />
+        ) : (
+          <ArrowUpNarrowWideIcon className="size-3.5" />
+        )}
+      </TooltipTrigger>
+      <TooltipContent>
+        {dir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
+      </TooltipContent>
+    </Tooltip>
   );
 
   if (compact) {
@@ -243,38 +252,85 @@ function ViewModeToggle({
 }) {
   return (
     <ButtonGroup aria-label="View mode" className={className}>
-      <Button
-        variant={view === "cards" ? "default" : "outline"}
-        size={compact ? "sm" : "icon"}
-        className={compact ? "gap-1.5 text-xs" : undefined}
-        onClick={() => onViewChange("cards")}
-        title={compact ? undefined : "One per card"}
-      >
-        <SquareIcon className={compact ? undefined : "size-4"} />
-        {compact && "Cards"}
-      </Button>
-      <Button
-        variant={view === "printings" ? "default" : "outline"}
-        size={compact ? "sm" : "icon"}
-        className={compact ? "gap-1.5 text-xs" : undefined}
-        onClick={() => onViewChange("printings")}
-        title={compact ? undefined : "Every printing"}
-      >
-        <CopyIcon className={compact ? undefined : "size-4"} />
-        {compact && "Printings"}
-      </Button>
-      {showCopies && (
+      {compact ? (
         <Button
-          variant={view === "copies" ? "default" : "outline"}
-          size={compact ? "sm" : "icon"}
-          className={compact ? "gap-1.5 text-xs" : undefined}
-          onClick={() => onViewChange("copies")}
-          title={compact ? undefined : "Every individual copy"}
+          variant={view === "cards" ? "default" : "outline"}
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => onViewChange("cards")}
         >
-          <SquareStackIcon className={compact ? undefined : "size-4"} />
-          {compact && "Copies"}
+          <SquareIcon />
+          Cards
         </Button>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant={view === "cards" ? "default" : "outline"}
+                size="icon"
+                onClick={() => onViewChange("cards")}
+              />
+            }
+          >
+            <SquareIcon className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>One per card</TooltipContent>
+        </Tooltip>
       )}
+      {compact ? (
+        <Button
+          variant={view === "printings" ? "default" : "outline"}
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => onViewChange("printings")}
+        >
+          <CopyIcon />
+          Printings
+        </Button>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant={view === "printings" ? "default" : "outline"}
+                size="icon"
+                onClick={() => onViewChange("printings")}
+              />
+            }
+          >
+            <CopyIcon className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>Every printing</TooltipContent>
+        </Tooltip>
+      )}
+      {showCopies &&
+        (compact ? (
+          <Button
+            variant={view === "copies" ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => onViewChange("copies")}
+          >
+            <SquareStackIcon />
+            Copies
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant={view === "copies" ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => onViewChange("copies")}
+                />
+              }
+            >
+              <SquareStackIcon className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>Every individual copy</TooltipContent>
+          </Tooltip>
+        ))}
     </ButtonGroup>
   );
 }
@@ -318,21 +374,27 @@ function ColumnControls({
       >
         <MinusIcon className={compact ? undefined : "size-4"} />
       </Button>
-      <ButtonGroupText
-        className={
-          compact
-            ? "flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
-            : "min-w-10 cursor-pointer justify-center tabular-nums"
-        }
-        onClick={() => {
-          if (maxColumns !== null) {
-            onMaxColumnsChange(null);
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <ButtonGroupText
+              className={
+                compact
+                  ? "flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
+                  : "min-w-10 cursor-pointer justify-center tabular-nums"
+              }
+              onClick={() => {
+                if (maxColumns !== null) {
+                  onMaxColumnsChange(null);
+                }
+              }}
+            />
           }
-        }}
-        title={maxColumns === null ? "Auto columns" : "Reset to auto"}
-      >
-        {maxColumns === null ? "Auto" : maxColumns}
-      </ButtonGroupText>
+        >
+          {maxColumns === null ? "Auto" : maxColumns}
+        </TooltipTrigger>
+        <TooltipContent>{maxColumns === null ? "Auto columns" : "Reset to auto"}</TooltipContent>
+      </Tooltip>
       <Button
         variant="outline"
         size={compact ? "sm" : "icon"}
