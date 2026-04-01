@@ -90,10 +90,10 @@ export async function acceptGalleryForNewCard(
   const candidatePrintings =
     await repos.candidateCards.allCandidatePrintingsForCandidateCards(galleryCandidateIds);
 
-  // 4. Group by shortCode + finish + promoTypeId and create each printing
+  // 4. Group by shortCode + finish + promoTypeId + language and create each printing
   const groupMap = new Map<string, typeof candidatePrintings>();
   for (const cp of candidatePrintings) {
-    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}`;
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}|${cp.language ?? "EN"}`;
     let arr = groupMap.get(key);
     if (!arr) {
       arr = [];
@@ -133,6 +133,8 @@ export async function acceptGalleryForNewCard(
           printedEffectText: first.printedEffectText,
           flavorText: first.flavorText,
           imageUrl: first.imageUrl,
+          language: first.language ?? "EN",
+          printedName: first.printedName,
         },
         group.map((cp) => cp.id),
       );

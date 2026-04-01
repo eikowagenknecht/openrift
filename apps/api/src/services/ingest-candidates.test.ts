@@ -340,7 +340,13 @@ describe("ingestCandidates", () => {
       allPrintingKeys: vi
         .fn()
         .mockResolvedValue([
-          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+          {
+            shortCode: "OGN-001",
+            finish: "normal",
+            promoTypeId: null,
+            id: "printing-uuid",
+            language: "EN",
+          },
         ]),
     });
     const transact = mockTransact(repos);
@@ -362,7 +368,13 @@ describe("ingestCandidates", () => {
       allPrintingKeys: vi
         .fn()
         .mockResolvedValue([
-          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+          {
+            shortCode: "OGN-001",
+            finish: "normal",
+            promoTypeId: null,
+            id: "printing-uuid",
+            language: "EN",
+          },
         ]),
     });
     const transact = mockTransact(repos);
@@ -634,7 +646,13 @@ describe("ingestCandidates", () => {
       allPrintingKeys: vi
         .fn()
         .mockResolvedValue([
-          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+          {
+            shortCode: "OGN-001",
+            finish: "normal",
+            promoTypeId: null,
+            id: "printing-uuid",
+            language: "EN",
+          },
         ]),
     });
     const transact = mockTransact(repos);
@@ -714,7 +732,13 @@ describe("ingestCandidates", () => {
       allPrintingKeys: vi
         .fn()
         .mockResolvedValue([
-          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+          {
+            shortCode: "OGN-001",
+            finish: "normal",
+            promoTypeId: null,
+            id: "printing-uuid",
+            language: "EN",
+          },
         ]),
     });
     const transact = mockTransact(repos);
@@ -776,7 +800,13 @@ describe("ingestCandidates", () => {
       allPrintingKeys: vi
         .fn()
         .mockResolvedValue([
-          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "printing-uuid" },
+          {
+            shortCode: "OGN-001",
+            finish: "normal",
+            promoTypeId: null,
+            id: "printing-uuid",
+            language: "EN",
+          },
         ]),
     });
     const transact = mockTransact(repos);
@@ -1029,6 +1059,7 @@ describe("ingestCandidates", () => {
           finish: "normal",
           promoTypeId: "promo-type-id",
           id: "promo-printing-uuid",
+          language: "EN",
         },
       ]),
     });
@@ -1194,7 +1225,13 @@ describe("ingestCandidates", () => {
       allPrintingKeys: vi
         .fn()
         .mockResolvedValue([
-          { shortCode: "OGN-001", finish: "normal", promoTypeId: null, id: "auto-uuid" },
+          {
+            shortCode: "OGN-001",
+            finish: "normal",
+            promoTypeId: null,
+            id: "auto-uuid",
+            language: "EN",
+          },
         ]),
       allPrintingLinkOverrides: vi
         .fn()

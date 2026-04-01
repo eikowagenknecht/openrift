@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict usgWZVZffniqw6RkSCXoe49BsUugV4olBsCxHEhSJhEaPT0d103gsivKJRW3bzl
+\restrict bstgATd3ZAshC1zGCBWiggtOGXzdPAauEz5DqZMPWB5e4yjM6wfnN1qHpSeupwJ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -383,7 +383,7 @@ CREATE TABLE public.deck_cards (
     quantity integer DEFAULT 1 NOT NULL,
     card_id uuid CONSTRAINT deck_cards_new_card_id_not_null NOT NULL,
     CONSTRAINT chk_deck_cards_quantity CHECK ((quantity > 0)),
-    CONSTRAINT chk_deck_cards_zone CHECK ((zone = ANY (ARRAY['main'::text, 'sideboard'::text])))
+    CONSTRAINT chk_deck_cards_zone CHECK ((zone = ANY (ARRAY['main'::text, 'sideboard'::text, 'legend'::text, 'champion'::text, 'runes'::text, 'battlefield'::text, 'overflow'::text])))
 );
 
 
@@ -810,6 +810,17 @@ CREATE TABLE public.trade_lists (
 
 
 --
+-- Name: user_feature_flags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_feature_flags (
+    user_id text NOT NULL,
+    flag_key text NOT NULL,
+    enabled boolean NOT NULL
+);
+
+
+--
 -- Name: user_preferences; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1165,14 +1176,6 @@ ALTER TABLE ONLY public.printing_link_overrides
 
 
 --
--- Name: printings printings_card_id_short_code_finish_promo_type_id_language_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT printings_card_id_short_code_finish_promo_type_id_language_key UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id, language);
-
-
---
 -- Name: printings printings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1297,7 +1300,7 @@ ALTER TABLE ONLY public.decks
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_identity UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id);
+    ADD CONSTRAINT uq_printings_identity UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id, language);
 
 
 --
@@ -1338,6 +1341,14 @@ ALTER TABLE ONLY public.trade_lists
 
 ALTER TABLE ONLY public.wish_lists
     ADD CONSTRAINT uq_wish_lists_id_user UNIQUE (id, user_id);
+
+
+--
+-- Name: user_feature_flags user_feature_flags_pk; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_feature_flags
+    ADD CONSTRAINT user_feature_flags_pk PRIMARY KEY (user_id, flag_key);
 
 
 --
@@ -2233,6 +2244,22 @@ ALTER TABLE ONLY public.trade_lists
 
 
 --
+-- Name: user_feature_flags user_feature_flags_flag_key_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_feature_flags
+    ADD CONSTRAINT user_feature_flags_flag_key_fkey FOREIGN KEY (flag_key) REFERENCES public.feature_flags(key) ON DELETE CASCADE;
+
+
+--
+-- Name: user_feature_flags user_feature_flags_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_feature_flags
+    ADD CONSTRAINT user_feature_flags_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: user_preferences user_preferences_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2268,5 +2295,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict usgWZVZffniqw6RkSCXoe49BsUugV4olBsCxHEhSJhEaPT0d103gsivKJRW3bzl
+\unrestrict bstgATd3ZAshC1zGCBWiggtOGXzdPAauEz5DqZMPWB5e4yjM6wfnN1qHpSeupwJ
 

@@ -212,7 +212,7 @@ export async function ingestCandidates(
     const allPrintings = await repo.allPrintingKeys();
     const printingByKey = new Map<string, string>();
     for (const p of allPrintings) {
-      printingByKey.set(`${p.shortCode}:${p.finish}:${p.promoTypeId ?? ""}`, p.id);
+      printingByKey.set(`${p.shortCode}:${p.finish}:${p.promoTypeId ?? ""}:${p.language}`, p.id);
     }
 
     // 1e. All existing candidate_printings for candidate_cards owned by this provider.
@@ -403,7 +403,7 @@ export async function ingestCandidates(
 
         const printingKey =
           effectiveCardId && p.rarity && p.finish
-            ? `${p.short_code}:${p.finish}:${p.is_promo ? (defaultPromoTypeId ?? "") : ""}`
+            ? `${p.short_code}:${p.finish}:${p.is_promo ? (defaultPromoTypeId ?? "") : ""}:${p.language ?? "EN"}`
             : null;
 
         // Check for a manual link override (survives delete + re-upload)

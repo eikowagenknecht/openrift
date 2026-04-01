@@ -19,9 +19,9 @@ describe("ingestRepo", () => {
     expect(await ingestRepo(db).allCardNameAliases()).toHaveLength(1);
   });
 
-  it("allPrintingKeys returns id/shortCode/finish/promoTypeId", async () => {
+  it("allPrintingKeys returns id/shortCode/finish/promoTypeId/language", async () => {
     const db = createMockDb([
-      { id: "p-1", shortCode: "OGS-001", finish: "normal", promoTypeId: null },
+      { id: "p-1", shortCode: "OGS-001", finish: "normal", promoTypeId: null, language: "EN" },
     ]);
     expect(await ingestRepo(db).allPrintingKeys()).toHaveLength(1);
   });
