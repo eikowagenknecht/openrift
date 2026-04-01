@@ -1,7 +1,8 @@
 /* oxlint-disable
    no-empty-function,
+   no-restricted-imports,
    unicorn/no-useless-undefined
-   -- test file: mocks require empty fns and explicit undefined */
+   -- test file: mocks require empty fns and explicit undefined; api has no @/ alias */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
@@ -337,17 +338,15 @@ describe("ingestCandidates", () => {
   it("resolves printingId when card and printing match by composite key", async () => {
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingKeys: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            shortCode: "OGN-001",
-            finish: "normal",
-            promoTypeId: null,
-            id: "printing-uuid",
-            language: "EN",
-          },
-        ]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          promoTypeId: null,
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -365,17 +364,15 @@ describe("ingestCandidates", () => {
       allCardNameAliases: vi
         .fn()
         .mockResolvedValue([{ normName: "fireball", cardId: "card-uuid" }]),
-      allPrintingKeys: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            shortCode: "OGN-001",
-            finish: "normal",
-            promoTypeId: null,
-            id: "printing-uuid",
-            language: "EN",
-          },
-        ]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          promoTypeId: null,
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -643,17 +640,15 @@ describe("ingestCandidates", () => {
         },
       ]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingKeys: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            shortCode: "OGN-001",
-            finish: "normal",
-            promoTypeId: null,
-            id: "printing-uuid",
-            language: "EN",
-          },
-        ]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          promoTypeId: null,
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({ printings: [makePrinting()] });
@@ -729,17 +724,15 @@ describe("ingestCandidates", () => {
         },
       ]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingKeys: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            shortCode: "OGN-001",
-            finish: "normal",
-            promoTypeId: null,
-            id: "printing-uuid",
-            language: "EN",
-          },
-        ]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          promoTypeId: null,
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -797,17 +790,15 @@ describe("ingestCandidates", () => {
         },
       ]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingKeys: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            shortCode: "OGN-001",
-            finish: "normal",
-            promoTypeId: null,
-            id: "printing-uuid",
-            language: "EN",
-          },
-        ]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          promoTypeId: null,
+          id: "printing-uuid",
+          language: "EN",
+        },
+      ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({
@@ -1222,17 +1213,15 @@ describe("ingestCandidates", () => {
   it("link override takes priority over auto-resolved printingId", async () => {
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
-      allPrintingKeys: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            shortCode: "OGN-001",
-            finish: "normal",
-            promoTypeId: null,
-            id: "auto-uuid",
-            language: "EN",
-          },
-        ]),
+      allPrintingKeys: vi.fn().mockResolvedValue([
+        {
+          shortCode: "OGN-001",
+          finish: "normal",
+          promoTypeId: null,
+          id: "auto-uuid",
+          language: "EN",
+        },
+      ]),
       allPrintingLinkOverrides: vi
         .fn()
         .mockResolvedValue([
