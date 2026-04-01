@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowRightLeft, Layers, Library, Swords } from "lucide-react";
+import { ArrowRightLeft, Layers, Library, Scale, Swords } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface HelpArticle {
@@ -11,6 +11,17 @@ export interface HelpArticle {
 }
 
 export const helpArticles = new Map<string, HelpArticle>([
+  [
+    "why-openrift",
+    {
+      slug: "why-openrift",
+      title: "Why OpenRift?",
+      description:
+        "A transparent comparison with other Riftbound card browsers — what we do well and where we're still catching up.",
+      icon: Scale,
+      component: () => import("./articles/why-openrift"),
+    },
+  ],
   [
     "cards-printings-copies",
     {
