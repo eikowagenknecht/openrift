@@ -1,7 +1,7 @@
 import type { DeckCardResponse, DeckResponse } from "@openrift/shared";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Swords } from "lucide-react";
+import { PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
 
 import { ImportDeckButton } from "@/components/deck/import-deck-dialog";
@@ -119,7 +119,7 @@ export function DeckListPage() {
         <div className="flex items-center gap-2">
           <ImportDeckButton />
           <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
+            <PlusIcon className="size-4" />
             New Deck
           </Button>
         </div>
@@ -127,7 +127,7 @@ export function DeckListPage() {
 
       {decks.length === 0 ? (
         <div className="text-muted-foreground flex flex-col items-center gap-2 py-16 text-center">
-          <Swords className="size-10 opacity-50" />
+          <SwordsIcon className="size-10 opacity-50" />
           <p>No decks yet</p>
           <Button variant="outline" onClick={() => setCreateOpen(true)}>
             Create your first deck

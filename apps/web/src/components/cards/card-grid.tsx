@@ -1,7 +1,7 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 import { CARD_TYPE_ORDER, DOMAIN_ORDER, RARITY_ORDER, SUPER_TYPE_ORDER } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { SearchX, WifiOff } from "lucide-react";
+import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -570,7 +570,7 @@ export function CardGrid({
         <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 text-center">
           {totalItems === 0 ? (
             <>
-              <WifiOff className="size-10 opacity-50" />
+              <WifiOffIcon className="size-10 opacity-50" />
               <p>Couldn&apos;t load cards</p>
               <p className="text-xs">The server may be unreachable.</p>
               <button
@@ -583,7 +583,7 @@ export function CardGrid({
             </>
           ) : (
             <>
-              <SearchX className="size-10 opacity-50" />
+              <SearchXIcon className="size-10 opacity-50" />
               <p>No cards found</p>
               <p className="text-xs">Try adjusting your filters.</p>
             </>

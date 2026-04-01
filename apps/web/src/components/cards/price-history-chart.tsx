@@ -5,7 +5,7 @@ import type {
   TcgplayerSnapshot,
   TimeRange,
 } from "@openrift/shared";
-import { ChevronUp, Loader2 } from "lucide-react";
+import { ChevronUpIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
@@ -125,7 +125,7 @@ export function PriceHistoryChart({
         </ButtonGroup>
         {onCollapse && (
           <Button variant="ghost" size="icon-sm" onClick={onCollapse}>
-            <ChevronUp className="size-3.5" />
+            <ChevronUpIcon className="size-3.5" />
           </Button>
         )}
       </div>
@@ -133,7 +133,7 @@ export function PriceHistoryChart({
       {/* Chart */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="text-muted-foreground size-5 animate-spin" />
+          <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
         </div>
       )}
 

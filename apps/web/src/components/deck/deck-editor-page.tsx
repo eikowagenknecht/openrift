@@ -1,6 +1,6 @@
 import type { DeckZone } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeftIcon, PencilIcon } from "lucide-react";
 import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 
@@ -53,7 +53,7 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
     <div>
       <div className={cn(CONTAINER_WIDTH, "flex items-center gap-3 px-3 py-2")}>
         <Link to="/decks" className="hover:bg-muted rounded-md p-1">
-          <ArrowLeft className="size-5" />
+          <ArrowLeftIcon className="size-5" />
         </Link>
 
         {isEditing ? (
@@ -82,7 +82,7 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
             className="hover:bg-muted group flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left"
           >
             <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{data.deck.name}</h1>
-            <Pencil className="text-muted-foreground size-3.5 shrink-0 opacity-0 group-hover:opacity-100" />
+            <PencilIcon className="text-muted-foreground size-3.5 shrink-0 opacity-0 group-hover:opacity-100" />
           </button>
         )}
 

@@ -1,17 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import {
-  Check,
-  CircleDot,
-  Hammer,
-  Layers,
-  Library,
-  Printer,
-  Rocket,
-  Scale,
-  ScrollText,
-  Trophy,
-  Users,
-  Wallet,
+  CheckIcon,
+  CircleDotIcon,
+  HammerIcon,
+  LayersIcon,
+  LibraryIcon,
+  PrinterIcon,
+  RocketIcon,
+  ScaleIcon,
+  ScrollTextIcon,
+  TrophyIcon,
+  UsersIcon,
+  WalletIcon,
 } from "lucide-react";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,38 +30,38 @@ const roadmapItems: RoadmapItem[] = [
   {
     title: "Deck Building",
     description: "Build, save, and share decks with validation and price breakdown.",
-    icon: <Layers className="size-4" />,
+    icon: <LayersIcon className="size-4" />,
     done: false,
   },
   {
     title: "Rules & Errata",
     description:
       "Searchable comprehensive rules reference with card errata alongside official text.",
-    icon: <ScrollText className="size-4" />,
+    icon: <ScrollTextIcon className="size-4" />,
     done: false,
   },
   {
     title: "Proxy Printing",
     description: "Print proxy cards for playtesting.",
-    icon: <Printer className="size-4" />,
+    icon: <PrinterIcon className="size-4" />,
     done: false,
   },
   {
     title: "Tournament Decks",
     description: "Browse tournament-winning decklists.",
-    icon: <Trophy className="size-4" />,
+    icon: <TrophyIcon className="size-4" />,
     done: false,
   },
   {
     title: "Trade Coordination",
     description: "Coordinate trades within your playgroup.",
-    icon: <Users className="size-4" />,
+    icon: <UsersIcon className="size-4" />,
     done: false,
   },
   {
     title: "Collections",
     description: "Track and manage owned cards across multiple collections.",
-    icon: <Library className="size-4" />,
+    icon: <LibraryIcon className="size-4" />,
     done: false,
     date: "Mar 2026",
   },
@@ -69,14 +69,14 @@ const roadmapItems: RoadmapItem[] = [
   {
     title: "Price History",
     description: "Charts showing how card prices change over time.",
-    icon: <Wallet className="size-4" />,
+    icon: <WalletIcon className="size-4" />,
     done: true,
     date: "Mar 2026",
   },
   {
     title: "Dual Marketplace",
     description: "Cardmarket prices alongside TCGplayer, refreshed daily.",
-    icon: <Scale className="size-4" />,
+    icon: <ScaleIcon className="size-4" />,
     done: true,
     date: "Mar 2026",
   },
@@ -84,28 +84,28 @@ const roadmapItems: RoadmapItem[] = [
     title: "User Accounts",
     description:
       "Sign up with email or social login (Google, Discord), email verification, and profiles.",
-    icon: <Users className="size-4" />,
+    icon: <UsersIcon className="size-4" />,
     done: true,
     date: "Mar 2026",
   },
   {
     title: "PWA",
     description: "Works offline and installs to your home screen.",
-    icon: <Hammer className="size-4" />,
+    icon: <HammerIcon className="size-4" />,
     done: true,
     date: "Feb 2026",
   },
   {
     title: "Pricing",
     description: "Daily TCGplayer prices on every card.",
-    icon: <Wallet className="size-4" />,
+    icon: <WalletIcon className="size-4" />,
     done: true,
     date: "Feb 2026",
   },
   {
     title: "Launch",
     description: "Card browser with filters, search, and smooth virtual scrolling.",
-    icon: <Rocket className="size-4" />,
+    icon: <RocketIcon className="size-4" />,
     done: true,
     date: "Feb 2026",
   },
@@ -151,7 +151,11 @@ export function RoadmapPage() {
                       : "border-muted-foreground/30 bg-background text-muted-foreground/50",
                   )}
                 >
-                  {item.done ? <Check className="size-3.5" /> : <CircleDot className="size-3" />}
+                  {item.done ? (
+                    <CheckIcon className="size-3.5" />
+                  ) : (
+                    <CircleDotIcon className="size-3" />
+                  )}
                 </div>
 
                 {/* Connector line */}

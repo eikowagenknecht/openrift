@@ -1,4 +1,4 @@
-import { Check, Copy, Loader2, Share2 } from "lucide-react";
+import { CheckIcon, CopyIcon, Loader2Icon, Share2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ export function DeckExportDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
         <DialogTrigger render={<Button variant="outline" size="sm" />}>
-          <Share2 className="size-4" />
+          <Share2Icon className="size-4" />
           Export
         </DialogTrigger>
       )}
@@ -78,7 +78,7 @@ export function DeckExportDialog({
         <div className="flex flex-col gap-3">
           {exportDeck.isPending ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="text-muted-foreground size-6 animate-spin" />
+              <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
             </div>
           ) : exportDeck.isError ? (
             <p className="text-destructive text-sm">Failed to generate deck code.</p>
@@ -95,12 +95,12 @@ export function DeckExportDialog({
               <Button onClick={handleCopy} className="self-end">
                 {copied ? (
                   <>
-                    <Check className="size-4" />
+                    <CheckIcon className="size-4" />
                     Copied
                   </>
                 ) : (
                   <>
-                    <Copy className="size-4" />
+                    <CopyIcon className="size-4" />
                     Copy code
                   </>
                 )}

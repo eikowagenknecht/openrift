@@ -1,6 +1,6 @@
 import type { SearchField } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
-import { Search, X } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +58,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   return (
     <div className="min-w-0 flex-1">
       <div className="relative">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
           placeholder="Search cards..."
           value={localSearch}
@@ -86,7 +86,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
               }}
               aria-label="Clear search"
             >
-              <X className="size-3.5" />
+              <XIcon className="size-3.5" />
             </button>
           )}
         </span>

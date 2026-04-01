@@ -1,5 +1,5 @@
 import type { TimeRange } from "@openrift/shared";
-import { ChevronDown } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { Area, AreaChart, Tooltip } from "recharts";
 
@@ -96,7 +96,7 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
         30D
       </span>
       <span className="text-muted-foreground pointer-events-none absolute right-1 bottom-0.5 inline-flex items-center gap-0.5 text-[10px] opacity-0 transition-opacity group-hover/spark:opacity-100">
-        <ChevronDown className="size-2.5" />
+        <ChevronDownIcon className="size-2.5" />
         Price history
       </span>
     </button>

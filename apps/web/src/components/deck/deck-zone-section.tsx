@@ -1,6 +1,6 @@
 import { useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
-import { AlertTriangle, Check, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { DeckCardRow } from "@/components/deck/deck-card-row";
@@ -127,7 +127,11 @@ export function DeckZoneSection({
           className="hover:bg-muted/50 flex size-5 shrink-0 items-center justify-center rounded"
           onClick={() => setOpen((prev) => !prev)}
         >
-          {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+          {open ? (
+            <ChevronDownIcon className="size-3.5" />
+          ) : (
+            <ChevronRightIcon className="size-3.5" />
+          )}
         </button>
         <button
           type="button"
@@ -137,9 +141,9 @@ export function DeckZoneSection({
           <span className={cn("flex items-center gap-1", isActive && "font-bold")}>
             {ZONE_LABELS[zone]}
             {hasZoneViolations ? (
-              <AlertTriangle className="text-destructive size-3.5" />
+              <AlertTriangleIcon className="text-destructive size-3.5" />
             ) : cards.length > 0 || zone === "overflow" || zone === "sideboard" ? (
-              <Check className="size-3.5 text-green-600 dark:text-green-400" />
+              <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
             ) : null}
           </span>
           <span className="text-muted-foreground ml-auto text-xs">

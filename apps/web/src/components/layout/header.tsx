@@ -1,16 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
-  CircleHelp,
-  EllipsisVertical,
-  Heart,
-  LogOut,
-  Menu,
-  Moon,
-  Shield,
-  Sparkles,
-  Sun,
-  User,
+  CircleHelpIcon,
+  EllipsisVerticalIcon,
+  HeartIcon,
+  LogOutIcon,
+  MenuIcon,
+  MoonIcon,
+  ShieldIcon,
+  SparklesIcon,
+  SunIcon,
+  UserIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -71,7 +71,7 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
       className={className}
       onClick={onClick}
     >
-      <Menu className="size-5" />
+      <MenuIcon className="size-5" />
     </Button>
   );
 }
@@ -137,12 +137,12 @@ function UserMenuTrigger({
       <Avatar size="sm">
         {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
         <AvatarFallback>
-          <User className="size-3" />
+          <UserIcon className="size-3" />
         </AvatarFallback>
       </Avatar>
     );
   }
-  return <EllipsisVertical className="size-5" />;
+  return <EllipsisVerticalIcon className="size-5" />;
 }
 
 function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
@@ -163,39 +163,39 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
     <DropdownMenuContent align="end">
       {isLoggedIn && (
         <DropdownMenuItem render={<Link to="/profile" />}>
-          <User className="size-4" />
+          <UserIcon className="size-4" />
           Profile
         </DropdownMenuItem>
       )}
       {isLoggedIn && isAdmin && (
         <DropdownMenuItem render={<Link to="/admin" />}>
-          <Shield className="size-4" />
+          <ShieldIcon className="size-4" />
           Admin
         </DropdownMenuItem>
       )}
       {isLoggedIn && <DropdownMenuSeparator />}
       {!isLoggedIn && (
         <DropdownMenuItem onClick={toggleTheme}>
-          {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          {darkMode ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
           {darkMode ? "Light mode" : "Dark mode"}
         </DropdownMenuItem>
       )}
       <DropdownMenuItem render={<Link to="/help" />}>
-        <CircleHelp className="size-4" />
+        <CircleHelpIcon className="size-4" />
         Help
       </DropdownMenuItem>
       <DropdownMenuItem render={<Link to="/changelog" />}>
-        <Sparkles className="size-4" />
+        <SparklesIcon className="size-4" />
         What&apos;s new
       </DropdownMenuItem>
       <DropdownMenuItem render={<Link to="/support" />}>
-        <Heart className="size-4" />
+        <HeartIcon className="size-4" />
         Support us
       </DropdownMenuItem>
       {isLoggedIn && <DropdownMenuSeparator />}
       {isLoggedIn && (
         <DropdownMenuItem onClick={handleSignOut}>
-          <LogOut className="size-4" />
+          <LogOutIcon className="size-4" />
           Sign out
         </DropdownMenuItem>
       )}
@@ -321,14 +321,14 @@ export function Header() {
         {/* Center: Logo on mobile */}
         <LogoLink className="md:hidden" />
 
-        {/* Right: Support + User menu */}
+        {/* Right: Support + UserIcon menu */}
         <div className="flex items-center gap-1 justify-self-end">
           <Link
             to="/support"
             className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
             aria-label="Support us"
           >
-            <Heart className="size-4" />
+            <HeartIcon className="size-4" />
           </Link>
           <UserMenu session={session} isPending={isPending} gravatarUrl={gravatarUrl} />
         </div>

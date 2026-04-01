@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ export function SelectionCheckbox({ isSelected, onToggle }: SelectionCheckboxPro
         onToggle();
       }}
     >
-      <Check className="size-3" />
+      <CheckIcon className="size-3" />
     </button>
   );
 }

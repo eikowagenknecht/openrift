@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { X } from "lucide-react";
+import { XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
@@ -26,7 +26,7 @@ export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
           </p>
         </div>
         <Button variant="ghost" size="icon-sm" onClick={onClose}>
-          <X className="size-4" />
+          <XIcon className="size-4" />
         </Button>
       </div>
       <div className="space-y-1 pb-4">

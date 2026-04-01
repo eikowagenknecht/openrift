@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
 import { COLORLESS_DOMAIN } from "@openrift/shared";
-import { AlertTriangle, GripVertical, Minus, Plus, X } from "lucide-react";
+import { AlertTriangleIcon, GripVerticalIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 
 type ControlMode =
   | "quantity" // +/- with count (main, sideboard, runes)
-  | "remove-only" // just an X button (legend, champion, battlefield)
+  | "remove-only" // just an XIcon button (legend, champion, battlefield)
   | "none"; // no controls (search panel results)
 
 interface DeckCardRowProps {
@@ -61,7 +61,7 @@ function CardControls({
           onRemove?.();
         }}
       >
-        <X className="size-3" />
+        <XIcon className="size-3" />
       </Button>
     );
   }
@@ -78,7 +78,7 @@ function CardControls({
         }}
         disabled={!onDecrement}
       >
-        <Minus className="size-3" />
+        <MinusIcon className="size-3" />
       </Button>
       <span className="w-4 text-center text-xs font-medium">{quantity}</span>
       <Button
@@ -91,7 +91,7 @@ function CardControls({
         }}
         disabled={!onIncrement}
       >
-        <Plus className="size-3" />
+        <PlusIcon className="size-3" />
       </Button>
     </span>
   );
@@ -137,13 +137,13 @@ export function DeckCardRow({
     <>
       {draggable && (
         <span className="text-muted-foreground/50 -ml-1.5 shrink-0">
-          <GripVertical className="size-3.5" />
+          <GripVerticalIcon className="size-3.5" />
         </span>
       )}
 
       {hasViolation && (
         <span title={violationMessage} className="shrink-0">
-          <AlertTriangle className="text-destructive size-3.5" />
+          <AlertTriangleIcon className="text-destructive size-3.5" />
         </span>
       )}
 

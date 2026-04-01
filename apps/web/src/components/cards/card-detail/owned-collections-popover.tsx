@@ -1,6 +1,6 @@
 import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { Link } from "@tanstack/react-router";
-import { Package } from "lucide-react";
+import { PackageIcon } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFilterValues } from "@/hooks/use-card-filters";
@@ -54,7 +54,7 @@ export function OwnedCollectionsPopover({
           "cursor-pointer",
         )}
       >
-        <Package className="size-3" />
+        <PackageIcon className="size-3" />
         <span>&times;{totalOwned}</span>
       </PopoverTrigger>
       <PopoverContent side="bottom" align={align} className="w-56 p-0">

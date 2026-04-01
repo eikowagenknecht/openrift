@@ -1,5 +1,5 @@
 import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { affiliateUrl, cardtraderAffiliateUrl } from "@/lib/affiliate";
@@ -146,7 +146,7 @@ function PriceTrend({
       )}
       title={`${isUp ? "+" : ""}${rounded}% over ${RANGE_LABELS[range]}`}
     >
-      {isUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+      {isUp ? <TrendingUpIcon className="size-3" /> : <TrendingDownIcon className="size-3" />}
       {Math.abs(rounded)}%
     </span>
   );
