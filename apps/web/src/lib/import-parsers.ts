@@ -18,6 +18,8 @@ export interface ImportEntry {
   cardName: string;
   /** The raw short code from the source (e.g. "OGN-079a"), used as fallback for matching. */
   sourceCode: string;
+  /** Resolved promo slug for matching (e.g. "nexus", "release"). Provider-specific mapping is done in the parser. */
+  promoSlug?: string;
   /** Pass-through of interesting fields from the source CSV, for display in the detail panel. */
   rawFields: Record<string, string>;
 }
@@ -80,6 +82,74 @@ export function parseImportData(text: string): ParseResult {
 // ---------------------------------------------------------------------------
 
 /**
+ * Maps a Piltover CSV promo suffix (+ variant label for disambiguation) to
+ * the promo type slug used in the OpenRift catalog.
+ * @returns The resolved slug, or undefined if the suffix is unrecognized.
+ */
+function resolvePiltoverPromoSlug(promoSuffix: string, variantLabel: string): string | undefined {
+  const suffix = promoSuffix.toLowerCase();
+  const label = variantLabel.toLowerCase();
+
+  switch (suffix) {
+    case "champion": {
+      return "summoner-champion";
+    }
+    case "competitor": {
+      return "competitor";
+    }
+    case "jdg": {
+      return "judge";
+    }
+    case "learn": {
+      return "learn";
+    }
+    case "launch": {
+      return "launch";
+    }
+    case "nexus": {
+      return "nexus";
+    }
+    case "prerelease":
+    case "prerift": {
+      return "prerift";
+    }
+    case "promo": {
+      if (label.includes("nexus")) {
+        return "nexus";
+      }
+      return undefined;
+    }
+    case "regionals": {
+      if (label.includes("1st")) {
+        return "regionals-1st";
+      }
+      if (label.includes("top")) {
+        return "regionals-top8";
+      }
+      return undefined;
+    }
+    case "release": {
+      return "release";
+    }
+    case "riot": {
+      return "riot";
+    }
+    case "skirmish": {
+      if (label.includes("top")) {
+        return "summoner-top8";
+      }
+      return "summoner";
+    }
+    case "worlds": {
+      return "worlds";
+    }
+    default: {
+      return undefined;
+    }
+  }
+}
+
+/**
  * Parses a Piltover Archive CSV export.
  *
  * Columns: Variant Number, Card Name, Set, Set Prefix, Rarity, Variant Type,
@@ -132,16 +202,13 @@ function parsePiltoverArchive(text: string): ParseResult {
     rowCount++;
 
     const parsed = parsePiltoverVariantNumber(variantNumber);
-    if (!parsed) {
-      errors.push(`Could not parse variant number: "${variantNumber}"`);
-      continue;
-    }
 
     // Finish: check the -Foil suffix, Variant Label, and rarity (rare/epic/showcase are always foil)
     const rarity = record["Rarity"]?.trim().toLowerCase() ?? "";
     const alwaysFoilRarity = rarity === "rare" || rarity === "epic" || rarity === "showcase";
+    const hasFoilSuffix = parsed?.hasFoilSuffix ?? variantNumber.endsWith("-Foil");
     const finish: Finish =
-      parsed.hasFoilSuffix || variantLabel.toLowerCase().includes("foil") || alwaysFoilRarity
+      hasFoilSuffix || variantLabel.toLowerCase().includes("foil") || alwaysFoilRarity
         ? "foil"
         : "normal";
 
@@ -157,18 +224,21 @@ function parsePiltoverArchive(text: string): ParseResult {
     });
 
     const entry: ImportEntry = {
-      setPrefix: parsed.setPrefix,
-      collectorNumber: parsed.collectorNumber,
+      setPrefix: parsed?.setPrefix ?? record["Set Prefix"]?.trim() ?? "",
+      collectorNumber: parsed?.collectorNumber ?? 0,
       finish,
-      artVariant: parsed.artVariant,
+      artVariant: parsed?.artVariant ?? "normal",
       quantity,
       cardName,
-      sourceCode: parsed.shortCode,
+      sourceCode: parsed?.shortCode ?? variantNumber,
+      promoSlug: parsed?.promoSuffix
+        ? resolvePiltoverPromoSlug(parsed.promoSuffix, variantLabel)
+        : undefined,
       rawFields,
     };
 
     // Aggregate duplicates (same variant, different conditions)
-    const key = `${entry.sourceCode}::${entry.finish}`;
+    const key = `${entry.sourceCode}::${entry.finish}::${entry.promoSlug ?? ""}`;
     const existing = aggregated.get(key);
     if (existing) {
       existing.quantity += entry.quantity;
@@ -185,12 +255,15 @@ interface PiltoverVariantParts {
   collectorNumber: number;
   artVariant: ArtVariant;
   hasFoilSuffix: boolean;
-  /** The base short code without -Foil suffix, e.g. "OGN-079a". */
+  /** The base short code without -Foil or promo suffix, e.g. "OGN-079a". */
   shortCode: string;
+  /** Raw promo suffix stripped from the variant number (e.g. "Nexus", "Release"), if any. */
+  promoSuffix?: string;
 }
 
 /**
- * Parses a Piltover Archive variant number like "OGN-001", "OGN-004-Foil", "OGN-079a".
+ * Parses a Piltover Archive variant number like "OGN-001", "OGN-004-Foil",
+ * "OGN-079a", or "OGN-001-Nexus".
  * @returns Parsed parts, or null if the format is unrecognized.
  */
 function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts | null {
@@ -203,24 +276,35 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
     code = code.slice(0, -5);
   }
 
-  // Match: SET-NUMBERoptionalLetterSuffix
-  const match = code.match(/^([A-Z]{2,4})-(\d+)([a-z]?)$/);
-  if (!match) {
-    return null;
+  // Try standard format: SET-NNN[a-z]?
+  const standardMatch = code.match(/^([A-Z]{2,4})-(\d+)([a-z]?)$/);
+  if (standardMatch) {
+    const letterSuffix = standardMatch[3];
+    return {
+      setPrefix: standardMatch[1],
+      collectorNumber: Number.parseInt(standardMatch[2], 10),
+      artVariant: letterSuffix ? "altart" : "normal",
+      hasFoilSuffix,
+      shortCode: code,
+    };
   }
 
-  const setPrefix = match[1];
-  const collectorNumber = Number.parseInt(match[2], 10);
-  const letterSuffix = match[3];
-  const artVariant: ArtVariant = letterSuffix ? "altart" : "normal";
+  // Try suffixed format: SET-NNN[a-z]?-PromoSuffix (e.g. "OGN-001-Nexus", "OGN-027a-Release")
+  const suffixMatch = code.match(/^([A-Z]{2,4})-(\d+)([a-z]?)-([A-Za-z]+)$/);
+  if (suffixMatch) {
+    const letterSuffix = suffixMatch[3];
+    const baseCode = `${suffixMatch[1]}-${suffixMatch[2]}${letterSuffix}`;
+    return {
+      setPrefix: suffixMatch[1],
+      collectorNumber: Number.parseInt(suffixMatch[2], 10),
+      artVariant: letterSuffix ? "altart" : "normal",
+      hasFoilSuffix,
+      shortCode: baseCode,
+      promoSuffix: suffixMatch[4],
+    };
+  }
 
-  return {
-    setPrefix,
-    collectorNumber,
-    artVariant,
-    hasFoilSuffix,
-    shortCode: code,
-  };
+  return null;
 }
 
 // ---------------------------------------------------------------------------

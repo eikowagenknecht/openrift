@@ -115,6 +115,28 @@ class PrintingIndex {
 
     return bestMatch;
   }
+
+  /**
+   * Tries to extract a base code from a source code with extra suffixes
+   * (e.g. "OGN-249-Release" → "OGN-249") and returns all printings for the
+   * same card.
+   * @returns All printings for the matched card, or an empty array.
+   */
+  lookupByBaseCode(sourceCode: string): Printing[] {
+    // Try stripping trailing -Suffix segments until we get a hit
+    const parts = sourceCode.split("-");
+    for (let length = parts.length - 1; length >= 2; length--) {
+      const candidate = parts.slice(0, length).join("-").toLowerCase();
+      const found = this.byShortCode.get(candidate);
+      if (found && found.length > 0) {
+        // Found a printing — return all printings for the same card
+        const cardName = normalizeNameForMatching(found[0].card.name);
+        const cardGroup = this.byNormalizedName.get(cardName);
+        return cardGroup?.printings ?? found;
+      }
+    }
+    return [];
+  }
 }
 
 /**
@@ -131,8 +153,40 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
   const codeMatches = index.lookupByCode(entry.sourceCode, entry.setPrefix, entry.collectorNumber);
 
   if (codeMatches.length > 0) {
-    // Filter by finish
+    // Narrow by finish
     const finishMatches = codeMatches.filter((printing) => printing.finish === entry.finish);
+
+    // If the entry has a promo slug, match by promo type across ALL code matches (finish in
+    // the CSV may not reflect the actual finish of the promo printing in the catalog)
+    if (entry.promoSlug) {
+      const promoMatches = codeMatches.filter(
+        (printing) => printing.promoType?.slug === entry.promoSlug,
+      );
+      if (promoMatches.length === 1) {
+        return {
+          entry,
+          status: "exact",
+          resolvedPrinting: promoMatches[0],
+          candidates: codeMatches,
+        };
+      }
+      // Promo slug didn't narrow to one — show all code matches as ambiguous
+      if (promoMatches.length > 1) {
+        return {
+          entry,
+          status: "ambiguous",
+          resolvedPrinting: null,
+          candidates: codeMatches,
+        };
+      }
+      // promoSlug didn't match any printing (renamed?) — show as ambiguous, don't auto-resolve to non-promo
+      return {
+        entry,
+        status: "ambiguous",
+        resolvedPrinting: null,
+        candidates: codeMatches,
+      };
+    }
 
     if (finishMatches.length === 1) {
       // Exact match — include all code matches as candidates for manual override
@@ -187,7 +241,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
         entry,
         status: "fuzzy",
         resolvedPrinting: finishMatches[0],
-        candidates: finishMatches,
+        candidates: fuzzy.printings,
         suggestedName: fuzzy.cardName,
       };
     }
@@ -201,7 +255,18 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
     };
   }
 
-  // Step 3: Unresolved
+  // Step 3: Try extracting a base code from suffixed source codes (e.g. "OGN-249-Release" → "OGN-249")
+  const baseCodeMatches = index.lookupByBaseCode(entry.sourceCode);
+  if (baseCodeMatches.length > 0) {
+    return {
+      entry,
+      status: "ambiguous",
+      resolvedPrinting: null,
+      candidates: baseCodeMatches,
+    };
+  }
+
+  // Step 4: Unresolved
   return {
     entry,
     status: "unresolved",

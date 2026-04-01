@@ -11,10 +11,11 @@ import {
   DownloadIcon,
   FileUpIcon,
   Loader2Icon,
+  SearchIcon,
   UploadIcon,
   XCircleIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,7 @@ import {
   useCreateCollection,
 } from "@/hooks/use-collections";
 import { copiesQueryOptions, useAddCopies } from "@/hooks/use-copies";
+import { useDebounce } from "@/hooks/use-debounce";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
@@ -248,7 +250,9 @@ function ImportExportPage() {
   return (
     <PreviewStep
       matchedEntries={matchedEntries}
+      allPrintings={allPrintings}
       rowCount={rowCount}
+      parseErrors={parseErrors}
       skippedIndices={skippedIndices}
       expandedIndices={expandedIndices}
       collections={collections ?? []}
@@ -492,7 +496,9 @@ interface CollectionOption {
 
 function PreviewStep({
   matchedEntries,
+  allPrintings,
   rowCount,
+  parseErrors,
   skippedIndices,
   expandedIndices,
   collections,
@@ -513,7 +519,9 @@ function PreviewStep({
   onBack,
 }: {
   matchedEntries: MatchedEntry[];
+  allPrintings: Printing[];
   rowCount: number;
+  parseErrors: string[];
   skippedIndices: Set<number>;
   expandedIndices: Set<number>;
   collections: CollectionOption[];
@@ -559,6 +567,7 @@ function PreviewStep({
           <ImportEntryRow
             key={`${entry.entry.sourceCode}-${entry.entry.finish}-${index}`}
             entry={entry}
+            allPrintings={allPrintings}
             index={index}
             isSkipped={skippedIndices.has(index)}
             isExpanded={expandedIndices.has(index)}
@@ -569,6 +578,22 @@ function PreviewStep({
           />
         ))}
       </div>
+
+      {/* Parse errors — cards that couldn't be recognized at all */}
+      {parseErrors.length > 0 && (
+        <details className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+            {parseErrors.length} {parseErrors.length === 1 ? "row" : "rows"} could not be recognized
+          </summary>
+          <div className="border-t border-amber-200 px-3 py-2 dark:border-amber-900">
+            {parseErrors.map((error) => (
+              <p key={error} className="text-sm text-amber-700 dark:text-amber-400">
+                {error}
+              </p>
+            ))}
+          </div>
+        </details>
+      )}
 
       {/* Summary + target collection + import button */}
       <div className="bg-muted/50 space-y-4 rounded-md border p-4">
@@ -674,6 +699,7 @@ const STATUS_CONFIG: Record<MatchStatus, { icon: React.ElementType; className: s
 
 function ImportEntryRow({
   entry,
+  allPrintings,
   index,
   isSkipped,
   isExpanded,
@@ -683,6 +709,7 @@ function ImportEntryRow({
   onToggleExpand,
 }: {
   entry: MatchedEntry;
+  allPrintings: Printing[];
   index: number;
   isSkipped: boolean;
   isExpanded: boolean;
@@ -691,9 +718,11 @@ function ImportEntryRow({
   onUnskip: (index: number) => void;
   onToggleExpand: (index: number) => void;
 }) {
+  const [showSearch, setShowSearch] = useState(false);
   const { icon: StatusIcon, className: statusColor } = STATUS_CONFIG[entry.status];
   const ChevronIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
+  const hasCandidates = entry.candidates.length > 0;
 
   return (
     <div className={cn(isSkipped && "opacity-40")}>
@@ -730,21 +759,38 @@ function ImportEntryRow({
             </span>
           )}
 
-          {entry.status === "unresolved" && (
-            <span className="text-muted-foreground text-xs">No match found</span>
-          )}
-
-          {entry.candidates.length > 0 && (
+          {showSearch ? (
+            <PrintingSearch
+              allPrintings={allPrintings}
+              onSelect={(printing) => {
+                onResolve(index, printing);
+                setShowSearch(false);
+              }}
+            />
+          ) : hasCandidates ? (
             <VariantPicker
               candidates={entry.candidates}
               resolved={entry.resolvedPrinting}
               onSelect={(printing) => onResolve(index, printing)}
             />
-          )}
+          ) : null}
+
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => setShowSearch(!showSearch)}
+            aria-label={showSearch ? "Close search" : "Search catalog"}
+          >
+            {showSearch ? (
+              <XCircleIcon className="size-3.5" />
+            ) : (
+              <SearchIcon className="size-3.5" />
+            )}
+          </Button>
 
           {isSkipped ? (
             <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
-              Undo
+              Unskip
             </Button>
           ) : (
             <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
@@ -825,5 +871,153 @@ function VariantPicker({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+function PrintingSearch({
+  allPrintings,
+  onSelect,
+}: {
+  allPrintings: Printing[];
+  onSelect: (printing: Printing) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [showResults, setShowResults] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
+  const debouncedSearch = useDebounce(search, 150);
+
+  const results =
+    debouncedSearch.length >= 2
+      ? allPrintings
+          .filter((printing) => {
+            const query = debouncedSearch.toLowerCase();
+            return (
+              printing.card.name.toLowerCase().includes(query) ||
+              printing.shortCode.toLowerCase().includes(query)
+            );
+          })
+          .slice(0, 20)
+      : [];
+
+  const visible = showResults && search.length >= 2;
+  const activeOptionId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
+
+  function scrollActiveIntoView(index: number) {
+    const item = listRef.current?.children[index] as HTMLElement | undefined;
+    if (item) {
+      item.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent) {
+    if (!visible || results.length === 0) {
+      return;
+    }
+
+    switch (event.key) {
+      case "ArrowDown": {
+        event.preventDefault();
+        const next = activeIndex < results.length - 1 ? activeIndex + 1 : 0;
+        setActiveIndex(next);
+        scrollActiveIntoView(next);
+        break;
+      }
+      case "ArrowUp": {
+        event.preventDefault();
+        const prev = activeIndex > 0 ? activeIndex - 1 : results.length - 1;
+        setActiveIndex(prev);
+        scrollActiveIntoView(prev);
+        break;
+      }
+      case "Enter": {
+        event.preventDefault();
+        if (activeIndex >= 0 && activeIndex < results.length) {
+          onSelect(results[activeIndex]);
+          setShowResults(false);
+          setActiveIndex(-1);
+        }
+        break;
+      }
+      case "Escape": {
+        event.preventDefault();
+        setShowResults(false);
+        setActiveIndex(-1);
+        break;
+      }
+    }
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <input
+        role="combobox"
+        aria-expanded={visible && results.length > 0}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+        aria-autocomplete="list"
+        placeholder="Search catalog..."
+        value={search}
+        onChange={(event) => {
+          setSearch(event.target.value);
+          setShowResults(true);
+          setActiveIndex(-1);
+        }}
+        onFocus={() => setShowResults(true)}
+        onBlur={(event) => {
+          if (!containerRef.current?.contains(event.relatedTarget)) {
+            setShowResults(false);
+            setActiveIndex(-1);
+          }
+        }}
+        onKeyDown={handleKeyDown}
+        className="border-input bg-background placeholder:text-muted-foreground focus:ring-ring h-7 w-44 rounded-md border px-2 text-xs focus:ring-1 focus:outline-none"
+      />
+      {visible && results.length > 0 && (
+        <div
+          ref={listRef}
+          id={listboxId}
+          role="listbox"
+          className="bg-popover absolute top-full right-0 z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
+        >
+          {results.map((printing, index) => (
+            <button
+              key={printing.id}
+              id={`${listboxId}-option-${index}`}
+              role="option"
+              aria-selected={index === activeIndex}
+              type="button"
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs",
+                index === activeIndex ? "bg-muted" : "hover:bg-muted",
+              )}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => {
+                onSelect(printing);
+                setShowResults(false);
+                setActiveIndex(-1);
+              }}
+            >
+              <span className="truncate font-medium">{printing.card.name}</span>
+              <span className="text-muted-foreground shrink-0">
+                {formatImportPrintingLabel(printing)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {visible && results.length === 0 && (
+        <div
+          id={listboxId}
+          role="listbox"
+          className="bg-popover absolute top-full right-0 z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
+        >
+          <p className="text-muted-foreground text-xs">No matching cards</p>
+        </div>
+      )}
+    </div>
   );
 }
