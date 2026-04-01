@@ -1,7 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   BookOpenIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
+  CircleHelpIcon,
   Code2Icon,
   DollarSignIcon,
   EyeIcon,
@@ -11,7 +14,6 @@ import {
   HeartIcon,
   LibraryIcon,
   MailIcon,
-  MinusIcon,
   ServerIcon,
   ShieldIcon,
   SparklesIcon,
@@ -21,6 +23,7 @@ import {
   XIcon,
   ZapIcon,
 } from "lucide-react";
+import { useState } from "react";
 
 export default function WhyOpenRiftArticle() {
   return (
@@ -61,18 +64,61 @@ export default function WhyOpenRiftArticle() {
           />
           <FeatureCard
             icon={<EyeOffIcon className="size-4" />}
-            title="No ads, no tracking"
-            description="No banner ads, no analytics trackers, no data sold. Your collection data stays yours."
+            title="No ads, privacy-first"
+            description={
+              <>
+                No banner ads, no data sold. Analytics are cookie-free and privacy-focused (
+                <a
+                  href="https://umami.is"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Umami
+                </a>
+                ). Your collection data stays yours.
+              </>
+            }
           />
           <FeatureCard
             icon={<DollarSignIcon className="size-4" />}
             title="3 price sources"
-            description="TCGPlayer, Cardmarket, and CardTrader side by side. Most sites show one marketplace at best."
+            description={
+              <>
+                <a
+                  href="https://partner.tcgplayer.com/openrift"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  TCGPlayer
+                </a>
+                ,{" "}
+                <a
+                  href="https://www.cardmarket.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Cardmarket
+                </a>
+                , and{" "}
+                <a
+                  href="https://www.cardtrader.com?share_code=openrift"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  CardTrader
+                </a>{" "}
+                side by side. Most sites show one marketplace at best.
+              </>
+            }
           />
           <FeatureCard
             icon={<ZapIcon className="size-4" />}
-            title="Fast & offline-capable"
-            description="Virtualized scrolling, snappy filters, and a PWA you can install and use offline."
+            title="Fast & responsive"
+            description="Virtualized scrolling, snappy filters, and a lightweight UI that feels instant."
           />
           <FeatureCard
             icon={<LibraryIcon className="size-4" />}
@@ -107,32 +153,59 @@ export default function WhyOpenRiftArticle() {
           <GapCard
             icon={<UsersIcon className="size-4" />}
             title="Community adoption"
-            description="We're new and small. No network effects, no large user base yet. You'd be an early adopter."
-          />
-          <GapCard
-            icon={<SparklesIcon className="size-4" />}
-            title="AI-powered tools"
-            description="No AI deck suggestions, no 'cards like this' recommendations, no natural language search."
-          />
-          <GapCard
-            icon={<HeartIcon className="size-4" />}
-            title="Social features"
-            description="No shared decklists hub, no user profiles, no trade matching, no community forums."
+            description="We're new and small. No network effects, no large user base yet. But hey — join now and you can tell your grandchildren you were here before it was cool."
           />
           <GapCard
             icon={<EyeIcon className="size-4" />}
             title="Meta & tournament data"
-            description="No top decks, no tournament results, no meta tracking. We're a collection tool, not a meta tracker."
+            description={
+              <>
+                No top decks or tournament results yet. We&apos;re planning to add tournament
+                decklists — see our{" "}
+                <Link to="/roadmap" className="text-primary hover:underline">
+                  roadmap
+                </Link>
+                .
+              </>
+            }
           />
           <GapCard
             icon={<BookOpenIcon className="size-4" />}
             title="Card rulings"
-            description="We show rules text but don't have judge rulings, FAQs, or interaction explanations."
+            description={
+              <>
+                We show card text but don&apos;t have a searchable rules reference or errata yet.
+                It&apos;s on the{" "}
+                <Link to="/roadmap" className="text-primary hover:underline">
+                  roadmap
+                </Link>
+                .
+              </>
+            }
+          />
+          <GapCard
+            icon={<HeartIcon className="size-4" />}
+            title="Social features"
+            description={
+              <>
+                Shared decklists and wishlists are{" "}
+                <Link to="/roadmap" className="text-primary hover:underline">
+                  coming
+                </Link>
+                . We won&apos;t do forums or other features that need content moderation —
+                that&apos;s a full-time job.
+              </>
+            }
+          />
+          <GapCard
+            icon={<SparklesIcon className="size-4" />}
+            title="AI-powered tools"
+            description="No AI deck suggestions or natural language search. We don't think everything needs AI shoehorned into it — though we do use it to build the site."
           />
           <GapCard
             icon={<GaugeIcon className="size-4" />}
             title="Brand recognition"
-            description="'OpenRift' doesn't have the name recognition of established sites. We're still building trust."
+            description="'OpenRift' doesn't have the name recognition of established sites. We're earning it one feature at a time."
           />
         </div>
       </section>
@@ -142,8 +215,8 @@ export default function WhyOpenRiftArticle() {
         <h2 className="mb-3 text-lg font-semibold">Feature comparison</h2>
         <p className="text-muted-foreground mb-3 text-sm">
           Compared against other Riftbound card browsers we&apos;re aware of. A checkmark means the
-          feature is available; a dash means partial support; an X means it&apos;s not available to
-          our knowledge.
+          feature is available; a half circle means partial support; an X means not available; a
+          question mark means we&apos;re not sure.
         </p>
 
         <div className="border-border overflow-x-auto rounded-lg border">
@@ -151,7 +224,7 @@ export default function WhyOpenRiftArticle() {
             <thead>
               <tr className="border-border bg-muted/50 border-b">
                 <th className="px-3 py-2.5 text-left font-medium">Feature</th>
-                <th className="px-3 py-2.5 text-center font-medium">
+                <th className="bg-primary/5 px-3 py-2.5 text-center font-medium">
                   <span className="text-primary">OpenRift</span>
                 </th>
                 <th className="px-3 py-2.5 text-center font-medium">Piltover Archive</th>
@@ -162,78 +235,220 @@ export default function WhyOpenRiftArticle() {
             </thead>
             <tbody className="divide-border divide-y">
               <ComparisonSection title="Data & Pricing" />
-              <ComparisonRow feature="Card database" values={["yes", "yes", "yes", "yes", "yes"]} />
+              <ComparisonRow
+                feature="Card database"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Every card from every released set, updated when new sets drop."
+              />
+              <ComparisonRow
+                feature="All printings / variants"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Each printing tracked separately — standard, foil, promos, alternate art, etc."
+              />
               <ComparisonRow
                 feature="Multiple price sources"
-                values={["yes", "no", "partial", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="TCGPlayer, Cardmarket, and CardTrader prices side by side. Most sites only show one marketplace."
               />
               <ComparisonRow
                 feature="Price history charts"
-                values={["yes", "no", "no", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Daily price snapshots with charts. History goes back to when we started tracking (February 2026)."
               />
               <ComparisonRow
                 feature="Multi-language printings"
-                values={["yes", "partial", "no", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="English, French, and Chinese card text where available. More languages as they're released."
+              />
+              <ComparisonRow
+                feature="Errata tracking"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="We show the printed card text but don't track official errata or rules corrections yet. On the roadmap."
               />
 
               <ComparisonSection title="Collection" />
               <ComparisonRow
                 feature="Collection tracking"
-                values={["yes", "yes", "yes", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Track which cards you own, how many copies, and in which condition."
               />
               <ComparisonRow
                 feature="Multiple collections"
-                values={["yes", "no", "no", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Create named collections like 'Trade binder', 'Main deck staples', etc. Move cards between them."
               />
-              <ComparisonRow feature="Activity history" values={["yes", "no", "no", "no", "no"]} />
+              <ComparisonRow
+                feature="Collection sharing"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Not yet — sharing collections via link is planned."
+              />
               <ComparisonRow
                 feature="Collection value"
-                values={["yes", "no", "partial", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="See the total market value of your collection across all three marketplaces."
+              />
+              <ComparisonRow
+                feature="Portfolio value over time"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="We show current value but don't chart how your collection's value changes over time yet."
+              />
+              <ComparisonRow
+                feature="Activity history"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="A timeline of every add, remove, and move across your collections."
               />
               <ComparisonRow
                 feature="CSV import / export"
-                values={["yes", "no", "no", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Import from spreadsheets or other tools. Export your full collection to CSV any time."
+              />
+              <ComparisonRow
+                feature="Wish list"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="A dedicated want list for cards you're looking for. Planned."
               />
 
               <ComparisonSection title="Deck Building" />
-              <ComparisonRow feature="Deck builder" values={["yes", "yes", "yes", "no", "no"]} />
+              <ComparisonRow
+                feature="Deck builder"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Visual deck editor with drag & drop, card search, and real-time updates."
+              />
               <ComparisonRow
                 feature="Format validation"
-                values={["yes", "yes", "partial", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Checks deck size, card limits, and ban lists for each format."
               />
               <ComparisonRow
                 feature="Deck statistics"
-                values={["yes", "partial", "partial", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Energy curve, domain distribution, cost breakdown, and more."
               />
               <ComparisonRow
                 feature="Deck code sharing"
-                values={["yes", "yes", "no", "no", "no"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Export and import decks as compact text codes."
               />
 
               <ComparisonSection title="User Experience" />
-              <ComparisonRow feature="PWA / installable" values={["yes", "no", "no", "no", "no"]} />
-              <ComparisonRow feature="Offline support" values={["yes", "no", "no", "no", "no"]} />
-              <ComparisonRow feature="Dark mode" values={["yes", "yes", "yes", "yes", "no"]} />
+              <ComparisonRow
+                feature="Fast performance"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Virtualized scrolling, minimal bundle size, and snappy filters. No loading spinners where they aren't needed."
+              />
+              <ComparisonRow
+                feature="Dark mode"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+              />
               <ComparisonRow
                 feature="Mobile-friendly"
-                values={["yes", "partial", "yes", "yes", "partial"]}
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Fully responsive — works on phones, tablets, and desktops."
+              />
+              <ComparisonRow
+                feature="Native mobile app"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No native iOS or Android app. The website is mobile-friendly, but there's no app store presence."
+              />
+              <ComparisonRow
+                feature="Keyboard shortcuts"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Cmd+K / Ctrl+K command palette for quick navigation and search."
+              />
+              <ComparisonRow
+                feature="Accessibility"
+                values={["partial", "unknown", "unknown", "unknown", "unknown"]}
+                detail="We use semantic HTML and ARIA attributes via shadcn/ui, but haven't done a dedicated accessibility audit yet."
+              />
+              <ComparisonRow
+                feature="Card scanning"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No camera-based card recognition. You add cards by searching."
+              />
+              <ComparisonRow
+                feature="No account required to browse"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Browse the full card database, prices, and deck codes without signing up. Accounts are only needed for collections and decks."
               />
 
-              <ComparisonSection title="Openness" />
-              <ComparisonRow feature="Open source" values={["yes", "no", "no", "no", "no"]} />
-              <ComparisonRow feature="Self-hostable" values={["yes", "no", "no", "no", "no"]} />
-              <ComparisonRow feature="Ad-free" values={["yes", "yes", "no", "yes", "yes"]} />
-              <ComparisonRow feature="No tracking" values={["yes", "no", "no", "no", "no"]} />
-              <ComparisonRow feature="Free data export" values={["yes", "no", "no", "no", "no"]} />
+              <ComparisonSection title="Openness & Transparency" />
+              <ComparisonRow
+                feature="Open source"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Full source code on GitHub under AGPL-3.0. Inspect, fork, or contribute."
+              />
+              <ComparisonRow
+                feature="Self-hostable"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Run the entire stack yourself — frontend, API, and database. Fully documented."
+              />
+              <ComparisonRow
+                feature="Public API"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No documented public API yet. The internal API exists but isn't versioned or stable for third-party use."
+              />
+              <ComparisonRow
+                feature="Ad-free"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No banner ads, no sponsored content, no affiliate-gated features."
+              />
+              <ComparisonRow
+                feature="No tracking"
+                values={["partial", "unknown", "unknown", "unknown", "unknown"]}
+                detail="We use Umami for privacy-focused, cookie-free analytics. No third-party trackers, no data sold."
+              />
+              <ComparisonRow
+                feature="Free data export"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Export your collections and decks any time. Your data is never held hostage."
+              />
+              <ComparisonRow
+                feature="Transparent pricing"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="OpenRift is free. If that ever changes, we'll be upfront about it."
+              />
+              <ComparisonRow
+                feature="Public roadmap"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Our roadmap is public on the site. You can see what we're working on and what's next."
+              />
+              <ComparisonRow
+                feature="Community contributions welcome"
+                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Open to issues, feature requests, and pull requests on GitHub."
+              />
 
-              <ComparisonSection title="Community" />
-              <ComparisonRow feature="Shared decklists" values={["no", "yes", "yes", "no", "no"]} />
+              <ComparisonSection title="Community & Freshness" />
+              <ComparisonRow
+                feature="Shared decklists"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No public decklist hub yet. Deck code sharing works, but there's no browsable community list."
+              />
               <ComparisonRow
                 feature="Meta / tournament data"
-                values={["no", "no", "yes", "no", "no"]}
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No tournament results or meta analysis. Planned for later."
               />
-              <ComparisonRow feature="AI-powered tools" values={["no", "no", "no", "no", "no"]} />
-              <ComparisonRow feature="User community" values={["no", "yes", "yes", "no", "no"]} />
+              <ComparisonRow
+                feature="AI-powered tools"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No AI deck suggestions or natural language search. Not currently planned."
+              />
+              <ComparisonRow
+                feature="User community"
+                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                detail="No forums, no Discord, no social features. We're a tool, not a social network."
+              />
+              <ComparisonRow
+                feature="New set support speed"
+                values={["unknown", "unknown", "unknown", "unknown", "unknown"]}
+                detail="We add new sets as they release, but we're too new to have a track record here."
+              />
+              <ComparisonRow
+                feature="Ban list update speed"
+                values={["unknown", "unknown", "unknown", "unknown", "unknown"]}
+                detail="Same — we update ban lists, but can't promise a specific turnaround time yet."
+              />
             </tbody>
           </table>
         </div>
@@ -312,7 +527,7 @@ function FeatureCard({
 }: {
   icon: React.ReactNode;
   title: string;
-  description: string;
+  description: React.ReactNode;
 }) {
   return (
     <div className="border-border bg-background rounded-lg border p-3">
@@ -332,7 +547,7 @@ function GapCard({
 }: {
   icon: React.ReactNode;
   title: string;
-  description: string;
+  description: React.ReactNode;
 }) {
   return (
     <div className="border-border bg-background rounded-lg border border-dashed p-3">
@@ -345,18 +560,53 @@ function GapCard({
   );
 }
 
-type CellValue = "yes" | "no" | "partial";
+type CellValue = "yes" | "no" | "partial" | "unknown";
 
-function ComparisonRow({ feature, values }: { feature: string; values: CellValue[] }) {
+function ComparisonRow({
+  feature,
+  values,
+  detail,
+}: {
+  feature: string;
+  values: CellValue[];
+  detail?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const clickable = Boolean(detail);
+
   return (
-    <tr className="hover:bg-muted/30">
-      <td className="px-3 py-2 text-left">{feature}</td>
-      {values.map((value, index) => (
-        <td key={index} className="px-3 py-2 text-center">
-          <ComparisonCell value={value} highlight={index === 0} />
+    <>
+      <tr
+        className={cn("hover:bg-muted/30", clickable && "cursor-pointer")}
+        onClick={clickable ? () => setOpen(!open) : undefined}
+      >
+        <td className="px-3 py-2 text-left">
+          <span className="flex items-center gap-1.5">
+            {feature}
+            {clickable && (
+              <ChevronDownIcon
+                className={cn(
+                  "text-muted-foreground/50 size-3.5 shrink-0 transition-transform",
+                  open && "rotate-180",
+                )}
+              />
+            )}
+          </span>
         </td>
-      ))}
-    </tr>
+        {values.map((value, index) => (
+          <td key={index} className={cn("px-3 py-2 text-center", index === 0 && "bg-primary/5")}>
+            <ComparisonCell value={value} />
+          </td>
+        ))}
+      </tr>
+      {open && detail && (
+        <tr>
+          <td colSpan={6} className="bg-muted/20 px-3 py-2">
+            <p className="text-muted-foreground text-xs leading-relaxed">{detail}</p>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -373,19 +623,19 @@ function ComparisonSection({ title }: { title: string }) {
   );
 }
 
-function ComparisonCell({ value, highlight }: { value: CellValue; highlight: boolean }) {
+function ComparisonCell({ value }: { value: CellValue }) {
   if (value === "yes") {
-    return (
-      <CheckCircle2Icon
-        className={cn(
-          "inline size-4",
-          highlight ? "text-primary" : "text-emerald-600 dark:text-emerald-400",
-        )}
-      />
-    );
+    return <CheckCircle2Icon className="inline size-4 text-emerald-600 dark:text-emerald-400" />;
   }
   if (value === "partial") {
-    return <MinusIcon className="text-muted-foreground inline size-4" />;
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="inline size-4 text-amber-500">
+        <path d="M12 2a10 10 0 1 0 0 20z" />
+      </svg>
+    );
+  }
+  if (value === "unknown") {
+    return <CircleHelpIcon className="text-muted-foreground/50 inline size-4" />;
   }
   return <XIcon className="text-muted-foreground/50 inline size-4" />;
 }

@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import {
   CheckIcon,
   CircleDotIcon,
-  HammerIcon,
   LayersIcon,
   LibraryIcon,
   PrinterIcon,
@@ -90,13 +89,6 @@ const roadmapItems: RoadmapItem[] = [
     icon: <UsersIcon className="size-4" />,
     done: true,
     date: "Mar 2026",
-  },
-  {
-    title: "PWA",
-    description: "Works offline and installs to your home screen.",
-    icon: <HammerIcon className="size-4" />,
-    done: true,
-    date: "Feb 2026",
   },
   {
     title: "Pricing",
