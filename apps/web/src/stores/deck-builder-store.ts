@@ -43,6 +43,7 @@ interface DeckBuilderState {
   setQuantity: (cardId: string, zone: DeckZone, quantity: number) => void;
   setActiveZone: (zone: DeckZone) => void;
   setLegend: (card: DeckBuilderCard, runesByDomain?: Map<string, DeckBuilderCard[]>) => void;
+  setRunesByDomain: (runesByDomain: Map<string, DeckBuilderCard[]>) => void;
   markSaved: () => void;
   reset: () => void;
 }
@@ -436,6 +437,8 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
         runesByDomain: runesByDomain ?? state.runesByDomain,
       };
     }),
+
+  setRunesByDomain: (runesByDomain) => set({ runesByDomain }),
 
   markSaved: () =>
     set((state) => ({ isDirty: false, violations: revalidate(state.format, state.cards) })),

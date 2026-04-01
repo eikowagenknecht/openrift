@@ -2,6 +2,7 @@
 
 ## 2026-04-01
 
+- fix: Removing a rune in the deck builder now correctly adds a replacement from the other domain to keep the total at 12
 - fix: Group-by setting in the deck builder now works correctly instead of always grouping by set
 - feat: Export any deck as a printable proxy PDF with card images or text placeholders, optional cut lines and watermark
 - feat: Buttons now have a subtle press-down effect, and keyboard shortcut hints in tooltips look sharper

@@ -34,6 +34,31 @@ import { useSelectionStore } from "@/stores/selection-store";
 // Card types that live in dedicated zones and should never appear in main/sideboard/overflow
 const DEDICATED_ZONE_TYPES = new Set<CardType>(["Legend", "Rune", "Battlefield"]);
 
+/**
+ * Build a map of domain → rune DeckBuilderCards from the full catalog.
+ * @returns A map keyed by domain name, each value an array of rune cards in that domain.
+ */
+function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCard[]> {
+  const runesByDomain = new Map<string, DeckBuilderCard[]>();
+  for (const entry of allPrintings) {
+    if (entry.card.type !== "Rune") {
+      continue;
+    }
+    const runeCard = catalogCardToDeckBuilderCard(entry.card);
+    for (const domain of entry.card.domains) {
+      const list = runesByDomain.get(domain);
+      if (list) {
+        if (!list.some((existing) => existing.cardId === runeCard.cardId)) {
+          list.push(runeCard);
+        }
+      } else {
+        runesByDomain.set(domain, [runeCard]);
+      }
+    }
+  }
+  return runesByDomain;
+}
+
 // Per-zone forced filter overrides and which filter sections to hide from the UI
 const ZONE_FILTER_CONFIG: Partial<
   Record<
@@ -71,6 +96,7 @@ export function DeckCardBrowser() {
   const addCard = useDeckBuilderStore((state) => state.addCard);
   const removeCard = useDeckBuilderStore((state) => state.removeCard);
   const setLegend = useDeckBuilderStore((state) => state.setLegend);
+  const setRunesByDomain = useDeckBuilderStore((state) => state.setRunesByDomain);
   const activeZone = useDeckBuilderStore((state) => state.activeZone);
   const addLabel =
     activeZone === "legend" || activeZone === "champion" || activeZone === "battlefield"
@@ -99,6 +125,15 @@ export function DeckCardBrowser() {
       globalThis.removeEventListener("keyup", up);
     };
   }, []);
+
+  // Build runes-by-domain catalog map so rebalancing works even for loaded decks
+  useEffect(() => {
+    if (allPrintings.length === 0) {
+      return;
+    }
+    const map = buildRunesByDomain(allPrintings);
+    setRunesByDomain(map);
+  }, [allPrintings, setRunesByDomain]);
 
   // Merge zone-forced filters into URL filters
   const filters = {
@@ -178,26 +213,7 @@ export function DeckCardBrowser() {
     const builderCard = catalogCardToDeckBuilderCard(printing.card);
 
     if (activeZone === "legend") {
-      // Build runes-by-domain map from catalog for auto-populate
-      const runesByDomain = new Map<string, DeckBuilderCard[]>();
-      for (const entry of allPrintings) {
-        if (entry.card.type !== "Rune") {
-          continue;
-        }
-        // Deduplicate by card ID (only need one printing per card)
-        for (const domain of entry.card.domains) {
-          const list = runesByDomain.get(domain);
-          const runeCard = catalogCardToDeckBuilderCard(entry.card);
-          if (list) {
-            if (!list.some((existing) => existing.cardId === runeCard.cardId)) {
-              list.push(runeCard);
-            }
-          } else {
-            runesByDomain.set(domain, [runeCard]);
-          }
-        }
-      }
-      setLegend(builderCard, runesByDomain);
+      setLegend(builderCard, buildRunesByDomain(allPrintings));
     } else {
       // Shift+click adds up to the zone maximum in one action
       const count = event?.shiftKey ? 3 : undefined;
