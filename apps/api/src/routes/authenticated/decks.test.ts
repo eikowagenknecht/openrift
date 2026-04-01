@@ -75,6 +75,7 @@ const dbDeckCard = {
   energy: 5,
   might: 4,
   power: 6,
+  imageUrl: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -269,6 +270,7 @@ describe("PUT /api/v1/decks/:id/cards", () => {
         energy: 1,
         might: null,
         power: 2,
+        imageUrl: null,
       },
     ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
@@ -299,6 +301,7 @@ describe("PUT /api/v1/decks/:id/cards", () => {
         energy: 1,
         might: null,
         power: 2,
+        imageUrl: null,
       },
     ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {

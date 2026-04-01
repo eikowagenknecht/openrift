@@ -87,6 +87,7 @@ describe("decksRepo", () => {
         energy: 3,
         might: 2,
         power: 1,
+        imageUrl: null,
       },
     ];
     const db = createMockDb(rows);

@@ -15,6 +15,7 @@ type DeckCardRow = Pick<
     superTypes: SuperType[];
     tags: string[];
     keywords: string[];
+    imageUrl: string | null;
   };
 
 /**
@@ -123,6 +124,15 @@ export function decksRepo(db: Kysely<Database>) {
           "c.energy",
           "c.might",
           "c.power",
+          sql<string | null>`(
+            SELECT COALESCE(pi.rehosted_url, pi.original_url)
+            FROM printings p
+            JOIN printing_images pi ON pi.printing_id = p.id
+              AND pi.face = 'front' AND pi.is_active = true
+            WHERE p.card_id = dc.card_id
+            ORDER BY p.collector_number ASC
+            LIMIT 1
+          )`.as("imageUrl"),
         ])
         .where("dc.deckId", "=", deckId)
         .where("d.userId", "=", userId)

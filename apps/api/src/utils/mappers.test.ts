@@ -370,10 +370,14 @@ describe("toDeckCard", () => {
       quantity: 4,
       cardName: "Fire Bolt",
       cardType: "Spell",
+      superTypes: [],
       domains: ["Fury"],
+      tags: [],
+      keywords: [],
       energy: 2,
       might: null,
       power: null,
+      imageUrl: null,
     });
     expect(result).toEqual({
       id: "dc-1",
@@ -383,10 +387,14 @@ describe("toDeckCard", () => {
       quantity: 4,
       cardName: "Fire Bolt",
       cardType: "Spell",
+      superTypes: [],
       domains: ["Fury"],
+      tags: [],
+      keywords: [],
       energy: 2,
       might: null,
       power: null,
+      imageUrl: null,
     });
   });
 });

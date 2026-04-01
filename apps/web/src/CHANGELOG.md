@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-01
+
+- feat: Deck overview now shows a visual card grid with legend and champion art previews, domain icons, card type breakdown, and validity badges
+
 ## 2026-03-31
 
 - feat: Energy curve in the deck builder now shows domain colors stacked on top of each other so you can see the color distribution at each cost

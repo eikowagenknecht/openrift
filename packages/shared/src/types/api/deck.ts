@@ -35,6 +35,7 @@ export interface DeckCardResponse {
   energy: number | null;
   might: number | null;
   power: number | null;
+  imageUrl: string | null;
 }
 
 export interface DeckDetailResponse {

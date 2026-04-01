@@ -216,6 +216,7 @@ export function toDeckCard(row: {
   energy: number | null;
   might: number | null;
   power: number | null;
+  imageUrl: string | null;
 }): DeckCardResponse {
   return {
     id: row.id,
@@ -232,6 +233,7 @@ export function toDeckCard(row: {
     energy: row.energy,
     might: row.might,
     power: row.power,
+    imageUrl: row.imageUrl,
   };
 }
 
