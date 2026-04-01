@@ -52,7 +52,7 @@ interface DeckBuilderState {
  *
  * @returns true if the card's type is valid for the zone
  */
-export function canDropInZone(
+export function isCardAllowedInZone(
   card: { cardType: CardType; superTypes: SuperType[] },
   zone: DeckZone,
 ): boolean {
@@ -61,7 +61,7 @@ export function canDropInZone(
       return card.cardType === "Legend";
     }
     case "champion": {
-      return card.superTypes.includes("Champion");
+      return card.superTypes.includes("Champion") && card.cardType !== "Legend";
     }
     case "runes": {
       return card.cardType === "Rune";
@@ -189,7 +189,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
       const targetZone = zone ?? state.activeZone;
 
       // Reject cards whose type doesn't belong in this zone
-      if (!canDropInZone(card, targetZone)) {
+      if (!isCardAllowedInZone(card, targetZone)) {
         return state;
       }
 
@@ -233,8 +233,8 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
           return state;
         }
       } else {
-        // Enforce max 3 copies across main + sideboard + overflow
-        const copyLimitZones = new Set(["main", "sideboard", "overflow"]);
+        // Enforce max 3 copies across main + sideboard + overflow + champion
+        const copyLimitZones = new Set(["main", "sideboard", "overflow", "champion"]);
         let addQty = count ?? 1;
         if (copyLimitZones.has(targetZone)) {
           const crossZoneTotal = state.cards
@@ -296,7 +296,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   moveCard: (cardId, fromZone, toZone) =>
     set((state) => {
       const source = state.cards.find((card) => card.cardId === cardId && card.zone === fromZone);
-      if (!source || !canDropInZone(source, toZone)) {
+      if (!source || !isCardAllowedInZone(source, toZone)) {
         return state;
       }
 
@@ -328,7 +328,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   moveOneCard: (cardId, fromZone, toZone) =>
     set((state) => {
       const source = state.cards.find((card) => card.cardId === cardId && card.zone === fromZone);
-      if (!source || !canDropInZone(source, toZone)) {
+      if (!source || !isCardAllowedInZone(source, toZone)) {
         return state;
       }
 
