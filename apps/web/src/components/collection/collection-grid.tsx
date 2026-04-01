@@ -84,7 +84,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const mode = browsing ? "add" : selectMode ? "select" : "browse";
 
   // ── Filter state (active in all modes) ──────────────────────────────
-  const { filters, sortBy, sortDir, view, groupBy, hasActiveFilters } = useFilterValues();
+  const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
   const { setSearch, clearAllFilters } = useFilterActions();
   const { allPrintings, sets } = useCards();
   const { data: session } = useSession();
@@ -801,6 +801,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         renderCard={renderCard}
         setOrder={sets}
         groupBy={groupBy}
+        groupDir={groupDir}
         deferredSortedCards={deferredSortedCards}
         printingsByCardId={printingsByCardId}
         view={dataView}
