@@ -127,7 +127,7 @@ export default function DeckBuildingArticle() {
           <FeatureCard
             icon={<Plus className="size-4" />}
             title="Quick add"
-            description='Click the + button on any card in the browser to add it to the active zone. Single-card zones like Legend and Champion show a "Choose" button instead.'
+            description='Click the + button on any card in the browser to add it to the active zone. Single-card zones like Legend and Champion show a "Choose" button instead. Cards you own show an owned count, so you can build with cards you actually have.'
           />
           <FeatureCard
             icon={<GripVertical className="size-4" />}
@@ -145,6 +145,10 @@ export default function DeckBuildingArticle() {
             description="Hold Shift while dragging a multi-copy card to move all copies at once instead of just one."
           />
         </div>
+        <p className="text-muted-foreground mt-3">
+          Use the <strong className="text-foreground">Overflow</strong> zone as a stash for cards
+          you&apos;re considering but haven&apos;t committed to a zone yet.
+        </p>
       </section>
 
       {/* Validation rules */}
@@ -190,7 +194,9 @@ export default function DeckBuildingArticle() {
 
         <p className="text-muted-foreground mt-3 text-sm">
           In Freeform format, none of these rules are enforced &mdash; you can build however you
-          like.
+          like. You can switch to Freeform to theorycraft freely, then switch back to Standard to
+          validate. The zone sidebar highlights violations per zone, so you can quickly see what
+          still needs attention.
         </p>
       </section>
 
@@ -270,37 +276,6 @@ export default function DeckBuildingArticle() {
           Changes are saved automatically as you edit. If you try to leave with unsaved changes,
           you&apos;ll see a warning. There&apos;s no manual save button &mdash; just build and go.
         </p>
-      </section>
-
-      {/* Tips */}
-      <section>
-        <h2 className="mb-2 text-lg font-semibold">Tips</h2>
-        <ul className="text-muted-foreground list-inside list-disc space-y-1">
-          <li>
-            Start with a legend you like &mdash; runes auto-fill and the browser narrows to
-            compatible cards right away.
-          </li>
-          <li>
-            Cards you own show an owned count in the browser, so you can build with cards you
-            actually have.
-          </li>
-          <li>
-            Use the <strong className="text-foreground">Overflow</strong> zone as a stash for cards
-            you&apos;re considering but haven&apos;t committed to a zone yet.
-          </li>
-          <li>
-            Clone a working deck before making big changes &mdash; it&apos;s easier than undoing a
-            dozen edits.
-          </li>
-          <li>
-            Switch to Freeform format if you want to theorycraft without rule constraints, then
-            switch back to Standard to validate.
-          </li>
-          <li>
-            The zone sidebar highlights violations per zone, so you can quickly see what still needs
-            attention.
-          </li>
-        </ul>
       </section>
     </div>
   );

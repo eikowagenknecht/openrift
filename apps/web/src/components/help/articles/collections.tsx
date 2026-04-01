@@ -123,7 +123,7 @@ export default function CollectionsArticle() {
           <FeatureCard
             icon={<ArrowRightLeft className="size-4" />}
             title="Move"
-            description="Select cards, then click Move. Pick the target collection from the dialog and confirm."
+            description="Select cards, then click Move. Pick the target collection from the dialog and confirm. Each copy belongs to exactly one collection, so moving it removes it from the source."
           />
           <FeatureCard
             icon={<Trash2 className="size-4" />}
@@ -137,7 +137,8 @@ export default function CollectionsArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">View modes in collections</h2>
         <p className="text-muted-foreground">
-          Collections support the same three view modes as the card browser:
+          Collections support the same three view modes as the card browser. You can also filter,
+          sort, and group cards inside any collection just like in the catalog.
         </p>
         <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
           <ViewModeRow
@@ -161,33 +162,12 @@ export default function CollectionsArticle() {
         <p className="text-muted-foreground">
           The sidebar lists all your collections with a copy count badge. At the top,{" "}
           <strong className="text-foreground">All Cards</strong> shows everything you own across all
-          collections in one view. Below your collections, you&apos;ll find links to{" "}
+          collections in one view, including your total collection value from your preferred
+          marketplace. Below your collections, you&apos;ll find links to{" "}
           <strong className="text-foreground">Import / Export</strong> and{" "}
           <strong className="text-foreground">Activity</strong> (a log of all additions, moves, and
           removals).
         </p>
-      </section>
-
-      {/* Tips */}
-      <section>
-        <h2 className="mb-2 text-lg font-semibold">Tips</h2>
-        <ul className="text-muted-foreground list-inside list-disc space-y-1">
-          <li>
-            You can filter, sort, and group cards inside any collection just like in the catalog
-            browser.
-          </li>
-          <li>
-            Each copy belongs to exactly one collection. Moving it removes it from the source.
-          </li>
-          <li>
-            The <strong className="text-foreground">All Cards</strong> view shows your total
-            collection value from your preferred marketplace.
-          </li>
-          <li>
-            Use the <strong className="text-foreground">Copies</strong> view mode when you need to
-            manage individual cards &mdash; for example, to dispose of a specific copy.
-          </li>
-        </ul>
       </section>
     </div>
   );

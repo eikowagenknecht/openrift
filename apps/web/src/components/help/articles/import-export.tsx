@@ -119,16 +119,20 @@ export default function ImportExportArticle() {
         </div>
 
         <p className="text-muted-foreground mt-3">
-          Click any row to expand it and see the original data from your CSV. For ambiguous and
-          fuzzy matches, use the dropdown to pick the correct printing. You can also{" "}
+          Entries are sorted by match quality, so the ones that need attention appear first. Click
+          any row to expand it and see the original data from your CSV. For ambiguous and fuzzy
+          matches, use the dropdown to pick the correct printing. You can also{" "}
           <strong className="text-foreground">Skip</strong> entries you don&apos;t want to import
-          and <strong className="text-foreground">Undo</strong> if you change your mind.
+          and <strong className="text-foreground">Undo</strong> if you change your mind. If the same
+          card appears in multiple rows, quantities are combined automatically.
         </p>
 
         <p className="text-muted-foreground mt-2">
           Finally, pick a target collection (or create a new one), and click{" "}
           <strong className="text-foreground">Import</strong>. A summary at the bottom shows how
-          many copies are ready and how many need attention.
+          many copies are ready and how many need attention. Be careful not to import the same file
+          twice &mdash; OpenRift tracks individual copies, so a second import adds duplicates rather
+          than updating totals.
         </p>
       </section>
 
@@ -192,7 +196,8 @@ export default function ImportExportArticle() {
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
             openrift-<em>collection</em>-<em>date</em>.csv
           </code>
-          .
+          . The exported CSV uses the same short code format as import, so you can re-import an
+          OpenRift export into another account or after a reset.
         </p>
       </section>
 
@@ -218,24 +223,6 @@ export default function ImportExportArticle() {
             unmatched is marked as unresolved. You can skip these entries or look them up manually.
           </li>
         </ol>
-      </section>
-
-      {/* Tips */}
-      <section>
-        <h2 className="mb-2 text-lg font-semibold">Tips</h2>
-        <ul className="text-muted-foreground list-inside list-disc space-y-1">
-          <li>If the same card appears in multiple rows, quantities are combined automatically.</li>
-          <li>You can create a new collection during import &mdash; no need to leave the page.</li>
-          <li>
-            Importing the same file twice adds more copies &mdash; OpenRift tracks individual
-            copies, not totals. Only import once per file.
-          </li>
-          <li>
-            The exported CSV uses the same short code format as import, so you can re-import an
-            OpenRift export into another account or after a reset.
-          </li>
-          <li>Entries are sorted by match quality so the ones that need attention appear first.</li>
-        </ul>
       </section>
     </div>
   );
