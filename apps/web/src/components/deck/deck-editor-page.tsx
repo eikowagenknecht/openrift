@@ -126,7 +126,7 @@ function buildZoneFilterUpdate(
   zone: DeckZone,
   deckCards: DeckBuilderCard[],
 ): Record<string, string[] | string | null> {
-  const cleared: Record<string, string[] | string | number | null> = {
+  const cleared: Record<string, string | string[] | null> = {
     search: null,
     sets: null,
     rarities: null,
