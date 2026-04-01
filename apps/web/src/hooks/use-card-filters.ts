@@ -40,6 +40,7 @@ const filterParsers = {
   sortDir: parseAsString.withDefault("asc"),
   view: parseAsString.withDefault("cards"),
   groupBy: parseAsString.withDefault("set"),
+  groupDir: parseAsString.withDefault("asc"),
 };
 
 type ArrayKey =
@@ -96,6 +97,7 @@ export function useFilterValues() {
   const sortDir = filterState.sortDir as SortDirection;
   const view = filterState.view as "cards" | "printings" | "copies";
   const groupBy = filterState.groupBy as GroupByField;
+  const groupDir = filterState.groupDir as SortDirection;
 
   const hasActiveFilters =
     filterState.search !== "" ||
@@ -126,6 +128,7 @@ export function useFilterValues() {
     sortDir,
     view,
     groupBy,
+    groupDir,
     hasActiveFilters,
     filterState,
     searchScope,
@@ -257,6 +260,10 @@ export function useFilterActions() {
     void setFilterState({ groupBy: groupBy === "set" ? null : groupBy });
   };
 
+  const setGroupDir = (dir: SortDirection) => {
+    void setFilterState({ groupDir: dir === "asc" ? null : dir });
+  };
+
   return {
     setSearch,
     toggleArrayFilter,
@@ -273,6 +280,7 @@ export function useFilterActions() {
     setSortDir,
     setView,
     setGroupBy,
+    setGroupDir,
     clearAllFilters,
     toggleSearchField,
   };

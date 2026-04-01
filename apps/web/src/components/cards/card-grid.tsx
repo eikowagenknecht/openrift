@@ -127,16 +127,23 @@ function buildGroups(
   items: CardViewerItem[],
   groupBy: GroupByField,
   setOrder?: GroupInfo[],
+  groupDir: "asc" | "desc" = "asc",
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
   }
+  let groups: CardGroup[];
   if (groupBy === "set") {
-    return setOrder
+    groups = setOrder
       ? groupItemsBySet(items, setOrder)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];
+  } else {
+    groups = groupItemsByField(items, groupBy);
   }
-  return groupItemsByField(items, groupBy);
+  if (groupDir === "desc") {
+    groups = groups.toReversed();
+  }
+  return groups;
 }
 
 function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
@@ -322,6 +329,7 @@ interface CardGridProps {
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
   groupBy?: GroupByField;
+  groupDir?: "asc" | "desc";
   selectedItemId?: string;
   keyboardNavItemId?: string;
   onItemClick?: (printing: Printing) => void;
@@ -336,6 +344,7 @@ export function CardGrid({
   renderCard,
   setOrder,
   groupBy = "set",
+  groupDir = "asc",
   selectedItemId,
   keyboardNavItemId,
   onItemClick,
@@ -365,18 +374,20 @@ export function CardGrid({
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
   // ── Group items, then flatten into virtual rows ──────────────────
-  const groups = buildGroups(items, groupBy, setOrder);
+  const groups = buildGroups(items, groupBy, setOrder, groupDir);
   const multipleGroups = groups.length > 1;
   const virtualRowsCacheRef = useRef<{
     items: CardViewerItem[];
     setOrder: GroupInfo[] | undefined;
     groupBy: GroupByField;
+    groupDir: "asc" | "desc";
     columns: number;
     rows: VRow[];
   }>({
     items: [],
     setOrder: undefined,
     groupBy: "set",
+    groupDir: "asc",
     columns: 0,
     rows: [],
   });
@@ -384,12 +395,14 @@ export function CardGrid({
     virtualRowsCacheRef.current.items !== items ||
     virtualRowsCacheRef.current.setOrder !== setOrder ||
     virtualRowsCacheRef.current.groupBy !== groupBy ||
+    virtualRowsCacheRef.current.groupDir !== groupDir ||
     virtualRowsCacheRef.current.columns !== columns
   ) {
     virtualRowsCacheRef.current = {
       items,
       setOrder,
       groupBy,
+      groupDir,
       columns,
       rows: buildVirtualRows(groups, columns),
     };

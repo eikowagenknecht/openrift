@@ -12,6 +12,7 @@ interface BrowserCardViewerProps {
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
   groupBy?: GroupByField;
+  groupDir?: "asc" | "desc";
   deferredSortedCards: Printing[];
   printingsByCardId: Map<string, Printing[]>;
   view: "cards" | "printings";
