@@ -319,6 +319,11 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const mode = body.mode === "additional" ? ("additional" as const) : ("main" as const);
     const provider = body.provider?.trim() || "upload";
 
+    const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new AppError(413, "PAYLOAD_TOO_LARGE", "File exceeds 50 MB limit");
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
     const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);

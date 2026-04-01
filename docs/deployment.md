@@ -120,7 +120,7 @@ Set these in `.env` on the VPS:
 | `BACKUP_S3_PREFIX`            | Path prefix inside the bucket (default: `backups`)                            |
 | `BACKUP_S3_ACCESS_KEY_ID`     | R2 API token access key (needs Object Read & Write)                           |
 | `BACKUP_S3_SECRET_ACCESS_KEY` | R2 API token secret key                                                       |
-| `BACKUP_ENCRYPTION_PASSWORD`  | GPG symmetric encryption passphrase                                           |
+| `BACKUP_ENCRYPTION_PASSWORD`  | **Required.** GPG symmetric encryption passphrase                             |
 | `BACKUP_SCHEDULE`             | Cron expression (default: `@daily`)                                           |
 | `BACKUP_KEEP_DAYS`            | Delete backups older than this many days (default: `30`)                      |
 
