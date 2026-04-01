@@ -253,7 +253,7 @@ export function CardDetail({
         {/* Footer */}
         <CardFooter printing={printing} />
 
-        {/* Versions */}
+        {/* Printings */}
         {printings && printings.length > 1 && onSelectPrinting && (
           <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
         )}
