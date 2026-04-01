@@ -181,7 +181,7 @@ function buildZoneFilterUpdate(
       // (all card domains must be within legend's domains, not just any match)
       return {
         ...cleared,
-        types: ["Unit", "Spell", "Gear", "Other"],
+        types: ["Unit", "Spell", "Gear"],
       };
     }
     default: {
