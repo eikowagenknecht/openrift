@@ -213,11 +213,6 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
     };
   }, [isDirty, deckId, storeId, saveDeckCards, markSaved]);
 
-  // Track the current legend's card ID so we can detect legend swaps
-  const legend = deckCards.find((card) => card.zone === "legend");
-  const legendCardId = legend?.cardId ?? null;
-  const prevLegendCardIdRef = useRef(legendCardId);
-
   // Auto-suggest filters based on what's missing in the deck.
   useEffect(() => {
     if (storeId !== deckId) {
@@ -242,18 +237,6 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
       nextSuggestion = "battlefield";
     }
 
-    // Detect legend swap: if the legend changed, re-apply filters for zones
-    // that depend on the legend (runes, champion, main/sideboard) even if the
-    // zone suggestion itself hasn't changed.
-    const legendChanged =
-      legendCardId !== prevLegendCardIdRef.current && prevLegendCardIdRef.current !== null;
-    prevLegendCardIdRef.current = legendCardId;
-
-    if (legendChanged && nextSuggestion === lastSuggestedZone.current) {
-      void setZoneFiltersRef.current(buildZoneFilterUpdate(nextSuggestion, deckCards));
-      return;
-    }
-
     if (nextSuggestion === lastSuggestedZone.current) {
       return;
     }
@@ -261,7 +244,7 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
 
     useDeckBuilderStore.getState().setActiveZone(nextSuggestion);
     void setZoneFiltersRef.current(buildZoneFilterUpdate(nextSuggestion, deckCards));
-  }, [storeId, deckId, deckCards, legendCardId]);
+  }, [storeId, deckId, deckCards]);
 
   // Clear filters on unmount
   useEffect(

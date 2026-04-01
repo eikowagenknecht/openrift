@@ -36,7 +36,7 @@ interface DeckBuilderState {
   runesByDomain: Map<string, DeckBuilderCard[]>;
 
   init: (deckId: string, format: DeckFormat, cards: DeckBuilderCard[]) => void;
-  addCard: (card: DeckBuilderCard, zone?: DeckZone) => void;
+  addCard: (card: DeckBuilderCard, zone?: DeckZone, count?: number) => void;
   removeCard: (cardId: string, zone: DeckZone) => void;
   moveCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
   moveOneCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
@@ -45,6 +45,109 @@ interface DeckBuilderState {
   setLegend: (card: DeckBuilderCard, runesByDomain?: Map<string, DeckBuilderCard[]>) => void;
   markSaved: () => void;
   reset: () => void;
+}
+
+/**
+ * Checks whether a card is allowed in a given zone based on its type/supertypes.
+ *
+ * @returns true if the card's type is valid for the zone
+ */
+export function canDropInZone(
+  card: { cardType: CardType; superTypes: SuperType[] },
+  zone: DeckZone,
+): boolean {
+  switch (zone) {
+    case "legend": {
+      return card.cardType === "Legend";
+    }
+    case "champion": {
+      return card.superTypes.includes("Champion");
+    }
+    case "runes": {
+      return card.cardType === "Rune";
+    }
+    case "battlefield": {
+      return card.cardType === "Battlefield";
+    }
+    case "main":
+    case "sideboard":
+    case "overflow": {
+      return (
+        card.cardType !== "Legend" && card.cardType !== "Rune" && card.cardType !== "Battlefield"
+      );
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+const RUNE_TARGET = 12;
+
+/**
+ * After a rune is added or removed, adjust a rune of the opposite domain so
+ * the total stays at RUNE_TARGET. When incrementing and no opposite-domain rune
+ * exists in the deck, falls back to the catalog.
+ *
+ * @returns a new cards array with the adjustment applied (or the same array if
+ * no adjustment was needed).
+ */
+function rebalanceRunes(
+  cards: DeckBuilderCard[],
+  changedDomains: Domain[],
+  runesByDomain: Map<string, DeckBuilderCard[]>,
+): DeckBuilderCard[] {
+  const runeTotal = cards
+    .filter((card) => card.zone === "runes")
+    .reduce((sum, card) => sum + card.quantity, 0);
+
+  if (runeTotal === RUNE_TARGET) {
+    return cards;
+  }
+
+  const legend = cards.find((card) => card.zone === "legend");
+  if (!legend || legend.domains.length < 2) {
+    return cards;
+  }
+
+  const otherDomain = legend.domains.find((domain) => !changedDomains.includes(domain));
+  if (!otherDomain) {
+    return cards;
+  }
+
+  if (runeTotal > RUNE_TARGET) {
+    // Over target — decrement an opposite-domain rune
+    const otherRune = cards.find(
+      (card) => card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
+    );
+    if (!otherRune) {
+      return cards;
+    }
+    return otherRune.quantity > 1
+      ? cards.map((card) =>
+          card.cardId === otherRune.cardId && card.zone === "runes"
+            ? { ...card, quantity: card.quantity - 1 }
+            : card,
+        )
+      : cards.filter((card) => !(card.cardId === otherRune.cardId && card.zone === "runes"));
+  }
+
+  // Under target — increment an opposite-domain rune (or add from catalog)
+  const existingOtherRune = cards.find(
+    (card) => card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
+  );
+  if (existingOtherRune) {
+    return cards.map((card) =>
+      card.cardId === existingOtherRune.cardId && card.zone === "runes"
+        ? { ...card, quantity: card.quantity + 1 }
+        : card,
+    );
+  }
+  const catalogRunes = runesByDomain.get(otherDomain) ?? [];
+  if (catalogRunes.length > 0) {
+    return [...cards, { ...catalogRunes[0], zone: "runes" as DeckZone, quantity: 1 }];
+  }
+  return cards;
 }
 
 function revalidate(format: DeckFormat, cards: DeckBuilderCard[]): DeckViolation[] {
@@ -81,9 +184,15 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
       violations: revalidate(format, cards),
     }),
 
-  addCard: (card, zone) =>
+  addCard: (card, zone, count) =>
     set((state) => {
       const targetZone = zone ?? state.activeZone;
+
+      // Reject cards whose type doesn't belong in this zone
+      if (!canDropInZone(card, targetZone)) {
+        return state;
+      }
+
       const isSingleCardZone = targetZone === "legend" || targetZone === "champion";
       const isUniqueOnlyZone = targetZone === "battlefield";
 
@@ -102,18 +211,8 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
         nextCards = alreadyInZone
           ? state.cards
           : [...state.cards, { ...card, zone: targetZone, quantity: 1 }];
-      } else {
-        // Enforce max 3 copies across main + sideboard + overflow
-        const copyLimitZones = new Set(["main", "sideboard", "overflow"]);
-        if (copyLimitZones.has(targetZone)) {
-          const crossZoneTotal = state.cards
-            .filter((entry) => entry.cardId === card.cardId && copyLimitZones.has(entry.zone))
-            .reduce((sum, entry) => sum + entry.quantity, 0);
-          if (crossZoneTotal >= 3) {
-            return { cards: state.cards, isDirty: state.isDirty, violations: state.violations };
-          }
-        }
-
+      } else if (targetZone === "runes") {
+        // Rune zone: add the rune, then rebalance to keep total at RUNE_TARGET
         const existing = state.cards.find(
           (entry) => entry.cardId === card.cardId && entry.zone === targetZone,
         );
@@ -124,6 +223,39 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
                 : entry,
             )
           : [...state.cards, { ...card, zone: targetZone, quantity: 1 }];
+        nextCards = rebalanceRunes(nextCards, card.domains, state.runesByDomain);
+
+        // If rebalancing couldn't compensate, don't exceed the target
+        const runeTotal = nextCards
+          .filter((entry) => entry.zone === "runes")
+          .reduce((sum, entry) => sum + entry.quantity, 0);
+        if (runeTotal > RUNE_TARGET) {
+          return state;
+        }
+      } else {
+        // Enforce max 3 copies across main + sideboard + overflow
+        const copyLimitZones = new Set(["main", "sideboard", "overflow"]);
+        let addQty = count ?? 1;
+        if (copyLimitZones.has(targetZone)) {
+          const crossZoneTotal = state.cards
+            .filter((entry) => entry.cardId === card.cardId && copyLimitZones.has(entry.zone))
+            .reduce((sum, entry) => sum + entry.quantity, 0);
+          if (crossZoneTotal >= 3) {
+            return { cards: state.cards, isDirty: state.isDirty, violations: state.violations };
+          }
+          addQty = Math.min(addQty, 3 - crossZoneTotal);
+        }
+
+        const existing = state.cards.find(
+          (entry) => entry.cardId === card.cardId && entry.zone === targetZone,
+        );
+        nextCards = existing
+          ? state.cards.map((entry) =>
+              entry.cardId === card.cardId && entry.zone === targetZone
+                ? { ...entry, quantity: entry.quantity + addQty }
+                : entry,
+            )
+          : [...state.cards, { ...card, zone: targetZone, quantity: addQty }];
       }
 
       return {
@@ -149,37 +281,9 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
             )
           : state.cards.filter((card) => !(card.cardId === cardId && card.zone === zone));
 
-      // Rune rebalancing: when removing a rune, add one of the other domain
-      // to keep the total at 12. Only rebalance when at exactly 12 (not when over).
-      const runeTotal = nextCards
-        .filter((card) => card.zone === "runes")
-        .reduce((sum, card) => sum + card.quantity, 0);
-      if (zone === "runes" && runeTotal < 12) {
-        const legend = nextCards.find((card) => card.zone === "legend");
-        if (legend && legend.domains.length >= 2) {
-          const removedDomains = existing.domains;
-          const otherDomain = legend.domains.find((domain) => !removedDomains.includes(domain));
-          if (otherDomain) {
-            // Try to increment an existing rune of the other domain in the deck
-            const existingOtherRune = nextCards.find(
-              (card) =>
-                card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
-            );
-            if (existingOtherRune) {
-              nextCards = nextCards.map((card) =>
-                card.cardId === existingOtherRune.cardId && card.zone === "runes"
-                  ? { ...card, quantity: card.quantity + 1 }
-                  : card,
-              );
-            } else {
-              // No existing rune of that domain in deck — find one from catalog
-              const catalogRunes = state.runesByDomain.get(otherDomain) ?? [];
-              if (catalogRunes.length > 0) {
-                nextCards = [...nextCards, { ...catalogRunes[0], zone: "runes", quantity: 1 }];
-              }
-            }
-          }
-        }
+      // Rune rebalancing: keep total at RUNE_TARGET by adjusting the other domain
+      if (zone === "runes") {
+        nextCards = rebalanceRunes(nextCards, existing.domains, state.runesByDomain);
       }
 
       return {
@@ -192,7 +296,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   moveCard: (cardId, fromZone, toZone) =>
     set((state) => {
       const source = state.cards.find((card) => card.cardId === cardId && card.zone === fromZone);
-      if (!source) {
+      if (!source || !canDropInZone(source, toZone)) {
         return state;
       }
 
@@ -224,7 +328,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   moveOneCard: (cardId, fromZone, toZone) =>
     set((state) => {
       const source = state.cards.find((card) => card.cardId === cardId && card.zone === fromZone);
-      if (!source) {
+      if (!source || !canDropInZone(source, toZone)) {
         return state;
       }
 
@@ -280,6 +384,18 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
       // Replace legend zone with this card
       let nextCards = state.cards.filter((existing) => existing.zone !== "legend");
       nextCards = [...nextCards, { ...card, zone: "legend", quantity: 1 }];
+
+      // Clear runes that don't match the new legend's domains so they get
+      // repopulated below. This handles both direct swaps and remove-then-add.
+      const legendDomainSet = new Set(card.domains);
+      const hasIncompatibleRunes = nextCards.some(
+        (existing) =>
+          existing.zone === "runes" &&
+          !existing.domains.every((domain) => legendDomainSet.has(domain)),
+      );
+      if (hasIncompatibleRunes) {
+        nextCards = nextCards.filter((existing) => existing.zone !== "runes");
+      }
 
       // Auto-populate runes if runes zone is empty and we have rune data.
       // Distributes 6 slots per domain across available rune cards, grouping
