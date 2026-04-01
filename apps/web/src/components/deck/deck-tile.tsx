@@ -1,7 +1,15 @@
 import type { DeckCardResponse, DeckResponse, Domain } from "@openrift/shared";
 import { COLORLESS_DOMAIN, validateDeck } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Check, Copy, MoreHorizontal, Share2, Swords, Trash2 } from "lucide-react";
+import {
+  CheckIcon,
+  CircleAlertIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
+  Share2Icon,
+  SwordsIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -124,7 +132,7 @@ function FannedPreview({
       className="bg-muted/30 relative flex items-center justify-center overflow-hidden"
       style={{ aspectRatio: "5 / 3", ...gradientStyle }}
     >
-      <Swords className="text-muted-foreground/30 size-12" />
+      <SwordsIcon className="text-muted-foreground/30 size-12" />
     </div>
   );
 }
@@ -170,7 +178,7 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
     ? cards.filter((card) => card.zone !== "overflow").reduce((sum, card) => sum + card.quantity, 0)
     : 0;
 
-  const isValid =
+  const isStandardValid =
     deck.format === "standard" &&
     cards &&
     validateDeck({
@@ -207,28 +215,17 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
         />
 
         <div className="flex flex-1 flex-col gap-2 p-3">
-          {/* Name + valid badge */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate leading-tight font-semibold">{deck.name}</h3>
-              {(legend || champion) && (
-                <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                  {[legend?.cardName, champion?.cardName].filter(Boolean).join(" / ")}
-                </p>
-              )}
-            </div>
-            {isValid && (
-              <Badge
-                variant="outline"
-                className="shrink-0 border-green-600/30 bg-green-600/10 text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
-              >
-                <Check className="size-3" />
-                Valid
-              </Badge>
+          {/* Name */}
+          <div className="min-w-0">
+            <h3 className="truncate leading-tight font-semibold">{deck.name}</h3>
+            {(legend || champion) && (
+              <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                {[legend?.cardName, champion?.cardName].filter(Boolean).join(" / ")}
+              </p>
             )}
           </div>
 
-          {/* Domain icons + format */}
+          {/* Domain icons + format/validity badge */}
           <div className="flex items-center justify-between">
             {legendDomains && legendDomains.length > 0 ? (
               <span className="flex items-center gap-1">
@@ -239,9 +236,27 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
             ) : (
               <span />
             )}
-            <Badge variant="outline" className="text-xs capitalize">
-              {deck.format}
-            </Badge>
+            {deck.format === "freeform" ? (
+              <Badge variant="outline" className="text-xs">
+                Freeform
+              </Badge>
+            ) : isStandardValid ? (
+              <Badge
+                variant="outline"
+                className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
+              >
+                <CheckIcon className="size-3" />
+                Standard
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
+              >
+                <CircleAlertIcon className="size-3" />
+                Standard
+              </Badge>
+            )}
           </div>
 
           {/* Card type breakdown */}
@@ -260,7 +275,7 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
                   event.stopPropagation();
                 }}
               >
-                <MoreHorizontal className="size-4" />
+                <EllipsisVerticalIcon className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
@@ -270,18 +285,18 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
                     setExportOpen(true);
                   }}
                 >
-                  <Share2 className="size-4" />
+                  <Share2Icon className="size-4" />
                   Export
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleClone}>
-                  <Copy className="size-4" />
+                  <CopyIcon className="size-4" />
                   Clone
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleDeleteClick}
                   className="text-destructive focus:text-destructive"
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2Icon className="size-4" />
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
