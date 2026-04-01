@@ -11,7 +11,7 @@ function LandingRoute() {
   return (
     <>
       <LandingPage />
-      <Footer />
+      <Footer className="p-3" />
     </>
   );
 }

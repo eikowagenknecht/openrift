@@ -9,6 +9,7 @@ import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/cards")({
+  staticData: { hideFooter: true },
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
   component: CardsPage,
   pendingComponent: CardsPending,
@@ -22,7 +23,7 @@ function CardsPage() {
       <div className={`flex flex-1 flex-col ${PAGE_PADDING}`}>
         <CardBrowser />
       </div>
-      <Footer />
+      <Footer className="pt-3" />
     </>
   );
 }

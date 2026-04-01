@@ -39,6 +39,7 @@ export function useCollectionTitle(title: string) {
 export const AddModeSlotContext = createContext<HTMLDivElement | null>(null);
 
 export const Route = createFileRoute("/_app/_authenticated/collections")({
+  staticData: { hideFooter: true },
   beforeLoad: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,
@@ -161,7 +162,7 @@ function CollectionContent({ title }: { title: string }) {
         </header>
         {/* Main content */}
         <Outlet />
-        <Footer />
+        <Footer className="pt-3" />
       </div>
     </AddModeSlotContext>
   );

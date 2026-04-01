@@ -1,5 +1,6 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
 
+import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { usePreferencesSync } from "@/hooks/use-preferences-sync";
 import { useSession } from "@/lib/auth-client";
@@ -12,6 +13,8 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { data: session } = useSession();
   usePreferencesSync(Boolean(session?.user));
+  const matches = useMatches();
+  const hideFooter = matches.some((match) => match.staticData?.hideFooter);
 
   return (
     <>
@@ -19,6 +22,7 @@ function AppLayout() {
       <main className={`flex flex-1 flex-col ${CONTAINER_WIDTH}`}>
         <Outlet />
       </main>
+      {!hideFooter && <Footer className="p-3" />}
     </>
   );
 }

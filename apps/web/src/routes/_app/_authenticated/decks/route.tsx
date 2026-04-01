@@ -6,6 +6,7 @@ import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 
 export const Route = createFileRoute("/_app/_authenticated/decks")({
+  staticData: { hideFooter: true },
   beforeLoad: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,
@@ -24,7 +25,7 @@ function DecksLayout() {
       <div className="flex-1">
         <Outlet />
       </div>
-      <Footer />
+      <Footer className="p-3" />
     </div>
   );
 }

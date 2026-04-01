@@ -2,7 +2,6 @@ import { createLazyFileRoute, notFound } from "@tanstack/react-router";
 
 import { helpArticles } from "@/components/help/articles";
 import { HelpArticlePage } from "@/components/help/help-article-page";
-import { Footer } from "@/components/layout/footer";
 
 export const Route = createLazyFileRoute("/_app/help_/$slug")({
   component: HelpArticleRoute,
@@ -16,10 +15,5 @@ function HelpArticleRoute() {
     throw notFound();
   }
 
-  return (
-    <>
-      <HelpArticlePage article={article} />
-      <Footer />
-    </>
-  );
+  return <HelpArticlePage article={article} />;
 }

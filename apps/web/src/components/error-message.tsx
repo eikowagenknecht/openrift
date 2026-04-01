@@ -134,17 +134,14 @@ export function ErrorMessageLayout({
 export function RouteErrorFallback({ error }: { error?: unknown }) {
   const message = error instanceof Error ? error.message : error ? String(error) : undefined;
   return (
-    <>
-      <ErrorMessageLayout
-        emoji={pick(EMOJIS)}
-        heading={pick(HEADINGS)}
-        subtext={pick(SUBTEXTS)}
-        className="flex-1"
-        reload
-        devError={message}
-      />
-      <Footer />
-    </>
+    <ErrorMessageLayout
+      emoji={pick(EMOJIS)}
+      heading={pick(HEADINGS)}
+      subtext={pick(SUBTEXTS)}
+      className="flex-1"
+      reload
+      devError={message}
+    />
   );
 }
 
@@ -159,7 +156,7 @@ export function RouteNotFoundFallback() {
         className="flex-1"
         goHome
       />
-      <Footer />
+      <Footer className="p-3" />
     </>
   );
 }

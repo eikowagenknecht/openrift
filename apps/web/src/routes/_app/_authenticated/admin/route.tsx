@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminQueryOptions } from "@/hooks/use-admin";
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
+  staticData: { hideFooter: true },
   errorComponent: RouteErrorFallback,
   beforeLoad: async ({ context }) => {
     const isAdmin = await context.queryClient.ensureQueryData(isAdminQueryOptions);
@@ -43,7 +44,7 @@ function AdminContent() {
       <div className="flex min-h-0 flex-1 flex-col p-3">
         <Outlet />
       </div>
-      <Footer />
+      <Footer className="pt-3" />
     </div>
   );
 }

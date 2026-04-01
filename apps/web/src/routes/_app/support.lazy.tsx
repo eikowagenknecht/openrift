@@ -1,6 +1,5 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { Footer } from "@/components/layout/footer";
 import { SupportPage } from "@/components/support/support-page";
 
 export const Route = createLazyFileRoute("/_app/support")({
@@ -8,10 +7,5 @@ export const Route = createLazyFileRoute("/_app/support")({
 });
 
 function SupportRoute() {
-  return (
-    <>
-      <SupportPage />
-      <Footer />
-    </>
-  );
+  return <SupportPage />;
 }
