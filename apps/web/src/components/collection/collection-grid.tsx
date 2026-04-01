@@ -25,7 +25,10 @@ import { CollectionAddStrip } from "@/components/collection/collection-add-strip
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
-import { CollapsibleFilterPanel } from "@/components/filters/collapsible-filter-panel";
+import {
+  CollapsibleFilterPanel,
+  FilterToggleButton,
+} from "@/components/filters/collapsible-filter-panel";
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 import {
   DesktopOptionsBar,
@@ -584,6 +587,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       {/* Search bar */}
       <div className="mb-3 flex items-start gap-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
+        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" showCopies={mode !== "add"} />
         {mode === "add" && (
           <div className="hidden items-center gap-3 md:flex">

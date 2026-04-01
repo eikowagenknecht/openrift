@@ -8,10 +8,10 @@ import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
-  FilterBadgeSections,
-  FilterPanelContent,
-  FilterRangeSections,
-} from "@/components/filters/filter-panel-content";
+  CollapsibleFilterPanel,
+  FilterToggleButton,
+} from "@/components/filters/collapsible-filter-panel";
+import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 import {
   DesktopOptionsBar,
   MobileFilterContent,
@@ -300,6 +300,7 @@ export function DeckCardBrowser() {
     <>
       <div className="mb-3 flex items-start gap-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
+        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" hideViewToggle />
         <MobileOptionsDrawer
           doneLabel={hasActiveFilters ? `Show ${sortedCards.length} cards` : undefined}
@@ -313,18 +314,11 @@ export function DeckCardBrowser() {
           />
         </MobileOptionsDrawer>
       </div>
-      <div className="@wide:hidden hidden space-y-3 sm:block">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-          <FilterBadgeSections
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={hiddenSections}
-          />
-        </div>
-        <div className="grid grid-cols-4 gap-x-6 gap-y-3">
-          <FilterRangeSections availableFilters={availableFilters} />
-        </div>
-      </div>
+      <CollapsibleFilterPanel
+        availableFilters={availableFilters}
+        setDisplayLabel={setDisplayLabel}
+        hiddenSections={hiddenSections}
+      />
     </>
   );
 
