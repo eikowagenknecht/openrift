@@ -327,6 +327,7 @@ const deckCardResponseSchema = z
     energy: z.number().nullable(),
     might: z.number().nullable(),
     power: z.number().nullable(),
+    imageUrl: z.string().nullable(),
   })
   .openapi("DeckCardResponse");
 
