@@ -16,10 +16,20 @@ import { useExportDeck } from "@/hooks/use-decks";
 interface DeckExportDialogProps {
   deckId: string;
   isDirty: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function DeckExportDialog({ deckId, isDirty }: DeckExportDialogProps) {
-  const [open, setOpen] = useState(false);
+export function DeckExportDialog({
+  deckId,
+  isDirty,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: DeckExportDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
+  const isControlled = controlledOpen !== undefined;
   const exportDeck = useExportDeck();
   const [copied, setCopied] = useState(false);
 
@@ -45,10 +55,12 @@ export function DeckExportDialog({ deckId, isDirty }: DeckExportDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        <Share2 className="size-4" />
-        Export
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger render={<Button variant="outline" size="sm" />}>
+          <Share2 className="size-4" />
+          Export
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Export deck code</DialogTitle>

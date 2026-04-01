@@ -1,7 +1,7 @@
 import type { DeckCardResponse, DeckResponse, Domain } from "@openrift/shared";
 import { COLORLESS_DOMAIN, validateDeck } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Check, Copy, MoreHorizontal, Swords, Trash2 } from "lucide-react";
+import { Check, Copy, MoreHorizontal, Share2, Swords, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -27,6 +27,7 @@ import { getDomainGradientStyle } from "@/lib/domain";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 
 import { CardTypeBar } from "./card-type-bar";
+import { DeckExportDialog } from "./deck-export-dialog";
 
 function DomainIcon({ domain }: { domain: string }) {
   const lower = domain.toLowerCase();
@@ -136,6 +137,7 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
   const navigate = useNavigate();
   const cloneDeck = useCloneDeck();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const deleteDeck = useDeleteDeck();
 
   const handleClone = (event: React.MouseEvent) => {
@@ -261,6 +263,16 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={(event: React.MouseEvent) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setExportOpen(true);
+                  }}
+                >
+                  <Share2 className="size-4" />
+                  Export
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleClone}>
                   <Copy className="size-4" />
                   Clone
@@ -277,6 +289,13 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
           </div>
         </div>
       </Link>
+
+      <DeckExportDialog
+        deckId={deck.id}
+        isDirty={false}
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+      />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
