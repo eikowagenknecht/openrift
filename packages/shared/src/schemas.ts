@@ -184,7 +184,7 @@ export const createTradeListSchema = z.object({
 
 export const updateTradeListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  rules: listRulesSchema,
+  rules: listRulesSchema.nullable(),
 });
 
 export const createTradeListItemSchema = z.object({

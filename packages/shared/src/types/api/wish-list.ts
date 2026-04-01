@@ -5,7 +5,7 @@ export interface WishListListResponse {
 export interface WishListResponse {
   id: string;
   name: string;
-  rules: unknown;
+  rules: Record<string, string | number | boolean | null> | null;
   shareToken: string | null;
   createdAt: string;
   updatedAt: string;

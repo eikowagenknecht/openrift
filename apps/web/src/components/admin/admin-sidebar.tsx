@@ -117,8 +117,8 @@ export function AdminSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              isActive={currentPath === "/admin/settings"}
-              render={<Link to="/admin/settings" />}
+              isActive={currentPath === "/admin/site-settings"}
+              render={<Link to="/admin/site-settings" />}
             >
               <SettingsIcon />
               <span>Settings</span>

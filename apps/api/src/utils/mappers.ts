@@ -75,7 +75,7 @@ export function toTradeList(row: Selectable<TradeListsTable>): TradeListResponse
   return {
     id: row.id,
     name: row.name,
-    rules: row.rules,
+    rules: row.rules as TradeListResponse["rules"],
     shareToken: row.shareToken,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -94,7 +94,7 @@ export function toWishList(row: Selectable<WishListsTable>): WishListResponse {
   return {
     id: row.id,
     name: row.name,
-    rules: row.rules,
+    rules: row.rules as WishListResponse["rules"],
     shareToken: row.shareToken,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

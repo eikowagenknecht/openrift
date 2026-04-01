@@ -7,7 +7,7 @@ export interface TradeListListResponse {
 export interface TradeListResponse {
   id: string;
   name: string;
-  rules: unknown;
+  rules: Record<string, string | number | boolean | null> | null;
   shareToken: string | null;
   createdAt: string;
   updatedAt: string;
