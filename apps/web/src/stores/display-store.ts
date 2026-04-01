@@ -71,6 +71,8 @@ interface DisplayState {
   // Device-local — not synced
   maxColumns: number | null;
   setMaxColumns: (value: number | null | ((prev: number | null) => number | null)) => void;
+  filtersExpanded: boolean;
+  setFiltersExpanded: (value: boolean) => void;
 
   // Layout state (derived from viewport, not persisted)
   physicalMax: number;
@@ -136,6 +138,8 @@ export const useDisplayStore = create<DisplayState>()(
         set((state) => ({
           maxColumns: typeof value === "function" ? value(state.maxColumns) : value,
         })),
+      filtersExpanded: false,
+      setFiltersExpanded: (value) => set({ filtersExpanded: value }),
 
       physicalMax: 8,
       physicalMin: 1,
@@ -149,6 +153,7 @@ export const useDisplayStore = create<DisplayState>()(
       partialize: (state) => ({
         overrides: state.overrides,
         maxColumns: state.maxColumns,
+        filtersExpanded: state.filtersExpanded,
       }),
       merge: (persisted, current) => {
         const safe = sanitizeOverrides(persisted);
@@ -157,6 +162,10 @@ export const useDisplayStore = create<DisplayState>()(
           overrides: safe.overrides,
           ...resolveAll(safe.overrides),
           maxColumns: safe.maxColumns ?? current.maxColumns,
+          filtersExpanded:
+            typeof (persisted as Record<string, unknown>)?.filtersExpanded === "boolean"
+              ? ((persisted as Record<string, unknown>).filtersExpanded as boolean)
+              : current.filtersExpanded,
         };
       },
     },
