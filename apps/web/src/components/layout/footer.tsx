@@ -2,10 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { siGithub } from "simple-icons";
 
 import { COMMIT_HASH } from "@/lib/env";
+import { cn } from "@/lib/utils";
 
-export function Footer() {
+export function Footer({ className }: { className?: string }) {
   return (
-    <footer className="text-2xs text-muted-foreground/60 mx-auto p-4 text-center">
+    <footer className={cn("text-2xs text-muted-foreground/60 mx-auto text-center", className)}>
       <p>
         <Link to="/legal-notice" className="hover:text-muted-foreground">
           Legal Notice
