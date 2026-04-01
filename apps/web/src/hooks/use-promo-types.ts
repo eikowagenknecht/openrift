@@ -41,16 +41,6 @@ export function useUpdatePromoType() {
   });
 }
 
-export function useReorderPromoTypes() {
-  return useMutationWithInvalidation({
-    mutationFn: async (ids: string[]) => {
-      const res = await client.api.v1.admin["promo-types"].reorder.$put({ json: { ids } });
-      assertOk(res);
-    },
-    invalidates: [queryKeys.admin.promoTypes],
-  });
-}
-
 export function useDeletePromoType() {
   return useMutationWithInvalidation({
     mutationFn: async (id: string) => {
