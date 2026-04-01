@@ -1,7 +1,7 @@
 import type { DeckZone } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftIcon, PencilIcon } from "lucide-react";
-import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
+import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 
 import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
@@ -96,23 +96,55 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
   );
 }
 
-// Parsers for the filter keys we need to set atomically
+// Parsers for all filter keys so zone switches clear stale params
 const zoneFilterParsers = {
+  search: parseAsString.withDefault(""),
+  sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
+  rarities: parseAsArrayOf(parseAsString, ",").withDefault([]),
   types: parseAsArrayOf(parseAsString, ",").withDefault([]),
   superTypes: parseAsArrayOf(parseAsString, ",").withDefault([]),
   domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  search: parseAsString.withDefault(""),
+  artVariants: parseAsArrayOf(parseAsString, ",").withDefault([]),
+  finishes: parseAsArrayOf(parseAsString, ",").withDefault([]),
+  energyMin: parseAsInteger,
+  energyMax: parseAsInteger,
+  mightMin: parseAsInteger,
+  mightMax: parseAsInteger,
+  powerMin: parseAsInteger,
+  powerMax: parseAsInteger,
+  priceMin: parseAsFloat,
+  priceMax: parseAsFloat,
+  signed: parseAsString,
+  promo: parseAsString,
+  banned: parseAsString,
+  errata: parseAsString,
 };
 
 function buildZoneFilterUpdate(
   zone: DeckZone,
   deckCards: DeckBuilderCard[],
 ): Record<string, string[] | string | null> {
-  const cleared: Record<string, string[] | string | null> = {
+  const cleared: Record<string, string[] | string | number | null> = {
+    search: null,
+    sets: null,
+    rarities: null,
     types: null,
     superTypes: null,
     domains: null,
-    search: null,
+    artVariants: null,
+    finishes: null,
+    energyMin: null,
+    energyMax: null,
+    mightMin: null,
+    mightMax: null,
+    powerMin: null,
+    powerMax: null,
+    priceMin: null,
+    priceMax: null,
+    signed: null,
+    promo: null,
+    banned: null,
+    errata: null,
   };
 
   const legend = deckCards.find((card) => card.zone === "legend");
@@ -250,10 +282,26 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
   useEffect(
     () => () => {
       void setZoneFiltersRef.current({
+        search: null,
+        sets: null,
+        rarities: null,
         types: null,
         superTypes: null,
         domains: null,
-        search: null,
+        artVariants: null,
+        finishes: null,
+        energyMin: null,
+        energyMax: null,
+        mightMin: null,
+        mightMax: null,
+        powerMin: null,
+        powerMax: null,
+        priceMin: null,
+        priceMax: null,
+        signed: null,
+        promo: null,
+        banned: null,
+        errata: null,
       });
       reset();
     },
