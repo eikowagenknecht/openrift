@@ -145,10 +145,9 @@ const INLINE_PROPS = [
   "line-height",
   "letter-spacing",
   "text-transform",
-  "color",
-  "background",
-  "background-color",
-  "background-image",
+  // Note: color, background, background-color, background-image are intentionally excluded.
+  // Modern browsers compute these in oklch() which html2canvas 1.4.1 can't parse.
+  // These properties don't use cqw units, so they don't need re-inlining.
   "padding",
   "padding-top",
   "padding-right",
@@ -172,15 +171,12 @@ const INLINE_PROPS = [
   "justify-content",
   "border",
   "border-radius",
-  "border-color",
   "border-width",
   "overflow",
   "opacity",
   "transform",
   "clip-path",
   "aspect-ratio",
-  "box-shadow",
-  "ring",
   "text-align",
   "white-space",
   "vertical-align",
@@ -196,6 +192,11 @@ function inlineComputedStyles(element: Element): void {
   }
   const computed = getComputedStyle(element);
   for (const prop of INLINE_PROPS) {
+    // Skip properties already set inline (e.g. React's getDomainGradientStyle uses hex
+    // colors; the computed version might use oklch() which html2canvas can't parse)
+    if (element.style.getPropertyValue(prop)) {
+      continue;
+    }
     const value = computed.getPropertyValue(prop);
     if (value) {
       element.style.setProperty(prop, value);
