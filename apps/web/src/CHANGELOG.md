@@ -2,6 +2,7 @@
 
 ## 2026-04-01
 
+- feat: Export any deck as a printable proxy PDF with card images or text placeholders, optional cut lines and watermark
 - feat: Buttons now have a subtle press-down effect, and keyboard shortcut hints in tooltips look sharper
 - feat: Deck overview now shows a visual card grid with legend and champion art previews, domain icons, card type breakdown, and validity badges
 - feat: Sort and group direction can now be toggled with a small arrow icon next to each section header in the sort/group popover
