@@ -78,12 +78,17 @@ function resolveProxyCards(deckCards: DeckBuilderCard[], catalog: CatalogRespons
 const RENDER_WIDTH_PX = 504; // 63mm * 8px/mm
 const RENDER_HEIGHT_PX = 704; // 88mm * 8px/mm
 
+interface RenderedCard {
+  dataUrl: string;
+  rotated: boolean;
+}
+
 /**
  * Loads an image URL and converts it to a portrait-oriented PNG data URL via canvas.
  * Detects landscape images (wider than tall) and rotates them -90° to fit portrait slots.
- * @returns PNG data URL string.
+ * @returns Rendered card with data URL and rotation flag.
  */
-async function loadImageAsDataUrl(url: string): Promise<string> {
+async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -112,15 +117,15 @@ async function loadImageAsDataUrl(url: string): Promise<string> {
     ctx.drawImage(img, 0, 0, RENDER_WIDTH_PX, RENDER_HEIGHT_PX);
   }
 
-  return canvas.toDataURL("image/png");
+  return { dataUrl: canvas.toDataURL("image/png"), rotated: isLandscape };
 }
 
 /**
  * Renders a CardPlaceholderImage (light variant) to a PNG data URL via html2canvas.
  * Uses a visible but clipped container so stylesheets apply correctly.
- * @returns PNG data URL string.
+ * @returns Rendered card with data URL (never rotated — placeholders are always portrait).
  */
-async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<string> {
+async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<RenderedCard> {
   // Create a container that's visible to the rendering engine (so styles apply)
   // but clipped so it's not visible to the user
   const container = document.createElement("div");
@@ -180,36 +185,54 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<string>
   const dataUrl = canvas.toDataURL("image/png");
   root.unmount();
   container.remove();
-  return dataUrl;
+  return { dataUrl, rotated: false };
 }
 
 /**
- * Draws a "PROXY" pill badge centered at the top of a card slot.
+ * Draws a "PROXY" pill badge at the top of a card slot.
+ * For rotated (landscape) cards, the pill is placed along the right edge
+ * (which is the visual top after rotation) and rotated -90°.
  */
-function drawWatermark(doc: jsPDF, slotX: number, slotY: number): void {
+function drawWatermark(doc: jsPDF, slotX: number, slotY: number, rotated: boolean): void {
   const label = "PROXY";
   const fontSize = 7;
   const paddingX = 3;
   const paddingY = 1.2;
-  const topOffset = 2.5;
+  const edgeOffset = 2.5;
 
   doc.setFontSize(fontSize);
   const textWidth = doc.getTextWidth(label);
   const pillWidth = textWidth + paddingX * 2;
   const pillHeight = fontSize * 0.35 + paddingY * 2;
-  const pillX = slotX + (CARD_WIDTH_MM - pillWidth) / 2;
-  const pillY = slotY + topOffset;
 
-  // Pill background
-  doc.setFillColor(0, 0, 0);
-  doc.roundedRect(pillX, pillY, pillWidth, pillHeight, 1.5, 1.5, "F");
+  if (rotated) {
+    // Card image was rotated -90° so visual top is at the right edge of the slot.
+    // Draw a vertical pill along the right edge with text rotated 90°.
+    const vertPillX = slotX + CARD_WIDTH_MM - edgeOffset - pillHeight;
+    const vertPillY = slotY + (CARD_HEIGHT_MM - pillWidth) / 2;
 
-  // Label text
-  doc.setTextColor(255, 255, 255);
-  doc.text(label, pillX + pillWidth / 2, pillY + pillHeight / 2, {
-    align: "center",
-    baseline: "middle",
-  });
+    doc.setFillColor(0, 0, 0);
+    doc.roundedRect(vertPillX, vertPillY, pillHeight, pillWidth, 1.5, 1.5, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.text(label, vertPillX + pillHeight / 2, vertPillY + pillWidth / 2, {
+      align: "center",
+      baseline: "middle",
+      angle: 90,
+    });
+  } else {
+    const pillX = slotX + (CARD_WIDTH_MM - pillWidth) / 2;
+    const pillY = slotY + edgeOffset;
+
+    doc.setFillColor(0, 0, 0);
+    doc.roundedRect(pillX, pillY, pillWidth, pillHeight, 1.5, 1.5, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.text(label, pillX + pillWidth / 2, pillY + pillHeight / 2, {
+      align: "center",
+      baseline: "middle",
+    });
+  }
 }
 
 /**
@@ -259,7 +282,7 @@ async function prerenderCards(
   proxyCards: ProxyCard[],
   renderMode: ProxyRenderMode,
   onProgress?: (current: number, total: number) => void,
-): Promise<Map<string, string>> {
+): Promise<Map<string, RenderedCard>> {
   const uniqueCards = new Map<string, ProxyCard>();
   for (const proxyCard of proxyCards) {
     if (!uniqueCards.has(proxyCard.cardId)) {
@@ -267,7 +290,7 @@ async function prerenderCards(
     }
   }
 
-  const rendered = new Map<string, string>();
+  const rendered = new Map<string, RenderedCard>();
   let completed = 0;
   const total = uniqueCards.size;
 
@@ -340,16 +363,16 @@ export async function generateProxyPdf(
       const slotY = marginY + row * CARD_HEIGHT_MM;
 
       const proxyCard = proxyCards[cardIdx];
-      const dataUrl = renderedCards.get(proxyCard.cardId);
+      const rendered = renderedCards.get(proxyCard.cardId);
 
-      if (dataUrl) {
-        doc.addImage(dataUrl, "PNG", slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
+      if (rendered) {
+        doc.addImage(rendered.dataUrl, "PNG", slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
       } else {
         drawFallbackCard(doc, proxyCard.name, slotX, slotY);
       }
 
       if (options.watermark) {
-        drawWatermark(doc, slotX, slotY);
+        drawWatermark(doc, slotX, slotY, rendered?.rotated ?? false);
       }
     }
   }
