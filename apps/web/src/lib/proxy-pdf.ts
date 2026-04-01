@@ -1,5 +1,4 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
-import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -121,25 +120,47 @@ async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
 }
 
 /**
- * Renders a CardPlaceholderImage (light variant) to a PNG data URL via html2canvas.
- * Uses a visible but clipped container so stylesheets apply correctly.
+ * Collects all stylesheet rules from the document into a single string.
+ * Cached after first call since stylesheets don't change during generation.
+ * @returns CSS text to inline in an SVG foreignObject.
+ */
+let cachedStyles: string | null = null;
+function collectStyles(): string {
+  if (cachedStyles) {
+    return cachedStyles;
+  }
+  const parts: string[] = [];
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        parts.push(rule.cssText);
+      }
+    } catch {
+      // Cross-origin stylesheets can't be read — skip them
+    }
+  }
+  cachedStyles = parts.join("\n");
+  return cachedStyles;
+}
+
+/**
+ * Renders a CardPlaceholderImage (light variant) to a PNG data URL.
+ * Renders the React component into the real DOM, serializes to an SVG foreignObject
+ * with inlined styles so container queries and Tailwind classes work, then draws
+ * the SVG to a canvas.
  * @returns Rendered card with data URL (never rotated — placeholders are always portrait).
  */
 async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<RenderedCard> {
-  // Create a container that's visible to the rendering engine (so styles apply)
-  // but clipped so it's not visible to the user
+  // Render React component into a real DOM element so container queries work
   const container = document.createElement("div");
   container.style.cssText = `
     position: fixed;
     left: 0;
     top: 0;
     width: ${RENDER_WIDTH_PX}px;
-    height: ${RENDER_HEIGHT_PX}px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    clip-path: inset(50%);
     pointer-events: none;
     z-index: -9999;
+    opacity: 0;
   `;
   document.body.append(container);
 
@@ -164,25 +185,64 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
         variant: "light",
       }),
     );
-    // Wait two frames: one for React to commit, one for browser to compute styles
+    // Wait for React to commit and browser to compute styles (including container queries)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => resolve());
     });
   });
 
-  // Temporarily make visible for html2canvas (it needs computed styles)
-  container.style.clip = "auto";
-  container.style.clipPath = "none";
+  // Make visible momentarily so getComputedStyle works for the screenshot
+  container.style.opacity = "1";
 
-  const canvas = await html2canvas(container, {
-    width: RENDER_WIDTH_PX,
-    height: RENDER_HEIGHT_PX,
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
+  // Get the rendered card element's HTML
+  const cardElement = container.firstElementChild as HTMLElement;
+  const cardWidth = cardElement.offsetWidth;
+  const cardHeight = cardElement.offsetHeight;
+
+  // Serialize to XML-safe HTML
+  const serializer = new XMLSerializer();
+  const html = serializer.serializeToString(cardElement);
+  const styles = collectStyles();
+
+  // Build SVG with foreignObject containing the rendered HTML + all page styles
+  const svgString = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${cardWidth}" height="${cardHeight}">
+      <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <style>${styles}</style>
+          ${html}
+        </div>
+      </foreignObject>
+    </svg>
+  `;
+
+  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  // Draw SVG to canvas
+  // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const img = new Image();
+    img.addEventListener("load", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = cardWidth * 2; // 2x for sharper print
+      canvas.height = cardHeight * 2;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Failed to get canvas 2d context"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(svgUrl);
+      resolve(canvas.toDataURL("image/png"));
+    });
+    img.addEventListener("error", (event) => {
+      URL.revokeObjectURL(svgUrl);
+      reject(event);
+    });
+    img.src = svgUrl;
   });
 
-  const dataUrl = canvas.toDataURL("image/png");
   root.unmount();
   container.remove();
   return { dataUrl, rotated: false };
