@@ -75,7 +75,7 @@ export function DeckExportDialog({
           </p>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           {exportDeck.isPending ? (
             <div className="flex items-center justify-center py-8">
               <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
