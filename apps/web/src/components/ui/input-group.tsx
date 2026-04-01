@@ -56,6 +56,7 @@ function InputGroupAddon({
       className={cn(inputGroupAddonVariants({ align }), className)}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("button, select")) {
+          // custom: added "select" — native <select> inside the addon (e.g. calendar dropdown) loses its open dropdown when focus is stolen
           return;
         }
         e.currentTarget.parentElement?.querySelector("input")?.focus();
