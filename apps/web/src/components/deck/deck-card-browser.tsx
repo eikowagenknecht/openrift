@@ -1,5 +1,5 @@
 import type { CardType, DeckZone, Printing, SuperType } from "@openrift/shared";
-import { useDeferredValue } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -71,6 +71,27 @@ export function DeckCardBrowser() {
       : undefined;
   const zoneConfig = ZONE_FILTER_CONFIG[activeZone];
   const hiddenSections = zoneConfig?.hiddenSections;
+
+  // Track Shift key for "add max" visual hint
+  const [shiftHeld, setShiftHeld] = useState(false);
+  useEffect(() => {
+    const down = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setShiftHeld(true);
+      }
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setShiftHeld(false);
+      }
+    };
+    globalThis.addEventListener("keydown", down);
+    globalThis.addEventListener("keyup", up);
+    return () => {
+      globalThis.removeEventListener("keydown", down);
+      globalThis.removeEventListener("keyup", up);
+    };
+  }, []);
 
   // Merge zone-forced filters into URL filters
   const filters = {
@@ -146,7 +167,7 @@ export function DeckCardBrowser() {
     useSelectionStore.getState().selectCard(printing, items, findBy);
   };
 
-  const handleQuickAdd = (printing: Printing) => {
+  const handleQuickAdd = (printing: Printing, event?: React.MouseEvent) => {
     const builderCard = catalogCardToDeckBuilderCard(printing.card);
 
     if (activeZone === "legend") {
@@ -171,13 +192,28 @@ export function DeckCardBrowser() {
       }
       setLegend(builderCard, runesByDomain);
     } else {
-      addCard(builderCard, activeZone);
+      // Shift+click adds up to the zone maximum in one action
+      const count = event?.shiftKey ? 3 : undefined;
+      addCard(builderCard, activeZone, count);
     }
   };
 
-  const handleRemove = (printing: Printing) => {
-    // Remove from the active zone first, then try other zones
+  const setQuantity = useDeckBuilderStore((state) => state.setQuantity);
+
+  const handleRemove = (printing: Printing, event?: React.MouseEvent) => {
     const cardId = printing.card.id;
+
+    // Shift+click removes all copies across all zones
+    if (event?.shiftKey) {
+      for (const card of deckCards) {
+        if (card.cardId === cardId) {
+          setQuantity(cardId, card.zone, 0);
+        }
+      }
+      return;
+    }
+
+    // Remove from the active zone first, then try other zones
     const inActiveZone = deckCards.find(
       (card) => card.cardId === cardId && card.zone === activeZone,
     );
@@ -250,6 +286,8 @@ export function DeckCardBrowser() {
             deckQuantity={deckQty}
             maxReached={isMaxReached(cardId)}
             addLabel={addLabel}
+            shiftHeld={shiftHeld}
+            remainingCount={3 - (copyLimitTotalByCard.get(cardId) ?? 0)}
             onQuickAdd={handleQuickAdd}
             onRemove={handleRemove}
           />
