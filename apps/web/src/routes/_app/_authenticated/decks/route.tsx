@@ -1,12 +1,10 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { Footer } from "@/components/layout/footer";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 
 export const Route = createFileRoute("/_app/_authenticated/decks")({
-  staticData: { hideFooter: true },
   beforeLoad: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,
@@ -25,7 +23,6 @@ function DecksLayout() {
       <div className="flex-1">
         <Outlet />
       </div>
-      <Footer className="p-3" />
     </div>
   );
 }

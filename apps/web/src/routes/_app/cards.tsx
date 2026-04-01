@@ -2,14 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { CardBrowser } from "@/components/card-browser";
 import { RouteErrorFallback } from "@/components/error-message";
-import { Footer } from "@/components/layout/footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/cards")({
-  staticData: { hideFooter: true },
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
   component: CardsPage,
   pendingComponent: CardsPending,
@@ -19,12 +17,9 @@ export const Route = createFileRoute("/_app/cards")({
 function CardsPage() {
   useHideScrollbar();
   return (
-    <>
-      <div className={`flex flex-1 flex-col ${PAGE_PADDING}`}>
-        <CardBrowser />
-      </div>
-      <Footer className="pt-3" />
-    </>
+    <div className={`flex flex-1 flex-col ${PAGE_PADDING}`}>
+      <CardBrowser />
+    </div>
   );
 }
 
