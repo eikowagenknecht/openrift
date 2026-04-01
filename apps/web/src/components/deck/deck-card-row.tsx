@@ -5,6 +5,7 @@ import { AlertTriangleIcon, GripVerticalIcon, MinusIcon, PlusIcon, XIcon } from 
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -21,8 +22,9 @@ interface DeckCardRowProps {
   dimmed?: boolean;
   controlMode?: ControlMode;
   draggable?: boolean;
-  onIncrement?: () => void;
-  onDecrement?: () => void;
+  shiftHeld?: boolean;
+  onIncrement?: (event: React.MouseEvent) => void;
+  onDecrement?: (event: React.MouseEvent) => void;
   onRemove?: () => void;
   onClick?: () => void;
 }
@@ -36,14 +38,16 @@ function DomainDot({ domain }: { domain: string }) {
 function CardControls({
   controlMode,
   quantity,
+  shiftHeld,
   onIncrement,
   onDecrement,
   onRemove,
 }: {
   controlMode: ControlMode;
   quantity: number;
-  onIncrement?: () => void;
-  onDecrement?: () => void;
+  shiftHeld?: boolean;
+  onIncrement?: (event: React.MouseEvent) => void;
+  onDecrement?: (event: React.MouseEvent) => void;
   onRemove?: () => void;
 }) {
   if (controlMode === "none") {
@@ -69,25 +73,31 @@ function CardControls({
   return (
     <span className="flex shrink-0 items-center gap-1">
       <Button
-        variant="ghost"
+        variant={shiftHeld && quantity > 1 ? "destructive" : "ghost"}
         size="icon-sm"
         className="size-5"
+        title="Shift+click to remove all"
         onClick={(event) => {
           event.stopPropagation();
-          onDecrement?.();
+          onDecrement?.(event);
         }}
         disabled={!onDecrement}
       >
-        <MinusIcon className="size-3" />
+        {shiftHeld && quantity > 1 ? (
+          <span className="text-[10px] leading-none font-semibold">-{quantity}</span>
+        ) : (
+          <MinusIcon className="size-3" />
+        )}
       </Button>
       <span className="w-4 text-center text-xs font-medium">{quantity}</span>
       <Button
-        variant="ghost"
+        variant={shiftHeld && onIncrement ? "default" : "ghost"}
         size="icon-sm"
         className="size-5"
+        title="Shift+click to add max"
         onClick={(event) => {
           event.stopPropagation();
-          onIncrement?.();
+          onIncrement?.(event);
         }}
         disabled={!onIncrement}
       >
@@ -104,6 +114,7 @@ export function DeckCardRow({
   dimmed,
   controlMode = "quantity",
   draggable,
+  shiftHeld,
   onIncrement,
   onDecrement,
   onRemove,
@@ -142,9 +153,12 @@ export function DeckCardRow({
       )}
 
       {hasViolation && (
-        <span title={violationMessage} className="shrink-0">
-          <AlertTriangleIcon className="text-destructive size-3.5" />
-        </span>
+        <Tooltip>
+          <TooltipTrigger className="shrink-0">
+            <AlertTriangleIcon className="text-destructive size-3.5" />
+          </TooltipTrigger>
+          {violationMessage && <TooltipContent>{violationMessage}</TooltipContent>}
+        </Tooltip>
       )}
 
       <img
@@ -164,6 +178,7 @@ export function DeckCardRow({
       <CardControls
         controlMode={controlMode}
         quantity={displayQuantity}
+        shiftHeld={shiftHeld}
         onIncrement={onIncrement}
         onDecrement={onDecrement}
         onRemove={onRemove}

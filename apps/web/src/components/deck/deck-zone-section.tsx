@@ -1,15 +1,26 @@
-import { useDroppable } from "@dnd-kit/core";
+import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
-import { AlertTriangleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  BanIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+} from "lucide-react";
 import { useState } from "react";
 
 import { DeckCardRow } from "@/components/deck/deck-card-row";
-import type { DeckDropData } from "@/components/deck/deck-dnd-context";
+import type {
+  BrowserCardDragData,
+  DeckCardDragData,
+  DeckDropData,
+} from "@/components/deck/deck-dnd-context";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { useDeckBuilderStore } from "@/stores/deck-builder-store";
+import { isCardAllowedInZone, useDeckBuilderStore } from "@/stores/deck-builder-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 const ZONE_LABELS: Record<DeckZone, string> = {
@@ -50,6 +61,7 @@ interface DeckZoneSectionProps {
   cards: DeckBuilderCard[];
   violations: DeckViolation[];
   isActive: boolean;
+  shiftHeld?: boolean;
   onActivate: () => void;
 }
 
@@ -58,26 +70,69 @@ export function DeckZoneSection({
   cards,
   violations,
   isActive,
+  shiftHeld,
   onActivate,
 }: DeckZoneSectionProps) {
   const [open, setOpen] = useState(true);
   const removeCard = useDeckBuilderStore((state) => state.removeCard);
   const addCard = useDeckBuilderStore((state) => state.addCard);
+  const setQuantity = useDeckBuilderStore((state) => state.setQuantity);
   const allCards = useDeckBuilderStore((state) => state.cards);
   const { allPrintings } = useCards();
+
+  // Check if the currently dragged card is allowed in this zone
+  const { active } = useDndContext();
+  const dragData = active?.data.current as DeckCardDragData | BrowserCardDragData | undefined;
+  const draggedCard =
+    dragData?.type === "browser-card"
+      ? dragData.card
+      : dragData?.type === "deck-card"
+        ? allCards.find(
+            (card) => card.cardId === dragData.cardId && card.zone === dragData.fromZone,
+          )
+        : undefined;
+  const isDragging = active !== null;
+
+  // Cross-zone copy totals — champion zone counts toward the 3-copy limit too
+  const copyLimitZones = new Set(["main", "sideboard", "overflow", "champion"]);
+  const crossZoneTotal = (cardId: string) =>
+    allCards
+      .filter((entry) => entry.cardId === cardId && copyLimitZones.has(entry.zone))
+      .reduce((sum, entry) => sum + entry.quantity, 0);
+
+  // Determine if this zone should reject the currently dragged card
+  const isZoneFull = (() => {
+    if (!isDragging || !draggedCard) {
+      return false;
+    }
+    if (copyLimitZones.has(zone) && crossZoneTotal(draggedCard.cardId) >= 3) {
+      return true;
+    }
+    if (zone === "battlefield") {
+      return allCards.some(
+        (card) => card.cardId === draggedCard.cardId && card.zone === "battlefield",
+      );
+    }
+    if (zone === "runes") {
+      const runeTotal = allCards
+        .filter((card) => card.zone === "runes")
+        .reduce((sum, card) => sum + card.quantity, 0);
+      return runeTotal >= 12;
+    }
+    return false;
+  })();
+
+  const dropDisabled =
+    isDragging &&
+    draggedCard !== undefined &&
+    (!isCardAllowedInZone(draggedCard, zone) || isZoneFull);
 
   const dropData: DeckDropData = { type: "deck-zone", zone };
   const { setNodeRef: dropRef, isOver } = useDroppable({
     id: `deck-zone-${zone}`,
     data: dropData,
+    disabled: dropDisabled,
   });
-
-  // Cross-zone copy totals for main/sideboard/overflow
-  const copyLimitZones = new Set(["main", "sideboard", "overflow"]);
-  const crossZoneTotal = (cardId: string) =>
-    allCards
-      .filter((entry) => entry.cardId === cardId && copyLimitZones.has(entry.zone))
-      .reduce((sum, entry) => sum + entry.quantity, 0);
 
   const handleCardClick = (card: DeckBuilderCard) => {
     const match = allPrintings.find((entry) => entry.card.id === card.cardId);
@@ -115,9 +170,10 @@ export function DeckZoneSection({
     <div
       ref={dropRef}
       className={cn(
-        "overflow-hidden rounded-lg border",
+        "overflow-hidden rounded-lg border transition-opacity",
         isActive && !activeTintStyle && "bg-primary/10",
-        isOver && "ring-primary/60 ring-2",
+        isOver && !dropDisabled && "ring-primary/60 ring-2",
+        dropDisabled && "opacity-40",
       )}
       style={activeTintStyle}
     >
@@ -140,8 +196,17 @@ export function DeckZoneSection({
         >
           <span className={cn("flex items-center gap-1", isActive && "font-bold")}>
             {ZONE_LABELS[zone]}
-            {hasZoneViolations ? (
-              <AlertTriangleIcon className="text-destructive size-3.5" />
+            {dropDisabled ? (
+              <BanIcon className="text-muted-foreground size-3.5" />
+            ) : hasZoneViolations ? (
+              <Tooltip>
+                <TooltipTrigger>
+                  <AlertTriangleIcon className="text-destructive size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {zoneViolations.map((violation) => violation.message).join(". ")}
+                </TooltipContent>
+              </Tooltip>
             ) : cards.length > 0 || zone === "overflow" || zone === "sideboard" ? (
               <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
             ) : null}
@@ -166,12 +231,19 @@ export function DeckZoneSection({
                 violationMessage={cardViolations.get(card.cardId)}
                 controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
                 draggable={DRAG_ZONES.has(zone)}
+                shiftHeld={zone === "runes" ? undefined : shiftHeld}
                 onIncrement={
                   copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3
                     ? undefined
-                    : () => addCard(card, zone)
+                    : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
                 }
-                onDecrement={() => removeCard(card.cardId, zone)}
+                onDecrement={(event) => {
+                  if (event.shiftKey) {
+                    setQuantity(card.cardId, zone, 0);
+                  } else {
+                    removeCard(card.cardId, zone);
+                  }
+                }}
                 onRemove={() => removeCard(card.cardId, zone)}
                 onClick={() => handleCardClick(card)}
               />
