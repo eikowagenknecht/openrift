@@ -58,7 +58,14 @@ export function DeckCardBrowser() {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  const { filters: urlFilters, sortBy, sortDir, hasActiveFilters } = useFilterValues();
+  const {
+    filters: urlFilters,
+    sortBy,
+    sortDir,
+    groupBy,
+    groupDir,
+    hasActiveFilters,
+  } = useFilterValues();
   const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const addCard = useDeckBuilderStore((state) => state.addCard);
@@ -353,6 +360,8 @@ export function DeckCardBrowser() {
       deferredSortedCards={deferredSortedCards}
       printingsByCardId={printingsByCardId}
       view={view}
+      groupBy={groupBy}
+      groupDir={groupDir}
       onItemClick={handleCardClick}
       stale={isGridStale}
       toolbar={toolbar}
