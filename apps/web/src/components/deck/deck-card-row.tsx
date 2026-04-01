@@ -73,41 +73,45 @@ function CardControls({
   return (
     <span className="flex shrink-0 items-center gap-1">
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={shiftHeld && quantity > 1 ? "destructive" : "ghost"}
-            size="icon-sm"
-            className="size-5"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDecrement?.(event);
-            }}
-            disabled={!onDecrement}
-          >
-            {shiftHeld && quantity > 1 ? (
-              <span className="text-[10px] leading-none font-semibold">-{quantity}</span>
-            ) : (
-              <MinusIcon className="size-3" />
-            )}
-          </Button>
+        <TooltipTrigger
+          render={
+            <Button
+              variant={shiftHeld && quantity > 1 ? "destructive" : "ghost"}
+              size="icon-sm"
+              className="size-5"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDecrement?.(event);
+              }}
+              disabled={!onDecrement}
+            />
+          }
+        >
+          {shiftHeld && quantity > 1 ? (
+            <span className="text-[10px] leading-none font-semibold">-{quantity}</span>
+          ) : (
+            <MinusIcon className="size-3" />
+          )}
         </TooltipTrigger>
         <TooltipContent>Shift+click to remove all</TooltipContent>
       </Tooltip>
       <span className="w-4 text-center text-xs font-medium">{quantity}</span>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={shiftHeld && onIncrement ? "default" : "ghost"}
-            size="icon-sm"
-            className="size-5"
-            onClick={(event) => {
-              event.stopPropagation();
-              onIncrement?.(event);
-            }}
-            disabled={!onIncrement}
-          >
-            <PlusIcon className="size-3" />
-          </Button>
+        <TooltipTrigger
+          render={
+            <Button
+              variant={shiftHeld && onIncrement ? "default" : "ghost"}
+              size="icon-sm"
+              className="size-5"
+              onClick={(event) => {
+                event.stopPropagation();
+                onIncrement?.(event);
+              }}
+              disabled={!onIncrement}
+            />
+          }
+        >
+          <PlusIcon className="size-3" />
         </TooltipTrigger>
         <TooltipContent>Shift+click to add max</TooltipContent>
       </Tooltip>

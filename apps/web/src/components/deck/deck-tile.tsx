@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCloneDeck, useDeleteDeck } from "@/hooks/use-decks";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
@@ -41,7 +42,12 @@ function DomainIcon({ domain }: { domain: string }) {
   const lower = domain.toLowerCase();
   const ext = domain === COLORLESS_DOMAIN ? "svg" : "webp";
   return (
-    <img src={`/images/domains/${lower}.${ext}`} alt={domain} title={domain} className="size-6" />
+    <Tooltip>
+      <TooltipTrigger>
+        <img src={`/images/domains/${lower}.${ext}`} alt={domain} className="size-6" />
+      </TooltipTrigger>
+      <TooltipContent>{domain}</TooltipContent>
+    </Tooltip>
   );
 }
 

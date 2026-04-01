@@ -51,24 +51,35 @@ export function CardMetaLabel({
       <div className="text-muted-foreground flex min-h-4 items-center justify-between gap-1 text-xs">
         <span className="truncate font-medium">{shortCode}</span>
         <span className="flex shrink-0 items-center gap-1">
-          <img
-            src={getTypeIconPath(type, superTypes)}
-            alt={typeLabel}
-            title={typeLabel}
-            className="size-3.5 brightness-0 dark:invert"
-          />
-          <img
-            src={`/images/rarities/${rarity.toLowerCase()}-28x28.webp`}
-            alt={rarity}
-            title={rarity}
-            width={28}
-            height={28}
-            className="size-3.5"
-          />
+          <Tooltip>
+            <TooltipTrigger>
+              <img
+                src={getTypeIconPath(type, superTypes)}
+                alt={typeLabel}
+                className="size-3.5 brightness-0 dark:invert"
+              />
+            </TooltipTrigger>
+            <TooltipContent>{typeLabel}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <img
+                src={`/images/rarities/${rarity.toLowerCase()}-28x28.webp`}
+                alt={rarity}
+                width={28}
+                height={28}
+                className="size-3.5"
+              />
+            </TooltipTrigger>
+            <TooltipContent>{rarity}</TooltipContent>
+          </Tooltip>
           {isFoil && (
-            <span title="Foil">
-              <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
-            </span>
+            <Tooltip>
+              <TooltipTrigger>
+                <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
+              </TooltipTrigger>
+              <TooltipContent>Foil</TooltipContent>
+            </Tooltip>
           )}
           {bans && bans.length > 0 && (
             <Tooltip>
