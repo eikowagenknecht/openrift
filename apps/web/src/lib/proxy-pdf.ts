@@ -189,50 +189,76 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
 }
 
 /**
- * Draws a "PROXY" pill badge at the top of a card slot.
- * For rotated (landscape) cards, the pill is placed along the right edge
- * (which is the visual top after rotation) and rotated -90°.
+ * Loads the OpenRift logo as a PNG data URL for embedding in the PDF.
+ * Cached after first call.
+ * @returns PNG data URL of the logo.
  */
-function drawWatermark(doc: jsPDF, slotX: number, slotY: number, rotated: boolean): void {
+let cachedLogoDataUrl: string | null = null;
+async function loadLogoDataUrl(): Promise<string> {
+  if (cachedLogoDataUrl) {
+    return cachedLogoDataUrl;
+  }
+
+  // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", reject);
+    image.src = "/logo-64x64.webp";
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Failed to get canvas 2d context");
+  }
+  ctx.drawImage(img, 0, 0);
+  cachedLogoDataUrl = canvas.toDataURL("image/png");
+  return cachedLogoDataUrl;
+}
+
+/**
+ * Draws a "PROXY" pill badge with OpenRift logo centered at the top of a card slot.
+ * Always horizontal — overlays the card image regardless of orientation.
+ */
+async function drawWatermark(doc: jsPDF, slotX: number, slotY: number): Promise<void> {
   const label = "PROXY";
   const fontSize = 7;
-  const paddingX = 3;
+  const paddingX = 2.5;
   const paddingY = 1.2;
-  const edgeOffset = 2.5;
+  const topOffset = 2.5;
+  const logoSize = fontSize * 0.35 + paddingY; // Match pill inner height roughly
+  const logoGap = 1;
 
   doc.setFontSize(fontSize);
   const textWidth = doc.getTextWidth(label);
-  const pillWidth = textWidth + paddingX * 2;
+  const pillWidth = paddingX + logoSize + logoGap + textWidth + paddingX;
   const pillHeight = fontSize * 0.35 + paddingY * 2;
+  const pillX = slotX + (CARD_WIDTH_MM - pillWidth) / 2;
+  const pillY = slotY + topOffset;
 
-  if (rotated) {
-    // Card image was rotated -90° so visual top is at the LEFT edge of the slot.
-    // Draw a vertical pill along the left edge with text rotated -90°.
-    const vertPillX = slotX + edgeOffset;
-    const vertPillY = slotY + (CARD_HEIGHT_MM - pillWidth) / 2;
+  // Pill background
+  doc.setFillColor(0, 0, 0);
+  doc.roundedRect(pillX, pillY, pillWidth, pillHeight, 1.5, 1.5, "F");
 
-    doc.setFillColor(0, 0, 0);
-    doc.roundedRect(vertPillX, vertPillY, pillHeight, pillWidth, 1.5, 1.5, "F");
-
-    doc.setTextColor(255, 255, 255);
-    doc.text(label, vertPillX + pillHeight / 2, vertPillY + pillWidth / 2, {
-      align: "center",
-      baseline: "middle",
-      angle: -90,
-    });
-  } else {
-    const pillX = slotX + (CARD_WIDTH_MM - pillWidth) / 2;
-    const pillY = slotY + edgeOffset;
-
-    doc.setFillColor(0, 0, 0);
-    doc.roundedRect(pillX, pillY, pillWidth, pillHeight, 1.5, 1.5, "F");
-
-    doc.setTextColor(255, 255, 255);
-    doc.text(label, pillX + pillWidth / 2, pillY + pillHeight / 2, {
-      align: "center",
-      baseline: "middle",
-    });
+  // Logo
+  try {
+    const logoDataUrl = await loadLogoDataUrl();
+    const logoY = pillY + (pillHeight - logoSize) / 2;
+    doc.addImage(logoDataUrl, "PNG", pillX + paddingX, logoY, logoSize, logoSize);
+  } catch {
+    // Skip logo if it fails to load
   }
+
+  // Label text (offset right to account for logo)
+  const textX = pillX + paddingX + logoSize + logoGap + textWidth / 2;
+  doc.setTextColor(255, 255, 255);
+  doc.text(label, textX, pillY + pillHeight / 2, {
+    align: "center",
+    baseline: "middle",
+  });
 }
 
 /**
@@ -372,7 +398,7 @@ export async function generateProxyPdf(
       }
 
       if (options.watermark) {
-        drawWatermark(doc, slotX, slotY, rendered?.rotated ?? false);
+        await drawWatermark(doc, slotX, slotY);
       }
     }
   }
