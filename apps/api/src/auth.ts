@@ -97,6 +97,10 @@ export function createAuth(deps: {
     },
     account: {
       accountLinking: {
+        // Intentional: users may sign up with email then link a social provider
+        // whose email differs (e.g. personal Gmail vs work email). The user must
+        // already be authenticated to link an account, so this does not create an
+        // account-takeover vector.
         allowDifferentEmails: true,
       },
       fields: {

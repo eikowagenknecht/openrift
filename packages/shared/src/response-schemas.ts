@@ -398,7 +398,9 @@ export const wishListResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    rules: z.unknown(),
+    rules: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullable())
+      .nullable(),
     shareToken: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -432,7 +434,9 @@ export const tradeListResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    rules: z.unknown(),
+    rules: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullable())
+      .nullable(),
     shareToken: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),

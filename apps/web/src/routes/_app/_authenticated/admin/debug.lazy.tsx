@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
 
-export const Route = createLazyFileRoute("/_app/_authenticated/admin/settings")({
+export const Route = createLazyFileRoute("/_app/_authenticated/admin/debug")({
   component: SettingsPage,
 });
 

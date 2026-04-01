@@ -148,14 +148,19 @@ export const deckImportPreviewSchema = z.object({
 // Wish list schemas
 // ---------------------------------------------------------------------------
 
+/** Flat key-value map for wish/trade list filter rules. */
+const listRulesSchema = z
+  .record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullable())
+  .optional();
+
 export const createWishListSchema = z.object({
   name: z.string().min(1).max(200),
-  rules: z.unknown().optional(),
+  rules: listRulesSchema,
 });
 
 export const updateWishListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  rules: z.unknown().optional(),
+  rules: listRulesSchema,
 });
 
 export const createWishListItemSchema = z
@@ -174,12 +179,12 @@ export const updateWishListItemSchema = z.object({
 
 export const createTradeListSchema = z.object({
   name: z.string().min(1).max(200),
-  rules: z.unknown().optional(),
+  rules: listRulesSchema,
 });
 
 export const updateTradeListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  rules: z.unknown().optional(),
+  rules: listRulesSchema,
 });
 
 export const createTradeListItemSchema = z.object({
