@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Finish, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
-import { Sparkle } from "lucide-react";
+import { SparkleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
@@ -265,7 +265,7 @@ export const CardThumbnail = memo(function CardThumbnail({
               ))}
             {sibling.finish === ("foil" satisfies Finish) && gridFoil && <FoilOverlay active dim />}
             {sibling.finish === ("foil" satisfies Finish) && (
-              <Sparkle className="absolute top-1.5 right-1.5 z-20 size-4 fill-amber-400 text-amber-400 drop-shadow" />
+              <SparkleIcon className="absolute top-1.5 right-1.5 z-20 size-4 fill-amber-400 text-amber-400 drop-shadow" />
             )}
           </div>
         );

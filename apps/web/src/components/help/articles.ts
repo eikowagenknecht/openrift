@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowRightLeft, Layers, Library, Swords } from "lucide-react";
+import { ArrowRightLeftIcon, LayersIcon, LibraryIcon, SwordsIcon } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface HelpArticle {
@@ -18,7 +18,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       title: "Cards, Printings & Copies",
       description:
         "Understand the difference between a card, a printing, and a copy — and how they show up in the browser and your collection.",
-      icon: Layers,
+      icon: LayersIcon,
       component: () => import("./articles/cards-printings-copies"),
     },
   ],
@@ -29,7 +29,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       title: "Managing Your Collection",
       description:
         "Create collections, add cards, drag & drop between collections, and use bulk actions to stay organized.",
-      icon: Library,
+      icon: LibraryIcon,
       component: () => import("./articles/collections"),
     },
   ],
@@ -40,7 +40,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       title: "Importing & Exporting",
       description:
         "Bring cards in from other tools via CSV, review how matching works, and export your collection.",
-      icon: ArrowRightLeft,
+      icon: ArrowRightLeftIcon,
       component: () => import("./articles/import-export"),
     },
   ],
@@ -51,7 +51,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       title: "Building Decks",
       description:
         "Create decks, pick a legend, fill your zones, and validate against Standard format rules.",
-      icon: Swords,
+      icon: SwordsIcon,
       component: () => import("./articles/deck-building"),
     },
   ],

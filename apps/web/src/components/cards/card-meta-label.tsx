@@ -1,5 +1,5 @@
 import type { CardBan, CardType, Rarity } from "@openrift/shared";
-import { Sparkle, TriangleAlert } from "lucide-react";
+import { SparkleIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -67,13 +67,13 @@ export function CardMetaLabel({
           />
           {isFoil && (
             <span title="Foil">
-              <Sparkle className="size-3.5 fill-amber-400 text-amber-400" />
+              <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
             </span>
           )}
           {bans && bans.length > 0 && (
             <Tooltip>
               <TooltipTrigger className="cursor-default">
-                <TriangleAlert className="size-3.5 text-red-500" />
+                <TriangleAlertIcon className="size-3.5 text-red-500" />
               </TooltipTrigger>
               <TooltipContent>
                 Banned in {bans.map((b) => b.formatName).join(", ")}
@@ -84,7 +84,7 @@ export function CardMetaLabel({
           {hasRulesDeviation && (
             <Tooltip>
               <TooltipTrigger className="cursor-default">
-                <TriangleAlert className="size-3.5 text-yellow-500" />
+                <TriangleAlertIcon className="size-3.5 text-yellow-500" />
               </TooltipTrigger>
               <TooltipContent>Printed text differs from current rules</TooltipContent>
             </Tooltip>

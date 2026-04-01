@@ -1,4 +1,4 @@
-import { Copy, Heart } from "lucide-react";
+import { CopyIcon, HeartIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
 
@@ -204,7 +204,7 @@ export function SupportPage() {
           />
           <CopyButton
             label="Send a Carrier Pigeon"
-            icon={<Copy className="size-4" />}
+            icon={<CopyIcon className="size-4" />}
             text="Check out OpenRift — a free card browser for Riftbound! https://openrift.app"
           />
         </div>
@@ -245,7 +245,7 @@ export function SupportPage() {
         <p className="mt-2 font-medium">
           Built with Fury. Maintained with Calm. Funded by people like you.
         </p>
-        <Heart className="text-primary/40 mx-auto mt-4 size-5" />
+        <HeartIcon className="text-primary/40 mx-auto mt-4 size-5" />
       </section>
     </div>
   );

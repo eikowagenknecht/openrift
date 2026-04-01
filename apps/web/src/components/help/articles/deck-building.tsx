@@ -2,13 +2,13 @@ import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   CopyIcon,
-  GripVertical,
-  Layers,
-  MousePointerClick,
-  Plus,
-  Shuffle,
-  Swords,
-  Wand2,
+  GripVerticalIcon,
+  LayersIcon,
+  MousePointerClickIcon,
+  PlusIcon,
+  ShuffleIcon,
+  SwordsIcon,
+  Wand2Icon,
 } from "lucide-react";
 
 export default function DeckBuildingArticle() {
@@ -125,22 +125,22 @@ export default function DeckBuildingArticle() {
         <h2 className="mb-2 text-lg font-semibold">Adding cards</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={<Plus className="size-4" />}
+            icon={<PlusIcon className="size-4" />}
             title="Quick add"
             description='Click the + button on any card in the browser to add it to the active zone. Single-card zones like Legend and Champion show a "Choose" button instead. Cards you own show an owned count, so you can build with cards you actually have.'
           />
           <FeatureCard
-            icon={<GripVertical className="size-4" />}
+            icon={<GripVerticalIcon className="size-4" />}
             title="Drag & drop"
             description="Drag a card from the browser directly onto a zone in the sidebar. You can also drag cards between zones to reorganize."
           />
           <FeatureCard
-            icon={<MousePointerClick className="size-4" />}
+            icon={<MousePointerClickIcon className="size-4" />}
             title="Quantity controls"
             description="Once a card is in a zone, use the +/− buttons next to it to adjust the quantity. Maximum 3 copies per card across main, sideboard, and overflow."
           />
           <FeatureCard
-            icon={<Shuffle className="size-4" />}
+            icon={<ShuffleIcon className="size-4" />}
             title="Shift + drag"
             description="Hold Shift while dragging a multi-copy card to move all copies at once instead of just one."
           />
@@ -161,17 +161,17 @@ export default function DeckBuildingArticle() {
 
         <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
           <RuleRow
-            icon={<Swords className="size-3.5 text-amber-600 dark:text-amber-400" />}
+            icon={<SwordsIcon className="size-3.5 text-amber-600 dark:text-amber-400" />}
             zone="Legend"
             rule="Exactly 1 legend"
           />
           <RuleRow
-            icon={<Wand2 className="size-3.5 text-purple-600 dark:text-purple-400" />}
+            icon={<Wand2Icon className="size-3.5 text-purple-600 dark:text-purple-400" />}
             zone="Champion"
             rule="Exactly 1 champion that shares a tag with your legend"
           />
           <RuleRow
-            icon={<Layers className="size-3.5 text-blue-600 dark:text-blue-400" />}
+            icon={<LayersIcon className="size-3.5 text-blue-600 dark:text-blue-400" />}
             zone="Runes"
             rule="Exactly 12 runes, all matching the legend's domains"
           />

@@ -1,14 +1,14 @@
 import type { Printing } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  Check,
-  CheckSquare,
-  LibraryBig,
-  Minus,
-  Package,
-  PackagePlus,
-  Trash2,
-  X,
+  CheckIcon,
+  CheckSquareIcon,
+  LibraryBigIcon,
+  MinusIcon,
+  PackageIcon,
+  PackagePlusIcon,
+  Trash2Icon,
+  XIcon,
 } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { use, useEffect, useDeferredValue, useRef, useState } from "react";
@@ -605,10 +605,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                   onClick={() => setQuickAddOpen(true)}
                   title={`Quick add (${navigator.platform.startsWith("Mac") ? "⌘K" : "Ctrl+K"})`}
                 >
-                  <PackagePlus className="size-4" />
+                  <PackagePlusIcon className="size-4" />
                 </Button>
                 <Button variant="outline" size="icon" onClick={startBrowsing} title="Browse & add">
-                  <LibraryBig className="size-4" />
+                  <LibraryBigIcon className="size-4" />
                 </Button>
               </ButtonGroup>
             )}
@@ -620,7 +620,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                   onClick={() => toggleSelectAll(allCopyIds)}
                   title={selected.size === totalCopies ? "Deselect all" : "Select all"}
                 >
-                  <Check className="size-4" />
+                  <CheckIcon className="size-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -628,7 +628,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                   onClick={exitSelectMode}
                   title="Done selecting"
                 >
-                  <X className="size-4" />
+                  <XIcon className="size-4" />
                 </Button>
               </ButtonGroup>
             ) : (
@@ -639,7 +639,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                   onClick={enterSelectMode}
                   title={`Select ${view}`}
                 >
-                  <CheckSquare className="size-4" />
+                  <CheckSquareIcon className="size-4" />
                 </Button>
               </ButtonGroup>
             )}
@@ -690,7 +690,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
               </span>
               {mode === "select" && selected.size > 0 && (
                 <Badge variant="secondary" className="gap-1">
-                  <Check className="size-3" />
+                  <CheckIcon className="size-3" />
                   {selected.size}
                 </Badge>
               )}
@@ -753,7 +753,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   if (!isAddMode && stacks.length === 0 && !hasActiveFilters) {
     return (
       <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
-        <Package className="size-10 opacity-50" />
+        <PackageIcon className="size-10 opacity-50" />
         <p>No cards yet</p>
         <p className="text-xs">
           Browse the card catalog and add cards to{" "}
@@ -769,11 +769,11 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         {addTarget && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
-              <PackagePlus className="mr-1 size-3.5" />
+              <PackagePlusIcon className="mr-1 size-3.5" />
               Quick add
             </Button>
             <Button size="sm" onClick={startBrowsing}>
-              <LibraryBig className="mr-1 size-3.5" />
+              <LibraryBigIcon className="mr-1 size-3.5" />
               Browse & add
             </Button>
           </div>
@@ -825,7 +825,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
               onClick={() => setMoveOpen(true)}
               disabled={moveCopies.isPending}
             >
-              <Minus className="mr-1 size-3.5" />
+              <MinusIcon className="mr-1 size-3.5" />
               Move
             </Button>
             <Button
@@ -834,11 +834,11 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
               onClick={() => setDisposeOpen(true)}
               disabled={disposeCopies.isPending}
             >
-              <Trash2 className="mr-1 size-3.5" />
+              <Trash2Icon className="mr-1 size-3.5" />
               Dispose
             </Button>
             <Button variant="ghost" size="sm" onClick={clearSelection} aria-label="Clear selection">
-              <X className="size-3.5" />
+              <XIcon className="size-3.5" />
             </Button>
           </div>
         )}
@@ -931,10 +931,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     onClick={() => setQuickAddOpen(true)}
                     title="Quick add"
                   >
-                    <PackagePlus className="size-4" />
+                    <PackagePlusIcon className="size-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={startBrowsing} title="Browse & add">
-                    <LibraryBig className="size-4" />
+                    <LibraryBigIcon className="size-4" />
                   </Button>
                 </ButtonGroup>
               )}
@@ -946,7 +946,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     onClick={() => toggleSelectAll(allCopyIds)}
                     title={selected.size === totalCopies ? "Deselect all" : "Select all"}
                   >
-                    <Check className="size-4" />
+                    <CheckIcon className="size-4" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -954,7 +954,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     onClick={exitSelectMode}
                     title="Done selecting"
                   >
-                    <X className="size-4" />
+                    <XIcon className="size-4" />
                   </Button>
                 </ButtonGroup>
               ) : (
@@ -965,7 +965,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                     onClick={enterSelectMode}
                     title={`Select ${view}`}
                   >
-                    <CheckSquare className="size-4" />
+                    <CheckSquareIcon className="size-4" />
                   </Button>
                 </ButtonGroup>
               )}

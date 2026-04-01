@@ -1,7 +1,7 @@
 import type { Finish, Printing } from "@openrift/shared";
 import { COLORLESS_DOMAIN, getOrientation } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
-import { ArrowLeft, Sparkle, X } from "lucide-react";
+import { ArrowLeftIcon, SparkleIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -108,7 +108,7 @@ export function CardDetail({
       <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <ArrowLeft className="size-4" />
+            <ArrowLeftIcon className="size-4" />
           </Button>
           <CardDetailHeading
             printing={printing}
@@ -134,7 +134,7 @@ export function CardDetail({
             shortCode={printing.shortCode}
           />
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <X className="size-4" />
+            <XIcon className="size-4" />
           </Button>
         </div>
       </div>
@@ -201,7 +201,7 @@ export function CardDetail({
               title="Foil"
               className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold"
             >
-              <Sparkle className="size-3.5 fill-amber-400 text-amber-400" />
+              <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
               Foil
             </span>
           )}

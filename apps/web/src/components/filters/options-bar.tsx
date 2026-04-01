@@ -1,13 +1,13 @@
 import type { AvailableFilters, GroupByField, SortOption } from "@openrift/shared";
 import {
-  ArrowDownNarrowWide,
-  ArrowUpNarrowWide,
-  Copy,
-  Minus,
-  Plus,
-  Square,
-  SquareStack,
-  SlidersHorizontal,
+  ArrowDownNarrowWideIcon,
+  ArrowUpNarrowWideIcon,
+  CopyIcon,
+  MinusIcon,
+  PlusIcon,
+  SquareIcon,
+  SquareStackIcon,
+  SlidersHorizontalIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -130,9 +130,9 @@ function SortGroupControls({
       title={dir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
     >
       {dir === "asc" ? (
-        <ArrowDownNarrowWide className="size-3.5" />
+        <ArrowDownNarrowWideIcon className="size-3.5" />
       ) : (
-        <ArrowUpNarrowWide className="size-3.5" />
+        <ArrowUpNarrowWideIcon className="size-3.5" />
       )}
     </button>
   );
@@ -186,7 +186,7 @@ function SortGroupControls({
           <>
             <span>{groupLabel}</span>
             {groupDir === "desc" && (
-              <ArrowUpNarrowWide className="text-muted-foreground size-3.5" />
+              <ArrowUpNarrowWideIcon className="text-muted-foreground size-3.5" />
             )}
             <span className="text-muted-foreground">·</span>
           </>
@@ -194,7 +194,7 @@ function SortGroupControls({
         <span className={groupBy === "none" ? undefined : "text-muted-foreground"}>
           {sortLabel}
         </span>
-        {sortDir === "desc" && <ArrowUpNarrowWide className="text-muted-foreground size-3.5" />}
+        {sortDir === "desc" && <ArrowUpNarrowWideIcon className="text-muted-foreground size-3.5" />}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 gap-3 p-2">
         <SortGroupSection
@@ -250,7 +250,7 @@ function ViewModeToggle({
         onClick={() => onViewChange("cards")}
         title={compact ? undefined : "One per card"}
       >
-        <Square className={compact ? undefined : "size-4"} />
+        <SquareIcon className={compact ? undefined : "size-4"} />
         {compact && "Cards"}
       </Button>
       <Button
@@ -260,7 +260,7 @@ function ViewModeToggle({
         onClick={() => onViewChange("printings")}
         title={compact ? undefined : "Every printing"}
       >
-        <Copy className={compact ? undefined : "size-4"} />
+        <CopyIcon className={compact ? undefined : "size-4"} />
         {compact && "Printings"}
       </Button>
       {showCopies && (
@@ -271,7 +271,7 @@ function ViewModeToggle({
           onClick={() => onViewChange("copies")}
           title={compact ? undefined : "Every individual copy"}
         >
-          <SquareStack className={compact ? undefined : "size-4"} />
+          <SquareStackIcon className={compact ? undefined : "size-4"} />
           {compact && "Copies"}
         </Button>
       )}
@@ -316,7 +316,7 @@ function ColumnControls({
         }
         aria-label="Fewer columns"
       >
-        <Minus className={compact ? undefined : "size-4"} />
+        <MinusIcon className={compact ? undefined : "size-4"} />
       </Button>
       <ButtonGroupText
         className={
@@ -348,7 +348,7 @@ function ColumnControls({
         }
         aria-label="More columns"
       >
-        <Plus className={compact ? undefined : "size-4"} />
+        <PlusIcon className={compact ? undefined : "size-4"} />
       </Button>
     </ButtonGroup>
   );
@@ -465,7 +465,7 @@ export function MobileOptionsDrawer({
         onClick={() => setSheetOpen(true)}
         aria-label="Options"
       >
-        <SlidersHorizontal className="size-4" />
+        <SlidersHorizontalIcon className="size-4" />
       </Button>
 
       <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>

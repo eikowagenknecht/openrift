@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { DomainDistribution } from "@/components/deck/stats/domain-distribution";
@@ -18,7 +18,11 @@ export function DeckStatsPanel() {
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium"
         onClick={() => setOpen((prev) => !prev)}
       >
-        {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+        {open ? (
+          <ChevronDownIcon className="size-3.5" />
+        ) : (
+          <ChevronRightIcon className="size-3.5" />
+        )}
         <span className="flex-1">Stats</span>
         <span className="text-muted-foreground text-xs">{stats.totalCards} cards</span>
       </button>

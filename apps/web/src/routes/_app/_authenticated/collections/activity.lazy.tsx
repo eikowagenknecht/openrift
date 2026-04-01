@@ -1,14 +1,14 @@
 import type { ActivityAction, CollectionEventResponse, Printing } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
-  ArrowLeftRight,
-  ArrowRightLeft,
-  History,
-  Loader2,
-  Minus,
-  Package,
-  Plus,
-  Search,
+  ArrowLeftRightIcon,
+  ArrowRightLeftIcon,
+  HistoryIcon,
+  Loader2Icon,
+  MinusIcon,
+  PackageIcon,
+  PlusIcon,
+  SearchIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -38,9 +38,9 @@ export const Route = createLazyFileRoute("/_app/_authenticated/collections/activ
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const ACTION_CONFIG = {
-  added: { icon: Plus, color: "text-green-600 dark:text-green-400" },
-  removed: { icon: Minus, color: "text-red-600 dark:text-red-400" },
-  moved: { icon: ArrowLeftRight, color: "text-amber-600 dark:text-amber-400" },
+  added: { icon: PlusIcon, color: "text-green-600 dark:text-green-400" },
+  removed: { icon: MinusIcon, color: "text-red-600 dark:text-red-400" },
+  moved: { icon: ArrowLeftRightIcon, color: "text-amber-600 dark:text-amber-400" },
 } as const;
 
 type ActionFilter = ActivityAction | "all";
@@ -268,7 +268,7 @@ function EventCard({
         />
       ) : (
         <div className="bg-muted flex h-12 w-[2.15rem] shrink-0 items-center justify-center rounded-sm">
-          <Package className="text-muted-foreground size-3.5" />
+          <PackageIcon className="text-muted-foreground size-3.5" />
         </div>
       )}
 
@@ -314,7 +314,7 @@ function EventCard({
             {isMove ? (
               <>
                 {event.fromCollectionName}
-                <ArrowRightLeft className="mx-1 inline size-3" />
+                <ArrowRightLeftIcon className="mx-1 inline size-3" />
                 {event.toCollectionName}
               </>
             ) : (
@@ -420,7 +420,7 @@ function LoadMoreSentinel({
 
   return (
     <div ref={ref} className="flex justify-center py-4">
-      {isFetching && <Loader2 className="text-muted-foreground size-5 animate-spin" />}
+      {isFetching && <Loader2Icon className="text-muted-foreground size-5 animate-spin" />}
     </div>
   );
 }
@@ -428,7 +428,7 @@ function LoadMoreSentinel({
 function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-3 py-20 text-center">
-      <History className="text-muted-foreground size-12" />
+      <HistoryIcon className="text-muted-foreground size-12" />
       <div>
         <p className="font-medium">No activity yet</p>
         <p className="text-muted-foreground mt-1 max-w-xs text-sm">
@@ -438,7 +438,7 @@ function EmptyState() {
       </div>
       <div className="mt-2 flex gap-2">
         <Button variant="default" size="sm" render={<Link to="/cards" />}>
-          <Search className="size-3.5" />
+          <SearchIcon className="size-3.5" />
           Browse cards
         </Button>
       </div>
@@ -449,7 +449,7 @@ function EmptyState() {
 function FilteredEmptyState() {
   return (
     <div className="flex flex-col items-center gap-2 py-16 text-center">
-      <History className="text-muted-foreground size-8" />
+      <HistoryIcon className="text-muted-foreground size-8" />
       <p className="text-muted-foreground text-sm">No matching activity</p>
     </div>
   );

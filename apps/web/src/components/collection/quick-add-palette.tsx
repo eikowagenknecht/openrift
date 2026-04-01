@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
-import { ChevronRight, Search, X } from "lucide-react";
+import { ChevronRightIcon, SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -285,9 +285,9 @@ function PaletteInner({
         </div>
       )}
 
-      {/* Search input */}
+      {/* SearchIcon input */}
       <div className="relative">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <input
           ref={inputRef}
           type="text"
@@ -308,7 +308,7 @@ function PaletteInner({
             onClick={clearSearch}
             aria-label="Clear search"
           >
-            <X className="size-4" />
+            <XIcon className="size-4" />
           </button>
         )}
       </div>
@@ -366,7 +366,7 @@ function PaletteInner({
                     ×{card.ownedCount}
                   </span>
                 )}
-                <ChevronRight
+                <ChevronRightIcon
                   className={cn(
                     "text-muted-foreground size-4 shrink-0 transition-transform",
                     isExpanded && "rotate-90",
@@ -422,7 +422,7 @@ function PaletteInner({
                               className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
                               aria-label={`Undo add ${printing.card.name}`}
                             >
-                              <X className="size-3" />
+                              <XIcon className="size-3" />
                             </button>
                           </span>
                         )}

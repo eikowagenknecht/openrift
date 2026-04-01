@@ -1,6 +1,6 @@
 import type { AvailableFilters, RangeKey } from "@openrift/shared";
 import { NONE } from "@openrift/shared";
-import { X } from "lucide-react";
+import { XIcon } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
@@ -103,7 +103,7 @@ export function ActiveFilters({
                 onClick={() => setSearch("")}
                 className="hover:text-foreground ml-0.5"
               >
-                <X className="size-3" />
+                <XIcon className="size-3" />
               </button>
             </Badge>
           </div>
@@ -125,7 +125,7 @@ export function ActiveFilters({
                     onClick={() => toggleArrayFilter(key, value)}
                     className="hover:text-foreground ml-0.5"
                   >
-                    <X className="size-3" />
+                    <XIcon className="size-3" />
                   </button>
                 </Badge>
               );
@@ -156,7 +156,7 @@ export function ActiveFilters({
             <Badge variant="secondary" className="gap-1">
               {filterState.signed === "false" ? "Not Signed" : "Signed"}
               <button type="button" onClick={clearSigned} className="hover:text-foreground ml-0.5">
-                <X className="size-3" />
+                <XIcon className="size-3" />
               </button>
             </Badge>
           </div>
@@ -167,7 +167,7 @@ export function ActiveFilters({
             <Badge variant="secondary" className="gap-1">
               {filterState.promo === "false" ? "Not Promo" : "Promo"}
               <button type="button" onClick={clearPromo} className="hover:text-foreground ml-0.5">
-                <X className="size-3" />
+                <XIcon className="size-3" />
               </button>
             </Badge>
           </div>
@@ -178,7 +178,7 @@ export function ActiveFilters({
             <Badge variant="secondary" className="gap-1">
               {filterState.banned === "false" ? "Not Banned" : "Banned"}
               <button type="button" onClick={clearBanned} className="hover:text-foreground ml-0.5">
-                <X className="size-3" />
+                <XIcon className="size-3" />
               </button>
             </Badge>
           </div>
@@ -189,7 +189,7 @@ export function ActiveFilters({
             <Badge variant="secondary" className="gap-1">
               {filterState.errata === "false" ? "No Errata" : "Errata"}
               <button type="button" onClick={clearErrata} className="hover:text-foreground ml-0.5">
-                <X className="size-3" />
+                <XIcon className="size-3" />
               </button>
             </Badge>
           </div>
@@ -202,7 +202,7 @@ export function ActiveFilters({
         onClick={clearAllFilters}
         title="Clear all filters"
       >
-        <X className="size-4" />
+        <XIcon className="size-4" />
       </Button>
     </div>
   );
@@ -250,7 +250,7 @@ function RangeBadge({
       <Badge variant="secondary" className="gap-1">
         {valueLabel}
         <button type="button" onClick={onClear} className="hover:text-foreground ml-0.5">
-          <X className="size-3" />
+          <XIcon className="size-3" />
         </button>
       </Badge>
     </div>

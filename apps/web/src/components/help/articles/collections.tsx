@@ -1,14 +1,14 @@
 import {
-  ArrowRightLeft,
-  BookOpen,
-  GripVertical,
-  Inbox,
-  ListChecks,
-  MousePointerClick,
-  Package,
-  Plus,
-  Search,
-  Trash2,
+  ArrowRightLeftIcon,
+  BookOpenIcon,
+  GripVerticalIcon,
+  InboxIcon,
+  ListChecksIcon,
+  MousePointerClickIcon,
+  PackageIcon,
+  PlusIcon,
+  SearchIcon,
+  Trash2Icon,
 } from "lucide-react";
 
 import { Kbd } from "@/components/ui/kbd";
@@ -29,17 +29,26 @@ export default function CollectionsArticle() {
             <span className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wider uppercase">
               Collections
             </span>
-            <SidebarItem icon={<Package className="size-3.5" />} label="All Cards" count={47} />
-            <SidebarItem icon={<Inbox className="size-3.5" />} label="Inbox" count={12} active />
+            <SidebarItem icon={<PackageIcon className="size-3.5" />} label="All Cards" count={47} />
             <SidebarItem
-              icon={<BookOpen className="size-3.5" />}
+              icon={<InboxIcon className="size-3.5" />}
+              label="Inbox"
+              count={12}
+              active
+            />
+            <SidebarItem
+              icon={<BookOpenIcon className="size-3.5" />}
               label="Fury Aggro Deck"
               count={24}
             />
-            <SidebarItem icon={<BookOpen className="size-3.5" />} label="Trade Binder" count={11} />
+            <SidebarItem
+              icon={<BookOpenIcon className="size-3.5" />}
+              label="Trade Binder"
+              count={11}
+            />
             <div className="border-border mt-1 border-t pt-1">
               <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                <Plus className="size-3" /> New collection
+                <PlusIcon className="size-3" /> New collection
               </span>
             </div>
           </div>
@@ -48,7 +57,7 @@ export default function CollectionsArticle() {
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
               <div className="bg-muted flex-1 rounded px-2 py-1 text-xs">
-                <Search className="text-muted-foreground mr-1 inline size-3" />
+                <SearchIcon className="text-muted-foreground mr-1 inline size-3" />
                 <span className="text-muted-foreground">Search cards&hellip;</span>
               </div>
               <div className="bg-primary/10 text-primary rounded px-2 py-0.5 text-[11px] font-medium">
@@ -87,13 +96,13 @@ export default function CollectionsArticle() {
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={<Search className="size-4" />}
+            icon={<SearchIcon className="size-4" />}
             title="Quick add"
             shortcut="Ctrl+K"
             description="A fast search palette. Type a card name, use arrow keys to navigate, and press Enter to add. Use Shift+Enter to undo."
           />
           <FeatureCard
-            icon={<MousePointerClick className="size-4" />}
+            icon={<MousePointerClickIcon className="size-4" />}
             title="Browse & add"
             description="Browse the full catalog with all filters available. Click the plus button on any card to add it. A pulsing red dot shows you're in add mode."
           />
@@ -111,22 +120,22 @@ export default function CollectionsArticle() {
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={<GripVertical className="size-4" />}
+            icon={<GripVerticalIcon className="size-4" />}
             title="Drag & drop"
             description="Drag cards from the grid and drop them on a collection in the sidebar. A blue ring highlights the target collection."
           />
           <FeatureCard
-            icon={<ListChecks className="size-4" />}
+            icon={<ListChecksIcon className="size-4" />}
             title="Bulk select"
             description="Click the checkbox icon in the toolbar, or Ctrl-click any card to start selecting. A floating action bar appears at the bottom."
           />
           <FeatureCard
-            icon={<ArrowRightLeft className="size-4" />}
+            icon={<ArrowRightLeftIcon className="size-4" />}
             title="Move"
             description="Select cards, then click Move. Pick the target collection from the dialog and confirm. Each copy belongs to exactly one collection, so moving it removes it from the source."
           />
           <FeatureCard
-            icon={<Trash2 className="size-4" />}
+            icon={<Trash2Icon className="size-4" />}
             title="Dispose"
             description="Select cards, then click Dispose to permanently remove them. The removal is recorded in your activity history."
           />

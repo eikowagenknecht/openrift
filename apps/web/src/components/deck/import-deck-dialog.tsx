@@ -1,6 +1,6 @@
 import type { DeckImportCardPreview, DeckResponse, DeckZone } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { Download, Loader2 } from "lucide-react";
+import { DownloadIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -197,7 +197,7 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
             </div>
             <DialogFooter>
               <Button onClick={handlePreview} disabled={!code.trim() || importPreview.isPending}>
-                {importPreview.isPending && <Loader2 className="size-4 animate-spin" />}
+                {importPreview.isPending && <Loader2Icon className="size-4 animate-spin" />}
                 Preview
               </Button>
             </DialogFooter>
@@ -232,7 +232,7 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
 
         {step === "creating" && (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="text-muted-foreground size-6 animate-spin" />
+            <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
           </div>
         )}
       </DialogContent>
@@ -246,7 +246,7 @@ export function ImportDeckButton() {
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        <Download className="size-4" />
+        <DownloadIcon className="size-4" />
         Import
       </Button>
       <ImportDeckDialog open={open} onOpenChange={setOpen} />

@@ -1,6 +1,6 @@
 import type { Marketplace, Theme } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
-import { ArrowDown, ArrowUp, RotateCcw } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, RotateCcwIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -203,7 +203,7 @@ export function PreferencesSection({
                           onClick={() => moveMarketplace(marketplace, -1)}
                           aria-label={`Move ${MARKETPLACE_LABELS[marketplace]} up`}
                         >
-                          <ArrowUp className="size-3" />
+                          <ArrowUpIcon className="size-3" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -212,7 +212,7 @@ export function PreferencesSection({
                           onClick={() => moveMarketplace(marketplace, 1)}
                           aria-label={`Move ${MARKETPLACE_LABELS[marketplace]} down`}
                         >
-                          <ArrowDown className="size-3" />
+                          <ArrowDownIcon className="size-3" />
                         </Button>
                       </div>
                     )}
@@ -284,7 +284,7 @@ function ResetButton({ onClick, label }: { onClick: () => void; label: string })
       aria-label={label}
       title="Reset to default"
     >
-      <RotateCcw className="size-3.5" />
+      <RotateCcwIcon className="size-3.5" />
     </button>
   );
 }
