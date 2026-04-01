@@ -3,8 +3,6 @@ import { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { cookieStorage } from "@/lib/cookie-storage";
-
 interface SearchScopeState {
   scope: SearchField[];
   toggleField: (field: SearchField) => void;
@@ -28,7 +26,6 @@ export const useSearchScopeStore = create<SearchScopeState>()(
     }),
     {
       name: "openrift-search-scope",
-      storage: cookieStorage,
       partialize: (state) => ({ scope: state.scope }),
       merge: (persisted, current) => {
         const raw = (persisted as Partial<SearchScopeState>)?.scope;
