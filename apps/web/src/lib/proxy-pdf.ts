@@ -79,8 +79,8 @@ const RENDER_WIDTH_PX = 504; // 63mm * 8px/mm
 const RENDER_HEIGHT_PX = 704; // 88mm * 8px/mm
 
 /**
- * Loads an image URL and converts it to a PNG data URL via canvas.
- * This handles WEBP and other formats that jsPDF can't consume directly.
+ * Loads an image URL and converts it to a portrait-oriented PNG data URL via canvas.
+ * Detects landscape images (wider than tall) and rotates them -90° to fit portrait slots.
  * @returns PNG data URL string.
  */
 async function loadImageAsDataUrl(url: string): Promise<string> {
@@ -93,6 +93,7 @@ async function loadImageAsDataUrl(url: string): Promise<string> {
     image.src = url;
   });
 
+  const isLandscape = img.naturalWidth > img.naturalHeight;
   const canvas = document.createElement("canvas");
   canvas.width = RENDER_WIDTH_PX;
   canvas.height = RENDER_HEIGHT_PX;
@@ -100,7 +101,17 @@ async function loadImageAsDataUrl(url: string): Promise<string> {
   if (!ctx) {
     throw new Error("Failed to get canvas 2d context");
   }
-  ctx.drawImage(img, 0, 0, RENDER_WIDTH_PX, RENDER_HEIGHT_PX);
+
+  if (isLandscape) {
+    // Rotate landscape image -90° to fit portrait card slot
+    ctx.translate(0, RENDER_HEIGHT_PX);
+    ctx.rotate(-Math.PI / 2);
+    // After rotation, draw into the rotated coordinate space (swapped dimensions)
+    ctx.drawImage(img, 0, 0, RENDER_HEIGHT_PX, RENDER_WIDTH_PX);
+  } else {
+    ctx.drawImage(img, 0, 0, RENDER_WIDTH_PX, RENDER_HEIGHT_PX);
+  }
+
   return canvas.toDataURL("image/png");
 }
 
@@ -173,18 +184,31 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<string>
 }
 
 /**
- * Draws a "PROXY" watermark diagonally across a card slot.
+ * Draws a "PROXY" pill badge centered at the top of a card slot.
  */
 function drawWatermark(doc: jsPDF, slotX: number, slotY: number): void {
-  const centerX = slotX + CARD_WIDTH_MM / 2;
-  const centerY = slotY + CARD_HEIGHT_MM / 2;
+  const label = "PROXY";
+  const fontSize = 7;
+  const paddingX = 3;
+  const paddingY = 1.2;
+  const topOffset = 2.5;
 
-  doc.setTextColor(200, 200, 200);
-  doc.setFontSize(18);
-  doc.text("PROXY", centerX, centerY, {
+  doc.setFontSize(fontSize);
+  const textWidth = doc.getTextWidth(label);
+  const pillWidth = textWidth + paddingX * 2;
+  const pillHeight = fontSize * 0.35 + paddingY * 2;
+  const pillX = slotX + (CARD_WIDTH_MM - pillWidth) / 2;
+  const pillY = slotY + topOffset;
+
+  // Pill background
+  doc.setFillColor(0, 0, 0);
+  doc.roundedRect(pillX, pillY, pillWidth, pillHeight, 1.5, 1.5, "F");
+
+  // Label text
+  doc.setTextColor(255, 255, 255);
+  doc.text(label, pillX + pillWidth / 2, pillY + pillHeight / 2, {
     align: "center",
     baseline: "middle",
-    angle: 35,
   });
 }
 
