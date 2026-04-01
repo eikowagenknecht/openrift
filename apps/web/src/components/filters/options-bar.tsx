@@ -188,7 +188,7 @@ function SortGroupControls({
     <Popover>
       <PopoverTrigger
         className={cn(
-          "border-input bg-background ring-ring/10 hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",
+          "border-input bg-background ring-ring/10 dark:bg-input/30 hover:bg-muted hover:text-foreground dark:hover:bg-input/50 inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",
         )}
       >
         {groupBy !== "none" && (

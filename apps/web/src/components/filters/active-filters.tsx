@@ -200,7 +200,7 @@ export function ActiveFilters({
         <TooltipTrigger
           render={
             <Button
-              variant="ghost"
+              variant="destructive"
               size="icon-sm"
               className="shrink-0 self-start"
               onClick={clearAllFilters}
