@@ -74,40 +74,62 @@ function resolveProxyCards(deckCards: DeckBuilderCard[], catalog: CatalogRespons
   return result;
 }
 
+// Render resolution for rasterization
+const RENDER_WIDTH_PX = 504; // 63mm * 8px/mm
+const RENDER_HEIGHT_PX = 704; // 88mm * 8px/mm
+
 /**
- * Loads an image from a URL and returns it as an HTMLImageElement.
- * @returns The loaded image element.
+ * Loads an image URL and converts it to a PNG data URL via canvas.
+ * This handles WEBP and other formats that jsPDF can't consume directly.
+ * @returns PNG data URL string.
  */
-function loadImage(url: string): Promise<HTMLImageElement> {
+async function loadImageAsDataUrl(url: string): Promise<string> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.addEventListener("load", () => resolve(img));
-    img.addEventListener("error", reject);
-    img.src = url;
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", reject);
+    image.src = url;
   });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = RENDER_WIDTH_PX;
+  canvas.height = RENDER_HEIGHT_PX;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Failed to get canvas 2d context");
+  }
+  ctx.drawImage(img, 0, 0, RENDER_WIDTH_PX, RENDER_HEIGHT_PX);
+  return canvas.toDataURL("image/png");
 }
 
-// Render resolution — higher = sharper print but larger file
-const RENDER_WIDTH_PX = 400;
-const RENDER_HEIGHT_PX = Math.round(RENDER_WIDTH_PX * (CARD_HEIGHT_MM / CARD_WIDTH_MM));
-
 /**
- * Renders a CardPlaceholderImage (light variant) to a canvas via html2canvas.
- * @returns The rasterized canvas element.
+ * Renders a CardPlaceholderImage (light variant) to a PNG data URL via html2canvas.
+ * Uses a visible but clipped container so stylesheets apply correctly.
+ * @returns PNG data URL string.
  */
-async function renderPlaceholderToCanvas(proxyCard: ProxyCard): Promise<HTMLCanvasElement> {
+async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<string> {
+  // Create a container that's visible to the rendering engine (so styles apply)
+  // but clipped so it's not visible to the user
   const container = document.createElement("div");
-  container.style.position = "absolute";
-  container.style.left = "-9999px";
-  container.style.top = "0";
-  container.style.width = `${RENDER_WIDTH_PX}px`;
+  container.style.cssText = `
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: ${RENDER_WIDTH_PX}px;
+    height: ${RENDER_HEIGHT_PX}px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    pointer-events: none;
+    z-index: -9999;
+  `;
   document.body.append(container);
 
   const root = createRoot(container);
 
-  // oxlint-disable-next-line promise/avoid-new -- need to wait for React render + setTimeout
+  // oxlint-disable-next-line promise/avoid-new -- need to wait for React render via requestAnimationFrame
   await new Promise<void>((resolve) => {
     root.render(
       createElement(CardPlaceholderImage, {
@@ -126,9 +148,15 @@ async function renderPlaceholderToCanvas(proxyCard: ProxyCard): Promise<HTMLCanv
         variant: "light",
       }),
     );
-    // Wait for React render + images to load
-    setTimeout(resolve, 100);
+    // Wait two frames: one for React to commit, one for browser to compute styles
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
   });
+
+  // Temporarily make visible for html2canvas (it needs computed styles)
+  container.style.clip = "auto";
+  container.style.clipPath = "none";
 
   const canvas = await html2canvas(container, {
     width: RENDER_WIDTH_PX,
@@ -138,9 +166,10 @@ async function renderPlaceholderToCanvas(proxyCard: ProxyCard): Promise<HTMLCanv
     backgroundColor: "#ffffff",
   });
 
+  const dataUrl = canvas.toDataURL("image/png");
   root.unmount();
   container.remove();
-  return canvas;
+  return dataUrl;
 }
 
 /**
@@ -155,7 +184,7 @@ function drawWatermark(doc: jsPDF, slotX: number, slotY: number): void {
   doc.text("PROXY", centerX, centerY, {
     align: "center",
     baseline: "middle",
-    angle: -35,
+    angle: 35,
   });
 }
 
@@ -198,6 +227,46 @@ function drawFallbackCard(doc: jsPDF, name: string, slotX: number, slotY: number
 }
 
 /**
+ * Pre-renders all unique cards and returns a map of cardId → PNG data URL.
+ * Deduplicates so each card is only rendered once regardless of quantity.
+ * @returns Map from cardId to PNG data URL.
+ */
+async function prerenderCards(
+  proxyCards: ProxyCard[],
+  renderMode: ProxyRenderMode,
+  onProgress?: (current: number, total: number) => void,
+): Promise<Map<string, string>> {
+  const uniqueCards = new Map<string, ProxyCard>();
+  for (const proxyCard of proxyCards) {
+    if (!uniqueCards.has(proxyCard.cardId)) {
+      uniqueCards.set(proxyCard.cardId, proxyCard);
+    }
+  }
+
+  const rendered = new Map<string, string>();
+  let completed = 0;
+  const total = uniqueCards.size;
+
+  for (const [cardId, proxyCard] of uniqueCards) {
+    onProgress?.(++completed, total);
+
+    try {
+      if (renderMode === "image" && proxyCard.imageUrl) {
+        const fullUrl = getCardImageUrl(proxyCard.imageUrl, "full");
+        rendered.set(cardId, await loadImageAsDataUrl(fullUrl));
+      } else {
+        rendered.set(cardId, await renderPlaceholderToDataUrl(proxyCard));
+      }
+    } catch (error) {
+      console.error(`Failed to render card "${proxyCard.name}":`, error);
+      // Leave missing — fallback will be drawn in the PDF loop
+    }
+  }
+
+  return rendered;
+}
+
+/**
  * Generates a proxy PDF from deck cards and triggers a browser download.
  * @returns void
  */
@@ -211,6 +280,9 @@ export async function generateProxyPdf(
   if (proxyCards.length === 0) {
     return;
   }
+
+  // Pre-render all unique cards (deduped) so repeated cards reuse the same image
+  const renderedCards = await prerenderCards(proxyCards, options.renderMode, onProgress);
 
   const page = PAGE_SIZES[options.pageSize];
   const marginX = (page.width - COLS * CARD_WIDTH_MM) / 2;
@@ -244,24 +316,12 @@ export async function generateProxyPdf(
       const slotY = marginY + row * CARD_HEIGHT_MM;
 
       const proxyCard = proxyCards[cardIdx];
-      onProgress?.(cardIdx + 1, proxyCards.length);
+      const dataUrl = renderedCards.get(proxyCard.cardId);
 
-      if (options.renderMode === "image" && proxyCard.imageUrl) {
-        try {
-          const fullUrl = getCardImageUrl(proxyCard.imageUrl, "full");
-          const img = await loadImage(fullUrl);
-          doc.addImage(img, "WEBP", slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
-        } catch {
-          drawFallbackCard(doc, proxyCard.name, slotX, slotY);
-        }
+      if (dataUrl) {
+        doc.addImage(dataUrl, "PNG", slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
       } else {
-        try {
-          const canvas = await renderPlaceholderToCanvas(proxyCard);
-          const dataUrl = canvas.toDataURL("image/png");
-          doc.addImage(dataUrl, "PNG", slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
-        } catch {
-          drawFallbackCard(doc, proxyCard.name, slotX, slotY);
-        }
+        drawFallbackCard(doc, proxyCard.name, slotX, slotY);
       }
 
       if (options.watermark) {
