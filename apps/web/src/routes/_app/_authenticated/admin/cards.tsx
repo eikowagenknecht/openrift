@@ -6,6 +6,7 @@ import { adminCardListQueryOptions, allCardsQueryOptions } from "@/hooks/use-adm
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
+  staticData: { title: "Cards" },
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(adminCardListQueryOptions),

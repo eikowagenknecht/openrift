@@ -5,6 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { adminPromoTypesQueryOptions } from "@/hooks/use-promo-types";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/promo-types")({
+  staticData: { title: "Promo Types" },
   loader: ({ context }) => context.queryClient.ensureQueryData(adminPromoTypesQueryOptions),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

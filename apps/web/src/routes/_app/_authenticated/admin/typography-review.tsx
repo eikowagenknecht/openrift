@@ -5,6 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { typographyReviewQueryOptions } from "@/hooks/use-typography-review";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/typography-review")({
+  staticData: { title: "Typography" },
   loader: ({ context }) => context.queryClient.ensureQueryData(typographyReviewQueryOptions),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

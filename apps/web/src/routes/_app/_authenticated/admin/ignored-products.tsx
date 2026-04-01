@@ -5,6 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { ignoredProductsQueryOptions } from "@/hooks/use-ignored-products";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/ignored-products")({
+  staticData: { title: "Ignored Products" },
   loader: ({ context }) => context.queryClient.ensureQueryData(ignoredProductsQueryOptions),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

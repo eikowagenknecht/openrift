@@ -4,6 +4,7 @@ import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/scan")({
+  staticData: { title: "Scan Test" },
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });
