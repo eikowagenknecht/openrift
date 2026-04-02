@@ -44,25 +44,40 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 const RENDER_WIDTH_PX = 504;
 
 /**
- * html2canvas doesn't support clip-path at all. The keyword badges in CardText
- * use clip-path to create parallelogram shapes. Replace them with equivalent
- * skewX transforms (which html2canvas does support) before capture.
+ * html2canvas supports clip-path polygon with percentages but not em/calc units.
+ * Resolve clip-path values via getComputedStyle (which returns px) and convert
+ * to percentages of the element's dimensions.
  */
-function replaceClipPathsWithSkew(element: HTMLElement): void {
-  // Only target keyword badges (which use em/calc in their polygon).
-  // The might badge uses percentage-only polygon and renders correctly as-is.
-  const clipPath = element.style.clipPath;
+function resolveClipPaths(element: HTMLElement): void {
+  const inlineClip = element.style.clipPath;
   if (
-    clipPath &&
-    clipPath.includes("polygon") &&
-    (clipPath.includes("em") || clipPath.includes("calc"))
+    inlineClip &&
+    inlineClip.includes("polygon") &&
+    (inlineClip.includes("em") || inlineClip.includes("calc"))
   ) {
-    element.style.clipPath = "none";
-    element.style.transform = "skewX(-10deg)";
+    const computed = getComputedStyle(element).clipPath;
+    // Computed value is in px: "polygon(4.2px 0px, 95.8px 0px, 91.6px 20px, 0px 20px)"
+    // Convert to percentages using element dimensions
+    const width = element.offsetWidth;
+    const height = element.offsetHeight;
+    if (width > 0 && height > 0 && computed.includes("polygon")) {
+      const converted = computed.replaceAll(/[\d.]+px/g, (match, offset) => {
+        const px = Number.parseFloat(match);
+        // Determine if this is an x or y coordinate by counting commas and spaces before this point
+        // In polygon(), coordinates alternate: x y, x y, ...
+        // Count how many values came before this one in the current polygon
+        const before = computed.slice(computed.indexOf("(") + 1, offset);
+        const valueIndex = before.split(/[\s,]+/).filter(Boolean).length;
+        const isX = valueIndex % 2 === 0;
+        const percent = isX ? (px / width) * 100 : (px / height) * 100;
+        return `${percent.toFixed(1)}%`;
+      });
+      element.style.clipPath = converted;
+    }
   }
   for (const child of element.children) {
     if (child instanceof HTMLElement) {
-      replaceClipPathsWithSkew(child);
+      resolveClipPaths(child);
     }
   }
 }
@@ -73,7 +88,7 @@ function replaceClipPathsWithSkew(element: HTMLElement): void {
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
-  replaceClipPathsWithSkew(element);
+  resolveClipPaths(element);
 
   const canvas = await html2canvas(element, {
     width: element.offsetWidth,
