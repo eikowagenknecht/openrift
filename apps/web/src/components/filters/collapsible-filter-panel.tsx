@@ -35,7 +35,7 @@ export function CollapsibleFilterPanel({
       onOpenChange={setFiltersExpanded}
       className="@wide:hidden hidden sm:block"
     >
-      <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden pt-2 transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
+      <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden pt-2 pb-2 transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           <FilterBadgeSections
             availableFilters={availableFilters}
