@@ -6,6 +6,7 @@ import {
   CircleAlertIcon,
   CopyIcon,
   EllipsisVerticalIcon,
+  PrinterIcon,
   Share2Icon,
   SwordsIcon,
   Trash2Icon,
@@ -34,9 +35,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useCloneDeck, useDeleteDeck } from "@/hooks/use-decks";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
+import { toDeckBuilderCard } from "@/stores/deck-builder-store";
 
 import { DeckDomainBar } from "./deck-domain-bar";
 import { DeckExportDialog } from "./deck-export-dialog";
+import { ProxyExportDialog } from "./proxy-export-dialog";
 
 function DomainIcon({ domain }: { domain: string }) {
   const lower = domain.toLowerCase();
@@ -152,6 +155,7 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
   const cloneDeck = useCloneDeck();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [proxyOpen, setProxyOpen] = useState(false);
   const deleteDeck = useDeleteDeck();
 
   const handleClone = (event: React.MouseEvent) => {
@@ -315,6 +319,16 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
                   <Share2Icon className="size-4" />
                   Export
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(event: React.MouseEvent) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setProxyOpen(true);
+                  }}
+                >
+                  <PrinterIcon className="size-4" />
+                  Proxies
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleClone}>
                   <CopyIcon className="size-4" />
                   Clone
@@ -337,6 +351,12 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
         isDirty={false}
         open={exportOpen}
         onOpenChange={setExportOpen}
+      />
+
+      <ProxyExportDialog
+        open={proxyOpen}
+        onOpenChange={setProxyOpen}
+        cards={cards?.map((card) => toDeckBuilderCard(card))}
       />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

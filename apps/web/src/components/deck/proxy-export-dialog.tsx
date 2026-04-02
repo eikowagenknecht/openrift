@@ -28,6 +28,7 @@ import { keywordStylesQueryOptions } from "@/hooks/use-keyword-styles";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
 import { assembleProxyPdf, prerenderImageCards, resolveProxyCards } from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
+import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
 const RENDER_MODE_LABELS: Record<ProxyRenderMode, string> = {
@@ -113,13 +114,36 @@ function waitForRender(): Promise<void> {
   });
 }
 
-export function ProxyExportDialog() {
-  const [open, setOpenRaw] = useState(false);
+interface ProxyExportDialogProps {
+  /** When provided, the dialog is controlled externally (no built-in trigger). */
+  open?: boolean;
+  /** Called when the dialog wants to change open state. Required when `open` is provided. */
+  onOpenChange?: (open: boolean) => void;
+  /** Cards to export. Falls back to the deck builder store when omitted. */
+  cards?: DeckBuilderCard[];
+}
+
+/**
+ * Dialog for exporting a deck as a printable proxy PDF.
+ * @returns The proxy export dialog element.
+ */
+export function ProxyExportDialog({
+  open: controlledOpen,
+  onOpenChange,
+  cards: cardsProp,
+}: ProxyExportDialogProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = (value: boolean) => {
     if (value) {
       setPreviewUrl(null);
     }
-    setOpenRaw(value);
+    if (isControlled) {
+      onOpenChange?.(value);
+    } else {
+      setInternalOpen(value);
+    }
   };
   const [renderMode, setRenderMode] = useState<ProxyRenderMode>("image");
   const [pageSize, setPageSize] = useState<ProxyPageSize>("a4");
@@ -135,7 +159,7 @@ export function ProxyExportDialog() {
   const queryClient = useQueryClient();
 
   const handleGenerate = async () => {
-    const cards = useDeckBuilderStore.getState().cards;
+    const cards = cardsProp ?? useDeckBuilderStore.getState().cards;
     if (cards.length === 0) {
       return;
     }
@@ -242,10 +266,12 @@ export function ProxyExportDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        <PrinterIcon className="size-4" />
-        Proxies
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger render={<Button variant="outline" size="sm" />}>
+          <PrinterIcon className="size-4" />
+          Proxies
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Export as proxies</DialogTitle>
