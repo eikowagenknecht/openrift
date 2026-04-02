@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 
-import { APP_HEADER_HEIGHT } from "./card-grid-constants";
 import type { IndicatorState, VRow } from "./card-grid-types";
 import { computeSnapPoints } from "./compute-snap-points";
 
@@ -19,6 +18,7 @@ interface UseScrollIndicatorParams {
   virtualizer: Virtualizer<Window, Element>;
   scrollMargin: number;
   multipleGroups: boolean;
+  stickyOffset: number;
 }
 
 export function useScrollIndicator({
@@ -27,6 +27,7 @@ export function useScrollIndicator({
   virtualizer,
   scrollMargin,
   multipleGroups,
+  stickyOffset,
 }: UseScrollIndicatorParams) {
   // ── Mirror refs (read current values from event handlers) ──────────
   const virtualRowsRef = useRef(virtualRows);
@@ -41,10 +42,13 @@ export function useScrollIndicator({
   const scrollMarginRef = useRef(scrollMargin);
   scrollMarginRef.current = scrollMargin;
 
+  const stickyOffsetRef = useRef(stickyOffset);
+  stickyOffsetRef.current = stickyOffset;
+
   // ── Indicator state ────────────────────────────────────────────────
   const [indicator, setIndicator] = useState<IndicatorState>({
     cardId: "",
-    indicatorTop: APP_HEADER_HEIGHT + INDICATOR_PAD,
+    indicatorTop: stickyOffsetRef.current + INDICATOR_PAD,
     visible: false,
     dragging: false,
   });
@@ -91,7 +95,7 @@ export function useScrollIndicator({
   useEffect(() => {
     let rafId = 0;
     const update = () => {
-      const threshold = globalThis.scrollY + APP_HEADER_HEIGHT + 1;
+      const threshold = globalThis.scrollY + stickyOffsetRef.current + 1;
       const vItems = virtualizerRef.current.getVirtualItems();
       const rows = virtualRowsRef.current;
       let firstItem: CardViewerItem | null = null;
@@ -110,7 +114,7 @@ export function useScrollIndicator({
       }
 
       const viewportH = globalThis.innerHeight;
-      const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
+      const contentStart = scrollMarginRef.current - stickyOffsetRef.current;
       const totalSize = virtualizerRef.current.getTotalSize();
       const contentEnd = scrollMarginRef.current + totalSize - viewportH;
       const contentRange = contentEnd - contentStart;
@@ -119,7 +123,7 @@ export function useScrollIndicator({
           ? Math.max(0, Math.min(1, (globalThis.scrollY - contentStart) / contentRange))
           : 0;
       const halfH = indicatorHRef.current / 2;
-      const trackTop = APP_HEADER_HEIGHT + halfH + INDICATOR_PAD;
+      const trackTop = stickyOffsetRef.current + halfH + INDICATOR_PAD;
       const trackBottom = viewportH - halfH - INDICATOR_PAD;
       const indicatorTop = trackTop + contentPct * (trackBottom - trackTop);
 
@@ -178,11 +182,11 @@ export function useScrollIndicator({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const viewportH = globalThis.innerHeight;
     const totalSize = virtualizerRef.current.getTotalSize();
-    const contentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
+    const contentStart = scrollMarginRef.current - stickyOffsetRef.current;
     const contentEnd = scrollMarginRef.current + totalSize - viewportH;
     dragStartRef.current = {
       grabOffsetY: e.clientY - dragTopRef.current,
-      trackTop: APP_HEADER_HEIGHT + indicatorHRef.current / 2 + INDICATOR_PAD,
+      trackTop: stickyOffsetRef.current + indicatorHRef.current / 2 + INDICATOR_PAD,
       trackBottom: viewportH - indicatorHRef.current / 2 - INDICATOR_PAD,
       contentStart,
       contentRange: contentEnd - contentStart,
@@ -249,7 +253,7 @@ export function useScrollIndicator({
           const trackRange = trackBottom - trackTop;
           const contentPct = trackRange > 0 ? (indicatorTop - trackTop) / trackRange : 0;
           const targetScrollY = contentStart + contentPct * contentRange;
-          const threshold = targetScrollY + APP_HEADER_HEIGHT + 1 - scrollMarginRef.current;
+          const threshold = targetScrollY + stickyOffsetRef.current + 1 - scrollMarginRef.current;
 
           const rows = virtualRowsRef.current;
           const starts = rowStartsRef.current;
@@ -297,7 +301,7 @@ export function useScrollIndicator({
 
       const liveViewportH = globalThis.innerHeight;
       const liveTotalSize = virtualizerRef.current.getTotalSize();
-      const liveContentStart = scrollMarginRef.current - APP_HEADER_HEIGHT;
+      const liveContentStart = scrollMarginRef.current - stickyOffsetRef.current;
       const liveContentEnd = scrollMarginRef.current + liveTotalSize - liveViewportH;
       const liveContentRange = liveContentEnd - liveContentStart;
       const liveContentPct =
@@ -305,7 +309,7 @@ export function useScrollIndicator({
           ? Math.max(0, Math.min(1, (globalThis.scrollY - liveContentStart) / liveContentRange))
           : 0;
       const liveHalfH = indicatorHRef.current / 2;
-      const liveTrackTop = APP_HEADER_HEIGHT + liveHalfH + INDICATOR_PAD;
+      const liveTrackTop = stickyOffsetRef.current + liveHalfH + INDICATOR_PAD;
       const liveTrackBottom = liveViewportH - liveHalfH - INDICATOR_PAD;
       const liveIndicatorTop = liveTrackTop + liveContentPct * (liveTrackBottom - liveTrackTop);
 
@@ -339,6 +343,7 @@ export function useScrollIndicator({
         scrollMargin,
         multipleGroups,
         indicatorH: indicatorHRef.current,
+        stickyOffset,
       })
     : [];
   snapPointsRef.current = snapPoints;

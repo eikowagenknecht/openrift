@@ -1,8 +1,10 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
+import { APP_HEADER_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { cn } from "@/lib/utils";
 
@@ -55,10 +57,37 @@ export function CardViewer({
   addStripHeight,
   children,
 }: CardViewerProps) {
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
+      setToolbarHeight(Math.round(height));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const stickyOffset = APP_HEADER_HEIGHT + toolbarHeight;
+
   return (
     <div className="@container flex flex-1 flex-col">
-      {toolbar}
-      <div className="mt-4 flex flex-1 items-stretch gap-6">
+      <div
+        ref={toolbarRef}
+        className="bg-background/80 sticky z-20 -mx-3 rounded-b-xl px-3 pt-3 pb-3 backdrop-blur-lg"
+        style={{ top: APP_HEADER_HEIGHT }}
+      >
+        {toolbar}
+      </div>
+      <div
+        className="relative z-10 mt-3 flex flex-1 items-stretch gap-6"
+        style={{ "--sticky-top": `${stickyOffset + 12}px` } as React.CSSProperties}
+      >
         {leftPane}
         <div
           className={cn(
@@ -79,6 +108,7 @@ export function CardViewer({
             onItemClick={onItemClick}
             siblingPrintings={siblingPrintings}
             addStripHeight={addStripHeight}
+            stickyOffset={stickyOffset}
           />
         </div>
         {rightPane}

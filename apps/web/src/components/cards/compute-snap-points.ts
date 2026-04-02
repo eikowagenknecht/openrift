@@ -2,7 +2,6 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 
-import { APP_HEADER_HEIGHT } from "./card-grid-constants";
 import type { SnapPoint, VRow } from "./card-grid-types";
 
 const INDICATOR_PAD = 4;
@@ -14,6 +13,7 @@ interface ComputeSnapPointsParams {
   scrollMargin: number;
   multipleGroups: boolean;
   indicatorH: number;
+  stickyOffset: number;
 }
 
 export function computeSnapPoints({
@@ -23,20 +23,21 @@ export function computeSnapPoints({
   scrollMargin,
   multipleGroups,
   indicatorH,
+  stickyOffset,
 }: ComputeSnapPointsParams): SnapPoint[] {
   if (!multipleGroups) {
     return [];
   }
   const viewportH = globalThis.innerHeight;
   const totalSize = virtualizer.getTotalSize();
-  const contentStart = scrollMargin - APP_HEADER_HEIGHT;
+  const contentStart = scrollMargin - stickyOffset;
   const contentEnd = scrollMargin + totalSize - viewportH;
   const contentRange = contentEnd - contentStart;
   if (contentRange <= 0) {
     return [];
   }
   const halfH = indicatorH / 2;
-  const trackTop = APP_HEADER_HEIGHT + halfH + INDICATOR_PAD;
+  const trackTop = stickyOffset + halfH + INDICATOR_PAD;
   const trackBottom = viewportH - halfH - INDICATOR_PAD;
 
   const measuredStarts = new Map(
@@ -51,7 +52,7 @@ export function computeSnapPoints({
       continue;
     }
     const rowStart = measuredStarts.get(i) ?? rowStarts[i];
-    const headerScrollY = rowStart + scrollMargin - APP_HEADER_HEIGHT;
+    const headerScrollY = rowStart + scrollMargin - stickyOffset;
     const contentPct = Math.max(0, Math.min(1, (headerScrollY - contentStart) / contentRange));
     const screenY = Math.round(trackTop + contentPct * (trackBottom - trackTop));
     let firstCardId = "";
