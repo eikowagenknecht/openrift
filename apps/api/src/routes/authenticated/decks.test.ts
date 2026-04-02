@@ -23,6 +23,14 @@ const mockRepo = {
   cloneDeck: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
+const mockMarketplace = {
+  deckValues: vi.fn(() => Promise.resolve(new Map<string, number>())),
+};
+
+const mockUserPreferences = {
+  getByUserId: vi.fn(() => Promise.resolve(undefined)),
+};
+
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -32,7 +40,11 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("user", { id: USER_ID });
-    c.set("repos", { decks: mockRepo } as never);
+    c.set("repos", {
+      decks: mockRepo,
+      marketplace: mockMarketplace,
+      userPreferences: mockUserPreferences,
+    } as never);
     await next();
   })
   .route("/api/v1", decksRoute)

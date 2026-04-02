@@ -34,8 +34,10 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCloneDeck, useDeleteDeck } from "@/hooks/use-decks";
 import { getDomainGradientStyle } from "@/lib/domain";
+import { formatterForMarketplace } from "@/lib/format";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 import { toDeckBuilderCard } from "@/stores/deck-builder-store";
+import { useDisplayStore } from "@/stores/display-store";
 
 import { DeckDomainBar } from "./deck-domain-bar";
 import { DeckExportDialog } from "./deck-export-dialog";
@@ -150,9 +152,18 @@ function FannedPreview({
  * Visual tile for a single deck in the deck grid.
  * @returns The deck tile element.
  */
-export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCardResponse[] }) {
+export function DeckTile({
+  deck,
+  cards,
+  totalValueCents,
+}: {
+  deck: DeckResponse;
+  cards?: DeckCardResponse[];
+  totalValueCents: number | null;
+}) {
   const navigate = useNavigate();
   const cloneDeck = useCloneDeck();
+  const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
@@ -297,6 +308,11 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
               {updatedDate !== createdDate && ` (updated ${updatedDate})`}
             </span>
             <span>{totalCards} cards</span>
+            {totalValueCents !== null && totalValueCents > 0 && (
+              <span>
+                {formatterForMarketplace(marketplaceOrder[0] ?? "tcgplayer")(totalValueCents / 100)}
+              </span>
+            )}
             <span className="flex-1" />
             <DropdownMenu>
               <DropdownMenuTrigger

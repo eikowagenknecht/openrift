@@ -26,6 +26,7 @@ import {
   updateDeckCardsSchema,
   updateDeckSchema,
 } from "@openrift/shared/schemas";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -212,21 +213,27 @@ export const decksRoute = decksApp
 
   // ── GET ONE (custom: returns deck with deck_cards joined) ───────────────────
   .openapi(getDeck, async (c) => {
-    const { decks } = c.get("repos");
+    const { decks, marketplace, userPreferences } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const [deck, cardRows] = await Promise.all([
+    const [deck, cardRows, prefs] = await Promise.all([
       decks.getByIdForUser(id, userId),
       decks.cardsWithDetails(id, userId),
+      userPreferences.getByUserId(userId),
     ]);
     if (!deck) {
       throw new AppError(404, "NOT_FOUND", "Not found");
     }
 
+    const favMarketplace =
+      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
+    const deckValueMap = await marketplace.deckValues(userId, favMarketplace);
+
     const detail: DeckDetailResponse = {
       deck: toDeck(deck),
       cards: cardRows.map((r) => toDeckCard(r)),
+      totalValueCents: deckValueMap.get(id) ?? null,
     };
     return c.json(detail);
   })

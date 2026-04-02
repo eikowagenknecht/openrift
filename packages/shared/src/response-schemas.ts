@@ -335,6 +335,7 @@ export const deckDetailResponseSchema = z
   .object({
     deck: deckResponseSchema,
     cards: z.array(deckCardResponseSchema),
+    totalValueCents: z.number().nullable(),
   })
   .openapi("DeckDetailResponse");
 

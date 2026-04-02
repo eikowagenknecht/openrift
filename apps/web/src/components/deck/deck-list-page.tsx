@@ -106,9 +106,11 @@ export function DeckListPage() {
     queries: decks.map((deck) => deckDetailQueryOptions(deck.id)),
   });
   const cardsByDeckId = new Map<string, DeckCardResponse[]>();
+  const valueCentsByDeckId = new Map<string, number | null>();
   for (const query of detailQueries) {
     if (query.data) {
       cardsByDeckId.set(query.data.deck.id, query.data.cards);
+      valueCentsByDeckId.set(query.data.deck.id, query.data.totalValueCents);
     }
   }
 
@@ -136,7 +138,12 @@ export function DeckListPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {decks.map((deck) => (
-            <DeckTile key={deck.id} deck={deck} cards={cardsByDeckId.get(deck.id)} />
+            <DeckTile
+              key={deck.id}
+              deck={deck}
+              cards={cardsByDeckId.get(deck.id)}
+              totalValueCents={valueCentsByDeckId.get(deck.id) ?? null}
+            />
           ))}
         </div>
       )}

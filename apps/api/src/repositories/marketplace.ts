@@ -87,6 +87,41 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Total market value per deck for a user.
+     *
+     * Uses the cheapest printing of each card to estimate what it would cost
+     * to buy the deck on the given marketplace.
+     *
+     * @returns A map from deck ID to total value in cents.
+     */
+    async deckValues(userId: string, marketplace: string): Promise<Map<string, number>> {
+      const rows = await sql<{ deckId: string; totalValueCents: number }>`
+        select
+          dc.deck_id as "deckId",
+          coalesce(sum(dc.quantity * cheapest.market_cents), 0)::int as "totalValueCents"
+        from deck_cards dc
+        inner join decks d on d.id = dc.deck_id and d.user_id = ${userId}
+        left join lateral (
+          select min(latest.market_cents) as market_cents
+          from printings p
+          inner join marketplace_products mp
+            on mp.printing_id = p.id and mp.marketplace = ${marketplace}
+          inner join lateral (
+            select ms.market_cents
+            from marketplace_snapshots ms
+            where ms.product_id = mp.id
+            order by ms.recorded_at desc
+            limit 1
+          ) latest on true
+          where p.card_id = dc.card_id
+        ) cheapest on true
+        group by dc.deck_id
+      `.execute(db);
+
+      return new Map(rows.rows.map((row) => [row.deckId, row.totalValueCents]));
+    },
+
+    /**
      * Total market value and unpriced copy count per collection for a user.
      *
      * @returns A map from collection ID to value data.

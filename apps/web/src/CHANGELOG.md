@@ -2,6 +2,7 @@
 
 ## 2026-04-02
 
+- feat: Deck overview tiles now show the estimated deck value based on cheapest available printing
 - feat: You can now export proxy PDFs directly from the deck overview without opening the editor
 - feat: Deck stats panel is more compact — domain colors are shown as a bar in the header, and energy and power curves are merged into a single butterfly chart
 - feat: Deck overview tiles now show a domain color bar and type counts at a glance
