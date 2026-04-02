@@ -37,7 +37,8 @@ const roadmapItems: RoadmapItem[] = [
     title: "Proxy Printing",
     description: "Print proxy cards for playtesting.",
     icon: <PrinterIcon className="size-4" />,
-    done: false,
+    done: true,
+    date: "Apr 2026",
   },
   {
     title: "Tournament Decks",

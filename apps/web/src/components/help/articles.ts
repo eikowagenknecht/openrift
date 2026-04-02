@@ -1,5 +1,12 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowRightLeftIcon, LayersIcon, LibraryIcon, ScaleIcon, SwordsIcon } from "lucide-react";
+import {
+  ArrowRightLeftIcon,
+  LayersIcon,
+  LibraryIcon,
+  PrinterIcon,
+  ScaleIcon,
+  SwordsIcon,
+} from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface HelpArticle {
@@ -67,6 +74,17 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Create decks, pick a legend, fill your zones, and validate against Standard format rules.",
       icon: SwordsIcon,
       component: () => import("./articles/deck-building"),
+    },
+  ],
+  [
+    "proxy-printing",
+    {
+      slug: "proxy-printing",
+      title: "Printing Proxies",
+      description:
+        "Generate printable proxy PDFs from your decks for playtesting — with card images or text placeholders.",
+      icon: PrinterIcon,
+      component: () => import("./articles/proxy-printing"),
     },
   ],
 ]);
