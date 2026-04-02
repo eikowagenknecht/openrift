@@ -31,8 +31,8 @@ export function DeckStatsPanel() {
         <div className="space-y-3 border-t px-3 py-3">
           <DomainDistribution data={stats.domainDistribution} />
           <EnergyCurve data={stats.energyCurve} domains={stats.energyCurveDomains} />
-          <PowerCurve data={stats.powerCurve} />
-          <TypeBreakdown data={stats.typeBreakdown} />
+          <PowerCurve data={stats.powerCurve} domains={stats.powerCurveDomains} />
+          <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
         </div>
       )}
     </div>

@@ -39,7 +39,7 @@ const ZONE_LABELS: Record<DeckZone, string> = {
 };
 
 /** Display order for zones in the preview. */
-const ZONE_ORDER: DeckZone[] = ["legend", "champion", "runes", "battlefield", "main", "sideboard"];
+const ZONE_ORDER: DeckZone[] = ["legend", "champion", "main", "sideboard", "battlefield", "runes"];
 
 function PreviewSection({ cards }: { cards: DeckImportCardPreview[] }) {
   const grouped = Map.groupBy(cards, (card) => card.zone);
