@@ -8,19 +8,26 @@ export interface DomainCount {
   count: number;
 }
 
-export type EnergyCostCount = { energy: string } & Partial<Record<Domain, number>>;
+/** A single domain or a multi-domain combo (e.g. Fire+Water). */
+export interface DomainCombo {
+  key: string;
+  domains: Domain[];
+}
+
+export type EnergyCostCount = Record<string, string | number> & { energy: string };
 
 export type TypeCount = { type: CardType; total: number } & Partial<Record<Domain, number>>;
 
-export type PowerCount = { power: string } & Partial<Record<Domain, number>>;
+export type PowerCount = Record<string, string | number> & { power: string };
 
 interface DeckStats {
   domainDistribution: DomainCount[];
   energyCurve: EnergyCostCount[];
-  energyCurveDomains: Domain[];
+  energyCurveStacks: DomainCombo[];
   averageEnergy: number | null;
   powerCurve: PowerCount[];
-  powerCurveDomains: Domain[];
+  powerCurveStacks: DomainCombo[];
+  averagePower: number | null;
   typeBreakdown: TypeCount[];
   typeBreakdownDomains: Domain[];
   totalCards: number;
@@ -28,6 +35,34 @@ interface DeckStats {
 
 // Stats cover only main deck cards (champion counts toward main)
 const MAIN_ZONES = new Set(["main", "champion"]);
+
+/**
+ * Builds a domain combo key from a card's domains, sorted by DOMAIN_ORDER.
+ * @returns A stable string key like "Fire" or "Fire+Water".
+ */
+function comboKey(domains: Domain[]): string {
+  return domains.toSorted((a, b) => DOMAIN_ORDER.indexOf(a) - DOMAIN_ORDER.indexOf(b)).join("+");
+}
+
+/**
+ * Sorts domain combos: singles and combos interleaved by average domain position.
+ * Singles sort before combos at the same position.
+ * @returns A sorted array of DomainCombo.
+ */
+function sortCombos(comboSet: Set<string>): DomainCombo[] {
+  return [...comboSet]
+    .map((key) => ({ key, domains: key.split("+") as Domain[] }))
+    .toSorted((a, b) => {
+      const posA =
+        a.domains.reduce((sum, domain) => sum + DOMAIN_ORDER.indexOf(domain), 0) / a.domains.length;
+      const posB =
+        b.domains.reduce((sum, domain) => sum + DOMAIN_ORDER.indexOf(domain), 0) / b.domains.length;
+      if (posA !== posB) {
+        return posA - posB;
+      }
+      return a.domains.length - b.domains.length;
+    });
+}
 
 /**
  * Computes deck statistics from the current deck builder state.
@@ -54,38 +89,33 @@ export function useDeckStats(): DeckStats {
     count: domainCounts.get(domain) ?? 0,
   }));
 
-  // Energy curve — group by energy cost and domain, stacked by domain color
-  const energyByDomain = new Map<number, Map<Domain, number>>();
+  // Energy curve — group by energy cost and domain combo, stacked
+  const energyByCombo = new Map<number, Map<string, number>>();
+  const energyComboSet = new Set<string>();
   for (const card of mainCards) {
     if (card.energy === null) {
       continue;
     }
-    let domainMap = energyByDomain.get(card.energy);
-    if (!domainMap) {
-      domainMap = new Map();
-      energyByDomain.set(card.energy, domainMap);
+    const key = comboKey(card.domains);
+    energyComboSet.add(key);
+    let comboMap = energyByCombo.get(card.energy);
+    if (!comboMap) {
+      comboMap = new Map();
+      energyByCombo.set(card.energy, comboMap);
     }
-    for (const domain of card.domains) {
-      domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
-    }
+    comboMap.set(key, (comboMap.get(key) ?? 0) + card.quantity);
   }
-  const allEnergyValues = [...energyByDomain.keys()];
-  const energyDomainSet = new Set<Domain>();
-  for (const domainMap of energyByDomain.values()) {
-    for (const domain of domainMap.keys()) {
-      energyDomainSet.add(domain);
-    }
-  }
-  const energyCurveDomains = DOMAIN_ORDER.filter((domain) => energyDomainSet.has(domain));
+  const energyCurveStacks = sortCombos(energyComboSet);
+  const allEnergyValues = [...energyByCombo.keys()];
   const energyCurve: EnergyCostCount[] = [];
   if (allEnergyValues.length > 0) {
     const energyMin = Math.min(...allEnergyValues);
     const energyMax = Math.max(...allEnergyValues);
     for (let value = energyMin; value <= energyMax; value++) {
-      const domainMap = energyByDomain.get(value);
+      const comboMap = energyByCombo.get(value);
       const entry: EnergyCostCount = { energy: String(value) };
-      for (const domain of energyCurveDomains) {
-        entry[domain] = domainMap?.get(domain) ?? 0;
+      for (const stack of energyCurveStacks) {
+        entry[stack.key] = comboMap?.get(stack.key) ?? 0;
       }
       energyCurve.push(entry);
     }
@@ -102,38 +132,41 @@ export function useDeckStats(): DeckStats {
   }
   const averageEnergy = energyCount > 0 ? energySum / energyCount : null;
 
-  // Power curve — group by power and domain, stacked by domain color
-  const powerByDomain = new Map<number, Map<Domain, number>>();
+  // Power curve — group by power and domain combo, stacked
+  const powerByCombo = new Map<number, Map<string, number>>();
+  const powerComboSet = new Set<string>();
   for (const card of mainCards) {
-    if (card.power === null) {
-      continue;
+    const power = card.power ?? 0;
+    const key = comboKey(card.domains);
+    powerComboSet.add(key);
+    let comboMap = powerByCombo.get(power);
+    if (!comboMap) {
+      comboMap = new Map();
+      powerByCombo.set(power, comboMap);
     }
-    let domainMap = powerByDomain.get(card.power);
-    if (!domainMap) {
-      domainMap = new Map();
-      powerByDomain.set(card.power, domainMap);
-    }
-    for (const domain of card.domains) {
-      domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
-    }
+    comboMap.set(key, (comboMap.get(key) ?? 0) + card.quantity);
   }
-  const allPowerValues = [...powerByDomain.keys()];
-  const powerDomainSet = new Set<Domain>();
-  for (const domainMap of powerByDomain.values()) {
-    for (const domain of domainMap.keys()) {
-      powerDomainSet.add(domain);
-    }
+  const powerCurveStacks = sortCombos(powerComboSet);
+
+  // Average power (weighted by quantity, treating null power as 0)
+  let powerSum = 0;
+  let powerCount = 0;
+  for (const card of mainCards) {
+    powerSum += (card.power ?? 0) * card.quantity;
+    powerCount += card.quantity;
   }
-  const powerCurveDomains = DOMAIN_ORDER.filter((domain) => powerDomainSet.has(domain));
+  const averagePower = powerCount > 0 ? powerSum / powerCount : null;
+
+  const allPowerValues = [...powerByCombo.keys()];
   const powerCurve: PowerCount[] = [];
   if (allPowerValues.length > 0) {
     const powerMin = Math.min(...allPowerValues);
     const powerMax = Math.max(...allPowerValues);
     for (let value = powerMin; value <= powerMax; value++) {
-      const domainMap = powerByDomain.get(value);
+      const comboMap = powerByCombo.get(value);
       const entry: PowerCount = { power: String(value) };
-      for (const domain of powerCurveDomains) {
-        entry[domain] = domainMap?.get(domain) ?? 0;
+      for (const stack of powerCurveStacks) {
+        entry[stack.key] = comboMap?.get(stack.key) ?? 0;
       }
       powerCurve.push(entry);
     }
@@ -181,10 +214,11 @@ export function useDeckStats(): DeckStats {
   return {
     domainDistribution,
     energyCurve,
-    energyCurveDomains,
+    energyCurveStacks,
     averageEnergy,
     powerCurve,
-    powerCurveDomains,
+    powerCurveStacks,
+    averagePower,
     typeBreakdown,
     typeBreakdownDomains,
     totalCards,
