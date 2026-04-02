@@ -1,8 +1,10 @@
 import type { CatalogResponse } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
+import { html2canvas } from "html2canvas-pro";
 import { Loader2Icon, PrinterIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,8 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { ProxyPageSize, ProxyRenderMode } from "@/lib/proxy-pdf";
-import { generateProxyPdf } from "@/lib/proxy-pdf";
+import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
+import { assembleProxyPdf, prerenderImageCards, resolveProxyCards } from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
@@ -37,6 +39,38 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
   letter: "US Letter",
 };
 
+// Width used for the hidden render container (px)
+const RENDER_WIDTH_PX = 504;
+
+/**
+ * Captures a rendered CardPlaceholderImage DOM element via html2canvas.
+ * The element must already be in the page's React tree (with all providers).
+ * @returns PNG data URL.
+ */
+async function captureElement(element: HTMLElement): Promise<string> {
+  const canvas = await html2canvas(element, {
+    width: element.offsetWidth,
+    height: element.offsetHeight,
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+  });
+  return canvas.toDataURL("image/png");
+}
+
+/**
+ * Waits two animation frames for React to commit and browser to compute styles.
+ * @returns void
+ */
+function waitForRender(): Promise<void> {
+  // oxlint-disable-next-line promise/avoid-new -- wrapping requestAnimationFrame callback API
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 export function ProxyExportDialog() {
   const [open, setOpen] = useState(false);
   const [renderMode, setRenderMode] = useState<ProxyRenderMode>("image");
@@ -45,6 +79,9 @@ export function ProxyExportDialog() {
   const [watermark, setWatermark] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  // Cards currently being rendered in the hidden container for html2canvas capture
+  const [renderingCard, setRenderingCard] = useState<ProxyCard | null>(null);
+  const cardElementRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
   const handleGenerate = async () => {
@@ -53,7 +90,6 @@ export function ProxyExportDialog() {
       return;
     }
 
-    // Get catalog from React Query cache
     const catalog = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
     if (!catalog) {
       return;
@@ -63,22 +99,88 @@ export function ProxyExportDialog() {
     setProgress({ current: 0, total: 0 });
 
     try {
-      await generateProxyPdf(
-        cards,
-        catalog,
-        {
-          pageSize,
-          renderMode,
-          cutLines,
-          watermark,
-        },
-        (current, total) => {
+      const proxyCards = resolveProxyCards(cards, catalog);
+      const renderedCards = new Map<string, RenderedCard>();
+
+      if (renderMode === "image") {
+        // Image mode: load and convert card images
+        const imageCards = await prerenderImageCards(proxyCards, (current, total) => {
           setProgress({ current, total });
-        },
-      );
+        });
+        for (const [cardId, rendered] of imageCards) {
+          renderedCards.set(cardId, rendered);
+        }
+      } else {
+        // Text mode: render each unique card in the React tree, then capture with html2canvas
+        const uniqueCardIds = new Set<string>();
+        const uniqueCards: ProxyCard[] = [];
+        for (const proxyCard of proxyCards) {
+          if (!uniqueCardIds.has(proxyCard.cardId)) {
+            uniqueCardIds.add(proxyCard.cardId);
+            uniqueCards.push(proxyCard);
+          }
+        }
+
+        for (let cardIdx = 0; cardIdx < uniqueCards.length; cardIdx++) {
+          const proxyCard = uniqueCards[cardIdx];
+          setProgress({ current: cardIdx + 1, total: uniqueCards.length });
+
+          // Render the card component in the hidden container (inside the React tree)
+          setRenderingCard(proxyCard);
+
+          await waitForRender();
+
+          // Capture with html2canvas
+          const element = cardElementRef.current;
+          if (element) {
+            try {
+              const dataUrl = await captureElement(element);
+              renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+            } catch (error) {
+              console.error(`Failed to capture card "${proxyCard.name}":`, error);
+            }
+          }
+        }
+
+        setRenderingCard(null);
+      }
+
+      // For image mode, fall back to text mode for cards without images
+      if (renderMode === "image") {
+        const missingCards = proxyCards.filter((proxyCard) => !renderedCards.has(proxyCard.cardId));
+        const uniqueMissing = new Map<string, ProxyCard>();
+        for (const proxyCard of missingCards) {
+          if (!uniqueMissing.has(proxyCard.cardId)) {
+            uniqueMissing.set(proxyCard.cardId, proxyCard);
+          }
+        }
+
+        for (const [, proxyCard] of uniqueMissing) {
+          setRenderingCard(proxyCard);
+          await waitForRender();
+          const element = cardElementRef.current;
+          if (element) {
+            try {
+              const dataUrl = await captureElement(element);
+              renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+            } catch (error) {
+              console.error(`Failed to capture fallback card "${proxyCard.name}":`, error);
+            }
+          }
+        }
+        setRenderingCard(null);
+      }
+
+      await assembleProxyPdf(proxyCards, renderedCards, {
+        pageSize,
+        renderMode,
+        cutLines,
+        watermark,
+      });
       setOpen(false);
     } finally {
       setGenerating(false);
+      setRenderingCard(null);
     }
   };
 
@@ -156,6 +258,38 @@ export function ProxyExportDialog() {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Hidden render container — inside the React tree so all providers/hooks work */}
+      {renderingCard && (
+        <div
+          ref={cardElementRef}
+          style={{
+            position: "fixed",
+            left: 0,
+            top: 0,
+            width: RENDER_WIDTH_PX,
+            pointerEvents: "none",
+            zIndex: -9999,
+            opacity: 0,
+          }}
+        >
+          <CardPlaceholderImage
+            name={renderingCard.card.name}
+            domain={renderingCard.card.domains}
+            energy={renderingCard.card.energy}
+            might={renderingCard.card.might}
+            power={renderingCard.card.power}
+            type={renderingCard.card.type}
+            superTypes={renderingCard.card.superTypes}
+            tags={renderingCard.card.tags}
+            rulesText={renderingCard.card.rulesText}
+            effectText={renderingCard.card.effectText}
+            mightBonus={renderingCard.card.mightBonus}
+            flavorText={renderingCard.flavorText}
+            variant="light"
+          />
+        </div>
+      )}
     </Dialog>
   );
 }

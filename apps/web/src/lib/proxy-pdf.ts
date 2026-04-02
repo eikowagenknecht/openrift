@@ -1,17 +1,13 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
-import { html2canvas } from "html2canvas-pro";
 import { jsPDF } from "jspdf";
-import { createElement } from "react";
-import { createRoot } from "react-dom/client";
 
-import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { getCardImageUrl } from "@/lib/images";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 
 export type ProxyPageSize = "a4" | "letter";
 export type ProxyRenderMode = "image" | "text";
 
-interface ProxyOptions {
+export interface ProxyOptions {
   pageSize: ProxyPageSize;
   renderMode: ProxyRenderMode;
   cutLines: boolean;
@@ -31,7 +27,7 @@ const PAGE_SIZES = {
   letter: { width: 215.9, height: 279.4 },
 } as const;
 
-interface ProxyCard {
+export interface ProxyCard {
   cardId: string;
   name: string;
   imageUrl: string | null;
@@ -43,7 +39,10 @@ interface ProxyCard {
  * Resolves deck builder cards to full card + printing data needed for proxy generation.
  * @returns Flat array of ProxyCard entries with quantities expanded (one entry per copy).
  */
-function resolveProxyCards(deckCards: DeckBuilderCard[], catalog: CatalogResponse): ProxyCard[] {
+export function resolveProxyCards(
+  deckCards: DeckBuilderCard[],
+  catalog: CatalogResponse,
+): ProxyCard[] {
   const cardsById = catalog.cards;
   const printingByCardId = new Map<string, Printing & { setSlug: string }>();
   const slugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
@@ -78,7 +77,7 @@ function resolveProxyCards(deckCards: DeckBuilderCard[], catalog: CatalogRespons
 const RENDER_WIDTH_PX = 504; // 63mm * 8px/mm
 const RENDER_HEIGHT_PX = 704; // 88mm * 8px/mm
 
-interface RenderedCard {
+export interface RenderedCard {
   dataUrl: string;
   rotated: boolean;
 }
@@ -108,10 +107,8 @@ async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
   }
 
   if (isLandscape) {
-    // Rotate landscape image -90° to fit portrait card slot
     ctx.translate(0, RENDER_HEIGHT_PX);
     ctx.rotate(-Math.PI / 2);
-    // After rotation, draw into the rotated coordinate space (swapped dimensions)
     ctx.drawImage(img, 0, 0, RENDER_HEIGHT_PX, RENDER_WIDTH_PX);
   } else {
     ctx.drawImage(img, 0, 0, RENDER_WIDTH_PX, RENDER_HEIGHT_PX);
@@ -121,175 +118,39 @@ async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
 }
 
 /**
- * Collects all stylesheet rules from the document into a single string.
- * Cached after first call since stylesheets don't change during generation.
- * @returns CSS text to inline in an SVG foreignObject.
+ * Pre-renders image-mode cards. Text-mode cards are rendered by the React component.
+ * @returns Map from cardId to RenderedCard for image-mode cards only.
  */
-// Layout properties to inline (resolves cqw → px). Colors handled separately.
-const LAYOUT_PROPS = [
-  "position",
-  "top",
-  "left",
-  "right",
-  "bottom",
-  "width",
-  "height",
-  "min-width",
-  "min-height",
-  "max-width",
-  "max-height",
-  "font-size",
-  "font-weight",
-  "font-family",
-  "font-style",
-  "line-height",
-  "letter-spacing",
-  "text-transform",
-  "padding",
-  "padding-top",
-  "padding-right",
-  "padding-bottom",
-  "padding-left",
-  "margin",
-  "margin-top",
-  "margin-right",
-  "margin-bottom",
-  "margin-left",
-  "gap",
-  "row-gap",
-  "column-gap",
-  "display",
-  "flex-direction",
-  "flex-wrap",
-  "flex",
-  "flex-grow",
-  "flex-shrink",
-  "align-items",
-  "justify-content",
-  "border-radius",
-  "border-width",
-  "overflow",
-  "opacity",
-  "transform",
-  "clip-path",
-  "aspect-ratio",
-  "text-align",
-  "white-space",
-  "vertical-align",
-] as const;
-
-/**
- * Recursively inlines computed layout styles on every element.
- * Resolves cqw → px so html2canvas doesn't need container query support.
- * Skips properties already set as inline styles (preserves React's gradients).
- */
-function inlineComputedStyles(element: Element): void {
-  if (!(element instanceof HTMLElement)) {
-    return;
-  }
-  const computed = getComputedStyle(element);
-  for (const prop of LAYOUT_PROPS) {
-    if (element.style.getPropertyValue(prop)) {
-      continue;
-    }
-    const value = computed.getPropertyValue(prop);
-    if (value) {
-      element.style.setProperty(prop, value);
+export async function prerenderImageCards(
+  proxyCards: ProxyCard[],
+  onProgress?: (current: number, total: number) => void,
+): Promise<Map<string, RenderedCard>> {
+  const uniqueCards = new Map<string, ProxyCard>();
+  for (const proxyCard of proxyCards) {
+    if (!uniqueCards.has(proxyCard.cardId) && proxyCard.imageUrl) {
+      uniqueCards.set(proxyCard.cardId, proxyCard);
     }
   }
-  for (const child of element.children) {
-    inlineComputedStyles(child);
-  }
-}
 
-/**
- * Renders a CardPlaceholderImage (light variant) to a PNG data URL.
- * Renders the React component into the real DOM, serializes to an SVG foreignObject
- * with inlined styles so container queries and Tailwind classes work, then draws
- * the SVG to a canvas.
- * @returns Rendered card with data URL (never rotated — placeholders are always portrait).
- */
-async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<RenderedCard> {
-  // Render React component into a real DOM element so container queries work
-  const container = document.createElement("div");
-  container.style.cssText = `
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: ${RENDER_WIDTH_PX}px;
-    pointer-events: none;
-    z-index: -9999;
-    opacity: 0;
-  `;
-  document.body.append(container);
+  const rendered = new Map<string, RenderedCard>();
+  let completed = 0;
+  const total = uniqueCards.size;
 
-  const root = createRoot(container);
-
-  // oxlint-disable-next-line promise/avoid-new -- need to wait for React render via requestAnimationFrame
-  await new Promise<void>((resolve) => {
-    root.render(
-      createElement(CardPlaceholderImage, {
-        name: proxyCard.card.name,
-        domain: proxyCard.card.domains,
-        energy: proxyCard.card.energy,
-        might: proxyCard.card.might,
-        power: proxyCard.card.power,
-        type: proxyCard.card.type,
-        superTypes: proxyCard.card.superTypes,
-        tags: proxyCard.card.tags,
-        rulesText: proxyCard.card.rulesText,
-        effectText: proxyCard.card.effectText,
-        mightBonus: proxyCard.card.mightBonus,
-        flavorText: proxyCard.flavorText,
-        variant: "light",
-      }),
-    );
-    // Wait for React to commit and browser to compute styles (including container queries)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => resolve());
-    });
-  });
-
-  // Make visible so we can inspect and measure
-  container.style.opacity = "1";
-
-  // Get the rendered card element
-  const cardElement = container.firstElementChild as HTMLElement;
-  if (!cardElement) {
-    root.unmount();
-    container.remove();
-    throw new Error("CardPlaceholderImage did not render");
+  for (const [cardId, proxyCard] of uniqueCards) {
+    onProgress?.(++completed, total);
+    try {
+      const fullUrl = getCardImageUrl(proxyCard.imageUrl ?? "", "full");
+      rendered.set(cardId, await loadImageAsDataUrl(fullUrl));
+    } catch (error) {
+      console.error(`Failed to render card "${proxyCard.name}":`, error);
+    }
   }
 
-  // Make visible so getComputedStyle and html2canvas work correctly
-  container.style.opacity = "1";
-
-  const cardWidth = cardElement.offsetWidth;
-  const cardHeight = cardElement.offsetHeight;
-
-  // Bake all computed styles (including resolved cqw → px) as inline styles.
-  // html2canvas re-parses CSS from stylesheets and can't resolve cqw units,
-  // but inline styles take priority and are already in px.
-  inlineComputedStyles(cardElement);
-
-  // Rasterize with html2canvas-pro (supports oklch and modern CSS colors natively)
-  const canvas = await html2canvas(cardElement, {
-    width: cardWidth,
-    height: cardHeight,
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-  });
-
-  const dataUrl = canvas.toDataURL("image/png");
-  root.unmount();
-  container.remove();
-  return { dataUrl, rotated: false };
+  return rendered;
 }
 
 /**
  * Loads the OpenRift logo as a PNG data URL for embedding in the PDF.
- * Cached after first call.
  * @returns PNG data URL of the logo.
  */
 let cachedLogoDataUrl: string | null = null;
@@ -320,7 +181,6 @@ async function loadLogoDataUrl(): Promise<string> {
 
 /**
  * Draws a "PROXY" pill badge with OpenRift logo centered at the top of a card slot.
- * Always horizontal — overlays the card image regardless of orientation.
  */
 async function drawWatermark(doc: jsPDF, slotX: number, slotY: number): Promise<void> {
   const label = "PROXY";
@@ -328,7 +188,7 @@ async function drawWatermark(doc: jsPDF, slotX: number, slotY: number): Promise<
   const paddingX = 2.5;
   const paddingY = 1.2;
   const topOffset = 2.5;
-  const logoSize = fontSize * 0.35 + paddingY; // Match pill inner height roughly
+  const logoSize = fontSize * 0.35 + paddingY;
   const logoGap = 1;
 
   doc.setFontSize(fontSize);
@@ -338,11 +198,9 @@ async function drawWatermark(doc: jsPDF, slotX: number, slotY: number): Promise<
   const pillX = slotX + (CARD_WIDTH_MM - pillWidth) / 2;
   const pillY = slotY + topOffset;
 
-  // Pill background
   doc.setFillColor(0, 0, 0);
   doc.roundedRect(pillX, pillY, pillWidth, pillHeight, 1.5, 1.5, "F");
 
-  // Logo
   try {
     const logoDataUrl = await loadLogoDataUrl();
     const logoY = pillY + (pillHeight - logoSize) / 2;
@@ -351,7 +209,6 @@ async function drawWatermark(doc: jsPDF, slotX: number, slotY: number): Promise<
     // Skip logo if it fails to load
   }
 
-  // Label text (offset right to account for logo)
   const textX = pillX + paddingX + logoSize + logoGap + textWidth / 2;
   doc.setTextColor(255, 255, 255);
   doc.text(label, textX, pillY + pillHeight / 2, {
@@ -385,7 +242,7 @@ function drawCutLines(
 }
 
 /**
- * Draws a fallback text rectangle when image/canvas rendering fails.
+ * Draws a fallback text rectangle when rendering fails.
  */
 function drawFallbackCard(doc: jsPDF, name: string, slotX: number, slotY: number): void {
   doc.setDrawColor(200, 200, 200);
@@ -399,62 +256,17 @@ function drawFallbackCard(doc: jsPDF, name: string, slotX: number, slotY: number
 }
 
 /**
- * Pre-renders all unique cards and returns a map of cardId → PNG data URL.
- * Deduplicates so each card is only rendered once regardless of quantity.
- * @returns Map from cardId to PNG data URL.
+ * Assembles the PDF from pre-rendered card images (from either image loading or html2canvas).
+ * @returns void — triggers browser download.
  */
-async function prerenderCards(
+export async function assembleProxyPdf(
   proxyCards: ProxyCard[],
-  renderMode: ProxyRenderMode,
-  onProgress?: (current: number, total: number) => void,
-): Promise<Map<string, RenderedCard>> {
-  const uniqueCards = new Map<string, ProxyCard>();
-  for (const proxyCard of proxyCards) {
-    if (!uniqueCards.has(proxyCard.cardId)) {
-      uniqueCards.set(proxyCard.cardId, proxyCard);
-    }
-  }
-
-  const rendered = new Map<string, RenderedCard>();
-  let completed = 0;
-  const total = uniqueCards.size;
-
-  for (const [cardId, proxyCard] of uniqueCards) {
-    onProgress?.(++completed, total);
-
-    try {
-      if (renderMode === "image" && proxyCard.imageUrl) {
-        const fullUrl = getCardImageUrl(proxyCard.imageUrl, "full");
-        rendered.set(cardId, await loadImageAsDataUrl(fullUrl));
-      } else {
-        rendered.set(cardId, await renderPlaceholderToDataUrl(proxyCard));
-      }
-    } catch (error) {
-      console.error(`Failed to render card "${proxyCard.name}":`, error);
-      // Leave missing — fallback will be drawn in the PDF loop
-    }
-  }
-
-  return rendered;
-}
-
-/**
- * Generates a proxy PDF from deck cards and triggers a browser download.
- * @returns void
- */
-export async function generateProxyPdf(
-  deckCards: DeckBuilderCard[],
-  catalog: CatalogResponse,
+  renderedCards: Map<string, RenderedCard>,
   options: ProxyOptions,
-  onProgress?: (current: number, total: number) => void,
 ): Promise<void> {
-  const proxyCards = resolveProxyCards(deckCards, catalog);
   if (proxyCards.length === 0) {
     return;
   }
-
-  // Pre-render all unique cards (deduped) so repeated cards reuse the same image
-  const renderedCards = await prerenderCards(proxyCards, options.renderMode, onProgress);
 
   const page = PAGE_SIZES[options.pageSize];
   const marginX = (page.width - COLS * CARD_WIDTH_MM) / 2;
