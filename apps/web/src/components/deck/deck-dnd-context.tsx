@@ -13,6 +13,8 @@ import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { useCards } from "@/hooks/use-cards";
+import { getCardImageUrl } from "@/lib/images";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
@@ -240,7 +242,18 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     }
 
     if (activeData.type === "browser-card") {
-      store.addCard(activeData.card, overData.zone, moveAll ? 3 : undefined);
+      if (moveAll) {
+        if (overData.zone === "runes") {
+          const runeTotal = store.cards
+            .filter((card) => card.zone === "runes")
+            .reduce((sum, card) => sum + card.quantity, 0);
+          store.addCard(activeData.card, overData.zone, Math.max(0, 12 - runeTotal));
+        } else {
+          store.addCard(activeData.card, overData.zone, 3);
+        }
+      } else {
+        store.addCard(activeData.card, overData.zone);
+      }
       return;
     }
 
@@ -273,6 +286,22 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     dragInfo !== null &&
     (dragInfo.fromBrowser ? browserRemaining > 1 : dragInfo.quantity > 1);
 
+  const { allPrintings } = useCards();
+  const dragImageUrl = (() => {
+    if (!dragInfo) {
+      return null;
+    }
+    const printing = allPrintings.find((entry) => entry.card.id === dragInfo.cardId);
+    const frontImage = printing?.images.find((img) => img.face === "front");
+    return frontImage ? getCardImageUrl(frontImage.url, "thumbnail") : null;
+  })();
+
+  const dragCount = moveAll
+    ? dragInfo?.fromBrowser
+      ? browserRemaining
+      : (dragInfo?.quantity ?? 1)
+    : 1;
+
   return (
     <DndContext
       sensors={sensors}
@@ -284,14 +313,31 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
       {children}
       <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
         {dragInfo && (
-          <div className="bg-popover text-popover-foreground rounded-md border px-3 py-1.5 text-sm font-medium shadow-lg">
-            {dragInfo.cardName}
-            {moveAll && (
-              <span className="text-muted-foreground ml-1.5 text-xs">
-                {dragInfo.fromBrowser
-                  ? `×${browserRemaining} (max)`
-                  : `×${dragInfo.quantity} (all)`}
-              </span>
+          <div className="relative h-48 w-28">
+            {dragImageUrl ? (
+              <img
+                src={dragImageUrl}
+                alt=""
+                className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
+                draggable={false}
+              />
+            ) : (
+              <div className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center rounded-lg shadow-lg">
+                <span className="text-muted-foreground px-1 text-center text-xs">
+                  {dragInfo.cardName}
+                </span>
+              </div>
+            )}
+            <div
+              className="bg-background/80 absolute bottom-0 left-0 w-28 rounded-b-lg px-1.5 py-1 backdrop-blur-sm"
+              style={{ zIndex: 1 }}
+            >
+              <p className="truncate text-center text-xs font-medium">{dragInfo.cardName}</p>
+            </div>
+            {dragCount > 1 && (
+              <div className="bg-primary text-primary-foreground absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full text-xs font-bold shadow">
+                {dragCount}
+              </div>
             )}
           </div>
         )}

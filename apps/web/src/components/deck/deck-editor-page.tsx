@@ -11,7 +11,9 @@ import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
 import { Input } from "@/components/ui/input";
+import { useCards } from "@/hooks/use-cards";
 import { useDeckDetail, useSaveDeckCards, useUpdateDeck } from "@/hooks/use-decks";
+import { getCardImageUrl } from "@/lib/images";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { toDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
@@ -250,20 +252,14 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
 
     const hasLegend = deckCards.some((card) => card.zone === "legend");
     const hasChampion = deckCards.some((card) => card.zone === "champion");
-    const battlefieldCount = deckCards
-      .filter((card) => card.zone === "battlefield")
-      .reduce((sum, card) => sum + card.quantity, 0);
-    const hasBattlefields = battlefieldCount >= 3;
 
     let nextSuggestion: DeckZone;
-    if (!hasLegend) {
-      nextSuggestion = "legend";
-    } else if (!hasChampion) {
-      nextSuggestion = "champion";
-    } else if (hasBattlefields) {
+    if (hasLegend && hasChampion) {
       nextSuggestion = "main";
+    } else if (hasLegend) {
+      nextSuggestion = "champion";
     } else {
-      nextSuggestion = "battlefield";
+      nextSuggestion = "legend";
     }
 
     if (nextSuggestion === lastSuggestedZone.current) {
@@ -322,6 +318,34 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
     void setZoneFilters(buildZoneFilterUpdate(zone, deckCards));
   };
 
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+  const [mouseY, setMouseY] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hoveredCardId) {
+      return;
+    }
+    const handler = (event: MouseEvent) => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setMouseY(event.clientY - rect.top);
+      }
+    };
+    globalThis.addEventListener("mousemove", handler);
+    return () => globalThis.removeEventListener("mousemove", handler);
+  }, [hoveredCardId]);
+
+  const { allPrintings } = useCards();
+  const hoveredImageUrl = (() => {
+    if (!hoveredCardId) {
+      return null;
+    }
+    const printing = allPrintings.find((entry) => entry.card.id === hoveredCardId);
+    const frontImage = printing?.images.find((img) => img.face === "front");
+    return frontImage ? getCardImageUrl(frontImage.url, "thumbnail") : null;
+  })();
+
   if (storeId !== deckId) {
     return null;
   }
@@ -331,12 +355,24 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
       <DeckEditorHeader deckId={deckId} isDirty={isDirty} />
       <DeckValidationBanner isDirty={isDirty} isSaving={saveDeckCards.isPending} />
       <DeckDndContext>
-        <div className={cn(CONTAINER_WIDTH, "flex items-start gap-4 px-3 py-3")}>
+        <div
+          ref={containerRef}
+          className={cn(CONTAINER_WIDTH, "relative flex items-start gap-4 px-3 py-3")}
+        >
           <aside className="sticky top-(--sticky-top) max-h-[calc(100vh-var(--sticky-top))] w-72 shrink-0 overflow-y-auto">
             <div className="p-0.5">
-              <DeckZonePanel onZoneClick={handleZoneClick} />
+              <DeckZonePanel onZoneClick={handleZoneClick} onHoverCard={setHoveredCardId} />
             </div>
           </aside>
+
+          {hoveredImageUrl && (
+            <div
+              className="pointer-events-none absolute left-[19.5rem] z-50 w-64"
+              style={{ top: Math.max(0, mouseY - 96) }}
+            >
+              <img src={hoveredImageUrl} alt="" className="w-full rounded-lg shadow-lg" />
+            </div>
+          )}
 
           <div className="min-w-0 flex-1">
             <DeckCardBrowser />

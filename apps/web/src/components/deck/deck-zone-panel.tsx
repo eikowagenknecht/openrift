@@ -9,17 +9,18 @@ const ZONE_ORDER: DeckZone[] = [
   "legend",
   "champion",
   "main",
-  "sideboard",
-  "overflow",
   "battlefield",
   "runes",
+  "sideboard",
+  "overflow",
 ];
 
 interface DeckZonePanelProps {
   onZoneClick?: (zone: DeckZone) => void;
+  onHoverCard?: (cardId: string | null) => void;
 }
 
-export function DeckZonePanel({ onZoneClick }: DeckZonePanelProps) {
+export function DeckZonePanel({ onZoneClick, onHoverCard }: DeckZonePanelProps) {
   const cards = useDeckBuilderStore((state) => state.cards);
   const violations = useDeckBuilderStore((state) => state.violations);
   const activeZone = useDeckBuilderStore((state) => state.activeZone);
@@ -55,6 +56,7 @@ export function DeckZonePanel({ onZoneClick }: DeckZonePanelProps) {
           isActive={activeZone === zone}
           shiftHeld={shiftHeld}
           onActivate={() => onZoneClick?.(zone)}
+          onHoverCard={onHoverCard}
         />
       ))}
       <DeckStatsPanel />

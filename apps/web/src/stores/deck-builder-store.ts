@@ -213,24 +213,32 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
           ? state.cards
           : [...state.cards, { ...card, zone: targetZone, quantity: 1 }];
       } else if (targetZone === "runes") {
-        // Rune zone: add the rune, then rebalance to keep total at RUNE_TARGET
-        const existing = state.cards.find(
-          (entry) => entry.cardId === card.cardId && entry.zone === targetZone,
-        );
-        nextCards = existing
-          ? state.cards.map((entry) =>
-              entry.cardId === card.cardId && entry.zone === targetZone
-                ? { ...entry, quantity: entry.quantity + 1 }
-                : entry,
-            )
-          : [...state.cards, { ...card, zone: targetZone, quantity: 1 }];
-        nextCards = rebalanceRunes(nextCards, card.domains, state.runesByDomain);
+        // Rune zone: add rune(s) one at a time, rebalancing after each addition
+        const addQty = count ?? 1;
+        nextCards = state.cards;
+        for (let step = 0; step < addQty; step++) {
+          const existing = nextCards.find(
+            (entry) => entry.cardId === card.cardId && entry.zone === targetZone,
+          );
+          const candidate = existing
+            ? nextCards.map((entry) =>
+                entry.cardId === card.cardId && entry.zone === targetZone
+                  ? { ...entry, quantity: entry.quantity + 1 }
+                  : entry,
+              )
+            : [...nextCards, { ...card, zone: targetZone, quantity: 1 }];
+          const rebalanced = rebalanceRunes(candidate, card.domains, state.runesByDomain);
 
-        // If rebalancing couldn't compensate, don't exceed the target
-        const runeTotal = nextCards
-          .filter((entry) => entry.zone === "runes")
-          .reduce((sum, entry) => sum + entry.quantity, 0);
-        if (runeTotal > RUNE_TARGET) {
+          // If rebalancing couldn't compensate, stop adding
+          const runeTotal = rebalanced
+            .filter((entry) => entry.zone === "runes")
+            .reduce((sum, entry) => sum + entry.quantity, 0);
+          if (runeTotal > RUNE_TARGET) {
+            break;
+          }
+          nextCards = rebalanced;
+        }
+        if (nextCards === state.cards) {
           return state;
         }
       } else {
