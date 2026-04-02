@@ -370,9 +370,11 @@ export function DeckTile({
 
       <DeckExportDialog
         deckId={deck.id}
+        deckName={deck.name}
         isDirty={false}
         open={exportOpen}
         onOpenChange={setExportOpen}
+        cards={cards?.map((card) => toDeckBuilderCard(card))}
       />
 
       <ProxyExportDialog

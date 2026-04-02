@@ -88,7 +88,7 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
           </button>
         )}
 
-        <DeckExportDialog deckId={deckId} isDirty={isDirty} />
+        <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
         <ProxyExportDialog />
       </div>
     </div>

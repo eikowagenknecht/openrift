@@ -2,6 +2,7 @@
 
 ## 2026-04-02
 
+- feat: You can now download a printable tournament deck registration sheet PDF from the export dialog
 - feat: Deck import and export now support three formats — Deck Code, Text (human-readable list), and TTS (Tabletop Simulator) — switchable via tabs
 - fix: Dual-color cards are no longer double-counted in the deck stats type breakdown labels
 - feat: Deck overview tiles now show the estimated deck value based on cheapest available printing
