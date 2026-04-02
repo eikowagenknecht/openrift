@@ -42,8 +42,6 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 
 // Full render width for html2canvas capture (px)
 const RENDER_WIDTH_PX = 504;
-// Visual preview scale factor — keeps the card inside the dialog
-const PREVIEW_SCALE = 200 / RENDER_WIDTH_PX;
 
 /**
  * html2canvas supports clip-path polygon with percentages but not em/calc units.
@@ -123,8 +121,10 @@ export function ProxyExportDialog() {
   const [watermark, setWatermark] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  // Cards currently being rendered in the hidden container for html2canvas capture
+  // Card currently being rendered off-screen for html2canvas capture
   const [renderingCard, setRenderingCard] = useState<ProxyCard | null>(null);
+  // Last captured card image shown as a thumbnail preview
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const cardElementRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -141,6 +141,7 @@ export function ProxyExportDialog() {
 
     setGenerating(true);
     setProgress({ current: 0, total: 0 });
+    setPreviewUrl(null);
 
     try {
       // Pre-fetch keyword styles so CardText doesn't suspend during rendering
@@ -183,6 +184,7 @@ export function ProxyExportDialog() {
             try {
               const dataUrl = await captureElement(element);
               renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+              setPreviewUrl(dataUrl);
             } catch (error) {
               console.error(`Failed to capture card "${proxyCard.name}":`, error);
             }
@@ -210,6 +212,7 @@ export function ProxyExportDialog() {
             try {
               const dataUrl = await captureElement(element);
               renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+              setPreviewUrl(dataUrl);
             } catch (error) {
               console.error(`Failed to capture fallback card "${proxyCard.name}":`, error);
             }
@@ -290,45 +293,13 @@ export function ProxyExportDialog() {
           </div>
         </div>
 
-        {/* Card preview — rendered at full size for html2canvas, scaled down visually */}
-        {renderingCard && (
+        {/* Captured card thumbnail preview */}
+        {previewUrl && (
           <div className="flex flex-col items-center gap-2">
-            <p className="text-muted-foreground text-xs">Rendering: {renderingCard.card.name}</p>
-            <Suspense
-              fallback={<p className="text-muted-foreground text-xs">Loading card data…</p>}
-            >
-              <div
-                className="overflow-hidden"
-                style={{
-                  width: RENDER_WIDTH_PX * PREVIEW_SCALE,
-                  height: RENDER_WIDTH_PX * PREVIEW_SCALE * (88 / 63),
-                }}
-              >
-                <div
-                  style={{
-                    transform: `scale(${PREVIEW_SCALE})`,
-                    transformOrigin: "top left",
-                  }}
-                >
-                  <div ref={cardElementRef} style={{ width: RENDER_WIDTH_PX }}>
-                    <CardPlaceholderImage
-                      name={renderingCard.card.name}
-                      domain={renderingCard.card.domains}
-                      energy={renderingCard.card.energy}
-                      might={renderingCard.card.might}
-                      power={renderingCard.card.power}
-                      type={renderingCard.card.type}
-                      superTypes={renderingCard.card.superTypes}
-                      tags={renderingCard.card.tags}
-                      rulesText={renderingCard.rulesText}
-                      effectText={renderingCard.effectText}
-                      mightBonus={renderingCard.card.mightBonus}
-                      flavorText={renderingCard.flavorText}
-                    />
-                  </div>
-                </div>
-              </div>
-            </Suspense>
+            <p className="text-muted-foreground text-xs">
+              {renderingCard ? `Rendering: ${renderingCard.card.name}` : "Done"}
+            </p>
+            <img src={previewUrl} alt="Last captured card" className="aspect-card w-48 rounded" />
           </div>
         )}
 
@@ -347,6 +318,37 @@ export function ProxyExportDialog() {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Off-screen render container — in the React tree for provider access, but not in the dialog layout */}
+      {renderingCard && (
+        <Suspense fallback={null}>
+          <div
+            ref={cardElementRef}
+            style={{
+              position: "fixed",
+              left: -9999,
+              top: 0,
+              width: RENDER_WIDTH_PX,
+              pointerEvents: "none",
+            }}
+          >
+            <CardPlaceholderImage
+              name={renderingCard.card.name}
+              domain={renderingCard.card.domains}
+              energy={renderingCard.card.energy}
+              might={renderingCard.card.might}
+              power={renderingCard.card.power}
+              type={renderingCard.card.type}
+              superTypes={renderingCard.card.superTypes}
+              tags={renderingCard.card.tags}
+              rulesText={renderingCard.rulesText}
+              effectText={renderingCard.effectText}
+              mightBonus={renderingCard.card.mightBonus}
+              flavorText={renderingCard.flavorText}
+            />
+          </div>
+        </Suspense>
+      )}
     </Dialog>
   );
 }
