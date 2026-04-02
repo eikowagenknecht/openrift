@@ -13,13 +13,18 @@ const PAGE_SIZES = {
 // ── Layout constants (mm) ──────────────────────────────────────────────────
 
 const MARGIN_X = 12;
-const MARGIN_TOP = 10;
-const SECTION_GAP = 5;
-const ROW_HEIGHT = 5.2;
+const MARGIN_TOP = 8;
+const SECTION_GAP = 2.5;
+const ROW_HEIGHT = 4.8;
 const QTY_COL_WIDTH = 10;
-const HEADER_FONT_SIZE = 8;
-const BODY_FONT_SIZE = 7.5;
-const TITLE_FONT_SIZE = 14;
+const HEADER_FONT_SIZE = 7.5;
+const BODY_FONT_SIZE = 7;
+const TITLE_FONT_SIZE = 16;
+const SECTION_HEADER_HEIGHT = 5.5;
+const LOGO_SIZE = 20;
+const COL_GAP = 6;
+const BRAND_COLOR = { r: 30, g: 30, b: 30 };
+const BRAND_BAR_HEIGHT = 6;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -42,22 +47,22 @@ function drawSectionHeader(
   startY: number,
   width: number,
 ): number {
-  doc.setFillColor(30, 30, 30);
-  doc.rect(startX, startY, width, 6, "F");
+  doc.setFillColor(BRAND_COLOR.r, BRAND_COLOR.g, BRAND_COLOR.b);
+  doc.rect(startX, startY, width, SECTION_HEADER_HEIGHT, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(HEADER_FONT_SIZE);
   doc.setTextColor(255, 255, 255);
-  doc.text(label, startX + 2, startY + 4.2);
+  doc.text(label, startX + 2, startY + 3.8);
   doc.setTextColor(0, 0, 0);
-  return startY + 6;
+  return startY + SECTION_HEADER_HEIGHT;
 }
 
 function drawColumnHeaders(doc: jsPDF, startX: number, startY: number, width: number): number {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(BODY_FONT_SIZE);
   doc.setTextColor(120, 120, 120);
-  doc.text("#", startX + QTY_COL_WIDTH / 2, startY + 3.5, { align: "center" });
-  doc.text("Card Name", startX + QTY_COL_WIDTH + 2, startY + 3.5);
+  doc.text("#", startX + QTY_COL_WIDTH / 2, startY + 3.2, { align: "center" });
+  doc.text("Card Name", startX + QTY_COL_WIDTH + 2, startY + 3.2);
   doc.setDrawColor(200, 200, 200);
   doc.line(startX, startY + ROW_HEIGHT, startX + width, startY + ROW_HEIGHT);
   doc.setTextColor(0, 0, 0);
@@ -71,6 +76,7 @@ function drawCardRows(
   startX: number,
   startY: number,
   width: number,
+  zebra?: boolean,
 ): number {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(BODY_FONT_SIZE);
@@ -80,9 +86,17 @@ function drawCardRows(
 
   for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
     const card = cards[rowIndex];
-    const rowY = currentY + 3.8;
+
+    // Alternating row shading
+    if (zebra && rowIndex % 2 === 0) {
+      doc.setFillColor(248, 248, 248);
+      doc.rect(startX, currentY, width, ROW_HEIGHT, "F");
+    }
+
+    const rowY = currentY + 3.4;
 
     if (card) {
+      doc.setTextColor(0, 0, 0);
       doc.text(String(card.quantity), startX + QTY_COL_WIDTH / 2, rowY, { align: "center" });
       doc.text(card.name, startX + QTY_COL_WIDTH + 2, rowY);
     }
@@ -104,10 +118,13 @@ function drawSection(
   startX: number,
   startY: number,
   width: number,
+  options?: { skipColumnHeaders?: boolean; zebra?: boolean },
 ): number {
   let currentY = drawSectionHeader(doc, label, startX, startY, width);
-  currentY = drawColumnHeaders(doc, startX, currentY, width);
-  currentY = drawCardRows(doc, cards, blankRows, startX, currentY, width);
+  if (!options?.skipColumnHeaders) {
+    currentY = drawColumnHeaders(doc, startX, currentY, width);
+  }
+  currentY = drawCardRows(doc, cards, blankRows, startX, currentY, width, options?.zebra);
   return currentY;
 }
 
@@ -120,18 +137,19 @@ function drawInfoFields(
   startY: number,
   pageWidth: number,
 ): number {
-  const fieldWidth = (pageWidth - 2 * startX - 6) / 2;
-  const fieldHeight = 7;
+  const fieldWidth = (pageWidth - 2 * startX - COL_GAP) / 2;
+  const fieldHeight = 6.5;
+  const fieldGap = 2;
 
   const fields = [
     { label: "Date:", value: "", x: startX, y: startY },
-    { label: "Event:", value: "", x: startX + fieldWidth + 6, y: startY },
-    { label: "First / Last Name:", value: "", x: startX, y: startY + fieldHeight + 2 },
+    { label: "Event:", value: "", x: startX + fieldWidth + COL_GAP, y: startY },
+    { label: "First / Last Name:", value: "", x: startX, y: startY + fieldHeight + fieldGap },
     {
       label: "Deck Name:",
       value: deckName,
-      x: startX + fieldWidth + 6,
-      y: startY + fieldHeight + 2,
+      x: startX + fieldWidth + COL_GAP,
+      y: startY + fieldHeight + fieldGap,
     },
   ];
 
@@ -151,7 +169,7 @@ function drawInfoFields(
     }
   }
 
-  return startY + 2 * fieldHeight + 4;
+  return startY + 2 * fieldHeight + fieldGap + 2;
 }
 
 // ── Footer ─────────────────────────────────────────────────────────────────
@@ -162,37 +180,52 @@ function drawFooter(
   startX: number,
   startY: number,
   pageWidth: number,
+  pageHeight: number,
 ): void {
   const contentWidth = pageWidth - 2 * startX;
 
   // Total card count
   doc.setFont("helvetica", "bold");
   doc.setFontSize(BODY_FONT_SIZE);
+  doc.setTextColor(0, 0, 0);
   doc.text(`Total Cards in Main Deck: ${totalCards}/40`, startX, startY + 4);
 
   // Judge boxes
   const boxWidth = contentWidth / 2 - 3;
-  const boxY = startY + 7;
+  const boxY = startY + 6;
   const boxHeight = 10;
 
   doc.setDrawColor(180, 180, 180);
   doc.rect(startX, boxY, boxWidth, boxHeight);
-  doc.rect(startX + boxWidth + 6, boxY, boxWidth, boxHeight);
+  doc.rect(startX + boxWidth + COL_GAP, boxY, boxWidth, boxHeight);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6);
   doc.setTextColor(120, 120, 120);
   doc.text("Deck Check 1 — Judge:", startX + 2, boxY + 4);
   doc.text("Status:", startX + 2, boxY + 8);
-  doc.text("Deck Check 2 — Judge:", startX + boxWidth + 8, boxY + 4);
-  doc.text("Status:", startX + boxWidth + 8, boxY + 8);
+  doc.text("Deck Check 2 — Judge:", startX + boxWidth + COL_GAP + 2, boxY + 4);
+  doc.text("Status:", startX + boxWidth + COL_GAP + 2, boxY + 8);
   doc.setTextColor(0, 0, 0);
+
+  // ── Branding bar ────────────────────────────────────────────────────────
+  const barY = pageHeight - BRAND_BAR_HEIGHT;
+  doc.setFillColor(BRAND_COLOR.r, BRAND_COLOR.g, BRAND_COLOR.b);
+  doc.rect(0, barY, pageWidth, BRAND_BAR_HEIGHT, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.text("openrift.app", pageWidth / 2, barY + 4, { align: "center" });
 }
 
 // ── Logo ───────────────────────────────────────────────────────────────────
 
 let cachedLogoDataUrl: string | null = null;
 
+/**
+ * Loads the OpenRift logo as a PNG data URL for embedding in PDFs.
+ * @returns A data URL string for the logo image.
+ */
 async function loadLogoDataUrl(): Promise<string> {
   if (cachedLogoDataUrl) {
     return cachedLogoDataUrl;
@@ -203,7 +236,7 @@ async function loadLogoDataUrl(): Promise<string> {
     const image = new Image();
     image.addEventListener("load", () => resolve(image));
     image.addEventListener("error", reject);
-    image.src = "/logo-64x64.webp";
+    image.src = "/logo.webp";
   });
 
   const canvas = document.createElement("canvas");
@@ -237,94 +270,124 @@ export async function generateRegistrationPdf(
   });
 
   const contentWidth = page.width - 2 * MARGIN_X;
+  const halfWidth = (contentWidth - COL_GAP) / 2;
 
   // ── Title ──────────────────────────────────────────────────────────────
 
   let currentY = MARGIN_TOP;
 
-  // Logo
+  // Logo (centered above title)
   try {
     const logoDataUrl = await loadLogoDataUrl();
-    doc.addImage(logoDataUrl, "PNG", MARGIN_X, currentY, 8, 8);
+    doc.addImage(
+      logoDataUrl,
+      "PNG",
+      page.width / 2 - LOGO_SIZE / 2,
+      currentY,
+      LOGO_SIZE,
+      LOGO_SIZE,
+    );
   } catch {
     // Skip logo if loading fails
   }
 
+  currentY += LOGO_SIZE + 1;
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(TITLE_FONT_SIZE);
-  doc.text("DECK REGISTRATION SHEET", page.width / 2, currentY + 6, { align: "center" });
+  doc.text("DECK REGISTRATION SHEET", page.width / 2, currentY, { align: "center" });
 
-  currentY += 12;
+  currentY += 3;
+
+  // Thin accent line under title
+  doc.setDrawColor(BRAND_COLOR.r, BRAND_COLOR.g, BRAND_COLOR.b);
+  doc.setLineWidth(0.6);
+  const lineHalf = 40;
+  doc.line(page.width / 2 - lineHalf, currentY, page.width / 2 + lineHalf, currentY);
+  doc.setLineWidth(0.2);
+
+  currentY += 2.5;
 
   // ── Player / event info ────────────────────────────────────────────────
 
   currentY = drawInfoFields(doc, deckName, MARGIN_X, currentY, page.width);
   currentY += SECTION_GAP;
 
-  // ── Legend (1 card) ────────────────────────────────────────────────────
+  // ── Legend (left) | Chosen Champion (right) — 1 card each ─────────────
 
   const legendCards = cardsForZone(cards, "legend");
-  currentY = drawSection(doc, "LEGEND", legendCards, 1, MARGIN_X, currentY, contentWidth);
-  currentY += SECTION_GAP;
-
-  // ── Champion (1 card) ──────────────────────────────────────────────────
-
   const championCards = cardsForZone(cards, "champion");
-  currentY = drawSection(
+
+  const legendEndY = drawSection(doc, "LEGEND", legendCards, 1, MARGIN_X, currentY, halfWidth, {
+    skipColumnHeaders: true,
+  });
+  const champEndY = drawSection(
     doc,
     "CHOSEN CHAMPION",
     championCards,
     1,
-    MARGIN_X,
+    MARGIN_X + halfWidth + COL_GAP,
     currentY,
-    contentWidth,
+    halfWidth,
+    { skipColumnHeaders: true },
   );
-  currentY += SECTION_GAP;
+
+  currentY = Math.max(legendEndY, champEndY) + SECTION_GAP;
 
   // ── Runes (left) | Battlefields (right) ────────────────────────────────
 
   const runeCards = cardsForZone(cards, "runes");
   const battlefieldCards = cardsForZone(cards, "battlefield");
-  const halfWidth = (contentWidth - 6) / 2;
 
-  const runesEndY = drawSection(doc, "RUNES", runeCards, 12, MARGIN_X, currentY, halfWidth);
+  const runesEndY = drawSection(doc, "RUNES", runeCards, 2, MARGIN_X, currentY, halfWidth);
   const bfEndY = drawSection(
     doc,
     "BATTLEFIELDS",
     battlefieldCards,
     3,
-    MARGIN_X + halfWidth + 6,
+    MARGIN_X + halfWidth + COL_GAP,
     currentY,
     halfWidth,
   );
 
   currentY = Math.max(runesEndY, bfEndY) + SECTION_GAP;
 
-  // ── Main Deck (2 columns) ─────────────────────────────────────────────
+  // ── Main Deck (2 columns, 39 rows total) ──────────────────────────────
 
   const mainCards = cardsForZone(cards, "main");
   const midpoint = Math.ceil(mainCards.length / 2);
   const mainLeft = mainCards.slice(0, midpoint);
   const mainRight = mainCards.slice(midpoint);
-  const mainBlankRows = 20;
+  const mainBlankRowsLeft = 20;
+  const mainBlankRowsRight = 19;
 
   // Shared header
   const mainY = drawSectionHeader(doc, "MAIN DECK", MARGIN_X, currentY, contentWidth);
 
   // Left column
   let leftY = drawColumnHeaders(doc, MARGIN_X, mainY, halfWidth);
-  leftY = drawCardRows(doc, mainLeft, mainBlankRows, MARGIN_X, leftY, halfWidth);
+  leftY = drawCardRows(doc, mainLeft, mainBlankRowsLeft, MARGIN_X, leftY, halfWidth, true);
 
   // Right column
-  let rightY = drawColumnHeaders(doc, MARGIN_X + halfWidth + 6, mainY, halfWidth);
-  rightY = drawCardRows(doc, mainRight, mainBlankRows, MARGIN_X + halfWidth + 6, rightY, halfWidth);
+  let rightY = drawColumnHeaders(doc, MARGIN_X + halfWidth + COL_GAP, mainY, halfWidth);
+  rightY = drawCardRows(
+    doc,
+    mainRight,
+    mainBlankRowsRight,
+    MARGIN_X + halfWidth + COL_GAP,
+    rightY,
+    halfWidth,
+    true,
+  );
 
   currentY = Math.max(leftY, rightY) + SECTION_GAP;
 
   // ── Sideboard ──────────────────────────────────────────────────────────
 
   const sideboardCards = cardsForZone(cards, "sideboard");
-  currentY = drawSection(doc, "SIDEBOARD", sideboardCards, 8, MARGIN_X, currentY, contentWidth);
+  currentY = drawSection(doc, "SIDEBOARD", sideboardCards, 8, MARGIN_X, currentY, contentWidth, {
+    zebra: true,
+  });
   currentY += SECTION_GAP;
 
   // ── Footer ─────────────────────────────────────────────────────────────
@@ -332,14 +395,7 @@ export async function generateRegistrationPdf(
   const mainTotal =
     mainCards.reduce((sum, card) => sum + card.quantity, 0) +
     championCards.reduce((sum, card) => sum + card.quantity, 0);
-  drawFooter(doc, mainTotal, MARGIN_X, currentY, page.width);
-
-  // ── Branding ───────────────────────────────────────────────────────────
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6);
-  doc.setTextColor(180, 180, 180);
-  doc.text("openrift.cards", page.width - MARGIN_X, page.height - 5, { align: "right" });
+  drawFooter(doc, mainTotal, MARGIN_X, currentY, page.width, page.height);
 
   // ── Download ───────────────────────────────────────────────────────────
 
