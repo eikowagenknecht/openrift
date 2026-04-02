@@ -1,6 +1,6 @@
 import type { DeckZone } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeftIcon, PencilIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, PencilIcon, XIcon } from "lucide-react";
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 
@@ -10,7 +10,14 @@ import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  NestedSidebar,
+  SidebarContent,
+  SidebarProvider,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckDetail, useSaveDeckCards, useUpdateDeck } from "@/hooks/use-decks";
 import { getCardImageUrl } from "@/lib/images";
@@ -91,7 +98,56 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
         <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
         <ProxyExportDialog />
       </div>
+      <div className="px-3 md:hidden">
+        <ZoneTitleButton />
+      </div>
     </div>
+  );
+}
+
+const ZONE_LABELS: Record<DeckZone, string> = {
+  legend: "Legend",
+  champion: "Chosen Champion",
+  runes: "Runes",
+  battlefield: "Battlefields",
+  main: "Main Deck",
+  sideboard: "Sideboard",
+  overflow: "Overflow",
+};
+
+function MobileSidebarHeader() {
+  const { setOpenMobile } = useSidebar();
+
+  return (
+    <div className="flex items-center justify-between p-4 md:hidden">
+      <h2 className="text-base font-medium">Deck Zones</h2>
+      <Button variant="ghost" size="icon-sm" onClick={() => setOpenMobile(false)}>
+        <XIcon />
+        <span className="sr-only">Close</span>
+      </Button>
+    </div>
+  );
+}
+
+function ZoneTitleButton() {
+  const { toggleSidebar } = useSidebar();
+  const activeZone = useDeckBuilderStore((state) => state.activeZone);
+  const cards = useDeckBuilderStore((state) => state.cards);
+  const zoneCount = cards
+    .filter((card) => card.zone === activeZone)
+    .reduce((sum, card) => sum + card.quantity, 0);
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="-ml-2 gap-1 text-sm font-medium"
+      onClick={toggleSidebar}
+    >
+      {ZONE_LABELS[activeZone]}
+      <span className="text-muted-foreground">({zoneCount})</span>
+      <ChevronDownIcon className="text-muted-foreground size-4" />
+    </Button>
   );
 }
 
@@ -190,6 +246,14 @@ function buildZoneFilterUpdate(
 const AUTO_SAVE_DELAY = 1000;
 
 export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
+  return (
+    <SidebarProvider defaultOpen>
+      <DeckEditorContent deckId={deckId} />
+    </SidebarProvider>
+  );
+}
+
+function DeckEditorContent({ deckId }: { deckId: string }) {
   const { data } = useDeckDetail(deckId);
   const init = useDeckBuilderStore((state) => state.init);
   const reset = useDeckBuilderStore((state) => state.reset);
@@ -203,6 +267,7 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
   const lastSuggestedZone = useRef<DeckZone | null>(null);
   const saveDeckCards = useSaveDeckCards();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const { isMobile, setOpenMobile } = useSidebar();
 
   // Initialize store when deck data loads or changes
   useEffect(() => {
@@ -316,6 +381,9 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
   const handleZoneClick = (zone: DeckZone) => {
     useDeckBuilderStore.getState().setActiveZone(zone);
     void setZoneFilters(buildZoneFilterUpdate(zone, deckCards));
+    if (isMobile) {
+      setOpenMobile(false);
+    }
   };
 
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
@@ -338,7 +406,7 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
 
   const { allPrintings } = useCards();
   const hoveredImageUrl = (() => {
-    if (!hoveredCardId) {
+    if (!hoveredCardId || isMobile) {
       return null;
     }
     const printing = allPrintings.find((entry) => entry.card.id === hoveredCardId);
@@ -351,7 +419,7 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
   }
 
   return (
-    <>
+    <div className="flex min-w-0 flex-1 flex-col">
       <DeckEditorHeader deckId={deckId} isDirty={isDirty} />
       <DeckValidationBanner isDirty={isDirty} isSaving={saveDeckCards.isPending} />
       <DeckDndContext>
@@ -359,11 +427,17 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
           ref={containerRef}
           className={cn(CONTAINER_WIDTH, "relative flex items-start gap-4 px-3 py-3")}
         >
-          <aside className="sticky top-(--sticky-top) max-h-[calc(100vh-var(--sticky-top))] w-72 shrink-0 overflow-y-auto">
-            <div className="p-0.5">
-              <DeckZonePanel onZoneClick={handleZoneClick} onHoverCard={setHoveredCardId} />
-            </div>
-          </aside>
+          <NestedSidebar
+            className="w-(--sidebar-width)!"
+            style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
+          >
+            <MobileSidebarHeader />
+            <SidebarContent>
+              <div className="p-2">
+                <DeckZonePanel onZoneClick={handleZoneClick} onHoverCard={setHoveredCardId} />
+              </div>
+            </SidebarContent>
+          </NestedSidebar>
 
           {hoveredImageUrl && (
             <div
@@ -379,6 +453,6 @@ export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
           </div>
         </div>
       </DeckDndContext>
-    </>
+    </div>
   );
 }
