@@ -50,7 +50,7 @@ export function CardPlaceholderImage({
     <div
       className={cn(
         "aspect-card @container relative overflow-hidden rounded-lg",
-        isLight ? "border border-neutral-300 bg-white" : "bg-neutral-800", // custom: light variant uses white background with border
+        isLight ? "border border-neutral-300 bg-white [&_img]:brightness-0" : "bg-neutral-800", // custom: light variant — white bg, all icons dark
         className,
       )}
       role="img"
@@ -97,7 +97,7 @@ export function CardPlaceholderImage({
                 key={index}
                 src={domainIconPath}
                 alt=""
-                className={cn("size-[3.5cqw]", !isLight && "brightness-0 invert")} // custom: no invert in light variant
+                className={cn("size-[3.5cqw]", !isLight && "brightness-0 invert")} // custom: dark mode inverts domain icons to white
               />
             ))}
           </div>
@@ -115,11 +115,7 @@ export function CardPlaceholderImage({
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 12% 100%)" }}
           aria-label={`Might: ${might}`}
         >
-          <img
-            src="/images/might.svg"
-            alt=""
-            className={cn("size-[5cqw]", isLight && "brightness-0")}
-          />
+          <img src="/images/might.svg" alt="" className="size-[5cqw]" />
           {/* custom: dark icon in light variant */}
           {might}
         </div>
@@ -226,11 +222,7 @@ export function CardPlaceholderImage({
               {mightBonus !== null && mightBonus !== undefined && mightBonus > 0 && (
                 <div className="flex shrink-0 items-center gap-[0.5cqw]">
                   {/* custom: dark icon + text in light variant */}
-                  <img
-                    src="/images/might.svg"
-                    alt=""
-                    className={cn("size-[3.5cqw]", isLight && "brightness-0")}
-                  />
+                  <img src="/images/might.svg" alt="" className="size-[3.5cqw]" />
                   <span
                     className={cn("text-[3.5cqw] font-bold", isLight ? "text-black" : "text-white")}
                   >
