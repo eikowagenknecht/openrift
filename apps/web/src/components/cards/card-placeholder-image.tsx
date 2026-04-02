@@ -50,7 +50,7 @@ export function CardPlaceholderImage({
     <div
       className={cn(
         "aspect-card @container relative overflow-hidden rounded-lg",
-        isLight ? "border border-neutral-300 bg-white [&_img]:brightness-0" : "bg-neutral-800", // custom: light variant — white bg, all icons dark
+        isLight ? "border border-neutral-300 bg-white" : "bg-neutral-800", // custom: light variant uses white background with border
         className,
       )}
       role="img"
