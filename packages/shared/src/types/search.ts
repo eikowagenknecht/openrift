@@ -1,6 +1,14 @@
 import type { ArtVariant, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
 
-export type SearchField = "name" | "cardText" | "keywords" | "tags" | "artist" | "id";
+export type SearchField =
+  | "name"
+  | "cardText"
+  | "keywords"
+  | "tags"
+  | "artist"
+  | "flavorText"
+  | "type"
+  | "id";
 
 export const ALL_SEARCH_FIELDS: SearchField[] = [
   "name",
@@ -8,10 +16,12 @@ export const ALL_SEARCH_FIELDS: SearchField[] = [
   "keywords",
   "tags",
   "artist",
+  "flavorText",
+  "type",
   "id",
 ];
 
-export const DEFAULT_SEARCH_SCOPE: SearchField[] = ["name"];
+export const DEFAULT_SEARCH_SCOPE: SearchField[] = [...ALL_SEARCH_FIELDS];
 
 export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
   n: "name",
@@ -19,6 +29,8 @@ export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
   k: "keywords",
   t: "tags",
   a: "artist",
+  f: "flavorText",
+  ty: "type",
   id: "id",
 };
 

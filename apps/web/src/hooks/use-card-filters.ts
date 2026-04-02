@@ -152,6 +152,8 @@ export function useFilterActions() {
     history: "push",
   });
   const toggleSearchField = useSearchScopeStore((s) => s.toggleField);
+  const selectAllSearchFields = useSearchScopeStore((s) => s.selectAll);
+  const selectOnlySearchField = useSearchScopeStore((s) => s.selectOnly);
 
   // nuqs uses startTransition for history pushes, so filterState may lag behind
   // rapid successive clicks. Track the latest intended array values in a ref so
@@ -283,6 +285,8 @@ export function useFilterActions() {
     setGroupDir,
     clearAllFilters,
     toggleSearchField,
+    selectAllSearchFields,
+    selectOnlySearchField,
   };
 }
 

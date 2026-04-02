@@ -15,6 +15,8 @@ const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }
   keywords: { label: "Keywords", prefix: "k:" },
   tags: { label: "Tags", prefix: "t:" },
   artist: { label: "Artist", prefix: "a:" },
+  flavorText: { label: "Flavor Text", prefix: "f:" },
+  type: { label: "Type", prefix: "ty:" },
   id: { label: "ID", prefix: "id:" },
 };
 
@@ -25,7 +27,10 @@ interface SearchBarProps {
 
 export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   const { filterState, searchScope, hasActiveFilters, view } = useFilterValues();
-  const { setSearch, toggleSearchField } = useFilterActions();
+  const { setSearch, toggleSearchField, selectAllSearchFields, selectOnlySearchField } =
+    useFilterActions();
+
+  const allSelected = searchScope.length === ALL_SEARCH_FIELDS.length;
 
   const unitLabel = view === "cards" ? "cards" : "printings";
 
@@ -101,16 +106,30 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
         <div
           className={cn("flex flex-wrap gap-1", hasPrefixes && "pointer-events-none opacity-40")}
         >
+          <Badge
+            variant={allSelected ? "default" : "outline"}
+            className="cursor-pointer text-xs"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={selectAllSearchFields}
+          >
+            All
+          </Badge>
           {ALL_SEARCH_FIELDS.map((field) => {
             const { label, prefix } = SEARCH_FIELD_LABELS[field];
             const isActive = searchScope.includes(field);
             return (
               <Badge
                 key={field}
-                variant={isActive ? "default" : "outline"}
-                className="cursor-pointer gap-1 text-xs"
+                variant={allSelected ? "outline" : isActive ? "default" : "outline"}
+                className={cn("cursor-pointer gap-1 text-xs", allSelected && "opacity-60")}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => toggleSearchField(field)}
+                onClick={() => {
+                  if (allSelected) {
+                    selectOnlySearchField(field);
+                  } else {
+                    toggleSearchField(field);
+                  }
+                }}
               >
                 <span className="text-[10px] opacity-50">{prefix}</span>
                 {label}
