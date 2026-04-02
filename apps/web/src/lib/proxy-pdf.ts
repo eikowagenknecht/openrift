@@ -1,5 +1,5 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
-import html2canvas from "html2canvas";
+import { html2canvas } from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -178,52 +178,16 @@ const LAYOUT_PROPS = [
   "vertical-align",
 ] as const;
 
-// Color properties that html2canvas reads but can't parse when they're in oklch().
-// We force-convert these to rgb/rgba via a canvas round-trip.
-const COLOR_PROPS = ["color", "background-color", "border-color"] as const;
-
-// Reusable 1x1 canvas for converting any CSS color string to rgba
-let colorConversionCtx: CanvasRenderingContext2D | null = null;
-
 /**
- * Converts any CSS color value (including oklch) to an rgba() string
- * by drawing it to a 1x1 canvas and reading the pixel back.
- * @returns rgba() or rgb() string.
- */
-function toRgba(cssColor: string): string {
-  if (!colorConversionCtx) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    colorConversionCtx = canvas.getContext("2d", { willReadFrequently: true });
-  }
-  const ctx = colorConversionCtx;
-  if (!ctx) {
-    return cssColor;
-  }
-  ctx.clearRect(0, 0, 1, 1);
-  ctx.fillStyle = cssColor;
-  ctx.fillRect(0, 0, 1, 1);
-  const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
-  if (alpha < 255) {
-    return `rgba(${red}, ${green}, ${blue}, ${(alpha / 255).toFixed(3)})`;
-  }
-  return `rgb(${red}, ${green}, ${blue})`;
-}
-
-/**
- * Recursively inlines computed styles on every element:
- * - Layout properties: inlined as-is (resolves cqw → px)
- * - Color properties: converted to rgb/rgba (html2canvas can't parse oklch)
- * Skips properties already set as inline styles (preserves React's hex gradients).
+ * Recursively inlines computed layout styles on every element.
+ * Resolves cqw → px so html2canvas doesn't need container query support.
+ * Skips properties already set as inline styles (preserves React's gradients).
  */
 function inlineComputedStyles(element: Element): void {
   if (!(element instanceof HTMLElement)) {
     return;
   }
   const computed = getComputedStyle(element);
-
-  // Inline layout props (skip if already set inline)
   for (const prop of LAYOUT_PROPS) {
     if (element.style.getPropertyValue(prop)) {
       continue;
@@ -233,31 +197,6 @@ function inlineComputedStyles(element: Element): void {
       element.style.setProperty(prop, value);
     }
   }
-
-  // Force-convert color props to rgb (even if already inline, to catch oklch in Tailwind classes)
-  for (const prop of COLOR_PROPS) {
-    // If set inline with a hex/rgb value (e.g. from React), keep it
-    const inlineVal = element.style.getPropertyValue(prop);
-    if (inlineVal && !inlineVal.includes("oklch") && !inlineVal.includes("lab")) {
-      continue;
-    }
-    const value = computed.getPropertyValue(prop);
-    if (value && value !== "transparent" && value !== "rgba(0, 0, 0, 0)") {
-      element.style.setProperty(prop, toRgba(value));
-    }
-  }
-
-  // Also handle background (shorthand) and background-image for gradients set via inline style.
-  // If the inline background uses hex (from getDomainGradientStyle), leave it alone.
-  // If it's from a Tailwind class and computed as oklch, convert.
-  const bgInline = element.style.getPropertyValue("background");
-  if (!bgInline) {
-    const bgComputed = computed.getPropertyValue("background-color");
-    if (bgComputed && bgComputed !== "transparent" && bgComputed !== "rgba(0, 0, 0, 0)") {
-      element.style.setProperty("background-color", toRgba(bgComputed));
-    }
-  }
-
   for (const child of element.children) {
     inlineComputedStyles(child);
   }
@@ -333,17 +272,7 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
   // but inline styles take priority and are already in px.
   inlineComputedStyles(cardElement);
 
-  // html2canvas always reads document.documentElement and document.body background
-  // colors via getComputedStyle, which returns oklch() in modern browsers. Temporarily
-  // force these to rgb so html2canvas can parse them.
-  const docEl = document.documentElement;
-  const bodyEl = document.body;
-  const origDocBg = docEl.style.backgroundColor;
-  const origBodyBg = bodyEl.style.backgroundColor;
-  docEl.style.backgroundColor = toRgba(getComputedStyle(docEl).backgroundColor);
-  bodyEl.style.backgroundColor = toRgba(getComputedStyle(bodyEl).backgroundColor);
-
-  // Rasterize with html2canvas — it handles images, backgrounds, borders etc.
+  // Rasterize with html2canvas-pro (supports oklch and modern CSS colors natively)
   const canvas = await html2canvas(cardElement, {
     width: cardWidth,
     height: cardHeight,
@@ -351,10 +280,6 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
     useCORS: true,
     backgroundColor: "#ffffff",
   });
-
-  // Restore original background styles
-  docEl.style.backgroundColor = origDocBg;
-  bodyEl.style.backgroundColor = origBodyBg;
 
   const dataUrl = canvas.toDataURL("image/png");
   root.unmount();
