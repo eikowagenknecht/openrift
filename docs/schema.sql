@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict bstgATd3ZAshC1zGCBWiggtOGXzdPAauEz5DqZMPWB5e4yjM6wfnN1qHpSeupwJ
+\restrict AHCspje6El61r1HTuJTAQ5rEemeoliLXxrn8kj1X9p31gvA1eKfy6EOT1Sb9bxR
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -708,7 +708,6 @@ CREATE TABLE public.promo_types (
     id uuid DEFAULT uuidv7() NOT NULL,
     slug text NOT NULL,
     label text NOT NULL,
-    sort_order integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT promo_types_label_check CHECK ((label <> ''::text)),
@@ -2295,5 +2294,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bstgATd3ZAshC1zGCBWiggtOGXzdPAauEz5DqZMPWB5e4yjM6wfnN1qHpSeupwJ
+\unrestrict AHCspje6El61r1HTuJTAQ5rEemeoliLXxrn8kj1X9p31gvA1eKfy6EOT1Sb9bxR
 
