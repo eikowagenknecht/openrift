@@ -1,4 +1,4 @@
-import { BanIcon, PlusIcon, XIcon } from "lucide-react";
+import { BanIcon, CheckIcon, PencilIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCardBans, useCreateCardBan, useRemoveCardBan } from "@/hooks/use-card-bans";
+import {
+  useCardBans,
+  useCreateCardBan,
+  useRemoveCardBan,
+  useUpdateCardBan,
+} from "@/hooks/use-card-bans";
 import { useFormats } from "@/hooks/use-formats";
 
 interface CardBanManagerProps {
@@ -30,11 +35,16 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
   const { data: bans, isLoading } = useCardBans(cardId);
   const { data: formats } = useFormats();
   const createBan = useCreateCardBan();
+  const updateBan = useUpdateCardBan();
   const removeBan = useRemoveCardBan();
 
   const [formatId, setFormatId] = useState("");
   const [bannedAt, setBannedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
+
+  const [editingBanId, setEditingBanId] = useState<string | null>(null);
+  const [editBannedAt, setEditBannedAt] = useState("");
+  const [editReason, setEditReason] = useState("");
 
   // Default to first format once loaded
   const effectiveFormatId = formatId || formats?.[0]?.id || "";
@@ -74,29 +84,99 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : hasBans ? (
         <div className="space-y-1.5">
-          {bans.map((ban) => (
-            <div
-              key={ban.id}
-              className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
-            >
-              <Badge variant="destructive" className="text-xs">
-                {ban.formatName}
-              </Badge>
-              <span className="text-muted-foreground text-xs">since {ban.bannedAt}</span>
-              {ban.reason && (
-                <span className="text-muted-foreground truncate text-xs italic">{ban.reason}</span>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="ml-auto size-5"
-                onClick={() => removeBan.mutate({ cardId, formatId: ban.formatId })}
-                disabled={removeBan.isPending}
+          {bans.map((ban) =>
+            editingBanId === ban.id ? (
+              <div
+                key={ban.id}
+                className="flex flex-wrap items-end gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
               >
-                <XIcon className="size-3" />
-              </Button>
-            </div>
-          ))}
+                <Badge variant="destructive" className="self-center text-xs">
+                  {ban.formatName}
+                </Badge>
+                <div className="space-y-1">
+                  <Label className="text-xs">Banned at</Label>
+                  <Input
+                    type="date"
+                    value={editBannedAt}
+                    onChange={(event) => setEditBannedAt(event.target.value)}
+                    className="h-7 w-36 text-xs"
+                  />
+                </div>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Label className="text-xs">Reason (optional)</Label>
+                  <Input
+                    value={editReason}
+                    onChange={(event) => setEditReason(event.target.value)}
+                    placeholder="e.g. Enables degenerate combo…"
+                    className="h-7 text-xs"
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-5"
+                  onClick={() => {
+                    updateBan.mutate(
+                      {
+                        cardId,
+                        formatId: ban.formatId,
+                        bannedAt: editBannedAt,
+                        reason: editReason.trim() || null,
+                      },
+                      { onSuccess: () => setEditingBanId(null) },
+                    );
+                  }}
+                  disabled={updateBan.isPending}
+                >
+                  <CheckIcon className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-5"
+                  onClick={() => setEditingBanId(null)}
+                >
+                  <XIcon className="size-3" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                key={ban.id}
+                className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
+              >
+                <Badge variant="destructive" className="text-xs">
+                  {ban.formatName}
+                </Badge>
+                <span className="text-muted-foreground text-xs">since {ban.bannedAt}</span>
+                {ban.reason && (
+                  <span className="text-muted-foreground truncate text-xs italic">
+                    {ban.reason}
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="ml-auto size-5"
+                  onClick={() => {
+                    setEditingBanId(ban.id);
+                    setEditBannedAt(ban.bannedAt);
+                    setEditReason(ban.reason ?? "");
+                  }}
+                >
+                  <PencilIcon className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-5"
+                  onClick={() => removeBan.mutate({ cardId, formatId: ban.formatId })}
+                  disabled={removeBan.isPending}
+                >
+                  <XIcon className="size-3" />
+                </Button>
+              </div>
+            ),
+          )}
         </div>
       ) : null}
 

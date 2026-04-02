@@ -57,6 +57,34 @@ export function cardBansRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Updates `bannedAt` and/or `reason` on the active ban for the given card+format.
+     * @returns The updated ban row with format display name, or undefined if not found.
+     */
+    async update(
+      cardId: string,
+      formatId: string,
+      fields: { bannedAt?: string; reason?: string | null },
+    ) {
+      const row = await db
+        .updateTable("cardBans")
+        .set(fields)
+        .where("cardId", "=", cardId)
+        .where("formatId", "=", formatId)
+        .where("unbannedAt", "is", null)
+        .returningAll()
+        .executeTakeFirst();
+      if (!row) {
+        return null;
+      }
+      const format = await db
+        .selectFrom("formats")
+        .select("name")
+        .where("id", "=", row.formatId)
+        .executeTakeFirstOrThrow();
+      return { ...row, formatName: format.name };
+    },
+
+    /**
      * Sets `unbannedAt` on the active ban for the given card+format.
      * @returns Whether a row was updated.
      */
