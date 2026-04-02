@@ -2,6 +2,7 @@
 
 ## 2026-04-02
 
+- fix: Empty "reset filters" bar no longer appears in deck zones where the card type is forced (e.g. Legend zone)
 - feat: Search now checks all fields by default (name, card text, keywords, tags, artist, flavor text, type, and ID) with an "All" toggle to quickly reset scope
 - feat: Flavor text and card type are now searchable fields, with prefix shortcuts f: and ty:
 - feat: Cards in the deck builder now show a "Switch" button when the Legend, Champion, or Battlefield slot is already filled, making it easy to swap without removing first

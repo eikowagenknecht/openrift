@@ -33,7 +33,7 @@ export function ActiveFilters({
   setDisplayLabel,
   hiddenSections,
 }: ActiveFiltersProps) {
-  const { filterState, ranges, hasActiveFilters } = useFilterValues();
+  const { filterState, ranges } = useFilterValues();
   const {
     toggleArrayFilter,
     setRange,
@@ -44,10 +44,6 @@ export function ActiveFilters({
     clearAllFilters,
     setSearch,
   } = useFilterActions();
-  if (!hasActiveFilters) {
-    return null;
-  }
-
   type FilterKey =
     | "sets"
     | "rarities"
@@ -90,6 +86,19 @@ export function ActiveFilters({
       displayLabel?: (v: string) => string;
     } => g.values.length > 0 && !hiddenSections?.has(g.key),
   );
+
+  const hasVisibleContent =
+    filterState.search !== "" ||
+    filterGroups.length > 0 ||
+    RANGE_BADGE_SECTIONS.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
+    filterState.signed !== null ||
+    filterState.promo !== null ||
+    filterState.banned !== null ||
+    filterState.errata !== null;
+
+  if (!hasVisibleContent) {
+    return null;
+  }
 
   return (
     <div className="bg-muted/50 mb-3 flex items-center gap-2 rounded-lg px-3 py-2">
