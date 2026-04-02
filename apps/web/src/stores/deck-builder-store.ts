@@ -205,13 +205,13 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
           { ...card, zone: targetZone, quantity: 1 },
         ];
       } else if (isUniqueOnlyZone) {
-        // Only add if this card isn't already in the zone
-        const alreadyInZone = state.cards.some(
-          (entry) => entry.cardId === card.cardId && entry.zone === targetZone,
-        );
-        nextCards = alreadyInZone
-          ? state.cards
-          : [...state.cards, { ...card, zone: targetZone, quantity: 1 }];
+        // Only add if this card isn't already in the zone and zone isn't full
+        const zoneCards = state.cards.filter((entry) => entry.zone === targetZone);
+        const alreadyInZone = zoneCards.some((entry) => entry.cardId === card.cardId);
+        nextCards =
+          alreadyInZone || zoneCards.length >= 3
+            ? state.cards
+            : [...state.cards, { ...card, zone: targetZone, quantity: 1 }];
       } else if (targetZone === "runes") {
         // Rune zone: add rune(s) one at a time, rebalancing after each addition
         const addQty = count ?? 1;

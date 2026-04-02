@@ -27,7 +27,7 @@ export interface TextCodecCard extends DeckCodecCard {
 }
 
 /** A decoded text entry before DB resolution. */
-export interface TextDecodedEntry {
+interface TextDecodedEntry {
   cardName: string;
   count: number;
   zone: DeckZone;

@@ -98,8 +98,7 @@ export function DeckCardBrowser() {
   const setLegend = useDeckBuilderStore((state) => state.setLegend);
   const setRunesByDomain = useDeckBuilderStore((state) => state.setRunesByDomain);
   const activeZone = useDeckBuilderStore((state) => state.activeZone);
-  const isSingleCardZone =
-    activeZone === "legend" || activeZone === "champion" || activeZone === "battlefield";
+  const isSingleCardZone = activeZone === "legend" || activeZone === "champion";
   const zoneConfig = ZONE_FILTER_CONFIG[activeZone];
   const hiddenSections = zoneConfig?.hiddenSections;
 
@@ -271,8 +270,15 @@ export function DeckCardBrowser() {
     .reduce((sum, card) => sum + card.quantity, 0);
 
   const isMaxReached = (cardId: string): boolean => {
-    if (activeZone === "legend" || activeZone === "champion" || activeZone === "battlefield") {
+    if (activeZone === "legend" || activeZone === "champion") {
       return deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
+    }
+    if (activeZone === "battlefield") {
+      const alreadyInZone = deckCards.some(
+        (card) => card.cardId === cardId && card.zone === "battlefield",
+      );
+      const zoneFull = deckCards.filter((card) => card.zone === "battlefield").length >= 3;
+      return alreadyInZone || zoneFull;
     }
     if (activeZone === "runes") {
       return runeTotal >= 12;
