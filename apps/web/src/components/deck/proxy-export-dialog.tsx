@@ -43,94 +43,18 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 // Width used for the hidden render container (px)
 const RENDER_WIDTH_PX = 504;
 
-// SVGs that are entirely white and need recoloring to black for light-mode print.
-// Other SVGs (energy, rune icons) have colored fills and should keep their original colors.
-const WHITE_ONLY_SVGS = new Set(["might.svg", "exhaust.svg"]);
-
-/**
- * Recolors white-only SVG images to black by drawing to a canvas with
- * composite operations and replacing the img src with a data URI.
- * html2canvas doesn't support CSS filter (brightness-0), so we modify the actual image data.
- * Only targets known white-only SVGs — colored SVGs (energy, rune icons) are left alone.
- */
-async function recolorWhiteSvgsToBlack(element: HTMLElement): Promise<void> {
-  const images = element.querySelectorAll("img");
-  const promises: Promise<void>[] = [];
-
-  for (const img of images) {
-    if (!img.src || !img.complete) {
-      continue;
-    }
-    // Only recolor known white-only SVGs
-    const filename = img.src.split("/").pop() ?? "";
-    if (!WHITE_ONLY_SVGS.has(filename)) {
-      continue;
-    }
-
-    // oxlint-disable-next-line promise/avoid-new -- wrapping Image load callback for recoloring
-    const recolor = new Promise<void>((resolve) => {
-      const source = new Image();
-      source.crossOrigin = "anonymous";
-      source.addEventListener("load", () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = source.naturalWidth;
-        canvas.height = source.naturalHeight;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(source, 0, 0);
-          ctx.globalCompositeOperation = "source-in";
-          ctx.fillStyle = "black";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          img.src = canvas.toDataURL("image/png");
-        }
-        resolve();
-      });
-      source.addEventListener("error", () => resolve());
-      source.src = img.src;
-    });
-
-    promises.push(recolor);
-  }
-
-  await Promise.all(promises);
-}
-
-/**
- * Inlines computed clip-path values that html2canvas doesn't resolve from CSS classes.
- */
-function inlineClipPaths(element: HTMLElement): void {
-  if (!element.style.clipPath) {
-    const computed = getComputedStyle(element);
-    const clipPath = computed.getPropertyValue("clip-path");
-    if (clipPath && clipPath !== "none") {
-      element.style.clipPath = clipPath;
-    }
-  }
-
-  for (const child of element.children) {
-    if (child instanceof HTMLElement) {
-      inlineClipPaths(child);
-    }
-  }
-}
-
 /**
  * Captures a rendered CardPlaceholderImage DOM element via html2canvas.
  * The element must already be in the page's React tree (with all providers).
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
-  // Recolor white-only SVG icons to black (html2canvas doesn't support CSS filter)
-  await recolorWhiteSvgsToBlack(element);
-  // Inline clip-path for keyword shapes
-  inlineClipPaths(element);
-
   const canvas = await html2canvas(element, {
     width: element.offsetWidth,
     height: element.offsetHeight,
     scale: 2,
     useCORS: true,
-    backgroundColor: "#ffffff",
+    backgroundColor: null,
   });
   return canvas.toDataURL("image/png");
 }
@@ -344,7 +268,6 @@ export function ProxyExportDialog() {
                   effectText={renderingCard.effectText}
                   mightBonus={renderingCard.card.mightBonus}
                   flavorText={renderingCard.flavorText}
-                  variant="light"
                 />
               </div>
             </Suspense>
