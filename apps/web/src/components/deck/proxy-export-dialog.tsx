@@ -305,27 +305,27 @@ export function ProxyExportDialog() {
                 }}
               >
                 <div
-                  ref={cardElementRef}
                   style={{
-                    width: RENDER_WIDTH_PX,
                     transform: `scale(${PREVIEW_SCALE})`,
                     transformOrigin: "top left",
                   }}
                 >
-                  <CardPlaceholderImage
-                    name={renderingCard.card.name}
-                    domain={renderingCard.card.domains}
-                    energy={renderingCard.card.energy}
-                    might={renderingCard.card.might}
-                    power={renderingCard.card.power}
-                    type={renderingCard.card.type}
-                    superTypes={renderingCard.card.superTypes}
-                    tags={renderingCard.card.tags}
-                    rulesText={renderingCard.rulesText}
-                    effectText={renderingCard.effectText}
-                    mightBonus={renderingCard.card.mightBonus}
-                    flavorText={renderingCard.flavorText}
-                  />
+                  <div ref={cardElementRef} style={{ width: RENDER_WIDTH_PX }}>
+                    <CardPlaceholderImage
+                      name={renderingCard.card.name}
+                      domain={renderingCard.card.domains}
+                      energy={renderingCard.card.energy}
+                      might={renderingCard.card.might}
+                      power={renderingCard.card.power}
+                      type={renderingCard.card.type}
+                      superTypes={renderingCard.card.superTypes}
+                      tags={renderingCard.card.tags}
+                      rulesText={renderingCard.rulesText}
+                      effectText={renderingCard.effectText}
+                      mightBonus={renderingCard.card.mightBonus}
+                      flavorText={renderingCard.flavorText}
+                    />
+                  </div>
                 </div>
               </div>
             </Suspense>
