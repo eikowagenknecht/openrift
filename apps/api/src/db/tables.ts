@@ -539,7 +539,6 @@ export interface PromoTypesTable {
   slug: string;
   /** CHECK: <> '' */
   label: string;
-  sortOrder: number;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

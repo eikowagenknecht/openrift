@@ -14,11 +14,6 @@ const createPromoTypeSchema = z.object({
     .min(1)
     .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case (e.g. nexus-night)"),
   label: z.string().min(1),
-  sortOrder: z.number().int().optional(),
-});
-
-const reorderPromoTypesSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
 });
 
 const updatePromoTypeSchema = z.object({
@@ -28,7 +23,6 @@ const updatePromoTypeSchema = z.object({
     .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case")
     .optional(),
   label: z.string().min(1).optional(),
-  sortOrder: z.number().int().optional(),
 });
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -47,7 +41,6 @@ const listPromoTypes = createRoute({
                 id: z.string(),
                 slug: z.string(),
                 label: z.string(),
-                sortOrder: z.number(),
                 createdAt: z.string(),
                 updatedAt: z.string(),
               }),
@@ -57,18 +50,6 @@ const listPromoTypes = createRoute({
       },
       description: "List promo types",
     },
-  },
-});
-
-const reorderPromoTypes = createRoute({
-  method: "put",
-  path: "/promo-types/reorder",
-  tags: ["Admin - Promo Types"],
-  request: {
-    body: { content: { "application/json": { schema: reorderPromoTypesSchema } } },
-  },
-  responses: {
-    204: { description: "Promo types reordered" },
   },
 });
 
@@ -88,7 +69,6 @@ const createPromoType = createRoute({
               id: z.string(),
               slug: z.string(),
               label: z.string(),
-              sortOrder: z.number(),
               createdAt: z.string(),
               updatedAt: z.string(),
             }),
@@ -140,7 +120,6 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
           id: r.id,
           slug: r.slug,
           label: r.label,
-          sortOrder: r.sortOrder,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
         }),
@@ -148,48 +127,18 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
     });
   })
 
-  // ── PUT /admin/promo-types/reorder ─────────────────────────────────────
-
-  .openapi(reorderPromoTypes, async (c) => {
-    const { promoTypes: repo } = c.get("repos");
-    const { ids } = c.req.valid("json");
-
-    const uniqueIds = new Set(ids);
-    if (uniqueIds.size !== ids.length) {
-      throw new AppError(400, "BAD_REQUEST", "Duplicate promo type IDs in reorder list.");
-    }
-
-    const allTypes = await repo.listAll();
-    if (ids.length !== allTypes.length) {
-      throw new AppError(
-        400,
-        "BAD_REQUEST",
-        `Expected ${allTypes.length} promo type IDs, got ${ids.length}.`,
-      );
-    }
-
-    const knownIds = new Set(allTypes.map((t) => t.id));
-    const unknown = ids.filter((id) => !knownIds.has(id));
-    if (unknown.length > 0) {
-      throw new AppError(400, "BAD_REQUEST", `Unknown promo type IDs: ${unknown.join(", ")}`);
-    }
-
-    await repo.reorder(ids);
-    return c.body(null, 204);
-  })
-
   // ── POST /admin/promo-types ─────────────────────────────────────────────
 
   .openapi(createPromoType, async (c) => {
     const { promoTypes: repo } = c.get("repos");
-    const { slug, label, sortOrder } = c.req.valid("json");
+    const { slug, label } = c.req.valid("json");
 
     const existing = await repo.getBySlug(slug);
     if (existing) {
       throw new AppError(409, "CONFLICT", `Promo type "${slug}" already exists`);
     }
 
-    const created = await repo.create({ slug, label, sortOrder });
+    const created = await repo.create({ slug, label });
     return c.json({ promoType: created }, 201);
   })
 
