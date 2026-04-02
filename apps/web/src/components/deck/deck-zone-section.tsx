@@ -200,7 +200,7 @@ export function DeckZoneSection({
               <BanIcon className="text-muted-foreground size-3.5" />
             ) : hasZoneViolations ? (
               <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger render={<span />}>
                   <AlertTriangleIcon className="text-destructive size-3.5" />
                 </TooltipTrigger>
                 <TooltipContent>
