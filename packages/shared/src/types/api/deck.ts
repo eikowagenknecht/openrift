@@ -41,6 +41,7 @@ export interface DeckCardResponse {
 export interface DeckDetailResponse {
   deck: DeckResponse;
   cards: DeckCardResponse[];
+  totalValueCents: number | null;
 }
 
 export interface DeckAvailabilityItemResponse {
