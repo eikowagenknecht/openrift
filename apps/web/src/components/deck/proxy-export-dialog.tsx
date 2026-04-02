@@ -44,18 +44,19 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 const RENDER_WIDTH_PX = 504;
 
 /**
- * Inlines computed clip-path values on all elements. html2canvas can't parse
- * clip-path with em units and calc() — the browser-resolved px values work.
+ * html2canvas doesn't support clip-path at all. The keyword badges in CardText
+ * use clip-path to create parallelogram shapes. Replace them with equivalent
+ * skewX transforms (which html2canvas does support) before capture.
  */
-function inlineClipPaths(element: HTMLElement): void {
-  const computed = getComputedStyle(element);
-  const clipPath = computed.getPropertyValue("clip-path");
-  if (clipPath && clipPath !== "none" && !element.style.clipPath) {
-    element.style.clipPath = clipPath;
+function replaceClipPathsWithSkew(element: HTMLElement): void {
+  const clipPath = element.style.clipPath || getComputedStyle(element).clipPath;
+  if (clipPath && clipPath !== "none" && clipPath.includes("polygon")) {
+    element.style.clipPath = "none";
+    element.style.transform = "skewX(-10deg)";
   }
   for (const child of element.children) {
     if (child instanceof HTMLElement) {
-      inlineClipPaths(child);
+      replaceClipPathsWithSkew(child);
     }
   }
 }
@@ -66,7 +67,7 @@ function inlineClipPaths(element: HTMLElement): void {
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
-  inlineClipPaths(element);
+  replaceClipPathsWithSkew(element);
 
   const canvas = await html2canvas(element, {
     width: element.offsetWidth,
