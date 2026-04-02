@@ -83,42 +83,46 @@ export function DeckAddStrip({
             <TooltipContent>Shift+click to remove all</TooltipContent>
           </Tooltip>
         )}
-        {!maxReached && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onQuickAdd(printing, event);
-                  }}
-                  className={cn(
-                    "flex items-center justify-center rounded transition-colors",
-                    addLabel
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                tabIndex={-1}
+                disabled={maxReached}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onQuickAdd(printing, event);
+                }}
+                className={cn(
+                  "flex items-center justify-center rounded transition-colors",
+                  maxReached
+                    ? "text-muted-foreground/30 size-5 cursor-default"
+                    : addLabel
                       ? "bg-primary text-primary-foreground hover:bg-primary/90 px-2 py-0.5 text-xs font-semibold"
                       : showBulkAdd
                         ? "bg-primary text-primary-foreground hover:bg-primary/90 h-5 min-w-5 px-1 text-xs font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted size-5",
-                  )}
-                />
-              }
-            >
-              {addLabel ??
-                (showBulkAdd ? (
-                  `+${remainingCount}`
-                ) : (
-                  <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
-                    <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
-                  </svg>
-                ))}
-            </TooltipTrigger>
+                )}
+              />
+            }
+          >
+            {!maxReached && addLabel ? (
+              addLabel
+            ) : showBulkAdd && !maxReached ? (
+              `+${remainingCount}`
+            ) : (
+              <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
+                <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
+              </svg>
+            )}
+          </TooltipTrigger>
+          {!maxReached && (
             <TooltipContent>
               {addLabel ? `Click to ${addLabel.toLowerCase()}` : "Shift+click to add max"}
             </TooltipContent>
-          </Tooltip>
-        )}
+          )}
+        </Tooltip>
       </div>
     </div>
   );

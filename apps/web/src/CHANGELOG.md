@@ -2,6 +2,7 @@
 
 ## 2026-04-02
 
+- fix: The minus button in the deck editor card grid no longer jumps position when a card reaches its copy limit
 - feat: Deck zones are now ordered Legend, Champion, Main Deck, then Battlefield and Runes at the bottom
 - feat: Power curve and card type charts in deck stats are now colored by domain
 - fix: Empty "reset filters" bar no longer appears in deck zones where the card type is forced (e.g. Legend zone)
