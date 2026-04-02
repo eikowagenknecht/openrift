@@ -5,13 +5,12 @@ import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
 export interface DomainCount {
   domain: Domain;
-  main: number;
-  sideboard: number;
+  count: number;
 }
 
 export type EnergyCostCount = { energy: string } & Partial<Record<Domain, number>>;
 
-export type TypeCount = { type: CardType } & Partial<Record<Domain, number>>;
+export type TypeCount = { type: CardType; total: number } & Partial<Record<Domain, number>>;
 
 export type PowerCount = { power: string } & Partial<Record<Domain, number>>;
 
@@ -27,48 +26,37 @@ interface DeckStats {
   totalCards: number;
 }
 
-// Only main and sideboard are shown in stats (champion counts toward main)
+// Stats cover only main deck cards (champion counts toward main)
 const MAIN_ZONES = new Set(["main", "champion"]);
-const SIDEBOARD_ZONE = "sideboard";
 
 /**
  * Computes deck statistics from the current deck builder state.
- * Splits counts into main (includes champion) and sideboard.
- * Excludes overflow, legend, runes, and battlefield zones.
+ * Covers main deck cards only (includes champion zone).
+ * Excludes overflow, sideboard, legend, runes, and battlefield zones.
  * @returns The deck statistics.
  */
 export function useDeckStats(): DeckStats {
   const cards = useDeckBuilderStore((state) => state.cards);
 
   const mainCards = cards.filter((card) => MAIN_ZONES.has(card.zone));
-  const sideboardCards = cards.filter((card) => card.zone === SIDEBOARD_ZONE);
 
   // Domain distribution — a card with 2 domains counts for both
-  const domainMain = new Map<string, number>();
-  const domainSide = new Map<string, number>();
+  const domainCounts = new Map<string, number>();
   for (const card of mainCards) {
     for (const domain of card.domains) {
-      domainMain.set(domain, (domainMain.get(domain) ?? 0) + card.quantity);
+      domainCounts.set(domain, (domainCounts.get(domain) ?? 0) + card.quantity);
     }
   }
-  for (const card of sideboardCards) {
-    for (const domain of card.domains) {
-      domainSide.set(domain, (domainSide.get(domain) ?? 0) + card.quantity);
-    }
-  }
-  const allDomains = new Set([...domainMain.keys(), ...domainSide.keys()]);
   const domainDistribution: DomainCount[] = DOMAIN_ORDER.filter((domain) =>
-    allDomains.has(domain),
+    domainCounts.has(domain),
   ).map((domain) => ({
     domain,
-    main: domainMain.get(domain) ?? 0,
-    sideboard: domainSide.get(domain) ?? 0,
+    count: domainCounts.get(domain) ?? 0,
   }));
 
   // Energy curve — group by energy cost and domain, stacked by domain color
-  const allCards = [...mainCards, ...sideboardCards];
   const energyByDomain = new Map<number, Map<Domain, number>>();
-  for (const card of allCards) {
+  for (const card of mainCards) {
     if (card.energy === null) {
       continue;
     }
@@ -106,7 +94,7 @@ export function useDeckStats(): DeckStats {
   // Average energy cost (weighted by quantity)
   let energySum = 0;
   let energyCount = 0;
-  for (const card of allCards) {
+  for (const card of mainCards) {
     if (card.energy !== null) {
       energySum += card.energy * card.quantity;
       energyCount += card.quantity;
@@ -116,7 +104,7 @@ export function useDeckStats(): DeckStats {
 
   // Power curve — group by power and domain, stacked by domain color
   const powerByDomain = new Map<number, Map<Domain, number>>();
-  for (const card of allCards) {
+  for (const card of mainCards) {
     if (card.power === null) {
       continue;
     }
@@ -154,7 +142,8 @@ export function useDeckStats(): DeckStats {
   // Type breakdown — exclude types with dedicated zones, stacked by domain color
   const excludedTypes = new Set(["Legend", "Rune", "Battlefield"]);
   const typeByDomain = new Map<string, Map<Domain, number>>();
-  for (const card of allCards) {
+  const typeTotal = new Map<string, number>();
+  for (const card of mainCards) {
     if (excludedTypes.has(card.cardType)) {
       continue;
     }
@@ -166,6 +155,7 @@ export function useDeckStats(): DeckStats {
     for (const domain of card.domains) {
       domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
     }
+    typeTotal.set(card.cardType, (typeTotal.get(card.cardType) ?? 0) + card.quantity);
   }
   const typeDomainSet = new Set<Domain>();
   for (const domainMap of typeByDomain.values()) {
@@ -178,7 +168,7 @@ export function useDeckStats(): DeckStats {
   const typeBreakdown: TypeCount[] = CARD_TYPE_ORDER.filter((type) => allTypes.has(type)).map(
     (type) => {
       const domainMap = typeByDomain.get(type);
-      const entry: TypeCount = { type };
+      const entry: TypeCount = { type, total: typeTotal.get(type) ?? 0 };
       for (const domain of typeBreakdownDomains) {
         entry[domain] = domainMap?.get(domain) ?? 0;
       }
@@ -186,9 +176,7 @@ export function useDeckStats(): DeckStats {
     },
   );
 
-  const totalCards =
-    mainCards.reduce((sum, card) => sum + card.quantity, 0) +
-    sideboardCards.reduce((sum, card) => sum + card.quantity, 0);
+  const totalCards = mainCards.reduce((sum, card) => sum + card.quantity, 0);
 
   return {
     domainDistribution,

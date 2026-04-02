@@ -4,7 +4,7 @@ import { DOMAIN_ORDER } from "@openrift/shared";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DOMAIN_COLORS } from "@/lib/domain";
 
-const COUNTED_ZONES = new Set(["main", "sideboard", "champion"]);
+const COUNTED_ZONES = new Set(["main", "champion"]);
 
 /**
  * Thin stacked bar showing domain color distribution for a deck.

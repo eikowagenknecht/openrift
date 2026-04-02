@@ -17,7 +17,7 @@ function DomainBar({ data, total }: { data: DomainCount[]; total: number }) {
     <TooltipProvider>
       <div className="flex h-2.5 flex-1 overflow-hidden rounded-full">
         {data.map((entry) => {
-          const count = entry.main + entry.sideboard;
+          const count = entry.count;
           if (count === 0) {
             return null;
           }

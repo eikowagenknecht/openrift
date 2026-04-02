@@ -27,10 +27,10 @@ export function TypeBreakdown({ data, domains }: TypeBreakdownProps) {
   const chartConfig = buildChartConfig(domains);
 
   // Add a label with count + pluralized type name
-  const labeledData = data.map((entry) => {
-    const total = domains.reduce((sum, domain) => sum + ((entry[domain] as number) ?? 0), 0);
-    return { ...entry, label: `${total} ${total === 1 ? entry.type : `${entry.type}s`}` };
-  });
+  const labeledData = data.map((entry) => ({
+    ...entry,
+    label: `${entry.total} ${entry.total === 1 ? entry.type : `${entry.type}s`}`,
+  }));
 
   return (
     <div>

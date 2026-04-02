@@ -201,7 +201,7 @@ export function DeckTile({
     : 0;
 
   const excludedTypes = new Set(["Legend", "Rune", "Battlefield"]);
-  const countedZones = new Set(["main", "sideboard", "champion"]);
+  const countedZones = new Set(["main", "champion"]);
   const typeCounts = new Map<CardType, number>();
   if (cards) {
     for (const card of cards) {
