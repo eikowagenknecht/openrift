@@ -5,6 +5,7 @@
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant @wide (@container (width >= 107.5rem));
 
 html,
 body {

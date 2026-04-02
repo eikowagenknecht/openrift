@@ -336,6 +336,8 @@ interface CardGridProps {
   siblingPrintings?: Printing[];
   /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
+  /** Total height of sticky elements above the grid (app header + toolbar). */
+  stickyOffset?: number;
 }
 
 export function CardGrid({
@@ -350,6 +352,7 @@ export function CardGrid({
   onItemClick,
   siblingPrintings,
   addStripHeight = 0,
+  stickyOffset = APP_HEADER_HEIGHT,
 }: CardGridProps) {
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
@@ -443,7 +446,7 @@ export function CardGrid({
     estimateSize: estimateRowHeight,
     gap: GAP,
     scrollMargin,
-    scrollPaddingStart: APP_HEADER_HEIGHT,
+    scrollPaddingStart: stickyOffset,
     overscan: 3,
   });
 
@@ -454,6 +457,7 @@ export function CardGrid({
     rowStarts,
     virtualizer,
     scrollMargin,
+    stickyOffset,
   });
 
   useGridKeyboardNav({
@@ -472,6 +476,9 @@ export function CardGrid({
   const virtualizerRef = useRef(virtualizer);
   virtualizerRef.current = virtualizer;
 
+  const stickyOffsetRef = useRef(stickyOffset);
+  stickyOffsetRef.current = stickyOffset;
+
   const scrollToCard = (cardId: string) => {
     const rows = virtualRowsRef.current;
     for (let i = 0; i < rows.length; i++) {
@@ -483,7 +490,7 @@ export function CardGrid({
         const vItems = virtualizerRef.current.getVirtualItems();
         const vItem = vItems.find((vi) => vi.index === i);
         if (vItem) {
-          const viewportTop = globalThis.scrollY + APP_HEADER_HEIGHT;
+          const viewportTop = globalThis.scrollY + stickyOffsetRef.current;
           const viewportBottom = globalThis.scrollY + globalThis.innerHeight;
           const rowTop = vItem.start;
           const rowBottom = vItem.start + vItem.size;
@@ -516,7 +523,7 @@ export function CardGrid({
     const onScroll = () => {
       const rows = virtualRowsRef.current;
       const vItems = virtualizerRef.current.getVirtualItems();
-      const viewportTop = globalThis.scrollY + APP_HEADER_HEIGHT;
+      const viewportTop = globalThis.scrollY + stickyOffsetRef.current;
       for (const vItem of vItems) {
         const row = rows[vItem.index];
         if (row?.kind === "cards" && vItem.start + vItem.size > viewportTop) {
@@ -611,10 +618,11 @@ export function CardGrid({
         virtualizer={virtualizer}
         scrollMargin={scrollMargin}
         multipleGroups={multipleGroups}
+        stickyOffset={stickyOffset}
       />
 
       {/* Sticky set header overlay */}
-      <div className="sticky z-10 h-0" style={{ top: APP_HEADER_HEIGHT }}>
+      <div className="sticky z-10 h-0" style={{ top: stickyOffset }}>
         {multipleGroups && activeHeaderRow && (
           <div className="flex justify-center pt-2">
             <GroupHeaderLabel

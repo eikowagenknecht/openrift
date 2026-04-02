@@ -12,6 +12,7 @@ interface ScrollIndicatorProps {
   virtualizer: Virtualizer<Window, Element>;
   scrollMargin: number;
   multipleGroups: boolean;
+  stickyOffset: number;
 }
 
 export function ScrollIndicator({
@@ -20,6 +21,7 @@ export function ScrollIndicator({
   virtualizer,
   scrollMargin,
   multipleGroups,
+  stickyOffset,
 }: ScrollIndicatorProps) {
   const {
     indicator,
@@ -40,6 +42,7 @@ export function ScrollIndicator({
     virtualizer,
     scrollMargin,
     multipleGroups,
+    stickyOffset,
   });
 
   return (

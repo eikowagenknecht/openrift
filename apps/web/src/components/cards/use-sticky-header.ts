@@ -1,7 +1,6 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
 
-import { APP_HEADER_HEIGHT } from "./card-grid-constants";
 import type { VRow } from "./card-grid-types";
 
 interface UseStickyHeaderParams {
@@ -10,6 +9,7 @@ interface UseStickyHeaderParams {
   rowStarts: number[];
   virtualizer: Virtualizer<Window, Element>;
   scrollMargin: number;
+  stickyOffset: number;
 }
 
 export function useStickyHeader({
@@ -18,6 +18,7 @@ export function useStickyHeader({
   rowStarts,
   virtualizer,
   scrollMargin,
+  stickyOffset,
 }: UseStickyHeaderParams) {
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
@@ -38,6 +39,9 @@ export function useStickyHeader({
   const scrollMarginRef = useRef(scrollMargin);
   scrollMarginRef.current = scrollMargin;
 
+  const stickyOffsetRef = useRef(stickyOffset);
+  stickyOffsetRef.current = stickyOffset;
+
   useEffect(() => {
     if (!multipleGroups) {
       setActiveHeaderRow(null);
@@ -52,7 +56,7 @@ export function useStickyHeader({
       const rows = virtualRowsRef.current;
       const starts = rowStartsRef.current;
       const margin = scrollMarginRef.current;
-      const threshold = globalThis.scrollY - margin + APP_HEADER_HEIGHT;
+      const threshold = globalThis.scrollY - margin + stickyOffsetRef.current;
 
       // Prefer the virtualizer's measured positions over rowStarts (estimated).
       const measuredStarts = new Map(
