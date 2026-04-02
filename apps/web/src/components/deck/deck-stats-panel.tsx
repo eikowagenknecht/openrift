@@ -67,10 +67,11 @@ export function DeckStatsPanel() {
         <div className="space-y-3 border-t px-3 py-3">
           <EnergyPowerChart
             energyData={stats.energyCurve}
-            energyDomains={stats.energyCurveDomains}
+            energyStacks={stats.energyCurveStacks}
             averageEnergy={stats.averageEnergy}
             powerData={stats.powerCurve}
-            powerDomains={stats.powerCurveDomains}
+            powerStacks={stats.powerCurveStacks}
+            averagePower={stats.averagePower}
           />
           <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
         </div>
