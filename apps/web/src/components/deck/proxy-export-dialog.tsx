@@ -49,8 +49,14 @@ const RENDER_WIDTH_PX = 504;
  * skewX transforms (which html2canvas does support) before capture.
  */
 function replaceClipPathsWithSkew(element: HTMLElement): void {
-  const clipPath = element.style.clipPath || getComputedStyle(element).clipPath;
-  if (clipPath && clipPath !== "none" && clipPath.includes("polygon")) {
+  // Only target keyword badges (which use em/calc in their polygon).
+  // The might badge uses percentage-only polygon and renders correctly as-is.
+  const clipPath = element.style.clipPath;
+  if (
+    clipPath &&
+    clipPath.includes("polygon") &&
+    (clipPath.includes("em") || clipPath.includes("calc"))
+  ) {
     element.style.clipPath = "none";
     element.style.transform = "skewX(-10deg)";
   }
