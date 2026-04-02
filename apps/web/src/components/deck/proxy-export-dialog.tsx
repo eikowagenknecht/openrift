@@ -44,22 +44,56 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 const RENDER_WIDTH_PX = 504;
 
 /**
- * Inlines computed values for properties that html2canvas doesn't resolve from CSS classes.
- * Specifically targets filter (for icon brightness) and clip-path (for keyword shapes).
+ * Recolors white-fill SVG images to black by loading them, drawing to a canvas
+ * with composite operations, and replacing the src with a data URI.
+ * html2canvas doesn't support CSS filter (brightness-0), so we modify the actual image data.
  */
-function inlineRenderHints(element: HTMLElement): void {
-  const computed = getComputedStyle(element);
+async function recolorImagesToBlack(element: HTMLElement): Promise<void> {
+  const images = element.querySelectorAll("img");
+  const promises: Promise<void>[] = [];
 
-  // Inline filter if not already set (converts Tailwind brightness-0 class to inline style)
-  if (!element.style.filter) {
-    const filter = computed.getPropertyValue("filter");
-    if (filter && filter !== "none") {
-      element.style.filter = filter;
+  for (const img of images) {
+    // Only recolor SVG images (which have white fills). Skip raster images like domain icons.
+    if (!img.src || !img.complete || !img.src.includes(".svg")) {
+      continue;
     }
+
+    // oxlint-disable-next-line promise/avoid-new -- wrapping Image load callback for recoloring
+    const recolor = new Promise<void>((resolve) => {
+      const source = new Image();
+      source.crossOrigin = "anonymous";
+      source.addEventListener("load", () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = source.naturalWidth;
+        canvas.height = source.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          // Draw original image
+          ctx.drawImage(source, 0, 0);
+          // Composite: keep alpha channel, fill with black
+          ctx.globalCompositeOperation = "source-in";
+          ctx.fillStyle = "black";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          img.src = canvas.toDataURL("image/png");
+        }
+        resolve();
+      });
+      source.addEventListener("error", () => resolve());
+      source.src = img.src;
+    });
+
+    promises.push(recolor);
   }
 
-  // Inline clip-path if not already set (keywords use polygon clip-paths)
+  await Promise.all(promises);
+}
+
+/**
+ * Inlines computed clip-path values that html2canvas doesn't resolve from CSS classes.
+ */
+function inlineClipPaths(element: HTMLElement): void {
   if (!element.style.clipPath) {
+    const computed = getComputedStyle(element);
     const clipPath = computed.getPropertyValue("clip-path");
     if (clipPath && clipPath !== "none") {
       element.style.clipPath = clipPath;
@@ -68,7 +102,7 @@ function inlineRenderHints(element: HTMLElement): void {
 
   for (const child of element.children) {
     if (child instanceof HTMLElement) {
-      inlineRenderHints(child);
+      inlineClipPaths(child);
     }
   }
 }
@@ -79,8 +113,10 @@ function inlineRenderHints(element: HTMLElement): void {
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
-  // Inline filter + clip-path so html2canvas picks them up
-  inlineRenderHints(element);
+  // Recolor white SVG icons to black (html2canvas doesn't support CSS filter)
+  await recolorImagesToBlack(element);
+  // Inline clip-path for keyword shapes
+  inlineClipPaths(element);
 
   const canvas = await html2canvas(element, {
     width: element.offsetWidth,
