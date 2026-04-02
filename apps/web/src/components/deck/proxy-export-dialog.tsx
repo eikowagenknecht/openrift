@@ -44,11 +44,44 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 const RENDER_WIDTH_PX = 504;
 
 /**
+ * Inlines computed values for properties that html2canvas doesn't resolve from CSS classes.
+ * Specifically targets filter (for icon brightness) and clip-path (for keyword shapes).
+ */
+function inlineRenderHints(element: HTMLElement): void {
+  const computed = getComputedStyle(element);
+
+  // Inline filter if not already set (converts Tailwind brightness-0 class to inline style)
+  if (!element.style.filter) {
+    const filter = computed.getPropertyValue("filter");
+    if (filter && filter !== "none") {
+      element.style.filter = filter;
+    }
+  }
+
+  // Inline clip-path if not already set (keywords use polygon clip-paths)
+  if (!element.style.clipPath) {
+    const clipPath = computed.getPropertyValue("clip-path");
+    if (clipPath && clipPath !== "none") {
+      element.style.clipPath = clipPath;
+    }
+  }
+
+  for (const child of element.children) {
+    if (child instanceof HTMLElement) {
+      inlineRenderHints(child);
+    }
+  }
+}
+
+/**
  * Captures a rendered CardPlaceholderImage DOM element via html2canvas.
  * The element must already be in the page's React tree (with all providers).
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
+  // Inline filter + clip-path so html2canvas picks them up
+  inlineRenderHints(element);
+
   const canvas = await html2canvas(element, {
     width: element.offsetWidth,
     height: element.offsetHeight,
