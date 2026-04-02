@@ -40,8 +40,10 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
   letter: "US Letter",
 };
 
-// Width used for the hidden render container (px)
+// Full render width for html2canvas capture (px)
 const RENDER_WIDTH_PX = 504;
+// Visual preview scale factor — keeps the card inside the dialog
+const PREVIEW_SCALE = 200 / RENDER_WIDTH_PX;
 
 /**
  * html2canvas supports clip-path polygon with percentages but not em/calc units.
@@ -288,28 +290,43 @@ export function ProxyExportDialog() {
           </div>
         </div>
 
-        {/* Card preview — rendered inside the React tree so all providers/hooks work */}
+        {/* Card preview — rendered at full size for html2canvas, scaled down visually */}
         {renderingCard && (
           <div className="flex flex-col items-center gap-2">
             <p className="text-muted-foreground text-xs">Rendering: {renderingCard.card.name}</p>
             <Suspense
               fallback={<p className="text-muted-foreground text-xs">Loading card data…</p>}
             >
-              <div ref={cardElementRef} style={{ width: RENDER_WIDTH_PX }}>
-                <CardPlaceholderImage
-                  name={renderingCard.card.name}
-                  domain={renderingCard.card.domains}
-                  energy={renderingCard.card.energy}
-                  might={renderingCard.card.might}
-                  power={renderingCard.card.power}
-                  type={renderingCard.card.type}
-                  superTypes={renderingCard.card.superTypes}
-                  tags={renderingCard.card.tags}
-                  rulesText={renderingCard.rulesText}
-                  effectText={renderingCard.effectText}
-                  mightBonus={renderingCard.card.mightBonus}
-                  flavorText={renderingCard.flavorText}
-                />
+              <div
+                className="overflow-hidden"
+                style={{
+                  width: RENDER_WIDTH_PX * PREVIEW_SCALE,
+                  height: RENDER_WIDTH_PX * PREVIEW_SCALE * (88 / 63),
+                }}
+              >
+                <div
+                  ref={cardElementRef}
+                  style={{
+                    width: RENDER_WIDTH_PX,
+                    transform: `scale(${PREVIEW_SCALE})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  <CardPlaceholderImage
+                    name={renderingCard.card.name}
+                    domain={renderingCard.card.domains}
+                    energy={renderingCard.card.energy}
+                    might={renderingCard.card.might}
+                    power={renderingCard.card.power}
+                    type={renderingCard.card.type}
+                    superTypes={renderingCard.card.superTypes}
+                    tags={renderingCard.card.tags}
+                    rulesText={renderingCard.rulesText}
+                    effectText={renderingCard.effectText}
+                    mightBonus={renderingCard.card.mightBonus}
+                    flavorText={renderingCard.flavorText}
+                  />
+                </div>
               </div>
             </Suspense>
           </div>
