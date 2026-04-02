@@ -114,7 +114,13 @@ function waitForRender(): Promise<void> {
 }
 
 export function ProxyExportDialog() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenRaw] = useState(false);
+  const setOpen = (value: boolean) => {
+    if (value) {
+      setPreviewUrl(null);
+    }
+    setOpenRaw(value);
+  };
   const [renderMode, setRenderMode] = useState<ProxyRenderMode>("image");
   const [pageSize, setPageSize] = useState<ProxyPageSize>("a4");
   const [cutLines, setCutLines] = useState(false);
@@ -295,10 +301,7 @@ export function ProxyExportDialog() {
 
         {/* Captured card thumbnail preview */}
         {previewUrl && (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-muted-foreground text-xs">
-              {renderingCard ? `Rendering: ${renderingCard.card.name}` : "Done"}
-            </p>
+          <div className="flex justify-center">
             <img src={previewUrl} alt="Last captured card" className="aspect-card w-48 rounded" />
           </div>
         )}
