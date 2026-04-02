@@ -52,6 +52,29 @@ export function useCreateCardBan() {
   });
 }
 
+export function useUpdateCardBan() {
+  return useMutationWithInvalidation({
+    mutationFn: async ({
+      cardId,
+      formatId,
+      bannedAt,
+      reason,
+    }: {
+      cardId: string;
+      formatId: string;
+      bannedAt?: string;
+      reason?: string | null;
+    }) => {
+      const res = await client.api.v1.admin.cards[":id"].bans.$patch({
+        param: { id: cardId },
+        json: { formatId, bannedAt, reason },
+      });
+      assertOk(res);
+    },
+    invalidates: [queryKeys.admin.cardBans.prefix, queryKeys.catalog.all],
+  });
+}
+
 export function useRemoveCardBan() {
   return useMutationWithInvalidation({
     mutationFn: async ({ cardId, formatId }: { cardId: string; formatId: string }) => {

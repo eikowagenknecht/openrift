@@ -13,6 +13,12 @@ const createBanSchema = z.object({
   reason: z.string().min(1).nullable().optional(),
 });
 
+const updateBanSchema = z.object({
+  formatId: z.string().min(1),
+  bannedAt: z.string().date().optional(),
+  reason: z.string().min(1).nullable().optional(),
+});
+
 const removeBanSchema = z.object({
   formatId: z.string().min(1),
 });
@@ -56,6 +62,22 @@ const createBan = createRoute({
     201: {
       content: { "application/json": { schema: z.object({ ban: banResponseSchema }) } },
       description: "Ban created",
+    },
+  },
+});
+
+const updateBan = createRoute({
+  method: "patch",
+  path: "/{id}/bans",
+  tags: ["Admin - Cards"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: updateBanSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: z.object({ ban: banResponseSchema }) } },
+      description: "Ban updated",
     },
   },
 });
@@ -137,6 +159,39 @@ export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
       },
       201,
     );
+  })
+
+  // ── PATCH /admin/cards/:id/bans ─────────────────────────────────────────
+
+  .openapi(updateBan, async (c) => {
+    const { cardBans } = c.get("repos");
+    const { id } = c.req.valid("param");
+    const { formatId, bannedAt, reason } = c.req.valid("json");
+
+    const fields: { bannedAt?: string; reason?: string | null } = {};
+    if (bannedAt !== undefined) {
+      fields.bannedAt = bannedAt;
+    }
+    if (reason !== undefined) {
+      fields.reason = reason;
+    }
+
+    const row = await cardBans.update(id, formatId, fields);
+    if (!row) {
+      throw new AppError(404, "NOT_FOUND", `No active ban found for format ${formatId}`);
+    }
+
+    return c.json({
+      ban: {
+        id: row.id,
+        cardId: row.cardId,
+        formatId: row.formatId,
+        formatName: row.formatName,
+        bannedAt: row.bannedAt,
+        reason: row.reason,
+        createdAt: row.createdAt.toISOString(),
+      },
+    });
   })
 
   // ── DELETE /admin/cards/:id/bans ────────────────────────────────────────
