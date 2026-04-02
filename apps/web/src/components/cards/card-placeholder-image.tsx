@@ -79,7 +79,7 @@ export function CardPlaceholderImage({
             className={cn(
               "flex size-[13cqw] items-center justify-center rounded-full text-[8cqw] font-extrabold ring-1",
               isLight
-                ? "bg-black text-white ring-black" // custom: light variant — dark circle for print contrast
+                ? "bg-neutral-100 text-black ring-neutral-400" // custom: light variant
                 : "bg-white/70 text-black ring-black/70",
             )}
             aria-label={`Energy: ${energy}`}

@@ -43,18 +43,27 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 // Width used for the hidden render container (px)
 const RENDER_WIDTH_PX = 504;
 
+// SVGs that are entirely white and need recoloring to black for light-mode print.
+// Other SVGs (energy, rune icons) have colored fills and should keep their original colors.
+const WHITE_ONLY_SVGS = new Set(["might.svg", "exhaust.svg"]);
+
 /**
- * Recolors white-fill SVG images to black by loading them, drawing to a canvas
- * with composite operations, and replacing the src with a data URI.
+ * Recolors white-only SVG images to black by drawing to a canvas with
+ * composite operations and replacing the img src with a data URI.
  * html2canvas doesn't support CSS filter (brightness-0), so we modify the actual image data.
+ * Only targets known white-only SVGs — colored SVGs (energy, rune icons) are left alone.
  */
-async function recolorImagesToBlack(element: HTMLElement): Promise<void> {
+async function recolorWhiteSvgsToBlack(element: HTMLElement): Promise<void> {
   const images = element.querySelectorAll("img");
   const promises: Promise<void>[] = [];
 
   for (const img of images) {
-    // Only recolor SVG images (which have white fills). Skip raster images like domain icons.
-    if (!img.src || !img.complete || !img.src.includes(".svg")) {
+    if (!img.src || !img.complete) {
+      continue;
+    }
+    // Only recolor known white-only SVGs
+    const filename = img.src.split("/").pop() ?? "";
+    if (!WHITE_ONLY_SVGS.has(filename)) {
       continue;
     }
 
@@ -68,9 +77,7 @@ async function recolorImagesToBlack(element: HTMLElement): Promise<void> {
         canvas.height = source.naturalHeight;
         const ctx = canvas.getContext("2d");
         if (ctx) {
-          // Draw original image
           ctx.drawImage(source, 0, 0);
-          // Composite: keep alpha channel, fill with black
           ctx.globalCompositeOperation = "source-in";
           ctx.fillStyle = "black";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -113,8 +120,8 @@ function inlineClipPaths(element: HTMLElement): void {
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
-  // Recolor white SVG icons to black (html2canvas doesn't support CSS filter)
-  await recolorImagesToBlack(element);
+  // Recolor white-only SVG icons to black (html2canvas doesn't support CSS filter)
+  await recolorWhiteSvgsToBlack(element);
   // Inline clip-path for keyword shapes
   inlineClipPaths(element);
 
