@@ -136,12 +136,12 @@ export const updateDeckCardsSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const deckExportQuerySchema = z.object({
-  format: z.enum(["piltover"]).default("piltover"),
+  format: z.enum(["piltover", "text", "tts"]).default("piltover"),
 });
 
 export const deckImportPreviewSchema = z.object({
-  code: z.string().min(1).max(5000),
-  format: z.enum(["piltover"]).default("piltover"),
+  code: z.string().min(1).max(10_000),
+  format: z.enum(["piltover", "text", "tts"]).default("piltover"),
 });
 
 // ---------------------------------------------------------------------------

@@ -33,8 +33,14 @@ import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
-import { piltoverCodec } from "../../services/deck-codecs/index.js";
-import type { DeckCodecCard } from "../../services/deck-codecs/index.js";
+import {
+  decodeTTS,
+  decodeText,
+  encodeText,
+  encodeTTS,
+  piltoverCodec,
+} from "../../services/deck-codecs/index.js";
+import type { TextCodecCard } from "../../services/deck-codecs/index.js";
 import type { Variables } from "../../types.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../../utils/mappers.js";
 
@@ -340,6 +346,7 @@ export const decksRoute = decksApp
     const { decks, canonicalPrintings } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
+    const { format } = c.req.valid("query");
 
     const [deck, cardRows] = await Promise.all([
       decks.getByIdForUser(id, userId),
@@ -354,7 +361,7 @@ export const decksRoute = decksApp
     const shortCodeMap = new Map(shortCodes.map((sc) => [sc.cardId, sc.shortCode]));
 
     const warnings: string[] = [];
-    const codecCards: DeckCodecCard[] = [];
+    const codecCards: TextCodecCard[] = [];
     for (const row of cardRows) {
       const shortCode = shortCodeMap.get(row.cardId);
       if (!shortCode) {
@@ -369,10 +376,19 @@ export const decksRoute = decksApp
         cardType: row.cardType,
         superTypes: row.superTypes,
         domains: row.domains,
+        cardName: row.cardName,
       });
     }
 
-    const result = piltoverCodec.encode(codecCards);
+    let result;
+    if (format === "text") {
+      result = encodeText(codecCards);
+    } else if (format === "tts") {
+      result = encodeTTS(codecCards);
+    } else {
+      result = piltoverCodec.encode(codecCards);
+    }
+
     return c.json({
       code: result.code,
       warnings: [...warnings, ...result.warnings],
@@ -384,10 +400,43 @@ export const decksRoute = decksApp
   .openapi(importPreview, async (c) => {
     const { canonicalPrintings } = c.get("repos");
     const body = c.req.valid("json");
+    const format = body.format ?? "piltover";
 
+    if (format === "text") {
+      const decoded = decodeText(body.code);
+      const cardNames = decoded.cards.map((card) => card.cardName);
+      const resolved = await canonicalPrintings.cardIdsByNames(cardNames);
+      const resolvedMap = new Map(resolved.map((row) => [row.cardName.toLowerCase(), row]));
+
+      const warnings = [...decoded.warnings];
+      const cards: DeckImportPreviewResponse["cards"] = [];
+
+      for (const entry of decoded.cards) {
+        const card = resolvedMap.get(entry.cardName.toLowerCase());
+        if (!card) {
+          warnings.push(`Unknown card: "${entry.cardName}" (skipped)`);
+          continue;
+        }
+
+        cards.push({
+          cardId: card.cardId,
+          shortCode: card.shortCode,
+          zone: entry.zone,
+          quantity: entry.count,
+          cardName: card.cardName,
+          cardType: card.cardType,
+          superTypes: card.superTypes,
+          domains: card.domains,
+        });
+      }
+
+      return c.json({ cards, warnings } satisfies DeckImportPreviewResponse);
+    }
+
+    // Piltover and TTS both decode to short codes with source slots
     let decoded;
     try {
-      decoded = piltoverCodec.decode(body.code);
+      decoded = format === "tts" ? decodeTTS(body.code) : piltoverCodec.decode(body.code);
     } catch {
       throw new AppError(400, "INVALID_DECK_CODE", "Invalid or unsupported deck code");
     }

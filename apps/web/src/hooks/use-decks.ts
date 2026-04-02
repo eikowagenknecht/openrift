@@ -108,25 +108,32 @@ export function useCloneDeck() {
   });
 }
 
+type ExportFormat = "piltover" | "text" | "tts";
+
 export function useExportDeck() {
-  return useMutationWithInvalidation<DeckExportResponse, string>({
-    mutationFn: async (deckId) => {
-      const res = await client.api.v1.decks[":id"].export.$get({
-        param: { id: deckId },
-        query: {},
-      });
-      assertOk(res);
-      return await res.json();
+  return useMutationWithInvalidation<DeckExportResponse, { deckId: string; format?: ExportFormat }>(
+    {
+      mutationFn: async ({ deckId, format }) => {
+        const res = await client.api.v1.decks[":id"].export.$get({
+          param: { id: deckId },
+          query: { format },
+        });
+        assertOk(res);
+        return await res.json();
+      },
+      invalidates: [],
     },
-    invalidates: [],
-  });
+  );
 }
 
 export function useImportPreview() {
-  return useMutationWithInvalidation<DeckImportPreviewResponse, { code: string }>({
-    mutationFn: async ({ code }) => {
+  return useMutationWithInvalidation<
+    DeckImportPreviewResponse,
+    { code: string; format?: ExportFormat }
+  >({
+    mutationFn: async ({ code, format }) => {
       const res = await client.api.v1.decks["import-preview"].$post({
-        json: { code },
+        json: { code, format },
       });
       assertOk(res);
       return await res.json();

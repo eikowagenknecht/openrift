@@ -10,8 +10,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useExportDeck } from "@/hooks/use-decks";
+
+type ExportFormat = "piltover" | "text" | "tts";
+
+const FORMAT_DESCRIPTIONS: Record<ExportFormat, string> = {
+  piltover: "Copy this code to share your deck or import it into Piltover Archive.",
+  text: "Human-readable list grouped by zone, for sharing in chat or forums.",
+  tts: "Space-separated short codes for Tabletop Simulator.",
+};
 
 interface DeckExportDialogProps {
   deckId: string;
@@ -32,17 +41,24 @@ export function DeckExportDialog({
   const isControlled = controlledOpen !== undefined;
   const exportDeck = useExportDeck();
   const [copied, setCopied] = useState(false);
+  const [format, setFormat] = useState<ExportFormat>("piltover");
 
   useEffect(() => {
     if (open) {
-      exportDeck.mutate(deckId);
+      exportDeck.mutate({ deckId, format });
       setCopied(false);
     }
-    // Reset on close
     if (!open) {
       exportDeck.reset();
+      setFormat("piltover");
     }
   }, [open]); // oxlint-disable-line react-hooks/exhaustive-deps -- only trigger on open/close
+
+  const handleFormatChange = (newFormat: ExportFormat) => {
+    setFormat(newFormat);
+    setCopied(false);
+    exportDeck.mutate({ deckId, format: newFormat });
+  };
 
   const handleCopy = async () => {
     if (!exportDeck.data?.code) {
@@ -63,10 +79,8 @@ export function DeckExportDialog({
       )}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Export deck code</DialogTitle>
-          <DialogDescription>
-            Copy this code to share your deck or import it into Piltover Archive.
-          </DialogDescription>
+          <DialogTitle>Export deck</DialogTitle>
+          <DialogDescription>{FORMAT_DESCRIPTIONS[format]}</DialogDescription>
         </DialogHeader>
 
         {isDirty && (
@@ -75,50 +89,64 @@ export function DeckExportDialog({
           </p>
         )}
 
-        <div className="flex min-w-0 flex-col gap-3">
-          {exportDeck.isPending ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-            </div>
-          ) : exportDeck.isError ? (
-            <p className="text-destructive text-sm">Failed to generate deck code.</p>
-          ) : exportDeck.data ? (
-            <>
-              <Textarea
-                readOnly
-                value={exportDeck.data.code}
-                className="font-mono text-xs"
-                rows={3}
-                onClick={(event) => (event.target as HTMLTextAreaElement).select()}
-              />
+        <Tabs
+          defaultValue="piltover"
+          value={format}
+          onValueChange={(value) => handleFormatChange(value as ExportFormat)}
+        >
+          <TabsList>
+            <TabsTrigger value="piltover">Deck Code</TabsTrigger>
+            <TabsTrigger value="text">Text</TabsTrigger>
+            <TabsTrigger value="tts">TTS</TabsTrigger>
+          </TabsList>
 
-              <Button onClick={handleCopy} className="self-end">
-                {copied ? (
-                  <>
-                    <CheckIcon className="size-4" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <CopyIcon className="size-4" />
-                    Copy code
-                  </>
-                )}
-              </Button>
-
-              {exportDeck.data.warnings.length > 0 && (
-                <div className="text-muted-foreground text-xs">
-                  <p className="font-medium">Warnings:</p>
-                  <ul className="mt-1 list-inside list-disc">
-                    {exportDeck.data.warnings.map((warning) => (
-                      <li key={warning}>{warning}</li>
-                    ))}
-                  </ul>
+          <TabsContent value={format}>
+            <div className="flex min-w-0 flex-col gap-3">
+              {exportDeck.isPending ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
                 </div>
-              )}
-            </>
-          ) : null}
-        </div>
+              ) : exportDeck.isError ? (
+                <p className="text-destructive text-sm">Failed to generate export.</p>
+              ) : exportDeck.data ? (
+                <>
+                  <Textarea
+                    readOnly
+                    value={exportDeck.data.code}
+                    className="font-mono text-xs"
+                    rows={format === "piltover" ? 3 : 12}
+                    onClick={(event) => (event.target as HTMLTextAreaElement).select()}
+                  />
+
+                  <Button onClick={handleCopy} className="self-end">
+                    {copied ? (
+                      <>
+                        <CheckIcon className="size-4" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <CopyIcon className="size-4" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+
+                  {exportDeck.data.warnings.length > 0 && (
+                    <div className="text-muted-foreground text-xs">
+                      <p className="font-medium">Warnings:</p>
+                      <ul className="mt-1 list-inside list-disc">
+                        {exportDeck.data.warnings.map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
