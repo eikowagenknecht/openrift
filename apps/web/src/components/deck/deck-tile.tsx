@@ -302,16 +302,22 @@ export function DeckTile({
           {cards && <DeckDomainBar cards={cards} />}
 
           {/* Footer */}
-          <div className="text-muted-foreground mt-auto flex items-center gap-3 pt-1 text-xs">
+          <div className="text-muted-foreground mt-auto flex items-center gap-1.5 pt-1 text-xs">
             <span>
               {createdDate}
               {updatedDate !== createdDate && ` (updated ${updatedDate})`}
             </span>
+            <span>·</span>
             <span>{totalCards} cards</span>
             {totalValueCents !== null && totalValueCents > 0 && (
-              <span>
-                {formatterForMarketplace(marketplaceOrder[0] ?? "tcgplayer")(totalValueCents / 100)}
-              </span>
+              <>
+                <span>·</span>
+                <span>
+                  {formatterForMarketplace(marketplaceOrder[0] ?? "tcgplayer")(
+                    totalValueCents / 100,
+                  )}
+                </span>
+              </>
             )}
             <span className="flex-1" />
             <DropdownMenu>
