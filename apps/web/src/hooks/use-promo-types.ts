@@ -19,7 +19,7 @@ export function usePromoTypes() {
 
 export function useCreatePromoType() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { slug: string; label: string; sortOrder?: number }) => {
+    mutationFn: async (vars: { slug: string; label: string }) => {
       const res = await client.api.v1.admin["promo-types"].$post({ json: vars });
       assertOk(res);
       return await res.json();
@@ -30,10 +30,10 @@ export function useCreatePromoType() {
 
 export function useUpdatePromoType() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { id: string; slug?: string; label?: string; sortOrder?: number }) => {
+    mutationFn: async (vars: { id: string; slug?: string; label?: string }) => {
       const res = await client.api.v1.admin["promo-types"][":id"].$patch({
         param: { id: vars.id },
-        json: { slug: vars.slug, label: vars.label, sortOrder: vars.sortOrder },
+        json: { slug: vars.slug, label: vars.label },
       });
       assertOk(res);
     },

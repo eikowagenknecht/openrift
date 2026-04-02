@@ -21,7 +21,6 @@ describe.skipIf(!ctx)("promoTypesRepo (integration)", () => {
     const row = await repo.create({ slug: "test-promo-36", label: "Test Promo" });
     expect(row.slug).toBe("test-promo-36");
     expect(row.label).toBe("Test Promo");
-    expect(row.sortOrder).toBe(0);
     createdIds.push(row.id);
 
     const fetched = await repo.getById(row.id);
@@ -29,13 +28,12 @@ describe.skipIf(!ctx)("promoTypesRepo (integration)", () => {
     expect(fetched!.slug).toBe("test-promo-36");
   });
 
-  it("creates a promo type with custom sort order", async () => {
+  it("creates a second promo type", async () => {
     const row = await repo.create({
       slug: "test-promo-ordered-36",
       label: "Ordered",
-      sortOrder: 42,
     });
-    expect(row.sortOrder).toBe(42);
+    expect(row.label).toBe("Ordered");
     createdIds.push(row.id);
   });
 
@@ -55,7 +53,7 @@ describe.skipIf(!ctx)("promoTypesRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  it("listAll returns all promo types ordered by sortOrder then label", async () => {
+  it("listAll returns all promo types ordered by label", async () => {
     const list = await repo.listAll();
     expect(Array.isArray(list)).toBe(true);
     const ours = list.filter((p) => createdIds.includes(p.id));
@@ -74,22 +72,6 @@ describe.skipIf(!ctx)("promoTypesRepo (integration)", () => {
     const id = createdIds[0];
     const result = await repo.isInUse(id);
     expect(result).toBeUndefined();
-  });
-
-  it("reorder updates sort orders for given ids", async () => {
-    const idA = createdIds[0];
-    const idB = createdIds[1];
-    await repo.reorder([idB, idA]);
-
-    const fetchedA = await repo.getById(idA);
-    const fetchedB = await repo.getById(idB);
-    expect(fetchedB!.sortOrder).toBe(1);
-    expect(fetchedA!.sortOrder).toBe(2);
-  });
-
-  it("reorder with empty array is a no-op", async () => {
-    await repo.reorder([]);
-    // Should not throw
   });
 
   it("deleteById removes a promo type", async () => {

@@ -220,7 +220,6 @@ export interface PromoTypeResponse {
   id: string;
   slug: string;
   label: string;
-  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -80,15 +80,14 @@ describe.skipIf(!adminCtx)("Admin promo-types routes (integration)", () => {
       createdId1 = json.promoType.id;
     });
 
-    it("creates a promo type with explicit sortOrder", async () => {
+    it("creates a second promo type", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/promo-types", { slug: "ipt-beta", label: "IPT Beta", sortOrder: 99 }),
+        req("POST", "/admin/promo-types", { slug: "ipt-beta", label: "IPT Beta" }),
       );
       expect(res.status).toBe(201);
 
       const json = await res.json();
       expect(json.promoType.slug).toBe("ipt-beta");
-      expect(json.promoType.sortOrder).toBe(99);
       createdId2 = json.promoType.id;
     });
 
@@ -169,55 +168,6 @@ describe.skipIf(!adminCtx)("Admin promo-types routes (integration)", () => {
 
       const json = await res.json();
       expect(json.error).toContain("already in use");
-    });
-  });
-
-  // ── PUT /admin/promo-types/reorder ────────────────────────────────────────
-
-  describe("PUT /admin/promo-types/reorder", () => {
-    it("reorders all promo types", async () => {
-      // First, get the full list of all promo types (not just ipt- ones)
-      const listRes = await app.fetch(req("GET", "/admin/promo-types"));
-      const json = await listRes.json();
-      const allIds = json.promoTypes.map((t: { id: string }) => t.id);
-
-      // Reverse the order
-      const reversed = allIds.toReversed();
-      const res = await app.fetch(req("PUT", "/admin/promo-types/reorder", { ids: reversed }));
-      expect(res.status).toBe(204);
-    });
-
-    it("returns 400 for duplicate IDs", async () => {
-      const res = await app.fetch(
-        req("PUT", "/admin/promo-types/reorder", { ids: [createdId1, createdId1] }),
-      );
-      expect(res.status).toBe(400);
-
-      const json = await res.json();
-      expect(json.error).toContain("Duplicate");
-    });
-
-    it("returns 400 for wrong count of IDs", async () => {
-      const res = await app.fetch(req("PUT", "/admin/promo-types/reorder", { ids: [createdId1] }));
-      expect(res.status).toBe(400);
-
-      const json = await res.json();
-      expect(json.error).toContain("Expected");
-    });
-
-    it("returns 400 for unknown IDs", async () => {
-      // Get the correct count but include an unknown ID
-      const listRes = await app.fetch(req("GET", "/admin/promo-types"));
-      const json = await listRes.json();
-      const allIds = json.promoTypes.map((t: { id: string }) => t.id);
-
-      // Replace the last ID with a fake one
-      const withUnknown = [...allIds.slice(0, -1), "a0000000-dead-4000-a000-000000000000"];
-      const res = await app.fetch(req("PUT", "/admin/promo-types/reorder", { ids: withUnknown }));
-      expect(res.status).toBe(400);
-
-      const reJson = await res.json();
-      expect(reJson.error).toContain("Unknown promo type IDs");
     });
   });
 

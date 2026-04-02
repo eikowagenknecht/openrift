@@ -14,7 +14,6 @@ const mockRepo = {
   getById: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
-  reorder: vi.fn(),
   deleteById: vi.fn(),
   isInUse: vi.fn(),
 };
@@ -49,7 +48,6 @@ const dbPromoType = {
   id: "a0000000-0001-4000-a000-000000000010",
   slug: "nexus-night",
   label: "Nexus Night",
-  sortOrder: 0,
   createdAt: now,
   updatedAt: now,
 };
@@ -58,7 +56,6 @@ const dbPromoType2 = {
   id: "a0000000-0001-4000-a000-000000000020",
   slug: "shadow-promo",
   label: "Shadow Promo",
-  sortOrder: 1,
   createdAt: now,
   updatedAt: now,
 };
@@ -82,7 +79,6 @@ describe("GET /api/v1/promo-types", () => {
       id: dbPromoType.id,
       slug: "nexus-night",
       label: "Nexus Night",
-      sortOrder: 0,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
@@ -97,60 +93,6 @@ describe("GET /api/v1/promo-types", () => {
   });
 });
 
-describe("PUT /api/v1/promo-types/reorder", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 204 on successful reorder", async () => {
-    mockRepo.listAll.mockResolvedValue([dbPromoType, dbPromoType2]);
-    mockRepo.reorder.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/promo-types/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [dbPromoType2.id, dbPromoType.id] }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockRepo.reorder).toHaveBeenCalledWith([dbPromoType2.id, dbPromoType.id]);
-  });
-
-  it("returns 400 when ids contain duplicates", async () => {
-    const res = await app.request("/api/v1/promo-types/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [dbPromoType.id, dbPromoType.id] }),
-    });
-    expect(res.status).toBe(400);
-    const json = await res.json();
-    expect(json.error).toContain("Duplicate");
-  });
-
-  it("returns 400 when ids count does not match existing promo types", async () => {
-    mockRepo.listAll.mockResolvedValue([dbPromoType, dbPromoType2]);
-    const res = await app.request("/api/v1/promo-types/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [dbPromoType.id] }),
-    });
-    expect(res.status).toBe(400);
-    const json = await res.json();
-    expect(json.error).toContain("Expected 2");
-  });
-
-  it("returns 400 when ids contain unknown IDs", async () => {
-    const unknownId = "a0000000-0001-4000-a000-000000000099";
-    mockRepo.listAll.mockResolvedValue([dbPromoType, dbPromoType2]);
-    const res = await app.request("/api/v1/promo-types/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [dbPromoType.id, unknownId] }),
-    });
-    expect(res.status).toBe(400);
-    const json = await res.json();
-    expect(json.error).toContain("Unknown promo type IDs");
-  });
-});
-
 describe("POST /api/v1/promo-types", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -162,7 +104,6 @@ describe("POST /api/v1/promo-types", () => {
       id: dbPromoType.id,
       slug: "nexus-night",
       label: "Nexus Night",
-      sortOrder: 0,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
@@ -178,23 +119,6 @@ describe("POST /api/v1/promo-types", () => {
     expect(mockRepo.create).toHaveBeenCalledWith({
       slug: "nexus-night",
       label: "Nexus Night",
-      sortOrder: undefined,
-    });
-  });
-
-  it("passes sortOrder when provided", async () => {
-    mockRepo.getBySlug.mockResolvedValue(undefined);
-    mockRepo.create.mockResolvedValue({ ...dbPromoType, sortOrder: 5 });
-    const res = await app.request("/api/v1/promo-types", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug: "nexus-night", label: "Nexus Night", sortOrder: 5 }),
-    });
-    expect(res.status).toBe(201);
-    expect(mockRepo.create).toHaveBeenCalledWith({
-      slug: "nexus-night",
-      label: "Nexus Night",
-      sortOrder: 5,
     });
   });
 
