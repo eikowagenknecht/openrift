@@ -2,7 +2,7 @@ import type { CatalogResponse } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { html2canvas } from "html2canvas-pro";
 import { Loader2Icon, PrinterIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { keywordStylesQueryOptions } from "@/hooks/use-keyword-styles";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
 import { assembleProxyPdf, prerenderImageCards, resolveProxyCards } from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
@@ -99,6 +100,9 @@ export function ProxyExportDialog() {
     setProgress({ current: 0, total: 0 });
 
     try {
+      // Pre-fetch keyword styles so CardText doesn't suspend during rendering
+      await queryClient.ensureQueryData(keywordStylesQueryOptions);
+
       const proxyCards = resolveProxyCards(cards, catalog);
       const renderedCards = new Map<string, RenderedCard>();
 
@@ -247,23 +251,27 @@ export function ProxyExportDialog() {
         {renderingCard && (
           <div className="flex flex-col items-center gap-2">
             <p className="text-muted-foreground text-xs">Rendering: {renderingCard.card.name}</p>
-            <div ref={cardElementRef} style={{ width: RENDER_WIDTH_PX }}>
-              <CardPlaceholderImage
-                name={renderingCard.card.name}
-                domain={renderingCard.card.domains}
-                energy={renderingCard.card.energy}
-                might={renderingCard.card.might}
-                power={renderingCard.card.power}
-                type={renderingCard.card.type}
-                superTypes={renderingCard.card.superTypes}
-                tags={renderingCard.card.tags}
-                rulesText={renderingCard.card.rulesText}
-                effectText={renderingCard.card.effectText}
-                mightBonus={renderingCard.card.mightBonus}
-                flavorText={renderingCard.flavorText}
-                variant="light"
-              />
-            </div>
+            <Suspense
+              fallback={<p className="text-muted-foreground text-xs">Loading card data…</p>}
+            >
+              <div ref={cardElementRef} style={{ width: RENDER_WIDTH_PX }}>
+                <CardPlaceholderImage
+                  name={renderingCard.card.name}
+                  domain={renderingCard.card.domains}
+                  energy={renderingCard.card.energy}
+                  might={renderingCard.card.might}
+                  power={renderingCard.card.power}
+                  type={renderingCard.card.type}
+                  superTypes={renderingCard.card.superTypes}
+                  tags={renderingCard.card.tags}
+                  rulesText={renderingCard.card.rulesText}
+                  effectText={renderingCard.card.effectText}
+                  mightBonus={renderingCard.card.mightBonus}
+                  flavorText={renderingCard.flavorText}
+                  variant="light"
+                />
+              </div>
+            </Suspense>
           </div>
         )}
 
