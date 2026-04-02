@@ -1,12 +1,6 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
-import type { DeckViolation, DeckZone } from "@openrift/shared";
-import {
-  AlertTriangleIcon,
-  BanIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-} from "lucide-react";
+import type { CardType, DeckViolation, DeckZone } from "@openrift/shared";
+import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { DeckCardRow } from "@/components/deck/deck-card-row";
@@ -17,7 +11,7 @@ import type {
 } from "@/components/deck/deck-dnd-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
-import { getDomainGradientStyle } from "@/lib/domain";
+import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { isCardAllowedInZone, useDeckBuilderStore } from "@/stores/deck-builder-store";
@@ -38,14 +32,15 @@ const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
   champion: 1,
   runes: 12,
   battlefield: 3,
+  main: 39,
 };
 
 const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
-  legend: "Find a Legend card and click Choose to set it",
+  legend: "Choose a Legend to get started",
   champion: "Pick a Champion that matches your Legend",
-  runes: "Runes auto-fill when you set a Legend",
+  runes: "Auto-fills when you set a Legend",
   battlefield: "Choose 3 unique Battlefield cards",
-  main: "Click + on cards in the browser to add them",
+  main: "Add cards from the browser",
   sideboard: "Add up to 8 sideboard cards",
   overflow: "Stash extra cards here while you decide",
 };
@@ -55,6 +50,10 @@ const SINGLE_CARD_ZONES = new Set<DeckZone>(["legend", "champion"]);
 const UNIQUE_ONLY_ZONES = new Set<DeckZone>(["battlefield"]);
 // Zones where cards can be dragged between freely
 const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
+// Zones where cards are grouped by type with shared icons
+const GROUPED_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
+// Display order for type groups in grouped zones
+const TYPE_GROUP_ORDER: CardType[] = ["Unit", "Spell", "Gear"];
 
 interface DeckZoneSectionProps {
   zone: DeckZone;
@@ -63,6 +62,7 @@ interface DeckZoneSectionProps {
   isActive: boolean;
   shiftHeld?: boolean;
   onActivate: () => void;
+  onHoverCard?: (cardId: string | null) => void;
 }
 
 export function DeckZoneSection({
@@ -72,8 +72,9 @@ export function DeckZoneSection({
   isActive,
   shiftHeld,
   onActivate,
+  onHoverCard,
 }: DeckZoneSectionProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(zone !== "sideboard" && zone !== "overflow");
   const removeCard = useDeckBuilderStore((state) => state.removeCard);
   const addCard = useDeckBuilderStore((state) => state.addCard);
   const setQuantity = useDeckBuilderStore((state) => state.setQuantity);
@@ -152,30 +153,88 @@ export function DeckZoneSection({
       cardViolations.set(violation.cardId, violation.message);
     }
   }
-  const hasZoneViolations = zoneViolations.length > 0;
+  // Only show zone-level violations when the zone has content — empty zones
+  // use the hint text instead of screaming errors at an empty deck.
+  const isEmpty = cards.length === 0;
+  const hasZoneViolations = !isEmpty && zoneViolations.length > 0;
   const isSingleCard = SINGLE_CARD_ZONES.has(zone);
   const isUniqueOnly = UNIQUE_ONLY_ZONES.has(zone);
+  const isGrouped = GROUPED_ZONES.has(zone);
 
   // Get legend domains for active zone tint — return the stable array from the card
   // or undefined (not a new []) to avoid infinite re-renders from Zustand
-  const legendDomains = useDeckBuilderStore(
-    (state) => state.cards.find((card) => card.zone === "legend")?.domains,
+  const renderCardRow = (card: DeckBuilderCard) => (
+    <DeckCardRow
+      key={`${card.cardId}-${card.zone}`}
+      card={card}
+      hasViolation={cardViolations.has(card.cardId)}
+      violationMessage={cardViolations.get(card.cardId)}
+      controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
+      draggable={DRAG_ZONES.has(zone)}
+      shiftHeld={zone === "runes" ? undefined : shiftHeld}
+      onIncrement={
+        copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3
+          ? undefined
+          : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
+      }
+      onDecrement={(event) => {
+        if (event.shiftKey) {
+          setQuantity(card.cardId, zone, 0);
+        } else {
+          removeCard(card.cardId, zone);
+        }
+      }}
+      onRemove={() => removeCard(card.cardId, zone)}
+      onClick={() => handleCardClick(card)}
+      onHover={onHoverCard}
+    />
   );
-  const activeTintStyle =
-    isActive && legendDomains && legendDomains.length > 0
-      ? getDomainGradientStyle(legendDomains, "38")
-      : undefined;
+
+  const renderGroupedCards = () => {
+    const grouped = Map.groupBy(cards, (card) => card.cardType);
+    const sortedCards = (group: DeckBuilderCard[]) =>
+      group.toSorted((a, b) => {
+        const energyDiff = (a.energy ?? 0) - (b.energy ?? 0);
+        if (energyDiff !== 0) {
+          return energyDiff;
+        }
+        const powerDiff = (a.power ?? 0) - (b.power ?? 0);
+        if (powerDiff !== 0) {
+          return powerDiff;
+        }
+        return a.cardName.localeCompare(b.cardName);
+      });
+
+    return TYPE_GROUP_ORDER.filter((type) => grouped.has(type)).map((type) => {
+      const group = sortedCards(grouped.get(type) ?? []);
+      const groupQty = group.reduce((sum, card) => sum + card.quantity, 0);
+      return (
+        <div key={type} className="flex">
+          <div className="flex w-7 shrink-0 flex-col items-center pt-1.5">
+            <img
+              src={getTypeIconPath(type, [])}
+              alt={type}
+              className="size-3.5 brightness-0 dark:invert"
+            />
+            <span className="text-muted-foreground text-[10px]">{groupQty}</span>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            {group.map((card) => renderCardRow(card))}
+          </div>
+        </div>
+      );
+    });
+  };
 
   return (
     <div
       ref={dropRef}
       className={cn(
         "overflow-hidden rounded-lg border transition-opacity",
-        isActive && !activeTintStyle && "bg-primary/10",
+        isActive && "bg-primary/10",
         isOver && !dropDisabled && "ring-primary/60 ring-2",
         dropDisabled && "opacity-40",
       )}
-      style={activeTintStyle}
     >
       <div className="flex items-center px-1 py-1">
         <button
@@ -207,8 +266,6 @@ export function DeckZoneSection({
                   {zoneViolations.map((violation) => violation.message).join(". ")}
                 </TooltipContent>
               </Tooltip>
-            ) : cards.length > 0 || zone === "overflow" || zone === "sideboard" ? (
-              <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
             ) : null}
           </span>
           <span className="text-muted-foreground ml-auto text-xs">
@@ -219,38 +276,29 @@ export function DeckZoneSection({
       </div>
 
       {open && (
-        <div className="border-t py-1">
+        <div className="border-t px-1 py-1">
           {cards.length === 0 ? (
-            <p className="text-muted-foreground px-3 py-1 text-xs">{ZONE_EMPTY_HINTS[zone]}</p>
+            <p className="text-muted-foreground px-2 py-1 text-xs">{ZONE_EMPTY_HINTS[zone]}</p>
+          ) : isGrouped ? (
+            <div className="flex flex-col gap-1.5">{renderGroupedCards()}</div>
           ) : (
-            cards.map((card) => (
-              <DeckCardRow
-                key={`${card.cardId}-${card.zone}`}
-                card={card}
-                hasViolation={cardViolations.has(card.cardId)}
-                violationMessage={cardViolations.get(card.cardId)}
-                controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
-                draggable={DRAG_ZONES.has(zone)}
-                shiftHeld={zone === "runes" ? undefined : shiftHeld}
-                onIncrement={
-                  copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3
-                    ? undefined
-                    : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
-                }
-                onDecrement={(event) => {
-                  if (event.shiftKey) {
-                    setQuantity(card.cardId, zone, 0);
-                  } else {
-                    removeCard(card.cardId, zone);
-                  }
-                }}
-                onRemove={() => removeCard(card.cardId, zone)}
-                onClick={() => handleCardClick(card)}
-              />
-            ))
+            <div className="flex flex-col gap-0.5">
+              {cards.map((card) => (
+                <div key={`${card.cardId}-${card.zone}`} className="flex">
+                  <div className="flex w-7 shrink-0 items-center justify-center">
+                    <img
+                      src={getTypeIconPath(card.cardType, card.superTypes)}
+                      alt={card.cardType}
+                      className="size-3.5 brightness-0 dark:invert"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">{renderCardRow(card)}</div>
+                </div>
+              ))}
+            </div>
           )}
 
-          {zoneViolations.length > 0 && (
+          {hasZoneViolations && (
             <div className="text-destructive px-2 py-1 text-xs">
               {zoneViolations.map((violation) => (
                 <p key={violation.code}>{violation.message}</p>

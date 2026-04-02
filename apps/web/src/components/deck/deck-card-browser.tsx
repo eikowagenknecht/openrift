@@ -216,7 +216,11 @@ export function DeckCardBrowser() {
       setLegend(builderCard, buildRunesByDomain(allPrintings));
     } else {
       // Shift+click adds up to the zone maximum in one action
-      const count = event?.shiftKey ? 3 : undefined;
+      const count = event?.shiftKey
+        ? activeZone === "runes"
+          ? Math.max(0, 12 - runeTotal)
+          : 3
+        : undefined;
       addCard(builderCard, activeZone, count);
     }
   };
@@ -313,7 +317,11 @@ export function DeckCardBrowser() {
                 : undefined
             }
             shiftHeld={shiftHeld}
-            remainingCount={3 - (copyLimitTotalByCard.get(cardId) ?? 0)}
+            remainingCount={
+              activeZone === "runes"
+                ? Math.max(0, 12 - runeTotal)
+                : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
+            }
             onQuickAdd={handleQuickAdd}
             onRemove={handleRemove}
           />
