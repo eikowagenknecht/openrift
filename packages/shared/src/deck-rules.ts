@@ -202,8 +202,8 @@ export const runesMatchLegendDomains: DeckRule = (state) => {
   return violations;
 };
 
-// Main deck + champion zone must total at least 40 cards.
-export const mainDeckMinimum: DeckRule = (state) => {
+// Main deck + champion zone must total exactly 40 cards.
+export const mainDeckExactly: DeckRule = (state) => {
   const mainCount = totalQuantity(cardsInZone(state.cards, "main"));
   const championCount = totalQuantity(cardsInZone(state.cards, "champion"));
   const count = mainCount + championCount;
@@ -214,6 +214,15 @@ export const mainDeckMinimum: DeckRule = (state) => {
         zone: "main",
         code: "MAIN_TOO_FEW",
         message: `${count}/40 main deck cards — need ${40 - count} more`,
+      },
+    ];
+  }
+  if (count > 40) {
+    return [
+      {
+        zone: "main",
+        code: "MAIN_TOO_MANY",
+        message: `${count}/40 main deck cards — remove ${count - 40}`,
       },
     ];
   }
@@ -412,7 +421,7 @@ export const STANDARD_RULES: DeckRule[] = [
   battlefieldExactlyThree,
   battlefieldAllTypeBattlefield,
   battlefieldNoDuplicates,
-  mainDeckMinimum,
+  mainDeckExactly,
   mainDeckCopyLimit,
   mainDeckDomainMatch,
   championCopyLimitAcrossZones,

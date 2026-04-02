@@ -10,7 +10,7 @@ import {
   championSharesTagWithLegend,
   legendExactlyOne,
   mainDeckCopyLimit,
-  mainDeckMinimum,
+  mainDeckExactly,
   runesAllTypeRune,
   runesExactlyTwelve,
   runesMatchLegendDomains,
@@ -256,23 +256,30 @@ describe("runesMatchLegendDomains", () => {
   });
 });
 
-// ── mainDeckMinimum ─────────────────────────────────────────────────────────
+// ── mainDeckExactly ─────────────────────────────────────────────────────────
 
-describe("mainDeckMinimum", () => {
-  it("passes with 40+ cards in main", () => {
+describe("mainDeckExactly", () => {
+  it("passes with exactly 40 cards in main", () => {
     const cards = [makeCard({ quantity: 40 })];
-    expect(mainDeckMinimum(makeState(cards))).toEqual([]);
+    expect(mainDeckExactly(makeState(cards))).toEqual([]);
   });
 
   it("passes with 39 main + 1 champion", () => {
     const cards = [makeCard({ quantity: 39 }), makeChampion()];
-    expect(mainDeckMinimum(makeState(cards))).toEqual([]);
+    expect(mainDeckExactly(makeState(cards))).toEqual([]);
   });
 
   it("fails with fewer than 40 across main + champion", () => {
-    const violations = mainDeckMinimum(makeState([makeCard({ quantity: 30 })]));
+    const violations = mainDeckExactly(makeState([makeCard({ quantity: 30 })]));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("MAIN_TOO_FEW");
+  });
+
+  it("fails with more than 40 across main + champion", () => {
+    const cards = [makeCard({ quantity: 41 })];
+    const violations = mainDeckExactly(makeState(cards));
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe("MAIN_TOO_MANY");
   });
 });
 
@@ -421,8 +428,8 @@ describe("sideboardCopyLimit", () => {
 
 describe("validateDeck", () => {
   it("returns no violations for a valid standard deck", () => {
-    const mainCards = Array.from({ length: 20 }, (_, index) =>
-      makeCard({ cardId: `main-${index}`, quantity: 2 }),
+    const mainCards = Array.from({ length: 13 }, (_, index) =>
+      makeCard({ cardId: `main-${index}`, quantity: 3 }),
     );
     const cards = [...makeStandardShell(), ...mainCards];
     const violations = validateDeck(makeState(cards));
@@ -447,8 +454,8 @@ describe("validateDeck", () => {
 
   it("overflow zone cards are ignored by all rules", () => {
     const overflowCard = makeCard({ zone: "overflow", quantity: 999, cardId: "overflow-1" });
-    const mainCards = Array.from({ length: 20 }, (_, index) =>
-      makeCard({ cardId: `main-${index}`, quantity: 2 }),
+    const mainCards = Array.from({ length: 13 }, (_, index) =>
+      makeCard({ cardId: `main-${index}`, quantity: 3 }),
     );
     const cards = [...makeStandardShell(), ...mainCards, overflowCard];
     const violations = validateDeck(makeState(cards));

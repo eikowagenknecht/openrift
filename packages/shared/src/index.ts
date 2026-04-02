@@ -164,7 +164,7 @@ export {
   runesExactlyTwelve,
   runesAllTypeRune,
   runesMatchLegendDomains,
-  mainDeckMinimum,
+  mainDeckExactly,
   mainDeckCopyLimit,
   mainDeckDomainMatch,
   championCopyLimitAcrossZones,
