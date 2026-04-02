@@ -52,7 +52,7 @@ export function ScrollIndicator({
       <div
         ref={indicatorRef}
         className={cn(
-          "fixed z-20 transition-opacity duration-300",
+          "fixed z-30 transition-opacity duration-300",
           indicator.visible ? "pointer-events-auto" : "pointer-events-none",
           IS_COARSE_POINTER && "-m-2 p-2",
         )}
@@ -123,7 +123,7 @@ export function ScrollIndicator({
               }
             }}
             className={cn(
-              "pointer-events-none fixed z-19 transition-opacity duration-300",
+              "pointer-events-none fixed z-29 transition-opacity duration-300",
               IS_COARSE_POINTER && "-m-2 p-2",
             )}
             style={{
