@@ -2,6 +2,7 @@
 
 ## 2026-04-02
 
+- fix: Deck editor now shows amber for invalid decks instead of gray, matching the deck overview colors
 - fix: The minus button in the deck editor card grid no longer jumps position when a card reaches its copy limit
 - feat: Deck zones are now ordered Legend, Champion, Main Deck, then Battlefield and Runes at the bottom
 - feat: Power curve and card type charts in deck stats are now colored by domain
