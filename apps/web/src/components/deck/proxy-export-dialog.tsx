@@ -44,11 +44,30 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 const RENDER_WIDTH_PX = 504;
 
 /**
+ * Inlines computed clip-path values on all elements. html2canvas can't parse
+ * clip-path with em units and calc() — the browser-resolved px values work.
+ */
+function inlineClipPaths(element: HTMLElement): void {
+  const computed = getComputedStyle(element);
+  const clipPath = computed.getPropertyValue("clip-path");
+  if (clipPath && clipPath !== "none" && !element.style.clipPath) {
+    element.style.clipPath = clipPath;
+  }
+  for (const child of element.children) {
+    if (child instanceof HTMLElement) {
+      inlineClipPaths(child);
+    }
+  }
+}
+
+/**
  * Captures a rendered CardPlaceholderImage DOM element via html2canvas.
  * The element must already be in the page's React tree (with all providers).
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
+  inlineClipPaths(element);
+
   const canvas = await html2canvas(element, {
     width: element.offsetWidth,
     height: element.offsetHeight,
