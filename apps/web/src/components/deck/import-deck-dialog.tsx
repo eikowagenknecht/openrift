@@ -20,12 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateDeck, useImportPreview, useSaveDeckCards } from "@/hooks/use-decks";
 
-const FORMAT_LABELS: Record<string, string> = {
+type ImportFormat = "piltover" | "text" | "tts";
+
+const DECK_FORMAT_LABELS: Record<string, string> = {
   standard: "Standard",
   freeform: "Freeform",
+};
+
+const IMPORT_PLACEHOLDERS: Record<ImportFormat, string> = {
+  piltover: "Paste a Piltover Archive deck code...",
+  text: "Legend:\n1 Card Name\n\nMainDeck:\n3 Card Name\n...",
+  tts: "OGN-001-1 OGN-002-1 OGN-003-1 ...",
 };
 
 const ZONE_LABELS: Record<DeckZone, string> = {
@@ -88,12 +97,13 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
 
   const [code, setCode] = useState("");
   const [name, setName] = useState("Imported Deck");
-  const [format, setFormat] = useState<"standard" | "freeform">("standard");
+  const [deckFormat, setDeckFormat] = useState<"standard" | "freeform">("standard");
+  const [importFormat, setImportFormat] = useState<ImportFormat>("piltover");
   const [step, setStep] = useState<"paste" | "preview" | "creating">("paste");
 
   const handlePreview = () => {
     importPreview.mutate(
-      { code },
+      { code, format: importFormat },
       {
         onSuccess: () => setStep("preview"),
       },
@@ -103,7 +113,7 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
   const handleImport = () => {
     setStep("creating");
     createDeck.mutate(
-      { name, format },
+      { name, format: deckFormat },
       {
         onSuccess: (data) => {
           const deck = data as DeckResponse;
@@ -133,12 +143,17 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
     importPreview.reset();
   };
 
+  const handleImportFormatChange = (newFormat: ImportFormat) => {
+    setImportFormat(newFormat);
+    importPreview.reset();
+  };
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      // Reset state on close
       setCode("");
       setName("Imported Deck");
-      setFormat("standard");
+      setDeckFormat("standard");
+      setImportFormat("piltover");
       setStep("paste");
       importPreview.reset();
     }
@@ -155,19 +170,33 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
         {step === "paste" && (
           <>
             <div className="flex flex-col gap-4 py-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="import-code">Deck code</Label>
-                <Textarea
-                  id="import-code"
-                  placeholder="Paste a Piltover Archive deck code..."
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  className="font-mono text-xs"
-                  rows={3}
-                  // oxlint-disable-next-line jsx-a11y/no-autofocus -- dialog input should auto-focus
-                  autoFocus
-                />
-              </div>
+              <Tabs
+                defaultValue="piltover"
+                value={importFormat}
+                onValueChange={(value) => handleImportFormatChange(value as ImportFormat)}
+              >
+                <TabsList>
+                  <TabsTrigger value="piltover">Deck Code</TabsTrigger>
+                  <TabsTrigger value="text">Text</TabsTrigger>
+                  <TabsTrigger value="tts">TTS</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value={importFormat}>
+                  <div className="flex flex-col gap-2">
+                    <Textarea
+                      id="import-code"
+                      placeholder={IMPORT_PLACEHOLDERS[importFormat]}
+                      value={code}
+                      onChange={(event) => setCode(event.target.value)}
+                      className="font-mono text-xs"
+                      rows={importFormat === "piltover" ? 3 : 8}
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- dialog input should auto-focus
+                      autoFocus
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="import-name">Deck name</Label>
                 <Input
@@ -178,9 +207,14 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="import-format">Format</Label>
-                <Select value={format} onValueChange={(value) => setFormat(value as typeof format)}>
+                <Select
+                  value={deckFormat}
+                  onValueChange={(value) => setDeckFormat(value as typeof deckFormat)}
+                >
                   <SelectTrigger id="import-format">
-                    <SelectValue>{(value: string) => FORMAT_LABELS[value] ?? value}</SelectValue>
+                    <SelectValue>
+                      {(value: string) => DECK_FORMAT_LABELS[value] ?? value}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="standard">Standard</SelectItem>
@@ -191,7 +225,7 @@ function ImportDeckDialog({ open, onOpenChange }: ImportDeckDialogProps) {
 
               {importPreview.isError && (
                 <p className="text-destructive text-sm">
-                  Invalid or unsupported deck code. Check the code and try again.
+                  Invalid or unsupported input. Check the content and try again.
                 </p>
               )}
             </div>

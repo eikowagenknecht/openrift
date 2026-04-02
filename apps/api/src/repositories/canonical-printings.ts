@@ -155,5 +155,49 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
 
       return [...resolved.values()];
     },
+
+    /**
+     * Maps card names to card IDs with type info (needed for text format import).
+     *
+     * Uses case-insensitive matching on the card name column.
+     *
+     * @returns One entry per unique card name that resolves to a card.
+     */
+    async cardIdsByNames(names: string[]): Promise<ResolvedCard[]> {
+      if (names.length === 0) {
+        return [];
+      }
+
+      const uniqueNames = [...new Set(names)];
+      const lowerNames = uniqueNames.map((name) => name.toLowerCase());
+
+      // Look up cards by name (case-insensitive), join to a canonical printing
+      // to get a short code for the preview response
+      const rows = await db
+        .selectFrom("cards as c")
+        .innerJoin("printings as p", "p.cardId", "c.id")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .select([
+          "p.shortCode",
+          "c.id as cardId",
+          "c.name as cardName",
+          "c.type as cardType",
+          "c.superTypes",
+          "c.domains",
+        ])
+        .where((eb) => eb.fn("lower", ["c.name"]), "in", lowerNames)
+        .where("p.artVariant", "=", CANONICAL_FILTERS.artVariant)
+        .where("p.isSigned", "=", CANONICAL_FILTERS.isSigned)
+        .where("p.promoTypeId", "is", CANONICAL_FILTERS.promoTypeId)
+        .where("p.finish", "=", CANONICAL_FILTERS.finish)
+        .where("p.language", "=", CANONICAL_FILTERS.language)
+        .distinctOn((eb) => eb.fn("lower", ["c.name"]))
+        .orderBy((eb) => eb.fn("lower", ["c.name"]))
+        .orderBy("s.releasedAt", "asc")
+        .orderBy("p.shortCode", "asc")
+        .execute();
+
+      return rows;
+    },
   };
 }
