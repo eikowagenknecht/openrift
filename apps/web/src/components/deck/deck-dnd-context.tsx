@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { useCards } from "@/hooks/use-cards";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { getCardImageUrl } from "@/lib/images";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
@@ -82,6 +83,7 @@ function DndScrollWatcher() {
 }
 
 export function DeckDndContext({ children }: { children: ReactNode }) {
+  const isMobile = useIsMobile();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
   const [dragInfo, setDragInfo] = useState<{
     cardId: string;
@@ -304,7 +306,7 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
 
   return (
     <DndContext
-      sensors={sensors}
+      sensors={isMobile ? undefined : sensors}
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

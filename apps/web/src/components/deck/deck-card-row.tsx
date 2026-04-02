@@ -83,7 +83,7 @@ function CardControls({
       <Button
         variant="ghost"
         size="icon-sm"
-        className="size-5 shrink-0 opacity-0 transition-opacity group-hover/card:opacity-100"
+        className="size-5 shrink-0 opacity-100 transition-opacity md:opacity-0 md:group-hover/card:opacity-100"
         onClick={(event) => {
           event.stopPropagation();
           onRemove?.();
@@ -96,7 +96,7 @@ function CardControls({
 
   return (
     <span className="flex shrink-0 items-center gap-1">
-      <span className="hidden group-hover/card:contents">
+      <span className="contents md:hidden md:group-hover/card:contents">
         <Tooltip>
           <TooltipTrigger
             render={
@@ -122,7 +122,7 @@ function CardControls({
         </Tooltip>
       </span>
       <span className="w-4 text-center text-xs font-medium">{quantity}</span>
-      <span className="hidden group-hover/card:contents">
+      <span className="contents md:hidden md:group-hover/card:contents">
         <Tooltip>
           <TooltipTrigger
             render={
