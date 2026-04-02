@@ -273,11 +273,12 @@ function isChecked(row: CandidateCardResponse | CandidatePrintingResponse): bool
   return row.checkedAt !== null;
 }
 
-function isGallery(
+function isTopProvider(
   row: CandidateCardResponse | CandidatePrintingResponse,
   providerLabels?: Record<string, string>,
+  topProvider?: string,
 ): boolean {
-  return getProviderLabel(row, providerLabels) === "gallery";
+  return topProvider !== undefined && getProviderLabel(row, providerLabels) === topProvider;
 }
 
 /** Inline combobox: type to filter suggestions, pick one, or press Enter to use custom text.
@@ -345,6 +346,7 @@ export function CandidateSpreadsheet({
   cellWarning,
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
+  const topProvider = providerSettings?.toSorted((a, b) => a.sortOrder - b.sortOrder)[0]?.provider;
   const sortedRows = candidateRows.toSorted((a, b) => {
     const aLabel = getProviderLabel(a, providerLabels);
     const bLabel = getProviderLabel(b, providerLabels);
@@ -397,7 +399,8 @@ export function CandidateSpreadsheet({
                 key={row.id}
                 className={cn(
                   "w-[300px] border-l px-3 py-2 text-left font-medium",
-                  isGallery(row, providerLabels) && "bg-blue-50 dark:bg-blue-950/30",
+                  isTopProvider(row, providerLabels, topProvider) &&
+                    "bg-blue-50 dark:bg-blue-950/30",
                   isChecked(row) && "opacity-50",
                   columnClassName?.(row),
                 )}
@@ -713,7 +716,8 @@ export function CandidateSpreadsheet({
                       className={cn(
                         "border-l px-3 py-1.5 break-words",
                         field.multiline && "whitespace-pre-wrap",
-                        isGallery(row, providerLabels) && "bg-blue-50 dark:bg-blue-950/30",
+                        isTopProvider(row, providerLabels, topProvider) &&
+                          "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
                         invalidOption && "bg-red-50 line-through dark:bg-red-950/30",
                         isDifferent && "bg-yellow-100 dark:bg-yellow-900/40",
