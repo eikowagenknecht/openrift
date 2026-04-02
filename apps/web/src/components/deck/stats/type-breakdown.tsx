@@ -26,12 +26,18 @@ export function TypeBreakdown({ data, domains }: TypeBreakdownProps) {
 
   const chartConfig = buildChartConfig(domains);
 
+  // Add a label with count + pluralized type name
+  const labeledData = data.map((entry) => {
+    const total = domains.reduce((sum, domain) => sum + ((entry[domain] as number) ?? 0), 0);
+    return { ...entry, label: `${total} ${total === 1 ? entry.type : `${entry.type}s`}` };
+  });
+
   return (
     <div>
-      <h4 className="mb-1 text-xs font-medium">Card Types</h4>
+      <h4 className="mb-1 text-xs font-medium">Types</h4>
       <ChartContainer config={chartConfig} className="aspect-auto h-20 w-full">
-        <BarChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-          <XAxis dataKey="type" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+        <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           {domains.map((domain, index) => (
             <Bar

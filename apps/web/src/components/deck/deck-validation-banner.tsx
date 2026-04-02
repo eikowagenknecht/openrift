@@ -23,17 +23,6 @@ export function DeckValidationBanner({ isDirty, isSaving }: DeckValidationBanner
 
   const totalCards = statCards.reduce((sum, card) => sum + card.quantity, 0);
 
-  // Average energy (cost) — only cards that have an energy value
-  let energySum = 0;
-  let energyCount = 0;
-  for (const card of statCards) {
-    if (card.energy !== null) {
-      energySum += card.energy * card.quantity;
-      energyCount += card.quantity;
-    }
-  }
-  const avgEnergy = energyCount > 0 ? (energySum / energyCount).toFixed(1) : "—";
-
   // Type breakdown — count per type, excluding zone-specific types
   const typeCounts = new Map<string, number>();
   for (const card of statCards) {
@@ -77,8 +66,6 @@ export function DeckValidationBanner({ isDirty, isSaving }: DeckValidationBanner
       {/* Stats — separated by middle dots */}
       <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
         <span>{totalCards} cards</span>
-        <span>·</span>
-        <span>Avg energy {avgEnergy}</span>
         {[...typeCounts.entries()].map(([type, count]) => (
           <span key={type} className="contents">
             <span>·</span>

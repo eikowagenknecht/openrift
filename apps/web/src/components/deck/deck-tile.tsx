@@ -1,5 +1,5 @@
-import type { DeckCardResponse, DeckResponse, Domain } from "@openrift/shared";
-import { COLORLESS_DOMAIN, validateDeck } from "@openrift/shared";
+import type { CardType, DeckCardResponse, DeckResponse, Domain } from "@openrift/shared";
+import { CARD_TYPE_ORDER, COLORLESS_DOMAIN, validateDeck } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
@@ -35,7 +35,7 @@ import { useCloneDeck, useDeleteDeck } from "@/hooks/use-decks";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 
-import { CardTypeBar } from "./card-type-bar";
+import { DeckDomainBar } from "./deck-domain-bar";
 import { DeckExportDialog } from "./deck-export-dialog";
 
 function DomainIcon({ domain }: { domain: string }) {
@@ -179,10 +179,29 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
   const legend = cards?.find((card) => card.zone === "legend");
   const champion = cards?.find((card) => card.zone === "champion");
   const legendDomains = legend?.domains as Domain[] | undefined;
-  const updatedDate = new Date(deck.updatedAt).toLocaleDateString();
+  const createdDate = new Date(deck.createdAt).toISOString().slice(0, 10);
+  const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
   const totalCards = cards
     ? cards.filter((card) => card.zone !== "overflow").reduce((sum, card) => sum + card.quantity, 0)
     : 0;
+
+  const excludedTypes = new Set(["Legend", "Rune", "Battlefield"]);
+  const countedZones = new Set(["main", "sideboard", "champion"]);
+  const typeCounts = new Map<CardType, number>();
+  if (cards) {
+    for (const card of cards) {
+      if (!countedZones.has(card.zone) || excludedTypes.has(card.cardType)) {
+        continue;
+      }
+      typeCounts.set(card.cardType, (typeCounts.get(card.cardType) ?? 0) + card.quantity);
+    }
+  }
+  const typeSummary = CARD_TYPE_ORDER.filter((type) => typeCounts.has(type))
+    .map((type) => {
+      const count = typeCounts.get(type) ?? 0;
+      return `${count} ${count === 1 ? type : `${type}s`}`;
+    })
+    .join(" · ");
 
   const isStandardValid =
     deck.format === "standard" &&
@@ -231,17 +250,16 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
             )}
           </div>
 
-          {/* Domain icons + format/validity badge */}
+          {/* Domain icons, type counts + format badge */}
           <div className="flex items-center justify-between">
-            {legendDomains && legendDomains.length > 0 ? (
-              <span className="flex items-center gap-1">
-                {legendDomains.map((domain) => (
-                  <DomainIcon key={domain} domain={domain} />
-                ))}
-              </span>
-            ) : (
-              <span />
-            )}
+            <span className="flex items-center gap-1">
+              {legendDomains?.map((domain) => (
+                <DomainIcon key={domain} domain={domain} />
+              ))}
+              {typeSummary && (
+                <span className="text-muted-foreground ml-1 text-[10px]">{typeSummary}</span>
+              )}
+            </span>
             {deck.format === "freeform" ? (
               <Badge variant="outline" className="text-xs">
                 Freeform
@@ -265,12 +283,15 @@ export function DeckTile({ deck, cards }: { deck: DeckResponse; cards?: DeckCard
             )}
           </div>
 
-          {/* Card type breakdown */}
-          {cards && <CardTypeBar cards={cards} />}
+          {/* Domain distribution */}
+          {cards && <DeckDomainBar cards={cards} />}
 
           {/* Footer */}
           <div className="text-muted-foreground mt-auto flex items-center gap-3 pt-1 text-xs">
-            <span>{updatedDate}</span>
+            <span>
+              {createdDate}
+              {updatedDate !== createdDate && ` (updated ${updatedDate})`}
+            </span>
             <span>{totalCards} cards</span>
             <span className="flex-1" />
             <DropdownMenu>

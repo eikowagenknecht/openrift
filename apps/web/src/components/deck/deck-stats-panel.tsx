@@ -1,11 +1,46 @@
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
-import { DomainDistribution } from "@/components/deck/stats/domain-distribution";
-import { EnergyCurve } from "@/components/deck/stats/energy-curve";
-import { PowerCurve } from "@/components/deck/stats/power-curve";
+import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { DomainCount } from "@/hooks/use-deck-stats";
 import { useDeckStats } from "@/hooks/use-deck-stats";
+import { DOMAIN_COLORS } from "@/lib/domain";
+
+function DomainBar({ data, total }: { data: DomainCount[]; total: number }) {
+  if (data.length === 0 || total === 0) {
+    return null;
+  }
+
+  return (
+    <TooltipProvider>
+      <div className="flex h-2.5 flex-1 overflow-hidden rounded-full">
+        {data.map((entry) => {
+          const count = entry.main + entry.sideboard;
+          if (count === 0) {
+            return null;
+          }
+          const percentage = (count / total) * 100;
+          return (
+            <Tooltip key={entry.domain}>
+              <TooltipTrigger
+                className="h-full"
+                style={{
+                  width: `${percentage}%`,
+                  backgroundColor: DOMAIN_COLORS[entry.domain] ?? "#737373",
+                }}
+              />
+              <TooltipContent side="bottom">
+                {entry.domain}: {count}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
+  );
+}
 
 export function DeckStatsPanel() {
   const [open, setOpen] = useState(true);
@@ -23,15 +58,20 @@ export function DeckStatsPanel() {
         ) : (
           <ChevronRightIcon className="size-3.5" />
         )}
-        <span className="flex-1">Stats</span>
+        <span>Stats</span>
+        <DomainBar data={stats.domainDistribution} total={stats.totalCards} />
         <span className="text-muted-foreground text-xs">{stats.totalCards} cards</span>
       </button>
 
       {open && (
         <div className="space-y-3 border-t px-3 py-3">
-          <DomainDistribution data={stats.domainDistribution} />
-          <EnergyCurve data={stats.energyCurve} domains={stats.energyCurveDomains} />
-          <PowerCurve data={stats.powerCurve} domains={stats.powerCurveDomains} />
+          <EnergyPowerChart
+            energyData={stats.energyCurve}
+            energyDomains={stats.energyCurveDomains}
+            averageEnergy={stats.averageEnergy}
+            powerData={stats.powerCurve}
+            powerDomains={stats.powerCurveDomains}
+          />
           <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
         </div>
       )}
