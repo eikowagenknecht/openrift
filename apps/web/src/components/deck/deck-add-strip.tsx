@@ -114,7 +114,9 @@ export function DeckAddStrip({
                   </svg>
                 ))}
             </TooltipTrigger>
-            <TooltipContent>Shift+click to add max</TooltipContent>
+            <TooltipContent>
+              {addLabel ? `Click to ${addLabel.toLowerCase()}` : "Shift+click to add max"}
+            </TooltipContent>
           </Tooltip>
         )}
       </div>
