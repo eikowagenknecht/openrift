@@ -418,7 +418,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         {topSlot}
         <button
           type="button"
-          className="focus-visible:ring-ring block w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
           onClick={() => onClick(printing)}
         >
           {imageSection}
@@ -444,7 +444,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       {aboveCard}
       <button
         type="button"
-        className="focus-visible:ring-ring block w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
+        className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
         onClick={() => onClick(printing)}
       >
         {imageSection}
