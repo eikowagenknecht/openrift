@@ -1,4 +1,4 @@
-import type { Card, CatalogResponse, Printing } from "@openrift/shared";
+import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
 import { getCardImageUrl } from "@/lib/images";
@@ -32,6 +32,9 @@ export interface ProxyCard {
   name: string;
   imageUrl: string | null;
   card: Card;
+  rarity: Rarity;
+  publicCode: string;
+  artist: string;
   flavorText: string | null;
   rulesText: string | null;
   effectText: string | null;
@@ -77,6 +80,9 @@ export function resolveProxyCards(
         name: card.name,
         imageUrl,
         card,
+        rarity: printing?.rarity ?? ("Common" as Rarity),
+        publicCode: printing?.publicCode ?? "",
+        artist: printing?.artist ?? "",
         flavorText,
         rulesText,
         effectText,

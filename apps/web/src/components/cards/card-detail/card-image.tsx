@@ -85,6 +85,9 @@ export function CardImage({
           effectText={printing.printedEffectText}
           mightBonus={card.mightBonus}
           flavorText={printing.flavorText}
+          rarity={printing.rarity}
+          publicCode={printing.publicCode}
+          artist={printing.artist}
         />
       )}
       {showFoil && <FoilOverlay active shimmer={showShimmer} />}

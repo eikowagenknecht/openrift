@@ -348,6 +348,9 @@ export function ProxyExportDialog() {
               effectText={renderingCard.effectText}
               mightBonus={renderingCard.card.mightBonus}
               flavorText={renderingCard.flavorText}
+              rarity={renderingCard.rarity}
+              publicCode={renderingCard.publicCode}
+              artist={renderingCard.artist}
             />
           </div>
         </Suspense>

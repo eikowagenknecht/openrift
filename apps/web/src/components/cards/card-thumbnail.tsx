@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { Domain, Finish, Printing } from "@openrift/shared";
+import type { Domain, Finish, Printing, Rarity } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { SparkleIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -42,6 +42,9 @@ function CardImageContent({
   imgLoaded,
   onImgLoad,
   rotated,
+  rarity,
+  publicCode,
+  artist,
   card,
   showFoil,
 }: {
@@ -53,6 +56,9 @@ function CardImageContent({
   imgLoaded: boolean;
   onImgLoad: () => void;
   rotated: boolean;
+  rarity: Rarity;
+  publicCode: string;
+  artist: string;
   card: {
     name: string;
     domains: Domain[];
@@ -123,6 +129,9 @@ function CardImageContent({
           effectText={card.effectText}
           mightBonus={card.mightBonus}
           flavorText={card.flavorText}
+          rarity={rarity}
+          publicCode={publicCode}
+          artist={artist}
         />
       )}
       {showFoil && <FoilOverlay active />}
@@ -287,6 +296,9 @@ export const CardThumbnail = memo(function CardThumbnail({
                 imgLoaded={imgLoaded}
                 onImgLoad={() => setImgLoaded(true)}
                 rotated
+                rarity={printing.rarity}
+                publicCode={printing.publicCode}
+                artist={printing.artist}
                 card={card}
                 showFoil={isFoilCard && gridFoil}
               />
@@ -312,6 +324,9 @@ export const CardThumbnail = memo(function CardThumbnail({
               imgLoaded={imgLoaded}
               onImgLoad={() => setImgLoaded(true)}
               rotated={false}
+              rarity={printing.rarity}
+              publicCode={printing.publicCode}
+              artist={printing.artist}
               card={card}
               showFoil={isFoilCard && gridFoil}
             />

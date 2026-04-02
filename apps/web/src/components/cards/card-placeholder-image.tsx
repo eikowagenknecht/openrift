@@ -1,10 +1,10 @@
-import type { Domain } from "@openrift/shared";
+import type { Domain, Rarity } from "@openrift/shared";
 import { COLORLESS_DOMAIN } from "@openrift/shared";
 import { useId } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { getDomainGradientStyle } from "@/lib/domain";
-import { getFilterIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface CardPlaceholderImageProps {
@@ -20,6 +20,9 @@ interface CardPlaceholderImageProps {
   effectText?: string | null;
   mightBonus?: number | null;
   flavorText?: string | null;
+  rarity: Rarity;
+  publicCode?: string;
+  artist?: string;
   className?: string;
 }
 
@@ -36,6 +39,9 @@ export function CardPlaceholderImage({
   effectText,
   mightBonus,
   flavorText,
+  rarity,
+  publicCode,
+  artist,
   className,
 }: CardPlaceholderImageProps) {
   const primaryDomain = domain[0] ?? COLORLESS_DOMAIN;
@@ -72,6 +78,23 @@ export function CardPlaceholderImage({
             {energy}
           </div>
         )}
+        {type === "Legend" &&
+          domain.some((d) => d !== COLORLESS_DOMAIN) &&
+          domain
+            .filter((d) => d !== COLORLESS_DOMAIN)
+            .map((d) => (
+              <span
+                key={d}
+                className="flex size-[10cqw] items-center justify-center rounded-full"
+                style={getDomainGradientStyle([d])}
+              >
+                <img
+                  src={getFilterIconPath("domains", d)}
+                  alt=""
+                  className="size-[6cqw] brightness-0 invert"
+                />
+              </span>
+            ))}
         {power !== null && power !== undefined && power > 0 && domainIconPath && (
           <div
             className="ml-[1cqw] flex flex-col items-center gap-[2.5cqw] rounded-[3cqw] px-[1cqw] py-[2.25cqw]"
@@ -102,7 +125,14 @@ export function CardPlaceholderImage({
 
       {/* Type + Tags */}
       {(type || (tags && tags.length > 0)) && (
-        <div className="absolute top-[55%] flex -translate-y-full items-end gap-[1.5cqw] px-[8cqw] pb-[1cqw]">
+        <div className="absolute top-[55%] flex -translate-y-full items-center gap-[1.5cqw] px-[3cqw] pb-[1cqw]">
+          {type && (
+            <img
+              src={getTypeIconPath(type, superTypes ?? [])}
+              alt=""
+              className="size-[4cqw] brightness-0 invert"
+            />
+          )}
           {type && (
             <span className="relative inline-flex items-center pr-[1.5cqw] pl-[1cqw]">
               <span className="absolute inset-0 -skew-x-[15deg]" style={bgStyle} />
@@ -183,6 +213,47 @@ export function CardPlaceholderImage({
           )}
         </div>
       )}
+
+      {/* Footer: rarity + meta line */}
+      <div className="absolute inset-x-0 bottom-[2%] flex flex-col items-center gap-[0.5cqw] px-[4cqw]">
+        <img
+          src={`/images/rarities/${rarity.toLowerCase()}.webp`}
+          alt={rarity}
+          className="size-[3cqw]"
+        />
+        {(publicCode || artist) && (
+          <div className="flex w-full items-center justify-between text-[2.5cqw] text-white/70">
+            {publicCode && <span>{publicCode}</span>}
+            <span className="flex items-center gap-[1cqw]">
+              {artist && (
+                <>
+                  <img
+                    src="/images/artist.svg"
+                    alt=""
+                    className="size-[2.5cqw] opacity-70 brightness-0 invert"
+                  />
+                  <span>{artist}</span>
+                </>
+              )}
+              {domain
+                .filter((d) => d !== COLORLESS_DOMAIN)
+                .map((d) => (
+                  <span
+                    key={d}
+                    className="flex size-[4cqw] items-center justify-center rounded-full"
+                    style={getDomainGradientStyle([d])}
+                  >
+                    <img
+                      src={getFilterIconPath("domains", d)}
+                      alt=""
+                      className="size-[2.5cqw] brightness-0 invert"
+                    />
+                  </span>
+                ))}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
