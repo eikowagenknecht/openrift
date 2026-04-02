@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-02
+
+- feat: Search now checks all fields by default (name, card text, keywords, tags, artist, flavor text, type, and ID) with an "All" toggle to quickly reset scope
+- feat: Flavor text and card type are now searchable fields, with prefix shortcuts f: and ty:
+
 ## 2026-04-01
 
 - fix: Removing a rune in the deck builder now correctly adds a replacement from the other domain to keep the total at 12

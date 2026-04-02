@@ -6,6 +6,8 @@ import { persist } from "zustand/middleware";
 interface SearchScopeState {
   scope: SearchField[];
   toggleField: (field: SearchField) => void;
+  selectAll: () => void;
+  selectOnly: (field: SearchField) => void;
 }
 
 export const useSearchScopeStore = create<SearchScopeState>()(
@@ -23,6 +25,8 @@ export const useSearchScopeStore = create<SearchScopeState>()(
           }
           return { scope: next };
         }),
+      selectAll: () => set({ scope: [...ALL_SEARCH_FIELDS] }),
+      selectOnly: (field) => set({ scope: [field] }),
     }),
     {
       name: "openrift-search-scope",

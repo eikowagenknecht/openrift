@@ -47,7 +47,7 @@ export interface ParsedSearchTerm {
  */
 export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
   const terms: ParsedSearchTerm[] = [];
-  const regex = /(?:(id|[ndkta]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/g;
+  const regex = /(?:(id|ty|[ndktaf]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(raw)) !== null) {
     const prefix = match[1];
@@ -100,6 +100,15 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
   }
   if (field === "artist") {
     return printing.artist.toLowerCase().includes(lower);
+  }
+  if (field === "flavorText") {
+    return printing.flavorText?.toLowerCase().includes(lower) ?? false;
+  }
+  if (field === "type") {
+    return (
+      card.type.toLowerCase().includes(lower) ||
+      card.superTypes.some((st) => st.toLowerCase().includes(lower))
+    );
   }
   return printing.shortCode.toLowerCase().includes(lower);
 }
