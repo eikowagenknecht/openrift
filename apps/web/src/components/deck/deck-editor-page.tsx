@@ -10,7 +10,6 @@ import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useDeckDetail, useSaveDeckCards, useUpdateDeck } from "@/hooks/use-decks";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
@@ -89,10 +88,6 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
 
         <DeckExportDialog deckId={deckId} isDirty={isDirty} />
         <ProxyExportDialog />
-
-        <Badge variant="outline" className="capitalize">
-          {data.deck.format}
-        </Badge>
       </div>
     </div>
   );
