@@ -1,10 +1,23 @@
 import { Link } from "@tanstack/react-router";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
+import type { HelpArticle } from "./articles";
 import { helpArticleList } from "./articles";
 
+function useVisibleArticles(): HelpArticle[] {
+  const unfinishedEnabled = useFeatureEnabled("unfinished");
+
+  return helpArticleList.filter(
+    (article) =>
+      !article.featureFlag || (article.featureFlag === "unfinished" && unfinishedEnabled),
+  );
+}
+
 export function HelpIndexPage() {
+  const articles = useVisibleArticles();
+
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-3 py-3">
       <div className="mb-6">
@@ -15,7 +28,7 @@ export function HelpIndexPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {helpArticleList.map((article) => (
+        {articles.map((article) => (
           <Link key={article.slug} to="/help/$slug" params={{ slug: article.slug }}>
             <Card className="hover:bg-muted/50 h-full transition-colors" size="sm">
               <CardHeader>

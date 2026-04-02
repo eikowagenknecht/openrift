@@ -8,6 +8,8 @@ export interface HelpArticle {
   description: string;
   icon: LucideIcon;
   component: () => Promise<{ default: ComponentType }>;
+  /** When set, the article is only visible if this feature flag is enabled. */
+  featureFlag?: string;
 }
 
 export const helpArticles = new Map<string, HelpArticle>([
@@ -20,6 +22,7 @@ export const helpArticles = new Map<string, HelpArticle>([
         "A transparent comparison with other Riftbound card browsers — what we do well and where we're still catching up.",
       icon: ScaleIcon,
       component: () => import("./articles/why-openrift"),
+      featureFlag: "unfinished",
     },
   ],
   [
