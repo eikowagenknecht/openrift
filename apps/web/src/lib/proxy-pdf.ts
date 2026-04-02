@@ -125,8 +125,8 @@ async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
  * Cached after first call since stylesheets don't change during generation.
  * @returns CSS text to inline in an SVG foreignObject.
  */
-// CSS properties that need inlining to preserve cqw/percentage-computed values in SVG foreignObject
-const INLINE_PROPS = [
+// Layout properties to inline (resolves cqw → px). Colors handled separately.
+const LAYOUT_PROPS = [
   "position",
   "top",
   "left",
@@ -145,9 +145,6 @@ const INLINE_PROPS = [
   "line-height",
   "letter-spacing",
   "text-transform",
-  // Note: color, background, background-color, background-image are intentionally excluded.
-  // Modern browsers compute these in oklch() which html2canvas 1.4.1 can't parse.
-  // These properties don't use cqw units, so they don't need re-inlining.
   "padding",
   "padding-top",
   "padding-right",
@@ -169,7 +166,6 @@ const INLINE_PROPS = [
   "flex-shrink",
   "align-items",
   "justify-content",
-  "border",
   "border-radius",
   "border-width",
   "overflow",
@@ -182,18 +178,53 @@ const INLINE_PROPS = [
   "vertical-align",
 ] as const;
 
+// Color properties that html2canvas reads but can't parse when they're in oklch().
+// We force-convert these to rgb/rgba via a canvas round-trip.
+const COLOR_PROPS = ["color", "background-color", "border-color"] as const;
+
+// Reusable 1x1 canvas for converting any CSS color string to rgba
+let colorConversionCtx: CanvasRenderingContext2D | null = null;
+
 /**
- * Recursively inlines computed styles on every element so that the serialized HTML
- * doesn't depend on CSS classes or container query units resolving in SVG foreignObject.
+ * Converts any CSS color value (including oklch) to an rgba() string
+ * by drawing it to a 1x1 canvas and reading the pixel back.
+ * @returns rgba() or rgb() string.
+ */
+function toRgba(cssColor: string): string {
+  if (!colorConversionCtx) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    colorConversionCtx = canvas.getContext("2d", { willReadFrequently: true });
+  }
+  const ctx = colorConversionCtx;
+  if (!ctx) {
+    return cssColor;
+  }
+  ctx.clearRect(0, 0, 1, 1);
+  ctx.fillStyle = cssColor;
+  ctx.fillRect(0, 0, 1, 1);
+  const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
+  if (alpha < 255) {
+    return `rgba(${red}, ${green}, ${blue}, ${(alpha / 255).toFixed(3)})`;
+  }
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+/**
+ * Recursively inlines computed styles on every element:
+ * - Layout properties: inlined as-is (resolves cqw → px)
+ * - Color properties: converted to rgb/rgba (html2canvas can't parse oklch)
+ * Skips properties already set as inline styles (preserves React's hex gradients).
  */
 function inlineComputedStyles(element: Element): void {
   if (!(element instanceof HTMLElement)) {
     return;
   }
   const computed = getComputedStyle(element);
-  for (const prop of INLINE_PROPS) {
-    // Skip properties already set inline (e.g. React's getDomainGradientStyle uses hex
-    // colors; the computed version might use oklch() which html2canvas can't parse)
+
+  // Inline layout props (skip if already set inline)
+  for (const prop of LAYOUT_PROPS) {
     if (element.style.getPropertyValue(prop)) {
       continue;
     }
@@ -202,6 +233,31 @@ function inlineComputedStyles(element: Element): void {
       element.style.setProperty(prop, value);
     }
   }
+
+  // Force-convert color props to rgb (even if already inline, to catch oklch in Tailwind classes)
+  for (const prop of COLOR_PROPS) {
+    // If set inline with a hex/rgb value (e.g. from React), keep it
+    const inlineVal = element.style.getPropertyValue(prop);
+    if (inlineVal && !inlineVal.includes("oklch") && !inlineVal.includes("lab")) {
+      continue;
+    }
+    const value = computed.getPropertyValue(prop);
+    if (value && value !== "transparent" && value !== "rgba(0, 0, 0, 0)") {
+      element.style.setProperty(prop, toRgba(value));
+    }
+  }
+
+  // Also handle background (shorthand) and background-image for gradients set via inline style.
+  // If the inline background uses hex (from getDomainGradientStyle), leave it alone.
+  // If it's from a Tailwind class and computed as oklch, convert.
+  const bgInline = element.style.getPropertyValue("background");
+  if (!bgInline) {
+    const bgComputed = computed.getPropertyValue("background-color");
+    if (bgComputed && bgComputed !== "transparent" && bgComputed !== "rgba(0, 0, 0, 0)") {
+      element.style.setProperty("background-color", toRgba(bgComputed));
+    }
+  }
+
   for (const child of element.children) {
     inlineComputedStyles(child);
   }
