@@ -85,12 +85,18 @@ function renderTokens(
   return tokens.map((token, i) => {
     switch (token.type) {
       case "glyph": {
+        const monoWhite = token.name === "might" || token.name === "exhaust";
+        const energy = token.name.startsWith("energy");
         return (
           <img
             key={`${i}-${token.name}`}
             src={`/images/glyphs/${token.name.replaceAll("_", "-")}.svg`}
             alt={token.name.replaceAll("_", " ")}
-            className="inline-block size-4 align-text-bottom"
+            className={cn(
+              "inline-block size-4 align-text-bottom",
+              monoWhite && "brightness-0 dark:invert",
+              energy && "invert dark:invert-0",
+            )}
           />
         );
       }
