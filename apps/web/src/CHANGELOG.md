@@ -2,6 +2,8 @@
 
 ## 2026-04-02
 
+- feat: Deck zones are now ordered Legend, Champion, Main Deck, then Battlefield and Runes at the bottom
+- feat: Power curve and card type charts in deck stats are now colored by domain
 - fix: Empty "reset filters" bar no longer appears in deck zones where the card type is forced (e.g. Legend zone)
 - feat: Search now checks all fields by default (name, card text, keywords, tags, artist, flavor text, type, and ID) with an "All" toggle to quickly reset scope
 - feat: Flavor text and card type are now searchable fields, with prefix shortcuts f: and ty:

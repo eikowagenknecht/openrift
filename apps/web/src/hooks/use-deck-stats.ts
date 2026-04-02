@@ -11,24 +11,18 @@ export interface DomainCount {
 
 export type EnergyCostCount = { energy: string } & Partial<Record<Domain, number>>;
 
-export interface TypeCount {
-  type: CardType;
-  main: number;
-  sideboard: number;
-}
+export type TypeCount = { type: CardType } & Partial<Record<Domain, number>>;
 
-export interface PowerCount {
-  power: string;
-  main: number;
-  sideboard: number;
-}
+export type PowerCount = { power: string } & Partial<Record<Domain, number>>;
 
 interface DeckStats {
   domainDistribution: DomainCount[];
   energyCurve: EnergyCostCount[];
   energyCurveDomains: Domain[];
   powerCurve: PowerCount[];
+  powerCurveDomains: Domain[];
   typeBreakdown: TypeCount[];
+  typeBreakdownDomains: Domain[];
   totalCards: number;
 }
 
@@ -108,54 +102,76 @@ export function useDeckStats(): DeckStats {
     }
   }
 
-  // Power curve — group by exact power, sorted numerically
-  const powerMain = new Map<number, number>();
-  const powerSide = new Map<number, number>();
-  for (const card of mainCards) {
-    if (card.power !== null) {
-      powerMain.set(card.power, (powerMain.get(card.power) ?? 0) + card.quantity);
+  // Power curve — group by power and domain, stacked by domain color
+  const powerByDomain = new Map<number, Map<Domain, number>>();
+  for (const card of allCards) {
+    if (card.power === null) {
+      continue;
+    }
+    let domainMap = powerByDomain.get(card.power);
+    if (!domainMap) {
+      domainMap = new Map();
+      powerByDomain.set(card.power, domainMap);
+    }
+    for (const domain of card.domains) {
+      domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
     }
   }
-  for (const card of sideboardCards) {
-    if (card.power !== null) {
-      powerSide.set(card.power, (powerSide.get(card.power) ?? 0) + card.quantity);
+  const allPowerValues = [...powerByDomain.keys()];
+  const powerDomainSet = new Set<Domain>();
+  for (const domainMap of powerByDomain.values()) {
+    for (const domain of domainMap.keys()) {
+      powerDomainSet.add(domain);
     }
   }
-  const allPowerValues = [...new Set([...powerMain.keys(), ...powerSide.keys()])];
+  const powerCurveDomains = DOMAIN_ORDER.filter((domain) => powerDomainSet.has(domain));
   const powerCurve: PowerCount[] = [];
   if (allPowerValues.length > 0) {
     const powerMin = Math.min(...allPowerValues);
     const powerMax = Math.max(...allPowerValues);
     for (let value = powerMin; value <= powerMax; value++) {
-      powerCurve.push({
-        power: String(value),
-        main: powerMain.get(value) ?? 0,
-        sideboard: powerSide.get(value) ?? 0,
-      });
+      const domainMap = powerByDomain.get(value);
+      const entry: PowerCount = { power: String(value) };
+      for (const domain of powerCurveDomains) {
+        entry[domain] = domainMap?.get(domain) ?? 0;
+      }
+      powerCurve.push(entry);
     }
   }
 
-  // Type breakdown — exclude types with dedicated zones
+  // Type breakdown — exclude types with dedicated zones, stacked by domain color
   const excludedTypes = new Set(["Legend", "Rune", "Battlefield"]);
-  const typeMain = new Map<string, number>();
-  const typeSide = new Map<string, number>();
-  for (const card of mainCards) {
-    if (!excludedTypes.has(card.cardType)) {
-      typeMain.set(card.cardType, (typeMain.get(card.cardType) ?? 0) + card.quantity);
+  const typeByDomain = new Map<string, Map<Domain, number>>();
+  for (const card of allCards) {
+    if (excludedTypes.has(card.cardType)) {
+      continue;
+    }
+    let domainMap = typeByDomain.get(card.cardType);
+    if (!domainMap) {
+      domainMap = new Map();
+      typeByDomain.set(card.cardType, domainMap);
+    }
+    for (const domain of card.domains) {
+      domainMap.set(domain, (domainMap.get(domain) ?? 0) + card.quantity);
     }
   }
-  for (const card of sideboardCards) {
-    if (!excludedTypes.has(card.cardType)) {
-      typeSide.set(card.cardType, (typeSide.get(card.cardType) ?? 0) + card.quantity);
+  const typeDomainSet = new Set<Domain>();
+  for (const domainMap of typeByDomain.values()) {
+    for (const domain of domainMap.keys()) {
+      typeDomainSet.add(domain);
     }
   }
-  const allTypes = new Set([...typeMain.keys(), ...typeSide.keys()]);
+  const typeBreakdownDomains = DOMAIN_ORDER.filter((domain) => typeDomainSet.has(domain));
+  const allTypes = new Set(typeByDomain.keys());
   const typeBreakdown: TypeCount[] = CARD_TYPE_ORDER.filter((type) => allTypes.has(type)).map(
-    (type) => ({
-      type,
-      main: typeMain.get(type) ?? 0,
-      sideboard: typeSide.get(type) ?? 0,
-    }),
+    (type) => {
+      const domainMap = typeByDomain.get(type);
+      const entry: TypeCount = { type };
+      for (const domain of typeBreakdownDomains) {
+        entry[domain] = domainMap?.get(domain) ?? 0;
+      }
+      return entry;
+    },
   );
 
   const totalCards =
@@ -167,7 +183,9 @@ export function useDeckStats(): DeckStats {
     energyCurve,
     energyCurveDomains,
     powerCurve,
+    powerCurveDomains,
     typeBreakdown,
+    typeBreakdownDomains,
     totalCards,
   };
 }

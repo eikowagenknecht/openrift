@@ -8,11 +8,11 @@ import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 const ZONE_ORDER: DeckZone[] = [
   "legend",
   "champion",
-  "battlefield",
-  "runes",
   "main",
   "sideboard",
   "overflow",
+  "battlefield",
+  "runes",
 ];
 
 interface DeckZonePanelProps {
