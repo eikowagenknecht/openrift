@@ -264,8 +264,8 @@ export function ProxyExportDialog() {
                   type={renderingCard.card.type}
                   superTypes={renderingCard.card.superTypes}
                   tags={renderingCard.card.tags}
-                  rulesText={renderingCard.card.rulesText}
-                  effectText={renderingCard.card.effectText}
+                  rulesText={renderingCard.rulesText}
+                  effectText={renderingCard.effectText}
                   mightBonus={renderingCard.card.mightBonus}
                   flavorText={renderingCard.flavorText}
                   variant="light"
