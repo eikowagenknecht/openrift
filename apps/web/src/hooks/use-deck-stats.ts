@@ -19,6 +19,7 @@ interface DeckStats {
   domainDistribution: DomainCount[];
   energyCurve: EnergyCostCount[];
   energyCurveDomains: Domain[];
+  averageEnergy: number | null;
   powerCurve: PowerCount[];
   powerCurveDomains: Domain[];
   typeBreakdown: TypeCount[];
@@ -102,6 +103,17 @@ export function useDeckStats(): DeckStats {
     }
   }
 
+  // Average energy cost (weighted by quantity)
+  let energySum = 0;
+  let energyCount = 0;
+  for (const card of allCards) {
+    if (card.energy !== null) {
+      energySum += card.energy * card.quantity;
+      energyCount += card.quantity;
+    }
+  }
+  const averageEnergy = energyCount > 0 ? energySum / energyCount : null;
+
   // Power curve — group by power and domain, stacked by domain color
   const powerByDomain = new Map<number, Map<Domain, number>>();
   for (const card of allCards) {
@@ -182,6 +194,7 @@ export function useDeckStats(): DeckStats {
     domainDistribution,
     energyCurve,
     energyCurveDomains,
+    averageEnergy,
     powerCurve,
     powerCurveDomains,
     typeBreakdown,

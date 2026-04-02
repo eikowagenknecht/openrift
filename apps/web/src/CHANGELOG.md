@@ -2,6 +2,8 @@
 
 ## 2026-04-02
 
+- feat: Deck stats panel is more compact — domain colors are shown as a bar in the header, and energy and power curves are merged into a single butterfly chart
+- feat: Deck overview tiles now show a domain color bar and type counts at a glance
 - fix: Deck editor now shows amber for invalid decks instead of gray, matching the deck overview colors
 - fix: The minus button in the deck editor card grid no longer jumps position when a card reaches its copy limit
 - feat: Deck zones are now ordered Legend, Champion, Main Deck, then Battlefield and Runes at the bottom
