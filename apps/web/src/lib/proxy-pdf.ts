@@ -333,6 +333,16 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
   // but inline styles take priority and are already in px.
   inlineComputedStyles(cardElement);
 
+  // html2canvas always reads document.documentElement and document.body background
+  // colors via getComputedStyle, which returns oklch() in modern browsers. Temporarily
+  // force these to rgb so html2canvas can parse them.
+  const docEl = document.documentElement;
+  const bodyEl = document.body;
+  const origDocBg = docEl.style.backgroundColor;
+  const origBodyBg = bodyEl.style.backgroundColor;
+  docEl.style.backgroundColor = toRgba(getComputedStyle(docEl).backgroundColor);
+  bodyEl.style.backgroundColor = toRgba(getComputedStyle(bodyEl).backgroundColor);
+
   // Rasterize with html2canvas — it handles images, backgrounds, borders etc.
   const canvas = await html2canvas(cardElement, {
     width: cardWidth,
@@ -341,6 +351,10 @@ async function renderPlaceholderToDataUrl(proxyCard: ProxyCard): Promise<Rendere
     useCORS: true,
     backgroundColor: "#ffffff",
   });
+
+  // Restore original background styles
+  docEl.style.backgroundColor = origDocBg;
+  bodyEl.style.backgroundColor = origBodyBg;
 
   const dataUrl = canvas.toDataURL("image/png");
   root.unmount();
