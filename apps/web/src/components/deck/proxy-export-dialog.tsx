@@ -243,13 +243,37 @@ export function ProxyExportDialog() {
           </div>
         </div>
 
+        {/* Card preview — rendered inside the React tree so all providers/hooks work */}
+        {renderingCard && (
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-muted-foreground text-xs">Rendering: {renderingCard.card.name}</p>
+            <div ref={cardElementRef} style={{ width: RENDER_WIDTH_PX }}>
+              <CardPlaceholderImage
+                name={renderingCard.card.name}
+                domain={renderingCard.card.domains}
+                energy={renderingCard.card.energy}
+                might={renderingCard.card.might}
+                power={renderingCard.card.power}
+                type={renderingCard.card.type}
+                superTypes={renderingCard.card.superTypes}
+                tags={renderingCard.card.tags}
+                rulesText={renderingCard.card.rulesText}
+                effectText={renderingCard.card.effectText}
+                mightBonus={renderingCard.card.mightBonus}
+                flavorText={renderingCard.flavorText}
+                variant="light"
+              />
+            </div>
+          </div>
+        )}
+
         <DialogFooter>
           <Button onClick={handleGenerate} disabled={generating}>
             {generating ? (
               <>
                 <Loader2Icon className="size-4 animate-spin" />
                 {progress.total > 0
-                  ? `Generating ${progress.current}/${progress.total}…`
+                  ? `Rendering ${progress.current}/${progress.total}…`
                   : "Generating…"}
               </>
             ) : (
@@ -258,38 +282,6 @@ export function ProxyExportDialog() {
           </Button>
         </DialogFooter>
       </DialogContent>
-
-      {/* Hidden render container — inside the React tree so all providers/hooks work */}
-      {renderingCard && (
-        <div
-          ref={cardElementRef}
-          style={{
-            position: "fixed",
-            left: 0,
-            top: 0,
-            width: RENDER_WIDTH_PX,
-            pointerEvents: "none",
-            zIndex: -9999,
-            opacity: 0,
-          }}
-        >
-          <CardPlaceholderImage
-            name={renderingCard.card.name}
-            domain={renderingCard.card.domains}
-            energy={renderingCard.card.energy}
-            might={renderingCard.card.might}
-            power={renderingCard.card.power}
-            type={renderingCard.card.type}
-            superTypes={renderingCard.card.superTypes}
-            tags={renderingCard.card.tags}
-            rulesText={renderingCard.card.rulesText}
-            effectText={renderingCard.card.effectText}
-            mightBonus={renderingCard.card.mightBonus}
-            flavorText={renderingCard.flavorText}
-            variant="light"
-          />
-        </div>
-      )}
     </Dialog>
   );
 }
