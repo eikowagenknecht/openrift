@@ -36,7 +36,7 @@
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
     "@commitlint/types": "20.5.0",
-    "knip": "6.1.1",
+    "knip": "6.2.0",
     "lcov-result-merger": "5.0.1",
     "lefthook": "2.1.4",
     "oxfmt": "0.43.0",
