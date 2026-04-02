@@ -86,9 +86,15 @@ export function CardMetaLabel({
               <TooltipTrigger className="cursor-default">
                 <TriangleAlertIcon className="size-3.5 text-red-500" />
               </TooltipTrigger>
-              <TooltipContent>
-                <div>Banned in {bans.map((b) => b.formatName).join(", ")}</div>
-                {bans[0].reason && <div className="mt-1 opacity-80">{bans[0].reason}</div>}
+              <TooltipContent className="flex-col items-start">
+                {bans.map((ban) => (
+                  <div key={ban.formatId}>
+                    <div>
+                      Banned in {ban.formatName} since {ban.bannedAt}
+                    </div>
+                    {ban.reason && <div className="opacity-80">{ban.reason}</div>}
+                  </div>
+                ))}
               </TooltipContent>
             </Tooltip>
           )}
