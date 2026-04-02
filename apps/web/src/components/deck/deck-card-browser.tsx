@@ -98,10 +98,8 @@ export function DeckCardBrowser() {
   const setLegend = useDeckBuilderStore((state) => state.setLegend);
   const setRunesByDomain = useDeckBuilderStore((state) => state.setRunesByDomain);
   const activeZone = useDeckBuilderStore((state) => state.activeZone);
-  const addLabel =
-    activeZone === "legend" || activeZone === "champion" || activeZone === "battlefield"
-      ? "Choose"
-      : undefined;
+  const isSingleCardZone =
+    activeZone === "legend" || activeZone === "champion" || activeZone === "battlefield";
   const zoneConfig = ZONE_FILTER_CONFIG[activeZone];
   const hiddenSections = zoneConfig?.hiddenSections;
 
@@ -143,6 +141,8 @@ export function DeckCardBrowser() {
   };
 
   const deckCards = useDeckBuilderStore((state) => state.cards);
+  const singleCardZoneOccupied =
+    isSingleCardZone && deckCards.some((card) => card.zone === activeZone);
 
   // Build a map of cardId → total quantity across all zones
   const deckQuantityByCard = new Map<string, number>();
@@ -267,11 +267,8 @@ export function DeckCardBrowser() {
     .reduce((sum, card) => sum + card.quantity, 0);
 
   const isMaxReached = (cardId: string): boolean => {
-    if (activeZone === "legend" || activeZone === "champion") {
-      return deckCards.some((card) => card.zone === activeZone);
-    }
-    if (activeZone === "battlefield") {
-      return deckCards.some((card) => card.cardId === cardId && card.zone === "battlefield");
+    if (activeZone === "legend" || activeZone === "champion" || activeZone === "battlefield") {
+      return deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
     }
     if (activeZone === "runes") {
       return runeTotal >= 12;
@@ -308,7 +305,13 @@ export function DeckCardBrowser() {
             ownedCount={ownedCount}
             deckQuantity={deckQty}
             maxReached={isMaxReached(cardId)}
-            addLabel={addLabel}
+            addLabel={
+              isSingleCardZone
+                ? singleCardZoneOccupied && deckQty === 0
+                  ? "Switch"
+                  : "Choose"
+                : undefined
+            }
             shiftHeld={shiftHeld}
             remainingCount={3 - (copyLimitTotalByCard.get(cardId) ?? 0)}
             onQuickAdd={handleQuickAdd}
