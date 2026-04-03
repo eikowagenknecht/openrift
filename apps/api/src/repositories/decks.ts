@@ -127,10 +127,17 @@ export function decksRepo(db: Kysely<Database>) {
           sql<string | null>`(
             SELECT COALESCE(pi.rehosted_url, pi.original_url)
             FROM printings p
+            JOIN sets s ON s.id = p.set_id
             JOIN printing_images pi ON pi.printing_id = p.id
               AND pi.face = 'front' AND pi.is_active = true
             WHERE p.card_id = dc.card_id
-            ORDER BY p.collector_number ASC
+            ORDER BY
+              (p.art_variant = 'normal')::int DESC,
+              (p.promo_type_id IS NULL)::int DESC,
+              (p.is_signed = false)::int DESC,
+              (p.finish = 'normal')::int DESC,
+              s.released_at ASC,
+              p.short_code ASC
             LIMIT 1
           )`.as("imageUrl"),
         ])

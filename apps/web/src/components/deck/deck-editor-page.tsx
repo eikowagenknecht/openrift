@@ -419,7 +419,12 @@ function DeckEditorContent({ deckId }: { deckId: string }) {
     if (!hoveredCardId || isMobile) {
       return null;
     }
-    const printing = allPrintings.find((entry) => entry.card.id === hoveredCardId);
+    // Prefer canonical (normal art, non-promo, non-signed) printing for the hover preview
+    const candidates = allPrintings.filter((entry) => entry.card.id === hoveredCardId);
+    const printing =
+      candidates.find(
+        (entry) => entry.artVariant === "normal" && !entry.promoType && !entry.isSigned,
+      ) ?? candidates[0];
     const frontImage = printing?.images.find((img) => img.face === "front");
     return frontImage ? getCardImageUrl(frontImage.url, "thumbnail") : null;
   })();

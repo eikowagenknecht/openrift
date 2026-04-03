@@ -136,7 +136,12 @@ export function DeckZoneSection({
   });
 
   const handleCardClick = (card: DeckBuilderCard) => {
-    const match = allPrintings.find((entry) => entry.card.id === card.cardId);
+    // Prefer canonical (normal art, non-promo, non-signed) printing for the detail pane
+    const candidates = allPrintings.filter((entry) => entry.card.id === card.cardId);
+    const match =
+      candidates.find(
+        (entry) => entry.artVariant === "normal" && !entry.promoType && !entry.isSigned,
+      ) ?? candidates[0];
     if (match) {
       useSelectionStore.getState().selectCard(match, [], "card");
     }
@@ -302,7 +307,6 @@ export function DeckZoneSection({
               ))}
             </div>
           )}
-
         </div>
       )}
     </div>
