@@ -89,11 +89,21 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
   if (field === "cardText") {
     return (
       (card.rulesText?.toLowerCase().includes(lower) ?? false) ||
-      (card.effectText?.toLowerCase().includes(lower) ?? false)
+      (card.effectText?.toLowerCase().includes(lower) ?? false) ||
+      (printing.printedRulesText?.toLowerCase().includes(lower) ?? false) ||
+      (printing.printedEffectText?.toLowerCase().includes(lower) ?? false)
     );
   }
   if (field === "keywords") {
-    return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
+    if (card.keywords.length > 0) {
+      return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
+    }
+    // Fallback: card.keywords may be empty when card-level rulesText/effectText
+    // is null (no errata). Check printing text for bracketed keyword matches.
+    return (
+      (printing.printedRulesText?.toLowerCase().includes(`[${lower}`) ?? false) ||
+      (printing.printedEffectText?.toLowerCase().includes(`[${lower}`) ?? false)
+    );
   }
   if (field === "tags") {
     return card.tags.some((tag) => tag.toLowerCase().includes(lower));
