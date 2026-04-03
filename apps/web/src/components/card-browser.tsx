@@ -149,7 +149,7 @@ export function CardBrowser() {
 
   const toolbar = (
     <>
-      <div className="mb-3 flex items-start gap-3">
+      <div className="mb-1.5 flex items-start gap-3 sm:mb-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" />
