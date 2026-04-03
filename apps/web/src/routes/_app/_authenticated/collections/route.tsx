@@ -10,7 +10,6 @@ import {
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { ChevronDownIcon } from "lucide-react";
 import { createContext, use, useEffect, useState } from "react";
-
 import { toast } from "sonner";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
