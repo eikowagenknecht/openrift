@@ -85,7 +85,7 @@ export function CardViewer({
         {toolbar}
       </div>
       <div
-        className="relative z-10 mt-3 flex flex-1 items-stretch gap-6"
+        className="relative mt-3 flex flex-1 items-stretch gap-6"
         style={{ "--sticky-top": `${stickyOffset}px` } as React.CSSProperties}
       >
         {leftPane}
