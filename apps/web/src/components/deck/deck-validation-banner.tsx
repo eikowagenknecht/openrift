@@ -1,7 +1,8 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckViolation, DeckZone } from "@openrift/shared";
 import { CheckIcon, ChevronDownIcon, CircleAlertIcon, LoaderCircleIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
@@ -19,6 +20,62 @@ const ZONE_LABELS: Record<DeckZone, string> = {
   sideboard: "Sideboard",
   overflow: "Overflow",
 };
+
+/**
+ * Badge showing violation count — tooltip on hover (desktop), popover on tap (mobile).
+ * @returns The violation badge element.
+ */
+function ViolationBadge({
+  violations,
+  violationCount,
+}: {
+  violations: DeckViolation[];
+  violationCount: number;
+}) {
+  const violationList = (
+    <ul className="space-y-0.5">
+      {violations.map((violation) => (
+        <li key={violation.code} className="text-xs">
+          {violation.message}
+        </li>
+      ))}
+    </ul>
+  );
+
+  const badge = (
+    <span className="flex shrink-0 cursor-default items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+      Standard
+      <CircleAlertIcon className="size-3" />
+      <span>
+        {violationCount} {violationCount === 1 ? "issue" : "issues"}
+      </span>
+    </span>
+  );
+
+  return (
+    <>
+      {/* Desktop: hover tooltip */}
+      <Tooltip>
+        <TooltipTrigger className="hidden md:flex" render={<span />}>
+          {badge}
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="start" className="max-w-80">
+          {violationList}
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Mobile: tap popover */}
+      <Popover>
+        <PopoverTrigger className="flex md:hidden" render={<span />}>
+          {badge}
+        </PopoverTrigger>
+        <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
+          {violationList}
+        </PopoverContent>
+      </Popover>
+    </>
+  );
+}
 
 interface DeckValidationBannerProps {
   isDirty: boolean;
@@ -74,24 +131,7 @@ export function DeckValidationBanner({ isDirty, isSaving }: DeckValidationBanner
           <CheckIcon className="size-3" />
         </span>
       ) : (
-        <Tooltip>
-          <TooltipTrigger className="flex shrink-0 cursor-default items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-            Standard
-            <CircleAlertIcon className="size-3" />
-            <span>
-              {violationCount} {violationCount === 1 ? "issue" : "issues"}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="start" className="max-w-80">
-            <ul className="space-y-0.5">
-              {violations.map((violation) => (
-                <li key={violation.code} className="text-xs">
-                  {violation.message}
-                </li>
-              ))}
-            </ul>
-          </TooltipContent>
-        </Tooltip>
+        <ViolationBadge violations={violations} violationCount={violationCount} />
       )}
 
       {/* Stats — desktop only, separated by middle dots */}
