@@ -1,6 +1,13 @@
 import type { DeckZone } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeftIcon, ChevronDownIcon, PencilIcon, XIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  EllipsisVerticalIcon,
+  PencilIcon,
+  PrinterIcon,
+  Share2Icon,
+  XIcon,
+} from "lucide-react";
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 
@@ -11,6 +18,12 @@ import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   NestedSidebar,
@@ -35,6 +48,8 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(data.deck.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [exportOpen, setExportOpen] = useState(false); // custom: controlled export dialog for mobile dropdown
+  const [proxyOpen, setProxyOpen] = useState(false); // custom: controlled proxy dialog for mobile dropdown
 
   const commitRename = () => {
     const trimmed = draft.trim();
@@ -95,25 +110,42 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
           </button>
         )}
 
-        <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
-        <ProxyExportDialog />
-      </div>
-      <div className="px-3 md:hidden">
-        <ZoneTitleButton />
+        {/* custom: desktop — inline export buttons */}
+        <div className="hidden md:flex md:items-center md:gap-2">
+          <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
+          <ProxyExportDialog />
+        </div>
+
+        {/* custom: mobile — overflow menu with export actions */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+              <EllipsisVerticalIcon className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                <Share2Icon className="size-4" />
+                Export
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setProxyOpen(true)}>
+                <PrinterIcon className="size-4" />
+                Proxies
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DeckExportDialog
+            deckId={deckId}
+            deckName={data.deck.name}
+            isDirty={isDirty}
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+          />
+          <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} />
+        </div>
       </div>
     </div>
   );
 }
-
-const ZONE_LABELS: Record<DeckZone, string> = {
-  legend: "Legend",
-  champion: "Chosen Champion",
-  runes: "Runes",
-  battlefield: "Battlefields",
-  main: "Main Deck",
-  sideboard: "Sideboard",
-  overflow: "Overflow",
-};
 
 function MobileSidebarHeader() {
   const { setOpenMobile } = useSidebar();
@@ -126,28 +158,6 @@ function MobileSidebarHeader() {
         <span className="sr-only">Close</span>
       </Button>
     </div>
-  );
-}
-
-function ZoneTitleButton() {
-  const { toggleSidebar } = useSidebar();
-  const activeZone = useDeckBuilderStore((state) => state.activeZone);
-  const cards = useDeckBuilderStore((state) => state.cards);
-  const zoneCount = cards
-    .filter((card) => card.zone === activeZone)
-    .reduce((sum, card) => sum + card.quantity, 0);
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="-ml-2 gap-1 text-sm font-medium"
-      onClick={toggleSidebar}
-    >
-      {ZONE_LABELS[activeZone]}
-      <span className="text-muted-foreground">({zoneCount})</span>
-      <ChevronDownIcon className="text-muted-foreground size-4" />
-    </Button>
   );
 }
 
