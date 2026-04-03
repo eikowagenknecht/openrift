@@ -1,9 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
+  BookOpenIcon,
   CircleHelpIcon,
   EllipsisVerticalIcon,
   HeartIcon,
+  LayersIcon,
+  LibraryIcon,
   LogOutIcon,
   MenuIcon,
   MoonIcon,
@@ -31,7 +34,14 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { signOut, useSession } from "@/lib/auth-client";
@@ -239,13 +249,22 @@ function UserMenu({
   );
 }
 
-function MobileNavLink({ to, children }: { to: string; children: ReactNode }) {
+function MobileNavLink({
+  to,
+  icon,
+  children,
+}: {
+  to: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <SheetClose
       nativeButton={false}
       render={<Link to={to} />}
-      className="hover:bg-muted data-[status=active]:bg-muted rounded-md px-2 py-1 data-[status=active]:font-semibold"
+      className="hover:bg-muted data-[status=active]:bg-muted flex items-center gap-3 rounded-lg px-3 py-3.5 text-base data-[status=active]:font-semibold"
     >
+      {icon}
       {children}
     </SheetClose>
   );
@@ -280,15 +299,30 @@ function MobileNav({
             </Link>
           </SheetTitle>
         </SheetHeader>
-        <nav className="flex flex-col gap-2 px-2">
-          <MobileNavLink to="/cards">Cards</MobileNavLink>
-          {showCollection && <MobileNavLink to="/collections">Collection</MobileNavLink>}
-          {showDecks && <MobileNavLink to="/decks">Decks</MobileNavLink>}
-          <MobileNavLink to="/help">Help</MobileNavLink>
-          <MobileNavLink to="/changelog">What&apos;s new</MobileNavLink>
-          <MobileNavLink to="/roadmap">Roadmap</MobileNavLink>
-          <MobileNavLink to="/support">Support Us</MobileNavLink>
+        <nav className="flex flex-col gap-1 px-2">
+          <MobileNavLink to="/cards" icon={<LayersIcon className="text-muted-foreground size-5" />}>
+            Cards
+          </MobileNavLink>
+          {showCollection && (
+            <MobileNavLink
+              to="/collections"
+              icon={<LibraryIcon className="text-muted-foreground size-5" />}
+            >
+              Collection
+            </MobileNavLink>
+          )}
+          {showDecks && (
+            <MobileNavLink
+              to="/decks"
+              icon={<BookOpenIcon className="text-muted-foreground size-5" />}
+            >
+              Decks
+            </MobileNavLink>
+          )}
         </nav>
+        <SheetFooter className="border-t px-4 pt-4">
+          <p className="text-muted-foreground text-xs">Your Riftbound card companion</p>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
