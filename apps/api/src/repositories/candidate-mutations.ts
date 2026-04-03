@@ -11,9 +11,10 @@ import type { DeleteResult, Kysely, Selectable, UpdateResult } from "kysely";
 
 import type {
   CandidateCardsTable,
+  CandidatePrintingsTable,
   CardsTable,
   Database,
-  CandidatePrintingsTable,
+  PrintingsTable,
 } from "../db/index.js";
 
 /**
@@ -373,6 +374,18 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /** @returns All printing-level rules/effect texts for a card identified by slug. */
+    getPrintingTextsForCardSlug(
+      slug: string,
+    ): Promise<Pick<Selectable<PrintingsTable>, "printedRulesText" | "printedEffectText">[]> {
+      return db
+        .selectFrom("printings")
+        .innerJoin("cards", "cards.id", "printings.cardId")
+        .select(["printings.printedRulesText", "printings.printedEffectText"])
+        .where("cards.slug", "=", slug)
+        .execute();
+    },
+
     /** Update arbitrary fields on a card by slug. */
     async updateCardBySlug(slug: string, updates: Record<string, unknown>): Promise<void> {
       await db.updateTable("cards").set(updates).where("slug", "=", slug).execute();
@@ -428,6 +441,44 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .set({ [field]: value })
         .where("id", "=", id)
         .execute();
+    },
+
+    /**
+     * Recompute keywords for the card that owns the given printing by scanning
+     * all sibling printings' text plus any card-level errata text.
+     */
+    async recomputeKeywordsForPrintingCard(printingId: string): Promise<void> {
+      const row = await db
+        .selectFrom("printings")
+        .innerJoin("cards", "cards.id", "printings.cardId")
+        .select([
+          "cards.id as cardId",
+          "cards.rulesText as cardRulesText",
+          "cards.effectText as cardEffectText",
+        ])
+        .where("printings.id", "=", printingId)
+        .executeTakeFirst();
+
+      if (!row) {
+        return;
+      }
+
+      const siblings = await db
+        .selectFrom("printings")
+        .select(["printedRulesText", "printedEffectText"])
+        .where("cardId", "=", row.cardId)
+        .execute();
+
+      const keywords = [
+        ...extractKeywords(row.cardRulesText ?? ""),
+        ...extractKeywords(row.cardEffectText ?? ""),
+        ...siblings.flatMap((s) => [
+          ...extractKeywords(s.printedRulesText ?? ""),
+          ...extractKeywords(s.printedEffectText ?? ""),
+        ]),
+      ].filter((v, i, a) => a.indexOf(v) === i);
+
+      await db.updateTable("cards").set({ keywords }).where("id", "=", row.cardId).execute();
     },
 
     // ── Accept printing ───────────────────────────────────────────────────────

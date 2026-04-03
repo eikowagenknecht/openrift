@@ -656,9 +656,14 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       }
       const rulesText = field === "rulesText" ? (finalValue as string) : card.rulesText;
       const effectText = field === "effectText" ? (finalValue as string) : card.effectText;
+      const printingTexts = await mut.getPrintingTextsForCardSlug(cardSlug);
       updates.keywords = [
         ...extractKeywords(rulesText ?? ""),
         ...extractKeywords(effectText ?? ""),
+        ...printingTexts.flatMap((pt) => [
+          ...extractKeywords(pt.printedRulesText ?? ""),
+          ...extractKeywords(pt.printedEffectText ?? ""),
+        ]),
       ].filter((v, i, a) => a.indexOf(v) === i);
     }
 
@@ -762,6 +767,11 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     await mut.updatePrintingFieldById(printingId, field, normalizedValue);
+
+    // Recompute card-level keywords when printing text changes
+    if (field === "printedRulesText" || field === "printedEffectText") {
+      await mut.recomputeKeywordsForPrintingCard(printingId);
+    }
 
     return c.body(null, 204);
   })

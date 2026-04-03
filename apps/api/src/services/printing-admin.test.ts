@@ -310,6 +310,7 @@ describe("acceptPrinting", () => {
       candidateMutations: {
         ...repos.candidateMutations,
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
+        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
       },
     };
 
@@ -401,6 +402,7 @@ describe("acceptPrinting", () => {
       candidateMutations: {
         ...repos.candidateMutations,
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
+        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
       },
     };
 
@@ -440,6 +442,7 @@ describe("acceptPrinting", () => {
         upsertPrinting,
         linkAndCheckCandidatePrintings,
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
+        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
       },
       printingImages: { insertImage },
       promoTypes: {},

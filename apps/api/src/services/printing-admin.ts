@@ -229,6 +229,9 @@ export async function acceptPrinting(
       printedName: printingFields.printedName ?? null,
     });
 
+    // Recompute card-level keywords from all printing texts
+    await trxRepos.candidateMutations.recomputeKeywordsForPrintingCard(insertedId);
+
     if (printingFields.imageUrl) {
       await trxRepos.printingImages.insertImage(
         insertedId,

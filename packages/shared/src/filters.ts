@@ -95,15 +95,7 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
     );
   }
   if (field === "keywords") {
-    if (card.keywords.length > 0) {
-      return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
-    }
-    // Fallback: card.keywords may be empty when card-level rulesText/effectText
-    // is null (no errata). Check printing text for bracketed keyword matches.
-    return (
-      (printing.printedRulesText?.toLowerCase().includes(`[${lower}`) ?? false) ||
-      (printing.printedEffectText?.toLowerCase().includes(`[${lower}`) ?? false)
-    );
+    return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
   }
   if (field === "tags") {
     return card.tags.some((tag) => tag.toLowerCase().includes(lower));
