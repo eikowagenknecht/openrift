@@ -268,7 +268,12 @@ export function DeckZoneSection({
               </Tooltip>
             ) : null}
           </span>
-          <span className="text-muted-foreground ml-auto text-xs">
+          <span
+            className={cn(
+              "ml-auto text-xs",
+              hasZoneViolations ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
             {totalQuantity}
             {expected !== null && expected !== undefined && `/${expected}`}
           </span>
@@ -298,13 +303,6 @@ export function DeckZoneSection({
             </div>
           )}
 
-          {hasZoneViolations && (
-            <div className="text-destructive px-2 py-1 text-xs">
-              {zoneViolations.map((violation) => (
-                <p key={violation.code}>{violation.message}</p>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
