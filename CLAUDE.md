@@ -85,8 +85,9 @@ See `docs/contributing.md` for full conventions.
 
 1. The user explicitly says "work in main" (or equivalent) in the current conversation.
 2. The task is purely read-only (answering questions, reviewing code, running read-only commands).
+3. You are already on a `claude/…` branch (e.g. spawned by the Claude Code web harness) — this is already an isolated worktree, so just work directly in it.
 
-If you are about to use Edit, Write, or Bash to modify a file and you are NOT in a worktree, **stop and enter a worktree first.** No exceptions. No "it's just a small change." No "there are no other agents running." Enter the worktree.
+If you are about to use Edit, Write, or Bash to modify a file and you are NOT in a worktree or on a `claude/…` branch, **stop and enter a worktree first.** No exceptions. No "it's just a small change." No "there are no other agents running." Enter the worktree.
 
 - **Worktree** — each worktree is a full, independent copy of the repo with no file conflicts.
 - **Main repo** — only when the user explicitly says to work in main.
