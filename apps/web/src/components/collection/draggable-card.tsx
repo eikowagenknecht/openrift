@@ -2,6 +2,8 @@ import { useDraggable } from "@dnd-kit/core";
 import type { Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
 
+import { useIsMobile } from "@/hooks/use-is-mobile";
+
 import type { CardDragData } from "./dnd-types";
 
 interface DraggableCardProps {
@@ -21,6 +23,8 @@ export function DraggableCard({
   sourceCollectionId,
   children,
 }: DraggableCardProps) {
+  const isMobile = useIsMobile();
+
   const data: CardDragData = {
     type: "collection-card",
     copyIds,
@@ -30,6 +34,10 @@ export function DraggableCard({
   };
 
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id, data });
+
+  if (isMobile) {
+    return children;
+  }
 
   return (
     <div

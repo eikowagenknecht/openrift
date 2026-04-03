@@ -10,6 +10,7 @@ import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image"
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { resolvePrice } from "@/hooks/use-card-data";
 import { useCardTilt } from "@/hooks/use-card-tilt";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import {
@@ -401,7 +402,9 @@ export const CardThumbnail = memo(function CardThumbnail({
         }
       : undefined;
 
-  // custom: optional drag support for deckbuilder browser cards
+  // custom: optional drag support for deckbuilder browser cards (disabled on mobile)
+  const isMobile = useIsMobile();
+  const enableDrag = Boolean(dragData) && !isMobile;
   const {
     setNodeRef: dragRef,
     listeners: dragListeners,
@@ -410,14 +413,14 @@ export const CardThumbnail = memo(function CardThumbnail({
   } = useDraggable({
     id: dragId ?? `card-${printing.id}`,
     data: dragData,
-    disabled: !dragData,
+    disabled: !enableDrag,
   });
 
   /* ── Top-slot mode: outer <div> is inert, only the image area is a <button> ── */
   if (topSlot) {
     return (
       <div
-        ref={dragData ? dragRef : undefined}
+        ref={enableDrag ? dragRef : undefined}
         className={cn(
           // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
           "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
@@ -427,7 +430,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         style={isSelected || highlighted ? getDomainGradientStyle(card.domains, "38") : undefined}
         onMouseEnter={fanMouseEnter}
         onMouseLeave={fanMouseLeave}
-        {...(dragData ? { ...dragListeners, ...dragAttributes } : {})}
+        {...(enableDrag ? { ...dragListeners, ...dragAttributes } : {})}
       >
         {flashOverlay}
         {topSlot}

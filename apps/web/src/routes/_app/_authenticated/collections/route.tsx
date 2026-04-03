@@ -10,6 +10,7 @@ import {
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { ChevronDownIcon } from "lucide-react";
 import { createContext, use, useEffect, useState } from "react";
+
 import { toast } from "sonner";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
@@ -18,6 +19,7 @@ import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { getCardImageUrl } from "@/lib/images";
@@ -73,6 +75,7 @@ const snapCenterToCursor: Modifier = ({
 };
 
 function CollectionLayout() {
+  const isMobile = useIsMobile();
   const [title, setTitle] = useState("Collection");
   const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
   const moveCopies = useMoveCopies();
@@ -115,7 +118,7 @@ function CollectionLayout() {
   return (
     <SidebarProvider>
       <DndContext
-        sensors={sensors}
+        sensors={isMobile ? undefined : sensors}
         collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}

@@ -5,6 +5,7 @@ import { AlertTriangleIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { DOMAIN_COLORS, getDomainGradientStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -161,6 +162,9 @@ export function DeckCardRow({
   onClick,
   onHover,
 }: DeckCardRowProps) {
+  const isMobile = useIsMobile();
+  const enableDrag = draggable && !isMobile;
+
   const dragData: DeckCardDragData = {
     type: "deck-card",
     cardId: card.cardId,
@@ -172,7 +176,7 @@ export function DeckCardRow({
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `deck-card-${card.cardId}-${card.zone}`,
     data: dragData,
-    disabled: !draggable,
+    disabled: !enableDrag,
   });
 
   // When dragging 1 copy from a multi-copy stack, show the remaining count
@@ -222,7 +226,7 @@ export function DeckCardRow({
     </>
   );
 
-  const dragProps = draggable ? { ...listeners, ...attributes } : {};
+  const dragProps = enableDrag ? { ...listeners, ...attributes } : {};
   const hoverProps = onHover
     ? {
         onMouseEnter: () => onHover(card.cardId),
@@ -233,8 +237,8 @@ export function DeckCardRow({
   if (onClick) {
     return (
       <div
-        ref={setNodeRef}
-        className={cn(draggable && "cursor-grab active:cursor-grabbing")}
+        ref={enableDrag ? setNodeRef : undefined}
+        className={cn(enableDrag && "cursor-grab active:cursor-grabbing")}
         {...dragProps}
         {...hoverProps}
       >
@@ -261,8 +265,8 @@ export function DeckCardRow({
 
   return (
     <div
-      ref={setNodeRef}
-      className={cn(baseClass, draggable && "cursor-grab active:cursor-grabbing")}
+      ref={enableDrag ? setNodeRef : undefined}
+      className={cn(baseClass, enableDrag && "cursor-grab active:cursor-grabbing")}
       style={domainTint}
       {...dragProps}
       {...hoverProps}
