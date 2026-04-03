@@ -89,7 +89,9 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
   if (field === "cardText") {
     return (
       (card.rulesText?.toLowerCase().includes(lower) ?? false) ||
-      (card.effectText?.toLowerCase().includes(lower) ?? false)
+      (card.effectText?.toLowerCase().includes(lower) ?? false) ||
+      (printing.printedRulesText?.toLowerCase().includes(lower) ?? false) ||
+      (printing.printedEffectText?.toLowerCase().includes(lower) ?? false)
     );
   }
   if (field === "keywords") {

@@ -62,6 +62,8 @@ const mockMut = {
   updateCardBySlug: vi.fn(),
   getCardTexts: vi.fn(),
   updatePrintingFieldById: vi.fn(),
+  recomputeKeywordsForPrintingCard: vi.fn(),
+  getPrintingTextsForCardSlug: vi.fn(),
   getSetPrintedTotalForPrinting: vi.fn(),
   getCardIdBySlug: vi.fn(),
   acceptNewCardFromSources: vi.fn(),
@@ -546,6 +548,8 @@ describe("POST /api/v1/:cardId/accept-field", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockFixTypography.mockImplementation((text: string) => text);
+    mockMut.getPrintingTextsForCardSlug.mockResolvedValue([]);
+    mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
   });
 
   it("returns 204 and updates card field", async () => {
@@ -727,6 +731,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     vi.resetAllMocks();
     mockFixTypography.mockImplementation((text: string) => text);
     mockAppendSetTotal.mockImplementation((code: string) => code);
+    mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
   });
 
   it("returns 204 and updates printing field", async () => {
