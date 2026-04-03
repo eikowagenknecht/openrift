@@ -40,9 +40,7 @@ export default function ProxyPrintingArticle() {
       {/* Getting started */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
-        <p className="text-muted-foreground">
-          There are two ways to open the proxy export dialog:
-        </p>
+        <p className="text-muted-foreground">There are two ways to open the proxy export dialog:</p>
         <div className="mt-3 space-y-2">
           <StepRow
             step={1}
@@ -110,8 +108,8 @@ export default function ProxyPrintingArticle() {
         <h2 className="mb-2 text-lg font-semibold">Generating the PDF</h2>
         <p className="text-muted-foreground">
           Click <strong className="text-foreground">Generate PDF</strong> to start. The dialog shows
-          a progress indicator as each unique card is rendered. Once all cards are ready, they&apos;re
-          assembled into a multi-page PDF and downloaded as{" "}
+          a progress indicator as each unique card is rendered. Once all cards are ready,
+          they&apos;re assembled into a multi-page PDF and downloaded as{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">proxies.pdf</code>.
         </p>
         <p className="text-muted-foreground mt-2">
