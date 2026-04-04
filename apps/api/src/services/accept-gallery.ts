@@ -78,6 +78,8 @@ export async function acceptGalleryForNewCard(
           energy: galleryCard.energy,
           power: galleryCard.power,
           mightBonus: galleryCard.mightBonus,
+          rulesText: galleryCard.rulesText,
+          effectText: galleryCard.effectText,
           tags: galleryCard.tags ?? [],
         },
         normalizedName,

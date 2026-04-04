@@ -39,6 +39,8 @@ function makeGalleryCandidate(overrides: Record<string, unknown> = {}) {
     energy: 2,
     power: null,
     mightBonus: null,
+    rulesText: "[Shield] Prevent damage.",
+    effectText: null,
     tags: ["burn"],
     ...overrides,
   };
@@ -132,6 +134,17 @@ describe("acceptGalleryForNewCard", () => {
     expect(candidateMutations.getCardIdBySlug).toHaveBeenCalledWith("OGN-001");
     expect(candidateMutations.acceptNewCardFromSources).toHaveBeenCalledTimes(1);
     expect(result.cardSlug).toBe("OGN-001");
+  });
+
+  it("passes rulesText and effectText for keyword extraction", async () => {
+    const { repos, candidateMutations } = createMockRepos();
+    const transact = mockTransact(repos);
+
+    await acceptGalleryForNewCard(transact, {} as Io, repos, "flame-striker");
+
+    const cardFields = candidateMutations.acceptNewCardFromSources.mock.calls[0][0];
+    expect(cardFields.rulesText).toBe("[Shield] Prevent damage.");
+    expect(cardFields.effectText).toBeNull();
   });
 
   it("links to existing card when slug already exists", async () => {

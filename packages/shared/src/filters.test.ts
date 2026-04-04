@@ -303,6 +303,40 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Fire Dragon");
   });
 
+  it("keyword search extracts from printing text when keywords array is empty", () => {
+    const withEmptyKeywords = [
+      makePrinting({
+        id: "SET3-001:rare:normal:",
+        shortCode: "SET3-001",
+        setSlug: "Set Gamma",
+        rarity: "Rare",
+        artVariant: "normal",
+        finish: "normal",
+        images: [{ face: "front", url: "t.jpg" }],
+        artist: "Dave",
+        printedRulesText: "[Deathknell] When this dies, draw a card.",
+        card: {
+          id: "SET3-001",
+          name: "Soul Reaper",
+          type: "Unit",
+          superTypes: [],
+          domains: ["Chaos"],
+          energy: 4,
+          might: 3,
+          power: 3,
+          keywords: [],
+          tags: [],
+          mightBonus: null,
+          rulesText: null,
+          effectText: null,
+        },
+      }),
+    ];
+    const result = filterCards(withEmptyKeywords, emptyFilters({ search: "k:deathknell" }));
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("Soul Reaper");
+  });
+
   it("un-prefixed terms search all fields when mixed with prefixed terms", () => {
     // "k:freeze golem" — k:freeze matches Ice Golem, and "golem" must also match
     // Since there's a prefix, un-prefixed "golem" searches ALL fields

@@ -1,3 +1,4 @@
+import { extractKeywords } from "./keywords.js";
 import type {
   ArtVariant,
   CardFilters,
@@ -95,7 +96,18 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
     );
   }
   if (field === "keywords") {
-    return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
+    if (card.keywords.length > 0) {
+      return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
+    }
+    // Fallback: extract keywords from card/printing text when the keywords
+    // array hasn't been backfilled yet (see migration 059).
+    const textKeywords = [
+      ...extractKeywords(card.rulesText ?? ""),
+      ...extractKeywords(card.effectText ?? ""),
+      ...extractKeywords(printing.printedRulesText ?? ""),
+      ...extractKeywords(printing.printedEffectText ?? ""),
+    ];
+    return textKeywords.some((kw) => kw.toLowerCase().includes(lower));
   }
   if (field === "tags") {
     return card.tags.some((tag) => tag.toLowerCase().includes(lower));
