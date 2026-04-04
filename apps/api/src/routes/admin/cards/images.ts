@@ -5,7 +5,7 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
-import { AppError } from "../../../errors.js";
+import { AppError, ERROR_CODES } from "../../../errors.js";
 import {
   CARD_IMAGES_DIR,
   deleteRehostFiles,
@@ -134,15 +134,19 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const ps = await printingImages.getCandidatePrintingById(id);
 
     if (!ps) {
-      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate printing not found");
     }
 
     if (!ps.printingId) {
-      throw new AppError(400, "BAD_REQUEST", "Candidate printing not linked to a printing");
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Candidate printing not linked to a printing",
+      );
     }
 
     if (!ps.imageUrl) {
-      throw new AppError(400, "BAD_REQUEST", "Candidate printing has no image URL");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Candidate printing has no image URL");
     }
 
     const cs = await printingImages.getCandidateCardProvider(ps.candidateCardId);
@@ -172,7 +176,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const image = await printingImages.getIdAndRehostedUrl(imageId);
 
     if (!image) {
-      throw new AppError(404, "NOT_FOUND", "Printing image not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
     }
 
     // Check if another image shares the same rehosted files before deleting
@@ -199,7 +203,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const image = await printingImages.getForActivate(imageId);
 
     if (!image) {
-      throw new AppError(404, "NOT_FOUND", "Printing image not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
     }
 
     await transact(async (trxRepos) => {
@@ -222,11 +226,11 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const image = await printingImages.getIdAndUrls(imageId);
 
     if (!image) {
-      throw new AppError(404, "NOT_FOUND", "Printing image not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
     }
 
     if (!image.rehostedUrl) {
-      throw new AppError(400, "BAD_REQUEST", "Image is not rehosted");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image is not rehosted");
     }
 
     if (!image.originalUrl) {
@@ -259,11 +263,11 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const image = await printingImages.getForRehost(imageId);
 
     if (!image) {
-      throw new AppError(404, "NOT_FOUND", "Printing image not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
     }
 
     if (!image.originalUrl) {
-      throw new AppError(400, "BAD_REQUEST", "Image has no original URL to rehost");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no original URL to rehost");
     }
 
     const { buffer, ext } = await downloadImage(c.get("io"), image.originalUrl);
@@ -285,12 +289,12 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const body = c.req.valid("json");
 
     if (!body.url?.trim()) {
-      throw new AppError(400, "BAD_REQUEST", "url is required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "url is required");
     }
 
     const printing = await printingImages.getPrintingById(printingId);
     if (!printing) {
-      throw new AppError(404, "NOT_FOUND", "Printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
     }
 
     const mode = body.mode ?? "main";
@@ -311,7 +315,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const printing = await printingImages.getPrintingWithSetById(printingId);
 
     if (!printing) {
-      throw new AppError(404, "NOT_FOUND", "Printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
     }
 
     const body = c.req.valid("form");
@@ -321,7 +325,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
     if (file.size > MAX_UPLOAD_BYTES) {
-      throw new AppError(413, "PAYLOAD_TOO_LARGE", "File exceeds 50 MB limit");
+      throw new AppError(413, ERROR_CODES.PAYLOAD_TOO_LARGE, "File exceeds 50 MB limit");
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

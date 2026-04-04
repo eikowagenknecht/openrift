@@ -14,7 +14,7 @@ import {
   updateTradeListSchema,
 } from "@openrift/shared/schemas";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
@@ -152,7 +152,7 @@ export const tradeListsRoute = tradeListsApp
 
     const tradeList = await tradeLists.getByIdForUser(id, userId);
     if (!tradeList) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     const itemRows = await tradeLists.itemsWithDetails(id, userId);
@@ -173,7 +173,7 @@ export const tradeListsRoute = tradeListsApp
     const updates = buildPatchUpdates(body, patchFields);
     const row = await tradeLists.update(id, userId, updates);
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.json(toTradeList(row));
   })
@@ -184,7 +184,7 @@ export const tradeListsRoute = tradeListsApp
     const { id } = c.req.valid("param");
     const result = await tradeLists.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.body(null, 204);
   })
@@ -199,13 +199,13 @@ export const tradeListsRoute = tradeListsApp
     // Verify trade list belongs to user
     const tradeList = await tradeLists.exists(tradeListId, userId);
     if (!tradeList) {
-      throw new AppError(404, "NOT_FOUND", "Trade list not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade list not found");
     }
 
     // Verify copy belongs to user
     const copy = await copies.existsForUser(body.copyId, userId);
     if (!copy) {
-      throw new AppError(404, "NOT_FOUND", "Copy not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Copy not found");
     }
 
     const row = await tradeLists.createItem({
@@ -226,7 +226,7 @@ export const tradeListsRoute = tradeListsApp
     const result = await tradeLists.deleteItem(itemId, tradeListId, userId);
 
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     return c.body(null, 204);

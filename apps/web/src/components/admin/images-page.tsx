@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useProviderNames } from "@/hooks/use-admin-cards";
+import { useProviderNames } from "@/hooks/use-admin-card-queries";
 import type { RegenerateAccumulator } from "@/hooks/use-rehost";
 import {
   useBrokenImages,
@@ -31,16 +31,21 @@ import {
   useRestoreImageUrls,
 } from "@/hooks/use-rehost";
 
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const BYTE_UNITS = ["B", "KB", "MB", "GB"] as const;
+const BYTES_PER_UNIT = 1024;
+const MAX_DISPLAYED_ERRORS = 5;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) {
     return "0 B";
   }
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  const value = bytes / 1024 ** i;
-  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
+  const i = Math.floor(Math.log(bytes) / Math.log(BYTES_PER_UNIT));
+  const value = bytes / BYTES_PER_UNIT ** i;
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${BYTE_UNITS[i]}`;
 }
 
 // ── MutationStatus ────────────────────────────────────────────────────────────
@@ -71,10 +76,12 @@ function MutationStatus({
         </p>
         {errors.length > 0 && (
           <ul className="mt-1 ml-5 list-disc text-xs text-red-600 dark:text-red-400">
-            {errors.slice(0, 5).map((err) => (
+            {errors.slice(0, MAX_DISPLAYED_ERRORS).map((err) => (
               <li key={err}>{err}</li>
             ))}
-            {errors.length > 5 && <li>...and {errors.length - 5} more</li>}
+            {errors.length > MAX_DISPLAYED_ERRORS && (
+              <li>...and {errors.length - MAX_DISPLAYED_ERRORS} more</li>
+            )}
           </ul>
         )}
       </div>
@@ -91,12 +98,12 @@ function MutationStatus({
   return null;
 }
 
-function SimpleMutationResult({
+function SimpleMutationResult<T>({
   mutation,
   renderSuccess,
 }: {
-  mutation: { isSuccess: boolean; isError: boolean; data?: unknown; error?: Error | null };
-  renderSuccess: (data: any) => React.ReactNode;
+  mutation: { isSuccess: boolean; isError: boolean; data?: T; error?: Error | null };
+  renderSuccess: (data: T) => React.ReactNode;
 }) {
   if (mutation.isSuccess && mutation.data) {
     return (
@@ -123,10 +130,12 @@ function ErrorsList({ errors }: { errors: string[] }) {
   }
   return (
     <ul className="mt-1 ml-5 list-disc text-xs text-red-600 dark:text-red-400">
-      {errors.slice(0, 5).map((err) => (
+      {errors.slice(0, MAX_DISPLAYED_ERRORS).map((err) => (
         <li key={err}>{err}</li>
       ))}
-      {errors.length > 5 && <li>...and {errors.length - 5} more</li>}
+      {errors.length > MAX_DISPLAYED_ERRORS && (
+        <li>...and {errors.length - MAX_DISPLAYED_ERRORS} more</li>
+      )}
     </ul>
   );
 }

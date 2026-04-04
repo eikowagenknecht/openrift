@@ -13,7 +13,7 @@ import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import type { Services } from "./deps.js";
 import { createRepos, createTransact, services as defaultServices } from "./deps.js";
-import { AppError } from "./errors.js";
+import { AppError, ERROR_CODES } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
 import { adminRoute } from "./routes/admin/index.js";
@@ -98,13 +98,13 @@ export function createApp(deps: AppDeps) {
     }
 
     if (err instanceof SyntaxError) {
-      return c.json({ error: "Invalid JSON in request body", code: "BAD_REQUEST" }, 400);
+      return c.json({ error: "Invalid JSON in request body", code: ERROR_CODES.BAD_REQUEST }, 400);
     }
 
     log.error({ err, method: c.req.method, path: c.req.path }, "Unhandled error");
     const body: ApiErrorResponse = {
       error: "Internal server error",
-      code: "INTERNAL_ERROR",
+      code: ERROR_CODES.INTERNAL_ERROR,
     };
     if (config.isDev) {
       body.details = { message: err.message, stack: err.stack };

@@ -15,7 +15,7 @@ import {
   updateWishListSchema,
 } from "@openrift/shared/schemas";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
@@ -167,7 +167,7 @@ export const wishListsRoute = wishListsApp
 
     const wishList = await wishLists.getByIdForUser(id, userId);
     if (!wishList) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     const itemRows = await wishLists.items(id, userId);
@@ -188,7 +188,7 @@ export const wishListsRoute = wishListsApp
     const updates = buildPatchUpdates(body, patchFields);
     const row = await wishLists.update(id, userId, updates);
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.json(toWishList(row));
   })
@@ -199,7 +199,7 @@ export const wishListsRoute = wishListsApp
     const { id } = c.req.valid("param");
     const result = await wishLists.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.body(null, 204);
   })
@@ -214,7 +214,7 @@ export const wishListsRoute = wishListsApp
     // Verify wish list belongs to user
     const wishList = await wishLists.exists(wishListId, userId);
     if (!wishList) {
-      throw new AppError(404, "NOT_FOUND", "Wish list not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Wish list not found");
     }
 
     const row = await wishLists.createItem({
@@ -240,7 +240,7 @@ export const wishListsRoute = wishListsApp
     });
 
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     return c.json(toWishListItem(row));
@@ -255,7 +255,7 @@ export const wishListsRoute = wishListsApp
     const result = await wishLists.deleteItem(itemId, wishListId, userId);
 
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     return c.body(null, 204);

@@ -3,7 +3,7 @@ import type { MarketplaceGroupResponse } from "@openrift/shared";
 import { marketplaceGroupParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -97,7 +97,11 @@ export const marketplaceGroupsRoute = new OpenAPIHono<{ Variables: Variables }>(
 
     const updated = await mktAdmin.updateGroupName(marketplace, groupId, name);
     if (!updated) {
-      throw new AppError(404, "NOT_FOUND", `Marketplace group ${marketplace}/${groupId} not found`);
+      throw new AppError(
+        404,
+        ERROR_CODES.NOT_FOUND,
+        `Marketplace group ${marketplace}/${groupId} not found`,
+      );
     }
 
     return c.body(null, 204);

@@ -25,7 +25,7 @@ import {
   useSetCandidatePrintingImage,
   useUnrehostPrintingImage,
   useUploadPrintingImage,
-} from "@/hooks/use-admin-cards";
+} from "@/hooks/use-admin-image-mutations";
 
 function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   return img.rehostedUrl ? `${img.rehostedUrl}-full.webp` : img.originalUrl;

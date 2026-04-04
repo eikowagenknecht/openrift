@@ -1,5 +1,5 @@
 import type { Repos, Transact } from "../deps.js";
-import { AppError } from "../errors.js";
+import { AppError, ERROR_CODES } from "../errors.js";
 import { logEvents } from "./event-logger.js";
 import { ensureInbox } from "./inbox.js";
 
@@ -34,7 +34,11 @@ export async function addCopies(
   if (explicitIds.length > 0) {
     const owned = await repos.collections.listIdsByIdsForUser(explicitIds, userId);
     if (owned.length !== explicitIds.length) {
-      throw new AppError(403, "FORBIDDEN", "One or more collections do not belong to you");
+      throw new AppError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "One or more collections do not belong to you",
+      );
     }
   }
 
@@ -91,7 +95,7 @@ export async function moveCopies(
   const target = await repos.collections.getIdAndName(toCollectionId, userId);
 
   if (!target) {
-    throw new AppError(404, "NOT_FOUND", "Target collection not found");
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Target collection not found");
   }
 
   await transact(async (trxRepos) => {
@@ -99,7 +103,7 @@ export async function moveCopies(
     const copies = await trxRepos.copies.listWithCollectionName(copyIds, userId);
 
     if (copies.length !== copyIds.length) {
-      throw new AppError(404, "NOT_FOUND", "One or more copies not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "One or more copies not found");
     }
 
     // Update copies
@@ -139,7 +143,7 @@ export async function disposeCopies(
     const copies = await trxRepos.copies.listWithCollectionName(copyIds, userId);
 
     if (copies.length !== copyIds.length) {
-      throw new AppError(404, "NOT_FOUND", "One or more copies not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "One or more copies not found");
     }
 
     // Log disposal events before deleting (so copy FK is still valid)

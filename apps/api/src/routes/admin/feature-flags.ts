@@ -3,7 +3,7 @@ import type { FeatureFlagResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ export const adminFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>(
       description: description ?? null,
     });
     if (!created) {
-      throw new AppError(409, "CONFLICT", `Flag "${key}" already exists`);
+      throw new AppError(409, ERROR_CODES.CONFLICT, `Flag "${key}" already exists`);
     }
 
     return c.body(null, 201);
@@ -139,7 +139,7 @@ export const adminFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>(
 
     const updated = await flagsRepo.update(key, body);
     if (!updated) {
-      throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Flag "${key}" not found`);
     }
 
     return c.body(null, 204);
@@ -153,7 +153,7 @@ export const adminFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>(
 
     const result = await flagsRepo.deleteByKey(key);
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", `Flag "${key}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Flag "${key}" not found`);
     }
 
     return c.body(null, 204);

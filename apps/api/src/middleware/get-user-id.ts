@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 
-import { AppError } from "../errors.js";
+import { AppError, ERROR_CODES } from "../errors.js";
 import type { Variables } from "../types.js";
 
 /**
@@ -11,7 +11,7 @@ import type { Variables } from "../types.js";
 export function getUserId(c: Context<{ Variables: Variables }>): string {
   const user = c.get("user");
   if (!user) {
-    throw new AppError(401, "UNAUTHORIZED", "Unauthorized");
+    throw new AppError(401, ERROR_CODES.UNAUTHORIZED, "Unauthorized");
   }
   return user.id;
 }

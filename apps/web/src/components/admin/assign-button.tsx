@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { Button } from "@/components/ui/button";
-import type { useLinkCard } from "@/hooks/use-admin-cards";
+import type { useLinkCard } from "@/hooks/use-admin-card-mutations";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export function AssignButton({

@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ export const adminUserFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables
 
     const result = await userFeatureFlags.upsert(id, key, enabled);
     if (!result) {
-      throw new AppError(500, "INTERNAL_ERROR", "Failed to set override");
+      throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, "Failed to set override");
     }
 
     return c.json({ flagKey: key, enabled });
@@ -137,7 +137,11 @@ export const adminUserFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables
 
     const result = await userFeatureFlags.delete(id, key);
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", `Override for flag "${key}" not found for this user`);
+      throw new AppError(
+        404,
+        ERROR_CODES.NOT_FOUND,
+        `Override for flag "${key}" not found for this user`,
+      );
     }
 
     return c.body(null, 204);

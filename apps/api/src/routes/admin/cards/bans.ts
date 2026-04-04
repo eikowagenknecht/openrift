@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError } from "../../../errors.js";
+import { AppError, ERROR_CODES } from "../../../errors.js";
 import type { Variables } from "../../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -129,13 +129,13 @@ export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
     // Verify card exists
     const card = await catalog.cardById(id);
     if (!card) {
-      throw new AppError(404, "NOT_FOUND", "Card not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
     }
 
     // Check for duplicate active ban
     const existing = await cardBans.findActiveBan(id, formatId);
     if (existing) {
-      throw new AppError(409, "CONFLICT", `Card is already banned in ${formatId}`);
+      throw new AppError(409, ERROR_CODES.CONFLICT, `Card is already banned in ${formatId}`);
     }
 
     const row = await cardBans.create({
@@ -178,7 +178,7 @@ export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const row = await cardBans.update(id, formatId, fields);
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", `No active ban found for format ${formatId}`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `No active ban found for format ${formatId}`);
     }
 
     return c.json({
@@ -203,7 +203,7 @@ export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const removed = await cardBans.unban(id, formatId);
     if (!removed) {
-      throw new AppError(404, "NOT_FOUND", `No active ban found for format ${formatId}`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `No active ban found for format ${formatId}`);
     }
 
     return c.body(null, 204);

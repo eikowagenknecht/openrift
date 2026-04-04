@@ -28,13 +28,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  useCheckProvider,
-  useDeleteProvider,
-  useProviderNames,
-  useProviderStats,
-  useUploadCandidates,
-} from "@/hooks/use-admin-cards";
+import { useCheckProvider, useDeleteProvider } from "@/hooks/use-admin-card-mutations";
+import { useProviderNames, useProviderStats } from "@/hooks/use-admin-card-queries";
+import { useUploadCandidates } from "@/hooks/use-admin-image-mutations";
 import {
   useReorderProviderSettings,
   useProviderSettings,

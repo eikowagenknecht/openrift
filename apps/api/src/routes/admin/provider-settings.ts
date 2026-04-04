@@ -3,7 +3,7 @@ import type { ProviderSettingResponse } from "@openrift/shared";
 import { providerParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ export const adminProviderSettingsRoute = new OpenAPIHono<{ Variables: Variables
 
     const uniqueProviders = new Set(providers);
     if (uniqueProviders.size !== providers.length) {
-      throw new AppError(400, "BAD_REQUEST", "Duplicate providers in reorder list");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate providers in reorder list");
     }
 
     await repo.reorder(providers);

@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 
 import type { Repos } from "../deps.js";
-import { AppError } from "../errors.js";
+import { AppError, ERROR_CODES } from "../errors.js";
 import type { Variables } from "../types.js";
 
 const ADMIN_CACHE_TTL = 30_000; // 30 seconds
@@ -27,11 +27,11 @@ async function isAdmin(repos: Repos, userId: string): Promise<boolean> {
 export const requireAdmin: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
   const user = c.get("user");
   if (!user) {
-    throw new AppError(401, "UNAUTHORIZED", "Unauthorized");
+    throw new AppError(401, ERROR_CODES.UNAUTHORIZED, "Unauthorized");
   }
 
   if (!(await isAdmin(c.get("repos"), user.id))) {
-    throw new AppError(403, "FORBIDDEN", "Forbidden");
+    throw new AppError(403, ERROR_CODES.FORBIDDEN, "Forbidden");
   }
 
   await next();

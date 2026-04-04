@@ -1,4 +1,4 @@
-import { AppError } from "./errors.js";
+import { AppError, ERROR_CODES } from "./errors.js";
 
 export type FieldMapping = Record<string, string | ((value: unknown) => [string, unknown])>;
 
@@ -27,7 +27,7 @@ export function buildPatchUpdates(
   }
 
   if (Object.keys(updates).length === 0) {
-    throw new AppError(400, "BAD_REQUEST", "No fields to update");
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
   }
 
   return updates;

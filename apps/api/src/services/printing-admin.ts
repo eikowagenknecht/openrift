@@ -2,7 +2,7 @@ import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { RARITY_ORDER } from "@openrift/shared/types";
 
 import type { Transact } from "../deps.js";
-import { AppError } from "../errors.js";
+import { AppError, ERROR_CODES } from "../errors.js";
 import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
@@ -31,13 +31,13 @@ export async function updatePrintingPromoType(
   const printing = await repos.candidateMutations.getPrintingById(printingId);
 
   if (!printing) {
-    throw new AppError(404, "NOT_FOUND", "Printing not found");
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
   }
 
   if (newPromoTypeId) {
     const pt = await repos.promoTypes.getById(newPromoTypeId);
     if (!pt) {
-      throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid promoTypeId");
     }
   }
 
@@ -71,7 +71,7 @@ export async function deletePrinting(
   const printing = await mut.getPrintingById(printingId);
 
   if (!printing) {
-    throw new AppError(404, "NOT_FOUND", "Printing not found");
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
   }
 
   const deletedImages = await transact(async (trxRepos) => {
@@ -138,23 +138,27 @@ export async function acceptPrinting(
   candidatePrintingIds: string[],
 ): Promise<string> {
   if (candidatePrintingIds.length === 0) {
-    throw new AppError(400, "BAD_REQUEST", "printingFields and candidatePrintingIds[] required");
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      "printingFields and candidatePrintingIds[] required",
+    );
   }
   if (!printingFields.setId) {
-    throw new AppError(400, "BAD_REQUEST", "printingFields.setId is required");
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "printingFields.setId is required");
   }
 
   const mut = repos.candidateMutations;
 
   const card = await mut.getCardIdBySlug(cardSlug);
   if (!card) {
-    throw new AppError(404, "NOT_FOUND", "Card not found");
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
   }
 
   if (printingFields.promoTypeId) {
     const pt = await repos.promoTypes.getById(printingFields.promoTypeId);
     if (!pt) {
-      throw new AppError(400, "BAD_REQUEST", "Invalid promoTypeId");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid promoTypeId");
     }
   }
 
