@@ -4,7 +4,7 @@ import { CollectionGrid } from "@/components/collection/collection-grid";
 import { CollectionPending } from "@/components/collection/collection-pending";
 import { RouteErrorFallback } from "@/components/error-message";
 import { catalogQueryOptions } from "@/hooks/use-cards";
-import { collectionsQueryOptions, useCollections } from "@/hooks/use-collections";
+import { collectionsQueryOptions, useCollectionsMap } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
 
 import { useCollectionTitle } from "./route";
@@ -24,8 +24,8 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
 
 function CollectionDetail() {
   const { collectionId } = Route.useParams();
-  const { data: collections } = useCollections();
-  const collection = collections.find((col) => col.id === collectionId);
+  const collectionsMap = useCollectionsMap();
+  const collection = collectionsMap.get(collectionId);
   useCollectionTitle(collection?.name ?? "Collection");
   return <CollectionGrid collectionId={collectionId} />;
 }
