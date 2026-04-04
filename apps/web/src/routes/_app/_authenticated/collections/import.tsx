@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { sortCards } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
@@ -15,9 +15,10 @@ import {
   UploadIcon,
   XCircleIcon,
 } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import { PrintingSearch, formatImportPrintingLabel } from "@/components/printing-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,28 +32,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { catalogQueryOptions, useCards } from "@/hooks/use-cards";
-import {
-  collectionsQueryOptions,
-  useCollections,
-  useCreateCollection,
-} from "@/hooks/use-collections";
-import { copiesQueryOptions, useAddCopies } from "@/hooks/use-copies";
-import { useDebounce } from "@/hooks/use-debounce";
+import { collectionsQueryOptions, useCollections } from "@/hooks/use-collections";
+import { copiesQueryOptions } from "@/hooks/use-copies";
+import { useImportFlow } from "@/hooks/use-import-flow";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
-import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
-import { matchEntries } from "@/lib/import-matcher";
-import { parseImportData } from "@/lib/import-parsers";
 import { cn } from "@/lib/utils";
 
 import { useCollectionTitle } from "./route";
-
-const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
-  exact: 0,
-  ambiguous: 1,
-  fuzzy: 2,
-  unresolved: 3,
-};
 
 export const Route = createFileRoute("/_app/_authenticated/collections/import")({
   loader: async ({ context }) => {
@@ -64,184 +51,23 @@ export const Route = createFileRoute("/_app/_authenticated/collections/import")(
   component: ImportExportPage,
 });
 
-type ImportStep = "input" | "preview";
-
 function ImportExportPage() {
   useCollectionTitle("Import / Export");
 
-  const { allPrintings } = useCards();
   const { data: collections } = useCollections();
-  const addCopies = useAddCopies();
-  const createCollection = useCreateCollection();
-  const navigate = useNavigate();
+  const flow = useImportFlow();
 
-  const [step, setStep] = useState<ImportStep>("input");
-  const [rawText, setRawText] = useState("");
-  const [matchedEntries, setMatchedEntries] = useState<MatchedEntry[]>([]);
-  const [parseErrors, setParseErrors] = useState<string[]>([]);
-  const [collectionId, setCollectionId] = useState<string>("");
-  const [newCollectionName, setNewCollectionName] = useState("");
-  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
-  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
-  const [rowCount, setRowCount] = useState(0);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleParse = (text: string) => {
-    const { entries, errors, rowCount: parsedRowCount } = parseImportData(text);
-    setRowCount(parsedRowCount);
-    setParseErrors(errors);
-
-    if (entries.length === 0) {
-      return;
-    }
-
-    const matched = matchEntries(entries, allPrintings);
-    const sorted = matched.toSorted(
-      (entryA, entryB) => STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status],
-    );
-    setMatchedEntries(sorted);
-    setSkippedIndices(new Set());
-
-    // Auto-expand non-exact entries so the user sees details that need attention
-    const nonExact = new Set<number>();
-    for (let index = 0; index < sorted.length; index++) {
-      if (sorted[index].status !== "exact") {
-        nonExact.add(index);
-      }
-    }
-    setExpandedIndices(nonExact);
-
-    setStep("preview");
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const text = await file.text();
-    setRawText(text);
-    handleParse(text);
-    // Reset file input so the same file can be re-selected
-    if (fileRef.current) {
-      fileRef.current.value = "";
-    }
-  };
-
-  const handleResolve = (index: number, printing: Printing) => {
-    setMatchedEntries((prev) =>
-      prev.map((entry, entryIndex) =>
-        entryIndex === index
-          ? { ...entry, resolvedPrinting: printing, status: "exact" as MatchStatus }
-          : entry,
-      ),
-    );
-  };
-
-  const handleSkip = (index: number) => {
-    setSkippedIndices((prev) => new Set([...prev, index]));
-  };
-
-  const handleUnskip = (index: number) => {
-    setSkippedIndices((prev) => {
-      const next = new Set(prev);
-      next.delete(index);
-      return next;
-    });
-  };
-
-  const handleToggleExpand = (index: number) => {
-    setExpandedIndices((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
-  const readyEntries = matchedEntries.filter(
-    (entry, index) => entry.resolvedPrinting && !skippedIndices.has(index),
-  );
-  const needsAttention = matchedEntries.filter(
-    (entry, index) => !entry.resolvedPrinting && !skippedIndices.has(index),
-  );
-  const skippedCount = skippedIndices.size;
-  const totalCards = readyEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
-
-  const handleImport = async () => {
-    let targetCollectionId = collectionId;
-
-    // Create new collection if needed
-    if (targetCollectionId === "__new__") {
-      const trimmed = newCollectionName.trim();
-      if (!trimmed) {
-        toast.error("Please enter a collection name.");
-        return;
-      }
-      setIsCreatingCollection(true);
-      try {
-        const result = await createCollection.mutateAsync({ name: trimmed });
-        targetCollectionId = result.id;
-      } catch {
-        toast.error("Failed to create collection.");
-        setIsCreatingCollection(false);
-        return;
-      }
-      setIsCreatingCollection(false);
-    }
-
-    if (!targetCollectionId || targetCollectionId === "__new__") {
-      toast.error("Please select a target collection.");
-      return;
-    }
-
-    setIsImporting(true);
-
-    // Build copies payload — expand quantities into individual entries
-    const copies: { printingId: string; collectionId: string }[] = [];
-    for (const entry of readyEntries) {
-      for (let count = 0; count < entry.entry.quantity; count++) {
-        copies.push({
-          printingId: entry.resolvedPrinting?.id ?? "",
-          collectionId: targetCollectionId,
-        });
-      }
-    }
-
-    // Batch in groups of 500
-    const batchSize = 500;
-    try {
-      for (let offset = 0; offset < copies.length; offset += batchSize) {
-        const batch = copies.slice(offset, offset + batchSize);
-        await addCopies.mutateAsync({ copies: batch });
-      }
-      toast.success(`Imported ${totalCards} ${totalCards === 1 ? "copy" : "copies"}.`);
-      navigate({
-        to: "/collections/$collectionId",
-        params: { collectionId: targetCollectionId },
-      });
-    } catch {
-      toast.error("Import failed. Some cards may have been added.");
-      setIsImporting(false);
-    }
-  };
-
-  if (step === "input") {
+  if (flow.step === "input") {
     return (
       <div className="space-y-10">
         <ExportSection />
         <InputStep
-          rawText={rawText}
-          onTextChange={setRawText}
-          onParse={handleParse}
-          onFileUpload={handleFileUpload}
-          fileRef={fileRef}
-          parseErrors={parseErrors}
+          rawText={flow.rawText}
+          onTextChange={flow.handleRawTextChange}
+          onParse={flow.handleParse}
+          onFileUpload={flow.handleFileUpload}
+          fileRef={flow.fileRef}
+          parseErrors={flow.parseErrors}
         />
       </div>
     );
@@ -249,28 +75,28 @@ function ImportExportPage() {
 
   return (
     <PreviewStep
-      matchedEntries={matchedEntries}
-      allPrintings={allPrintings}
-      rowCount={rowCount}
-      parseErrors={parseErrors}
-      skippedIndices={skippedIndices}
-      expandedIndices={expandedIndices}
+      matchedEntries={flow.matchedEntries}
+      allPrintings={flow.allPrintings}
+      rowCount={flow.rowCount}
+      parseErrors={flow.parseErrors}
+      skippedIndices={flow.skippedIndices}
+      expandedIndices={flow.expandedIndices}
       collections={collections ?? []}
-      collectionId={collectionId}
-      newCollectionName={newCollectionName}
-      readyCount={readyEntries.length}
-      needsAttentionCount={needsAttention.length}
-      skippedCount={skippedCount}
-      totalCards={totalCards}
-      isImporting={isImporting || isCreatingCollection}
-      onResolve={handleResolve}
-      onSkip={handleSkip}
-      onUnskip={handleUnskip}
-      onToggleExpand={handleToggleExpand}
-      onCollectionChange={setCollectionId}
-      onNewCollectionNameChange={setNewCollectionName}
-      onImport={handleImport}
-      onBack={() => setStep("input")}
+      collectionId={flow.collectionId}
+      newCollectionName={flow.newCollectionName}
+      readyCount={flow.readyCount}
+      needsAttentionCount={flow.needsAttentionCount}
+      skippedCount={flow.skippedCount}
+      totalCards={flow.totalCards}
+      isImporting={flow.isImporting}
+      onResolve={flow.handleResolve}
+      onSkip={flow.handleSkip}
+      onUnskip={flow.handleUnskip}
+      onToggleExpand={flow.handleToggleExpand}
+      onCollectionChange={flow.handleCollectionChange}
+      onNewCollectionNameChange={flow.handleNewCollectionNameChange}
+      onImport={flow.handleImport}
+      onBack={flow.handleBack}
     />
   );
 }
@@ -830,14 +656,6 @@ function formatEntrySpecialties(entry: MatchedEntry): string | null {
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-function formatImportPrintingLabel(printing: Printing): string {
-  const label = formatPrintingLabel(printing);
-  if (label === "Standard") {
-    return formatCardId(printing);
-  }
-  return `${formatCardId(printing)} · ${label}`;
-}
-
 function VariantPicker({
   candidates,
   resolved,
@@ -871,153 +689,5 @@ function VariantPicker({
         ))}
       </SelectContent>
     </Select>
-  );
-}
-
-function PrintingSearch({
-  allPrintings,
-  onSelect,
-}: {
-  allPrintings: Printing[];
-  onSelect: (printing: Printing) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const [showResults, setShowResults] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const listboxId = useId();
-  const debouncedSearch = useDebounce(search, 150);
-
-  const results =
-    debouncedSearch.length >= 2
-      ? allPrintings
-          .filter((printing) => {
-            const query = debouncedSearch.toLowerCase();
-            return (
-              printing.card.name.toLowerCase().includes(query) ||
-              printing.shortCode.toLowerCase().includes(query)
-            );
-          })
-          .slice(0, 20)
-      : [];
-
-  const visible = showResults && search.length >= 2;
-  const activeOptionId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
-
-  function scrollActiveIntoView(index: number) {
-    const item = listRef.current?.children[index] as HTMLElement | undefined;
-    if (item) {
-      item.scrollIntoView({ block: "nearest" });
-    }
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent) {
-    if (!visible || results.length === 0) {
-      return;
-    }
-
-    switch (event.key) {
-      case "ArrowDown": {
-        event.preventDefault();
-        const next = activeIndex < results.length - 1 ? activeIndex + 1 : 0;
-        setActiveIndex(next);
-        scrollActiveIntoView(next);
-        break;
-      }
-      case "ArrowUp": {
-        event.preventDefault();
-        const prev = activeIndex > 0 ? activeIndex - 1 : results.length - 1;
-        setActiveIndex(prev);
-        scrollActiveIntoView(prev);
-        break;
-      }
-      case "Enter": {
-        event.preventDefault();
-        if (activeIndex >= 0 && activeIndex < results.length) {
-          onSelect(results[activeIndex]);
-          setShowResults(false);
-          setActiveIndex(-1);
-        }
-        break;
-      }
-      case "Escape": {
-        event.preventDefault();
-        setShowResults(false);
-        setActiveIndex(-1);
-        break;
-      }
-    }
-  }
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <input
-        role="combobox"
-        aria-expanded={visible && results.length > 0}
-        aria-controls={listboxId}
-        aria-activedescendant={activeOptionId}
-        aria-autocomplete="list"
-        placeholder="Search catalog..."
-        value={search}
-        onChange={(event) => {
-          setSearch(event.target.value);
-          setShowResults(true);
-          setActiveIndex(-1);
-        }}
-        onFocus={() => setShowResults(true)}
-        onBlur={(event) => {
-          if (!containerRef.current?.contains(event.relatedTarget)) {
-            setShowResults(false);
-            setActiveIndex(-1);
-          }
-        }}
-        onKeyDown={handleKeyDown}
-        className="border-input bg-background placeholder:text-muted-foreground focus:ring-ring h-7 w-44 rounded-md border px-2 text-xs focus:ring-1 focus:outline-none"
-      />
-      {visible && results.length > 0 && (
-        <div
-          ref={listRef}
-          id={listboxId}
-          role="listbox"
-          className="bg-popover absolute top-full right-0 z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
-        >
-          {results.map((printing, index) => (
-            <button
-              key={printing.id}
-              id={`${listboxId}-option-${index}`}
-              role="option"
-              aria-selected={index === activeIndex}
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs",
-                index === activeIndex ? "bg-muted" : "hover:bg-muted",
-              )}
-              onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => {
-                onSelect(printing);
-                setShowResults(false);
-                setActiveIndex(-1);
-              }}
-            >
-              <span className="truncate font-medium">{printing.card.name}</span>
-              <span className="text-muted-foreground shrink-0">
-                {formatImportPrintingLabel(printing)}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-      {visible && results.length === 0 && (
-        <div
-          id={listboxId}
-          role="listbox"
-          className="bg-popover absolute top-full right-0 z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
-        >
-          <p className="text-muted-foreground text-xs">No matching cards</p>
-        </div>
-      )}
-    </div>
   );
 }
