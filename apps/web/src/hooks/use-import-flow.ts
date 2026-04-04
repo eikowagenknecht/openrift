@@ -17,7 +17,7 @@ const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
   unresolved: 3,
 };
 
-export type ImportStep = "input" | "preview";
+type ImportStep = "input" | "preview";
 
 /**
  * Manages all state and handlers for the import flow: parsing, matching,
