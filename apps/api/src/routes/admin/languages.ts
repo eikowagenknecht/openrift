@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+import { assertFound } from "../../utils/assertions.js";
 import {
   codeParamSchema,
   createLanguageSchema,
@@ -182,9 +183,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const body = c.req.valid("json");
 
     const existing = await repo.getByCode(code);
-    if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Language not found`);
-    }
+    assertFound(existing, `Language not found`);
 
     await repo.update(code, body);
 
@@ -198,9 +197,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { code } = c.req.valid("param");
 
     const existing = await repo.getByCode(code);
-    if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Language not found`);
-    }
+    assertFound(existing, `Language not found`);
 
     const inUse = await repo.isInUse(code);
     if (inUse) {

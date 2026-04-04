@@ -15,6 +15,7 @@ import {
   rehostSingleImage,
 } from "../../../services/image-rehost.js";
 import type { Variables } from "../../../types.js";
+import { assertFound } from "../../../utils/assertions.js";
 import {
   activateImageSchema,
   addImageUrlSchema,
@@ -132,10 +133,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { mode } = c.req.valid("json");
 
     const ps = await printingImages.getCandidatePrintingById(id);
-
-    if (!ps) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate printing not found");
-    }
+    assertFound(ps, "Candidate printing not found");
 
     if (!ps.printingId) {
       throw new AppError(
@@ -174,10 +172,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { imageId } = c.req.valid("param");
 
     const image = await printingImages.getIdAndRehostedUrl(imageId);
-
-    if (!image) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
-    }
+    assertFound(image, "Printing image not found");
 
     // Check if another image shares the same rehosted files before deleting
     const othersUsingFiles = image.rehostedUrl
@@ -201,10 +196,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { active } = c.req.valid("json");
 
     const image = await printingImages.getForActivate(imageId);
-
-    if (!image) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
-    }
+    assertFound(image, "Printing image not found");
 
     await transact(async (trxRepos) => {
       if (active) {
@@ -224,10 +216,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { imageId } = c.req.valid("param");
 
     const image = await printingImages.getIdAndUrls(imageId);
-
-    if (!image) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
-    }
+    assertFound(image, "Printing image not found");
 
     if (!image.rehostedUrl) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image is not rehosted");
@@ -261,10 +250,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { imageId } = c.req.valid("param");
 
     const image = await printingImages.getForRehost(imageId);
-
-    if (!image) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing image not found");
-    }
+    assertFound(image, "Printing image not found");
 
     if (!image.originalUrl) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no original URL to rehost");
@@ -293,9 +279,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     const printing = await printingImages.getPrintingById(printingId);
-    if (!printing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
-    }
+    assertFound(printing, "Printing not found");
 
     const mode = body.mode ?? "main";
     const provider = body.provider?.trim() || "manual";
@@ -313,10 +297,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const printingId = c.req.valid("param").printingId;
 
     const printing = await printingImages.getPrintingWithSetById(printingId);
-
-    if (!printing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
-    }
+    assertFound(printing, "Printing not found");
 
     const body = c.req.valid("form");
     const file = body.file;
