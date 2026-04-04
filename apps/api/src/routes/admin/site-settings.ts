@@ -3,7 +3,7 @@ import type { SiteSettingResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ export const adminSiteSettingsRoute = new OpenAPIHono<{ Variables: Variables }>(
       scope: scope ?? "web",
     });
     if (!created) {
-      throw new AppError(409, "CONFLICT", `Setting "${key}" already exists`);
+      throw new AppError(409, ERROR_CODES.CONFLICT, `Setting "${key}" already exists`);
     }
 
     return c.body(null, 201);
@@ -133,7 +133,7 @@ export const adminSiteSettingsRoute = new OpenAPIHono<{ Variables: Variables }>(
 
     const updated = await siteSettings.update(key, body);
     if (!updated) {
-      throw new AppError(404, "NOT_FOUND", `Setting "${key}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Setting "${key}" not found`);
     }
 
     return c.body(null, 204);
@@ -145,7 +145,7 @@ export const adminSiteSettingsRoute = new OpenAPIHono<{ Variables: Variables }>(
 
     const result = await siteSettings.deleteByKey(key);
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", `Setting "${key}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Setting "${key}" not found`);
     }
 
     return c.body(null, 204);

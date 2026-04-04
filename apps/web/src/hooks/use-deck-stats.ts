@@ -36,6 +36,9 @@ interface DeckStats {
 // Stats cover only main deck cards (champion counts toward main)
 const MAIN_ZONES = new Set(["main", "champion"]);
 
+// Types with dedicated zones are excluded from the type breakdown chart
+const EXCLUDED_CARD_TYPES = new Set(["Legend", "Rune", "Battlefield"]);
+
 /**
  * Builds a domain combo key from a card's domains, sorted by DOMAIN_ORDER.
  * @returns A stable string key like "Fire" or "Fire+Water".
@@ -173,11 +176,10 @@ export function useDeckStats(): DeckStats {
   }
 
   // Type breakdown — exclude types with dedicated zones, stacked by domain color
-  const excludedTypes = new Set(["Legend", "Rune", "Battlefield"]);
   const typeByDomain = new Map<string, Map<Domain, number>>();
   const typeTotal = new Map<string, number>();
   for (const card of mainCards) {
-    if (excludedTypes.has(card.cardType)) {
+    if (EXCLUDED_CARD_TYPES.has(card.cardType)) {
       continue;
     }
     let domainMap = typeByDomain.get(card.cardType);

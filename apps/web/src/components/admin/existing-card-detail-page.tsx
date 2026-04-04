@@ -49,16 +49,18 @@ import {
   useAcceptCardField,
   useAcceptPrintingField,
   useAcceptPrintingGroup,
-  useAdminCardDetail,
-  useAllCards,
   useCheckAllCandidateCards,
   useCopyCandidatePrinting,
   useDeleteCandidatePrinting,
   useDeletePrinting,
   useLinkCandidatePrintings,
-  useNextUncheckedCard,
   useRenameCard,
-} from "@/hooks/use-admin-cards";
+} from "@/hooks/use-admin-card-mutations";
+import {
+  useAdminCardDetail,
+  useAllCards,
+  useNextUncheckedCard,
+} from "@/hooks/use-admin-card-queries";
 import { cn } from "@/lib/utils";
 
 export function ExistingCardDetailPage({ identifier }: { identifier: string }) {

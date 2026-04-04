@@ -13,7 +13,7 @@ import {
   useCheckCandidatePrinting,
   useUncheckCandidateCard,
   useUncheckCandidatePrinting,
-} from "@/hooks/use-admin-cards";
+} from "@/hooks/use-admin-card-mutations";
 import { useDistinctArtists } from "@/hooks/use-distinct-artists";
 import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
 import { useLanguages } from "@/hooks/use-languages";

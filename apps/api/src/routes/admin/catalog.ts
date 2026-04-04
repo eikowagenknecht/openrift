@@ -4,7 +4,7 @@ import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { setFieldRules } from "../../db/schemas.js";
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const updated = await setsRepo.update(id, { name, printedTotal, releasedAt });
     if (!updated) {
-      throw new AppError(404, "NOT_FOUND", `Set "${id}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set "${id}" not found`);
     }
 
     return c.body(null, 204);
@@ -162,7 +162,7 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const setId = await setsRepo.createIfNotExists({ slug: id, name, printedTotal, releasedAt });
     if (!setId) {
-      throw new AppError(409, "CONFLICT", `Set with ID "${id}" already exists`);
+      throw new AppError(409, ERROR_CODES.CONFLICT, `Set with ID "${id}" already exists`);
     }
 
     return c.json({ id: setId }, 201);
@@ -194,7 +194,7 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const uniqueIds = new Set(ids);
     if (uniqueIds.size !== ids.length) {
-      throw new AppError(400, "BAD_REQUEST", "Duplicate set IDs in reorder list.");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate set IDs in reorder list.");
     }
 
     const allSets = await setsRepo.listAll();
@@ -209,7 +209,7 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
     const knownIds = new Set(allSets.map((s) => s.id));
     const unknown = ids.filter((id) => !knownIds.has(id));
     if (unknown.length > 0) {
-      throw new AppError(400, "BAD_REQUEST", `Unknown set IDs: ${unknown.join(", ")}`);
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown set IDs: ${unknown.join(", ")}`);
     }
 
     await setsRepo.reorder(ids);

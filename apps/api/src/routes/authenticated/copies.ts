@@ -19,7 +19,7 @@ import {
   moveCopiesSchema,
 } from "@openrift/shared/schemas";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import type { Variables } from "../../types.js";
@@ -200,7 +200,7 @@ export const copiesRoute = copiesApp
     const { id } = c.req.valid("param");
     const copy = await copies.getByIdForUser(id, getUserId(c));
     if (!copy) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.json(toCopy(copy));
   });

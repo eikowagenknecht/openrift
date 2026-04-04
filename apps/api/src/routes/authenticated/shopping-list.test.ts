@@ -73,7 +73,7 @@ describe("GET /api/v1/shopping-list", () => {
   });
 
   it("propagates service errors", async () => {
-    mockBuildShoppingList.mockRejectedValue(new AppError(500, "INTERNAL", "DB error"));
+    mockBuildShoppingList.mockRejectedValue(new AppError(500, "INTERNAL_ERROR", "DB error"));
     const res = await app.request("/api/v1/shopping-list");
     expect(res.status).toBe(500);
   });

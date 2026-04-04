@@ -34,11 +34,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useAcceptNewCard,
-  useAllCards,
   useLinkCard,
   useReassignCandidatePrinting,
-  useUnmatchedCardDetail,
-} from "@/hooks/use-admin-cards";
+} from "@/hooks/use-admin-card-mutations";
+import { useAllCards, useUnmatchedCardDetail } from "@/hooks/use-admin-card-queries";
 
 export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const navigate = useNavigate();

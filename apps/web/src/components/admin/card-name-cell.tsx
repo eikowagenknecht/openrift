@@ -5,7 +5,7 @@ import { ImagePlusIcon, LinkIcon, LoaderIcon } from "lucide-react";
 
 import { AssignButton } from "@/components/admin/assign-button";
 import { Button } from "@/components/ui/button";
-import type { useAcceptGallery, useLinkCard } from "@/hooks/use-admin-cards";
+import type { useAcceptGallery, useLinkCard } from "@/hooks/use-admin-card-mutations";
 
 export interface CardNameCellMeta {
   linkCard: ReturnType<typeof useLinkCard>;

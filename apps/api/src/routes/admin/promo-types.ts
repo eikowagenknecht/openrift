@@ -3,7 +3,7 @@ import type { PromoTypeResponse } from "@openrift/shared";
 import { slugParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const existing = await repo.getBySlug(slug);
     if (existing) {
-      throw new AppError(409, "CONFLICT", `Promo type "${slug}" already exists`);
+      throw new AppError(409, ERROR_CODES.CONFLICT, `Promo type "${slug}" already exists`);
     }
 
     const created = await repo.create({ slug, label });
@@ -151,13 +151,13 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const existing = await repo.getById(id);
     if (!existing) {
-      throw new AppError(404, "NOT_FOUND", `Promo type not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Promo type not found`);
     }
 
     if (body.slug !== undefined && body.slug !== existing.slug) {
       const conflict = await repo.getBySlug(body.slug);
       if (conflict) {
-        throw new AppError(409, "CONFLICT", `Slug "${body.slug}" already in use`);
+        throw new AppError(409, ERROR_CODES.CONFLICT, `Slug "${body.slug}" already in use`);
       }
     }
 
@@ -174,7 +174,7 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const existing = await repo.getById(id);
     if (!existing) {
-      throw new AppError(404, "NOT_FOUND", `Promo type not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Promo type not found`);
     }
 
     const inUse = await repo.isInUse(id);

@@ -28,7 +28,7 @@ import {
 } from "@openrift/shared/schemas";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
@@ -229,7 +229,7 @@ export const decksRoute = decksApp
       userPreferences.getByUserId(userId),
     ]);
     if (!deck) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     const favMarketplace =
@@ -253,7 +253,7 @@ export const decksRoute = decksApp
     const updates = buildPatchUpdates(body, patchFields);
     const row = await decks.update(id, userId, updates);
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.json(toDeck(row));
   })
@@ -264,7 +264,7 @@ export const decksRoute = decksApp
     const { id } = c.req.valid("param");
     const result = await decks.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.body(null, 204);
   })
@@ -280,7 +280,7 @@ export const decksRoute = decksApp
     // Verify deck belongs to user
     const deck = await decks.getIdAndFormat(id, userId);
     if (!deck) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     // Save the cards first, then validate the full deck with card details
@@ -299,7 +299,7 @@ export const decksRoute = decksApp
 
     const newDeck = await decks.cloneDeck(id, userId);
     if (!newDeck) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     return c.json(toDeck(newDeck), 201);
@@ -314,7 +314,7 @@ export const decksRoute = decksApp
 
     const deck = await decks.exists(id, userId);
     if (!deck) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     const deckCards = await decks.cardRequirements(id);
@@ -353,7 +353,7 @@ export const decksRoute = decksApp
       decks.cardsWithDetails(id, userId),
     ]);
     if (!deck) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     const cardIds = [...new Set(cardRows.map((row) => row.cardId))];
@@ -438,7 +438,7 @@ export const decksRoute = decksApp
     try {
       decoded = format === "tts" ? decodeTTS(body.code) : piltoverCodec.decode(body.code);
     } catch {
-      throw new AppError(400, "INVALID_DECK_CODE", "Invalid or unsupported deck code");
+      throw new AppError(400, ERROR_CODES.INVALID_DECK_CODE, "Invalid or unsupported deck code");
     }
 
     const shortCodes = decoded.cards.map((card) => card.cardCode);

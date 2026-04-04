@@ -26,7 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAcceptGallery, useAllCards, useLinkCard } from "@/hooks/use-admin-cards";
+import { useAcceptGallery, useLinkCard } from "@/hooks/use-admin-card-mutations";
+import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------

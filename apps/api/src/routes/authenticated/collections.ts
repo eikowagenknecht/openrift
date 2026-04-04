@@ -13,7 +13,7 @@ import {
 } from "@openrift/shared/schemas";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
@@ -157,7 +157,7 @@ export const collectionsRoute = collectionsApp
     const { id } = c.req.valid("param");
     const row = await collections.getByIdForUser(id, userId);
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     const prefs = await userPreferences.getByUserId(userId);
     const favMarketplace =
@@ -175,7 +175,7 @@ export const collectionsRoute = collectionsApp
     const updates = buildPatchUpdates(body, patchFields);
     const row = await collections.update(id, userId, updates);
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.json(toCollection(row));
   })
@@ -192,11 +192,11 @@ export const collectionsRoute = collectionsApp
     const collection = await repos.collections.getByIdForUser(id, userId);
 
     if (!collection) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     if (collection.isInbox) {
-      throw new AppError(400, "BAD_REQUEST", "Cannot delete inbox collection");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Cannot delete inbox collection");
     }
 
     const inboxId = await ensureInbox(repos, userId);
@@ -222,7 +222,7 @@ export const collectionsRoute = collectionsApp
     // Verify collection belongs to user
     const collection = await collections.exists(id, userId);
     if (!collection) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
 
     const rows = await copies.listForCollection(id, limit, cursor);

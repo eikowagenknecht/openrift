@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { LanguageResponse } from "@openrift/shared";
 import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const uniqueCodes = new Set(codes);
     if (uniqueCodes.size !== codes.length) {
-      throw new AppError(400, "BAD_REQUEST", "Duplicate language codes in reorder list.");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate language codes in reorder list.");
     }
 
     const allLangs = await repo.listAll();
@@ -161,7 +161,11 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const knownCodes = new Set(allLangs.map((lang) => lang.code));
     const unknown = codes.filter((code) => !knownCodes.has(code));
     if (unknown.length > 0) {
-      throw new AppError(400, "BAD_REQUEST", `Unknown language codes: ${unknown.join(", ")}`);
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `Unknown language codes: ${unknown.join(", ")}`,
+      );
     }
 
     await repo.reorder(codes);
@@ -176,7 +180,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const existing = await repo.getByCode(code);
     if (existing) {
-      throw new AppError(409, "CONFLICT", `Language "${code}" already exists`);
+      throw new AppError(409, ERROR_CODES.CONFLICT, `Language "${code}" already exists`);
     }
 
     const created = await repo.create({ code, name, sortOrder });
@@ -192,7 +196,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const existing = await repo.getByCode(code);
     if (!existing) {
-      throw new AppError(404, "NOT_FOUND", `Language not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Language not found`);
     }
 
     await repo.update(code, body);
@@ -208,7 +212,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const existing = await repo.getByCode(code);
     if (!existing) {
-      throw new AppError(404, "NOT_FOUND", `Language not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Language not found`);
     }
 
     const inUse = await repo.isInUse(code);

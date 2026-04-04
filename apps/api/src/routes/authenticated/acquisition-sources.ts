@@ -10,7 +10,7 @@ import {
   updateAcquisitionSourceSchema,
 } from "@openrift/shared/schemas";
 
-import { AppError } from "../../errors.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
@@ -119,7 +119,7 @@ export const acquisitionSourcesRoute = acquisitionSourcesApp
     const { id } = c.req.valid("param");
     const row = await acquisitionSources.getByIdForUser(id, getUserId(c));
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.json(toSource(row));
   })
@@ -133,7 +133,7 @@ export const acquisitionSourcesRoute = acquisitionSourcesApp
     const updates = buildPatchUpdates(body, patchFields);
     const row = await acquisitionSources.update(id, userId, updates);
     if (!row) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.json(toSource(row));
   })
@@ -144,7 +144,7 @@ export const acquisitionSourcesRoute = acquisitionSourcesApp
     const { id } = c.req.valid("param");
     const result = await acquisitionSources.deleteByIdForUser(id, getUserId(c));
     if (result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
     return c.body(null, 204);
   });

@@ -5,7 +5,7 @@ import { RARITY_ORDER } from "@openrift/shared/types";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { z } from "zod";
 
-import { AppError } from "../../../errors.js";
+import { AppError, ERROR_CODES } from "../../../errors.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
 import { appendSetTotal, fixTypography } from "../../../services/fix-typography.js";
 import {
@@ -393,7 +393,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await mut.checkCandidateCard(candidateCardId);
 
     if (!result || result.numUpdatedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Candidate card not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate card not found");
     }
 
     return c.body(null, 204);
@@ -407,7 +407,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await mut.uncheckCandidateCard(candidateCardId);
 
     if (!result || result.numUpdatedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Candidate card not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate card not found");
     }
 
     return c.body(null, 204);
@@ -433,7 +433,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await mut.checkCandidatePrinting(id);
 
     if (!result || result.numUpdatedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate printing not found");
     }
 
     return c.body(null, 204);
@@ -447,7 +447,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await mut.uncheckCandidatePrinting(id);
 
     if (!result || result.numUpdatedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate printing not found");
     }
 
     return c.body(null, 204);
@@ -462,7 +462,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     // Resolve slug -> card, then find candidates by name/alias
     const card = await mut.getCardBySlug(cardSlug);
     if (!card) {
-      throw new AppError(404, "NOT_FOUND", "Card not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
     }
 
     const cardNormName = normalizeNameForMatching(card.name);
@@ -500,13 +500,13 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     if (Object.keys(updates).length === 0) {
-      throw new AppError(400, "BAD_REQUEST", "No valid fields to update");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No valid fields to update");
     }
 
     const result = await mut.patchCandidatePrinting(id, updates);
 
     if (!result || result.numUpdatedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate printing not found");
     }
 
     return c.body(null, 204);
@@ -520,7 +520,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await mut.deleteCandidatePrinting(id);
 
     if (!result || result.numDeletedRows === 0n) {
-      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate printing not found");
     }
 
     return c.body(null, 204);
@@ -534,19 +534,19 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { printingId } = c.req.valid("json");
 
     if (!printingId) {
-      throw new AppError(400, "BAD_REQUEST", "printingId is required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "printingId is required");
     }
 
     const ps = await mut.getCandidatePrintingById(id);
 
     if (!ps) {
-      throw new AppError(404, "NOT_FOUND", "Candidate printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate printing not found");
     }
 
     const target = await mut.getPrintingDifferentiatorsById(printingId);
 
     if (!target) {
-      throw new AppError(404, "NOT_FOUND", "Target printing not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Target printing not found");
     }
 
     await mut.copyCandidatePrinting(ps, target);
@@ -561,7 +561,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { candidatePrintingIds, printingId } = c.req.valid("json");
 
     if (!Array.isArray(candidatePrintingIds) || candidatePrintingIds.length === 0) {
-      throw new AppError(400, "BAD_REQUEST", "candidatePrintingIds[] required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "candidatePrintingIds[] required");
     }
 
     await mut.linkCandidatePrintings(candidatePrintingIds, printingId);
@@ -581,7 +581,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { newId } = c.req.valid("json");
 
     if (!newId?.trim()) {
-      throw new AppError(400, "BAD_REQUEST", "newId is required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "newId is required");
     }
 
     if (newId === cardSlug) {
@@ -601,7 +601,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { field, value, source } = c.req.valid("json");
 
     if (!field) {
-      throw new AppError(400, "BAD_REQUEST", "field is required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "field is required");
     }
 
     const allowedFields = new Set([
@@ -620,7 +620,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     ]);
 
     if (!allowedFields.has(field)) {
-      throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Invalid field: ${field}`);
     }
 
     // Normalize null to empty array for array-typed fields (DB stores NOT NULL DEFAULT '{}')
@@ -652,7 +652,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (field === "rulesText" || field === "effectText") {
       const card = await mut.getCardTexts(cardSlug);
       if (!card) {
-        throw new AppError(404, "NOT_FOUND", "Card not found");
+        throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
       }
       const rulesText = field === "rulesText" ? (finalValue as string) : card.rulesText;
       const effectText = field === "effectText" ? (finalValue as string) : card.effectText;
@@ -679,7 +679,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { field, value, source } = c.req.valid("json");
 
     if (!field) {
-      throw new AppError(400, "BAD_REQUEST", "field is required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "field is required");
     }
 
     const allowedFields = new Set([
@@ -702,7 +702,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     ]);
 
     if (!allowedFields.has(field)) {
-      throw new AppError(400, "BAD_REQUEST", `Invalid field: ${field}`);
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Invalid field: ${field}`);
     }
 
     // Normalize enum fields that have DB check constraints (before validation
@@ -761,7 +761,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       const { sets } = c.get("repos");
       const setRow = await sets.getBySlug(normalizedValue as string);
       if (!setRow) {
-        throw new AppError(404, "NOT_FOUND", `Set not found: ${normalizedValue}`);
+        throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set not found: ${normalizedValue}`);
       }
       normalizedValue = setRow.id;
     }
@@ -794,7 +794,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { cardFields } = c.req.valid("json");
 
     if (!cardFields) {
-      throw new AppError(400, "BAD_REQUEST", "cardFields required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "cardFields required");
     }
 
     await c.get("transact")(async (trxRepos) => {
@@ -828,13 +828,13 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { cardId: cardSlug } = c.req.valid("json");
 
     if (!cardSlug) {
-      throw new AppError(400, "BAD_REQUEST", "cardId required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "cardId required");
     }
 
     const card = await mut.getCardIdBySlug(cardSlug);
 
     if (!card) {
-      throw new AppError(404, "NOT_FOUND", "Target card not found");
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Target card not found");
     }
 
     await c.get("transact")(async (trxRepos) => {
@@ -895,7 +895,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { candidateMutations: mut } = c.get("repos");
     const provider = decodeURIComponent(c.req.valid("param").provider);
     if (!provider.trim()) {
-      throw new AppError(400, "BAD_REQUEST", "Provider name is required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Provider name is required");
     }
 
     const result = await mut.checkByProvider(provider.trim(), new Date());
@@ -908,7 +908,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { candidateMutations: mut } = c.get("repos");
     const provider = decodeURIComponent(c.req.valid("param").provider);
     if (!provider.trim()) {
-      throw new AppError(400, "BAD_REQUEST", "Provider name is required");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Provider name is required");
     }
 
     const deleted = await mut.deleteByProvider(provider.trim());
