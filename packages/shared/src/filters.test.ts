@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters";
 import type { Card, CardFilters, Printing } from "./types";
-import { ALL_SEARCH_FIELDS, NONE } from "./types";
+import { NONE } from "./types";
 
 // ---------------------------------------------------------------------------
 // Helpers — build minimal Printing objects for testing
@@ -58,7 +58,7 @@ function makePrinting(
 function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
   return {
     search: "",
-    searchScope: ALL_SEARCH_FIELDS,
+    searchScope: ["name"],
     sets: [],
     rarities: [],
     types: [],
@@ -277,14 +277,8 @@ describe("filterCards", () => {
 
   // -- Search --
 
-  it("filters by bare search term using default scope (all fields)", () => {
+  it("filters by bare search term using default scope (name)", () => {
     const result = filterCards(printings, emptyFilters({ search: "dragon" }));
-    expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
-  });
-
-  it("bare search matches keywords when default scope includes all fields", () => {
-    const result = filterCards(printings, emptyFilters({ search: "shield" }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Fire Dragon");
   });
