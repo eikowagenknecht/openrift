@@ -30,6 +30,7 @@ export const useSearchScopeStore = create<SearchScopeState>()(
     }),
     {
       name: "openrift-search-scope",
+      version: 1,
       partialize: (state) => ({ scope: state.scope }),
       merge: (persisted, current) => {
         const raw = (persisted as Partial<SearchScopeState>)?.scope;
@@ -43,6 +44,15 @@ export const useSearchScopeStore = create<SearchScopeState>()(
           ...current,
           scope: valid.length > 0 ? valid : DEFAULT_SEARCH_SCOPE,
         };
+      },
+      migrate: (persisted) => {
+        const raw = (persisted as Partial<{ scope: SearchField[] }>)?.scope;
+        // The old default was ["name"]; upgrade it to all fields so existing
+        // users get the broader search experience. Custom scopes are preserved.
+        if (Array.isArray(raw) && raw.length === 1 && raw[0] === "name") {
+          return { scope: [...ALL_SEARCH_FIELDS] };
+        }
+        return persisted as { scope: SearchField[] };
       },
     },
   ),
