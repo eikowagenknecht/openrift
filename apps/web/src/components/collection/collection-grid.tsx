@@ -66,6 +66,32 @@ import { DraggableCard } from "./draggable-card";
 import { MoveDialog } from "./move-dialog";
 import { QuickAddPalette } from "./quick-add-palette";
 
+function AddedPill({
+  count,
+  active,
+  size,
+}: {
+  count: number;
+  active: boolean;
+  size: "desktop" | "mobile";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => useAddModeStore.getState().toggleAddedList()}
+      className={cn(
+        "rounded-full font-medium whitespace-nowrap transition-colors",
+        size === "desktop" ? "h-8 px-3 text-sm" : "px-2 py-0.5 text-xs",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "bg-primary/10 text-primary hover:bg-primary/20",
+      )}
+    >
+      {count} {count === 1 ? "card" : "cards"} added
+    </button>
+  );
+}
+
 interface CollectionGridProps {
   collectionId?: string;
 }
@@ -384,8 +410,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           );
   }
 
-  const allCopyIds = stacks.flatMap((stack) => stack.copyIds);
-
   // ── Drag preview printings (up to 3 unique printings from selection) ─
   const dragPreviewPrintings: Printing[] = [];
   if (mode === "select" && selected.size > 0) {
@@ -558,33 +582,11 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   );
 
   const addedPillDesktop = addedItems.size > 0 && (
-    <button
-      type="button"
-      onClick={() => useAddModeStore.getState().toggleAddedList()}
-      className={cn(
-        "h-8 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
-        showAddedList
-          ? "bg-primary text-primary-foreground"
-          : "bg-primary/10 text-primary hover:bg-primary/20",
-      )}
-    >
-      {totalAdded} {totalAdded === 1 ? "card" : "cards"} added
-    </button>
+    <AddedPill count={totalAdded} active={showAddedList} size="desktop" />
   );
 
   const addedPillMobile = addedItems.size > 0 && (
-    <button
-      type="button"
-      onClick={() => useAddModeStore.getState().toggleAddedList()}
-      className={cn(
-        "rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors",
-        showAddedList
-          ? "bg-primary text-primary-foreground"
-          : "bg-primary/10 text-primary hover:bg-primary/20",
-      )}
-    >
-      {totalAdded} {totalAdded === 1 ? "card" : "cards"} added
-    </button>
+    <AddedPill count={totalAdded} active={showAddedList} size="mobile" />
   );
 
   const toolbar = (
@@ -636,7 +638,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => toggleSelectAll(allCopyIds)}
+                        onClick={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
                       />
                     }
                   >
@@ -929,7 +931,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => toggleSelectAll(allCopyIds)}
+                          onClick={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
                         />
                       }
                     >
