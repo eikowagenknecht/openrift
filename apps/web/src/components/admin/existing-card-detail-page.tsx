@@ -56,6 +56,7 @@ import {
   useLinkCandidatePrintings,
   useRenameCard,
 } from "@/hooks/use-admin-card-mutations";
+import type { AcceptPrintingBody } from "@/hooks/use-admin-card-mutations";
 import {
   useAdminCardDetail,
   useAllCards,
@@ -759,7 +760,11 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
             onToggle={() => togglePrinting(group.groupKey)}
             onAccept={(printingFields, candidatePrintingIds) => {
               acceptPrintingGroup.mutate(
-                { cardId, printingFields, candidatePrintingIds },
+                {
+                  cardId,
+                  printingFields: printingFields as AcceptPrintingBody["printingFields"],
+                  candidatePrintingIds,
+                },
                 {
                   onSuccess: (data) => {
                     pendingScrollTarget.current = (data as { printingId: string }).printingId;

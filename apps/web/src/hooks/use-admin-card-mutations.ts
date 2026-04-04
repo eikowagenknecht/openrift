@@ -1,6 +1,16 @@
+import type { InferRequestType } from "hono/client";
+
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+export type AcceptNewCardBody = InferRequestType<
+  (typeof client.api.v1.admin.cards.new)[":name"]["accept"]["$post"]
+>["json"];
+
+export type AcceptPrintingBody = InferRequestType<
+  (typeof client.api.v1.admin.cards)[":cardId"]["accept-printing"]["$post"]
+>["json"];
 
 export function useCheckCandidateCard() {
   return useMutationWithInvalidation({
@@ -135,17 +145,16 @@ export function useAcceptPrintingField() {
 
 export function useAcceptNewCard() {
   return useMutationWithInvalidation({
-    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- admin sends dynamic card field data, validated by API
     mutationFn: async ({
       name,
       cardFields,
     }: {
       name: string;
-      cardFields: Record<string, unknown>;
+      cardFields: AcceptNewCardBody["cardFields"];
     }) => {
       const res = await client.api.v1.admin["cards"].new[":name"].accept.$post({
         param: { name },
-        json: { cardFields } as any,
+        json: { cardFields },
       });
       assertOk(res);
     },
@@ -242,14 +251,13 @@ export function useDeletePrinting() {
 
 export function useAcceptPrintingGroup() {
   return useMutationWithInvalidation({
-    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- admin sends dynamic printing field data, validated by API
     mutationFn: async ({
       cardId,
       printingFields,
       candidatePrintingIds,
     }: {
       cardId: string;
-      printingFields: Record<string, unknown>;
+      printingFields: AcceptPrintingBody["printingFields"];
       candidatePrintingIds: string[];
     }) => {
       const fields = { ...printingFields };
@@ -258,7 +266,7 @@ export function useAcceptPrintingGroup() {
       }
       const res = await client.api.v1.admin["cards"][":cardId"]["accept-printing"].$post({
         param: { cardId },
-        json: { printingFields: fields, candidatePrintingIds } as any,
+        json: { printingFields: fields, candidatePrintingIds },
       });
       assertOk(res);
       return await res.json();

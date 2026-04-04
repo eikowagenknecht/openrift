@@ -414,7 +414,7 @@ export interface CandidateCardsTable {
   externalId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
-  checkedAt: Date | null;
+  checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -460,7 +460,7 @@ export interface CandidatePrintingsTable {
   language: string | null;
   printedName: string | null;
 
-  checkedAt: Date | null;
+  checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

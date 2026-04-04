@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCheckProvider, useDeleteProvider } from "@/hooks/use-admin-card-mutations";
 import { useProviderNames, useProviderStats } from "@/hooks/use-admin-card-queries";
+import type { UploadCandidatesBody } from "@/hooks/use-admin-image-mutations";
 import { useUploadCandidates } from "@/hooks/use-admin-image-mutations";
 import {
   useReorderProviderSettings,
@@ -44,7 +45,7 @@ export function CandidateUploadPage() {
   const [provider, setProvider] = useState("");
   const [providerOpen, setProviderOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [fileData, setFileData] = useState<unknown[] | null>(null);
+  const [fileData, setFileData] = useState<UploadCandidatesBody["candidates"] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
 
   const upload = useUploadCandidates();
@@ -72,7 +73,7 @@ export function CandidateUploadPage() {
         setParseError("JSON must contain a non-empty array of candidates");
         return;
       }
-      setFileData(candidates);
+      setFileData(candidates as UploadCandidatesBody["candidates"]);
     } catch {
       setParseError("Invalid JSON file");
     }

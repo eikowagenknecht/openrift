@@ -177,7 +177,7 @@ describe("ingestCandidates", () => {
     expect(insertCall.shortCode).toBeNull();
   });
 
-  it("omits shortCode from insert when short_code is undefined", async () => {
+  it("sets shortCode to null when short_code is undefined", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
     const card = makeCard();
@@ -186,7 +186,7 @@ describe("ingestCandidates", () => {
 
     expect(result.newCards).toBe(1);
     const insertCall = (repos.ingest as any).insertCandidateCard.mock.calls[0][0];
-    expect(insertCall).not.toHaveProperty("shortCode");
+    expect(insertCall.shortCode).toBeNull();
   });
 
   it("sets extraData to null for empty object extra_data on insert", async () => {

@@ -1,6 +1,8 @@
 import { emptyToNull, normalizeNameForMatching } from "@openrift/shared/utils";
+import type { Insertable } from "kysely";
 import { z } from "zod";
 
+import type { CandidateCardsTable } from "../db/index.js";
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
 import type { Transact } from "../deps.js";
 import type { IngestCard } from "../routes/admin/cards/schemas.js";
@@ -337,7 +339,7 @@ export async function ingestCandidates(
         candidateCardId = existingCandidateCard.id;
         seenCCIds.add(candidateCardId);
       } else {
-        const cardInsert: Record<string, unknown> = {
+        const cardInsert: Insertable<CandidateCardsTable> = {
           provider,
           name: card.name,
           type: card.type,
@@ -351,13 +353,9 @@ export async function ingestCandidates(
           effectText: emptyToNull(card.effect_text),
           tags: card.tags,
           externalId: card.external_id,
+          shortCode: card.short_code ?? null,
+          extraData: card.extra_data === undefined ? null : jsonOrNull(card.extra_data),
         };
-        if (card.short_code !== undefined) {
-          cardInsert.shortCode = card.short_code ?? null;
-        }
-        if (card.extra_data !== undefined) {
-          cardInsert.extraData = jsonOrNull(card.extra_data);
-        }
         candidateCardId = await repo.insertCandidateCard(cardInsert);
         seenCCIds.add(candidateCardId);
         newCardDetails.push({ name: card.name, shortCode: card.short_code ?? null });

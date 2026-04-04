@@ -1,4 +1,4 @@
-import type { Kysely, Selectable } from "kysely";
+import type { Insertable, Kysely, Selectable } from "kysely";
 
 import type { CandidateCardsTable, Database, CandidatePrintingsTable } from "../db/index.js";
 
@@ -97,11 +97,10 @@ export function ingestRepo(db: Db) {
      * Insert a new candidate card.
      * @returns The inserted candidate card ID.
      */
-    async insertCandidateCard(values: Record<string, unknown>): Promise<string> {
+    async insertCandidateCard(values: Insertable<CandidateCardsTable>): Promise<string> {
       const [inserted] = await db
         .insertInto("candidateCards")
-        // oxlint-disable-next-line typescript/no-explicit-any -- optional fields built dynamically
-        .values(values as any)
+        .values(values)
         .returning("id")
         .execute();
       return inserted.id;
@@ -113,12 +112,8 @@ export function ingestRepo(db: Db) {
     },
 
     /** Insert a new candidate printing. */
-    async insertCandidatePrinting(values: Record<string, unknown>): Promise<void> {
-      await db
-        .insertInto("candidatePrintings")
-        // oxlint-disable-next-line typescript/no-explicit-any -- spread fields typed separately
-        .values(values as any)
-        .execute();
+    async insertCandidatePrinting(values: Insertable<CandidatePrintingsTable>): Promise<void> {
+      await db.insertInto("candidatePrintings").values(values).execute();
     },
 
     /** Delete candidate cards by IDs. */

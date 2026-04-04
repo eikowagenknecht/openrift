@@ -32,6 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { AcceptNewCardBody } from "@/hooks/use-admin-card-mutations";
 import {
   useAcceptNewCard,
   useLinkCard,
@@ -110,7 +111,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
     acceptNewCard.mutate(
       {
         name: identifier,
-        cardFields: { id, ...activeCard },
+        cardFields: { id, ...activeCard } as AcceptNewCardBody["cardFields"],
       },
       {
         onSuccess: () => {

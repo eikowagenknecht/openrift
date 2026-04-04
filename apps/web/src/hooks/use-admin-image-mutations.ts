@@ -1,6 +1,12 @@
+import type { InferRequestType } from "hono/client";
+
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+export type UploadCandidatesBody = InferRequestType<
+  (typeof client.api.v1.admin.cards)["upload"]["$post"]
+>["json"];
 
 export function useDeletePrintingImage() {
   return useMutationWithInvalidation({
@@ -122,10 +128,9 @@ export function useSetCandidatePrintingImage() {
 
 export function useUploadCandidates() {
   return useMutationWithInvalidation({
-    // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- candidates shape varies by source, validated by API
-    mutationFn: async (payload: { provider: string; candidates: unknown[] }) => {
+    mutationFn: async (payload: UploadCandidatesBody) => {
       const res = await client.api.v1.admin["cards"].upload.$post({
-        json: payload as any,
+        json: payload,
       });
       assertOk(res);
       return await res.json();
