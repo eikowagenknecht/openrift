@@ -20,7 +20,7 @@
         "src/routes/**/*.tsx",
         "src/components/cards/card-detail/index.tsx"
       ],
-      "ignore": ["src/env.d.ts", "src/components/ui/**"]
+      "ignore": ["src/env.d.ts", "src/components/ui/**", "src/test/**"]
     },
     "packages/shared": {
       "ignore": ["src/**/*.test.ts"]
