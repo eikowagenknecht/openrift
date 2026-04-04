@@ -1,10 +1,9 @@
 import type { DeckResponse } from "@openrift/shared";
-import { useNavigate } from "@tanstack/react-router";
-import { PlusIcon, SwordsIcon } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
 
-import { ImportDeckButton } from "@/components/deck/import-deck-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -105,7 +104,10 @@ export function DeckListPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Decks</h1>
         <div className="flex items-center gap-2">
-          <ImportDeckButton />
+          <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
+            <DownloadIcon className="size-4" />
+            Import
+          </Link>
           <Button onClick={() => setCreateOpen(true)}>
             <PlusIcon className="size-4" />
             New Deck
