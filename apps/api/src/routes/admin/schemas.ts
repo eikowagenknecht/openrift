@@ -131,7 +131,7 @@ export const updateSettingSchema = z
 
 // ── Operations ─────────────────────────────────────────────────────────────
 
-export const clearPriceMarketplaceSchema = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
+const clearPriceMarketplaceSchema = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 export const clearPricesSchema = z.object({
   marketplace: clearPriceMarketplaceSchema,
