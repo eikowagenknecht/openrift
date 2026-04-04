@@ -11,7 +11,6 @@ import {
   idParamSchema,
   updateCollectionSchema,
 } from "@openrift/shared/schemas";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -20,6 +19,7 @@ import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { Variables } from "../../types.js";
 import { toCollection, toCopy } from "../../utils/mappers.js";
+import { getFavoriteMarketplace } from "../../utils/preferences.js";
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -115,14 +115,12 @@ collectionsApp.use(requireAuth);
 export const collectionsRoute = collectionsApp
   // ── LIST ────────────────────────────────────────────────────────────────────
   .openapi(listCollections, async (c) => {
-    const { collections, marketplace, userPreferences } = c.get("repos");
+    const repos = c.get("repos");
     const userId = getUserId(c);
-    const prefs = await userPreferences.getByUserId(userId);
-    const favMarketplace =
-      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
+    const favMarketplace = await getFavoriteMarketplace(repos, userId);
     const [rows, values] = await Promise.all([
-      collections.listForUser(userId),
-      marketplace.collectionValues(userId, favMarketplace),
+      repos.collections.listForUser(userId),
+      repos.marketplace.collectionValues(userId, favMarketplace),
     ]);
     return c.json({
       items: rows.map((row) => {
@@ -150,17 +148,15 @@ export const collectionsRoute = collectionsApp
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   .openapi(getCollection, async (c) => {
-    const { collections, marketplace, userPreferences } = c.get("repos");
+    const repos = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
-    const row = await collections.getByIdForUser(id, userId);
+    const row = await repos.collections.getByIdForUser(id, userId);
     if (!row) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
     }
-    const prefs = await userPreferences.getByUserId(userId);
-    const favMarketplace =
-      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
-    const value = await marketplace.singleCollectionValue(row.id, favMarketplace);
+    const favMarketplace = await getFavoriteMarketplace(repos, userId);
+    const value = await repos.marketplace.singleCollectionValue(row.id, favMarketplace);
     return c.json(toCollection(row, value));
   })
 
