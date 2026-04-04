@@ -148,6 +148,53 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns All deck cards with card details for every deck owned by a user. Image URLs are only resolved for legend/champion zones. */
+    allCardsForUser(userId: string): Promise<DeckCardRow[]> {
+      return db
+        .selectFrom("deckCards as dc")
+        .innerJoin("decks as d", "d.id", "dc.deckId")
+        .innerJoin("cards as c", "c.id", "dc.cardId")
+        .select([
+          "dc.id",
+          "dc.deckId",
+          "dc.cardId",
+          "dc.zone",
+          "dc.quantity",
+          "c.name as cardName",
+          "c.type as cardType",
+          "c.superTypes",
+          "c.domains",
+          "c.tags",
+          "c.keywords",
+          "c.energy",
+          "c.might",
+          "c.power",
+          sql<string | null>`(
+            CASE WHEN dc.zone IN ('legend', 'champion') THEN (
+              SELECT COALESCE(pi.rehosted_url, pi.original_url)
+              FROM printings p
+              JOIN sets s ON s.id = p.set_id
+              JOIN printing_images pi ON pi.printing_id = p.id
+                AND pi.face = 'front' AND pi.is_active = true
+              WHERE p.card_id = dc.card_id
+              ORDER BY
+                (p.art_variant = 'normal')::int DESC,
+                (p.promo_type_id IS NULL)::int DESC,
+                (p.is_signed = false)::int DESC,
+                (p.finish = 'normal')::int DESC,
+                s.released_at ASC,
+                p.short_code ASC
+              LIMIT 1
+            ) END
+          )`.as("imageUrl"),
+        ])
+        .where("d.userId", "=", userId)
+        .orderBy("dc.deckId")
+        .orderBy("dc.zone")
+        .orderBy("c.name")
+        .execute();
+    },
+
     /** @returns Card requirements for a deck (cardId, zone, quantity). */
     cardRequirements(
       deckId: string,

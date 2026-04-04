@@ -1,7 +1,18 @@
 import type { CardType, DeckZone, Domain, SuperType } from "../enums.js";
 
 export interface DeckListResponse {
-  items: DeckResponse[];
+  items: DeckListItemResponse[];
+}
+
+export interface DeckListItemResponse {
+  deck: DeckResponse;
+  legend: { cardName: string; imageUrl: string | null; domains: Domain[] } | null;
+  champion: { cardName: string; imageUrl: string | null } | null;
+  totalCards: number;
+  typeCounts: { cardType: CardType; count: number }[];
+  domainDistribution: { domain: Domain; count: number }[];
+  isValid: boolean;
+  totalValueCents: number | null;
 }
 
 export interface DeckAvailabilityResponse {

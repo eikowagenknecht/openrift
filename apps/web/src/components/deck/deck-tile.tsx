@@ -1,5 +1,6 @@
-import type { CardType, DeckCardResponse, DeckResponse, Domain } from "@openrift/shared";
-import { CARD_TYPE_ORDER, COLORLESS_DOMAIN, validateDeck } from "@openrift/shared";
+import type { DeckListItemResponse, DeckResponse, Domain } from "@openrift/shared";
+import { COLORLESS_DOMAIN } from "@openrift/shared";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
@@ -32,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCloneDeck, useDeleteDeck } from "@/hooks/use-decks";
+import { deckDetailQueryOptions, useCloneDeck, useDeleteDeck } from "@/hooks/use-decks";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
@@ -152,15 +153,17 @@ function FannedPreview({
  * Visual tile for a single deck in the deck grid.
  * @returns The deck tile element.
  */
-export function DeckTile({
-  deck,
-  cards,
-  totalValueCents,
-}: {
-  deck: DeckResponse;
-  cards?: DeckCardResponse[];
-  totalValueCents: number | null;
-}) {
+export function DeckTile({ item }: { item: DeckListItemResponse }) {
+  const {
+    deck,
+    legend,
+    champion,
+    totalCards,
+    typeCounts,
+    domainDistribution,
+    isValid,
+    totalValueCents,
+  } = item;
   const navigate = useNavigate();
   const cloneDeck = useCloneDeck();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
@@ -168,6 +171,14 @@ export function DeckTile({
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const deleteDeck = useDeleteDeck();
+
+  // Lazy-fetch full card detail only when export/proxy dialogs are open
+  const needsDetail = exportOpen || proxyOpen;
+  const { data: detail } = useQuery({
+    ...deckDetailQueryOptions(deck.id),
+    enabled: needsDetail,
+  });
+  const detailCards = detail ? detail.cards.map((card) => toDeckBuilderCard(card)) : undefined;
 
   const handleClone = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -191,49 +202,13 @@ export function DeckTile({
     setDeleteOpen(false);
   };
 
-  const legend = cards?.find((card) => card.zone === "legend");
-  const champion = cards?.find((card) => card.zone === "champion");
-  const legendDomains = legend?.domains as Domain[] | undefined;
+  const legendDomains = legend?.domains;
   const createdDate = new Date(deck.createdAt).toISOString().slice(0, 10);
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
-  const totalCards = cards
-    ? cards.filter((card) => card.zone !== "overflow").reduce((sum, card) => sum + card.quantity, 0)
-    : 0;
 
-  const excludedTypes = new Set(["Legend", "Rune", "Battlefield"]);
-  const countedZones = new Set(["main", "champion"]);
-  const typeCounts = new Map<CardType, number>();
-  if (cards) {
-    for (const card of cards) {
-      if (!countedZones.has(card.zone) || excludedTypes.has(card.cardType)) {
-        continue;
-      }
-      typeCounts.set(card.cardType, (typeCounts.get(card.cardType) ?? 0) + card.quantity);
-    }
-  }
-  const typeSummary = CARD_TYPE_ORDER.filter((type) => typeCounts.has(type))
-    .map((type) => {
-      const count = typeCounts.get(type) ?? 0;
-      return `${count} ${count === 1 ? type : `${type}s`}`;
-    })
+  const typeSummary = typeCounts
+    .map(({ cardType, count }) => `${count} ${count === 1 ? cardType : `${cardType}s`}`)
     .join(" · ");
-
-  const isStandardValid =
-    deck.format === "standard" &&
-    cards &&
-    validateDeck({
-      format: "standard",
-      cards: cards.map((card) => ({
-        cardId: card.cardId,
-        zone: card.zone,
-        quantity: card.quantity,
-        cardName: card.cardName,
-        cardType: card.cardType,
-        superTypes: card.superTypes,
-        domains: card.domains,
-        tags: card.tags,
-      })),
-    }).length === 0;
 
   const gradientStyle =
     legendDomains && legendDomains.length > 0
@@ -279,7 +254,7 @@ export function DeckTile({
               <Badge variant="outline" className="text-xs">
                 Freeform
               </Badge>
-            ) : isStandardValid ? (
+            ) : isValid ? (
               <Badge
                 variant="outline"
                 className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
@@ -299,7 +274,7 @@ export function DeckTile({
           </div>
 
           {/* Domain distribution */}
-          {cards && <DeckDomainBar cards={cards} />}
+          {domainDistribution.length > 0 && <DeckDomainBar distribution={domainDistribution} />}
 
           {/* Footer */}
           <div className="text-muted-foreground mt-auto flex items-center gap-1.5 pt-1 text-xs">
@@ -374,14 +349,10 @@ export function DeckTile({
         isDirty={false}
         open={exportOpen}
         onOpenChange={setExportOpen}
-        cards={cards?.map((card) => toDeckBuilderCard(card))}
+        cards={detailCards}
       />
 
-      <ProxyExportDialog
-        open={proxyOpen}
-        onOpenChange={setProxyOpen}
-        cards={cards?.map((card) => toDeckBuilderCard(card))}
-      />
+      <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} cards={detailCards} />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

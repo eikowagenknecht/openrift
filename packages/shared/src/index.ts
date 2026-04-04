@@ -52,6 +52,7 @@ export type {
   DeckImportCardPreview,
   DeckImportPreviewResponse,
   DeckFormat,
+  DeckListItemResponse,
   DeckListResponse,
   DeckResponse,
   DeckZone,

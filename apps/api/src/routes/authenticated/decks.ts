@@ -1,13 +1,18 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type {
+  CardType,
   DeckAvailabilityItemResponse,
   DeckAvailabilityResponse,
   DeckDetailResponse,
   DeckExportResponse,
   DeckImportPreviewResponse,
+  DeckListItemResponse,
   DeckListResponse,
+  DeckZone,
+  Domain,
+  SuperType,
 } from "@openrift/shared";
-import { inferZone } from "@openrift/shared";
+import { CARD_TYPE_ORDER, DOMAIN_ORDER, inferZone, validateDeck } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
@@ -194,11 +199,106 @@ decksApp.use(requireAuth);
 export const decksRoute = decksApp
   // ── LIST ────────────────────────────────────────────────────────────────────
   .openapi(listDecks, async (c) => {
-    const { decks } = c.get("repos");
+    const { decks, marketplace, userPreferences } = c.get("repos");
     const userId = getUserId(c);
     const { wanted } = c.req.valid("query");
-    const rows = await decks.listForUser(userId, wanted === "true");
-    return c.json({ items: rows.map((row) => toDeck(row)) } satisfies DeckListResponse);
+
+    const [deckRows, allCards, prefs] = await Promise.all([
+      decks.listForUser(userId, wanted === "true"),
+      decks.allCardsForUser(userId),
+      userPreferences.getByUserId(userId),
+    ]);
+
+    const favMarketplace =
+      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
+    const deckValueMap = await marketplace.deckValues(userId, favMarketplace);
+
+    // Group cards by deck
+    const cardsByDeckId = Map.groupBy(allCards, (card) => card.deckId);
+
+    const excludedTypes = new Set<string>(["Legend", "Rune", "Battlefield"]);
+    const countedZones = new Set<string>(["main", "champion"]);
+
+    const items: DeckListItemResponse[] = deckRows.map((row) => {
+      const cards = cardsByDeckId.get(row.id) ?? [];
+      const legend = cards.find((card) => card.zone === "legend");
+      const champion = cards.find((card) => card.zone === "champion");
+
+      // Total cards (excluding overflow)
+      const totalCards = cards
+        .filter((card) => card.zone !== "overflow")
+        .reduce((sum, card) => sum + card.quantity, 0);
+
+      // Type counts (Unit/Spell/Gear from main+champion zones)
+      const typeCountMap = new Map<CardType, number>();
+      for (const card of cards) {
+        if (!countedZones.has(card.zone) || excludedTypes.has(card.cardType)) {
+          continue;
+        }
+        typeCountMap.set(
+          card.cardType as CardType,
+          (typeCountMap.get(card.cardType as CardType) ?? 0) + card.quantity,
+        );
+      }
+      const typeCounts = CARD_TYPE_ORDER.filter((type) => typeCountMap.has(type)).map((type) => ({
+        cardType: type,
+        count: typeCountMap.get(type) ?? 0,
+      }));
+
+      // Domain distribution (from main+champion zones)
+      const domainCountMap = new Map<Domain, number>();
+      for (const card of cards) {
+        if (!countedZones.has(card.zone)) {
+          continue;
+        }
+        for (const domain of card.domains as Domain[]) {
+          domainCountMap.set(domain, (domainCountMap.get(domain) ?? 0) + card.quantity);
+        }
+      }
+      const domainDistribution = DOMAIN_ORDER.filter((domain) => domainCountMap.has(domain)).map(
+        (domain) => ({
+          domain,
+          count: domainCountMap.get(domain) ?? 0,
+        }),
+      );
+
+      // Validation
+      const isValid =
+        row.format === "standard"
+          ? validateDeck({
+              format: "standard",
+              cards: cards.map((card) => ({
+                cardId: card.cardId,
+                zone: card.zone as DeckZone,
+                quantity: card.quantity,
+                cardName: card.cardName,
+                cardType: card.cardType as CardType,
+                superTypes: card.superTypes as SuperType[],
+                domains: card.domains as Domain[],
+                tags: card.tags,
+              })),
+            }).length === 0
+          : true;
+
+      return {
+        deck: toDeck(row),
+        legend: legend
+          ? {
+              cardName: legend.cardName,
+              imageUrl: legend.imageUrl,
+              domains: legend.domains as Domain[],
+            }
+          : null,
+        champion: champion ? { cardName: champion.cardName, imageUrl: champion.imageUrl } : null,
+        totalCards,
+        typeCounts,
+        domainDistribution,
+        isValid,
+        totalValueCents: deckValueMap.get(row.id) ?? null,
+      };
+    });
+
+    return c.json({ items } satisfies DeckListResponse);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
@@ -402,65 +502,79 @@ export const decksRoute = decksApp
     const body = c.req.valid("json");
     const format = body.format ?? "piltover";
 
+    // Each format decodes into a uniform entry list + a resolvedMap keyed by lookupKey.
+    // Text format provides explicit zones; piltover/TTS provide sourceSlots for inference.
+    interface ImportEntry {
+      lookupKey: string;
+      label: string;
+      zone: DeckZone | null;
+      sourceSlot: "mainDeck" | "sideboard" | "chosenChampion" | null;
+      count: number;
+    }
+    let decodedWarnings: string[];
+    let entries: ImportEntry[];
+    let resolvedMap: Map<
+      string,
+      {
+        cardId: string;
+        shortCode: string;
+        cardName: string;
+        cardType: CardType;
+        superTypes: SuperType[];
+        domains: Domain[];
+      }
+    >;
+
     if (format === "text") {
       const decoded = decodeText(body.code);
-      const cardNames = decoded.cards.map((card) => card.cardName);
-      const resolved = await canonicalPrintings.cardIdsByNames(cardNames);
-      const resolvedMap = new Map(resolved.map((row) => [row.cardName.toLowerCase(), row]));
-
-      const warnings = [...decoded.warnings];
-      const cards: DeckImportPreviewResponse["cards"] = [];
-
-      for (const entry of decoded.cards) {
-        const card = resolvedMap.get(entry.cardName.toLowerCase());
-        if (!card) {
-          warnings.push(`Unknown card: "${entry.cardName}" (skipped)`);
-          continue;
-        }
-
-        cards.push({
-          cardId: card.cardId,
-          shortCode: card.shortCode,
-          zone: entry.zone,
-          quantity: entry.count,
-          cardName: card.cardName,
-          cardType: card.cardType,
-          superTypes: card.superTypes,
-          domains: card.domains,
-        });
+      decodedWarnings = decoded.warnings;
+      entries = decoded.cards.map((card) => ({
+        lookupKey: card.cardName.toLowerCase(),
+        label: `"${card.cardName}"`,
+        zone: card.zone,
+        sourceSlot: null,
+        count: card.count,
+      }));
+      const resolved = await canonicalPrintings.cardIdsByNames(
+        decoded.cards.map((card) => card.cardName),
+      );
+      resolvedMap = new Map(resolved.map((row) => [row.cardName.toLowerCase(), row]));
+    } else {
+      let decoded;
+      try {
+        decoded = format === "tts" ? decodeTTS(body.code) : piltoverCodec.decode(body.code);
+      } catch {
+        throw new AppError(400, ERROR_CODES.INVALID_DECK_CODE, "Invalid or unsupported deck code");
       }
-
-      return c.json({ cards, warnings } satisfies DeckImportPreviewResponse);
+      decodedWarnings = decoded.warnings;
+      entries = decoded.cards.map((card) => ({
+        lookupKey: card.cardCode,
+        label: card.cardCode,
+        zone: null,
+        sourceSlot: card.sourceSlot,
+        count: card.count,
+      }));
+      const resolved = await canonicalPrintings.cardIdsByShortCodes(
+        decoded.cards.map((card) => card.cardCode),
+      );
+      resolvedMap = new Map(resolved.map((row) => [row.shortCode, row]));
     }
 
-    // Piltover and TTS both decode to short codes with source slots
-    let decoded;
-    try {
-      decoded = format === "tts" ? decodeTTS(body.code) : piltoverCodec.decode(body.code);
-    } catch {
-      throw new AppError(400, ERROR_CODES.INVALID_DECK_CODE, "Invalid or unsupported deck code");
-    }
-
-    const shortCodes = decoded.cards.map((card) => card.cardCode);
-    const resolved = await canonicalPrintings.cardIdsByShortCodes(shortCodes);
-    const resolvedMap = new Map(resolved.map((row) => [row.shortCode, row]));
-
-    const warnings = [...decoded.warnings];
+    const warnings = [...decodedWarnings];
     const cards: DeckImportPreviewResponse["cards"] = [];
 
-    for (const entry of decoded.cards) {
-      const card = resolvedMap.get(entry.cardCode);
+    for (const entry of entries) {
+      const card = resolvedMap.get(entry.lookupKey);
       if (!card) {
-        warnings.push(`Unknown card: ${entry.cardCode} (skipped)`);
+        warnings.push(`Unknown card: ${entry.label} (skipped)`);
         continue;
       }
 
-      const zone = inferZone(card.cardType, card.superTypes, entry.sourceSlot);
-
       cards.push({
         cardId: card.cardId,
-        shortCode: entry.cardCode,
-        zone,
+        shortCode: card.shortCode,
+        zone:
+          entry.zone ?? inferZone(card.cardType, card.superTypes, entry.sourceSlot ?? "mainDeck"),
         quantity: entry.count,
         cardName: card.cardName,
         cardType: card.cardType,

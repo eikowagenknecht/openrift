@@ -114,6 +114,7 @@ export type {
   DeckExportResponse,
   DeckImportCardPreview,
   DeckImportPreviewResponse,
+  DeckListItemResponse,
   DeckListResponse,
   DeckResponse,
   ShoppingListItemResponse,

@@ -307,8 +307,32 @@ export const deckResponseSchema = z
   })
   .openapi("DeckResponse");
 
+const deckListItemResponseSchema = z
+  .object({
+    deck: deckResponseSchema,
+    legend: z
+      .object({
+        cardName: z.string(),
+        imageUrl: z.string().nullable(),
+        domains: z.array(domainSchema),
+      })
+      .nullable(),
+    champion: z
+      .object({
+        cardName: z.string(),
+        imageUrl: z.string().nullable(),
+      })
+      .nullable(),
+    totalCards: z.number(),
+    typeCounts: z.array(z.object({ cardType: cardTypeSchema, count: z.number() })),
+    domainDistribution: z.array(z.object({ domain: domainSchema, count: z.number() })),
+    isValid: z.boolean(),
+    totalValueCents: z.number().nullable(),
+  })
+  .openapi("DeckListItemResponse");
+
 export const deckListResponseSchema = z
-  .object({ items: z.array(deckResponseSchema) })
+  .object({ items: z.array(deckListItemResponseSchema) })
   .openapi("DeckListResponse");
 
 const deckCardResponseSchema = z

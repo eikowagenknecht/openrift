@@ -10,6 +10,7 @@ import { decksRoute } from "./decks";
 
 const mockRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
+  allCardsForUser: vi.fn(() => Promise.resolve([] as object[])),
   create: vi.fn(() => Promise.resolve({} as object)),
   getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
@@ -71,6 +72,7 @@ const dbDeck = {
   format: "standard",
   isWanted: false,
   isPublic: false,
+  shareToken: null,
   createdAt: now,
   updatedAt: now,
 };
@@ -83,7 +85,10 @@ const dbDeckCard = {
   quantity: 4,
   cardName: "Fire Dragon",
   cardType: "Unit",
+  superTypes: [],
   domains: ["Fury"],
+  tags: [],
+  keywords: [],
   energy: 5,
   might: 4,
   power: 6,
@@ -101,11 +106,15 @@ describe("GET /api/v1/decks", () => {
 
   it("returns 200 with list of decks", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCard]);
     const res = await app.request("/api/v1/decks");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.items).toHaveLength(1);
-    expect(json.items[0].name).toBe("Fury Aggro");
+    expect(json.items[0].deck.name).toBe("Fury Aggro");
+    expect(json.items[0].totalCards).toBe(4);
+    expect(json.items[0].typeCounts).toEqual([{ cardType: "Unit", count: 4 }]);
+    expect(json.items[0].isValid).toBe(false);
   });
 
   it("passes wanted filter", async () => {
