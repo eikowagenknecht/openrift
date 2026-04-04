@@ -1,5 +1,4 @@
-import type { DeckCardResponse, DeckResponse } from "@openrift/shared";
-import { useQueries } from "@tanstack/react-query";
+import type { DeckResponse } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
@@ -22,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { deckDetailQueryOptions, useCreateDeck, useDecks } from "@/hooks/use-decks";
+import { useCreateDeck, useDecks } from "@/hooks/use-decks";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 import { DeckTile } from "./deck-tile";
@@ -98,21 +97,8 @@ function CreateDeckDialog({
 }
 
 export function DeckListPage() {
-  const { data: decks } = useDecks();
+  const { data: deckItems } = useDecks();
   const [createOpen, setCreateOpen] = useState(false);
-
-  // Fetch details for all decks to show card previews, domains, and validity
-  const detailQueries = useQueries({
-    queries: decks.map((deck) => deckDetailQueryOptions(deck.id)),
-  });
-  const cardsByDeckId = new Map<string, DeckCardResponse[]>();
-  const valueCentsByDeckId = new Map<string, number | null>();
-  for (const query of detailQueries) {
-    if (query.data) {
-      cardsByDeckId.set(query.data.deck.id, query.data.cards);
-      valueCentsByDeckId.set(query.data.deck.id, query.data.totalValueCents);
-    }
-  }
 
   return (
     <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING}`}>
@@ -127,7 +113,7 @@ export function DeckListPage() {
         </div>
       </div>
 
-      {decks.length === 0 ? (
+      {deckItems.length === 0 ? (
         <div className="text-muted-foreground flex flex-col items-center gap-2 py-16 text-center">
           <SwordsIcon className="size-10 opacity-50" />
           <p>No decks yet</p>
@@ -137,13 +123,8 @@ export function DeckListPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {decks.map((deck) => (
-            <DeckTile
-              key={deck.id}
-              deck={deck}
-              cards={cardsByDeckId.get(deck.id)}
-              totalValueCents={valueCentsByDeckId.get(deck.id) ?? null}
-            />
+          {deckItems.map((item) => (
+            <DeckTile key={item.deck.id} item={item} />
           ))}
         </div>
       )}
