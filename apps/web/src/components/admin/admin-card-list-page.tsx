@@ -1,7 +1,7 @@
 import { AcceptedCardsTable } from "@/components/admin/accepted-cards-table";
 import { CandidateCardsTable } from "@/components/admin/candidate-cards-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAdminCardList } from "@/hooks/use-admin-cards";
+import { useAdminCardList } from "@/hooks/use-admin-card-queries";
 
 export function AdminCardListPage() {
   const { data } = useAdminCardList();
