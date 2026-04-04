@@ -8,6 +8,7 @@ import {
   buildUnmatchedDetail,
 } from "../../../services/candidate-queries.js";
 import type { Variables } from "../../../types.js";
+import { candidateCardSummarySchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -83,19 +84,6 @@ const providerStats = createRoute({
       description: "Provider statistics",
     },
   },
-});
-
-const candidateCardSummarySchema = z.object({
-  cardSlug: z.string().nullable(),
-  name: z.string(),
-  normalizedName: z.string(),
-  shortCodes: z.array(z.string()),
-  stagingShortCodes: z.array(z.string()),
-  candidateCount: z.number(),
-  uncheckedCardCount: z.number(),
-  uncheckedPrintingCount: z.number(),
-  hasGallery: z.boolean(),
-  suggestedCardSlug: z.string().nullable(),
 });
 
 const listCandidates = createRoute({

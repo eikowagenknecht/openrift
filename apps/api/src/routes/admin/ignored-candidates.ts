@@ -2,25 +2,11 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const ignoreCandidateCardSchema = z.object({
-  provider: z.string().min(1),
-  externalId: z.string().min(1),
-});
-
-const ignoreCandidatePrintingSchema = z.object({
-  provider: z.string().min(1),
-  externalId: z.string().min(1),
-  finish: z.string().min(1).nullable().optional(),
-});
-
-const unignoreCandidatePrintingSchema = z.object({
-  provider: z.string().min(1),
-  externalId: z.string().min(1),
-  finish: z.string().min(1).nullable(),
-});
+import {
+  ignoreCandidateCardSchema,
+  ignoreCandidatePrintingSchema,
+  unignoreCandidatePrintingSchema,
+} from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

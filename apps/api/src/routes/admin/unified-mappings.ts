@@ -5,25 +5,7 @@ import { saveMappings, unmapAll, unmapPrinting } from "../../services/marketplac
 import { buildUnifiedMappingsResponse } from "../../services/unified-mapping-merge.js";
 import type { Variables } from "../../types.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const marketplaceSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
-});
-
-const saveMappingsSchema = z.object({
-  mappings: z.array(
-    z.object({
-      printingId: z.string(),
-      externalId: z.number(),
-    }),
-  ),
-});
-
-const unmapSchema = z.object({
-  printingId: z.string(),
-});
+import { marketplaceSchema, saveMappingsSchema, unmapSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

@@ -1,22 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { z } from "zod";
 
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const stagingCardOverrideSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
-  externalId: z.number(),
-  finish: z.string(),
-  cardId: z.string(),
-});
-
-const deleteOverrideSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
-  externalId: z.number(),
-  finish: z.string(),
-});
+import { deleteOverrideSchema, stagingCardOverrideSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

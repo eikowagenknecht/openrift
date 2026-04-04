@@ -5,25 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const createFlagSchema = z.object({
-  key: z
-    .string()
-    .regex(/^[a-z][a-z0-9]+(-[a-z0-9]+)*$/, "Key must be kebab-case (e.g. deck-builder)"),
-  description: z.string().nullable().optional(),
-  enabled: z.boolean().optional(),
-});
-
-const updateFlagSchema = z
-  .object({
-    enabled: z.boolean().optional(),
-    description: z.string().nullable().optional(),
-  })
-  .refine((o) => o.enabled !== undefined || o.description !== undefined, {
-    message: "At least one field (enabled, description) must be provided",
-  });
+import { createFlagSchema, updateFlagSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

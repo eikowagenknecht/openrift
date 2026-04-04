@@ -4,34 +4,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
 import type { Variables } from "../../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const createBanSchema = z.object({
-  formatId: z.string().min(1),
-  bannedAt: z.string().date(),
-  reason: z.string().min(1).nullable().optional(),
-});
-
-const updateBanSchema = z.object({
-  formatId: z.string().min(1),
-  bannedAt: z.string().date().optional(),
-  reason: z.string().min(1).nullable().optional(),
-});
-
-const removeBanSchema = z.object({
-  formatId: z.string().min(1),
-});
-
-const banResponseSchema = z.object({
-  id: z.string(),
-  cardId: z.string(),
-  formatId: z.string(),
-  formatName: z.string(),
-  bannedAt: z.string(),
-  reason: z.string().nullable(),
-  createdAt: z.string(),
-});
+import { banResponseSchema, createBanSchema, removeBanSchema, updateBanSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

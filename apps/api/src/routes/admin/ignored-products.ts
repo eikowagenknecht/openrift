@@ -3,18 +3,7 @@ import type { IgnoredProductResponse } from "@openrift/shared";
 import { z } from "zod";
 
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const ignoreProductItemSchema = z.object({
-  externalId: z.number(),
-  finish: z.string(),
-});
-
-const ignoreProductsSchema = z.object({
-  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
-  products: z.array(ignoreProductItemSchema).min(1),
-});
+import { ignoreProductsSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

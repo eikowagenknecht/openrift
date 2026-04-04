@@ -5,25 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const scopeEnum = z.enum(["web", "api"]);
-
-const createSettingSchema = z.object({
-  key: z.string().regex(/^[a-z][a-z0-9]+(-[a-z0-9]+)*$/, "Key must be kebab-case (e.g. umami-url)"),
-  value: z.string(),
-  scope: scopeEnum.optional(),
-});
-
-const updateSettingSchema = z
-  .object({
-    value: z.string().optional(),
-    scope: scopeEnum.optional(),
-  })
-  .refine((o) => o.value !== undefined || o.scope !== undefined, {
-    message: "At least one field (value, scope) must be provided",
-  });
+import { createSettingSchema, updateSettingSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

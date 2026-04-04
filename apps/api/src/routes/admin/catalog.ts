@@ -3,28 +3,9 @@ import type { AdminSetResponse } from "@openrift/shared";
 import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { setFieldRules } from "../../db/schemas.js";
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const updateSetSchema = z.object({
-  name: setFieldRules.name,
-  printedTotal: setFieldRules.printedTotal,
-  releasedAt: z.string().nullable(),
-});
-
-const createSetSchema = z.object({
-  id: setFieldRules.slug,
-  name: setFieldRules.name,
-  printedTotal: setFieldRules.printedTotal,
-  releasedAt: z.string().nullable().optional(),
-});
-
-const reorderSetsSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
-});
+import { createSetSchema, reorderSetsSchema, updateSetSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

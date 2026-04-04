@@ -3,24 +3,7 @@ import { z } from "zod";
 
 import { fixTypography } from "../../services/fix-typography.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const typographyDiffItemSchema = z.object({
-  entity: z.enum(["card", "printing"]),
-  id: z.string(),
-  name: z.string(),
-  field: z.string(),
-  current: z.string(),
-  proposed: z.string(),
-});
-
-const acceptTypographyFixSchema = z.object({
-  entity: z.enum(["card", "printing"]),
-  id: z.string(),
-  field: z.string(),
-  proposed: z.string(),
-});
+import { acceptTypographyFixSchema, typographyDiffItemSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

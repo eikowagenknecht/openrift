@@ -5,25 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const createPromoTypeSchema = z.object({
-  slug: z
-    .string()
-    .min(1)
-    .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case (e.g. nexus-night)"),
-  label: z.string().min(1),
-});
-
-const updatePromoTypeSchema = z.object({
-  slug: z
-    .string()
-    .min(1)
-    .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case")
-    .optional(),
-  label: z.string().min(1).optional(),
-});
+import { createPromoTypeSchema, updatePromoTypeSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

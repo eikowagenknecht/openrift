@@ -3,21 +3,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const userIdParamSchema = z.object({
-  id: z.string().min(1),
-});
-
-const userKeyParamSchema = z.object({
-  id: z.string().min(1),
-  key: z.string().min(1),
-});
-
-const upsertOverrideSchema = z.object({
-  enabled: z.boolean(),
-});
+import { upsertOverrideSchema, userIdParamSchema, userKeyParamSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

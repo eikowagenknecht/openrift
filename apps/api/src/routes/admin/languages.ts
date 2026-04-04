@@ -4,25 +4,12 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const codeParamSchema = z.object({ code: z.string().min(1) });
-
-const createLanguageSchema = z.object({
-  code: z.string().min(1).max(5),
-  name: z.string().min(1),
-  sortOrder: z.number().int().optional(),
-});
-
-const reorderLanguagesSchema = z.object({
-  codes: z.array(z.string().min(1)).min(1),
-});
-
-const updateLanguageSchema = z.object({
-  name: z.string().min(1).optional(),
-  sortOrder: z.number().int().optional(),
-});
+import {
+  codeParamSchema,
+  createLanguageSchema,
+  reorderLanguagesSchema,
+  updateLanguageSchema,
+} from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

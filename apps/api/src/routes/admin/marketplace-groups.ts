@@ -5,12 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const updateGroupSchema = z.object({
-  name: z.string().nullable(),
-});
+import { updateGroupSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

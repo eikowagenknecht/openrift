@@ -5,17 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const updateSchema = z.object({
-  sortOrder: z.number().int().optional(),
-  isHidden: z.boolean().optional(),
-});
-
-const reorderSchema = z.object({
-  providers: z.array(z.string().min(1)).min(1),
-});
+import { reorderProvidersSchema, updateProviderSettingSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -48,7 +38,7 @@ const reorderProviders = createRoute({
   path: "/provider-settings/reorder",
   tags: ["Admin - Provider Settings"],
   request: {
-    body: { content: { "application/json": { schema: reorderSchema } } },
+    body: { content: { "application/json": { schema: reorderProvidersSchema } } },
   },
   responses: {
     204: { description: "Providers reordered" },
@@ -61,7 +51,7 @@ const updateProviderSetting = createRoute({
   tags: ["Admin - Provider Settings"],
   request: {
     params: providerParamSchema,
-    body: { content: { "application/json": { schema: updateSchema } } },
+    body: { content: { "application/json": { schema: updateProviderSettingSchema } } },
   },
   responses: {
     204: { description: "Provider setting updated" },

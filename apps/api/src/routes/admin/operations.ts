@@ -9,35 +9,9 @@ import {
   refreshTcgplayerPrices,
 } from "../../services/price-refresh/index.js";
 import type { Variables } from "../../types.js";
+import { clearPricesSchema, priceRefreshResponseSchema } from "./schemas.js";
 
 const log = createLogger("admin");
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const clearPriceMarketplaceSchema = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
-
-const clearPricesSchema = z.object({
-  marketplace: clearPriceMarketplaceSchema,
-});
-
-const upsertCountsSchema = z.object({
-  total: z.number(),
-  new: z.number(),
-  updated: z.number(),
-  unchanged: z.number(),
-});
-
-const priceRefreshResponseSchema = z.object({
-  transformed: z.object({
-    groups: z.number(),
-    products: z.number(),
-    prices: z.number(),
-  }),
-  upserted: z.object({
-    snapshots: upsertCountsSchema,
-    staging: upsertCountsSchema,
-  }),
-});
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

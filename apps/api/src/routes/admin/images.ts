@@ -14,12 +14,7 @@ import {
   renameStaleImages,
 } from "../../services/image-rehost.js";
 import type { Variables } from "../../types.js";
-
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const restoreImageUrlsSchema = z.object({
-  provider: z.string().min(1),
-});
+import { restoreImageUrlsSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 

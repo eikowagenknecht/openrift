@@ -1,25 +1,14 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { TIME_RANGE_DAYS, centsToDollars, formatDateUTC } from "@openrift/shared";
-import type {
-  Marketplace,
-  PriceHistoryResponse,
-  PricesResponse,
-  TimeRange,
-} from "@openrift/shared";
+import type { Marketplace, PriceHistoryResponse, PricesResponse } from "@openrift/shared";
 import {
   priceHistoryResponseSchema,
   pricesResponseSchema,
 } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
-import { z } from "zod";
 
 import type { Variables } from "../../types.js";
-
-const printingIdParamSchema = z.object({ printingId: z.string().uuid() });
-
-const rangeQuerySchema = z.object({
-  range: z.enum(Object.keys(TIME_RANGE_DAYS) as [TimeRange, ...TimeRange[]]).default("30d"),
-});
+import { printingIdParamSchema, rangeQuerySchema } from "./schemas.js";
 
 const getPrices = createRoute({
   method: "get",
