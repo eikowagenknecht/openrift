@@ -1,9 +1,4 @@
-import type {
-  DeckExportResponse,
-  DeckFormat,
-  DeckImportPreviewResponse,
-  DeckZone,
-} from "@openrift/shared";
+import type { DeckExportResponse, DeckFormat, DeckZone } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -124,20 +119,4 @@ export function useExportDeck() {
       invalidates: [],
     },
   );
-}
-
-export function useImportPreview() {
-  return useMutationWithInvalidation<
-    DeckImportPreviewResponse,
-    { code: string; format?: ExportFormat }
-  >({
-    mutationFn: async ({ code, format }) => {
-      const res = await client.api.v1.decks["import-preview"].$post({
-        json: { code, format },
-      });
-      assertOk(res);
-      return await res.json();
-    },
-    invalidates: [],
-  });
 }
