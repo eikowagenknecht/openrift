@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { createFlagSchema, updateFlagSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -120,9 +121,7 @@ export const adminFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>(
     const body = c.req.valid("json");
 
     const updated = await flagsRepo.update(key, body);
-    if (!updated) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Flag "${key}" not found`);
-    }
+    assertFound(updated, `Flag "${key}" not found`);
 
     return c.body(null, 204);
   })
@@ -134,9 +133,7 @@ export const adminFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>(
     const { key } = c.req.valid("param");
 
     const result = await flagsRepo.deleteByKey(key);
-    if (result.numDeletedRows === 0n) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Flag "${key}" not found`);
-    }
+    assertDeleted(result, `Flag "${key}" not found`);
 
     return c.body(null, 204);
   });

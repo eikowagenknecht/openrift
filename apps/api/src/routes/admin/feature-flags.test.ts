@@ -179,7 +179,7 @@ describe("PATCH /api/v1/feature-flags/:key", () => {
   });
 
   it("returns 404 when flag not found", async () => {
-    mockFlagsRepo.update.mockResolvedValue(false);
+    mockFlagsRepo.update.mockResolvedValue(undefined);
     const res = await app.request("/api/v1/feature-flags/nonexistent", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

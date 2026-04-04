@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
 import type { Variables } from "../../../types.js";
+import { assertFound } from "../../../utils/assertions.js";
 import { banResponseSchema, createBanSchema, removeBanSchema, updateBanSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -101,9 +102,7 @@ export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     // Verify card exists
     const card = await catalog.cardById(id);
-    if (!card) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
-    }
+    assertFound(card, "Card not found");
 
     // Check for duplicate active ban
     const existing = await cardBans.findActiveBan(id, formatId);
@@ -150,9 +149,7 @@ export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     const row = await cardBans.update(id, formatId, fields);
-    if (!row) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `No active ban found for format ${formatId}`);
-    }
+    assertFound(row, `No active ban found for format ${formatId}`);
 
     return c.json({
       ban: {
@@ -175,9 +172,7 @@ export const cardBansRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { formatId } = c.req.valid("json");
 
     const removed = await cardBans.unban(id, formatId);
-    if (!removed) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `No active ban found for format ${formatId}`);
-    }
+    assertFound(removed, `No active ban found for format ${formatId}`);
 
     return c.body(null, 204);
   });

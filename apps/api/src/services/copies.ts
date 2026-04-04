@@ -1,5 +1,6 @@
 import type { Repos, Transact } from "../deps.js";
 import { AppError, ERROR_CODES } from "../errors.js";
+import { assertFound } from "../utils/assertions.js";
 import { logEvents } from "./event-logger.js";
 import { ensureInbox } from "./inbox.js";
 
@@ -94,9 +95,7 @@ export async function moveCopies(
   // Verify target collection belongs to user
   const target = await repos.collections.getIdAndName(toCollectionId, userId);
 
-  if (!target) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Target collection not found");
-  }
+  assertFound(target, "Target collection not found");
 
   await transact(async (trxRepos) => {
     // Fetch copies with their current collection info
