@@ -8,6 +8,7 @@ import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import type { createEmailSender } from "./email.js";
 import { adminsRepo } from "./repositories/admins.js";
+import { collectionsRepo } from "./repositories/collections.js";
 
 export function createAuth(deps: {
   config: ReturnType<typeof createConfig>;
@@ -129,6 +130,7 @@ export function createAuth(deps: {
       user: {
         create: {
           async after(user) {
+            await collectionsRepo(db).ensureInbox(user.id);
             const adminEmail = config.auth.adminEmail;
             if (adminEmail && user.email === adminEmail) {
               await adminsRepo(db).autoPromote(user.id);

@@ -1,13 +1,11 @@
-import type { Printing } from "@openrift/shared";
+import type { Marketplace, Printing } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
   CheckSquareIcon,
   LibraryBigIcon,
-  MinusIcon,
   PackageIcon,
   PackagePlusIcon,
-  Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
@@ -22,6 +20,8 @@ import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { AddedCardsList } from "@/components/collection/added-cards-list";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
+import { CollectionInfoStrip } from "@/components/collection/collection-info-strip";
+import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
@@ -41,7 +41,6 @@ import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -50,13 +49,12 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
-import { useCollections } from "@/hooks/use-collections";
+import { useCollections, useCollectionsMap } from "@/hooks/use-collections";
 import { useAddCopies, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-client";
-import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { AddModeSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -72,9 +70,19 @@ interface CollectionGridProps {
   collectionId?: string;
 }
 
+function buildCopyCountByCardId(stacks: StackedEntry[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const stack of stacks) {
+    const cardId = stack.printing.card.id;
+    map.set(cardId, (map.get(cardId) ?? 0) + stack.copyIds.length);
+  }
+  return map;
+}
+
 export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const isMobile = useIsMobile();
   const { data: collections } = useCollections();
+  const collectionsMap = useCollectionsMap();
   const showImages = useDisplayStore((state) => state.showImages);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
@@ -114,7 +122,8 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     favoriteMarketplace,
   });
 
-  // ── Catalog data (add mode) ─────────────────────────────────────────
+  // ── Catalog data (add mode — skip expensive computation in browse/select) ──
+  const isAddMode = mode === "add";
   const {
     availableFilters: catalogAvailableFilters,
     sortedCards: catalogSortedCards,
@@ -132,10 +141,10 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     view: dataView,
     ownedCountByPrinting,
     favoriteMarketplace,
+    enabled: isAddMode,
   });
 
   // ── Pick active data set based on mode ──────────────────────────────
-  const isAddMode = mode === "add";
   const availableFilters = isAddMode ? catalogAvailableFilters : collectionAvailableFilters;
   const sortedCards = isAddMode ? catalogSortedCards : collectionSortedCards;
   const printingsByCardId = isAddMode ? catalogPrintingsByCardId : collectionPrintingsByCardId;
@@ -150,11 +159,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection } =
     useCardSelection();
   // In "cards" view, sum copy counts across all printings of the same card
-  const copyCountByCardId = new Map<string, number>();
-  for (const stack of stacks) {
-    const cardId = stack.printing.card.id;
-    copyCountByCardId.set(cardId, (copyCountByCardId.get(cardId) ?? 0) + stack.copyIds.length);
-  }
+  const copyCountByCardId = buildCopyCountByCardId(stacks);
 
   // "copies" view expands individual copies; "cards"/"printings" stay stacked
   const stacked = view !== "copies";
@@ -192,7 +197,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
 
   // ── Navigation helpers ──────────────────────────────────────────────
   const inboxId = collections.find((collection) => collection.isInbox)?.id;
-  const currentCollection = collections.find((collection) => collection.id === collectionId);
+  const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
   const addTarget = collectionId ?? inboxId;
 
   const startBrowsing = () => {
@@ -684,41 +689,17 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         setDisplayLabel={setDisplayLabel}
       />
       {/* Info strip with card count, collection value, and mobile actions */}
-      {mode !== "add" &&
-        (() => {
-          const formatValue = formatterForMarketplace(favoriteMarketplace);
-          const valueCents = currentCollection
-            ? currentCollection.totalValueCents
-            : collections.reduce((sum, col) => sum + (col.totalValueCents ?? 0), 0);
-          const unpricedCount = currentCollection
-            ? currentCollection.unpricedCopyCount
-            : collections.reduce((sum, col) => sum + (col.unpricedCopyCount ?? 0), 0);
-          return (
-            <div className="bg-muted/50 text-muted-foreground mt-3 mb-3 flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm">
-              <span className="shrink-0">
-                {totalCopies} card{totalCopies === 1 ? "" : "s"}
-                {stacks.length !== totalCopies && ` (${stacks.length} unique)`}
-              </span>
-              {mode === "select" && selected.size > 0 && (
-                <Badge variant="secondary" className="gap-1">
-                  <CheckIcon className="size-3" />
-                  {selected.size}
-                </Badge>
-              )}
-              <div className="flex-1" />
-              {valueCents !== null && valueCents !== undefined && (
-                <span className="shrink-0">
-                  {formatValue(valueCents / 100)}
-                  {unpricedCount ? (
-                    <span className="text-muted-foreground/60 ml-1">
-                      ({unpricedCount} unpriced)
-                    </span>
-                  ) : null}
-                </span>
-              )}
-            </div>
-          );
-        })()}
+      {mode !== "add" && (
+        <CollectionInfoStrip
+          totalCopies={totalCopies}
+          uniqueCount={stacks.length}
+          selectedCount={selected.size}
+          isSelectMode={mode === "select"}
+          favoriteMarketplace={favoriteMarketplace as Marketplace}
+          currentCollection={currentCollection}
+          collections={collections}
+        />
+      )}
     </>
   );
 
@@ -828,30 +809,14 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
       >
         {/* Floating action bar (select mode) */}
         {mode === "select" && selected.size > 0 && (
-          <div className="border-border bg-background fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 shadow-lg">
-            <span className="text-sm font-medium">{selected.size} selected</span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setMoveOpen(true)}
-              disabled={moveCopies.isPending}
-            >
-              <MinusIcon className="mr-1 size-3.5" />
-              Move
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setDisposeOpen(true)}
-              disabled={disposeCopies.isPending}
-            >
-              <Trash2Icon className="mr-1 size-3.5" />
-              Dispose
-            </Button>
-            <Button variant="ghost" size="sm" onClick={clearSelection} aria-label="Clear selection">
-              <XIcon className="size-3.5" />
-            </Button>
-          </div>
+          <FloatingActionBar
+            selectedCount={selected.size}
+            onMove={() => setMoveOpen(true)}
+            onDispose={() => setDisposeOpen(true)}
+            onClear={clearSelection}
+            isMovePending={moveCopies.isPending}
+            isDisposePending={disposeCopies.isPending}
+          />
         )}
 
         {/* Mobile overlays */}

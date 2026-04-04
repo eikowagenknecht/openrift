@@ -116,9 +116,7 @@ export const collectionsRoute = collectionsApp
   // ── LIST ────────────────────────────────────────────────────────────────────
   .openapi(listCollections, async (c) => {
     const { collections, marketplace, userPreferences } = c.get("repos");
-    const { ensureInbox } = c.get("services");
     const userId = getUserId(c);
-    await ensureInbox(c.get("repos"), userId);
     const prefs = await userPreferences.getByUserId(userId);
     const favMarketplace =
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
@@ -162,8 +160,8 @@ export const collectionsRoute = collectionsApp
     const prefs = await userPreferences.getByUserId(userId);
     const favMarketplace =
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
-    const values = await marketplace.collectionValues(userId, favMarketplace);
-    return c.json(toCollection(row, values.get(row.id)));
+    const value = await marketplace.singleCollectionValue(row.id, favMarketplace);
+    return c.json(toCollection(row, value));
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ interface UseCardDataParams {
   view: "cards" | "printings";
   ownedCountByPrinting: Record<string, number> | undefined;
   favoriteMarketplace: Marketplace;
+  enabled?: boolean;
 }
 
 function toComparable(p: Printing, setOrderMap: Map<string, number>) {
@@ -148,6 +149,10 @@ function buildOwnedCounts(
   return map;
 }
 
+const EMPTY_AVAILABLE = getAvailableFilters([]);
+const EMPTY_PRINTINGS_MAP = new Map<string, Printing[]>();
+const NO_OP_LABEL = (slug: string) => slug;
+
 export function useCardData({
   allPrintings,
   sets,
@@ -158,8 +163,22 @@ export function useCardData({
   view,
   ownedCountByPrinting,
   favoriteMarketplace,
+  enabled = true,
 }: UseCardDataParams) {
   "use memo";
+
+  if (!enabled) {
+    return {
+      availableFilters: EMPTY_AVAILABLE,
+      sortedCards: [] as Printing[],
+      printingsByCardId: EMPTY_PRINTINGS_MAP,
+      priceRangeByCardId: null,
+      ownedCounts: undefined,
+      totalUniqueCards: 0,
+      setDisplayLabel: NO_OP_LABEL,
+    };
+  }
+
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
   const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));

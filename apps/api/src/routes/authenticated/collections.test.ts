@@ -30,6 +30,7 @@ const mockUserPreferencesRepo = {
 
 const mockMarketplaceRepo = {
   collectionValues: vi.fn(() => Promise.resolve(new Map())),
+  singleCollectionValue: vi.fn(() => Promise.resolve(undefined)),
 };
 
 const mockEnsureInbox = vi.fn(() => Promise.resolve("inbox-id"));
@@ -131,10 +132,10 @@ describe("GET /api/v1/collections", () => {
     expect(json.items[0].name).toBe("Inbox");
   });
 
-  it("calls ensureInbox before listing", async () => {
+  it("no longer calls ensureInbox (moved to account creation)", async () => {
     mockCollectionsRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/collections");
-    expect(mockEnsureInbox).toHaveBeenCalled();
+    expect(mockEnsureInbox).not.toHaveBeenCalled();
   });
 });
 

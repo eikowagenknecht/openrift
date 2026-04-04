@@ -151,5 +151,36 @@ export function marketplaceRepo(db: Kysely<Database>) {
 
       return new Map(rows.rows.map((row) => [row.collectionId, row]));
     },
+
+    /**
+     * Total market value and unpriced copy count for a single collection.
+     *
+     * @returns Value data for the collection, or undefined if it has no copies.
+     */
+    async singleCollectionValue(
+      collectionId: string,
+      marketplace: string,
+    ): Promise<CollectionValue | undefined> {
+      const rows = await sql<CollectionValue>`
+        select
+          cp.collection_id as "collectionId",
+          coalesce(sum(snap.market_cents), 0)::int as "totalValueCents",
+          (count(cp.id) - count(snap.market_cents))::int as "unpricedCopyCount"
+        from copies cp
+        left join marketplace_products mp
+          on mp.printing_id = cp.printing_id and mp.marketplace = ${marketplace}
+        left join lateral (
+          select ms.market_cents
+          from marketplace_snapshots ms
+          where ms.product_id = mp.id
+          order by ms.recorded_at desc
+          limit 1
+        ) snap on true
+        where cp.collection_id = ${collectionId}
+        group by cp.collection_id
+      `.execute(db);
+
+      return rows.rows[0];
+    },
   };
 }
