@@ -92,7 +92,9 @@ export function DeckExportDialog({
     if (!exportDeck.data?.code) {
       return;
     }
-    await navigator.clipboard.writeText(exportDeck.data.code);
+    // Use \r\n so line breaks survive iOS Safari's clipboard
+    const text = exportDeck.data.code.replaceAll("\n", "\r\n");
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -196,7 +198,7 @@ export function DeckExportDialog({
                     <Textarea
                       readOnly
                       value={exportDeck.data.code}
-                      className="font-mono text-xs"
+                      className="font-mono text-xs break-all [field-sizing:fixed]"
                       rows={tab === "piltover" ? 3 : 12}
                       onClick={(event) => (event.target as HTMLTextAreaElement).select()}
                     />

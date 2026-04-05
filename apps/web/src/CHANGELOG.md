@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-05
+
+- fix: Deck export no longer overflows its container on iOS, and copied text preserves line breaks
+
 ## 2026-04-02
 
 - feat: You can now download a printable tournament deck registration sheet PDF from the export dialog
