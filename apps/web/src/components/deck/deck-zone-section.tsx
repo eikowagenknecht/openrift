@@ -136,12 +136,16 @@ export function DeckZoneSection({
   });
 
   const handleCardClick = (card: DeckBuilderCard) => {
-    // Prefer canonical (normal art, non-promo, non-signed) printing for the detail pane
-    const candidates = allPrintings.filter((entry) => entry.card.id === card.cardId);
-    const match =
-      candidates.find(
-        (entry) => entry.artVariant === "normal" && !entry.promoType && !entry.isSigned,
-      ) ?? candidates[0];
+    // Pick canonical printing: short code → non-promo → normal finish
+    const candidates = allPrintings
+      .filter((entry) => entry.card.id === card.cardId)
+      .toSorted(
+        (a, b) =>
+          a.shortCode.localeCompare(b.shortCode) ||
+          Number(Boolean(a.promoType)) - Number(Boolean(b.promoType)) ||
+          Number(a.finish !== "normal") - Number(b.finish !== "normal"),
+      );
+    const match = candidates[0];
     if (match) {
       useSelectionStore.getState().selectCard(match, [], "card");
     }

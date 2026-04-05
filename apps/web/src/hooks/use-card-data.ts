@@ -28,7 +28,7 @@ function toComparable(p: Printing, setOrderMap: Map<string, number>) {
 
 /**
  * In "cards" mode, deduplicate by cardId — keep the canonical printing per comparePrintings order
- * (earliest set by display order, then normal finish before foil, non-promo before promo, etc.).
+ * (earliest set by display order, then short code, then non-promo first).
  * @returns Deduplicated printings, one per card.
  */
 function deduplicateByCard(

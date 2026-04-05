@@ -1,5 +1,5 @@
-import type { ArtVariant, CardType, Finish, Rarity } from "./types/index.js";
-import { ART_VARIANT_ORDER, FINISH_ORDER, RARITY_ORDER } from "./types/index.js";
+import type { CardType, Finish } from "./types/index.js";
+import { FINISH_ORDER } from "./types/index.js";
 import { WellKnown } from "./well-known.js";
 
 /**
@@ -41,31 +41,26 @@ export function normalizeNameForMatching(name: string): string {
   return name.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
 }
 
-interface ComparablePrinting {
+export interface ComparablePrinting {
   setId?: string | null;
   setOrder?: number;
   shortCode: string;
-  artVariant: ArtVariant | null;
-  rarity: Rarity | string;
-  finish: Finish | string;
-  isSigned: boolean;
   promoTypeSlug?: string | null;
-  language?: string;
+  finish?: Finish | string;
 }
 
 /**
  * Compare two printings for canonical ordering.
- * Sort order: set (by `setOrder` when available, else `setId` string) →
- * short code → art variant → rarity → finish → signed → promo type.
- * Null/empty art variants are treated as "normal".
+ * Sort order:
+ *   1. Set release date (by `setOrder` when available, else `setId` string)
+ *   2. Short code (alphabetical — base variants sort before alt-art/overnumbered)
+ *   3. Non-promo first
+ *   4. Normal finish before foil
  * Use as a comparator for `.sort()` to get canonical printing order.
  *
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
  */
 export function comparePrintings(a: ComparablePrinting, b: ComparablePrinting): number {
-  const av = (v: ArtVariant | null): ArtVariant => v || WellKnown.artVariant.NORMAL;
-  const promoA = a.promoTypeSlug ?? "";
-  const promoB = b.promoTypeSlug ?? "";
   const setCompare =
     a.setOrder !== undefined && b.setOrder !== undefined
       ? a.setOrder - b.setOrder
@@ -73,13 +68,8 @@ export function comparePrintings(a: ComparablePrinting, b: ComparablePrinting): 
   return (
     setCompare ||
     a.shortCode.localeCompare(b.shortCode) ||
-    ART_VARIANT_ORDER.indexOf(av(a.artVariant)) - ART_VARIANT_ORDER.indexOf(av(b.artVariant)) ||
-    RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity) ||
-    FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish) ||
-    Number(a.isSigned) - Number(b.isSigned) ||
-    Number(promoA !== "") - Number(promoB !== "") ||
-    promoA.localeCompare(promoB) ||
-    (a.language ?? "EN").localeCompare(b.language ?? "EN")
+    Number(Boolean(a.promoTypeSlug)) - Number(Boolean(b.promoTypeSlug)) ||
+    FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish)
   );
 }
 
