@@ -23,6 +23,7 @@
     "@hono/zod-openapi": "1.2.4",
     "@openrift/shared": "workspace:*",
     "@piltoverarchive/riftbound-deck-codes": "1.2.0",
+    "@sentry/bun": "10.47.0",
     "better-auth": "1.5.6",
     "croner": "10.0.1",
     "hono": "4.12.9",

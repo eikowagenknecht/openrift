@@ -6,6 +6,7 @@ import { createReadStream, existsSync } from "node:fs";
 import path from "node:path";
 
 import babel from "@rolldown/plugin-babel";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -49,6 +50,15 @@ export default defineConfig({
     babel({
       presets: [reactCompilerPreset()],
       exclude: /node_modules|packages\//,
+    }),
+    // Sentry source map upload — only active when SENTRY_AUTH_TOKEN is set (CI builds).
+    sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      release: { name: commitHash },
+      sourcemaps: { filesToDeleteAfterUpload: ["./dist/**/*.map"] },
+      disable: !process.env.SENTRY_AUTH_TOKEN,
     }),
     VitePWA({
       selfDestroying: true,

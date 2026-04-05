@@ -14,3 +14,6 @@ export const PREVIEW_HOSTS = import.meta.env.VITE_PREVIEW_HOSTS ?? "";
 
 /** Short git commit hash injected at build time. */
 export const COMMIT_HASH: string = __COMMIT_HASH__;
+
+/** Sentry DSN for error reporting. Empty string disables Sentry. */
+export const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN ?? "";
