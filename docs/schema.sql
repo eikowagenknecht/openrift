@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict qbMxh05BmLQy1wTUgbIcs8hrlGmnmIhiEpYVge49fikmM2uaRPlqqsjW9Rt3k2R
+\restrict OWd6pEcMuRrwmkg9xv8k6SGrC5cv0mDQEch5F65fPiysSGL8zy9ZHBer9pxL0uj
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -650,7 +650,8 @@ CREATE TABLE public.marketplace_ignored_products (
     finish text NOT NULL,
     product_name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    language text DEFAULT 'EN'::text NOT NULL
 );
 
 
@@ -667,6 +668,7 @@ CREATE TABLE public.marketplace_products (
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_updated_at_not_null NOT NULL,
     id uuid DEFAULT uuidv7() NOT NULL,
     printing_id uuid NOT NULL,
+    language text DEFAULT 'EN'::text NOT NULL,
     CONSTRAINT chk_marketplace_products_external_id_positive CHECK ((external_id > 0)),
     CONSTRAINT chk_marketplace_products_marketplace_not_empty CHECK ((marketplace <> ''::text)),
     CONSTRAINT chk_marketplace_products_product_name_not_empty CHECK ((product_name <> ''::text))
@@ -721,7 +723,8 @@ CREATE TABLE public.marketplace_staging (
     avg30_cents integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_staging_new_id_not_null NOT NULL
+    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_staging_new_id_not_null NOT NULL,
+    language text DEFAULT 'EN'::text NOT NULL
 );
 
 
@@ -734,7 +737,8 @@ CREATE TABLE public.marketplace_staging_card_overrides (
     external_id integer NOT NULL,
     finish text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    card_id uuid CONSTRAINT marketplace_staging_card_overrides_new_card_id_not_null NOT NULL
+    card_id uuid CONSTRAINT marketplace_staging_card_overrides_new_card_id_not_null NOT NULL,
+    language text DEFAULT 'EN'::text NOT NULL
 );
 
 
@@ -1340,7 +1344,7 @@ ALTER TABLE ONLY public.marketplace_groups
 --
 
 ALTER TABLE ONLY public.marketplace_ignored_products
-    ADD CONSTRAINT marketplace_ignored_products_pkey PRIMARY KEY (marketplace, external_id, finish);
+    ADD CONSTRAINT marketplace_ignored_products_pkey PRIMARY KEY (marketplace, external_id, finish, language);
 
 
 --
@@ -1380,15 +1384,15 @@ ALTER TABLE ONLY public.marketplace_products
 --
 
 ALTER TABLE ONLY public.marketplace_staging_card_overrides
-    ADD CONSTRAINT marketplace_staging_card_overrides_pkey PRIMARY KEY (marketplace, external_id, finish);
+    ADD CONSTRAINT marketplace_staging_card_overrides_pkey PRIMARY KEY (marketplace, external_id, finish, language);
 
 
 --
--- Name: marketplace_staging marketplace_staging_marketplace_external_id_finish_recorded_at_; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_staging marketplace_staging_marketplace_external_id_finish_language_rec; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.marketplace_staging
-    ADD CONSTRAINT marketplace_staging_marketplace_external_id_finish_recorded_at_ UNIQUE (marketplace, external_id, finish, recorded_at);
+    ADD CONSTRAINT marketplace_staging_marketplace_external_id_finish_language_rec UNIQUE (marketplace, external_id, finish, language, recorded_at);
 
 
 --
@@ -2732,5 +2736,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict qbMxh05BmLQy1wTUgbIcs8hrlGmnmIhiEpYVge49fikmM2uaRPlqqsjW9Rt3k2R
+\unrestrict OWd6pEcMuRrwmkg9xv8k6SGrC5cv0mDQEch5F65fPiysSGL8zy9ZHBer9pxL0uj
 

@@ -530,6 +530,108 @@ describe("refreshCardtraderPrices", () => {
       expect(staging).toHaveLength(0);
     });
 
+    it("filters out non-Near Mint condition listings", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker NM",
+                  price_cents: 200,
+                  price_currency: "EUR",
+                  condition: "Near Mint",
+                  properties_hash: { riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker LP",
+                  price_cents: 50,
+                  price_currency: "EUR",
+                  condition: "Lightly Played",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(1);
+      expect(staging[0].marketCents).toBe(200);
+    });
+
+    it("includes listings without a condition field (assumed NM)", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(1);
+      expect(staging[0].marketCents).toBe(100);
+    });
+
+    it("skips blueprint entirely when all listings are non-NM", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker LP",
+                  price_cents: 50,
+                  price_currency: "EUR",
+                  condition: "Lightly Played",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(0);
+    });
+
     it("picks the cheapest foil listing when multiple exist", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();

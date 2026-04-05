@@ -53,6 +53,8 @@ interface CtMarketplaceProduct {
   name_en: string;
   price_cents: number;
   price_currency: string;
+  /** CardTrader condition string, e.g. "Near Mint", "Lightly Played" */
+  condition?: string;
   properties_hash?: {
     riftbound_foil?: boolean;
     riftbound_language?: string;
@@ -149,9 +151,17 @@ async function fetchCardtraderData(
       }
       const id = Number(bpId);
 
+      // Only consider Near Mint listings for pricing
+      const nmListings = allListings.filter(
+        (listing) => !listing.condition || listing.condition === "Near Mint",
+      );
+      if (nmListings.length === 0) {
+        continue;
+      }
+
       // Group listings by (language, finish) to produce per-language prices
       const byLangFinish = new Map<string, CtMarketplaceProduct[]>();
-      for (const listing of allListings) {
+      for (const listing of nmListings) {
         const lang = (listing.properties_hash?.riftbound_language ?? "en").toUpperCase();
         const finish = listing.properties_hash?.riftbound_foil === true ? "foil" : "normal";
         const key = `${lang}::${finish}`;
