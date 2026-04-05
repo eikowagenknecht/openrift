@@ -2,6 +2,7 @@ import { Link, useMatches } from "@tanstack/react-router";
 import {
   BanIcon,
   BookOpenIcon,
+  ActivityIcon,
   CameraIcon,
   GalleryVerticalIcon,
   DatabaseIcon,
@@ -50,6 +51,7 @@ const marketplacePages = [
 ];
 
 const systemPages = [
+  { to: "/admin/status" as const, icon: ActivityIcon, title: "Status" },
   { to: "/admin/users" as const, icon: UsersIcon, title: "Users" },
   { to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" },
   { to: "/admin/site-settings" as const, icon: GlobeIcon, title: "Site Settings" },

@@ -30,6 +30,7 @@ import { providerSettingsRepo } from "./repositories/provider-settings.js";
 import { rulesRepo } from "./repositories/rules.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
+import { statusRepo } from "./repositories/status.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
@@ -67,6 +68,7 @@ export interface Repos {
   promoTypes: ReturnType<typeof promoTypesRepo>;
   rules: ReturnType<typeof rulesRepo>;
   sets: ReturnType<typeof setsRepo>;
+  status: ReturnType<typeof statusRepo>;
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   siteSettings: ReturnType<typeof siteSettingsRepo>;
   acquisitionSources: ReturnType<typeof acquisitionSourcesRepo>;
@@ -117,6 +119,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     promoTypes: promoTypesRepo(db),
     rules: rulesRepo(db),
     sets: setsRepo(db),
+    status: statusRepo(db),
     providerSettings: providerSettingsRepo(db),
     siteSettings: siteSettingsRepo(db),
     acquisitionSources: acquisitionSourcesRepo(db),
