@@ -134,6 +134,7 @@ export interface MarketplaceProductsTable {
   groupId: number;
   /** CHECK: <> '' */
   productName: string;
+  language: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -168,6 +169,7 @@ export interface MarketplaceStagingTable {
   groupId: number;
   productName: string;
   finish: string;
+  language: string;
   recordedAt: Date;
   marketCents: number;
   lowCents: number | null;
@@ -185,6 +187,7 @@ export interface MarketplaceIgnoredProductsTable {
   marketplace: string;
   externalId: number;
   finish: string;
+  language: string;
   productName: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -194,6 +197,7 @@ export interface MarketplaceStagingCardOverridesTable {
   marketplace: string;
   externalId: number;
   finish: string;
+  language: string;
   cardId: string;
   createdAt: CreatedAt;
 }

@@ -18,7 +18,7 @@ export function marketplaceMappingRepo(db: Db) {
     ignoredProducts(marketplace: string) {
       return db
         .selectFrom("marketplaceIgnoredProducts")
-        .select(["externalId", "finish", "productName", "createdAt"])
+        .select(["externalId", "finish", "language", "productName", "createdAt"])
         .where("marketplace", "=", marketplace)
         .execute();
     },
@@ -76,10 +76,12 @@ export function marketplaceMappingRepo(db: Db) {
           "p.isSigned",
           "pt.slug as promoTypeSlug",
           "p.finish",
+          "p.language",
           "p.collectorNumber",
           imageUrl("pi").as("imageUrl"),
           "ps.externalId",
           "ps.groupId as sourceGroupId",
+          "ps.language as sourceLanguage",
         ])
         .orderBy("s.slug")
         .orderBy("c.name")
@@ -92,18 +94,18 @@ export function marketplaceMappingRepo(db: Db) {
     stagingCardOverrides(marketplace: string) {
       return db
         .selectFrom("marketplaceStagingCardOverrides")
-        .select(["externalId", "finish", "cardId"])
+        .select(["externalId", "finish", "language", "cardId"])
         .where("marketplace", "=", marketplace)
         .execute();
     },
 
     // ── saveMappings queries ────────────────────────────────────────────────
 
-    /** @returns Printing finishes by IDs. */
-    printingFinishes(printingIds: string[]) {
+    /** @returns Printing finishes and languages by IDs. */
+    printingFinishesAndLanguages(printingIds: string[]) {
       return db
         .selectFrom("printings")
-        .select(["id", "finish"])
+        .select(["id", "finish", "language"])
         .where("id", "in", printingIds)
         .execute();
     },
@@ -129,6 +131,7 @@ export function marketplaceMappingRepo(db: Db) {
         externalId: number;
         groupId: number;
         productName: string;
+        language: string;
       }[],
     ) {
       return db
@@ -139,6 +142,7 @@ export function marketplaceMappingRepo(db: Db) {
             externalId: sql<number>`excluded.external_id`,
             groupId: sql<number>`excluded.group_id`,
             productName: sql<string>`excluded.product_name`,
+            language: sql<string>`excluded.language`,
           }),
         )
         .returning(["id", "printingId"])
@@ -178,16 +182,16 @@ export function marketplaceMappingRepo(db: Db) {
         .execute();
     },
 
-    /** Delete staging rows by marketplace and (externalId, finish) tuples. */
+    /** Delete staging rows by marketplace and (externalId, finish, language) tuples. */
     async deleteStagingTuples(
       marketplace: string,
-      pairs: { externalId: number; finish: string }[],
+      tuples: { externalId: number; finish: string; language: string }[],
     ): Promise<void> {
-      const tuples = pairs.map((p) => sql`(${p.externalId}::integer, ${p.finish})`);
+      const values = tuples.map((t) => sql`(${t.externalId}::integer, ${t.finish}, ${t.language})`);
       await sql`
         DELETE FROM marketplace_staging
         WHERE marketplace = ${marketplace}
-          AND (external_id, finish) IN (VALUES ${sql.join(tuples)})
+          AND (external_id, finish, language) IN (VALUES ${sql.join(values)})
       `.execute(db);
     },
 
@@ -203,11 +207,11 @@ export function marketplaceMappingRepo(db: Db) {
         .executeTakeFirst();
     },
 
-    /** @returns A printing's finish by ID. */
-    getPrintingFinish(printingId: string) {
+    /** @returns A printing's finish and language by ID. */
+    getPrintingFinishAndLanguage(printingId: string) {
       return db
         .selectFrom("printings")
-        .select("finish")
+        .select(["finish", "language"])
         .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
     },

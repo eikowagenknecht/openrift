@@ -63,6 +63,7 @@ interface CtPrice {
   blueprintId: number;
   name: string;
   finish: string;
+  language: string;
   minPriceCents: number;
 }
 
@@ -147,33 +148,26 @@ async function fetchCardtraderData(
         continue;
       }
       const id = Number(bpId);
-      // Only consider English listings so non-EN bulk pricing doesn't skew minimums
-      const listings = allListings.filter((l) => l.properties_hash?.riftbound_language === "en");
-      if (listings.length === 0) {
-        continue;
-      }
-      const normalListings = listings.filter((l) => !l.properties_hash?.riftbound_foil);
-      const foilListings = listings.filter((l) => l.properties_hash?.riftbound_foil === true);
 
-      if (normalListings.length > 0) {
-        const cheapest = normalListings.reduce((min, p) =>
-          p.price_cents < min.price_cents ? p : min,
-        );
-        prices.set(`${id}::normal`, {
-          blueprintId: id,
-          name: cheapest.name_en,
-          finish: "normal",
-          minPriceCents: cheapest.price_cents,
-        });
+      // Group listings by (language, finish) to produce per-language prices
+      const byLangFinish = new Map<string, CtMarketplaceProduct[]>();
+      for (const listing of allListings) {
+        const lang = (listing.properties_hash?.riftbound_language ?? "en").toUpperCase();
+        const finish = listing.properties_hash?.riftbound_foil === true ? "foil" : "normal";
+        const key = `${lang}::${finish}`;
+        const list = byLangFinish.get(key) ?? [];
+        list.push(listing);
+        byLangFinish.set(key, list);
       }
-      if (foilListings.length > 0) {
-        const cheapest = foilListings.reduce((min, p) =>
-          p.price_cents < min.price_cents ? p : min,
-        );
-        prices.set(`${id}::foil`, {
+
+      for (const [key, listings] of byLangFinish) {
+        const [language, finish] = key.split("::") as [string, string];
+        const cheapest = listings.reduce((min, p) => (p.price_cents < min.price_cents ? p : min));
+        prices.set(`${id}::${finish}::${language}`, {
           blueprintId: id,
           name: cheapest.name_en,
-          finish: "foil",
+          finish,
+          language,
           minPriceCents: cheapest.price_cents,
         });
       }
@@ -191,8 +185,6 @@ async function fetchCardtraderData(
 
 // ── Transform ──────────────────────────────────────────────────────────────
 
-const FINISHES = ["normal", "foil"] as const;
-
 function buildCardtraderStaging(
   { blueprints, prices, recordedAt }: CardtraderFetchResult,
   ignoredKeys: Set<string>,
@@ -203,19 +195,20 @@ function buildCardtraderStaging(
     if (bp.category_id !== CT_SINGLES_CATEGORY) {
       continue;
     }
-    for (const finish of FINISHES) {
-      const price = prices.get(`${bp.id}::${finish}`);
-      if (!price || price.minPriceCents <= 0) {
+    // Iterate all prices for this blueprint (keyed by id::finish::language)
+    for (const price of prices.values()) {
+      if (price.blueprintId !== bp.id || price.minPriceCents <= 0) {
         continue;
       }
-      if (ignoredKeys.has(`${bp.id}::${finish}`)) {
+      if (ignoredKeys.has(`${bp.id}::${price.finish}::${price.language}`)) {
         continue;
       }
       allStaging.push({
         externalId: bp.id,
         groupId: bp.expansion_id,
         productName: bp.name,
-        finish,
+        finish: price.finish,
+        language: price.language,
         recordedAt,
         marketCents: price.minPriceCents,
         lowCents: price.minPriceCents,
@@ -288,6 +281,7 @@ async function autoMatchBlueprints(
     groupId: number;
     productName: string;
     printingId: string;
+    language: string;
   }[] = [];
 
   for (const bp of blueprints) {
@@ -321,6 +315,7 @@ async function autoMatchBlueprints(
         groupId: bp.expansion_id,
         productName: bp.name,
         printingId: match.printingId,
+        language: "EN",
       });
     }
   }

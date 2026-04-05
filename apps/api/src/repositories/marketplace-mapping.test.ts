@@ -34,10 +34,10 @@ describe("marketplaceMappingRepo", () => {
     expect(await marketplaceMappingRepo(db).stagingCardOverrides("tcgplayer")).toEqual(rows);
   });
 
-  it("printingFinishes returns finishes by IDs", async () => {
-    const rows = [{ id: "p1", finish: "normal" }];
+  it("printingFinishesAndLanguages returns finishes and languages by IDs", async () => {
+    const rows = [{ id: "p1", finish: "normal", language: "EN" }];
     const db = createMockDb(rows);
-    expect(await marketplaceMappingRepo(db).printingFinishes(["p1"])).toEqual(rows);
+    expect(await marketplaceMappingRepo(db).printingFinishesAndLanguages(["p1"])).toEqual(rows);
   });
 
   it("stagingByExternalIds returns staging rows by external IDs", async () => {
@@ -56,6 +56,7 @@ describe("marketplaceMappingRepo", () => {
         externalId: 100,
         groupId: 1,
         productName: "Card",
+        language: "EN",
       },
     ];
     expect(await marketplaceMappingRepo(db).upsertSources(values)).toEqual(rows);
@@ -84,7 +85,7 @@ describe("marketplaceMappingRepo", () => {
     const db = createMockDb([]);
     await expect(
       marketplaceMappingRepo(db).deleteStagingTuples("tcgplayer", [
-        { externalId: 1, finish: "normal" },
+        { externalId: 1, finish: "normal", language: "EN" },
       ]),
     ).resolves.toBeUndefined();
   });
@@ -100,10 +101,10 @@ describe("marketplaceMappingRepo", () => {
     expect(await marketplaceMappingRepo(db).getSource("tcgplayer", "p-missing")).toBeUndefined();
   });
 
-  it("getPrintingFinish returns finish by printingId", async () => {
-    const row = { finish: "foil" };
+  it("getPrintingFinishAndLanguage returns finish and language by printingId", async () => {
+    const row = { finish: "foil", language: "EN" };
     const db = createMockDb([row]);
-    expect(await marketplaceMappingRepo(db).getPrintingFinish("p1")).toEqual(row);
+    expect(await marketplaceMappingRepo(db).getPrintingFinishAndLanguage("p1")).toEqual(row);
   });
 
   it("snapshotsByProductId returns snapshots", async () => {

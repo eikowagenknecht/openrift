@@ -37,12 +37,13 @@ export const stagingCardOverridesRoute = new OpenAPIHono<{ Variables: Variables 
 
   .openapi(createOverride, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, externalId, finish, cardId } = c.req.valid("json");
+    const { marketplace, externalId, finish, language, cardId } = c.req.valid("json");
 
     await mktAdmin.upsertStagingCardOverride({
       marketplace,
       externalId,
       finish,
+      language,
       cardId,
     });
 
@@ -53,9 +54,9 @@ export const stagingCardOverridesRoute = new OpenAPIHono<{ Variables: Variables 
 
   .openapi(deleteOverride, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, externalId, finish } = c.req.valid("json");
+    const { marketplace, externalId, finish, language } = c.req.valid("json");
 
-    await mktAdmin.deleteStagingCardOverride(marketplace, externalId, finish);
+    await mktAdmin.deleteStagingCardOverride(marketplace, externalId, finish, language);
 
     return c.body(null, 204);
   });

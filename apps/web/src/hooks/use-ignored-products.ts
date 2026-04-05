@@ -23,11 +23,14 @@ export function useUnignoreProduct() {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       externalId: number;
       finish: string;
+      language: string;
     }) => {
       const res = await client.api.v1.admin["ignored-products"].$delete({
         json: {
           marketplace: product.marketplace,
-          products: [{ externalId: product.externalId, finish: product.finish }],
+          products: [
+            { externalId: product.externalId, finish: product.finish, language: product.language },
+          ],
         },
       });
       assertOk(res);

@@ -215,11 +215,11 @@ function MarketplaceProductColumn({
   marketplace: MappableMarketplace;
   group: UnifiedMappingGroup;
   allCards: AssignableCard[];
-  onIgnore: (externalId: number, finish: string) => void;
+  onIgnore: (externalId: number, finish: string, language: string) => void;
   isIgnoring: boolean;
-  onUnassign: (externalId: number, finish: string) => void;
+  onUnassign: (externalId: number, finish: string, language: string) => void;
   isUnassigning: boolean;
-  onAssignToCard: (externalId: number, finish: string, cardId: string) => void;
+  onAssignToCard: (externalId: number, finish: string, language: string, cardId: string) => void;
   isAssigning: boolean;
 }) {
   const config =
@@ -243,15 +243,19 @@ function MarketplaceProductColumn({
               config={config}
               product={sp}
               isAssigned={isAssigned}
-              onIgnore={isAssigned ? undefined : () => onIgnore(sp.externalId, sp.finish)}
+              onIgnore={
+                isAssigned ? undefined : () => onIgnore(sp.externalId, sp.finish, sp.language)
+              }
               isIgnoring={isIgnoring}
-              onUnassign={sp.isOverride ? () => onUnassign(sp.externalId, sp.finish) : undefined}
+              onUnassign={
+                sp.isOverride ? () => onUnassign(sp.externalId, sp.finish, sp.language) : undefined
+              }
               isUnassigning={isUnassigning}
               allCards={sp.isOverride ? undefined : isAssigned ? undefined : allCards}
               onAssignToCard={
                 sp.isOverride || isAssigned
                   ? undefined
-                  : (cardId) => onAssignToCard(sp.externalId, sp.finish, cardId)
+                  : (cardId) => onAssignToCard(sp.externalId, sp.finish, sp.language, cardId)
               }
               isAssigning={isAssigning}
               assignLabel="Reassign"
@@ -663,12 +667,16 @@ function UnifiedExpandedDetail({
           marketplace="tcgplayer"
           group={group}
           allCards={allCards}
-          onIgnore={(eid, fin) => tcgIgnore.mutate([{ externalId: eid, finish: fin }])}
+          onIgnore={(eid, fin, lang) =>
+            tcgIgnore.mutate([{ externalId: eid, finish: fin, language: lang }])
+          }
           isIgnoring={tcgIgnore.isPending}
-          onUnassign={(eid, fin) => tcgUnassign.mutate({ externalId: eid, finish: fin })}
+          onUnassign={(eid, fin, lang) =>
+            tcgUnassign.mutate({ externalId: eid, finish: fin, language: lang })
+          }
           isUnassigning={tcgUnassign.isPending}
-          onAssignToCard={(eid, fin, cid) =>
-            tcgAssignToCard.mutate({ externalId: eid, finish: fin, cardId: cid })
+          onAssignToCard={(eid, fin, lang, cid) =>
+            tcgAssignToCard.mutate({ externalId: eid, finish: fin, language: lang, cardId: cid })
           }
           isAssigning={tcgAssignToCard.isPending}
         />
@@ -676,12 +684,16 @@ function UnifiedExpandedDetail({
           marketplace="cardmarket"
           group={group}
           allCards={allCards}
-          onIgnore={(eid, fin) => cmIgnore.mutate([{ externalId: eid, finish: fin }])}
+          onIgnore={(eid, fin, lang) =>
+            cmIgnore.mutate([{ externalId: eid, finish: fin, language: lang }])
+          }
           isIgnoring={cmIgnore.isPending}
-          onUnassign={(eid, fin) => cmUnassign.mutate({ externalId: eid, finish: fin })}
+          onUnassign={(eid, fin, lang) =>
+            cmUnassign.mutate({ externalId: eid, finish: fin, language: lang })
+          }
           isUnassigning={cmUnassign.isPending}
-          onAssignToCard={(eid, fin, cid) =>
-            cmAssignToCard.mutate({ externalId: eid, finish: fin, cardId: cid })
+          onAssignToCard={(eid, fin, lang, cid) =>
+            cmAssignToCard.mutate({ externalId: eid, finish: fin, language: lang, cardId: cid })
           }
           isAssigning={cmAssignToCard.isPending}
         />
@@ -689,12 +701,16 @@ function UnifiedExpandedDetail({
           marketplace="cardtrader"
           group={group}
           allCards={allCards}
-          onIgnore={(eid, fin) => ctIgnore.mutate([{ externalId: eid, finish: fin }])}
+          onIgnore={(eid, fin, lang) =>
+            ctIgnore.mutate([{ externalId: eid, finish: fin, language: lang }])
+          }
           isIgnoring={ctIgnore.isPending}
-          onUnassign={(eid, fin) => ctUnassign.mutate({ externalId: eid, finish: fin })}
+          onUnassign={(eid, fin, lang) =>
+            ctUnassign.mutate({ externalId: eid, finish: fin, language: lang })
+          }
           isUnassigning={ctUnassign.isPending}
-          onAssignToCard={(eid, fin, cid) =>
-            ctAssignToCard.mutate({ externalId: eid, finish: fin, cardId: cid })
+          onAssignToCard={(eid, fin, lang, cid) =>
+            ctAssignToCard.mutate({ externalId: eid, finish: fin, language: lang, cardId: cid })
           }
           isAssigning={ctAssignToCard.isPending}
         />
@@ -717,9 +733,14 @@ function UnmatchedSection({
   marketplace: MappableMarketplace;
   products: StagedProduct[];
   allCards: AssignableCard[];
-  onIgnore: (p: { externalId: number; finish: string }[]) => void;
+  onIgnore: (p: { externalId: number; finish: string; language: string }[]) => void;
   isIgnoring: boolean;
-  onAssignToCard: (p: { externalId: number; finish: string; cardId: string }) => void;
+  onAssignToCard: (p: {
+    externalId: number;
+    finish: string;
+    language: string;
+    cardId: string;
+  }) => void;
   isAssigning: boolean;
 }) {
   const config =
@@ -743,13 +764,16 @@ function UnmatchedSection({
               key={`${sp.externalId}::${sp.finish}`}
               config={config}
               product={sp}
-              onIgnore={() => onIgnore([{ externalId: sp.externalId, finish: sp.finish }])}
+              onIgnore={() =>
+                onIgnore([{ externalId: sp.externalId, finish: sp.finish, language: sp.language }])
+              }
               isIgnoring={isIgnoring}
               allCards={allCards}
               onAssignToCard={(cardId) =>
                 onAssignToCard({
                   externalId: sp.externalId,
                   finish: sp.finish,
+                  language: sp.language,
                   cardId,
                 })
               }
@@ -1083,15 +1107,15 @@ interface MutId {
   isPending: boolean;
 }
 interface MutProducts {
-  mutate: (p: { externalId: number; finish: string }[]) => void;
+  mutate: (p: { externalId: number; finish: string; language: string }[]) => void;
   isPending: boolean;
 }
 interface MutProduct {
-  mutate: (p: { externalId: number; finish: string }) => void;
+  mutate: (p: { externalId: number; finish: string; language: string }) => void;
   isPending: boolean;
 }
 interface MutAssign {
-  mutate: (p: { externalId: number; finish: string; cardId: string }) => void;
+  mutate: (p: { externalId: number; finish: string; language: string; cardId: string }) => void;
   isPending: boolean;
 }
 

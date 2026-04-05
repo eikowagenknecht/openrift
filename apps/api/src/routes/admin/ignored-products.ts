@@ -21,6 +21,7 @@ const listIgnoredProducts = createRoute({
                 marketplace: z.string(),
                 externalId: z.number(),
                 finish: z.string(),
+                language: z.string(),
                 productName: z.string(),
                 createdAt: z.string(),
               }),
@@ -83,6 +84,7 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
           marketplace: r.marketplace,
           externalId: r.externalId,
           finish: r.finish,
+          language: r.language,
           productName: r.productName,
           createdAt: r.createdAt.toISOString(),
         }),
@@ -114,6 +116,7 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
         marketplace,
         externalId: p.externalId,
         finish: p.finish,
+        language: p.language,
         productName: nameMap.get(p.externalId) ?? "",
       }));
 
@@ -132,7 +135,11 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const deleted = await mktAdmin.deleteIgnoredProducts(
       marketplace,
-      products.map((p) => ({ externalId: p.externalId, finish: p.finish })),
+      products.map((p) => ({
+        externalId: p.externalId,
+        finish: p.finish,
+        language: p.language,
+      })),
     );
 
     return c.json({ unignored: deleted });

@@ -84,7 +84,14 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     listIgnoredProducts() {
       return db
         .selectFrom("marketplaceIgnoredProducts as ip")
-        .select(["ip.marketplace", "ip.externalId", "ip.finish", "ip.productName", "ip.createdAt"])
+        .select([
+          "ip.marketplace",
+          "ip.externalId",
+          "ip.finish",
+          "ip.language",
+          "ip.productName",
+          "ip.createdAt",
+        ])
         .orderBy("ip.createdAt", "desc")
         .execute();
     },
@@ -101,12 +108,20 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
 
     /** Insert ignored products (skips conflicts). */
     async insertIgnoredProducts(
-      values: { marketplace: string; externalId: number; finish: string; productName: string }[],
+      values: {
+        marketplace: string;
+        externalId: number;
+        finish: string;
+        language: string;
+        productName: string;
+      }[],
     ): Promise<void> {
       await db
         .insertInto("marketplaceIgnoredProducts")
         .values(values)
-        .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
         .execute();
     },
 
@@ -115,12 +130,14 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       marketplace: string,
       externalId: number,
       finish: string,
+      language: string,
     ): Promise<void> {
       await db
         .deleteFrom("marketplaceIgnoredProducts")
         .where("marketplace", "=", marketplace)
         .where("externalId", "=", externalId)
         .where("finish", "=", finish)
+        .where("language", "=", language)
         .execute();
     },
 
@@ -131,7 +148,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      */
     async deleteIgnoredProducts(
       marketplace: string,
-      products: { externalId: number; finish: string }[],
+      products: { externalId: number; finish: string; language: string }[],
     ): Promise<number> {
       if (products.length === 0) {
         return 0;
@@ -143,7 +160,11 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .where((eb) =>
           eb.or(
             products.map((p) =>
-              eb.and([eb("externalId", "=", p.externalId), eb("finish", "=", p.finish)]),
+              eb.and([
+                eb("externalId", "=", p.externalId),
+                eb("finish", "=", p.finish),
+                eb("language", "=", p.language),
+              ]),
             ),
           ),
         )
@@ -159,6 +180,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       marketplace: string;
       externalId: number;
       finish: string;
+      language: string;
       cardId: string;
     }): Promise<void> {
       await db
@@ -166,7 +188,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .values(values)
         .onConflict((oc) =>
           oc
-            .columns(["marketplace", "externalId", "finish"])
+            .columns(["marketplace", "externalId", "finish", "language"])
             .doUpdateSet({ cardId: values.cardId }),
         )
         .execute();
@@ -177,12 +199,14 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       marketplace: string,
       externalId: number,
       finish: string,
+      language: string,
     ): Promise<void> {
       await db
         .deleteFrom("marketplaceStagingCardOverrides")
         .where("marketplace", "=", marketplace)
         .where("externalId", "=", externalId)
         .where("finish", "=", finish)
+        .where("language", "=", language)
         .execute();
     },
 

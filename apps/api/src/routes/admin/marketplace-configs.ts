@@ -37,6 +37,7 @@ export interface StagingRow extends PriceColumns {
   groupId: number;
   productName: string;
   finish: string;
+  language: string;
   recordedAt: Date;
 }
 
@@ -69,6 +70,7 @@ export interface MarketplaceConfig {
   insertStagingFromSnapshot(
     ps: { externalId: number; groupId: number; productName: string },
     finish: string,
+    language: string,
     snap: SnapshotRow,
   ): Promise<void>;
   /** Raw SQL to bulk-copy all snapshots back to staging (DELETE /all) */
@@ -101,8 +103,8 @@ function createMarketplaceConfig(opts: {
 
     insertSnapshot: (productId, row) => repo.insertSnapshot(productId, row),
 
-    insertStagingFromSnapshot: (ps, finish, snap) =>
-      repo.insertStagingFromSnapshot(marketplace, ps, finish, snap),
+    insertStagingFromSnapshot: (ps, finish, language, snap) =>
+      repo.insertStagingFromSnapshot(marketplace, ps, finish, language, snap),
 
     bulkUnmapSql: () => repo.bulkUnmapToStaging(marketplace),
   };

@@ -125,7 +125,7 @@ function createMockRepos(config: MockReposConfig = {}) {
   let upsertGroupsCalled = false;
 
   const ignoredKeys = new Set(
-    (config.ignoredProducts ?? []).map((p) => `${p.externalId}::${p.finish}`),
+    (config.ignoredProducts ?? []).map((p) => `${p.externalId}::${p.finish}::EN`),
   );
 
   const repos = {

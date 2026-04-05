@@ -180,6 +180,7 @@ export const unignoreCandidatePrintingSchema = z.object({
 const ignoreProductItemSchema = z.object({
   externalId: z.number(),
   finish: z.string(),
+  language: z.string(),
 });
 
 export const ignoreProductsSchema = z.object({
@@ -218,6 +219,7 @@ export const stagingCardOverrideSchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   externalId: z.number(),
   finish: z.string(),
+  language: z.string(),
   cardId: z.string(),
 });
 
@@ -225,6 +227,7 @@ export const deleteOverrideSchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   externalId: z.number(),
   finish: z.string(),
+  language: z.string(),
 });
 
 // ── Typography Review ──────────────────────────────────────────────────────

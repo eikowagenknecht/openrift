@@ -136,7 +136,7 @@ function buildTcgplayerStaging(
           continue;
         }
         const finish = entry.subTypeName === "Foil" ? "foil" : "normal";
-        if (ignoredKeys.has(`${product.productId}::${finish}`)) {
+        if (ignoredKeys.has(`${product.productId}::${finish}::EN`)) {
           continue;
         }
         allStaging.push({
@@ -144,6 +144,7 @@ function buildTcgplayerStaging(
           groupId: group.groupId,
           productName: product.cleanName,
           finish,
+          language: "EN",
           recordedAt: recordedAt,
           marketCents: marketCents,
           lowCents: toCents(entry.lowPrice),

@@ -39,5 +39,6 @@ export interface StagingRow extends PriceColumns {
   groupId: number;
   productName: string;
   finish: string;
+  language: string;
   recordedAt: Date;
 }

@@ -94,7 +94,7 @@ function createMockRepos(config: MockReposConfig = {}) {
   const insertedExpansionIds: number[] = [];
 
   const ignoredKeys = new Set(
-    (config.ignoredProducts ?? []).map((p) => `${p.externalId}::${p.finish}`),
+    (config.ignoredProducts ?? []).map((p) => `${p.externalId}::${p.finish}::EN`),
   );
 
   const repos = {

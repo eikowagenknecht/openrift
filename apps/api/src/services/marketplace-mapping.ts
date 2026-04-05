@@ -19,10 +19,12 @@ interface PrintingRow {
   isSigned: boolean;
   promoTypeSlug: string | null;
   finish: string;
+  language: string;
   collectorNumber: number;
   imageUrl: string | null;
   externalId: number | null;
   sourceGroupId: number | null;
+  sourceLanguage: string | null;
 }
 
 interface CardGroup {
@@ -65,10 +67,12 @@ function buildCardIndex(
     isSigned: boolean;
     promoTypeSlug: string | null;
     finish: string;
+    language: string;
     collectorNumber: number;
     imageUrl: string | null;
     externalId: number | null;
     sourceGroupId: number | null;
+    sourceLanguage: string | null;
   }[],
 ): CardIndex {
   const cardGroups = new Map<string, CardGroup>();
@@ -100,10 +104,12 @@ function buildCardIndex(
       isSigned: row.isSigned,
       promoTypeSlug: row.promoTypeSlug,
       finish: row.finish,
+      language: row.language,
       collectorNumber: row.collectorNumber,
       imageUrl: row.imageUrl,
       externalId: row.externalId,
       sourceGroupId: row.sourceGroupId,
+      sourceLanguage: row.sourceLanguage,
     });
   }
 
@@ -138,7 +144,7 @@ function matchStagedProducts(
   const matchedStagingKeys = new Set<string>();
 
   for (const row of uniqueStaged) {
-    const stagingKey = `${row.externalId}::${row.finish}`;
+    const stagingKey = `${row.externalId}::${row.finish}::${row.language}`;
 
     // Check manual override first
     const override = overrideMap.get(stagingKey);
@@ -171,7 +177,7 @@ function matchStagedProducts(
   // "Daughter of the Void", or "Master Yi Wuju Bladesman" contains the base
   // of "Wuju Bladesman - Starter" (baseName strips the " - Starter" suffix).
   for (const row of uniqueStaged) {
-    const stagingKey = `${row.externalId}::${row.finish}`;
+    const stagingKey = `${row.externalId}::${row.finish}::${row.language}`;
     if (matchedStagingKeys.has(stagingKey)) {
       continue;
     }
@@ -204,13 +210,15 @@ function buildResponseGroups(
   return [...cardGroups.values()].map((group) => {
     const key = group.cardId;
     const stagedProducts = (stagedByCard.get(key) ?? []).map((row) =>
-      mapStagedRow(row, { isOverride: overrideMap.has(`${row.externalId}::${row.finish}`) }),
+      mapStagedRow(row, {
+        isOverride: overrideMap.has(`${row.externalId}::${row.finish}::${row.language}`),
+      }),
     );
 
     const seenAssigned = new Set<string>();
     const assignedProducts: typeof stagedProducts = [];
     for (const p of group.printings) {
-      const dedupKey = `${p.externalId}::${p.finish}`;
+      const dedupKey = `${p.externalId}::${p.finish}::${p.sourceLanguage}`;
       if (p.externalId !== null && !seenAssigned.has(dedupKey)) {
         seenAssigned.add(dedupKey);
         const info = mappedProductInfo.get(p.printingId);
@@ -219,6 +227,7 @@ function buildResponseGroups(
             externalId: p.externalId,
             productName: info.productName ?? group.cardName,
             finish: p.finish,
+            language: p.sourceLanguage ?? p.language,
             marketCents: info.marketCents,
             lowCents: info.lowCents,
             currency: info.currency,
@@ -243,13 +252,15 @@ function buildResponseGroups(
     // 1. Exact externalId+finish match → always exclude (already mapped).
     // 2. externalId-only match → exclude UNLESS there is an unmapped printing
     //    whose finish matches the staged product (it could still be mapped).
-    const assignedKeys = new Set(assignedProducts.map((p) => `${p.externalId}::${p.finish}`));
+    const assignedKeys = new Set(
+      assignedProducts.map((p) => `${p.externalId}::${p.finish}::${p.language}`),
+    );
     const assignedExternalIds = new Set(assignedProducts.map((p) => p.externalId));
     const unmappedFinishes = new Set(
       group.printings.filter((p) => p.externalId === null).map((p) => p.finish),
     );
     const filteredStaged = stagedProducts.filter((p) => {
-      if (assignedKeys.has(`${p.externalId}::${p.finish}`)) {
+      if (assignedKeys.has(`${p.externalId}::${p.finish}::${p.language}`)) {
         return false;
       }
       if (assignedExternalIds.has(p.externalId) && !unmappedFinishes.has(p.finish)) {
@@ -273,14 +284,16 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
 
   // 1. Load ignored products
   const ignoredRows = await repo.ignoredProducts(config.marketplace);
-  const ignoredKeys = new Set(ignoredRows.map((r) => `${r.externalId}::${r.finish}`));
+  const ignoredKeys = new Set(
+    ignoredRows.map((r) => `${r.externalId}::${r.finish}::${r.language}`),
+  );
 
   // 2. Fetch & deduplicate staged products
   const staged = await repo.allStaging(config.marketplace);
 
   const seenStagingKeys = new Set<string>();
   const uniqueStaged = staged.filter((row) => {
-    const key = `${row.externalId}::${row.finish}`;
+    const key = `${row.externalId}::${row.finish}::${row.language}`;
     if (ignoredKeys.has(key) || seenStagingKeys.has(key)) {
       return false;
     }
@@ -305,7 +318,7 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
   const overrideRows = await repo.stagingCardOverrides(config.marketplace);
   const overrideMap = new Map<string, { cardId: string }>();
   for (const row of overrideRows) {
-    overrideMap.set(`${row.externalId}::${row.finish}`, {
+    overrideMap.set(`${row.externalId}::${row.finish}::${row.language}`, {
       cardId: row.cardId,
     });
   }
@@ -346,6 +359,7 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
     externalId: row.externalId ?? "",
     productName: row.productName,
     finish: row.finish,
+    language: row.language,
     ...config.mapStagingPrices(row),
     recordedAt: row.recordedAt.toISOString(),
     ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
@@ -357,8 +371,8 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
   const unmatchedProducts = uniqueStaged
     .filter(
       (row) =>
-        !matchedStagingKeys.has(`${row.externalId}::${row.finish}`) &&
-        !ignoredKeys.has(`${row.externalId}::${row.finish}`),
+        !matchedStagingKeys.has(`${row.externalId}::${row.finish}::${row.language}`) &&
+        !ignoredKeys.has(`${row.externalId}::${row.finish}::${row.language}`),
     )
     .map((row) => mapStagedRow(row));
 
@@ -366,18 +380,19 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
   const groupByExternal = new Map<string, number>();
   for (const row of staged) {
     if (row.externalId !== null) {
-      const key = `${row.externalId}::${row.finish}`;
+      const key = `${row.externalId}::${row.finish}::${row.language}`;
       if (!groupByExternal.has(key)) {
         groupByExternal.set(key, row.groupId);
       }
     }
   }
   const ignoredProducts = ignoredRows.map((r) => {
-    const gid = groupByExternal.get(`${r.externalId}::${r.finish}`);
+    const gid = groupByExternal.get(`${r.externalId}::${r.finish}::${r.language}`);
     return {
       externalId: r.externalId,
       productName: r.productName,
       finish: r.finish,
+      language: r.language,
       marketCents: 0,
       lowCents: null as number | null,
       currency: config.currency,
@@ -413,6 +428,7 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
       printingId: p.printingId,
       shortCode: p.shortCode,
       finish: p.finish,
+      language: p.language,
       collectorNumber: p.collectorNumber,
       isSigned: p.isSigned,
       externalId: p.externalId,
@@ -438,28 +454,30 @@ export async function saveMappings(
   const saved = await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
 
-    // 1. Batch-fetch printing finishes (1 query instead of N)
+    // 1. Batch-fetch printing finishes and languages (1 query instead of N)
     const printingIds = mappings.map((m) => m.printingId);
-    const printingRows = await repo.printingFinishes(printingIds);
-    const finishByPrinting = new Map(printingRows.map((row) => [row.id, row.finish]));
+    const printingRows = await repo.printingFinishesAndLanguages(printingIds);
+    const printingInfoByid = new Map(
+      printingRows.map((row) => [row.id, { finish: row.finish, language: row.language }]),
+    );
 
     // 2. Batch-fetch staging rows (1 query instead of N)
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const allStagingRows = await repo.stagingByExternalIds(config.marketplace, externalIds);
     const stagingByKey = new Map<string, typeof allStagingRows>();
     for (const row of allStagingRows) {
-      const key = `${row.externalId}::${row.finish}`;
+      const key = `${row.externalId}::${row.finish}::${row.language}`;
       const list = stagingByKey.get(key) ?? [];
       list.push(row);
       stagingByKey.set(key, list);
     }
 
-    // Collect available finishes per external ID for error messages
-    const finishesByExtId = new Map<number, Set<string>>();
+    // Collect available finish+language combos per external ID for error messages
+    const variantsByExtId = new Map<number, Set<string>>();
     for (const row of allStagingRows) {
-      const set = finishesByExtId.get(row.externalId) ?? new Set();
-      set.add(row.finish);
-      finishesByExtId.set(row.externalId, set);
+      const set = variantsByExtId.get(row.externalId) ?? new Set();
+      set.add(`${row.finish}/${row.language}`);
+      variantsByExtId.set(row.externalId, set);
     }
 
     // 3. Build source upsert values, collecting skip reasons
@@ -469,20 +487,21 @@ export async function saveMappings(
       externalId: number;
       groupId: number;
       productName: string;
+      language: string;
     }[] = [];
     for (const m of mappings) {
-      const finish = finishByPrinting.get(m.printingId);
-      if (!finish) {
+      const info = printingInfoByid.get(m.printingId);
+      if (!info) {
         skipped.push({ externalId: m.externalId, reason: "printing not found" });
         continue;
       }
-      const first = stagingByKey.get(`${m.externalId}::${finish}`)?.[0];
+      const first = stagingByKey.get(`${m.externalId}::${info.finish}::${info.language}`)?.[0];
       if (!first) {
-        const available = finishesByExtId.get(m.externalId);
+        const available = variantsByExtId.get(m.externalId);
         if (available && available.size > 0) {
           skipped.push({
             externalId: m.externalId,
-            reason: `finish mismatch: printing is "${finish}" but product only has "${[...available].join(", ")}"`,
+            reason: `variant mismatch: printing is "${info.finish}/${info.language}" but product only has "${[...available].join(", ")}"`,
           });
         } else {
           skipped.push({ externalId: m.externalId, reason: "no staging data found" });
@@ -495,6 +514,7 @@ export async function saveMappings(
         externalId: m.externalId,
         groupId: first.groupId,
         productName: first.productName,
+        language: info.language,
       });
     }
 
@@ -524,8 +544,9 @@ export async function saveMappings(
       if (productId === undefined) {
         continue;
       }
-      const finish = finishByPrinting.get(sv.printingId) ?? "";
-      const rows = stagingByKey.get(`${sv.externalId}::${finish}`) ?? [];
+      const info = printingInfoByid.get(sv.printingId);
+      const stagingKey = `${sv.externalId}::${info?.finish ?? ""}::${info?.language ?? "EN"}`;
+      const rows = stagingByKey.get(stagingKey) ?? [];
       for (const row of rows) {
         snapshotRows.push({
           productId: productId,
@@ -547,16 +568,21 @@ export async function saveMappings(
     }
 
     // 6. Batch-delete staging rows (1 query instead of N)
-    const deletePairs: { externalId: number; finish: string }[] = [];
+    const deleteTuples: { externalId: number; finish: string; language: string }[] = [];
     for (const sv of sourceValues) {
-      const finish = finishByPrinting.get(sv.printingId) ?? "";
-      const rows = stagingByKey.get(`${sv.externalId}::${finish}`) ?? [];
+      const info = printingInfoByid.get(sv.printingId);
+      const stagingKey = `${sv.externalId}::${info?.finish ?? ""}::${info?.language ?? "EN"}`;
+      const rows = stagingByKey.get(stagingKey) ?? [];
       for (const row of rows) {
-        deletePairs.push({ externalId: sv.externalId, finish: row.finish });
+        deleteTuples.push({
+          externalId: sv.externalId,
+          finish: row.finish,
+          language: row.language,
+        });
       }
     }
 
-    await repo.deleteStagingTuples(config.marketplace, deletePairs);
+    await repo.deleteStagingTuples(config.marketplace, deleteTuples);
 
     return sourceValues.length;
   });
@@ -584,11 +610,11 @@ export async function unmapPrinting(
       return;
     }
 
-    const printing = await repo.getPrintingFinish(printingId);
+    const printing = await repo.getPrintingFinishAndLanguage(printingId);
     const snapshots = await repo.snapshotsByProductId(ps.id);
 
     for (const snap of snapshots) {
-      await trxConfig.insertStagingFromSnapshot(ps, printing.finish, snap);
+      await trxConfig.insertStagingFromSnapshot(ps, printing.finish, printing.language, snap);
     }
 
     await repo.deleteSnapshotsByProductId(ps.id);

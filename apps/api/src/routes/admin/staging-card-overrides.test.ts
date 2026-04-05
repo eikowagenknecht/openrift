@@ -49,6 +49,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         marketplace: "tcgplayer",
         externalId: 12_345,
         finish: "normal",
+        language: "EN",
         cardId: "card-uuid-1",
       }),
     });
@@ -58,6 +59,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
       marketplace: "tcgplayer",
       externalId: 12_345,
       finish: "normal",
+      language: "EN",
       cardId: "card-uuid-1",
     });
   });
@@ -72,6 +74,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         marketplace: "cardmarket",
         externalId: 67_890,
         finish: "foil",
+        language: "EN",
         cardId: "card-uuid-2",
       }),
     });
@@ -89,6 +92,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         marketplace: "cardtrader",
         externalId: 11_111,
         finish: "normal",
+        language: "EN",
         cardId: "card-uuid-3",
       }),
     });
@@ -104,6 +108,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         marketplace: "invalid",
         externalId: 12_345,
         finish: "normal",
+        language: "EN",
         cardId: "card-uuid-1",
       }),
     });
@@ -139,6 +144,7 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
         marketplace: "tcgplayer",
         externalId: 12_345,
         finish: "normal",
+        language: "EN",
       }),
     });
 
@@ -147,6 +153,7 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
       "tcgplayer",
       12_345,
       "normal",
+      "EN",
     );
   });
 
@@ -160,6 +167,7 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
         marketplace: "cardmarket",
         externalId: 67_890,
         finish: "foil",
+        language: "EN",
       }),
     });
 
@@ -168,6 +176,7 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
       "cardmarket",
       67_890,
       "foil",
+      "EN",
     );
   });
 
@@ -179,6 +188,7 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
         marketplace: "invalid",
         externalId: 12_345,
         finish: "normal",
+        language: "EN",
       }),
     });
 

@@ -80,7 +80,7 @@ export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" 
 export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
-    async (products: { externalId: number; finish: string }[]) => {
+    async (products: { externalId: number; finish: string; language: string }[]) => {
       const res = await client.api.v1.admin["ignored-products"].$post({
         json: { marketplace, products },
       });
@@ -92,7 +92,7 @@ export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket"
 export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
-    async (override: { externalId: number; finish: string; cardId: string }) => {
+    async (override: { externalId: number; finish: string; language: string; cardId: string }) => {
       const res = await client.api.v1.admin["staging-card-overrides"].$post({
         json: { marketplace, ...override },
       });
@@ -102,10 +102,13 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" |
 }
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
-  return useUnifiedMutation(marketplace, async (params: { externalId: number; finish: string }) => {
-    const res = await client.api.v1.admin["staging-card-overrides"].$delete({
-      json: { marketplace, ...params },
-    });
-    assertOk(res);
-  });
+  return useUnifiedMutation(
+    marketplace,
+    async (params: { externalId: number; finish: string; language: string }) => {
+      const res = await client.api.v1.admin["staging-card-overrides"].$delete({
+        json: { marketplace, ...params },
+      });
+      assertOk(res);
+    },
+  );
 }

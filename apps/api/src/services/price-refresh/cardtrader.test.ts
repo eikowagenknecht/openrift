@@ -67,7 +67,7 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
 }
 
 interface MockReposConfig {
-  ignoredProducts?: { externalId: number; finish: string }[];
+  ignoredProducts?: { externalId: number; finish: string; language?: string }[];
   existingSources?: {
     marketplace: string;
     externalId: number;
@@ -80,7 +80,9 @@ interface MockReposConfig {
 
 function createMockRepos(config: MockReposConfig = {}) {
   const ignoredKeys = new Set(
-    (config.ignoredProducts ?? []).map((product) => `${product.externalId}::${product.finish}`),
+    (config.ignoredProducts ?? []).map(
+      (product) => `${product.externalId}::${product.finish}::${product.language ?? "EN"}`,
+    ),
   );
 
   const repos = {
@@ -235,11 +237,13 @@ describe("refreshCardtraderPrices", () => {
       const foilRow = staging.find((row) => row.finish === "foil");
       expect(normalRow?.marketCents).toBe(100);
       expect(normalRow?.lowCents).toBe(100);
+      expect(normalRow?.language).toBe("EN");
       expect(foilRow?.marketCents).toBe(300);
       expect(foilRow?.lowCents).toBe(300);
+      expect(foilRow?.language).toBe("EN");
     });
 
-    it("only considers English listings", async () => {
+    it("groups listings by language", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {
@@ -252,7 +256,14 @@ describe("refreshCardtraderPrices", () => {
               "5001": [
                 {
                   blueprint_id: 5001,
-                  name_en: "Flame Striker JP",
+                  name_en: "Flame Striker EN",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker JA",
                   price_cents: 50,
                   price_currency: "EUR",
                   properties_hash: { riftbound_language: "ja" },
@@ -266,7 +277,15 @@ describe("refreshCardtraderPrices", () => {
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
-      expect(staging).toHaveLength(0);
+      expect(staging).toHaveLength(2);
+      const enRow = staging.find((row) => row.language === "EN");
+      const jaRow = staging.find((row) => row.language === "JA");
+      expect(enRow).toBeDefined();
+      expect(enRow?.marketCents).toBe(100);
+      expect(enRow?.language).toBe("EN");
+      expect(jaRow).toBeDefined();
+      expect(jaRow?.marketCents).toBe(50);
+      expect(jaRow?.language).toBe("JA");
     });
 
     it("skips sealed products (non-singles category)", async () => {
@@ -286,7 +305,7 @@ describe("refreshCardtraderPrices", () => {
 
     it("skips ignored products", async () => {
       const { repos } = createMockRepos({
-        ignoredProducts: [{ externalId: 5001, finish: "normal" }],
+        ignoredProducts: [{ externalId: 5001, finish: "normal", language: "EN" }],
       });
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {

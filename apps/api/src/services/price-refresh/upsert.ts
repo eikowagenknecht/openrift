@@ -112,16 +112,18 @@ export async function upsertPriceData(
 
   // ── Build snapshots from staging + source mappings ─────────────────────
 
-  // Match staging rows to mapped sources by exact externalId+finish.
-  // Each staging row's price only flows to printings with the same finish.
-  const printingByExtIdFinish = Map.groupBy(
+  // Match staging rows to mapped sources by exact externalId+finish+language.
+  // Each staging row's price only flows to products with the same finish and language.
+  const productByKey = Map.groupBy(
     dbProducts,
-    (src) => `${src.externalId}::${src.finish}`,
+    (src) => `${src.externalId}::${src.finish}::${src.language}`,
   );
 
   const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
   for (const staging of allStaging) {
-    const sources = printingByExtIdFinish.get(`${staging.externalId}::${staging.finish}`);
+    const sources = productByKey.get(
+      `${staging.externalId}::${staging.finish}::${staging.language}`,
+    );
     if (!sources) {
       continue;
     }
@@ -157,10 +159,13 @@ export async function upsertPriceData(
 
   // ── Staging ────────────────────────────────────────────────────────────
 
-  // Deduplicate staging: keep last entry per (externalId, finish, recordedAt)
+  // Deduplicate staging: keep last entry per (externalId, finish, language, recordedAt)
   const uniqueStaging = new Map<string, StagingRow>();
   for (const row of allStaging) {
-    uniqueStaging.set(`${row.externalId}|${row.finish}|${row.recordedAt.toISOString()}`, row);
+    uniqueStaging.set(
+      `${row.externalId}|${row.finish}|${row.language}|${row.recordedAt.toISOString()}`,
+      row,
+    );
   }
 
   const stagingRows = [...uniqueStaging.values()];

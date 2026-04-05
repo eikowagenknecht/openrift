@@ -242,6 +242,7 @@ export interface IgnoredProductResponse {
   marketplace: string;
   externalId: number;
   finish: string;
+  language: string;
   productName: string;
   createdAt: string;
 }
@@ -379,6 +380,7 @@ export interface MappingPrintingResponse {
   isSigned: boolean;
   promoTypeSlug: string | null;
   finish: string;
+  language: string;
   collectorNumber: number;
   imageUrl: string | null;
   externalId: number | null;
@@ -386,8 +388,9 @@ export interface MappingPrintingResponse {
 
 export interface UnifiedMappingPrintingResponse extends Omit<
   MappingPrintingResponse,
-  "externalId"
+  "externalId" | "language"
 > {
+  language: string;
   tcgExternalId: number | null;
   cmExternalId: number | null;
   ctExternalId: number | null;
@@ -397,6 +400,7 @@ export interface StagedProductResponse {
   externalId: number;
   productName: string;
   finish: string;
+  language: string;
   marketCents: number;
   lowCents: number | null;
   currency: string;
@@ -448,6 +452,7 @@ export interface AssignableCardResponse {
     printingId: string;
     shortCode: string;
     finish: string;
+    language: string;
     collectorNumber: number;
     isSigned: boolean;
     externalId: number | null;

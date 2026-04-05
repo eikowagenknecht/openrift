@@ -138,9 +138,15 @@ describe("createMarketplaceConfigs", () => {
 
       const ps = { externalId: 1, groupId: 1, productName: "Test" };
       const snap = { ...priceRow, recordedAt: new Date() };
-      await tcgplayer.insertStagingFromSnapshot(ps, "normal", snap);
+      await tcgplayer.insertStagingFromSnapshot(ps, "normal", "EN", snap);
 
-      expect(repo.insertStagingFromSnapshot).toHaveBeenCalledWith("tcgplayer", ps, "normal", snap);
+      expect(repo.insertStagingFromSnapshot).toHaveBeenCalledWith(
+        "tcgplayer",
+        ps,
+        "normal",
+        "EN",
+        snap,
+      );
     });
 
     it("bulkUnmapSql delegates to repo.bulkUnmapToStaging", async () => {
@@ -198,9 +204,15 @@ describe("createMarketplaceConfigs", () => {
 
       const ps = { externalId: 1, groupId: 1, productName: "Test" };
       const snap = { ...priceRow, recordedAt: new Date() };
-      await cardmarket.insertStagingFromSnapshot(ps, "foil", snap);
+      await cardmarket.insertStagingFromSnapshot(ps, "foil", "EN", snap);
 
-      expect(repo.insertStagingFromSnapshot).toHaveBeenCalledWith("cardmarket", ps, "foil", snap);
+      expect(repo.insertStagingFromSnapshot).toHaveBeenCalledWith(
+        "cardmarket",
+        ps,
+        "foil",
+        "EN",
+        snap,
+      );
     });
 
     it("bulkUnmapSql delegates with cardmarket marketplace", async () => {

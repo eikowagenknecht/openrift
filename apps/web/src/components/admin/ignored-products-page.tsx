@@ -97,6 +97,7 @@ export function IgnoredProductsPage() {
               marketplace: p.marketplace as "tcgplayer" | "cardmarket" | "cardtrader",
               externalId: p.externalId,
               finish: p.finish,
+              language: p.language,
             })
           }
           disabled={unignoreMutation.isPending}

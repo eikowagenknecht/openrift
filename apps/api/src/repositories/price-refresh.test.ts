@@ -20,10 +20,10 @@ describe("priceRefreshRepo", () => {
   });
 
   it("loadIgnoredKeys returns a Set of keys", async () => {
-    const db = createMockDb([{ externalId: 123, finish: "normal" }]);
+    const db = createMockDb([{ externalId: 123, finish: "normal", language: "EN" }]);
     const result = await priceRefreshRepo(db).loadIgnoredKeys("tcgplayer");
     expect(result).toBeInstanceOf(Set);
-    expect(result.has("123::normal")).toBe(true);
+    expect(result.has("123::normal::EN")).toBe(true);
   });
 
   it("upsertGroups upserts marketplace groups", async () => {
@@ -80,6 +80,7 @@ describe("priceRefreshRepo", () => {
         {
           externalId: 123,
           finish: "normal",
+          language: "EN",
           productName: "Card",
           recordedAt: new Date(),
           groupId: 1,
@@ -116,6 +117,7 @@ describe("priceRefreshRepo", () => {
           groupId: 1,
           productName: "Card",
           printingId: "p-1",
+          language: "EN",
         },
       ]),
     ).resolves.toBeUndefined();

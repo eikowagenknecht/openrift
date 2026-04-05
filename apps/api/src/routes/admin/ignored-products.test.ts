@@ -108,8 +108,8 @@ describe("POST /api/v1/ignored-products", () => {
       body: JSON.stringify({
         marketplace: "tcgplayer",
         products: [
-          { externalId: 12_345, finish: "normal" },
-          { externalId: 67_890, finish: "foil" },
+          { externalId: 12_345, finish: "normal", language: "EN" },
+          { externalId: 67_890, finish: "foil", language: "EN" },
         ],
       }),
     });
@@ -121,12 +121,14 @@ describe("POST /api/v1/ignored-products", () => {
         marketplace: "tcgplayer",
         externalId: 12_345,
         finish: "normal",
+        language: "EN",
         productName: "Fire Dragon",
       },
       {
         marketplace: "tcgplayer",
         externalId: 67_890,
         finish: "foil",
+        language: "EN",
         productName: "Ice Elemental",
       },
     ]);
@@ -144,8 +146,8 @@ describe("POST /api/v1/ignored-products", () => {
       body: JSON.stringify({
         marketplace: "tcgplayer",
         products: [
-          { externalId: 12_345, finish: "normal" },
-          { externalId: 99_999, finish: "foil" },
+          { externalId: 12_345, finish: "normal", language: "EN" },
+          { externalId: 99_999, finish: "foil", language: "EN" },
         ],
       }),
     });
@@ -162,7 +164,7 @@ describe("POST /api/v1/ignored-products", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         marketplace: "tcgplayer",
-        products: [{ externalId: 99_999, finish: "normal" }],
+        products: [{ externalId: 99_999, finish: "normal", language: "EN" }],
       }),
     });
     expect(res.status).toBe(200);
@@ -183,7 +185,7 @@ describe("POST /api/v1/ignored-products", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         marketplace: "tcgplayer",
-        products: [{ externalId: 12_345, finish: "normal" }],
+        products: [{ externalId: 12_345, finish: "normal", language: "EN" }],
       }),
     });
     expect(res.status).toBe(200);
@@ -192,6 +194,7 @@ describe("POST /api/v1/ignored-products", () => {
         marketplace: "tcgplayer",
         externalId: 12_345,
         finish: "normal",
+        language: "EN",
         productName: "Fire Dragon",
       },
     ]);
@@ -211,8 +214,8 @@ describe("DELETE /api/v1/ignored-products", () => {
       body: JSON.stringify({
         marketplace: "tcgplayer",
         products: [
-          { externalId: 12_345, finish: "normal" },
-          { externalId: 67_890, finish: "foil" },
+          { externalId: 12_345, finish: "normal", language: "EN" },
+          { externalId: 67_890, finish: "foil", language: "EN" },
         ],
       }),
     });
@@ -220,8 +223,8 @@ describe("DELETE /api/v1/ignored-products", () => {
     const json = await res.json();
     expect(json.unignored).toBe(2);
     expect(mockMktAdmin.deleteIgnoredProducts).toHaveBeenCalledWith("tcgplayer", [
-      { externalId: 12_345, finish: "normal" },
-      { externalId: 67_890, finish: "foil" },
+      { externalId: 12_345, finish: "normal", language: "EN" },
+      { externalId: 67_890, finish: "foil", language: "EN" },
     ]);
   });
 
@@ -232,7 +235,7 @@ describe("DELETE /api/v1/ignored-products", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         marketplace: "cardmarket",
-        products: [{ externalId: 99_999, finish: "normal" }],
+        products: [{ externalId: 99_999, finish: "normal", language: "EN" }],
       }),
     });
     expect(res.status).toBe(200);

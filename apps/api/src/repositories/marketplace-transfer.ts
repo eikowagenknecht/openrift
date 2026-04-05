@@ -84,6 +84,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
       marketplace: string,
       ps: { externalId: number; groupId: number; productName: string },
       finish: string,
+      language: string,
       snap: {
         recordedAt: Date;
         marketCents: number;
@@ -104,6 +105,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
           groupId: ps.groupId,
           productName: ps.productName,
           finish,
+          language,
           recordedAt: snap.recordedAt,
           marketCents: snap.marketCents,
           lowCents: snap.lowCents,
@@ -115,7 +117,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
           avg30Cents: snap.avg30Cents,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
     },
@@ -123,16 +125,16 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
     /** Bulk-copy all snapshots back to staging for a marketplace (used during unmap-all). */
     async bulkUnmapToStaging(marketplace: string): Promise<void> {
       await sql`
-        INSERT INTO marketplace_staging (marketplace, external_id, group_id, product_name, finish, recorded_at,
+        INSERT INTO marketplace_staging (marketplace, external_id, group_id, product_name, finish, language, recorded_at,
           market_cents, low_cents, mid_cents, high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents)
-        SELECT s.marketplace, s.external_id, s.group_id, s.product_name, p.finish, snap.recorded_at,
+        SELECT s.marketplace, s.external_id, s.group_id, s.product_name, p.finish, s.language, snap.recorded_at,
           snap.market_cents, snap.low_cents, snap.mid_cents, snap.high_cents, snap.trend_cents, snap.avg1_cents, snap.avg7_cents, snap.avg30_cents
         FROM marketplace_products s
         JOIN printings p ON p.id = s.printing_id
         JOIN marketplace_snapshots snap ON snap.product_id = s.id
         WHERE s.marketplace = ${marketplace}
           AND s.external_id IS NOT NULL
-        ON CONFLICT (marketplace, external_id, finish, recorded_at) DO NOTHING
+        ON CONFLICT (marketplace, external_id, finish, language, recorded_at) DO NOTHING
       `.execute(db);
     },
   };

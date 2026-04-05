@@ -28,13 +28,13 @@ function createMockMappingRepo(overrides: Record<string, unknown> = {}) {
     groupNames: vi.fn().mockResolvedValue([]),
     allCardsWithPrintings: vi.fn().mockResolvedValue([]),
     stagingCardOverrides: vi.fn().mockResolvedValue([]),
-    printingFinishes: vi.fn().mockResolvedValue([]),
+    printingFinishesAndLanguages: vi.fn().mockResolvedValue([]),
     stagingByExternalIds: vi.fn().mockResolvedValue([]),
     upsertSources: vi.fn().mockResolvedValue([]),
     insertSnapshots: vi.fn().mockResolvedValue(undefined),
     deleteStagingTuples: vi.fn().mockResolvedValue(undefined),
     getSource: vi.fn().mockResolvedValue(null),
-    getPrintingFinish: vi.fn().mockResolvedValue({ finish: "normal" }),
+    getPrintingFinishAndLanguage: vi.fn().mockResolvedValue({ finish: "normal", language: "EN" }),
     snapshotsByProductId: vi.fn().mockResolvedValue([]),
     deleteSnapshotsByProductId: vi.fn().mockResolvedValue(undefined),
     deleteSourceById: vi.fn().mockResolvedValue(undefined),
@@ -75,6 +75,7 @@ function makeStagingRow(overrides: Partial<StagingRow> = {}): StagingRow {
     groupId: 1,
     productName: "Test Product",
     finish: "normal",
+    language: "EN",
     recordedAt: new Date("2026-01-15T10:00:00Z"),
     marketCents: 500,
     lowCents: 400,
@@ -107,10 +108,12 @@ function makeCardPrintingRow(overrides: Record<string, unknown> = {}) {
     isSigned: false,
     promoTypeSlug: null,
     finish: "normal",
+    language: "EN",
     collectorNumber: 1,
     imageUrl: null,
     externalId: null,
     sourceGroupId: null,
+    sourceLanguage: null,
     ...overrides,
   };
 }
@@ -176,7 +179,9 @@ describe("getMappingOverview", () => {
         ]),
       stagingCardOverrides: vi
         .fn()
-        .mockResolvedValue([{ externalId: 99, finish: "normal", cardId: "card-1" }]),
+        .mockResolvedValue([
+          { externalId: 99, finish: "normal", language: "EN", cardId: "card-1" },
+        ]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
     const config = createMockConfig();
@@ -258,6 +263,7 @@ describe("getMappingOverview", () => {
         {
           externalId: 12_345,
           finish: "normal",
+          language: "EN",
           productName: "Ignored Product",
           createdAt: new Date(),
         },
@@ -545,6 +551,7 @@ describe("getMappingOverview", () => {
         {
           externalId: 999,
           finish: "normal",
+          language: "EN",
           productName: "Ignored Product",
           createdAt: new Date("2026-01-10"),
         },
@@ -567,11 +574,15 @@ describe("getMappingOverview", () => {
 
   it("uses fallback group name for ignored product without staging data", async () => {
     const mappingRepo = createMockMappingRepo({
-      ignoredProducts: vi
-        .fn()
-        .mockResolvedValue([
-          { externalId: 999, finish: "normal", productName: "Ignored", createdAt: new Date() },
-        ]),
+      ignoredProducts: vi.fn().mockResolvedValue([
+        {
+          externalId: 999,
+          finish: "normal",
+          language: "EN",
+          productName: "Ignored",
+          createdAt: new Date(),
+        },
+      ]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
     const config = createMockConfig();
@@ -723,7 +734,9 @@ describe("getMappingOverview", () => {
         .mockResolvedValue([makeStagingRow({ externalId: 99, productName: "Override Target" })]),
       stagingCardOverrides: vi
         .fn()
-        .mockResolvedValue([{ externalId: 99, finish: "normal", cardId: "nonexistent-card" }]),
+        .mockResolvedValue([
+          { externalId: 99, finish: "normal", language: "EN", cardId: "nonexistent-card" },
+        ]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
     const config = createMockConfig();
@@ -824,11 +837,14 @@ describe("saveMappings", () => {
 
   it("saves a mapping successfully", async () => {
     const mappingRepo = createMockMappingRepo({
-      printingFinishes: vi.fn().mockResolvedValue([{ id: "p-1", finish: "normal" }]),
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "normal", language: "EN" }]),
       stagingByExternalIds: vi.fn().mockResolvedValue([
         {
           externalId: 12_345,
           finish: "normal",
+          language: "EN",
           groupId: 1,
           productName: "Test Product",
           recordedAt: new Date("2026-01-15"),
@@ -860,7 +876,7 @@ describe("saveMappings", () => {
 
   it("skips mapping when printing not found", async () => {
     const mappingRepo = createMockMappingRepo({
-      printingFinishes: vi.fn().mockResolvedValue([]),
+      printingFinishesAndLanguages: vi.fn().mockResolvedValue([]),
       stagingByExternalIds: vi.fn().mockResolvedValue([]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
@@ -876,13 +892,16 @@ describe("saveMappings", () => {
     expect(result.skipped[0].reason).toBe("printing not found");
   });
 
-  it("skips mapping when finish mismatch", async () => {
+  it("skips mapping when variant mismatch", async () => {
     const mappingRepo = createMockMappingRepo({
-      printingFinishes: vi.fn().mockResolvedValue([{ id: "p-1", finish: "foil" }]),
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "foil", language: "EN" }]),
       stagingByExternalIds: vi.fn().mockResolvedValue([
         {
           externalId: 12_345,
           finish: "normal",
+          language: "EN",
           groupId: 1,
           productName: "X",
           recordedAt: new Date(),
@@ -906,12 +925,14 @@ describe("saveMappings", () => {
     ]);
 
     expect(result.skipped).toHaveLength(1);
-    expect(result.skipped[0].reason).toContain("finish mismatch");
+    expect(result.skipped[0].reason).toContain("variant mismatch");
   });
 
   it("skips mapping when no staging data found", async () => {
     const mappingRepo = createMockMappingRepo({
-      printingFinishes: vi.fn().mockResolvedValue([{ id: "p-1", finish: "normal" }]),
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "normal", language: "EN" }]),
       stagingByExternalIds: vi.fn().mockResolvedValue([]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
@@ -928,7 +949,7 @@ describe("saveMappings", () => {
 
   it("returns 0 saved when all mappings are skipped", async () => {
     const mappingRepo = createMockMappingRepo({
-      printingFinishes: vi.fn().mockResolvedValue([]),
+      printingFinishesAndLanguages: vi.fn().mockResolvedValue([]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
     const transact = mockTransact(repos);
@@ -944,11 +965,14 @@ describe("saveMappings", () => {
 
   it("does not insert snapshots when no snapshot rows exist", async () => {
     const mappingRepo = createMockMappingRepo({
-      printingFinishes: vi.fn().mockResolvedValue([{ id: "p-1", finish: "normal" }]),
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "normal", language: "EN" }]),
       stagingByExternalIds: vi.fn().mockResolvedValue([
         {
           externalId: 12_345,
           finish: "normal",
+          language: "EN",
           groupId: 1,
           productName: "X",
           recordedAt: new Date(),
@@ -975,11 +999,14 @@ describe("saveMappings", () => {
 
   it("handles multiple staging rows for same externalId+finish", async () => {
     const mappingRepo = createMockMappingRepo({
-      printingFinishes: vi.fn().mockResolvedValue([{ id: "p-1", finish: "normal" }]),
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "normal", language: "EN" }]),
       stagingByExternalIds: vi.fn().mockResolvedValue([
         {
           externalId: 12_345,
           finish: "normal",
+          language: "EN",
           groupId: 1,
           productName: "X",
           recordedAt: new Date("2026-01-01"),
@@ -995,6 +1022,7 @@ describe("saveMappings", () => {
         {
           externalId: 12_345,
           finish: "normal",
+          language: "EN",
           groupId: 1,
           productName: "X",
           recordedAt: new Date("2026-01-02"),
@@ -1075,7 +1103,7 @@ describe("unmapPrinting", () => {
         groupId: 1,
         productName: "Test Product",
       }),
-      getPrintingFinish: vi.fn().mockResolvedValue({ finish: "normal" }),
+      getPrintingFinishAndLanguage: vi.fn().mockResolvedValue({ finish: "normal", language: "EN" }),
       snapshotsByProductId: vi.fn().mockResolvedValue([
         {
           recordedAt: new Date("2026-01-15"),

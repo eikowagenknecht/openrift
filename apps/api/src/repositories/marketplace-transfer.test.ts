@@ -37,6 +37,7 @@ describe("marketplaceTransferRepo", () => {
         "tcgplayer",
         { externalId: 123, groupId: 456, productName: "Card" },
         "normal",
+        "EN",
         {
           recordedAt: new Date(),
           marketCents: 1500,

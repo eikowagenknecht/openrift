@@ -66,14 +66,14 @@ export function priceRefreshRepo(db: Db) {
 
     // ── Ignored keys ────────────────────────────────────────────────────────
 
-    /** @returns Ignored product keys as "externalId::finish" set. */
+    /** @returns Ignored product keys as "externalId::finish::language" set. */
     async loadIgnoredKeys(marketplace: string): Promise<Set<string>> {
       const rows = await db
         .selectFrom("marketplaceIgnoredProducts")
-        .select(["externalId", "finish"])
+        .select(["externalId", "finish", "language"])
         .where("marketplace", "=", marketplace)
         .execute();
-      return new Set(rows.map((r) => `${r.externalId}::${r.finish}`));
+      return new Set(rows.map((r) => `${r.externalId}::${r.finish}::${r.language}`));
     },
 
     // ── Group upsert ────────────────────────────────────────────────────────
@@ -107,12 +107,12 @@ export function priceRefreshRepo(db: Db) {
 
     // ── Source lookup ────────────────────────────────────────────────────────
 
-    /** @returns Marketplace sources joined with printing finish. */
+    /** @returns Marketplace sources joined with printing finish, including source language. */
     sourcesWithFinish(marketplace: string) {
       return db
         .selectFrom("marketplaceProducts as src")
         .innerJoin("printings as p", "p.id", "src.printingId")
-        .select(["src.id", "src.printingId", "src.externalId", "p.finish"])
+        .select(["src.id", "src.printingId", "src.externalId", "src.language", "p.finish"])
         .where("src.marketplace", "=", marketplace)
         .execute();
     },
@@ -184,6 +184,7 @@ export function priceRefreshRepo(db: Db) {
       batch: {
         externalId: number;
         finish: string;
+        language: string;
         productName: string;
         recordedAt: Date;
         groupId: number;
@@ -211,7 +212,7 @@ export function priceRefreshRepo(db: Db) {
         .values(batch.map((r) => ({ ...r, marketplace })))
         .onConflict((oc) =>
           oc
-            .columns(["marketplace", "externalId", "finish", "recordedAt"])
+            .columns(["marketplace", "externalId", "finish", "language", "recordedAt"])
             .doUpdateSet(stagingUpdateSet)
             .where(distinctWhere),
         )
@@ -257,6 +258,7 @@ export function priceRefreshRepo(db: Db) {
         groupId: number;
         productName: string;
         printingId: string;
+        language: string;
       }[],
     ): Promise<void> {
       if (values.length === 0) {
