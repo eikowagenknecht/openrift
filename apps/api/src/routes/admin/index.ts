@@ -19,6 +19,7 @@ import { adminProviderSettingsRoute } from "./provider-settings.js";
 import { adminRulesRoute } from "./rules.js";
 import { adminSiteSettingsRoute } from "./site-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
+import { adminStatusRoute } from "./status.js";
 import { typographyReviewRoute } from "./typography-review.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 import { adminUserFeatureFlagsRoute } from "./user-feature-flags.js";
@@ -108,4 +109,5 @@ export const adminRoute = app
   .route("/admin", adminCardsRoute)
   .route("/admin", adminUsersRoute)
   .route("/admin", adminUserFeatureFlagsRoute)
-  .route("/admin", adminRulesRoute);
+  .route("/admin", adminRulesRoute)
+  .route("/admin", adminStatusRoute);
