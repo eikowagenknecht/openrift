@@ -13,12 +13,13 @@ export const piltoverCodec: DeckCodec = {
 
   encode(cards: DeckCodecCard[]): EncodeResult {
     const warnings: string[] = [];
-    const mainDeck: PiltoverCard[] = [];
+    // Accumulate mainDeck counts by shortCode so the champion copy is merged
+    // with any existing main-zone copies into a single entry.
+    const mainDeckMap = new Map<string, number>();
     const sideboard: PiltoverCard[] = [];
     let chosenChampion: string | undefined;
 
     for (const card of cards) {
-      // Skip overflow — not encodable
       if (card.zone === "overflow") {
         continue;
       }
@@ -30,18 +31,24 @@ export const piltoverCodec: DeckCodec = {
 
       if (card.zone === "champion") {
         chosenChampion = card.shortCode;
+        // The Piltover format expects the chosen champion counted in mainDeck
+        // (it's a marker, not an extra slot), so include 1 copy.
+        mainDeckMap.set(card.shortCode, (mainDeckMap.get(card.shortCode) ?? 0) + 1);
         continue;
       }
 
-      const entry: PiltoverCard = { cardCode: card.shortCode, count: card.quantity };
-
       if (card.zone === "sideboard") {
-        sideboard.push(entry);
+        sideboard.push({ cardCode: card.shortCode, count: card.quantity });
       } else {
         // main, runes, legend, battlefield all go into mainDeck
-        mainDeck.push(entry);
+        mainDeckMap.set(card.shortCode, (mainDeckMap.get(card.shortCode) ?? 0) + card.quantity);
       }
     }
+
+    const mainDeck: PiltoverCard[] = [...mainDeckMap.entries()].map(([cardCode, count]) => ({
+      cardCode,
+      count,
+    }));
 
     const code = getCodeFromDeck(mainDeck, sideboard, chosenChampion);
     return { code, warnings };
@@ -54,8 +61,19 @@ export const piltoverCodec: DeckCodec = {
 
     const cards: DecodeResult["cards"] = [];
 
+    // The Piltover format includes the chosen champion in mainDeck — subtract
+    // 1 copy so we don't double-count when we add the champion entry below.
+    let championSubtracted = false;
     for (const card of decoded.mainDeck) {
-      cards.push({ cardCode: card.cardCode, count: card.count, sourceSlot: "mainDeck" });
+      let count = card.count;
+      if (!championSubtracted && decoded.chosenChampion === card.cardCode) {
+        count -= 1;
+        championSubtracted = true;
+      }
+
+      if (count > 0) {
+        cards.push({ cardCode: card.cardCode, count, sourceSlot: "mainDeck" });
+      }
     }
 
     for (const card of decoded.sideboard) {

@@ -58,13 +58,24 @@ function parsePiltoverDeckCode(code: string): DeckParseResult {
     const decoded = getDeckFromCode(code);
     const entries: DeckImportEntry[] = [];
 
+    // The Piltover format includes the chosen champion in mainDeck — subtract
+    // 1 copy so we don't double-count when we add the champion entry below.
+    let championSubtracted = false;
     for (const card of decoded.mainDeck) {
-      entries.push({
-        shortCode: card.cardCode,
-        quantity: card.count,
-        sourceSlot: "mainDeck",
-        rawFields: { "Source Code": card.cardCode, Slot: "Main Deck" },
-      });
+      let quantity = card.count;
+      if (!championSubtracted && decoded.chosenChampion === card.cardCode) {
+        quantity -= 1;
+        championSubtracted = true;
+      }
+
+      if (quantity > 0) {
+        entries.push({
+          shortCode: card.cardCode,
+          quantity,
+          sourceSlot: "mainDeck",
+          rawFields: { "Source Code": card.cardCode, Slot: "Main Deck" },
+        });
+      }
     }
 
     for (const card of decoded.sideboard) {
